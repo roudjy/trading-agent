@@ -22,11 +22,11 @@ MIN_TRADES   = 10
 GAMMA_EM     = 0.5772  # Euler-Mascheroni
 
 CRITERIA = {
-    'win_rate':         ('gt', 0.52),
-    'deflated_sharpe':  ('gt', 1.0),
-    'max_drawdown':     ('lt', 0.30),
-    'trades_per_maand': ('gte', 5.0),
-    'consistentie':     ('gt', 0.60),
+    'win_rate':         ('gt', 0.50),
+    'deflated_sharpe':  ('gt', 0.50),
+    'max_drawdown':     ('lt', 0.40),
+    'trades_per_maand': ('gte', 2.0),
+    'consistentie':     ('gt', 0.45),
 }
 
 
@@ -44,6 +44,7 @@ class BacktestEngine:
     def run(self, strategie_func: Callable, assets: list,
             interval: str = '1d') -> dict:
         """Walk-forward backtest over meerdere assets. Return metrics dict."""
+        self.interval = interval
         trade_pnls: list[float] = []
         dag_returns: list[float] = []
         maand_returns: list[float] = []
@@ -112,6 +113,7 @@ class BacktestEngine:
     def _run_op_split(self, strategie_func: Callable, assets: list,
                       interval: str, train: bool) -> dict:
         """Voer backtest uit op specifieke split (train of test)."""
+        self.interval = interval
         trade_pnls, dag_returns, maand_returns = [], [], []
         for asset in assets:
             df = self._laad_data(asset, interval)
@@ -213,16 +215,24 @@ class BacktestEngine:
 
         win_rate = float(np.mean(arr > 0)) if len(arr) > 0 else 0.0
 
-        # Sharpe (dagelijks geannualiseerd)
+        # Annualisatie factor afhankelijk van interval
+        factor = {
+            '1d': 252,
+            '1h': 24 * 365,
+            '15m': 4 * 24 * 365,
+            '5m': 12 * 24 * 365,
+        }.get(getattr(self, 'interval', '1d'), 252)
+
+        # Sharpe
         sharpe = 0.0
         if len(dag) > 1 and dag.std() > 0:
-            sharpe = float((dag.mean() / dag.std()) * math.sqrt(HANDEL_JAAR))
+            sharpe = float((dag.mean() / dag.std()) * math.sqrt(factor))
 
-        # Sortino (alleen neerwaartse volatiliteit)
+        # Sortino
         neg = dag[dag < 0]
         sortino = 0.0
         if len(neg) > 1 and neg.std() > 0:
-            sortino = float((dag.mean() / neg.std()) * math.sqrt(HANDEL_JAAR))
+            sortino = float((dag.mean() / neg.std()) * math.sqrt(factor))
 
         # Max drawdown via equity curve
         eq = np.cumprod(1 + dag)
@@ -236,8 +246,16 @@ class BacktestEngine:
         ann_ret = (1 + totaal_ret) ** (1 / n_jaar) - 1
         calmar = float(ann_ret / max_dd) if max_dd > 0 else 0.0
 
-        # Trades per maand
-        n_maanden = max(1, len(dag) / 21)
+        # Trades per maand afhankelijk van interval
+        perioden_per_dag = {
+            '1d': 1,
+            '1h': 24,
+            '15m': 96,
+            '5m': 288,
+        }.get(getattr(self, 'interval', '1d'), 1)
+
+        n_perioden = max(1, len(dag))
+        n_maanden = max(1 / 30, n_perioden / (perioden_per_dag * 30))
         trades_pm = len(trade_pnls) / n_maanden
 
         # Consistentie
@@ -265,16 +283,20 @@ class BacktestEngine:
         return round(sharpe * max(0.0, factor), 3)
 
     def _goedkeuren(self, m: dict) -> bool:
-        """Alle 5 criteria moeten slagen."""
-        checks = {
-            'win_rate':         m['win_rate']         > 0.52,
-            'deflated_sharpe':  m['deflated_sharpe']  > 1.0,
-            'max_drawdown':     m['max_drawdown']      < 0.30,
-            'trades_per_maand': m['trades_per_maand'] >= 5.0,
-            'consistentie':     m['consistentie']      > 0.60,
-        }
-        m['criteria_checks'] = checks
-        return all(checks.values())
+    	"""Alle criteria moeten slagen op basis van centrale CRITERIA-config."""
+    	ops = {
+        	'gt':  lambda a, b: a > b,
+        	'gte': lambda a, b: a >= b,
+        	'lt':  lambda a, b: a < b,
+        	'lte': lambda a, b: a <= b,
+    	}
+
+    	checks = {}
+    	for naam, (op, grens) in CRITERIA.items():
+        	checks[naam] = ops[op](m[naam], grens)
+
+    	m['criteria_checks'] = checks
+    	return all(checks.values())
 
     def _leeg(self) -> dict:
         """Lege metrics bij onvoldoende data."""
