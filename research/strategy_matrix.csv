@@ -1,0 +1,4 @@
+strategy_family,asset_type,assets,timeframe,regime,win_rate,sharpe,max_dd,trades_pm,consistentie,verdict
+mean_reversion,crypto,BTC/ETH/SOL,1h,all,0.24,-11.8,0.97,22,0.0,FAIL
+bollinger_mr,crypto,BTC/ETH/SOL,1d,all,0.42,0.23,0.08,0.6,0.20,WEAK
+bollinger_mr_regime,crypto,BTC/ETH/SOL,1h,filtered,0.21,-7.5,0.60,5.7,0.04,FAIL

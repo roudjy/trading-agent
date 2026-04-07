@@ -6,6 +6,7 @@ Signaal wordt door engine.shift(1) gezet → geen lookahead bias.
 """
 import logging
 from typing import Optional
+from agent.brain.regime_detector import RegimeDetector, Regime
 
 import numpy as np
 import pandas as pd
@@ -99,27 +100,99 @@ def laad_fear_greed(limit: int = 1000) -> Optional[pd.DataFrame]:
 
 def bollinger_strategie(periode: int = 20, std: float = 2.0):
     """
-    Breakout strategie: long boven bovenband, short onder onderband.
-    Sluit positie zodra prijs terugkeert naar middenband.
+    Mean reversion strategie:
+    - long onder de onderband
+    - short boven de bovenband
+    - exit bij terugkeer naar de middenband
     """
     def func(df: pd.DataFrame) -> pd.Series:
         close = df['close'].astype(float)
         if len(close) < periode + 1:
             return pd.Series(0, index=df.index)
+
         bb = ta.volatility.BollingerBands(close, window=periode, window_dev=std)
         upper = bb.bollinger_hband()
         lower = bb.bollinger_lband()
         midden = bb.bollinger_mavg()
 
         sig = pd.Series(0, index=df.index)
-        sig[close > upper] = 1    # breakout boven → long
-        sig[close < lower] = -1   # breakout onder → short
-        # Exit naar midden
-        sig[(close < midden) & (sig.shift(1) == 1)]  = 0
-        sig[(close > midden) & (sig.shift(1) == -1)] = 0
+
+        # Entries: mean reversion
+        sig[close < lower] = 1
+        sig[close > upper] = -1
+
+        # Exit bij terugkeer richting middenband
+        sig[(close >= midden) & (sig.shift(1) == 1)] = 0
+        sig[(close <= midden) & (sig.shift(1) == -1)] = 0
+
         return sig
+
     return func
 
+def bollinger_regime_strategie(config: dict,
+                               periode: int = 20,
+                               std: float = 2.0):
+    """
+    Bollinger mean reversion + regime filter:
+    - Alleen traden in zijwaartse / hoge volatiliteit markten
+    """
+
+    detector = RegimeDetector(config)
+
+    def func(df: pd.DataFrame) -> pd.Series:
+        close = df['close'].astype(float)
+
+        if len(close) < periode + 50:
+            return pd.Series(0, index=df.index)
+
+        bb = ta.volatility.BollingerBands(close, window=periode, window_dev=std)
+        upper = bb.bollinger_hband()
+        lower = bb.bollinger_lband()
+        midden = bb.bollinger_mavg()
+
+        sig = pd.Series(0, index=df.index)
+        prijzen = close.values
+
+        lookback = detector.lookback
+        start_idx = max(periode + 1, lookback + 1)
+
+        for i in range(start_idx, len(df)):
+            window = prijzen[i - (lookback + 1):i]
+
+            regime_result = detector._analyseer(
+                symbool="tmp",
+                prijzen=window,
+                data={}
+            )
+
+            regime = regime_result.regime
+
+            if regime not in [Regime.ZIJWAARTS, Regime.HOGE_VOLATILITEIT]:
+                continue
+
+            prijs = close.iloc[i]
+
+            # Mean reversion met bevestiging (reversal candle)
+        if (
+            prijs < lower.iloc[i]
+            and close.iloc[i] > close.iloc[i - 1]
+        ):
+            sig.iloc[i] = 1
+
+        elif (
+            prijs > upper.iloc[i]
+            and close.iloc[i] < close.iloc[i - 1]
+        ):
+            sig.iloc[i] = -1
+
+            if sig.iloc[i - 1] == 1 and prijs >= midden.iloc[i]:
+                sig.iloc[i] = 0
+            elif sig.iloc[i - 1] == -1 and prijs <= midden.iloc[i]:
+                sig.iloc[i] = 0
+
+        return sig
+
+    return func
 
 # ── Earnings Drift ────────────────────────────────────────────────────────────
 
