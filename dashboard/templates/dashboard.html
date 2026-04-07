@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JvR Trading Agent</title>
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1d9e75">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JvR Trade">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+       background:#f5f5f0; color:#1a1a18; font-size:14px; }
+
+/* Header */
+.header { background:#fff; border-bottom:1px solid #e5e4de;
+          padding:14px 24px; display:flex; align-items:center;
+          justify-content:space-between; position:sticky; top:0; z-index:100; }
+.header h1 { font-size:15px; font-weight:500; }
+.status-dot { width:8px; height:8px; border-radius:50%;
+              background:#1d9e75; display:inline-block; margin-right:6px; }
+.status-dot.inactief { background:#e24b4a; }
+.status-dot.gepauzeerd { background:#f59e0b; }
+
+/* Drawdown banner */
+#drawdown-banner { display:none; background:#a32d2d; color:#fff;
+                   padding:10px 24px; font-size:13px; font-weight:500;
+                   text-align:center; }
+#drawdown-banner.kritiek { background:#7a0000; }
+@keyframes knipperend { 0%,100%{opacity:1} 50%{opacity:0.35} }
+#drawdown-banner.kritiek { animation: knipperend 0.9s ease-in-out infinite; }
+
+/* Notification bar */
+#notif-bar { display:none; background:#faeeda; border-bottom:1px solid #f3d5a0;
+             padding:10px 24px; font-size:13px; font-weight:500; color:#854f0b;
+             display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+
+.container { max-width:1280px; margin:0 auto; padding:20px 24px; }
+
+/* Grids */
+.grid-4 { display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+           gap:12px; margin-bottom:16px; }
+.grid-2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+           gap:16px; margin-bottom:16px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+           gap:16px; margin-bottom:16px; }
+
+/* Cards */
+.metric { background:#f0ede6; border-radius:8px; padding:14px 16px; }
+.metric-label { font-size:11px; color:#888780; margin-bottom:4px; }
+.metric-value { font-size:22px; font-weight:500; }
+.metric-sub { font-size:11px; color:#888780; margin-top:2px; }
+.card { background:#fff; border:0.5px solid #e5e4de; border-radius:12px;
+        padding:16px 20px; margin-bottom:0; }
+.card-title { font-size:12px; color:#888780; font-weight:500;
+              margin-bottom:12px; display:flex; justify-content:space-between;
+              align-items:center; }
+.card-title span { font-size:10px; color:#b4b2a9; font-weight:400; }
+
+/* Colors */
+.pos { color:#0f6e56; }
+.neg { color:#a32d2d; }
+.neutral { color:#888780; }
+
+/* Spinner */
+.spinner { text-align:center; padding:20px; color:#888780;
+           animation:pulse 1.5s infinite; font-size:13px; }
+@keyframes pulse {
+  0%, 100% { opacity:1; }
+  50%       { opacity:0.3; }
+}
+
+/* Tables */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; color:#888780; font-weight:400; padding:0 8px 8px 0;
+     font-size:11px; border-bottom:0.5px solid #e5e4de; white-space:nowrap; }
+td { padding:7px 8px 7px 0; border-bottom:0.5px solid #f0ede6;
+     vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+
+/* Badges */
+.badge { font-size:10px; padding:2px 7px; border-radius:4px;
+         font-weight:500; white-space:nowrap; display:inline-block; }
+.badge-win  { background:#e1f5ee; color:#0f6e56; }
+.badge-loss { background:#fcebeb; color:#a32d2d; }
+.badge-open { background:#f0ede6; color:#5c5b54; }
+.badge-trend-up   { background:#e1f5ee; color:#0f6e56; }
+.badge-trend-down { background:#fcebeb; color:#a32d2d; }
+.badge-sideways   { background:#f0ede6; color:#5c5b54; }
+.badge-volatiel   { background:#faeeda; color:#854f0b; }
+.badge-crisis     { background:#a32d2d; color:#fff; }
+
+/* Regime kleurenmap */
+/* Feed */
+#agent-feed { height:220px; overflow-y:auto; font-size:11px; line-height:1.65;
+              background:#f5f5f0; border-radius:6px; padding:10px 12px;
+              color:#3d3d3a; white-space:pre-wrap; word-break:break-all;
+              margin:0; font-family:ui-monospace,monospace; }
+.feed-error   { color:#a32d2d; }
+.feed-warning { color:#854f0b; }
+.feed-win     { color:#0f6e56; }
+
+/* Pauze knop */
+#pauze-btn { padding:7px 18px; border-radius:6px; border:1px solid #e5e4de;
+             background:#fff; cursor:pointer; font-size:13px; font-weight:500;
+             transition:background .15s; }
+#pauze-btn:hover { background:#f5f5f0; }
+#pauze-btn.gepauzeerd { background:#fcebeb; border-color:#f3c5c5;
+                        color:#a32d2d; }
+
+/* Rapport */
+.rapport-tekst { font-size:13px; line-height:1.75; white-space:pre-wrap;
+                 color:#3d3d3a; max-height:400px; overflow-y:auto; }
+.rapport-tekst h1, .rapport-tekst h2 { font-size:14px; font-weight:500;
+                                        margin:12px 0 6px; }
+
+/* Prijzen grid */
+.prijs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+              gap:8px; }
+.prijs-item { background:#f5f5f0; border-radius:8px; padding:10px 12px; }
+.prijs-sym  { font-size:11px; color:#888780; margin-bottom:2px; }
+.prijs-val  { font-size:16px; font-weight:500; }
+.prijs-type { font-size:10px; color:#b4b2a9; }
+
+/* Audit log */
+.audit-status-ok      { color:#0f6e56; font-weight:500; }
+.audit-status-geblokkeerd { color:#854f0b; font-weight:500; }
+.audit-status-fout    { color:#a32d2d; font-weight:500; }
+.audit-status-overgeslagen { color:#888780; }
+
+/* Scrollable tables */
+.scroll-table { max-height:280px; overflow-y:auto; }
+
+/* Update tijd */
+.update-tijd { font-size:11px; color:#b4b2a9; }
+
+/* Responsive */
+@media (max-width:900px) {
+  .grid-4 { grid-template-columns:repeat(2,1fr); }
+  .grid-2 { grid-template-columns:1fr; }
+  .grid-3 { grid-template-columns:1fr; }
+  .container { padding:16px; }
+  #notif-bar { flex-direction:column; align-items:flex-start; }
+}
+@media (max-width:768px) {
+  .grid-4 { grid-template-columns:1fr 1fr; }
+  .container { padding:12px; }
+  .header { flex-direction:column; align-items:flex-start; gap:8px; }
+  .card { padding:14px; }
+  .metric-value { font-size:20px; }
+  table { font-size:12px; }
+  #pauze-btn { width:100%; }
+}
+@media (max-width:480px) {
+  .grid-4 { grid-template-columns:1fr; }
+  .metric-value { font-size:18px; }
+  .prijs-grid { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="status-dot" id="status-dot"></span>
+    <span style="font-weight:500;">JvR Trading Agent</span>
+    <span style="color:#888780;font-size:12px;" id="pauze-label"></span>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <button id="pauze-btn" onclick="togglePauze()">Agent pauzeren</button>
+    <span class="update-tijd" id="laatste-update">Laden...</span>
+  </div>
+</div>
+
+<!-- ── Drawdown banner ── -->
+<div id="drawdown-banner">
+  ⚠ Drawdown waarschuwing: <span id="drawdown-waarde"></span> verlies t.o.v. piek.
+  Controleer open posities.
+</div>
+
+<!-- ── Notificaties (consecutive losses) ── -->
+<div id="notif-bar" style="display:none;">
+  <span>⚠ <strong><span id="reeks-getal">3</span> opeenvolgende verliezen</strong> —
+    agent handelt nog maar overweeg te pauzeren.</span>
+</div>
+
+<div class="container">
+
+  <!-- ── Metric cards ── -->
+  <div class="grid-4">
+    <div class="metric">
+      <div class="metric-label">Totaal kapitaal</div>
+      <div class="metric-value" id="kapitaal">—</div>
+      <div class="metric-sub" id="totaal-rendement">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Vandaag P&L</div>
+      <div class="metric-value" id="dag-pnl">—</div>
+      <div class="metric-sub">vanaf middernacht</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Win rate (30 dagen)</div>
+      <div class="metric-value" id="win-rate">—</div>
+      <div class="metric-sub" id="open-posities">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Doel voortgang</div>
+      <div class="metric-value" id="doel-voortgang">—</div>
+      <div class="metric-sub">richting €2.800/mnd</div>
+    </div>
+  </div>
+
+  <!-- ── Kapitaalgroei + Strategie ── -->
+  <div class="grid-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Kapitaalgroei
+        <span id="kapitaal-update-tijd"></span>
+      </div>
+      <canvas id="performance-chart" height="180"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Prestaties per strategie</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Strategie</th><th>Trades</th><th>Win rate</th>
+            <th>Gem. %</th><th>Totaal P&L</th>
+          </tr>
+        </thead>
+        <tbody id="strategie-tabel">
+          <tr><td colspan="5"><div class="spinner">⏳ Laden...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Win/loss per week + Top 3 assets ── -->
+  <div class="grid-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Win/verlies per week</div>
+      <canvas id="week-chart" height="180"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 3 assets (totaal P&L)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Symbool</th><th>Trades</th><th>Win rate</th>
+            <th>Gem. %</th><th>Totaal P&L</th>
+          </tr>
+        </thead>
+        <tbody id="top-assets-tabel">
+          <tr><td colspan="5"><div class="spinner">⏳ Laden...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Heatmap per uur ── -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Handelsactiviteit per uur (gemiddeld rendement %)</div>
+    <canvas id="heatmap-chart" height="90"></canvas>
+  </div>
+
+  <!-- ── Live koersen + Regime ── -->
+  <div class="grid-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Live koersen
+        <span id="prijzen-ouderdom"></span>
+      </div>
+      <div class="prijs-grid" id="prijzen-grid">
+        <div class="spinner" style="grid-column:1/-1;">⏳ Laden...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Marktregime (laatste detectie)</div>
+      <div id="regime-container" style="display:flex;flex-wrap:wrap;gap:8px;">
+        <div class="spinner">⏳ Laden...</div>
+      </div>
+      <div style="margin-top:14px;" id="sentiment-container">
+        <div class="card-title" style="margin-bottom:8px;">Sentiment bronnen</div>
+        <div id="sentiment-inhoud" class="spinner" style="font-size:12px;">⏳ Laden...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Live agent feed ── -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Live agent feed
+      <span>verversen elke 10s</span>
+    </div>
+    <pre id="agent-feed"><span class="spinner">⏳ Laden...</span></pre>
+  </div>
+
+  <!-- ── Trades logboek + Rapport ── -->
+  <div class="grid-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Recente trades (laatste 50)</div>
+      <div class="scroll-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Symbool</th><th>Type</th><th>P&L</th>
+              <th>Strategie</th><th>Entry</th><th>Duur</th><th>Geleerd</th>
+            </tr>
+          </thead>
+          <tbody id="trades-tabel">
+            <tr><td colspan="7"><div class="spinner">⏳ Laden...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Laatste dagrapport
+        <span id="rapport-bestand"></span>
+      </div>
+      <div class="rapport-tekst" id="rapport-tekst"><div class="spinner">⏳ Laden...</div></div>
+    </div>
+  </div>
+
+  <!-- ── Audit log (zelfverbeteringen) ── -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Zelfverbeteringen audit log</div>
+    <div class="scroll-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Tijdstip</th><th>Status</th><th>Beschrijving</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tabel">
+          <tr><td colspan="3" class="neutral">Geen audit log gevonden</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ─── Centrale fetch helper met error handling ────────────────────────────────
+async function apiFetch(url, opties = {}) {
+  try {
+    console.log(`[API] Laden: ${url}`);
+    const resp = await fetch(url, opties);
+    if (!resp.ok) {
+      console.warn(`[API] HTTP ${resp.status} voor ${url}`);
+      return null;
+    }
+    const data = await resp.json();
+    console.log(`[API] OK: ${url}`, data);
+    return data;
+  } catch (e) {
+    console.error(`[API] Fout bij ${url}:`, e);
+    return null;
+  }
+}
+
+function _geenData(elementId, bericht = 'Geen data beschikbaar') {
+  const el = document.getElementById(elementId);
+  if (el) el.innerHTML = `<tr><td colspan="99" class="neutral">${bericht}</td></tr>`;
+}
+
+
+// ─── Grafieken ───────────────────────────────────────────────────────────────
+let performanceChart = null;
+let weekChart = null;
+let heatmapChart = null;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function fmt(bedrag) {
+  if (bedrag === null || bedrag === undefined) return '—';
+  return bedrag.toLocaleString('nl-NL', {style:'currency', currency:'EUR'});
+}
+function fmtPct(pct) {
+  if (pct === null || pct === undefined) return '—';
+  return (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+}
+function fmtTijdstip(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts.replace(' ', 'T'));
+  if (isNaN(d)) return ts.substring(5, 16);
+  return d.toLocaleDateString('nl-NL', {day:'2-digit', month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
+}
+function berekenDuur(entry, exit) {
+  if (!exit) return '<span class="neutral">open</span>';
+  const e = new Date(entry.replace(' ', 'T'));
+  const x = new Date(exit.replace(' ', 'T'));
+  const sec = (x - e) / 1000;
+  if (isNaN(sec) || sec < 0) return '—';
+  if (sec < 3600) return Math.round(sec / 60) + 'm';
+  if (sec < 86400) return (sec / 3600).toFixed(1) + 'u';
+  return (sec / 86400).toFixed(1) + 'd';
+}
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+const REGIME_BADGE = {
+  'trending_omhoog':   ['badge-trend-up',   'Trending ↑'],
+  'trending_omlaag':   ['badge-trend-down', 'Trending ↓'],
+  'zijwaarts':         ['badge-sideways',   'Zijwaarts'],
+  'hoge_volatiliteit': ['badge-volatiel',   'Volatiel'],
+  'crisis':            ['badge-crisis',     'Crisis'],
+};
+
+// ─── Status ──────────────────────────────────────────────────────────────────
+async function laadStatus() {
+  try {
+    const d = await apiFetch('/api/status');
+    if (!d) return;
+    const dot = document.getElementById('status-dot');
+    if (!d.agent_actief) {
+      dot.className = 'status-dot inactief';
+    } else {
+      dot.className = 'status-dot';
+    }
+    document.getElementById('laatste-update').textContent =
+      'Bijgewerkt: ' + d.laatste_update;
+
+    // Kapitaal
+    document.getElementById('kapitaal').textContent = fmt(d.huidig_kapitaal);
+    const rendEl = document.getElementById('totaal-rendement');
+    rendEl.textContent = (d.totaal_rendement >= 0 ? '+' : '') +
+      d.totaal_rendement.toFixed(1) + '% all-time';
+    rendEl.className = 'metric-sub ' + (d.totaal_rendement >= 0 ? 'pos' : 'neg');
+
+    // Dag P&L
+    const pnlEl = document.getElementById('dag-pnl');
+    pnlEl.textContent = fmt(d.dag_pnl);
+    pnlEl.className = 'metric-value ' + (d.dag_pnl >= 0 ? 'pos' : 'neg');
+
+    // Win rate
+    document.getElementById('win-rate').textContent = d.win_rate_30d + '%';
+    document.getElementById('open-posities').textContent =
+      d.open_posities + ' open ' + (d.open_posities === 1 ? 'positie' : 'posities');
+
+    // Doel
+    const maandelijks = d.huidig_kapitaal * 0.04;
+    const voortgang = Math.min(100, (maandelijks / 2800 * 100)).toFixed(0);
+    document.getElementById('doel-voortgang').textContent = voortgang + '%';
+  } catch (e) { console.error('Status fout:', e); }
+}
+
+// ─── Pauze ───────────────────────────────────────────────────────────────────
+async function laadPauzeStatus() {
+  try {
+    const d = await apiFetch('/api/agent/pauze/status');
+    if (!d) return;
+    updatePauzeUI(d.gepauzeerd);
+  } catch (e) {}
+}
+async function togglePauze() {
+  const gepauzeerd = document.getElementById('pauze-btn').classList.contains('gepauzeerd');
+  const msg = gepauzeerd
+    ? 'Agent hervatten? Trading gaat verder.'
+    : 'Agent pauzeren? Geen nieuwe posities worden geopend.';
+  if (!confirm(msg)) return;
+  try {
+    const d = await fetch('/api/agent/pauze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({actie: 'toggle'})
+    }).then(r => r.json());
+    updatePauzeUI(d.gepauzeerd);
+  } catch (e) {}
+}
+function updatePauzeUI(gepauzeerd) {
+  const btn = document.getElementById('pauze-btn');
+  const lbl = document.getElementById('pauze-label');
+  const dot = document.getElementById('status-dot');
+  btn.textContent = gepauzeerd ? '▶ Hervatten' : 'Agent pauzeren';
+  btn.className = gepauzeerd ? 'gepauzeerd' : '';
+  lbl.textContent = gepauzeerd ? '— gepauzeerd' : '';
+  if (gepauzeerd) dot.className = 'status-dot gepauzeerd';
+}
+
+// ─── Drawdown banner ─────────────────────────────────────────────────────────
+async function laadDrawdown() {
+  try {
+    const d = await apiFetch('/api/stats/drawdown');
+    if (!d) return;
+    const banner = document.getElementById('drawdown-banner');
+    if (d.waarschuwing) {
+      document.getElementById('drawdown-waarde').textContent =
+        d.drawdown_pct.toFixed(1) + '%';
+      banner.style.display = 'block';
+      banner.className = d.kritiek ? 'kritiek' : '';
+    } else {
+      banner.style.display = 'none';
+      banner.className = '';
+    }
+  } catch (e) {}
+}
+
+// ─── Reeks verliezen ─────────────────────────────────────────────────────────
+async function laadReeksVerliezen() {
+  try {
+    const d = await apiFetch('/api/stats/reeks-verliezen');
+    if (!d) return;
+    const bar = document.getElementById('notif-bar');
+    if (d.waarschuwing) {
+      document.getElementById('reeks-getal').textContent = d.reeks;
+      bar.style.display = 'flex';
+    } else {
+      bar.style.display = 'none';
+    }
+  } catch (e) {}
+}
+
+// ─── Kapitaalgroei grafiek ────────────────────────────────────────────────────
+async function laadPerformance() {
+  try {
+    const data = await apiFetch('/api/performance');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const ctx = document.getElementById('performance-chart').getContext('2d');
+    if (performanceChart) performanceChart.destroy();
+
+    const labels = data.map(d => d.datum);
+    const values = data.map(d => d.kapitaal);
+
+    performanceChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: values[values.length-1] >= 1000 ? '#1d9e75' : '#e24b4a',
+          backgroundColor: values[values.length-1] >= 1000 ? 'rgba(29,158,117,0.07)' : 'rgba(226,75,74,0.07)',
+          fill: true, tension: 0.3, pointRadius: 2, borderWidth: 1.5
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: { callback: v => '€' + v.toLocaleString('nl-NL'), font:{size:11} },
+            grid: { color: 'rgba(0,0,0,0.04)' }
+          },
+          x: { ticks: { font:{size:10}, maxTicksLimit:7 }, grid:{display:false} }
+        },
+        interaction: { intersect:false, mode:'index' }
+      }
+    });
+
+    if (data.length) {
+      document.getElementById('kapitaal-update-tijd').textContent =
+        'tot ' + data[data.length-1].datum;
+    }
+  } catch (e) { console.error('Performance fout:', e); }
+}
+
+// ─── Strategie tabel ─────────────────────────────────────────────────────────
+async function laadStrategie() {
+  try {
+    const data = await apiFetch('/api/strategie/prestaties');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const tbody = document.getElementById('strategie-tabel');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="neutral">Nog geen data</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(s => {
+      const wr = s.totaal > 0 ? Math.round(s.winst / s.totaal * 100) : 0;
+      return `<tr>
+        <td><strong>${escHtml(s.strategie_type)}</strong></td>
+        <td>${s.totaal}</td>
+        <td>${wr}%</td>
+        <td class="${s.gem_rendement_pct >= 0 ? 'pos' : 'neg'}">${fmtPct(s.gem_rendement_pct)}</td>
+        <td class="${s.totaal_pnl >= 0 ? 'pos' : 'neg'}">${fmt(s.totaal_pnl)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ─── Win/verlies per week ────────────────────────────────────────────────────
+async function laadWeekStats() {
+  try {
+    const data = await apiFetch('/api/stats/per-week');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const ctx = document.getElementById('week-chart').getContext('2d');
+    if (weekChart) weekChart.destroy();
+
+    if (!data.length) {
+      ctx.canvas.parentNode.insertAdjacentHTML('beforeend',
+        '<p class="neutral" style="font-size:12px;margin-top:8px;">Nog geen weekdata</p>');
+      return;
+    }
+
+    weekChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.map(d => d.week),
+        datasets: [
+          { label:'Winsten',   data:data.map(d=>d.winsten),  backgroundColor:'rgba(29,158,117,0.75)', borderRadius:3 },
+          { label:'Verliezen', data:data.map(d=>d.verliezen), backgroundColor:'rgba(162,45,45,0.7)', borderRadius:3 }
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { font:{size:11}, boxWidth:12 } } },
+        scales: {
+          x: { ticks:{font:{size:10}}, grid:{display:false} },
+          y: { ticks:{font:{size:11}, stepSize:1}, grid:{color:'rgba(0,0,0,0.04)'} }
+        }
+      }
+    });
+  } catch (e) {}
+}
+
+// ─── Top 3 assets ────────────────────────────────────────────────────────────
+async function laadTopAssets() {
+  try {
+    const data = await apiFetch('/api/stats/top-assets');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const tbody = document.getElementById('top-assets-tabel');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="neutral">Nog geen data</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map((a, i) => {
+      const wr = a.totaal_trades > 0
+        ? Math.round(a.winsten / a.totaal_trades * 100) : 0;
+      const medal = ['🥇','🥈','🥉'][i] || '';
+      return `<tr>
+        <td><strong>${medal} ${escHtml(a.symbool)}</strong></td>
+        <td>${a.totaal_trades}</td>
+        <td>${wr}%</td>
+        <td class="${a.gem_rendement_pct >= 0 ? 'pos' : 'neg'}">${fmtPct(a.gem_rendement_pct)}</td>
+        <td class="${a.totaal_pnl >= 0 ? 'pos' : 'neg'}">${fmt(a.totaal_pnl)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ─── Heatmap ─────────────────────────────────────────────────────────────────
+async function laadHeatmap() {
+  try {
+    const data = await apiFetch('/api/stats/heatmap');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const ctx = document.getElementById('heatmap-chart').getContext('2d');
+    if (heatmapChart) heatmapChart.destroy();
+
+    heatmapChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.map(d => d.uur + ':00'),
+        datasets: [{
+          label: 'Gem. rendement %',
+          data: data.map(d => d.gem_rendement_pct),
+          backgroundColor: data.map(d =>
+            d.gem_rendement_pct > 0 ? 'rgba(29,158,117,0.70)' :
+            d.gem_rendement_pct < 0 ? 'rgba(162,45,45,0.60)' :
+                                      'rgba(140,139,130,0.35)'
+          ),
+          borderRadius: 3,
+        }]
+      },
+      options: {
+        plugins: { legend:{ display:false },
+          tooltip:{ callbacks:{
+            label: ctx => {
+              const d = data[ctx.dataIndex];
+              return [`${ctx.formattedValue}%`, `${d.trades} trades`];
+            }
+          }}
+        },
+        scales: {
+          x: { ticks:{font:{size:9}, maxRotation:0} },
+          y: { ticks:{callback:v=>v+'%', font:{size:10}}, grid:{color:'rgba(0,0,0,0.04)'} }
+        }
+      }
+    });
+  } catch (e) {}
+}
+
+// ─── Live koersen ────────────────────────────────────────────────────────────
+async function laadPrijzen() {
+  try {
+    const d = await apiFetch('/api/prices/live');
+    if (!d) return;
+    const grid = document.getElementById('prijzen-grid');
+    const ouderdom = document.getElementById('prijzen-ouderdom');
+
+    if (d.cache_ouderdom_sec >= 0) {
+      ouderdom.textContent = d.cache_ouderdom_sec + 's geleden';
+    }
+
+    const items = Object.entries(d.prijzen || {});
+    if (!items.length) {
+      grid.innerHTML = '<div class="neutral">Ophalen...</div>';
+      return;
+    }
+
+    grid.innerHTML = items.map(([sym, info]) => {
+      const prijs = info.prijs;
+      const display = prijs !== null
+        ? (info.type === 'crypto'
+            ? '€' + prijs.toLocaleString('nl-NL', {minimumFractionDigits:2, maximumFractionDigits:2})
+            : '$' + prijs.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}))
+        : '—';
+      return `<div class="prijs-item">
+        <div class="prijs-sym">${escHtml(sym)}</div>
+        <div class="prijs-val">${display}</div>
+        <div class="prijs-type">${info.type}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ─── Regime ──────────────────────────────────────────────────────────────────
+async function laadRegime() {
+  try {
+    const data = await apiFetch('/api/regime/huidig');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const container = document.getElementById('regime-container');
+    const entries = Object.entries(data);
+    if (!entries.length) {
+      container.innerHTML = '<span class="neutral" style="font-size:12px;">Nog geen regime gedetecteerd</span>';
+      return;
+    }
+    container.innerHTML = entries.map(([sym, info]) => {
+      const [cls, label] = REGIME_BADGE[info.regime] || ['badge-sideways', info.regime];
+      return `<div style="margin-bottom:6px;width:100%;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;font-weight:500;">${escHtml(sym)}</span>
+        <span class="badge ${cls}">${label}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ─── Sentiment ───────────────────────────────────────────────────────────────
+async function laadSentiment() {
+  try {
+    const d = await apiFetch('/api/sentiment/huidig');
+    const el = document.getElementById('sentiment-inhoud');
+    if (!d || !d.beschikbaar || !d.data || !d.data.length) {
+      el.textContent = 'Sentiment data nog niet beschikbaar (vult na eerste leerdag)';
+      return;
+    }
+    el.innerHTML = d.data.map(s => {
+      const pct = (s.score * 100).toFixed(0) + '%';
+      const kleur = s.score > 0.55 ? '#0f6e56' : s.score < 0.45 ? '#a32d2d' : '#888780';
+      return `<div style="display:flex;justify-content:space-between;padding:4px 0;
+                          border-bottom:0.5px solid #f0ede6;font-size:12px;">
+        <span>${escHtml(s.bron)}</span>
+        <span style="color:${kleur};font-weight:500;">${pct} correct</span>
+      </div>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ─── Live agent feed ─────────────────────────────────────────────────────────
+async function laadAgentFeed() {
+  try {
+    const regels = await apiFetch('/api/logs/recent');
+    const el = document.getElementById('agent-feed');
+    if (!regels || !regels.length) { el.textContent = 'Geen log regels gevonden'; return; }
+
+    // Kleur per log level
+    el.innerHTML = regels.map(r => {
+      const esc = escHtml(r);
+      if (r.includes('| ERROR |') || r.includes('| CRITICAL |'))
+        return `<span class="feed-error">${esc}</span>`;
+      if (r.includes('| WARNING |'))
+        return `<span class="feed-warning">${esc}</span>`;
+      if (r.includes('WINST') || r.includes('winst') || r.includes('Trade uitgevoerd'))
+        return `<span class="feed-win">${esc}</span>`;
+      return esc;
+    }).join('\n');
+
+    // Scroll naar onder (nieuwste)
+    el.scrollTop = el.scrollHeight;
+  } catch (e) {}
+}
+
+// ─── Trades tabel ────────────────────────────────────────────────────────────
+async function laadTrades() {
+  try {
+    const trades = await apiFetch('/api/trades/recent');
+    const tbody = document.getElementById('trades-tabel');
+    if (!trades || !trades.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="neutral">Nog geen trades</td></tr>';
+      return;
+    }
+    tbody.innerHTML = trades.slice(0, 50).map(t => {
+      const pnl = t.pnl;
+      const open = pnl === null || pnl === undefined;
+      const pnlStr = open ? '<span class="badge badge-open">open</span>'
+        : `<span class="${pnl >= 0 ? 'pos' : 'neg'}">${fmt(pnl)}</span>`;
+      const badge = open ? '<span class="badge badge-open">open</span>'
+        : pnl >= 0
+          ? '<span class="badge badge-win">winst</span>'
+          : '<span class="badge badge-loss">verlies</span>';
+      const duur = berekenDuur(t.entry_tijdstip, t.exit_tijdstip);
+      return `<tr>
+        <td><strong>${escHtml(t.symbool)}</strong>
+          <br><span class="neutral" style="font-size:10px;">${escHtml(t.richting)}</span></td>
+        <td>${badge}</td>
+        <td>${pnlStr}</td>
+        <td style="font-size:11px;">${escHtml(t.strategie_type)}</td>
+        <td style="font-size:10px;color:#888780;">${fmtTijdstip(t.entry_tijdstip)}</td>
+        <td style="font-size:10px;color:#888780;">${duur}</td>
+        <td style="font-size:10px;color:#888780;max-width:120px;overflow:hidden;
+                   text-overflow:ellipsis;white-space:nowrap;"
+            title="${escHtml(t.geleerd || '')}">${escHtml(t.geleerd || '—')}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ─── Dagrapport ──────────────────────────────────────────────────────────────
+async function laadRapport() {
+  try {
+    const d = await apiFetch('/api/rapport/laatste');
+    if (!d) { document.getElementById('rapport-tekst').textContent = 'Geen data'; return; }
+    document.getElementById('rapport-tekst').textContent = d.rapport || '—';
+    if (d.bestand) {
+      document.getElementById('rapport-bestand').textContent = d.bestand;
+    }
+  } catch (e) {
+    document.getElementById('rapport-tekst').textContent =
+      'Rapport nog niet beschikbaar.';
+  }
+}
+
+// ─── Audit log ───────────────────────────────────────────────────────────────
+async function laadAuditLog() {
+  try {
+    const entries = await apiFetch('/api/audit/log');
+    const tbody = document.getElementById('audit-tabel');
+    if (!entries || !entries.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="neutral">Geen zelfverbeteringen gelogd</td></tr>';
+      return;
+    }
+    // Nieuwste bovenaan
+    tbody.innerHTML = [...entries].reverse().map(e => {
+      const raw = e.raw;
+      const ts = raw ? '—' : (e.tijdstip || '').replace('T', ' ').substring(0, 16);
+      const status = raw ? '?' : e.status;
+      const uitleg = raw ? e.raw : (e.uitleg || '—');
+      let statusKls = '';
+      if (status === 'UITGEVOERD') statusKls = 'audit-status-ok';
+      else if (status === 'GEBLOKKEERD') statusKls = 'audit-status-geblokkeerd';
+      else if (status === 'FOUT') statusKls = 'audit-status-fout';
+      else statusKls = 'audit-status-overgeslagen';
+      return `<tr>
+        <td style="font-size:11px;white-space:nowrap;">${escHtml(ts)}</td>
+        <td class="${statusKls}" style="white-space:nowrap;">${escHtml(status)}</td>
+        <td style="font-size:12px;">${escHtml(uitleg)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ─── Initialisatie & refresh schema ─────────────────────────────────────────
+async function initialiseer() {
+  await Promise.all([
+    laadStatus(),
+    laadPauzeStatus(),
+    laadDrawdown(),
+    laadReeksVerliezen(),
+    laadTrades(),
+    laadAgentFeed(),
+    laadRapport(),
+    laadAuditLog(),
+    laadAgentOverzicht(),
+    laadTestStatus(),
+  ]);
+  // Grafieken en zware data daarna
+  laadPerformance();
+  laadStrategie();
+  laadWeekStats();
+  laadTopAssets();
+  laadHeatmap();
+  laadPrijzen();
+  laadRegime();
+  laadSentiment();
+}
+
+initialiseer();
+
+// Refresh schema
+setInterval(laadStatus,          30_000);
+setInterval(laadPauzeStatus,     30_000);
+setInterval(laadDrawdown,        60_000);
+setInterval(laadReeksVerliezen,  60_000);
+setInterval(laadAgentFeed,       10_000);
+setInterval(laadTrades,          30_000);
+setInterval(laadPrijzen,         30_000);
+setInterval(laadPerformance,    300_000);
+setInterval(laadStrategie,      300_000);
+setInterval(laadWeekStats,      300_000);
+setInterval(laadTopAssets,      300_000);
+setInterval(laadHeatmap,        300_000);
+setInterval(laadRegime,         300_000);
+setInterval(laadSentiment,      300_000);
+setInterval(laadRapport,        600_000);
+setInterval(laadAuditLog,       300_000);
+setInterval(laadAgentOverzicht,  30_000);
+setInterval(laadTestStatus,      300_000);
+
+// ─── Sub-agent kaarten ──────────────────────────────────────────────────────
+async function laadAgentOverzicht() {
+  try {
+    const data = await apiFetch('/api/agents/overzicht');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const container = document.getElementById('agent-cards');
+    const kleuren = {rsi:'#4ade80', ema:'#60a5fa', bot:'#f59e0b', sentiment:'#a78bfa'};
+    container.innerHTML = data.map(a => {
+      const kleur = kleuren[a.naam] || '#888';
+      const pnlKlasse = a.totaal_pnl >= 0 ? 'win' : 'loss';
+      const bezetting = Math.min(100, (a.totaal_trades / 20) * 100);
+      return `<div style="border:1px solid ${kleur}33;border-radius:8px;padding:12px;background:#1a1a2e;">
+        <div style="color:${kleur};font-weight:bold;font-size:13px;">${escHtml(a.label)}</div>
+        <div style="font-size:11px;color:#888;margin-bottom:8px;">Doel: €${a.kapitaal_doel}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;">
+          <div>Trades: <strong>${a.totaal_trades}</strong></div>
+          <div>Win: <strong>${a.win_rate}%</strong></div>
+          <div>P&L: <strong class="${pnlKlasse}">€${a.totaal_pnl.toFixed(2)}</strong></div>
+          <div>Gem: <strong class="${pnlKlasse}">€${a.gem_pnl.toFixed(2)}</strong></div>
+        </div>
+        <div style="margin-top:8px;height:4px;background:#333;border-radius:2px;">
+          <div style="width:${bezetting}%;height:100%;background:${kleur};border-radius:2px;transition:width 0.5s;"></div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('agent-cards').innerHTML = '<div class="neutral">Fout bij laden agent data</div>';
+  }
+}
+
+// ─── Test status ─────────────────────────────────────────────────────────────
+async function laadTestStatus() {
+  try {
+    const data = await apiFetch('/api/tests/status');
+    if (!data) { console.warn('[UI] Geen data, skip'); return; }
+    const balk = document.getElementById('test-status-balk');
+    const output = document.getElementById('test-output');
+    if (!data.beschikbaar) {
+      balk.style.display = 'block';
+      balk.style.background = '#1a1a1a';
+      balk.style.color = '#888';
+      balk.textContent = data.bericht;
+      return;
+    }
+    balk.style.display = 'block';
+    balk.style.background = data.geslaagd ? '#064e3b' : '#7f1d1d';
+    balk.style.color = data.geslaagd ? '#4ade80' : '#f87171';
+    balk.textContent = data.geslaagd ? '✓ Alle tests geslaagd' : '✗ Tests gefaald — zie output';
+    output.style.display = 'block';
+    output.textContent = (data.regels || []).join('\n');
+  } catch(e) {}
+}
+
+async function draaiTests() {
+  const balk = document.getElementById('test-status-balk');
+  balk.style.display = 'block';
+  balk.style.background = '#1c1c3c';
+  balk.style.color = '#888';
+  balk.textContent = 'Tests draaien... (kan 30-60s duren)';
+  try {
+    await fetch('/api/tests/run', {method: 'POST'});
+    setTimeout(laadTestStatus, 5000);
+  } catch(e) {
+    balk.textContent = 'Kon tests niet starten';
+  }
+}
+
+</script>
+
+  <!-- ── Sub-agent overzicht ── -->
+  <div style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Sub-agent overzicht</div>
+      <div id="agent-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px;">
+        <div class="spinner">⏳ Laden...</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── Backtest resultaten ── -->
+  <div style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Backtest resultaten
+        <span id="bt-timestamp" style="float:right;font-size:11px;opacity:.6;"></span>
+      </div>
+      <div id="bt-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px;">
+        <div class="spinner">⏳ Laden...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Test status ── -->
+  <div style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Test status
+        <button onclick="draaiTests()" style="float:right;font-size:11px;padding:3px 8px;cursor:pointer;">▶ Run tests</button>
+      </div>
+      <div id="test-status-balk" style="padding:8px;border-radius:4px;margin-bottom:8px;display:none;"></div>
+      <pre id="test-output" style="font-size:11px;max-height:200px;overflow-y:auto;background:#111;color:#ccc;padding:8px;border-radius:4px;display:none;"></pre>
+    </div>
+  </div>
+<script>
+
+    // ── Backtest resultaten ──────────────────────────────────────────────────
+    async function laadBacktests() {
+      const grid = document.getElementById('bt-grid');
+      const ts   = document.getElementById('bt-timestamp');
+      try {
+        const r = await fetch('/api/backtests');
+        if (!r.ok) { grid.innerHTML = '<div class="neutral">Geen backtest data</div>'; return; }
+        const data = await r.json();
+        if (data.gegenereerd_op) {
+          const d = new Date(data.gegenereerd_op);
+          ts.textContent = 'Gegenereerd: ' + d.toLocaleString('nl-NL');
+        }
+        grid.innerHTML = data.strategieen.map(s => {
+          const ok = s.goedgekeurd;
+          const kleur = ok ? '#1d9e75' : '#e74c3c';
+          const badge = ok ? '\u2705 GOEDGEKEURD' : '\u274c AFGEWEZEN';
+          const checks = s.criteria_checks;
+          function check(k, label) {
+            if (checks[k] === undefined) return '';
+            return `<span style="color:${checks[k]?'#1d9e75':'#e74c3c'}">${checks[k]?'\u2713':'\u2717'} ${label}</span>`;
+          }
+          return `<div style="border:1px solid ${kleur};border-radius:8px;padding:12px;background:#0d1117;">
+            <div style="font-weight:bold;margin-bottom:6px;">${s.naam}</div>
+            <div style="font-size:12px;font-weight:bold;color:${kleur};margin-bottom:8px;">${badge}</div>
+            ${s.reden ? `<div style="font-size:11px;opacity:.7;">${s.reden}</div>` : `
+            <div style="font-size:11px;display:flex;flex-direction:column;gap:3px;">
+              ${check('win_rate', 'WR ' + s.win_rate + '%')}
+              ${check('deflated_sharpe', 'DS ' + s.deflated_sharpe)}
+              ${check('max_drawdown', 'DD ' + s.max_drawdown + '%')}
+              ${check('trades_per_maand', 'T/m ' + s.trades_per_maand)}
+              ${check('consistentie', 'Cons ' + s.consistentie + '%')}
+            </div>
+            <div style="font-size:10px;opacity:.5;margin-top:6px;">${s.totaal_trades} trades · ${s.assets.join(', ')}</div>
+            `}
+          </div>`;
+        }).join('');
+      } catch(e) {
+        grid.innerHTML = '<div class="neutral">Fout bij laden</div>';
+      }
+    }
+    laadBacktests();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', {scope: '/'})
+      .then(r => console.log('[PWA] SW geregistreerd:', r.scope))
+      .catch(e => console.warn('[PWA] SW mislukt:', e));
+  });
+}
+</script>
+</body>
+</html>

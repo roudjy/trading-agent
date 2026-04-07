@@ -1,0 +1,114 @@
+# CONFIGURATIE TEMPLATE
+# Kopieer dit naar config/config.yaml en vul je API keys in
+# Dit template bestand mag wel in Git staan (geen keys)
+
+agent:
+  naam: "JvR Trading Agent"
+  versie: "1.0.0"
+  taal_rapport: "nederlands"
+  rapport_tijd: "07:00"
+  tijdzone: "Europe/Amsterdam"
+
+kapitaal:
+  start: 1000
+  munt: "EUR"
+  drawdown_limiet: 0.50
+  max_positie_grootte: 0.20
+  nachtmodus_limiet: 1.0
+
+doel:
+  maandinkomen: 2800
+  herinvesteer_winst: true
+  rendement_prioriteit: true
+
+exchanges:
+  bitvavo:
+    actief: false
+    api_key: "INVULLEN"
+    api_secret: "INVULLEN"
+    paper_trading: true
+  kraken:
+    actief: false
+    api_key: "INVULLEN"
+    api_secret: "INVULLEN"
+    paper_trading: true
+  ibkr:
+    actief: false
+    account_id: "INVULLEN"
+    paper_trading: true
+  polymarket:
+    actief: false
+    private_key: "INVULLEN"
+    proxy_wallet: "INVULLEN"
+    alchemy_rpc: "INVULLEN"
+
+assets:
+  crypto:
+    actief: true
+    symbolen: ["BTC/EUR", "ETH/EUR", "SOL/EUR", "BNB/EUR"]
+    max_allocatie: 0.40
+  stocks:
+    actief: true
+    symbolen: ["NVDA", "AAPL", "MSFT", "ASML", "AMD"]
+    max_allocatie: 0.40
+  polymarket:
+    actief: true
+    max_allocatie: 0.20
+    min_liquiditeit: 1000
+    max_markt_blootstelling: 0.05
+
+strategie:
+  regime_detectie:
+    lookback_periode: 20
+    volatiliteit_drempel: 0.025
+  momentum:
+    macd_snel: 12
+    macd_langzaam: 26
+    macd_signaal: 9
+    volume_bevestiging: true
+  mean_reversion:
+    rsi_oversold: 30
+    rsi_overbought: 70
+    bollinger_periode: 20
+    bollinger_std: 2.0
+  adversarial:
+    actief: true
+    bot_detectie_window: 300
+    min_bot_confidence: 0.75
+
+sentiment:
+  reddit:
+    actief: true
+    subreddits: ["wallstreetbets", "investing", "cryptocurrency", "bitcoin"]
+    update_interval: 900
+  twitter_x:
+    actief: true
+    accounts_volgen: ["elonmusk", "CathieDWood", "michael_saylor"]
+    update_interval: 300
+  nieuws:
+    actief: true
+    bronnen: ["reuters", "bloomberg", "coindesk", "nu.nl", "fd.nl"]
+    update_interval: 600
+
+ai:
+  anthropic_api_key: "INVULLEN"
+  model: "claude-opus-4-6"
+  max_tokens: 1000
+  analyse_interval: 3600
+
+leren:
+  trade_geheugen: 1000
+  strategie_update_interval: 86400
+  min_trades_voor_update: 20
+  sentiment_weging_aanpassen: true
+
+dashboard:
+  host: "0.0.0.0"
+  port: 8050
+  update_interval: 30
+  rapport_bewaren: 90
+
+belasting:
+  export_formaat: "csv"
+  peildatum_log: true
+  valuta_conversie_log: true

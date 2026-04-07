@@ -1,0 +1,126 @@
+agent:
+  naam: JvR Trading Agent
+  rapport_tijd: 07:00
+  taal_rapport: nederlands
+  tijdzone: Europe/Amsterdam
+  versie: 1.0.0
+ai:
+  analyse_interval: 3600
+  anthropic_api_key: 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
+  max_tokens: 1000
+  model: claude-opus-4-6
+assets:
+  crypto:
+    actief: true
+    max_allocatie: 0.4
+    symbolen:
+    - BTC/EUR
+    - ETH/EUR
+    - SOL/EUR
+    - BNB/EUR
+  polymarket:
+    actief: true
+    max_allocatie: 0.2
+    max_markt_blootstelling: 0.05
+    min_liquiditeit: 1000
+  stocks:
+    actief: true
+    max_allocatie: 0.4
+    symbolen:
+    - NVDA
+    - AAPL
+    - MSFT
+    - ASML
+    - AMD
+belasting:
+  export_formaat: csv
+  peildatum_log: true
+  valuta_conversie_log: true
+dashboard:
+  host: 0.0.0.0
+  port: 8050
+  rapport_bewaren: 90
+  update_interval: 30
+doel:
+  herinvesteer_winst: true
+  maandinkomen: 2800
+  rendement_prioriteit: true
+exchanges:
+  bitvavo:
+    actief: true
+    api_key: 47d1baf02d564d53c45f5088db4a3c38c5b12749afab57ea22c75c1a896d47f8
+    api_secret: 5ab43fde3d139d191f2b8066923c5023c061c098e82682f3dead70443e4f287998889f5e7be13d9c6ee92e803a4c7fdf28baf8e322cecfea3883f40fdeb2a38f
+    paper_trading: true
+  ibkr:
+    account_id: U25093142
+    actief: true
+    paper_trading: true
+  kraken:
+    actief: false
+    api_key: ''
+    api_secret: ''
+    paper_trading: true
+  polymarket:
+    actief: true
+    alchemy_rpc: https://polygon-mainnet.g.alchemy.com/v2/il-u_awaN-f1J0wBTxxPy
+    private_key: c214bc1d7814c1ef55c82b5434116bde4bc53bdfbb5e5f3446cb7cac606ad20e
+    proxy_wallet: '0xc9F8323e5124cd09B907abd744Df455482F7807B'
+kapitaal:
+  drawdown_limiet: 0.5
+  max_positie_grootte: 0.2
+  munt: EUR
+  nachtmodus_limiet: 1.0
+  start: 1000
+leren:
+  min_trades_voor_update: 20
+  sentiment_weging_aanpassen: true
+  strategie_update_interval: 86400
+  trade_geheugen: 1000
+sentiment:
+  nieuws:
+    actief: true
+    bronnen:
+    - reuters
+    - bloomberg
+    - coindesk
+    - cointelegraph
+    - nu.nl
+    - fd.nl
+    update_interval: 600
+  reddit:
+    actief: true
+    subreddits:
+    - wallstreetbets
+    - investing
+    - cryptocurrency
+    - bitcoin
+    - ethfinance
+    - Netherlands
+    update_interval: 900
+  twitter_x:
+    accounts_volgen:
+    - elonmusk
+    - CathieDWood
+    - michael_saylor
+    actief: true
+    update_interval: 300
+strategie:
+  adversarial:
+    actief: true
+    bot_detectie_window: 300
+    min_bot_confidence: 0.75
+  mean_reversion:
+    bollinger_periode: 20
+    bollinger_std: 2.0
+    rsi_overbought: 70
+    rsi_oversold: 30
+  momentum:
+    macd_langzaam: 26
+    macd_signaal: 9
+    macd_snel: 12
+    stop_loss: 0.03
+    take_profit: 0.06
+    volume_bevestiging: true
+  regime_detectie:
+    lookback_periode: 20
+    volatiliteit_drempel: 0.025

@@ -1,0 +1,54 @@
+# ============================================================
+# DOCKER COMPOSE - START ALLES MET ÉÉN COMMANDO
+# ============================================================
+# Gebruik: docker compose up -d
+# Stop:    docker compose down
+# Logs:    docker compose logs -f agent
+
+services:
+
+  # De trading agent zelf
+  agent:
+    build: .
+    container_name: jvr_trading_agent
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"       # Herstart automatisch na crash of VPS reboot
+    volumes:
+      - ./logs:/app/logs           # Logs bewaren buiten de container
+      - ./reports:/app/reports     # Rapporten bewaren
+      - ./config:/app/config       # Config aanpasbaar zonder rebuild
+    environment:
+      - TZ=Europe/Amsterdam        # Nederlandse tijdzone
+    networks:
+      - agent_netwerk
+
+  # Het dashboard
+  dashboard:
+    build: .
+    container_name: jvr_dashboard
+    command: python dashboard/dashboard.py
+    restart: unless-stopped
+    ports:
+      - "8050:8050"               # Bereikbaar via browser op poort 8050
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./config:/app/config
+    environment:
+      - TZ=Europe/Amsterdam
+    networks:
+      - agent_netwerk
+    depends_on:
+      - agent
+
+networks:
+  agent_netwerk:
+    driver: bridge
+
+volumes:
+  logs:
+  reports:
