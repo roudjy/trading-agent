@@ -249,7 +249,7 @@ class TestBacktestEngine(unittest.TestCase):
         # Slechte drawdown → afgewezen
         slecht = {
             "win_rate": 0.55, "deflated_sharpe": 1.5,
-            "max_drawdown": 0.35, "trades_per_maand": 6.0,
+            "max_drawdown": 0.45, "trades_per_maand": 6.0,
             "consistentie": 0.65,
         }
         ok2 = eng._goedkeuren(slecht)
