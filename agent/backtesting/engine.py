@@ -44,6 +44,7 @@ class BacktestEngine:
     def run(self, strategie_func: Callable, assets: list,
             interval: str = '1d') -> dict:
         """Walk-forward backtest over meerdere assets. Return metrics dict."""
+        self.interval = interval
         trade_pnls: list[float] = []
         dag_returns: list[float] = []
         maand_returns: list[float] = []
@@ -112,6 +113,7 @@ class BacktestEngine:
     def _run_op_split(self, strategie_func: Callable, assets: list,
                       interval: str, train: bool) -> dict:
         """Voer backtest uit op specifieke split (train of test)."""
+        self.interval = interval
         trade_pnls, dag_returns, maand_returns = [], [], []
         for asset in assets:
             df = self._laad_data(asset, interval)
@@ -213,16 +215,24 @@ class BacktestEngine:
 
         win_rate = float(np.mean(arr > 0)) if len(arr) > 0 else 0.0
 
-        # Sharpe (dagelijks geannualiseerd)
+        # Annualisatie factor afhankelijk van interval
+        factor = {
+            '1d': 252,
+            '1h': 24 * 365,
+            '15m': 4 * 24 * 365,
+            '5m': 12 * 24 * 365,
+        }.get(getattr(self, 'interval', '1d'), 252)
+
+        # Sharpe
         sharpe = 0.0
         if len(dag) > 1 and dag.std() > 0:
-            sharpe = float((dag.mean() / dag.std()) * math.sqrt(HANDEL_JAAR))
+            sharpe = float((dag.mean() / dag.std()) * math.sqrt(factor))
 
-        # Sortino (alleen neerwaartse volatiliteit)
+        # Sortino
         neg = dag[dag < 0]
         sortino = 0.0
         if len(neg) > 1 and neg.std() > 0:
-            sortino = float((dag.mean() / neg.std()) * math.sqrt(HANDEL_JAAR))
+            sortino = float((dag.mean() / neg.std()) * math.sqrt(factor))
 
         # Max drawdown via equity curve
         eq = np.cumprod(1 + dag)
@@ -236,9 +246,16 @@ class BacktestEngine:
         ann_ret = (1 + totaal_ret) ** (1 / n_jaar) - 1
         calmar = float(ann_ret / max_dd) if max_dd > 0 else 0.0
 
-        # Trades per maand (op basis van echte kalenderduur, werkt ook voor intraday)
+        # Trades per maand afhankelijk van interval
+        perioden_per_dag = {
+            '1d': 1,
+            '1h': 24,
+            '15m': 96,
+            '5m': 288,
+        }.get(getattr(self, 'interval', '1d'), 1)
+
         n_perioden = max(1, len(dag))
-        n_maanden = max(1 / 30, n_perioden / (24 * 30))
+        n_maanden = max(1 / 30, n_perioden / (perioden_per_dag * 30))
         trades_pm = len(trade_pnls) / n_maanden
 
         # Consistentie
