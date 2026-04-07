@@ -99,27 +99,34 @@ def laad_fear_greed(limit: int = 1000) -> Optional[pd.DataFrame]:
 
 def bollinger_strategie(periode: int = 20, std: float = 2.0):
     """
-    Breakout strategie: long boven bovenband, short onder onderband.
-    Sluit positie zodra prijs terugkeert naar middenband.
+    Mean reversion strategie:
+    - long onder de onderband
+    - short boven de bovenband
+    - exit bij terugkeer naar de middenband
     """
     def func(df: pd.DataFrame) -> pd.Series:
         close = df['close'].astype(float)
         if len(close) < periode + 1:
             return pd.Series(0, index=df.index)
+
         bb = ta.volatility.BollingerBands(close, window=periode, window_dev=std)
         upper = bb.bollinger_hband()
         lower = bb.bollinger_lband()
         midden = bb.bollinger_mavg()
 
         sig = pd.Series(0, index=df.index)
-        sig[close > upper] = 1    # breakout boven → long
-        sig[close < lower] = -1   # breakout onder → short
-        # Exit naar midden
-        sig[(close < midden) & (sig.shift(1) == 1)]  = 0
-        sig[(close > midden) & (sig.shift(1) == -1)] = 0
-        return sig
-    return func
 
+        # Entries: mean reversion
+        sig[close < lower] = 1
+        sig[close > upper] = -1
+
+        # Exit bij terugkeer richting middenband
+        sig[(close >= midden) & (sig.shift(1) == 1)] = 0
+        sig[(close <= midden) & (sig.shift(1) == -1)] = 0
+
+        return sig
+
+    return func
 
 # ── Earnings Drift ────────────────────────────────────────────────────────────
 
