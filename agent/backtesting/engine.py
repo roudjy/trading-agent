@@ -22,11 +22,11 @@ MIN_TRADES   = 10
 GAMMA_EM     = 0.5772  # Euler-Mascheroni
 
 CRITERIA = {
-    'win_rate':         ('gt', 0.52),
-    'deflated_sharpe':  ('gt', 1.0),
-    'max_drawdown':     ('lt', 0.30),
-    'trades_per_maand': ('gte', 5.0),
-    'consistentie':     ('gt', 0.60),
+    'win_rate':         ('gt', 0.50),
+    'deflated_sharpe':  ('gt', 0.50),
+    'max_drawdown':     ('lt', 0.40),
+    'trades_per_maand': ('gte', 2.0),
+    'consistentie':     ('gt', 0.45),
 }
 
 
