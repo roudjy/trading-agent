@@ -5,7 +5,7 @@
 # ============================================================
 
 set -e
-cd /root/trading-agent
+cd "$(dirname "$0")/.."
 
 echo "================================================"
 echo " TRADING AGENT TEST SUITE"
@@ -22,7 +22,7 @@ run_suite() {
 
     echo ""
     echo "── $naam ──────────────────────────────────────"
-    if python -m pytest "$pad" -v --tb=short --no-header -q 2>&1; then
+    if python3 -m pytest "$pad" -v --tb=short --no-header -q 2>&1; then
         echo "✓ $naam: GESLAAGD"
         ((PASS++)) || true
     else
