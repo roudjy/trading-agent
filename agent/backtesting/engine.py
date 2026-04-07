@@ -236,8 +236,9 @@ class BacktestEngine:
         ann_ret = (1 + totaal_ret) ** (1 / n_jaar) - 1
         calmar = float(ann_ret / max_dd) if max_dd > 0 else 0.0
 
-        # Trades per maand
-        n_maanden = max(1, len(dag) / 21)
+        # Trades per maand (op basis van echte kalenderduur, werkt ook voor intraday)
+        n_perioden = max(1, len(dag))
+        n_maanden = max(1 / 30, n_perioden / (24 * 30))
         trades_pm = len(trade_pnls) / n_maanden
 
         # Consistentie
@@ -265,16 +266,20 @@ class BacktestEngine:
         return round(sharpe * max(0.0, factor), 3)
 
     def _goedkeuren(self, m: dict) -> bool:
-        """Alle 5 criteria moeten slagen."""
-        checks = {
-            'win_rate':         m['win_rate']         > 0.52,
-            'deflated_sharpe':  m['deflated_sharpe']  > 1.0,
-            'max_drawdown':     m['max_drawdown']      < 0.30,
-            'trades_per_maand': m['trades_per_maand'] >= 5.0,
-            'consistentie':     m['consistentie']      > 0.60,
-        }
-        m['criteria_checks'] = checks
-        return all(checks.values())
+    	"""Alle criteria moeten slagen op basis van centrale CRITERIA-config."""
+    	ops = {
+        	'gt':  lambda a, b: a > b,
+        	'gte': lambda a, b: a >= b,
+        	'lt':  lambda a, b: a < b,
+        	'lte': lambda a, b: a <= b,
+    	}
+
+    	checks = {}
+    	for naam, (op, grens) in CRITERIA.items():
+        	checks[naam] = ops[op](m[naam], grens)
+
+    	m['criteria_checks'] = checks
+    	return all(checks.values())
 
     def _leeg(self) -> dict:
         """Lege metrics bij onvoldoende data."""
