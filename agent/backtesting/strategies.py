@@ -173,22 +173,176 @@ def bollinger_regime_strategie(config: dict,
             prijs = close.iloc[i]
 
             # Mean reversion met bevestiging (reversal candle)
-        if (
-            prijs < lower.iloc[i]
-            and close.iloc[i] > close.iloc[i - 1]
-        ):
-            sig.iloc[i] = 1
+            if (
+                prijs < lower.iloc[i]
+                and close.iloc[i] > close.iloc[i - 1]
+            ):
+                sig.iloc[i] = 1
 
-        elif (
-            prijs > upper.iloc[i]
-            and close.iloc[i] < close.iloc[i - 1]
-        ):
-            sig.iloc[i] = -1
+            elif (
+                prijs > upper.iloc[i]
+                and close.iloc[i] < close.iloc[i - 1]
+            ):
+                sig.iloc[i] = -1
 
+            # Exit bij terugkeer naar middenband
             if sig.iloc[i - 1] == 1 and prijs >= midden.iloc[i]:
                 sig.iloc[i] = 0
             elif sig.iloc[i - 1] == -1 and prijs <= midden.iloc[i]:
                 sig.iloc[i] = 0
+
+        return sig
+
+    return func
+
+# ─ Trend Pullback Strategie ──────────────────$
+
+def trend_pullback_strategie(ema_kort: int = 20,
+                             ema_lang: int = 100,
+                             pullback_buffer: float = 0.01,
+                             slope_lookback: int = 5,
+                             vol_lookback: int = 20,
+                             max_volatility: float = 0.03):
+    """
+    Simpele trend pullback strategie:
+    - alleen long
+    - trend actief als EMA kort > EMA lang
+    - extra filter: EMA lang moet stijgen
+    - extra filter: volatiliteit mag niet te hoog zijn
+    - entry als prijs terugvalt richting EMA kort
+    - exit als trend breekt
+    """
+
+    def func(df: pd.DataFrame) -> pd.Series:
+        close = df["close"].astype(float)
+
+        min_bars = max(ema_kort, ema_lang, vol_lookback) + slope_lookback + 5
+        if len(close) < min_bars:
+            return pd.Series(0, index=df.index)
+
+        ema_fast = close.ewm(span=ema_kort, adjust=False).mean()
+        ema_slow = close.ewm(span=ema_lang, adjust=False).mean()
+        ema_slope = ema_slow.diff(slope_lookback)
+
+        returns = close.pct_change()
+        rolling_vol = returns.rolling(vol_lookback).std()
+
+        sig = pd.Series(0, index=df.index)
+
+        trend_up = ema_fast > ema_slow
+        trend_sterk = ema_slope > 0
+        dichtbij_fast_ema = close <= (ema_fast * (1 + pullback_buffer))
+        boven_slow = close > ema_slow
+        vol_ok = rolling_vol <= max_volatility
+
+        sig[trend_up & trend_sterk & dichtbij_fast_ema & boven_slow & vol_ok] = 1
+
+        # exit wanneer trend breekt
+        sig[ema_fast <= ema_slow] = 0
+
+        return sig
+
+    return func
+
+#--- Trend Pullback TP SL Strategie ----$
+
+def trend_pullback_tp_sl_strategie(ema_kort: int = 20,
+                                   ema_lang: int = 100,
+                                   pullback_buffer: float = 0.02,
+                                   slope_lookback: int = 3,
+                                   vol_lookback: int = 20,
+                                   max_volatility: float = 0.03,
+                                   take_profit: float = 0.04,
+                                   stop_loss: float = 0.02):
+    """
+    Trend pullback variant met eenvoudige TP/SL-logica in het signaal.
+    Alleen long.
+    """
+
+    def func(df: pd.DataFrame) -> pd.Series:
+        close = df["close"].astype(float)
+
+        min_bars = max(ema_kort, ema_lang, vol_lookback) + slope_lookback + 5
+        if len(close) < min_bars:
+            return pd.Series(0, index=df.index)
+
+        ema_fast = close.ewm(span=ema_kort, adjust=False).mean()
+        ema_slow = close.ewm(span=ema_lang, adjust=False).mean()
+        ema_slope = ema_slow.diff(slope_lookback)
+
+        returns = close.pct_change()
+        rolling_vol = returns.rolling(vol_lookback).std()
+
+        sig = pd.Series(0, index=df.index)
+
+        trend_up = ema_fast > ema_slow
+        trend_sterk = ema_slope > 0
+        dichtbij_fast_ema = close <= (ema_fast * (1 + pullback_buffer))
+        boven_slow = close > ema_slow
+        vol_ok = rolling_vol <= max_volatility
+
+        in_position = False
+        entry_price = None
+
+        for i in range(len(df)):
+            if i == 0:
+                continue
+
+            prijs = close.iloc[i]
+
+            if not in_position:
+                if trend_up.iloc[i] and trend_sterk.iloc[i] and dichtbij_fast_ema.iloc[i] and boven_slow.iloc[i] and vol_ok.iloc[i]:
+                    sig.iloc[i] = 1
+                    in_position = True
+                    entry_price = prijs
+                else:
+                    sig.iloc[i] = 0
+            else:
+                pnl = (prijs / entry_price) - 1.0 if entry_price else 0.0
+
+                if pnl >= take_profit or pnl <= -stop_loss or ema_fast.iloc[i] <= ema_slow.iloc[i]:
+                    sig.iloc[i] = 0
+                    in_position = False
+                    entry_price = None
+                else:
+                    sig.iloc[i] = 1
+
+        return sig
+
+    return func
+
+#--- Breakout Momentum Strategie -----$
+
+def breakout_momentum_strategie(lookback: int = 20,
+                                ema_exit: int = 10):
+    """
+    Simpele breakout momentum strategie:
+    - alleen long
+    - entry als close boven hoogste high van vorige lookback-bars breekt
+    - exit als close onder korte EMA zakt
+    """
+
+    def func(df: pd.DataFrame) -> pd.Series:
+        if "close" not in df.columns or "high" not in df.columns:
+            return pd.Series(0, index=df.index)
+
+        close = df["close"].astype(float)
+        high = df["high"].astype(float)
+
+        min_bars = max(lookback, ema_exit) + 5
+        if len(close) < min_bars:
+            return pd.Series(0, index=df.index)
+
+        hoogste_high = high.rolling(window=lookback).max().shift(1)
+        ema_kort = close.ewm(span=ema_exit, adjust=False).mean()
+
+        sig = pd.Series(0, index=df.index)
+
+        breakout = close > hoogste_high
+        trend_ok = close > ema_kort
+
+        sig[breakout & trend_ok] = 1
+        sig[close < ema_kort] = 0
 
         return sig
 
