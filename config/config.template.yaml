@@ -96,6 +96,19 @@ ai:
   max_tokens: 1000
   analyse_interval: 3600
 
+# Optioneel: research runtime defaults overschrijven
+research:
+  assets:
+    - symbol: "BTC-USD"
+      asset_type: "crypto"
+    - symbol: "ETH-USD"
+      asset_type: "crypto"
+  intervals: ["1h", "4h"]
+  interval_lookbacks:
+    "1h": 700
+    "4h": 700
+  default_lookback_days: 1500
+
 leren:
   trade_geheugen: 1000
   strategie_update_interval: 86400
