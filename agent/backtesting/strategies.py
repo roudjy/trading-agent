@@ -173,18 +173,19 @@ def bollinger_regime_strategie(config: dict,
             prijs = close.iloc[i]
 
             # Mean reversion met bevestiging (reversal candle)
-        if (
-            prijs < lower.iloc[i]
-            and close.iloc[i] > close.iloc[i - 1]
-        ):
-            sig.iloc[i] = 1
+            if (
+                prijs < lower.iloc[i]
+                and close.iloc[i] > close.iloc[i - 1]
+            ):
+                sig.iloc[i] = 1
 
-        elif (
-            prijs > upper.iloc[i]
-            and close.iloc[i] < close.iloc[i - 1]
-        ):
-            sig.iloc[i] = -1
+            elif (
+                prijs > upper.iloc[i]
+                and close.iloc[i] < close.iloc[i - 1]
+            ):
+                sig.iloc[i] = -1
 
+            # Exit bij terugkeer naar middenband
             if sig.iloc[i - 1] == 1 and prijs >= midden.iloc[i]:
                 sig.iloc[i] = 0
             elif sig.iloc[i - 1] == -1 and prijs <= midden.iloc[i]:

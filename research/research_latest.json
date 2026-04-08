@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-04-08T08:51:07.313202+00:00",
+  "generated_at_utc": "2026-04-08T09:04:30.478500+00:00",
   "count": 12,
   "summary": {
     "success": 12,
@@ -8,7 +8,7 @@
   },
   "results": [
     {
-      "timestamp_utc": "2026-04-08T08:50:44.915231+00:00",
+      "timestamp_utc": "2026-04-08T09:04:06.025439+00:00",
       "strategy_name": "rsi",
       "family": "mean_reversion",
       "hypothesis": "RSI mean reversion werkt mogelijk alleen in niet-trending regimes.",
@@ -29,7 +29,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:50:50.836758+00:00",
+      "timestamp_utc": "2026-04-08T09:04:11.832773+00:00",
       "strategy_name": "rsi",
       "family": "mean_reversion",
       "hypothesis": "RSI mean reversion werkt mogelijk alleen in niet-trending regimes.",
@@ -50,7 +50,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:50:52.378110+00:00",
+      "timestamp_utc": "2026-04-08T09:04:13.377206+00:00",
       "strategy_name": "rsi",
       "family": "mean_reversion",
       "hypothesis": "RSI mean reversion werkt mogelijk alleen in niet-trending regimes.",
@@ -71,7 +71,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:50:54.007811+00:00",
+      "timestamp_utc": "2026-04-08T09:04:15.030315+00:00",
       "strategy_name": "rsi",
       "family": "mean_reversion",
       "hypothesis": "RSI mean reversion werkt mogelijk alleen in niet-trending regimes.",
@@ -92,7 +92,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:50:55.593204+00:00",
+      "timestamp_utc": "2026-04-08T09:04:16.673197+00:00",
       "strategy_name": "bollinger_mr",
       "family": "mean_reversion",
       "hypothesis": "Bollinger mean reversion is waarschijnlijk zwak op intraday crypto.",
@@ -113,7 +113,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:50:57.175836+00:00",
+      "timestamp_utc": "2026-04-08T09:04:18.294493+00:00",
       "strategy_name": "bollinger_mr",
       "family": "mean_reversion",
       "hypothesis": "Bollinger mean reversion is waarschijnlijk zwak op intraday crypto.",
@@ -134,7 +134,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:50:57.650184+00:00",
+      "timestamp_utc": "2026-04-08T09:04:18.738199+00:00",
       "strategy_name": "bollinger_mr",
       "family": "mean_reversion",
       "hypothesis": "Bollinger mean reversion is waarschijnlijk zwak op intraday crypto.",
@@ -155,7 +155,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:50:58.113795+00:00",
+      "timestamp_utc": "2026-04-08T09:04:19.205419+00:00",
       "strategy_name": "bollinger_mr",
       "family": "mean_reversion",
       "hypothesis": "Bollinger mean reversion is waarschijnlijk zwak op intraday crypto.",
@@ -176,7 +176,7 @@
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:51:01.760552+00:00",
+      "timestamp_utc": "2026-04-08T09:04:23.806052+00:00",
       "strategy_name": "bollinger_regime",
       "family": "mean_reversion",
       "hypothesis": "Regime filtering kan Bollinger verbeteren, maar lost zwakke MR-edge mogelijk niet op.",
@@ -185,19 +185,19 @@
       "params_json": "{\"config\": {\"strategie\": {\"regime_detectie\": {\"lookback_periode\": 50, \"volatiliteit_drempel\": 0.4}}}, \"periode\": 20, \"std\": 2.0}",
       "success": true,
       "error": "",
-      "win_rate": 0.0,
-      "sharpe": 0.0,
-      "deflated_sharpe": 0.0,
-      "max_drawdown": 0.0,
-      "trades_per_maand": 0.0,
+      "win_rate": 0.2027,
+      "sharpe": -10.988,
+      "deflated_sharpe": -9.094,
+      "max_drawdown": 0.4056,
+      "trades_per_maand": 10.7,
       "consistentie": 0.0,
-      "totaal_trades": 0.0,
+      "totaal_trades": 74,
       "goedgekeurd": false,
-      "criteria_checks_json": "{\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": true, \"trades_per_maand\": false, \"win_rate\": false}",
+      "criteria_checks_json": "{\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": false, \"trades_per_maand\": true, \"win_rate\": false}",
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:51:05.411940+00:00",
+      "timestamp_utc": "2026-04-08T09:04:28.308022+00:00",
       "strategy_name": "bollinger_regime",
       "family": "mean_reversion",
       "hypothesis": "Regime filtering kan Bollinger verbeteren, maar lost zwakke MR-edge mogelijk niet op.",
@@ -206,19 +206,19 @@
       "params_json": "{\"config\": {\"strategie\": {\"regime_detectie\": {\"lookback_periode\": 50, \"volatiliteit_drempel\": 0.4}}}, \"periode\": 20, \"std\": 2.0}",
       "success": true,
       "error": "",
-      "win_rate": 0.0,
-      "sharpe": 0.0,
-      "deflated_sharpe": 0.0,
-      "max_drawdown": 0.0,
-      "trades_per_maand": 0.0,
+      "win_rate": 0.2105,
+      "sharpe": -10.313,
+      "deflated_sharpe": -8.535,
+      "max_drawdown": 0.4012,
+      "trades_per_maand": 11.0,
       "consistentie": 0.0,
-      "totaal_trades": 0.0,
+      "totaal_trades": 76,
       "goedgekeurd": false,
-      "criteria_checks_json": "{\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": true, \"trades_per_maand\": false, \"win_rate\": false}",
+      "criteria_checks_json": "{\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": false, \"trades_per_maand\": true, \"win_rate\": false}",
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:51:06.356869+00:00",
+      "timestamp_utc": "2026-04-08T09:04:29.379850+00:00",
       "strategy_name": "bollinger_regime",
       "family": "mean_reversion",
       "hypothesis": "Regime filtering kan Bollinger verbeteren, maar lost zwakke MR-edge mogelijk niet op.",
@@ -227,19 +227,19 @@
       "params_json": "{\"config\": {\"strategie\": {\"regime_detectie\": {\"lookback_periode\": 50, \"volatiliteit_drempel\": 0.4}}}, \"periode\": 20, \"std\": 2.0}",
       "success": true,
       "error": "",
-      "win_rate": 0.0,
-      "sharpe": 0.0,
-      "deflated_sharpe": 0.0,
-      "max_drawdown": 0.0,
-      "trades_per_maand": 0.0,
+      "win_rate": 0.3333,
+      "sharpe": -1.71,
+      "deflated_sharpe": -1.415,
+      "max_drawdown": 0.1294,
+      "trades_per_maand": 0.5,
       "consistentie": 0.0,
-      "totaal_trades": 0.0,
+      "totaal_trades": 21,
       "goedgekeurd": false,
       "criteria_checks_json": "{\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": true, \"trades_per_maand\": false, \"win_rate\": false}",
       "reden": ""
     },
     {
-      "timestamp_utc": "2026-04-08T08:51:07.312581+00:00",
+      "timestamp_utc": "2026-04-08T09:04:30.477741+00:00",
       "strategy_name": "bollinger_regime",
       "family": "mean_reversion",
       "hypothesis": "Regime filtering kan Bollinger verbeteren, maar lost zwakke MR-edge mogelijk niet op.",
@@ -248,13 +248,13 @@
       "params_json": "{\"config\": {\"strategie\": {\"regime_detectie\": {\"lookback_periode\": 50, \"volatiliteit_drempel\": 0.4}}}, \"periode\": 20, \"std\": 2.0}",
       "success": true,
       "error": "",
-      "win_rate": 0.0,
-      "sharpe": 0.0,
-      "deflated_sharpe": 0.0,
-      "max_drawdown": 0.0,
-      "trades_per_maand": 0.0,
+      "win_rate": 0.3125,
+      "sharpe": -1.119,
+      "deflated_sharpe": -0.926,
+      "max_drawdown": 0.1047,
+      "trades_per_maand": 0.4,
       "consistentie": 0.0,
-      "totaal_trades": 0.0,
+      "totaal_trades": 16,
       "goedgekeurd": false,
       "criteria_checks_json": "{\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": true, \"trades_per_maand\": false, \"win_rate\": false}",
       "reden": ""
