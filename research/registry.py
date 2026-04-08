@@ -10,6 +10,7 @@ from agent.backtesting.strategies import (
     bollinger_strategie,
     bollinger_regime_strategie,
     trend_pullback_strategie,
+    trend_pullback_tp_sl_strategie,
     breakout_momentum_strategie,
 )
 
@@ -62,12 +63,32 @@ STRATEGIES = [
         "name": "trend_pullback",
         "factory": trend_pullback_strategie,
         "params": {
-            "ema_kort": [20, 30],
+            "ema_kort": [20],
             "ema_lang": [100],
             "pullback_buffer": [0.01, 0.02],
+            "slope_lookback": [3, 5],
+            "vol_lookback": [20],
+            "max_volatility": [0.02, 0.03],
         },
         "family": "trend",
         "hypothesis": "Crypto momentum maakt trend pullback plausibeler dan mean reversion.",
+        "enabled": True,
+    },
+    {
+        "name": "trend_pullback_tp_sl",
+        "factory": trend_pullback_tp_sl_strategie,
+        "params": {
+            "ema_kort": [20],
+            "ema_lang": [100],
+            "pullback_buffer": [0.02],
+            "slope_lookback": [3],
+            "vol_lookback": [20],
+            "max_volatility": [0.03],
+            "take_profit": [0.03, 0.04],
+            "stop_loss": [0.015, 0.02],
+        },
+        "family": "trend",
+        "hypothesis": "Trend pullback kan verbeteren met expliciete take-profit en stop-loss trade management.",
         "enabled": True,
     },
     {
