@@ -9,6 +9,8 @@ from agent.backtesting.strategies import (
     rsi_strategie,
     bollinger_strategie,
     bollinger_regime_strategie,
+    trend_pullback_strategie,
+    breakout_momentum_strategie,
 )
 
 STRATEGIES = [
@@ -54,6 +56,29 @@ STRATEGIES = [
         },
         "family": "mean_reversion",
         "hypothesis": "Regime filtering kan Bollinger verbeteren, maar lost zwakke MR-edge mogelijk niet op.",
+        "enabled": True,
+    },
+    {
+        "name": "trend_pullback",
+        "factory": trend_pullback_strategie,
+        "params": {
+            "ema_kort": [20, 30],
+            "ema_lang": [100],
+            "pullback_buffer": [0.01, 0.02],
+        },
+        "family": "trend",
+        "hypothesis": "Crypto momentum maakt trend pullback plausibeler dan mean reversion.",
+        "enabled": True,
+    },
+    {
+        "name": "breakout_momentum",
+        "factory": breakout_momentum_strategie,
+        "params": {
+            "lookback": [20, 30],
+            "ema_exit": [10, 20],
+        },
+        "family": "trend",
+        "hypothesis": "Crypto kan sterker reageren op breakout momentum dan op mean reversion.",
         "enabled": True,
     },
 ]
