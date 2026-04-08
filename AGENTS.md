@@ -189,6 +189,33 @@ Then continue from the current system state.
   * `refactor:` structural change
   * `fix:` bug fix
 
+## 11. Git Workflow
+
+All work must happen on a non-main branch.
+
+Branch rules:
+- never work directly on `main`
+- create a new branch before any implementation work
+- keep one branch limited to one coherent scope
+
+Branch naming:
+- `feature/...` for new capabilities
+- `refactor/...` for structural changes
+- `fix/...` for bug fixes
+
+Commit rules:
+- keep commits small and atomic
+- commit only at meaningful checkpoints
+- push regularly so remote state stays current
+
+Pull request rules:
+- merge to `main` only through a reviewed, intentional PR
+- summarize scope, risks, and smoke checks in the PR
+
+Session start rule:
+- confirm current branch before doing any work
+- if on `main`, create a new branch immediately
+
 Never commit:
 
 * temporary logs
