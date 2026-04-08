@@ -41,7 +41,12 @@ STRATEGIES = [
         "params": {
             "config": [
                 {
-                    "lookback": 50,
+                    "strategie": {
+                        "regime_detectie": {
+                            "lookback_periode": 50,
+                            "volatiliteit_drempel": 0.4,
+                        }
+                    }
                 }
             ],
             "periode": [20],
