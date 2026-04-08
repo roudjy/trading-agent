@@ -195,6 +195,81 @@ def bollinger_regime_strategie(config: dict,
 
     return func
 
+# ─ Trend Pullback Strategie ──────────────────$
+
+def trend_pullback_strategie(ema_kort: int = 20,
+                             ema_lang: int = 100,
+                             pullback_buffer: float = 0.01):
+    """
+    Simpele trend pullback strategie:
+    - alleen long
+    - trend actief als EMA kort > EMA lang
+    - entry als prijs terugvalt richting EMA kort
+    - exit als trend breekt
+    """
+
+    def func(df: pd.DataFrame) -> pd.Series:
+        close = df["close"].astype(float)
+
+        min_bars = max(ema_kort, ema_lang) + 5
+        if len(close) < min_bars:
+            return pd.Series(0, index=df.index)
+
+        ema_fast = close.ewm(span=ema_kort, adjust=False).mean()
+        ema_slow = close.ewm(span=ema_lang, adjust=False).mean()
+
+        sig = pd.Series(0, index=df.index)
+
+        trend_up = ema_fast > ema_slow
+        dichtbij_fast_ema = close <= (ema_fast * (1 + pullback_buffer))
+        boven_slow = close > ema_slow
+
+        sig[trend_up & dichtbij_fast_ema & boven_slow] = 1
+
+        # exit wanneer trend breekt
+        sig[ema_fast <= ema_slow] = 0
+
+        return sig
+
+    return func
+
+#--- Breakout Momentum Strategie -----$
+
+def breakout_momentum_strategie(lookback: int = 20,
+                                ema_exit: int = 10):
+    """
+    Simpele breakout momentum strategie:
+    - alleen long
+    - entry als close boven hoogste high van vorige lookback-bars breekt
+    - exit als close onder korte EMA zakt
+    """
+
+    def func(df: pd.DataFrame) -> pd.Series:
+        if "close" not in df.columns or "high" not in df.columns:
+            return pd.Series(0, index=df.index)
+
+        close = df["close"].astype(float)
+        high = df["high"].astype(float)
+
+        min_bars = max(lookback, ema_exit) + 5
+        if len(close) < min_bars:
+            return pd.Series(0, index=df.index)
+
+        hoogste_high = high.rolling(window=lookback).max().shift(1)
+        ema_kort = close.ewm(span=ema_exit, adjust=False).mean()
+
+        sig = pd.Series(0, index=df.index)
+
+        breakout = close > hoogste_high
+        trend_ok = close > ema_kort
+
+        sig[breakout & trend_ok] = 1
+        sig[close < ema_kort] = 0
+
+        return sig
+
+    return func
+
 # ── Earnings Drift ────────────────────────────────────────────────────────────
 
 def earnings_strategie(pct_drempel: float = 0.05, positie_duur: int = 5):
