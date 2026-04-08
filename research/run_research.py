@@ -4,17 +4,34 @@ voert alle enabled strategieën uit via de registry
 en schrijft resultaten naar CSV + latest JSON.
 """
 
+from pathlib import Path
+
+import yaml
+
 from agent.backtesting.engine import BacktestEngine
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, append_results_to_csv, write_latest_json
-from research.universe import ASSETS, INTERVALS, get_date_range
+from research.universe import build_research_universe
+
+
+def load_research_config(config_path="config/config.yaml"):
+    path = Path(config_path)
+    if not path.exists():
+        return {}
+
+    with path.open(encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+
+    return config.get("research") or {}
 
 def run_research():
     rows = []
+    research_config = load_research_config()
+    assets, intervals, get_date_range = build_research_universe(research_config)
 
     for strategy in get_enabled_strategies():
-        for interval in INTERVALS:
-            for asset in ASSETS:
+        for interval in intervals:
+            for asset in assets:
                 start_datum, eind_datum = get_date_range(interval)
 
                 engine = BacktestEngine(
