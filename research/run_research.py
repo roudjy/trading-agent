@@ -4,6 +4,8 @@ voert alle enabled strategieën uit via de registry
 en schrijft resultaten naar CSV + latest JSON.
 """
 
+from datetime import datetime, timedelta, UTC
+
 from agent.backtesting.engine import BacktestEngine
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, append_results_to_csv, write_latest_json
@@ -12,45 +14,57 @@ from research.results import make_result_row, append_results_to_csv, write_lates
 ASSETS = ["BTC-USD", "ETH-USD"]
 INTERVALS = ["1h", "4h"]
 
+def get_date_range(interval):
+    now = datetime.now(UTC)
+
+    if interval in ["1h", "4h"]:
+        start = now - timedelta(days=700)
+    else:
+        start = now - timedelta(days=1500)
+
+    return start.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")
 
 def run_research():
-    engine = BacktestEngine(
-        start_datum="2022-01-01",
-        eind_datum="2026-01-01",
-    )
-
     rows = []
 
     for strategy in get_enabled_strategies():
         for interval in INTERVALS:
-            try:
-                metrics = engine.grid_search(
-                    strategie_factory=strategy["factory"],
-                    param_grid=strategy["params"],
-                    assets=ASSETS,
-                    interval=interval,
+            for asset in ASSETS:
+                start_datum, eind_datum = get_date_range(interval)
+
+                engine = BacktestEngine(
+                    start_datum=start_datum,
+                    eind_datum=eind_datum,
                 )
 
-                params_used = metrics.get("beste_params", {})
+                try:
+                    metrics = engine.grid_search(
+                        strategie_factory=strategy["factory"],
+                        param_grid=strategy["params"],
+                        assets=[asset],
+                        interval=interval,
+                    )
 
-                row = make_result_row(
-                    strategy=strategy,
-                    asset="|".join(ASSETS),
-                    interval=interval,
-                    params=params_used,
-                    metrics=metrics,
-                )
-            except Exception as e:
-                row = make_result_row(
-                    strategy=strategy,
-                    asset="|".join(ASSETS),
-                    interval=interval,
-                    params={},
-                    metrics={},
-                    error=str(e),
-                )
+                    params_used = metrics.get("beste_params", {})
 
-            rows.append(row)
+                    row = make_result_row(
+                        strategy=strategy,
+                        asset=asset,
+                        interval=interval,
+                        params=params_used,
+                        metrics=metrics,
+                    )
+                except Exception as e:
+                    row = make_result_row(
+                        strategy=strategy,
+                        asset=asset,
+                        interval=interval,
+                        params={},
+                        metrics={},
+                        error=str(e),
+                    )
+
+                rows.append(row)
 
     append_results_to_csv(rows)
     write_latest_json(rows)
