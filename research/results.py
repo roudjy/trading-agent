@@ -16,11 +16,15 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def make_result_row(strategy, asset, interval, params, metrics=None, error=None):
+def format_utc_timestamp(as_of_utc: datetime) -> str:
+    return as_of_utc.astimezone(timezone.utc).isoformat()
+
+
+def make_result_row(strategy, asset, interval, params, as_of_utc, metrics=None, error=None):
     metrics = metrics or {}
 
     return {
-        "timestamp_utc": utc_now(),
+        "timestamp_utc": format_utc_timestamp(as_of_utc),
         "strategy_name": strategy["name"],
         "family": strategy["family"],
         "hypothesis": strategy["hypothesis"],
@@ -42,31 +46,23 @@ def make_result_row(strategy, asset, interval, params, metrics=None, error=None)
     }
 
 
-def append_results_to_csv(rows, path=CSV_PATH):
+def write_results_to_csv(rows, path=CSV_PATH):
     if not rows:
         return
 
     fieldnames = list(rows[0].keys())
 
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            has_header = f.read(1) != ""
-    except FileNotFoundError:
-        has_header = False
-
-    with open(path, "a", newline="", encoding="utf-8") as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-
-        if not has_header:
-            writer.writeheader()
+        writer.writeheader()
 
         for row in rows:
             writer.writerow(row)
 
 
-def write_latest_json(rows, path=JSON_PATH):
+def write_latest_json(rows, as_of_utc, path=JSON_PATH):
     payload = {
-        "generated_at_utc": utc_now(),
+        "generated_at_utc": format_utc_timestamp(as_of_utc),
         "count": len(rows),
         "summary": {
             "success": sum(1 for r in rows if r["success"]),
