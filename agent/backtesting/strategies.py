@@ -6,7 +6,6 @@ Signaal wordt door engine.shift(1) gezet → geen lookahead bias.
 """
 import logging
 from typing import Optional
-from agent.brain.regime_detector import RegimeDetector, Regime
 
 import numpy as np
 import pandas as pd
@@ -137,10 +136,16 @@ def bollinger_regime_strategie(config: dict,
     - Alleen traden in zijwaartse / hoge volatiliteit markten
     """
 
-    detector = RegimeDetector(config)
+    regime_config = config["strategie"]["regime_detectie"]
+    lookback = regime_config["lookback_periode"]
 
     def func(df: pd.DataFrame) -> pd.Series:
         close = df['close'].astype(float)
+        regime_ok = (
+            df["_mr_regime_ok"]
+            if "_mr_regime_ok" in df.columns
+            else pd.Series(False, index=df.index)
+        )
 
         if len(close) < periode + 50:
             return pd.Series(0, index=df.index)
@@ -151,23 +156,11 @@ def bollinger_regime_strategie(config: dict,
         midden = bb.bollinger_mavg()
 
         sig = pd.Series(0, index=df.index)
-        prijzen = close.values
 
-        lookback = detector.lookback
         start_idx = max(periode + 1, lookback + 1)
 
         for i in range(start_idx, len(df)):
-            window = prijzen[i - (lookback + 1):i]
-
-            regime_result = detector._analyseer(
-                symbool="tmp",
-                prijzen=window,
-                data={}
-            )
-
-            regime = regime_result.regime
-
-            if regime not in [Regime.ZIJWAARTS, Regime.HOGE_VOLATILITEIT]:
+            if not bool(regime_ok.iloc[i]):
                 continue
 
             prijs = close.iloc[i]
@@ -193,6 +186,10 @@ def bollinger_regime_strategie(config: dict,
 
         return sig
 
+    func._mr_regime_config = {
+        "lookback_periode": lookback,
+        "volatiliteit_drempel": regime_config["volatiliteit_drempel"],
+    }
     return func
 
 # ─ Trend Pullback Strategie ──────────────────$
@@ -281,34 +278,16 @@ def trend_pullback_tp_sl_strategie(ema_kort: int = 20,
         boven_slow = close > ema_slow
         vol_ok = rolling_vol <= max_volatility
 
-        in_position = False
-        entry_price = None
-
-        for i in range(len(df)):
-            if i == 0:
-                continue
-
-            prijs = close.iloc[i]
-
-            if not in_position:
-                if trend_up.iloc[i] and trend_sterk.iloc[i] and dichtbij_fast_ema.iloc[i] and boven_slow.iloc[i] and vol_ok.iloc[i]:
-                    sig.iloc[i] = 1
-                    in_position = True
-                    entry_price = prijs
-                else:
-                    sig.iloc[i] = 0
-            else:
-                pnl = (prijs / entry_price) - 1.0 if entry_price else 0.0
-
-                if pnl >= take_profit or pnl <= -stop_loss or ema_fast.iloc[i] <= ema_slow.iloc[i]:
-                    sig.iloc[i] = 0
-                    in_position = False
-                    entry_price = None
-                else:
-                    sig.iloc[i] = 1
+        sig[trend_up & trend_sterk & dichtbij_fast_ema & boven_slow & vol_ok] = 1
 
         return sig
 
+    func._trend_pullback_tp_sl_config = {
+        "ema_kort": ema_kort,
+        "ema_lang": ema_lang,
+        "take_profit": take_profit,
+        "stop_loss": stop_loss,
+    }
     return func
 
 #--- Breakout Momentum Strategie -----$

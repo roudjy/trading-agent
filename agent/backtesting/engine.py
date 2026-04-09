@@ -155,8 +155,11 @@ class BacktestEngine:
         Signaal dag X → uitvoering dag X+1.
         Equity dagelijks bijgehouden voor correcte Sharpe/Sortino.
         """
-        df = df.copy()
-        df['sig'] = strategie_func(df).shift(1).fillna(0)
+        df = self._prepare_bollinger_regime_df(df, strategie_func)
+        sig = self._prepare_trend_pullback_tp_sl_sig(df, strategie_func)
+        if sig is None:
+            sig = strategie_func(df)
+        df['sig'] = sig.shift(1).fillna(0)
 
         trade_pnls: list[float] = []
         equity = 1.0
@@ -196,6 +199,85 @@ class BacktestEngine:
         ]
         maand_returns = self._maand_returns(pd.Series(equity_serie, dtype=float), df)
         return trade_pnls, dag_returns, maand_returns
+
+    def _prepare_bollinger_regime_df(self, df: pd.DataFrame, strategie_func: Callable) -> pd.DataFrame:
+        """Precompute regime gating only for bollinger_regime."""
+        df = df.copy()
+        regime_config = getattr(strategie_func, "_mr_regime_config", None)
+        if regime_config is None:
+            return df
+
+        close = df["close"].astype(float)
+        prijzen = close.to_numpy()
+        lookback = regime_config["lookback_periode"]
+        vol_drempel = regime_config["volatiliteit_drempel"]
+
+        regime_ok = pd.Series(False, index=df.index)
+
+        for i in range(lookback + 1, len(df)):
+            window = prijzen[i - (lookback + 1):i]
+            rendementen = np.diff(np.log(window))
+            recent = rendementen[-lookback:]
+
+            volatiliteit = np.std(recent) * np.sqrt(252)
+            x = np.arange(len(recent))
+            helling = np.polyfit(x, recent.cumsum(), 1)[0]
+            trend_sterkte = abs(helling) / (volatiliteit + 1e-8)
+
+            kortetermijn_ma = np.mean(window[-5:])
+            langetermijn_ma = np.mean(window[-lookback:])
+            ma_verhouding = (kortetermijn_ma - langetermijn_ma) / langetermijn_ma
+
+            regime_ok.iloc[i] = (
+                volatiliteit <= vol_drempel * 3
+                and (
+                    volatiliteit > vol_drempel * 1.5
+                    or not (
+                        (ma_verhouding > 0.02 and trend_sterkte > 0.5)
+                        or (ma_verhouding < -0.02 and trend_sterkte > 0.5)
+                    )
+                )
+            )
+
+        df["_mr_regime_ok"] = regime_ok
+        return df
+
+    def _prepare_trend_pullback_tp_sl_sig(self, df: pd.DataFrame, strategie_func: Callable) -> Optional[pd.Series]:
+        """Precompute TP/SL-managed signals only for trend_pullback_tp_sl."""
+        strategy_config = getattr(strategie_func, "_trend_pullback_tp_sl_config", None)
+        if strategy_config is None:
+            return None
+
+        raw_sig = strategie_func(df).fillna(0)
+        close = df["close"].astype(float)
+        ema_fast = close.ewm(span=strategy_config["ema_kort"], adjust=False).mean()
+        ema_slow = close.ewm(span=strategy_config["ema_lang"], adjust=False).mean()
+        take_profit = strategy_config["take_profit"]
+        stop_loss = strategy_config["stop_loss"]
+
+        managed_sig = pd.Series(0, index=df.index)
+        in_position = False
+        entry_price = None
+
+        for i in range(1, len(df)):
+            prijs = close.iloc[i]
+
+            if not in_position:
+                if bool(raw_sig.iloc[i]):
+                    managed_sig.iloc[i] = 1
+                    in_position = True
+                    entry_price = prijs
+            else:
+                pnl = (prijs / entry_price) - 1.0 if entry_price else 0.0
+
+                if pnl >= take_profit or pnl <= -stop_loss or ema_fast.iloc[i] <= ema_slow.iloc[i]:
+                    managed_sig.iloc[i] = 0
+                    in_position = False
+                    entry_price = None
+                else:
+                    managed_sig.iloc[i] = 1
+
+        return managed_sig
 
     def _maand_returns(self, equity: pd.Series, df: pd.DataFrame) -> list[float]:
         """Bereken maandelijkse rendementen voor consistentie-check."""
