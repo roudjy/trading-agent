@@ -26,39 +26,64 @@ The system must remain:
 
 ## 3. System Architecture Rules
 
-* `registry.py` is the single source of truth for strategies
-* Strategy logic lives only in `agent/backtesting/strategies.py`
-* Research orchestration lives in `research/run_research.py`
-* Results must always be written to:
+The system must enforce a clear and modular structure aligned with the defined layers.
 
-  * `research_latest.json`
-  * `strategy_matrix.csv`
+### Source of Truth
 
-Constraints:
+- `registry.py` is the single source of truth for strategy registration
+- Strategy implementations live in `agent/backtesting/strategies.py`
+- Research orchestration lives in `research/run_research.py`
 
-* Do not duplicate strategy definitions
-* Do not bypass the registry
-* Do not embed research logic in the runner
+### Output Contracts
+
+All research runs must produce:
+
+- `research_latest.json`
+- `strategy_matrix.csv`
+
+These outputs must:
+- be deterministic
+- be reproducible
+- follow a stable schema
+
+### Constraints
+
+- Do not duplicate strategy definitions
+- Do not bypass the registry
+- Do not embed research logic in the runner
+- Do not mix orchestration and strategy logic
 
 ---
 
 ## 4. AI Tooling Roles
 
-Strict separation between reasoning and execution.
+Strict separation between reasoning, planning, and execution.
+
+No agent may operate outside its assigned role.
+
+---
 
 ### Claude (Architect / Analyst)
 
 Responsible for:
 
-* architecture decisions
-* research reasoning
-* hypothesis design
-* evaluation of results
+- system architecture decisions
+- research reasoning
+- hypothesis design
+- evaluation of results
+- defining refactor scope
+
+Must:
+
+- produce structured plans before any implementation
+- enforce AGENTS.md and orchestrator specifications
+- identify risks and constraint violations
 
 Not responsible for:
 
-* multi-file refactors
-* direct code execution
+- executing code changes
+- performing multi-file edits
+- running CLI commands
 
 ---
 
@@ -66,15 +91,22 @@ Not responsible for:
 
 Responsible for:
 
-* implementing code changes
-* multi-file refactors
-* running commands and smoke checks
+- implementing approved changes
+- performing multi-file refactors
+- running commands and validations
 
-Constraints:
+Must:
 
-* must present a diff plan before editing
-* must keep changes minimal and scoped
-* must not introduce new strategy logic unless explicitly requested
+- read `AGENTS.md` and `docs/orchestrator_brief.md` before acting
+- present a clear diff plan before making changes
+- keep changes minimal, scoped, and reversible
+- preserve existing behavior unless explicitly instructed otherwise
+
+Not allowed to:
+
+- introduce new strategy logic without explicit approval
+- change architecture without a prior plan
+- bypass system constraints or layer boundaries
 
 ---
 
@@ -82,9 +114,37 @@ Constraints:
 
 Responsible for:
 
-* small targeted edits
-* debugging
-* inspecting existing code
+- small targeted edits
+- debugging specific issues
+- inspecting and explaining code
+
+Must:
+
+- operate within the current architecture
+- avoid structural or multi-file changes
+
+---
+
+### Execution Flow (Strict)
+
+All work must follow this sequence:
+
+1. Claude:
+   - analyzes problem
+   - defines plan
+   - identifies risks
+
+2. Human:
+   - reviews and approves plan
+
+3. Codex:
+   - proposes diff
+   - applies changes
+
+4. Human:
+   - validates outcome
+
+No step may be skipped.
 
 ---
 
@@ -92,9 +152,9 @@ Responsible for:
 
 Separate thinking from execution:
 
-* Claude decides what to build
-* Codex implements it
-* Human reviews and validates
+- Claude decides what to build
+- Codex implements it
+- Human validates correctness
 
 Never mix roles within a single step.
 
@@ -189,9 +249,47 @@ Then continue from the current system state.
   * `refactor:` structural change
   * `fix:` bug fix
 
+## 11. Git Workflow
+
+All work must happen on a non-main branch.
+
+Branch rules:
+- never work directly on `main`
+- create a new branch before any implementation work
+- keep one branch limited to one coherent scope
+
+Branch naming:
+- `feature/...` for new capabilities
+- `refactor/...` for structural changes
+- `fix/...` for bug fixes
+
+Commit rules:
+- keep commits small and atomic
+- commit only at meaningful checkpoints
+- push regularly so remote state stays current
+
+Pull request rules:
+- merge to `main` only through a reviewed, intentional PR
+- summarize scope, risks, and smoke checks in the PR
+
+Session start rule:
+- confirm current branch before doing any work
+- if on `main`, create a new branch immediately
+
 Never commit:
 
 * temporary logs
 * irrelevant artifacts
 * partial experiments
 
+## 12. Enforcement
+
+Any violation of:
+- layer boundaries
+- registry usage
+- configuration rules
+- orchestrator specification
+
+must result in:
+- rejection of the change
+- explicit explanation of the violation

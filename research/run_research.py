@@ -4,32 +4,34 @@ voert alle enabled strategieën uit via de registry
 en schrijft resultaten naar CSV + latest JSON.
 """
 
-from datetime import datetime, timedelta, UTC
+from pathlib import Path
+
+import yaml
 
 from agent.backtesting.engine import BacktestEngine
 from research.registry import get_enabled_strategies
-from research.results import make_result_row, append_results_to_csv, write_latest_json
+from research.results import make_result_row, write_results_to_csv, write_latest_json
+from research.universe import build_research_universe
 
 
-ASSETS = ["BTC-USD", "ETH-USD"]
-INTERVALS = ["1h", "4h"]
+def load_research_config(config_path="config/config.yaml"):
+    path = Path(config_path)
+    if not path.exists():
+        return {}
 
-def get_date_range(interval):
-    now = datetime.now(UTC)
+    with path.open(encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
 
-    if interval in ["1h", "4h"]:
-        start = now - timedelta(days=700)
-    else:
-        start = now - timedelta(days=1500)
-
-    return start.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")
+    return config.get("research") or {}
 
 def run_research():
     rows = []
+    research_config = load_research_config()
+    assets, intervals, get_date_range, as_of_utc = build_research_universe(research_config)
 
     for strategy in get_enabled_strategies():
-        for interval in INTERVALS:
-            for asset in ASSETS:
+        for interval in intervals:
+            for asset in assets:
                 start_datum, eind_datum = get_date_range(interval)
 
                 engine = BacktestEngine(
@@ -41,7 +43,7 @@ def run_research():
                     metrics = engine.grid_search(
                         strategie_factory=strategy["factory"],
                         param_grid=strategy["params"],
-                        assets=[asset],
+                        assets=[asset.symbol],
                         interval=interval,
                     )
 
@@ -49,25 +51,27 @@ def run_research():
 
                     row = make_result_row(
                         strategy=strategy,
-                        asset=asset,
+                        asset=asset.symbol,
                         interval=interval,
                         params=params_used,
+                        as_of_utc=as_of_utc,
                         metrics=metrics,
                     )
                 except Exception as e:
                     row = make_result_row(
                         strategy=strategy,
-                        asset=asset,
+                        asset=asset.symbol,
                         interval=interval,
                         params={},
+                        as_of_utc=as_of_utc,
                         metrics={},
                         error=str(e),
                     )
 
                 rows.append(row)
 
-    append_results_to_csv(rows)
-    write_latest_json(rows)
+    write_results_to_csv(rows)
+    write_latest_json(rows, as_of_utc=as_of_utc)
 
     print(f"Klaar. {len(rows)} resultaten geschreven.")
 
