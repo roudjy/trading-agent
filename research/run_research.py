@@ -10,7 +10,7 @@ import yaml
 
 from agent.backtesting.engine import BacktestEngine
 from research.registry import get_enabled_strategies
-from research.results import make_result_row, append_results_to_csv, write_latest_json
+from research.results import make_result_row, write_results_to_csv, write_latest_json
 from research.universe import build_research_universe
 
 
@@ -27,7 +27,7 @@ def load_research_config(config_path="config/config.yaml"):
 def run_research():
     rows = []
     research_config = load_research_config()
-    assets, intervals, get_date_range = build_research_universe(research_config)
+    assets, intervals, get_date_range, as_of_utc = build_research_universe(research_config)
 
     for strategy in get_enabled_strategies():
         for interval in intervals:
@@ -54,6 +54,7 @@ def run_research():
                         asset=asset.symbol,
                         interval=interval,
                         params=params_used,
+                        as_of_utc=as_of_utc,
                         metrics=metrics,
                     )
                 except Exception as e:
@@ -62,14 +63,15 @@ def run_research():
                         asset=asset.symbol,
                         interval=interval,
                         params={},
+                        as_of_utc=as_of_utc,
                         metrics={},
                         error=str(e),
                     )
 
                 rows.append(row)
 
-    append_results_to_csv(rows)
-    write_latest_json(rows)
+    write_results_to_csv(rows)
+    write_latest_json(rows, as_of_utc=as_of_utc)
 
     print(f"Klaar. {len(rows)} resultaten geschreven.")
 
