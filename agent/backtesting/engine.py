@@ -155,7 +155,7 @@ class BacktestEngine:
         Signaal dag X → uitvoering dag X+1.
         Equity dagelijks bijgehouden voor correcte Sharpe/Sortino.
         """
-        df = df.copy()
+        df = self._prepare_bollinger_regime_df(df, strategie_func)
         df['sig'] = strategie_func(df).shift(1).fillna(0)
 
         trade_pnls: list[float] = []
@@ -196,6 +196,48 @@ class BacktestEngine:
         ]
         maand_returns = self._maand_returns(pd.Series(equity_serie, dtype=float), df)
         return trade_pnls, dag_returns, maand_returns
+
+    def _prepare_bollinger_regime_df(self, df: pd.DataFrame, strategie_func: Callable) -> pd.DataFrame:
+        """Precompute regime gating only for bollinger_regime."""
+        df = df.copy()
+        regime_config = getattr(strategie_func, "_mr_regime_config", None)
+        if regime_config is None:
+            return df
+
+        close = df["close"].astype(float)
+        prijzen = close.to_numpy()
+        lookback = regime_config["lookback_periode"]
+        vol_drempel = regime_config["volatiliteit_drempel"]
+
+        regime_ok = pd.Series(False, index=df.index)
+
+        for i in range(lookback + 1, len(df)):
+            window = prijzen[i - (lookback + 1):i]
+            rendementen = np.diff(np.log(window))
+            recent = rendementen[-lookback:]
+
+            volatiliteit = np.std(recent) * np.sqrt(252)
+            x = np.arange(len(recent))
+            helling = np.polyfit(x, recent.cumsum(), 1)[0]
+            trend_sterkte = abs(helling) / (volatiliteit + 1e-8)
+
+            kortetermijn_ma = np.mean(window[-5:])
+            langetermijn_ma = np.mean(window[-lookback:])
+            ma_verhouding = (kortetermijn_ma - langetermijn_ma) / langetermijn_ma
+
+            regime_ok.iloc[i] = (
+                volatiliteit <= vol_drempel * 3
+                and (
+                    volatiliteit > vol_drempel * 1.5
+                    or not (
+                        (ma_verhouding > 0.02 and trend_sterkte > 0.5)
+                        or (ma_verhouding < -0.02 and trend_sterkte > 0.5)
+                    )
+                )
+            )
+
+        df["_mr_regime_ok"] = regime_ok
+        return df
 
     def _maand_returns(self, equity: pd.Series, df: pd.DataFrame) -> list[float]:
         """Bereken maandelijkse rendementen voor consistentie-check."""
