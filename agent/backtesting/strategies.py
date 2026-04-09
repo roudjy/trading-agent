@@ -278,34 +278,16 @@ def trend_pullback_tp_sl_strategie(ema_kort: int = 20,
         boven_slow = close > ema_slow
         vol_ok = rolling_vol <= max_volatility
 
-        in_position = False
-        entry_price = None
-
-        for i in range(len(df)):
-            if i == 0:
-                continue
-
-            prijs = close.iloc[i]
-
-            if not in_position:
-                if trend_up.iloc[i] and trend_sterk.iloc[i] and dichtbij_fast_ema.iloc[i] and boven_slow.iloc[i] and vol_ok.iloc[i]:
-                    sig.iloc[i] = 1
-                    in_position = True
-                    entry_price = prijs
-                else:
-                    sig.iloc[i] = 0
-            else:
-                pnl = (prijs / entry_price) - 1.0 if entry_price else 0.0
-
-                if pnl >= take_profit or pnl <= -stop_loss or ema_fast.iloc[i] <= ema_slow.iloc[i]:
-                    sig.iloc[i] = 0
-                    in_position = False
-                    entry_price = None
-                else:
-                    sig.iloc[i] = 1
+        sig[trend_up & trend_sterk & dichtbij_fast_ema & boven_slow & vol_ok] = 1
 
         return sig
 
+    func._trend_pullback_tp_sl_config = {
+        "ema_kort": ema_kort,
+        "ema_lang": ema_lang,
+        "take_profit": take_profit,
+        "stop_loss": stop_loss,
+    }
     return func
 
 #--- Breakout Momentum Strategie -----$
