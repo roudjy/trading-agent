@@ -1,0 +1,2 @@
+timestamp_utc,strategy_name,family,hypothesis,asset,interval,params_json,success,error,win_rate,sharpe,deflated_sharpe,max_drawdown,trades_per_maand,consistentie,totaal_trades,goedgekeurd,criteria_checks_json,reden
+2026-04-08T10:59:31.381566+00:00,fake_strategy,trend,Fixture hypothesis,BTC-USD,1d,"{""periode"": 14}",True,,0.55,1.234,1.111,0.12,2.5,0.75,12,True,"{""consistentie"": true, ""deflated_sharpe"": true, ""max_drawdown"": true, ""trades_per_maand"": true, ""win_rate"": true}",
