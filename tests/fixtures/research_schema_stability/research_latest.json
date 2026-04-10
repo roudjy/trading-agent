@@ -1,0 +1,32 @@
+{
+  "generated_at_utc": "2026-04-08T10:59:31.381566+00:00",
+  "count": 1,
+  "summary": {
+    "success": 1,
+    "failed": 0,
+    "goedgekeurd": 1
+  },
+  "results": [
+    {
+      "timestamp_utc": "2026-04-08T10:59:31.381566+00:00",
+      "strategy_name": "fake_strategy",
+      "family": "trend",
+      "hypothesis": "Fixture hypothesis",
+      "asset": "BTC-USD",
+      "interval": "1d",
+      "params_json": "{\"periode\": 14}",
+      "success": true,
+      "error": "",
+      "win_rate": 0.55,
+      "sharpe": 1.234,
+      "deflated_sharpe": 1.111,
+      "max_drawdown": 0.12,
+      "trades_per_maand": 2.5,
+      "consistentie": 0.75,
+      "totaal_trades": 12,
+      "goedgekeurd": true,
+      "criteria_checks_json": "{\"consistentie\": true, \"deflated_sharpe\": true, \"max_drawdown\": true, \"trades_per_maand\": true, \"win_rate\": true}",
+      "reden": ""
+    }
+  ]
+}

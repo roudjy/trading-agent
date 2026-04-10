@@ -18,6 +18,8 @@ import time
 from pathlib import Path
 from datetime import datetime
 
+from data.contracts import Instrument
+from data.repository import MarketRepository
 from reporting import audit_log
 
 app = Flask(__name__, template_folder="templates")
@@ -137,6 +139,31 @@ CRYPTO_YAHOO = {
     "BNB/EUR": "BNB-EUR",
 }
 STOCK_SYMBOLEN = ["NVDA", "AAPL", "MSFT", "ASML", "AMD"]
+MARKET_REPOSITORY = MarketRepository()
+
+
+def _price_instruments() -> list[Instrument]:
+    instruments = [
+        Instrument(
+            id=sym,
+            asset_class="equity",
+            venue="yahoo",
+            native_symbol=sym,
+            quote_ccy="USD",
+        )
+        for sym in STOCK_SYMBOLEN
+    ]
+    instruments.extend(
+        Instrument(
+            id=sym,
+            asset_class="crypto",
+            venue="yahoo",
+            native_symbol=yahoo_sym,
+            quote_ccy="EUR",
+        )
+        for sym, yahoo_sym in CRYPTO_YAHOO.items()
+    )
+    return instruments
 
 
 def _start_daemon_timer(delay: float, callback) -> None:
@@ -151,34 +178,7 @@ def _ververs_prijzen():
     global _prijzen_cache, _prijzen_cache_tijd
     result = {}
     try:
-        import yfinance as yf
-
-        # Stocks — alle tegelijk ophalen
-        if STOCK_SYMBOLEN:
-            tickers = yf.Tickers(" ".join(STOCK_SYMBOLEN))
-            for sym in STOCK_SYMBOLEN:
-                try:
-                    fi = tickers.tickers[sym].fast_info
-                    prijs = fi.last_price
-                    result[sym] = {
-                        "prijs": round(float(prijs), 4) if prijs else None,
-                        "type": "stock",
-                    }
-                except Exception:
-                    result[sym] = {"prijs": None, "type": "stock"}
-
-        # Crypto — één voor één (yfinance heeft geen batch voor deze tickers)
-        for sym, yahoo_sym in CRYPTO_YAHOO.items():
-            try:
-                fi = yf.Ticker(yahoo_sym).fast_info
-                prijs = fi.last_price
-                result[sym] = {
-                    "prijs": round(float(prijs), 4) if prijs else None,
-                    "type": "crypto",
-                }
-            except Exception:
-                result[sym] = {"prijs": None, "type": "crypto"}
-
+        result = MARKET_REPOSITORY.get_latest_prices(_price_instruments())
     except Exception:
         pass
 

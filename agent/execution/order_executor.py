@@ -17,7 +17,7 @@ Paper trading modus:
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 import ccxt.async_support as ccxt
@@ -25,6 +25,12 @@ import ccxt.async_support as ccxt
 from automation import live_gate
 from agent.learning.memory import Trade
 from agent.risk.risk_manager import TradeSignaal
+from execution.paper.polymarket_sim import (
+    MaxEntryPriceExceededError,
+    NoLiquidityError,
+    PolymarketPaperBroker,
+)
+from execution.protocols import BrokerProtocol, LiveGateClosedError, OrderIntent
 
 log = logging.getLogger(__name__)
 
@@ -39,10 +45,11 @@ class OrderExecutor:
     Schakelt automatisch tussen paper en live modus.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, polymarket_broker: Optional[BrokerProtocol] = None):
         self.config = config
         self.exchanges = {}
         self._initialiseer_exchanges()
+        self.polymarket_broker = polymarket_broker or PolymarketPaperBroker()
 
         self.paper_posities = {}
         self.paper_kapitaal = float(config['kapitaal']['start'])
@@ -113,6 +120,9 @@ class OrderExecutor:
     ) -> Optional[Trade]:
         """Simuleer een trade in paper modus."""
         try:
+            if self._is_polymarket_signaal(signaal):
+                return self._paper_trade_polymarket(signaal, markt_data, max_bedrag)
+
             prijs = None
             if markt_data and signaal.symbool in markt_data:
                 prijs = markt_data[signaal.symbool].get('prijs')
@@ -155,12 +165,79 @@ class OrderExecutor:
 
             log.info(f"[PAPER] Trade geopend: {trade.samenvatting()} | Prijs: EUR {prijs:.2f}")
             return trade
+        except (NoLiquidityError, MaxEntryPriceExceededError, LiveGateClosedError) as e:
+            log.warning(f"[PAPER] Geen Polymarket trade geopend voor {signaal.symbool}: {e}")
+            return None
         except PriceUnavailableError as e:
             log.error(f"Geen prijs beschikbaar voor {signaal.symbool}: {e}")
             return None
         except Exception as e:
             log.error(f"Paper trade mislukt: {e}")
             return None
+
+    def _paper_trade_polymarket(
+        self,
+        signaal: TradeSignaal,
+        markt_data: dict = None,
+        max_bedrag: float = None,
+    ) -> Optional[Trade]:
+        snapshot = self._haal_polymarket_snapshot(signaal, markt_data)
+        reference_price = self._polymarket_reference_price(signaal, snapshot)
+
+        if max_bedrag is not None:
+            bedrag = max_bedrag
+        else:
+            maximaal = self.paper_kapitaal * self.config['kapitaal']['max_positie_grootte']
+            bedrag = min(maximaal, self.paper_kapitaal * 0.15)
+
+        intent = OrderIntent(
+            instrument_id=signaal.symbool,
+            side='buy' if signaal.richting == 'long' else 'sell',
+            size=bedrag / reference_price,
+            limit_price=None,
+            venue='polymarket',
+            client_tag=signaal.strategie_type,
+        )
+        fill = self.polymarket_broker.place_paper_order(intent, snapshot)
+        bedrag = fill.fill_price * fill.size
+
+        trade_id = str(uuid.uuid4())[:8]
+        trade = Trade(
+            id=trade_id,
+            symbool=signaal.symbool,
+            richting=signaal.richting,
+            strategie_type=signaal.strategie_type,
+            entry_prijs=fill.fill_price,
+            exit_prijs=None,
+            hoeveelheid=fill.size,
+            euro_bedrag=bedrag,
+            pnl=None,
+            pnl_pct=None,
+            entry_tijdstip=datetime.now(),
+            exit_tijdstip=None,
+            reden_entry=signaal.bron[:200],
+            reden_exit='',
+            geleerd='',
+            regime=signaal.regime,
+            sentiment_score=0.0,
+            exchange='paper',
+            stop_loss_pct=signaal.stop_loss_pct,
+            take_profit_pct=signaal.take_profit_pct,
+            slippage_bps=fill.slippage_bps,
+        )
+
+        self.paper_kapitaal -= bedrag
+        self.paper_posities[trade_id] = trade
+
+        log.info(
+            f"[PAPER] Polymarket trade geopend: {trade.samenvatting()} | "
+            f"Fill: {fill.fill_price:.4f} | Slippage: {fill.slippage_bps:.4f} bps"
+        )
+        log.info(
+            f"[PAPER] Polymarket fee: {fill.fee_amount:.4f} {fill.fee_ccy} | "
+            f"Intent: {intent.size:.4f} | Fill size: {fill.size:.4f}"
+        )
+        return trade
 
     async def _live_trade(self, signaal: TradeSignaal) -> Optional[Trade]:
         """Voer een echte trade uit op de exchange."""
@@ -242,6 +319,45 @@ class OrderExecutor:
         Als er geen echte prijs beschikbaar is, moet de trade worden overgeslagen.
         """
         raise PriceUnavailableError(f"Geen realtime prijsbron beschikbaar voor {symbool}")
+
+    @staticmethod
+    def _is_polymarket_signaal(signaal: TradeSignaal) -> bool:
+        strategie_type = (signaal.strategie_type or '').lower()
+        return signaal.regime == 'polymarket' or strategie_type.startswith('polymarket_') or strategie_type in {
+            'data_arbitrage',
+            'bot_exploiter',
+        }
+
+    def _haal_polymarket_snapshot(self, signaal: TradeSignaal, markt_data: dict | None) -> dict:
+        if not markt_data or signaal.symbool not in markt_data:
+            raise PriceUnavailableError(f"Geen Polymarket markt_data beschikbaar voor {signaal.symbool}")
+
+        data = dict(markt_data[signaal.symbool] or {})
+        prijs = data.get('prijs')
+        if prijs in (None, 0):
+            raise PriceUnavailableError(f"Geen Polymarket prijs beschikbaar voor {signaal.symbool}")
+
+        timestamp_utc = data.get('timestamp_utc') or datetime(1970, 1, 1, tzinfo=UTC)
+        grootte = float(data.get('volume') or data.get('beschikbare_size') or 1.0)
+        return {
+            'market_id': data.get('market_id', signaal.symbool),
+            'yes_bids': data.get('yes_bids') or [(prijs, grootte)],
+            'yes_asks': data.get('yes_asks') or [(prijs, grootte)],
+            'no_bids': data.get('no_bids') or [],
+            'no_asks': data.get('no_asks') or [],
+            'timestamp_utc': timestamp_utc,
+            'book_side': data.get('book_side', 'yes'),
+        }
+
+    @staticmethod
+    def _polymarket_reference_price(signaal: TradeSignaal, snapshot: dict) -> float:
+        if signaal.richting == 'long':
+            levels = snapshot.get('yes_asks') or snapshot.get('no_asks') or []
+        else:
+            levels = snapshot.get('yes_bids') or snapshot.get('no_bids') or []
+        if not levels:
+            raise NoLiquidityError(f"Geen Polymarket boekniveau beschikbaar voor {signaal.symbool}")
+        return float(levels[0][0])
 
     def _selecteer_exchange(self, symbool: str):
         """Selecteer de juiste exchange voor een symbool."""

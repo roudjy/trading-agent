@@ -88,6 +88,7 @@ class Trade:
     exchange: str
     stop_loss_pct: Optional[float] = None
     take_profit_pct: Optional[float] = None
+    slippage_bps: Optional[float] = None
 
     def samenvatting(self) -> str:
         pnl_str = f"+€{self.pnl:.2f}" if self.pnl and self.pnl > 0 else f"€{self.pnl:.2f}" if self.pnl else "open"
@@ -184,7 +185,7 @@ class AgentMemory:
 
     @staticmethod
     def _migreer_trade_kolommen(conn) -> None:
-        """Voeg backward-compatible kolommen toe voor persisted stop-loss en take-profit."""
+        """Voeg backward-compatible kolommen toe voor persisted trade metadata."""
         bestaande_kolommen = {
             rij[1]
             for rij in conn.execute("PRAGMA table_info(trades)").fetchall()
@@ -193,6 +194,8 @@ class AgentMemory:
             conn.execute("ALTER TABLE trades ADD COLUMN stop_loss_pct REAL")
         if 'take_profit_pct' not in bestaande_kolommen:
             conn.execute("ALTER TABLE trades ADD COLUMN take_profit_pct REAL")
+        if 'slippage_bps' not in bestaande_kolommen:
+            conn.execute("ALTER TABLE trades ADD COLUMN slippage_bps REAL")
 
     @staticmethod
     def _fmt_dt(dt) -> str | None:
@@ -203,6 +206,15 @@ class AgentMemory:
             return dt if dt != 'None' else None
         return dt.isoformat(sep=' ', timespec='microseconds')
 
+    @staticmethod
+    def _parse_dt(value) -> datetime | None:
+        """Converteer database timestamps terug naar datetime, tolerant voor legacy NULL/None."""
+        if value in (None, '', 'None'):
+            return None
+        if isinstance(value, datetime):
+            return value
+        return datetime.fromisoformat(value)
+
     def sla_trade_op(self, trade: Trade):
         """Sla een nieuwe trade op in de database."""
         with _db_connect(self.db_pad) as conn:
@@ -211,8 +223,8 @@ class AgentMemory:
                     id, symbool, richting, strategie_type, entry_prijs, exit_prijs,
                     hoeveelheid, euro_bedrag, pnl, pnl_pct, entry_tijdstip,
                     exit_tijdstip, reden_entry, reden_exit, geleerd, regime,
-                    sentiment_score, exchange, stop_loss_pct, take_profit_pct
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    sentiment_score, exchange, stop_loss_pct, take_profit_pct, slippage_bps
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 trade.id, trade.symbool, trade.richting, trade.strategie_type,
                 trade.entry_prijs, trade.exit_prijs, trade.hoeveelheid,
@@ -221,9 +233,47 @@ class AgentMemory:
                 self._fmt_dt(trade.exit_tijdstip),
                 trade.reden_entry, trade.reden_exit, trade.geleerd,
                 trade.regime, trade.sentiment_score, trade.exchange,
-                trade.stop_loss_pct, trade.take_profit_pct
+                trade.stop_loss_pct, trade.take_profit_pct, trade.slippage_bps
             ))
             conn.commit()
+
+    def laad_trade(self, trade_id: str) -> Optional[Trade]:
+        """Laad één trade uit de database, tolerant voor legacy NULL kolommen."""
+        with _db_connect(self.db_pad) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM trades WHERE id = ?",
+                (trade_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._row_naar_trade(row)
+
+    def _row_naar_trade(self, row: sqlite3.Row) -> Trade:
+        """Map een SQLite row naar het canonical Trade-object."""
+        return Trade(
+            id=row["id"],
+            symbool=row["symbool"],
+            richting=row["richting"],
+            strategie_type=row["strategie_type"],
+            entry_prijs=row["entry_prijs"],
+            exit_prijs=row["exit_prijs"],
+            hoeveelheid=row["hoeveelheid"],
+            euro_bedrag=row["euro_bedrag"],
+            pnl=row["pnl"],
+            pnl_pct=row["pnl_pct"],
+            entry_tijdstip=self._parse_dt(row["entry_tijdstip"]),
+            exit_tijdstip=self._parse_dt(row["exit_tijdstip"]),
+            reden_entry=row["reden_entry"],
+            reden_exit=row["reden_exit"],
+            geleerd=row["geleerd"],
+            regime=row["regime"],
+            sentiment_score=row["sentiment_score"],
+            exchange=row["exchange"],
+            stop_loss_pct=row["stop_loss_pct"] if "stop_loss_pct" in row.keys() else None,
+            take_profit_pct=row["take_profit_pct"] if "take_profit_pct" in row.keys() else None,
+            slippage_bps=row["slippage_bps"] if "slippage_bps" in row.keys() else None,
+        )
 
     def sla_resultaat_op(self, trade: Trade):
         """Update een bestaande trade met het eindresultaat."""

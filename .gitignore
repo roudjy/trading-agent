@@ -6,8 +6,20 @@ __pycache__/
 
 logs/
 reports/
-data/
+research/provenance/
 state/
+data/*
+!data/__init__.py
+!data/contracts.py
+!data/repository.py
+!data/adapters/
+data/adapters/*
+!data/adapters/__init__.py
+!data/adapters/base.py
+!data/adapters/yfinance_adapter.py
+!data/adapters/fred_adapter.py
+data/cache/
+state/fred.secret
 
 *.db
 *.log
