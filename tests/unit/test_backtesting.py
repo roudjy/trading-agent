@@ -14,7 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from agent.backtesting.engine import BacktestEngine
+from agent.backtesting.engine import BacktestEngine, SweepTooLargeError
 from agent.backtesting.strategies import (
     bollinger_strategie,
     earnings_strategie,
@@ -255,6 +255,45 @@ class TestBacktestEngine(unittest.TestCase):
         ok2 = eng._goedkeuren(slecht)
         self.assertFalse(ok2)
         self.assertFalse(slecht["criteria_checks"]["max_drawdown"])
+
+    def test_grid_search_weigert_te_grote_sweep(self):
+        engine = BacktestEngine("2022-01-01", "2023-01-01", max_sweep_cells=4)
+
+        with self.assertRaises(SweepTooLargeError):
+            engine.grid_search(
+                strategie_factory=lambda **params: (lambda df: pd.Series(0, index=df.index)),
+                param_grid={"a": [1, 2, 3], "b": [1, 2]},
+                assets=["TEST"],
+                interval="1d",
+            )
+
+    @patch.object(BacktestEngine, "_run_op_split")
+    def test_grid_search_accepteert_sweep_op_plafond(self, mock_run_op_split):
+        engine = BacktestEngine("2022-01-01", "2023-01-01", max_sweep_cells=4)
+        test_metrics = {
+            "sharpe": 0.5,
+            "win_rate": 0.6,
+            "max_drawdown": 0.2,
+            "trades_per_maand": 3.0,
+            "consistentie": 0.6,
+            "criteria_checks": {},
+        }
+        mock_run_op_split.side_effect = [
+            {"sharpe": 0.1},
+            {"sharpe": 0.2},
+            {"sharpe": 0.3},
+            {"sharpe": 0.4},
+            test_metrics,
+        ]
+
+        result = engine.grid_search(
+            strategie_factory=lambda **params: (lambda df: pd.Series(0, index=df.index)),
+            param_grid={"a": [1, 2], "b": [1, 2]},
+            assets=["TEST"],
+            interval="1d",
+        )
+
+        self.assertEqual(result["beste_params"], {"a": 2, "b": 2})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
