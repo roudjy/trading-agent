@@ -2,12 +2,16 @@
 BACKTESTING ENGINE
 ==================
 Walk-forward validatie: train=70%, test=30%.
-Anti-lookahead: signaal dag X → uitvoering dag X+1.
+Anti-lookahead: signaal dag X -> uitvoering dag X+1.
 Kosten: 0.5% bitvavo + 0.1% slippage = 0.6% round-trip.
 """
-import math
+
+# AGENTS.md rules violation - scheduled for Phase 2 replacement.
+# This file currently performs a brute-force Cartesian parameter sweep.
+# Phase 1 adds a size guard; Phase 2 will replace it with a hypothesis-driven envelope.
+
 import logging
-from datetime import datetime
+import math
 from typing import Callable, Optional
 
 import numpy as np
@@ -16,33 +20,41 @@ import yfinance as yf
 
 log = logging.getLogger(__name__)
 
-KOSTEN_RT    = 0.006   # 0.6% round-trip (0.3% per kant)
-HANDEL_JAAR  = 252
-MIN_TRADES   = 10
-GAMMA_EM     = 0.5772  # Euler-Mascheroni
+KOSTEN_RT = 0.006
+HANDEL_JAAR = 252
+MIN_TRADES = 10
+GAMMA_EM = 0.5772
+MAX_SWEEP_CELLS = 64
 
 CRITERIA = {
-    'win_rate':         ('gt', 0.50),
-    'deflated_sharpe':  ('gt', 0.50),
-    'max_drawdown':     ('lt', 0.40),
+    'win_rate': ('gt', 0.50),
+    'deflated_sharpe': ('gt', 0.50),
+    'max_drawdown': ('lt', 0.40),
     'trades_per_maand': ('gte', 2.0),
-    'consistentie':     ('gt', 0.45),
+    'consistentie': ('gt', 0.45),
 }
+
+
+class SweepTooLargeError(RuntimeError):
+    """Raised when a brute-force sweep exceeds the Phase 1 safety ceiling."""
 
 
 class BacktestEngine:
     """Walk-forward backtesting engine met Deflated Sharpe goedkeuring."""
 
-    def __init__(self, start_datum: str, eind_datum: str,
-                 transactiekosten: float = 0.005):
+    def __init__(
+        self,
+        start_datum: str,
+        eind_datum: str,
+        transactiekosten: float = 0.005,
+        max_sweep_cells: int = MAX_SWEEP_CELLS,
+    ):
         self.start = start_datum
-        self.eind  = eind_datum
-        self.kosten_per_kant = transactiekosten / 2 + 0.001  # + slippage
+        self.eind = eind_datum
+        self.kosten_per_kant = transactiekosten / 2 + 0.001
+        self.max_sweep_cells = max_sweep_cells
 
-    # ── Publieke API ─────────────────────────────────────────────────────────
-
-    def run(self, strategie_func: Callable, assets: list,
-            interval: str = '1d') -> dict:
+    def run(self, strategie_func: Callable, assets: list, interval: str = '1d') -> dict:
         """Walk-forward backtest over meerdere assets. Return metrics dict."""
         self.interval = interval
         trade_pnls: list[float] = []
@@ -57,21 +69,26 @@ class BacktestEngine:
 
             split = int(len(df) * 0.70)
             df_test = df.iloc[split:].copy()
-            t_pnl, d_ret, m_ret = self._simuleer(df_test, strategie_func, asset)
-            trade_pnls.extend(t_pnl)
-            dag_returns.extend(d_ret)
-            maand_returns.extend(m_ret)
+            trade_pnl, dag_ret, maand_ret = self._simuleer(df_test, strategie_func, asset)
+            trade_pnls.extend(trade_pnl)
+            dag_returns.extend(dag_ret)
+            maand_returns.extend(maand_ret)
 
         if len(trade_pnls) < MIN_TRADES:
             return {**self._leeg(), 'reden': f'Te weinig trades: {len(trade_pnls)}'}
 
-        m = self._metrics(trade_pnls, dag_returns, maand_returns)
-        m['deflated_sharpe'] = self._deflated_sharpe(m['sharpe'])
-        m['goedgekeurd']     = self._goedkeuren(m)
-        return m
+        metrics = self._metrics(trade_pnls, dag_returns, maand_returns)
+        metrics['deflated_sharpe'] = self._deflated_sharpe(metrics['sharpe'])
+        metrics['goedgekeurd'] = self._goedkeuren(metrics)
+        return metrics
 
-    def grid_search(self, strategie_factory: Callable, param_grid: dict,
-                    assets: list, interval: str = '1d') -> dict:
+    def grid_search(
+        self,
+        strategie_factory: Callable,
+        param_grid: dict,
+        assets: list,
+        interval: str = '1d',
+    ) -> dict:
         """
         Grid search over parameterruimte op train-set.
         Beste params worden gevalideerd op test-set.
@@ -79,8 +96,17 @@ class BacktestEngine:
         beste_params = None
         beste_sharpe = -999.0
         n_combis = 1
-        for v in param_grid.values():
-            n_combis *= len(v)
+        for values in param_grid.values():
+            n_combis *= len(values)
+
+        if n_combis > self.max_sweep_cells:
+            log.warning(
+                f"[BT] Sweep geweigerd: {n_combis} combinaties voor plafond {self.max_sweep_cells}"
+            )
+            raise SweepTooLargeError(
+                f"Sweep van {n_combis} combinaties overschrijdt MAX_SWEEP_CELLS={self.max_sweep_cells}"
+            )
+
         log.info(f"[BT] Grid search: {n_combis} combinaties op train-set")
 
         param_namen = list(param_grid.keys())
@@ -90,7 +116,10 @@ class BacktestEngine:
         for combo in itertools.product(*param_waarden):
             params = dict(zip(param_namen, combo))
             train_metrics = self._run_op_split(
-                strategie_factory(**params), assets, interval, train=True
+                strategie_factory(**params),
+                assets,
+                interval,
+                train=True,
             )
             if train_metrics['sharpe'] > beste_sharpe:
                 beste_sharpe = train_metrics['sharpe']
@@ -101,17 +130,17 @@ class BacktestEngine:
 
         log.info(f"[BT] Beste params: {beste_params} (train Sharpe={beste_sharpe:.2f})")
         result = self._run_op_split(
-            strategie_factory(**beste_params), assets, interval, train=False
+            strategie_factory(**beste_params),
+            assets,
+            interval,
+            train=False,
         )
         result['beste_params'] = beste_params
         result['deflated_sharpe'] = self._deflated_sharpe(result['sharpe'])
         result['goedgekeurd'] = self._goedkeuren(result)
         return result
 
-    # ── Interne methodes ─────────────────────────────────────────────────────
-
-    def _run_op_split(self, strategie_func: Callable, assets: list,
-                      interval: str, train: bool) -> dict:
+    def _run_op_split(self, strategie_func: Callable, assets: list, interval: str, train: bool) -> dict:
         """Voer backtest uit op specifieke split (train of test)."""
         self.interval = interval
         trade_pnls, dag_returns, maand_returns = [], [], []
@@ -121,10 +150,10 @@ class BacktestEngine:
                 continue
             split = int(len(df) * 0.70)
             df_deel = df.iloc[:split] if train else df.iloc[split:]
-            t, d, m = self._simuleer(df_deel.copy(), strategie_func, asset)
-            trade_pnls.extend(t)
-            dag_returns.extend(d)
-            maand_returns.extend(m)
+            trades, dag, maand = self._simuleer(df_deel.copy(), strategie_func, asset)
+            trade_pnls.extend(trades)
+            dag_returns.extend(dag)
+            maand_returns.extend(maand)
         if len(trade_pnls) < MIN_TRADES:
             return self._leeg()
         return self._metrics(trade_pnls, dag_returns, maand_returns)
@@ -133,13 +162,18 @@ class BacktestEngine:
         """Download en prepareer OHLCV data. auto_adjust=True altijd."""
         try:
             ticker = asset.replace('/', '-')
-            df = yf.download(ticker, start=self.start, end=self.eind,
-                             interval=interval, auto_adjust=True,
-                             progress=False, multi_level_index=False)
+            df = yf.download(
+                ticker,
+                start=self.start,
+                end=self.eind,
+                interval=interval,
+                auto_adjust=True,
+                progress=False,
+                multi_level_index=False,
+            )
             if df is None or df.empty:
                 return None
-            df.columns = [c.lower() for c in df.columns]
-            # Verwijder weekenddata aandelen (volume=0)
+            df.columns = [column.lower() for column in df.columns]
             is_crypto = '-EUR' in ticker or '-USD' in ticker or '-BTC' in ticker
             if not is_crypto:
                 df = df[df['volume'] > 0]
@@ -148,11 +182,10 @@ class BacktestEngine:
             log.error(f"[BT] Data laden mislukt {asset}: {e}")
             return None
 
-    def _simuleer(self, df: pd.DataFrame, strategie_func: Callable,
-                  asset: str) -> tuple[list, list, list]:
+    def _simuleer(self, df: pd.DataFrame, strategie_func: Callable, asset: str) -> tuple[list, list, list]:
         """
         Simuleer trades zonder lookahead bias.
-        Signaal dag X → uitvoering dag X+1.
+        Signaal dag X -> uitvoering dag X+1.
         Equity dagelijks bijgehouden voor correcte Sharpe/Sortino.
         """
         df = self._prepare_bollinger_regime_df(df, strategie_func)
@@ -168,28 +201,25 @@ class BacktestEngine:
         entry_prijs = 0.0
 
         for i in range(1, len(df)):
-            prijs  = float(df['close'].iloc[i])
-            prev_p = float(df['close'].iloc[i - 1])
-            sig    = int(df['sig'].iloc[i])
+            prijs = float(df['close'].iloc[i])
+            vorige_prijs = float(df['close'].iloc[i - 1])
+            signaal = int(df['sig'].iloc[i])
 
-            # Dagelijkse equity update (correcte tracking in positie)
-            if positie != 0 and prev_p > 0:
-                dag_ret = (prijs / prev_p - 1.0) * positie
+            if positie != 0 and vorige_prijs > 0:
+                dag_ret = (prijs / vorige_prijs - 1.0) * positie
                 equity *= (1.0 + dag_ret)
 
-            # Exit: signaal verandert of laatste bar
-            if positie != 0 and (sig != positie or i == len(df) - 1):
+            if positie != 0 and (signaal != positie or i == len(df) - 1):
                 if entry_prijs > 0:
                     pnl = (prijs / entry_prijs - 1.0) * positie - self.kosten_per_kant
                     trade_pnls.append(pnl)
-                equity *= (1.0 - self.kosten_per_kant)  # exit kosten
+                equity *= (1.0 - self.kosten_per_kant)
                 positie = 0
 
-            # Enter nieuwe positie
-            if positie == 0 and sig != 0:
+            if positie == 0 and signaal != 0:
                 entry_prijs = prijs
-                equity *= (1.0 - self.kosten_per_kant)  # entry kosten
-                positie = sig
+                equity *= (1.0 - self.kosten_per_kant)
+                positie = signaal
 
             equity_serie.append(equity)
 
@@ -242,7 +272,11 @@ class BacktestEngine:
         df["_mr_regime_ok"] = regime_ok
         return df
 
-    def _prepare_trend_pullback_tp_sl_sig(self, df: pd.DataFrame, strategie_func: Callable) -> Optional[pd.Series]:
+    def _prepare_trend_pullback_tp_sl_sig(
+        self,
+        df: pd.DataFrame,
+        strategie_func: Callable,
+    ) -> Optional[pd.Series]:
         """Precompute TP/SL-managed signals only for trend_pullback_tp_sl."""
         strategy_config = getattr(strategie_func, "_trend_pullback_tp_sl_config", None)
         if strategy_config is None:
@@ -289,15 +323,13 @@ class BacktestEngine:
         except Exception:
             return []
 
-    def _metrics(self, trade_pnls: list, dag_returns: list,
-                 maand_returns: list) -> dict:
+    def _metrics(self, trade_pnls: list, dag_returns: list, maand_returns: list) -> dict:
         """Bereken alle prestatiemetrieken."""
         arr = np.array(trade_pnls)
         dag = np.array(dag_returns)
 
         win_rate = float(np.mean(arr > 0)) if len(arr) > 0 else 0.0
 
-        # Annualisatie factor afhankelijk van interval
         factor = {
             '1d': 252,
             '1h': 24 * 365,
@@ -305,30 +337,25 @@ class BacktestEngine:
             '5m': 12 * 24 * 365,
         }.get(getattr(self, 'interval', '1d'), 252)
 
-        # Sharpe
         sharpe = 0.0
         if len(dag) > 1 and dag.std() > 0:
             sharpe = float((dag.mean() / dag.std()) * math.sqrt(factor))
 
-        # Sortino
         neg = dag[dag < 0]
         sortino = 0.0
         if len(neg) > 1 and neg.std() > 0:
             sortino = float((dag.mean() / neg.std()) * math.sqrt(factor))
 
-        # Max drawdown via equity curve
         eq = np.cumprod(1 + dag)
         peak = np.maximum.accumulate(eq)
         dd = (eq - peak) / np.where(peak > 0, peak, 1)
         max_dd = float(abs(dd.min())) if len(dd) > 0 else 0.0
 
-        # Calmar
         totaal_ret = float(eq[-1] - 1) if len(eq) > 0 else 0.0
         n_jaar = max(0.01, len(dag) / HANDEL_JAAR)
         ann_ret = (1 + totaal_ret) ** (1 / n_jaar) - 1
         calmar = float(ann_ret / max_dd) if max_dd > 0 else 0.0
 
-        # Trades per maand afhankelijk van interval
         perioden_per_dag = {
             '1d': 1,
             '1h': 24,
@@ -340,50 +367,55 @@ class BacktestEngine:
         n_maanden = max(1 / 30, n_perioden / (perioden_per_dag * 30))
         trades_pm = len(trade_pnls) / n_maanden
 
-        # Consistentie
         consistentie = float(np.mean(np.array(maand_returns) > 0)) if maand_returns else 0.0
 
         return {
-            'win_rate':         round(win_rate, 4),
-            'sharpe':           round(sharpe, 3),
-            'sortino':          round(sortino, 3),
-            'calmar':           round(calmar, 3),
-            'max_drawdown':     round(max_dd, 4),
+            'win_rate': round(win_rate, 4),
+            'sharpe': round(sharpe, 3),
+            'sortino': round(sortino, 3),
+            'calmar': round(calmar, 3),
+            'max_drawdown': round(max_dd, 4),
             'trades_per_maand': round(trades_pm, 1),
-            'consistentie':     round(consistentie, 3),
-            'totaal_trades':    len(trade_pnls),
-            'deflated_sharpe':  0.0,
-            'goedgekeurd':      False,
+            'consistentie': round(consistentie, 3),
+            'totaal_trades': len(trade_pnls),
+            'deflated_sharpe': 0.0,
+            'goedgekeurd': False,
         }
 
     def _deflated_sharpe(self, sharpe: float, n_strategieen: int = 6) -> float:
         """
         Deflated Sharpe: straft voor multiple testing.
-        DS = SR × (1 - γ × ln(N) / N)
+        DS = SR x (1 - gamma x ln(N) / N)
         """
         factor = 1.0 - (GAMMA_EM * math.log(max(1, n_strategieen))) / n_strategieen
         return round(sharpe * max(0.0, factor), 3)
 
-    def _goedkeuren(self, m: dict) -> bool:
-    	"""Alle criteria moeten slagen op basis van centrale CRITERIA-config."""
-    	ops = {
-        	'gt':  lambda a, b: a > b,
-        	'gte': lambda a, b: a >= b,
-        	'lt':  lambda a, b: a < b,
-        	'lte': lambda a, b: a <= b,
-    	}
+    def _goedkeuren(self, metrics: dict) -> bool:
+        """Alle criteria moeten slagen op basis van centrale CRITERIA-config."""
+        ops = {
+            'gt': lambda a, b: a > b,
+            'gte': lambda a, b: a >= b,
+            'lt': lambda a, b: a < b,
+            'lte': lambda a, b: a <= b,
+        }
 
-    	checks = {}
-    	for naam, (op, grens) in CRITERIA.items():
-        	checks[naam] = ops[op](m[naam], grens)
+        checks = {}
+        for naam, (op, grens) in CRITERIA.items():
+            checks[naam] = ops[op](metrics[naam], grens)
 
-    	m['criteria_checks'] = checks
-    	return all(checks.values())
+        metrics['criteria_checks'] = checks
+        return all(checks.values())
 
     def _leeg(self) -> dict:
         """Lege metrics bij onvoldoende data."""
         return {k: 0.0 for k in [
-            'win_rate', 'sharpe', 'sortino', 'calmar',
-            'max_drawdown', 'trades_per_maand', 'consistentie',
-            'deflated_sharpe', 'totaal_trades'
+            'win_rate',
+            'sharpe',
+            'sortino',
+            'calmar',
+            'max_drawdown',
+            'trades_per_maand',
+            'consistentie',
+            'deflated_sharpe',
+            'totaal_trades',
         ]} | {'goedgekeurd': False, 'criteria_checks': {}}
