@@ -1,6 +1,7 @@
 ccxt>=4.2.0
 yfinance>=0.2.36
 pandas>=2.0.0
+pyarrow>=18.0.0
 numpy>=1.24.0
 ta>=0.11.0
 requests>=2.31.0
