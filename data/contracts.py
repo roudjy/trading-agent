@@ -7,6 +7,10 @@ from datetime import datetime
 from typing import Literal
 
 
+class AdapterAuthError(RuntimeError):
+    """Raised when an adapter cannot obtain required credentials."""
+
+
 @dataclass(frozen=True)
 class Instrument:
     id: str
