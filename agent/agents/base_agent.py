@@ -93,6 +93,28 @@ class BaseAgent(ABC):
         """Hard ceiling: stop-loss nooit meer dan 8%."""
         return min(stop_loss_pct, 0.08)
 
+    @staticmethod
+    def _is_polymarket_strategie(strategie_type: str) -> bool:
+        """Herken strategieen waarvoor geen stop-loss mag worden geforceerd."""
+        return (strategie_type or '').startswith('polymarket_')
+
+    def _persisted_thresholds(self, positie: Trade) -> tuple[Optional[float], Optional[float], bool]:
+        """Lees persisted stop-loss/take-profit zonder defaults te verzinnen."""
+        strategie_type = getattr(positie, 'strategie_type', '')
+        is_polymarket = self._is_polymarket_strategie(strategie_type)
+
+        raw_stop = getattr(positie, 'stop_loss_pct', None)
+        raw_take = getattr(positie, 'take_profit_pct', None)
+
+        stop = None if raw_stop is None else self._clamp_stop_loss(float(raw_stop))
+        take = None if raw_take is None else float(raw_take)
+
+        if take is None:
+            return stop, take, False
+        if stop is None and not is_polymarket:
+            return stop, take, False
+        return stop, take, True
+
     async def run_cyclus(self, markt_data: dict, regime: dict, sentiment, bot_patronen):
         """
         Wordt elke minuut aangeroepen door de orchestrator.
@@ -178,15 +200,20 @@ class BaseAgent(ABC):
                 pnl_pct = 0.0
 
             try:
-                stop = self._clamp_stop_loss(float(getattr(positie, 'stop_loss_pct', 0.05)))
+                stop, take, thresholds_ok = self._persisted_thresholds(positie)
             except (TypeError, ValueError):
-                stop = 0.05
-            try:
-                take = float(getattr(positie, 'take_profit_pct', 0.10))
-            except (TypeError, ValueError):
-                take = 0.10
+                stop, take, thresholds_ok = None, None, False
 
-            if pnl_pct <= -stop:
+            if not thresholds_ok:
+                log.error(
+                    f"[{self.naam}] Ontbrekende persisted exit-waarden voor "
+                    f"{positie.symbool} ({getattr(positie, 'strategie_type', 'onbekend')}). "
+                    "Positie wordt defensief gesloten."
+                )
+                te_sluiten.append((positie_id, huidige_prijs))
+                continue
+
+            if stop is not None and pnl_pct <= -stop:
                 log.info(f"[{self.naam}] Stop-loss: {positie.symbool} {pnl_pct:.1%}")
                 te_sluiten.append((positie_id, huidige_prijs))
             elif pnl_pct >= take:

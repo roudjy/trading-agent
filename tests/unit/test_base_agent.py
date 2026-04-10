@@ -123,3 +123,70 @@ async def test_run_cyclus_geblokkeerd_drawdown():
 
     # sluit_positie moet aangeroepen zijn
     agent.executor.sluit_positie.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_monitor_posities_honours_persisted_thresholds():
+    agent = _maak_agent()
+
+    positie = MagicMock()
+    positie.symbool = 'BTC/EUR'
+    positie.richting = 'long'
+    positie.strategie_type = 'rsi_mean_reversion'
+    positie.stop_loss_pct = 0.02
+    positie.take_profit_pct = 0.04
+    positie.bereken_pnl_pct = MagicMock(return_value=-0.03)
+
+    resultaat = MagicMock()
+    resultaat.pnl = -1.0
+    resultaat.euro_bedrag = 30.0
+    agent.executor.sluit_positie = AsyncMock(return_value=resultaat)
+
+    agent.open_posities['trade_1'] = positie
+    await agent._monitor_posities({'BTC/EUR': {'prijs': 49000}}, {})
+
+    agent.executor.sluit_positie.assert_called_once()
+    assert 'trade_1' not in agent.open_posities
+
+
+@pytest.mark.asyncio
+async def test_monitor_posities_defensive_close_on_missing_thresholds(caplog):
+    agent = _maak_agent()
+
+    positie = MagicMock()
+    positie.symbool = 'BTC/EUR'
+    positie.richting = 'long'
+    positie.strategie_type = 'rsi_mean_reversion'
+    positie.stop_loss_pct = None
+    positie.take_profit_pct = 0.04
+    positie.bereken_pnl_pct = MagicMock(return_value=-0.01)
+
+    resultaat = MagicMock()
+    resultaat.pnl = -1.0
+    resultaat.euro_bedrag = 30.0
+    agent.executor.sluit_positie = AsyncMock(return_value=resultaat)
+
+    agent.open_posities['trade_2'] = positie
+    await agent._monitor_posities({'BTC/EUR': {'prijs': 49500}}, {})
+
+    assert "Ontbrekende persisted exit-waarden" in caplog.text
+    agent.executor.sluit_positie.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_monitor_posities_polymarket_allows_missing_stop_loss():
+    agent = _maak_agent()
+
+    positie = MagicMock()
+    positie.symbool = 'PM-YES'
+    positie.richting = 'long'
+    positie.strategie_type = 'polymarket_bot'
+    positie.stop_loss_pct = None
+    positie.take_profit_pct = 0.50
+    positie.bereken_pnl_pct = MagicMock(return_value=-0.20)
+
+    agent.open_posities['trade_3'] = positie
+    await agent._monitor_posities({'PM-YES': {'prijs': 0.4}}, {})
+
+    agent.executor.sluit_positie.assert_not_called()
+    assert 'trade_3' in agent.open_posities

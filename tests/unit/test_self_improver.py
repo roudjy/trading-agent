@@ -1,7 +1,8 @@
 """Unit tests voor ZelfVerbeteraar."""
-import pytest
-from unittest.mock import MagicMock, patch, mock_open
+
 import json
+
+import pytest
 
 CFG = {
     'kapitaal': {'start': 1000.0, 'drawdown_limiet': 0.75},
@@ -15,9 +16,15 @@ CFG = {
 }
 
 
-def _maak_verbeteraar():
+def _maak_verbeteraar(tmp_path=None):
     from agent.learning.self_improver import ZelfVerbeteraar
-    return ZelfVerbeteraar(CFG)
+
+    verbeteraar = ZelfVerbeteraar(CFG.copy())
+    if tmp_path is not None:
+        verbeteraar.audit_pad = tmp_path / "zelfverbeteringen.log"
+        verbeteraar.recommendation_dir = tmp_path / "candidate_recommendations"
+        verbeteraar.recommendation_dir.mkdir(parents=True, exist_ok=True)
+    return verbeteraar
 
 
 def test_bereken_stats_leeg():
@@ -37,7 +44,6 @@ def test_bereken_stats_50_procent():
     ]
     stats = zv._bereken_stats(trades, None)
     assert stats['totaal_trades'] == 4
-    # Exact 50% voor beide helften
     assert stats['globaal_win_rate'] == pytest.approx(0.50, abs=0.01)
 
 
@@ -74,19 +80,19 @@ def test_veiligheidscheck_ok():
     assert ok is True
 
 
-def test_valideer_en_pas_toe_clampt_grenzen():
+def test_valideer_en_pas_toe_clampt_grenzen_zonder_config_write():
     zv = _maak_verbeteraar()
     aanbevelingen = {
         'wijzigingen': {
-            'stop_loss_pct': 0.15,    # Boven max 0.08
-            'take_profit_pct': 0.10,  # Geldig
+            'stop_loss_pct': 0.15,
+            'take_profit_pct': 0.10,
         }
     }
     wijzigingen = zv._valideer_en_pas_toe(aanbevelingen)
-    # stop_loss_pct moet geclampt zijn
-    assert zv.config['zelfverbetering']['stop_loss_pct'] <= 0.08
-    # take_profit_pct is geldig
+    assert wijzigingen['stop_loss_pct']['nieuw'] <= 0.08
     assert 'take_profit_pct' in wijzigingen
+    assert zv.config['zelfverbetering']['stop_loss_pct'] == 0.05
+    assert zv.config['zelfverbetering']['take_profit_pct'] == 0.08
 
 
 def test_valideer_onbekende_parameter_overgeslagen():
@@ -102,12 +108,54 @@ def test_valideer_onbekende_parameter_overgeslagen():
 
 def test_valideer_max_20_procent_stap():
     zv = _maak_verbeteraar()
-    # Huidige stop_loss_pct = 0.05, max stap = 20% = 0.01
-    zv.config['zelfverbetering']['stop_loss_pct'] = 0.05
     aanbevelingen = {
-        'wijzigingen': {'stop_loss_pct': 0.08}  # Sprong van 0.03, max 0.01
+        'wijzigingen': {'stop_loss_pct': 0.08}
     }
-    zv._valideer_en_pas_toe(aanbevelingen)
-    nieuwe_waarde = zv.config['zelfverbetering']['stop_loss_pct']
-    # Max stap: 0.05 * 0.20 = 0.01, dus max 0.06
-    assert nieuwe_waarde <= 0.06
+    wijzigingen = zv._valideer_en_pas_toe(aanbevelingen)
+    assert wijzigingen['stop_loss_pct']['nieuw'] <= 0.06
+
+
+@pytest.mark.asyncio
+async def test_verbeter_schrijft_read_only_recommendation(tmp_path, caplog):
+    zv = _maak_verbeteraar(tmp_path)
+    zv._lees_trades = lambda _n: [
+        {'pnl': 10.0, 'pnl_pct': 0.02, 'strategie_type': 'rsi'},
+        {'pnl': 6.0, 'pnl_pct': 0.01, 'strategie_type': 'rsi'},
+        {'pnl': 4.0, 'pnl_pct': 0.03, 'strategie_type': 'ema'},
+        {'pnl': 3.0, 'pnl_pct': 0.01, 'strategie_type': 'ema'},
+        {'pnl': 2.0, 'pnl_pct': 0.01, 'strategie_type': 'ema'},
+        {'pnl': 1.0, 'pnl_pct': 0.01, 'strategie_type': 'bot'},
+        {'pnl': 1.0, 'pnl_pct': 0.01, 'strategie_type': 'bot'},
+        {'pnl': -1.0, 'pnl_pct': -0.01, 'strategie_type': 'bot'},
+        {'pnl': 2.0, 'pnl_pct': 0.01, 'strategie_type': 'sentiment'},
+        {'pnl': 1.0, 'pnl_pct': 0.01, 'strategie_type': 'sentiment'},
+    ]
+    zv._vraag_ai = lambda stats, agent_stats: _async_result({
+        'wijzigingen': {'take_profit_pct': 0.10},
+        'onderbouwing': 'Meer ruimte voor trend exits.',
+    })
+
+    rapport = await zv.verbeter({
+        'rsi': {'gem_pnl_pct': 0.02, 'kapitaal_pool': 250, 'drawdown': 0.05},
+        'ema': {'gem_pnl_pct': 0.01, 'kapitaal_pool': 250, 'drawdown': 0.03},
+    })
+
+    artifacts = list(zv.recommendation_dir.glob("recommendation_*.json"))
+    assert len(artifacts) == 1
+    artifact = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert artifact['ai_rationale'] == 'Meer ruimte voor trend exits.'
+    assert artifact['proposed_parameter_diff']['take_profit_pct']['nieuw'] == pytest.approx(0.096)
+    assert artifact['safety_check_outcome']['passed'] is True
+    assert "[SELF-IMPROVER] READ-ONLY MODE" in caplog.text
+    assert "read-only" in rapport.lower()
+
+    audit_entries = [
+        json.loads(line)
+        for line in zv.audit_pad.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert audit_entries[-1]['actie'] == 'recommendation_only'
+
+
+async def _async_result(value):
+    return value

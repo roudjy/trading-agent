@@ -16,29 +16,29 @@ Audit log: logs/zelfverbeteringen.log
 """
 
 import json
-import math
 import logging
-from datetime import datetime, timedelta
+import math
+from datetime import datetime, timezone
 from pathlib import Path
-import yaml
+
 import anthropic
 
 log = logging.getLogger(__name__)
 
 # Harde grenzen per parameter
 PARAM_GRENZEN = {
-    'min_consensus':       (0.45, 0.80),
-    'stop_loss_pct':       (0.02, 0.08),   # Max 8% hard ceiling
-    'take_profit_pct':     (0.04, 0.20),
-    'positie_factor':      (0.50, 1.50),
-    'gewicht_rsi':         (0.05, 0.50),
-    'gewicht_ema':         (0.05, 0.50),
-    'gewicht_bot':         (0.05, 0.50),
-    'gewicht_sentiment':   (0.05, 0.30),
-    'rsi_oversold':        (20, 35),
-    'rsi_overbought':      (65, 80),
-    'ema_volume_factor':   (1.05, 1.50),
-    'sentiment_drempel':   (0.60, 0.90),
+    'min_consensus': (0.45, 0.80),
+    'stop_loss_pct': (0.02, 0.08),   # Max 8% hard ceiling
+    'take_profit_pct': (0.04, 0.20),
+    'positie_factor': (0.50, 1.50),
+    'gewicht_rsi': (0.05, 0.50),
+    'gewicht_ema': (0.05, 0.50),
+    'gewicht_bot': (0.05, 0.50),
+    'gewicht_sentiment': (0.05, 0.30),
+    'rsi_oversold': (20, 35),
+    'rsi_overbought': (65, 80),
+    'ema_volume_factor': (1.05, 1.50),
+    'sentiment_drempel': (0.60, 0.90),
 }
 
 SONNET_MODEL = "claude-sonnet-4-6"
@@ -53,18 +53,34 @@ class ZelfVerbeteraar:
         self.client = anthropic.Anthropic(api_key=api_key) if api_key else None
         self.config_pad = Path('config/config.yaml')
         self.audit_pad = Path('logs/zelfverbeteringen.log')
+        self.recommendation_dir = Path('logs/candidate_recommendations')
         self.audit_pad.parent.mkdir(exist_ok=True)
+        self.recommendation_dir.mkdir(parents=True, exist_ok=True)
 
     async def verbeter(self, agent_stats: dict | None = None) -> str:
         """
-        Hoofdentrypoint: analyseer, vraag AI, pas toe.
+        Hoofdentrypoint: analyseer, vraag AI, schrijf read-only aanbeveling.
         Geeft samenvatting string terug voor dagrapport.
         """
         log.info("=== ZELFVERBETERING GESTART ===")
+        recommendation_path = self._recommendation_path()
 
         trades = self._lees_trades(70)
         if len(trades) < 10:
             log.info("Te weinig trades (<10) voor zelfverbetering")
+            self._schrijf_recommendation(
+                path=recommendation_path,
+                stats={'totaal_trades': len(trades), 'per_agent': agent_stats or {}},
+                rationale="Te weinig trades (<10) voor aanbeveling.",
+                proposed_diff={},
+                safety_outcome={'passed': False, 'reason': 'Te weinig trades (<10)'},
+            )
+            self._schrijf_audit({
+                'actie': 'recommendation_only',
+                'reden': 'Te weinig trades (<10)',
+                'pad': str(recommendation_path),
+            })
+            self._log_read_only(recommendation_path)
             return ""
 
         stats = self._bereken_stats(trades, agent_stats)
@@ -72,35 +88,57 @@ class ZelfVerbeteraar:
         ok, reden = self._veiligheidscheck(stats, agent_stats)
         if not ok:
             log.warning(f"Veiligheidscheck gefaald: {reden}")
-            self._schrijf_audit({'actie': 'geblokkeerd', 'reden': reden, 'stats': stats})
+            self._schrijf_recommendation(
+                path=recommendation_path,
+                stats=stats,
+                rationale=f"Veiligheidscheck blokkeerde toepassing: {reden}",
+                proposed_diff={},
+                safety_outcome={'passed': False, 'reason': reden},
+            )
+            self._schrijf_audit({
+                'actie': 'recommendation_only',
+                'reden': reden,
+                'stats': stats,
+                'pad': str(recommendation_path),
+            })
+            self._log_read_only(recommendation_path)
             return f"\n## Zelfverbetering geblokkeerd\nReden: {reden}\n"
 
         aanbevelingen = await self._vraag_ai(stats, agent_stats)
-        if not aanbevelingen:
-            return ""
+        wijzigingen = self._valideer_en_pas_toe(aanbevelingen or {})
 
-        wijzigingen = self._valideer_en_pas_toe(aanbevelingen)
+        self._schrijf_recommendation(
+            path=recommendation_path,
+            stats=stats,
+            rationale=(aanbevelingen or {}).get('onderbouwing', 'Geen AI-aanbeveling beschikbaar.'),
+            proposed_diff=wijzigingen,
+            safety_outcome={'passed': ok, 'reason': reden},
+        )
+        self._sla_config_op()
+        self._schrijf_audit({
+            'actie': 'recommendation_only',
+            'wijzigingen': wijzigingen,
+            'stats': stats,
+            'aanbevelingen': aanbevelingen or {},
+            'pad': str(recommendation_path),
+        })
+        self._log_read_only(recommendation_path)
+
         if wijzigingen:
-            self._sla_config_op()
-            self._schrijf_audit({
-                'actie': 'toegepast',
-                'wijzigingen': wijzigingen,
-                'stats': stats,
-                'aanbevelingen': aanbevelingen
-            })
             return self._format_rapportblok(stats, wijzigingen)
-
         return ""
 
     def _lees_trades(self, n: int) -> list[dict]:
         """Lees laatste n trades uit SQLite."""
         import sqlite3
+
         db_pad = self.config.get('database', {}).get('pad', 'logs/agent_geheugen.db')
         try:
             conn = sqlite3.connect(db_pad)
             conn.row_factory = sqlite3.Row
             trades = conn.execute(
-                "SELECT * FROM trades ORDER BY entry_tijdstip DESC LIMIT ?", (n,)
+                "SELECT * FROM trades ORDER BY entry_tijdstip DESC LIMIT ?",
+                (n,),
             ).fetchall()
             conn.close()
             return [dict(t) for t in trades]
@@ -127,50 +165,48 @@ class ZelfVerbeteraar:
             return {
                 'win_rate': len(winst) / len(met_pnl),
                 'gem_pnl': sum(t['pnl'] for t in met_pnl) / len(met_pnl),
-                'n': len(met_pnl)
+                'n': len(met_pnl),
             }
 
-        r = bereken(recent)
-        o = bereken(oud)
+        recent_stats = bereken(recent)
+        oud_stats = bereken(oud)
 
-        globaal_win_rate = r['win_rate'] * 0.60 + o['win_rate'] * 0.40
-        globaal_gem_pnl = r['gem_pnl'] * 0.60 + o['gem_pnl'] * 0.40
+        globaal_win_rate = recent_stats['win_rate'] * 0.60 + oud_stats['win_rate'] * 0.40
+        globaal_gem_pnl = recent_stats['gem_pnl'] * 0.60 + oud_stats['gem_pnl'] * 0.40
 
-        # Per strategie type
         per_strategie = {}
-        for t in trades:
-            st = t.get('strategie_type', 'onbekend')
-            if st not in per_strategie:
-                per_strategie[st] = {'trades': [], 'wins': 0}
-            per_strategie[st]['trades'].append(t)
-            if t.get('pnl', 0) > 0:
-                per_strategie[st]['wins'] += 1
+        for trade in trades:
+            strategie = trade.get('strategie_type', 'onbekend')
+            if strategie not in per_strategie:
+                per_strategie[strategie] = {'trades': [], 'wins': 0}
+            per_strategie[strategie]['trades'].append(trade)
+            if trade.get('pnl', 0) > 0:
+                per_strategie[strategie]['wins'] += 1
 
         strategie_stats = {}
         for naam, data in per_strategie.items():
-            n_st = len(data['trades'])
+            aantal = len(data['trades'])
             strategie_stats[naam] = {
-                'n': n_st,
-                'win_rate': data['wins'] / n_st if n_st > 0 else 0,
-                'gem_pnl': sum(t.get('pnl', 0) for t in data['trades']) / n_st if n_st > 0 else 0,
+                'n': aantal,
+                'win_rate': data['wins'] / aantal if aantal > 0 else 0,
+                'gem_pnl': sum(t.get('pnl', 0) for t in data['trades']) / aantal if aantal > 0 else 0,
             }
 
-        # Sortino Ratio per agent (laatste 50 trades per agent)
         sortino_per_agent: dict[str, float] = {}
         if agent_stats:
             for agent_naam in agent_stats:
                 agent_trades = [
-                    t for t in trades
-                    if agent_naam in (t.get("strategie_type") or "")
-                    and t.get("pnl_pct") is not None
+                    trade for trade in trades
+                    if agent_naam in (trade.get("strategie_type") or "")
+                    and trade.get("pnl_pct") is not None
                 ][-50:]
                 sortino_per_agent[agent_naam] = self._bereken_sortino(agent_trades)
 
         return {
             'globaal_win_rate': globaal_win_rate,
             'globaal_gem_pnl': globaal_gem_pnl,
-            'recent_win_rate': r['win_rate'],
-            'oud_win_rate': o['win_rate'],
+            'recent_win_rate': recent_stats['win_rate'],
+            'oud_win_rate': oud_stats['win_rate'],
             'totaal_trades': n,
             'per_strategie': strategie_stats,
             'per_agent': agent_stats or {},
@@ -183,37 +219,31 @@ class ZelfVerbeteraar:
         if len(rendementen) < 10:
             if not rendementen:
                 return 0.0
-            wins = sum(1 for r in rendementen if r > 0)
+            wins = sum(1 for rendement in rendementen if rendement > 0)
             return round(wins / len(rendementen), 4)
 
-        gem = sum(rendementen) / len(rendementen)
-        negatief = [r for r in rendementen if r < 0]
+        gemiddeld = sum(rendementen) / len(rendementen)
+        negatief = [rendement for rendement in rendementen if rendement < 0]
         if not negatief:
             return float("inf")
 
-        variantie = sum(r ** 2 for r in negatief) / len(negatief)
+        variantie = sum(rendement ** 2 for rendement in negatief) / len(negatief)
         std_neer = math.sqrt(variantie)
         if std_neer == 0:
             return 0.0
-        return round(gem / std_neer, 4)
+        return round(gemiddeld / std_neer, 4)
 
     def _veiligheidscheck(self, stats: dict, agent_stats: dict | None) -> tuple[bool, str]:
         """Zes harde veiligheidsregels."""
 
-        # 1. Win rate te laag
         if stats['recent_win_rate'] < 0.35:
             return False, f"Win rate te laag: {stats['recent_win_rate']:.0%} < 35%"
 
-        # 2. Cascade failure: >3 agents negatief
         if agent_stats:
-            negatief = sum(
-                1 for s in agent_stats.values()
-                if s.get('gem_pnl_pct', 0) < 0
-            )
+            negatief = sum(1 for s in agent_stats.values() if s.get('gem_pnl_pct', 0) < 0)
             if negatief >= 3:
                 return False, f"Cascade failure: {negatief}/4 agents negatief"
 
-        # 3. Concentratie guard: 1 agent >60% van totaal kapitaal
         if agent_stats:
             totaal = sum(s.get('kapitaal_pool', 0) for s in agent_stats.values())
             if totaal > 0:
@@ -222,7 +252,6 @@ class ZelfVerbeteraar:
                     if concentratie > 0.65:
                         return False, f"Concentratie te hoog: {naam} heeft {concentratie:.0%} van kapitaal"
 
-        # 4. Extreme drawdown op een agent
         if agent_stats:
             for naam, s in agent_stats.items():
                 if s.get('drawdown', 0) > 0.60:
@@ -233,7 +262,7 @@ class ZelfVerbeteraar:
     async def _vraag_ai(self, stats: dict, agent_stats: dict | None) -> dict | None:
         """Vraag Claude Sonnet voor parameter-aanbevelingen."""
         if not self.client:
-            log.warning("Geen Anthropic API key — zelfverbetering overgeslagen")
+            log.warning("Geen Anthropic API key - zelfverbetering overgeslagen")
             return None
 
         huidig = self.config.get('zelfverbetering', {})
@@ -276,14 +305,15 @@ Regels:
 
         try:
             import asyncio
+
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
                 lambda: self.client.messages.create(
                     model=SONNET_MODEL,
                     max_tokens=500,
-                    messages=[{'role': 'user', 'content': prompt}]
-                )
+                    messages=[{'role': 'user', 'content': prompt}],
+                ),
             )
             tekst = response.content[0].text.strip()
             start = tekst.find('{')
@@ -296,22 +326,19 @@ Regels:
         return None
 
     def _valideer_en_pas_toe(self, aanbevelingen: dict) -> dict:
-        """Valideer elke aanbeveling tegen harde grenzen en pas toe."""
+        """Valideer aanbevelingen en geef alleen een veilig voorgesteld diff terug."""
         wijzigingen_raw = aanbevelingen.get('wijzigingen', {})
-        toegepast = {}
-        huidig = self.config.setdefault('zelfverbetering', {})
+        voorgesteld = {}
+        huidig = self.config.get('zelfverbetering', {})
 
         for param, nieuwe_waarde in wijzigingen_raw.items():
             if param not in PARAM_GRENZEN:
-                log.warning(f"Onbekende parameter: {param} — overgeslagen")
+                log.warning(f"Onbekende parameter: {param} - overgeslagen")
                 continue
 
             min_val, max_val = PARAM_GRENZEN[param]
-
-            # Clamp binnen grenzen
             veilige_waarde = max(min_val, min(max_val, float(nieuwe_waarde)))
 
-            # Max 20% stap per iteratie
             oud = huidig.get(param, (min_val + max_val) / 2)
             max_stap = oud * 0.20
             if abs(veilige_waarde - oud) > max_stap:
@@ -322,33 +349,49 @@ Regels:
             oud_afgerond = round(float(oud), 4)
 
             if veilige_waarde != oud_afgerond:
-                huidig[param] = veilige_waarde
-                toegepast[param] = {'oud': oud_afgerond, 'nieuw': veilige_waarde}
-                log.info(f"Parameter {param}: {oud_afgerond} → {veilige_waarde}")
+                voorgesteld[param] = {'oud': oud_afgerond, 'nieuw': veilige_waarde}
+                log.info(f"Parameter {param}: {oud_afgerond} voorgesteld -> {veilige_waarde}")
 
-        return toegepast
+        return voorgesteld
 
     def _sla_config_op(self):
-        """Schrijf aangepaste config terug naar YAML."""
-        try:
-            with open(self.config_pad, 'r', encoding='utf-8') as f:
-                huidig = yaml.safe_load(f)
-
-            huidig['zelfverbetering'] = self.config.get('zelfverbetering', {})
-            huidig['zelfverbetering']['laatste_update'] = datetime.now().isoformat()
-
-            with open(self.config_pad, 'w', encoding='utf-8') as f:
-                yaml.dump(huidig, f, default_flow_style=False, allow_unicode=True)
-
-            log.info("Config bijgewerkt")
-        except Exception as e:
-            log.error(f"Config opslaan mislukt: {e}")
+        """Read-only mode: schrijf nooit rechtstreeks naar config/config.yaml."""
+        log.debug("Zelfverbetering read-only: config/config.yaml wordt niet aangepast")
 
     def _schrijf_audit(self, data: dict):
         """Schrijf audit entry naar log."""
         data['timestamp'] = datetime.now().isoformat()
         with open(self.audit_pad, 'a', encoding='utf-8') as f:
             f.write(json.dumps(data, ensure_ascii=False, default=str) + '\n')
+
+    def _recommendation_path(self) -> Path:
+        """Genereer een UTC-bestandsnaam voor recommendation artifacts."""
+        timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H-%M-%SZ')
+        return self.recommendation_dir / f'recommendation_{timestamp}.json'
+
+    def _schrijf_recommendation(
+        self,
+        path: Path,
+        stats: dict,
+        rationale: str,
+        proposed_diff: dict,
+        safety_outcome: dict,
+    ) -> None:
+        """Schrijf een read-only recommendation artifact naar disk."""
+        artifact = {
+            'generated_at_utc': datetime.now(timezone.utc).isoformat(),
+            'stats_snapshot': stats,
+            'ai_rationale': rationale,
+            'proposed_parameter_diff': proposed_diff,
+            'safety_check_outcome': safety_outcome,
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(artifact, f, ensure_ascii=False, indent=2, default=str)
+
+    def _log_read_only(self, path: Path) -> None:
+        """Maak read-only modus expliciet zichtbaar in de logs."""
+        log.warning(f"[SELF-IMPROVER] READ-ONLY MODE — recommendation written to {path}")
 
     def _format_rapportblok(self, stats: dict, wijzigingen: dict) -> str:
         """Formatteer samenvatting voor dagrapport."""
@@ -358,11 +401,11 @@ Regels:
         regels = [
             "\n## Zelfverbetering (Zondag)\n",
             f"- Win rate (gewogen): {stats['globaal_win_rate']:.1%}",
-            f"- Gem PnL: \u20ac{stats['globaal_gem_pnl']:.2f}",
+            f"- Gem PnL: €{stats['globaal_gem_pnl']:.2f}",
             f"- Sortino per agent: {sortino_tekst}",
             f"- Totaal trades geanalyseerd: {stats['totaal_trades']}",
-            "\n**Aanpassingen:**",
+            "\n**Aanbevelingen (read-only):**",
         ]
-        for param, v in wijzigingen.items():
-            regels.append(f"- `{param}`: {v['oud']} → {v['nieuw']}")
+        for param, waarde in wijzigingen.items():
+            regels.append(f"- `{param}`: {waarde['oud']} -> {waarde['nieuw']}")
         return '\n'.join(regels) + '\n'
