@@ -18,6 +18,7 @@ data/adapters/*
 !data/adapters/yfinance_adapter.py
 !data/adapters/fred_adapter.py
 data/cache/
+state/fred.secret
 
 *.db
 *.log
