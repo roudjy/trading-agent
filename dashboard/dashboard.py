@@ -5,8 +5,11 @@ Flask-gebaseerd dashboard voor de JvR Trading Agent.
 Alle data via /api/ endpoints, geen extra packages.
 """
 
-from flask import Flask, send_from_directory, request, Response, jsonify
+from flask import Flask, send_from_directory, request, Response, jsonify, session, g
 from functools import wraps
+import hmac
+import os
+import secrets
 import sqlite3
 import time
 import json
@@ -15,7 +18,24 @@ import time
 from pathlib import Path
 from datetime import datetime
 
+from reporting import audit_log
+
 app = Flask(__name__, template_folder="templates")
+BASE_DIR = Path(__file__).resolve().parent.parent
+TOKEN_SECRET_PATH = BASE_DIR / "state" / "operator_token.secret"
+SESSION_SECRET_PATH = BASE_DIR / "state" / "dashboard_session.secret"
+
+
+def _read_or_create_secret(path: Path) -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    secret = secrets.token_hex(32)
+    path.write_text(secret, encoding="utf-8")
+    return secret
+
+
+app.secret_key = _read_or_create_secret(SESSION_SECRET_PATH)
 
 
 @app.errorhandler(Exception)
@@ -31,6 +51,10 @@ def _api_error(e):
 PW_HASH = "1589467012acf3e137fd8ba1b6822dcb942bb003c1cd96b10c5cad340a507a7d"
 SALT    = "6bff887d02d28e60299f53d77a3a1246"
 
+
+def _operator_token_secret() -> str:
+    return _read_or_create_secret(TOKEN_SECRET_PATH)
+
 def check_auth(username, password):
     import hashlib
     h = hashlib.sha256((SALT + password).encode()).hexdigest()
@@ -42,11 +66,41 @@ def authenticate():
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        if session.get("operator_authenticated"):
+            g.operator_actor = session.get("operator_actor", "session")
+            return f(*args, **kwargs)
         auth = request.authorization
         if not auth or not check_auth(auth.username, auth.password):
             return authenticate()
+        session["operator_authenticated"] = True
+        session["operator_actor"] = auth.username
+        g.operator_actor = auth.username
         return f(*args, **kwargs)
     return decorated
+
+
+def require_operator_auth():
+    """Bescherm side-effect endpoints via sessiecookie of operator-token."""
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if session.get("operator_authenticated"):
+                g.operator_actor = session.get("operator_actor", "session")
+                return f(*args, **kwargs)
+
+            token = request.headers.get("X-Operator-Token", "")
+            secret = _operator_token_secret()
+            if token and hmac.compare_digest(token, secret):
+                g.operator_actor = "operator_token"
+                return f(*args, **kwargs)
+
+            return jsonify({"error": "operator authentication required"}), 401
+        return decorated
+    return decorator
+
+
+def _operator_actor() -> str:
+    return getattr(g, "operator_actor", "unknown")
 
 # ──────────────────────────────────────────────
 # Paden
@@ -83,6 +137,13 @@ CRYPTO_YAHOO = {
     "BNB/EUR": "BNB-EUR",
 }
 STOCK_SYMBOLEN = ["NVDA", "AAPL", "MSFT", "ASML", "AMD"]
+
+
+def _start_daemon_timer(delay: float, callback) -> None:
+    """Start achtergrondtimers als daemon zodat ze geen shutdown blokkeren."""
+    timer = threading.Timer(delay, callback)
+    timer.daemon = True
+    timer.start()
 
 
 def _ververs_prijzen():
@@ -124,11 +185,11 @@ def _ververs_prijzen():
     _prijzen_cache = result
     _prijzen_cache_tijd = time.time()
     # Plan volgende refresh
-    threading.Timer(_PRIJS_TTL, _ververs_prijzen).start()
+    _start_daemon_timer(_PRIJS_TTL, _ververs_prijzen)
 
 
 # Start eerste prijsrefresh na 2 seconden (laat Flask opstarten)
-threading.Timer(2, _ververs_prijzen).start()
+_start_daemon_timer(2, _ververs_prijzen)
 
 
 # ──────────────────────────────────────────────
@@ -189,6 +250,7 @@ def index():
 # ──────────────────────────────────────────────
 # API — Status
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/status")
 def api_status():
     # Haal kapitaal op uit DB
@@ -246,6 +308,7 @@ def api_status():
 # ──────────────────────────────────────────────
 # API — Trades
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/trades/recent")
 def api_trades_recent():
     rijen = _db_query(
@@ -266,6 +329,7 @@ def api_trades_recent():
 # ──────────────────────────────────────────────
 # API — Kapitaalgroei
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/performance")
 def api_performance():
     if not DB_PAD.exists():
@@ -312,6 +376,7 @@ def api_performance():
 # ──────────────────────────────────────────────
 # API — Strategie prestaties
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/strategie/prestaties")
 def api_strategie_prestaties():
     rijen = _db_query(
@@ -333,6 +398,7 @@ def api_strategie_prestaties():
 # ──────────────────────────────────────────────
 # API — Win/verlies per week
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/stats/per-week")
 def api_stats_per_week():
     rijen = _db_query(
@@ -354,6 +420,7 @@ def api_stats_per_week():
 # ──────────────────────────────────────────────
 # API — Top 3 assets
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/stats/top-assets")
 def api_stats_top_assets():
     rijen = _db_query(
@@ -376,6 +443,7 @@ def api_stats_top_assets():
 # ──────────────────────────────────────────────
 # API — Heatmap per uur
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/stats/heatmap")
 def api_stats_heatmap():
     rijen = _db_query(
@@ -403,6 +471,7 @@ def api_stats_heatmap():
 # ──────────────────────────────────────────────
 # API — Live koersen
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/prices/live")
 def api_prices_live():
     ouderdom = int(time.time() - _prijzen_cache_tijd) if _prijzen_cache_tijd else -1
@@ -415,6 +484,7 @@ def api_prices_live():
 # ──────────────────────────────────────────────
 # API — Regime per asset
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/regime/huidig")
 def api_regime_huidig():
     if not DB_PAD.exists():
@@ -437,6 +507,7 @@ def api_regime_huidig():
 # ──────────────────────────────────────────────
 # API — Sentiment
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/sentiment/huidig")
 def api_sentiment_huidig():
     if not DB_PAD.exists():
@@ -462,6 +533,7 @@ def api_sentiment_huidig():
 # ──────────────────────────────────────────────
 # API — Live log feed
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/logs/recent")
 def api_logs_recent():
     if not LOG_PAD.exists():
@@ -474,6 +546,7 @@ def api_logs_recent():
 # ──────────────────────────────────────────────
 # API — Audit log (zelfverbeteringen)
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/audit/log")
 def api_audit_log():
     if not AUDIT_LOG.exists():
@@ -494,27 +567,51 @@ def api_audit_log():
 # ──────────────────────────────────────────────
 # API — Pauze
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/agent/pauze/status")
 def api_pauze_status():
     return jsonify({"gepauzeerd": PAUSE_FLAG.exists()})
 
 
 @app.route("/api/agent/pauze", methods=["POST"])
+@require_operator_auth()
 def api_pauze_toggle():
+    actor = _operator_actor()
     data = request.get_json(silent=True) or {}
     actie = data.get("actie", "toggle")
-    if actie == "pauze" or (actie == "toggle" and not PAUSE_FLAG.exists()):
-        PAUSE_FLAG.parent.mkdir(exist_ok=True)
-        PAUSE_FLAG.touch()
-        return jsonify({"gepauzeerd": True})
-    else:
-        PAUSE_FLAG.unlink(missing_ok=True)
-        return jsonify({"gepauzeerd": False})
+    audit_log.append(
+        event="dashboard_pause_requested",
+        actor=actor,
+        payload={"actie": actie, "gepauzeerd": PAUSE_FLAG.exists()},
+    )
+    try:
+        if actie == "pauze" or (actie == "toggle" and not PAUSE_FLAG.exists()):
+            PAUSE_FLAG.parent.mkdir(exist_ok=True)
+            PAUSE_FLAG.touch()
+            response = {"gepauzeerd": True}
+        else:
+            PAUSE_FLAG.unlink(missing_ok=True)
+            response = {"gepauzeerd": False}
+
+        audit_log.append(
+            event="dashboard_pause_succeeded",
+            actor=actor,
+            payload={"actie": actie, **response},
+        )
+        return jsonify(response)
+    except Exception as e:
+        audit_log.append(
+            event="dashboard_pause_failed",
+            actor=actor,
+            payload={"actie": actie, "error": str(e)},
+        )
+        raise
 
 
 # ──────────────────────────────────────────────
 # API — Drawdown
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/stats/drawdown")
 def api_stats_drawdown():
     if not DB_PAD.exists():
@@ -556,6 +653,7 @@ def api_stats_drawdown():
 # ──────────────────────────────────────────────
 # API — Reeks verliezen
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/stats/reeks-verliezen")
 def api_reeks_verliezen():
     rijen = _db_query(
@@ -578,6 +676,7 @@ def api_reeks_verliezen():
 # ──────────────────────────────────────────────
 # API — Laatste dagrapport
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/rapport/laatste")
 def api_rapport_laatste():
     if not RAPPORT_MAP.exists():
@@ -597,6 +696,7 @@ def api_rapport_laatste():
 # ──────────────────────────────────────────────
 # API — Sub-agent overzicht
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/agents/overzicht")
 def api_agents_overzicht():
     """Statistieken per sub-agent (RSI, EMA, Bot, Sentiment)."""
@@ -639,6 +739,7 @@ def api_agents_overzicht():
 # ──────────────────────────────────────────────
 # API — Test status
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/tests/status")
 def api_tests_status():
     """Lees laatste test resultaat uit logs/test_resultaat.log."""
@@ -664,10 +765,19 @@ def api_tests_status():
 # API — Run tests (POST)
 # ──────────────────────────────────────────────
 @app.route("/api/tests/run", methods=["POST"])
+@require_operator_auth()
 def api_tests_run():
     """Start run_tests.sh in achtergrond en sla output op in logs/test_resultaat.log."""
-    import subprocess, threading
-    def _run():
+    import subprocess
+
+    actor = _operator_actor()
+    audit_log.append(
+        event="dashboard_tests_run_requested",
+        actor=actor,
+        payload={},
+    )
+
+    def _run(run_actor: str):
         try:
             log_pad = Path("logs/test_resultaat.log")
             result = subprocess.run(
@@ -676,15 +786,32 @@ def api_tests_run():
             )
             output = result.stdout + result.stderr
             log_pad.write_text(output, encoding="utf-8")
+            audit_log.append(
+                event="dashboard_tests_run_finished",
+                actor=run_actor,
+                payload={"returncode": result.returncode},
+            )
         except Exception as e:
             Path("logs/test_resultaat.log").write_text(str(e))
-    threading.Thread(target=_run, daemon=True).start()
+            audit_log.append(
+                event="dashboard_tests_run_failed",
+                actor=run_actor,
+                payload={"error": str(e)},
+            )
+
+    threading.Thread(target=_run, args=(actor,), daemon=True).start()
+    audit_log.append(
+        event="dashboard_tests_run_queued",
+        actor=actor,
+        payload={},
+    )
     return jsonify({"status": "gestart"})
 
 
 # ──────────────────────────────────────────────
 # API — Live koersen (alias)
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/prijzen")
 def api_prijzen():
     """Eenvoudige alias: [{naam, prijs, valuta}]"""
@@ -704,6 +831,7 @@ def api_prijzen():
 # ──────────────────────────────────────────────
 # API — Kapitaal geschiedenis
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/kapitaal/geschiedenis")
 def api_kapitaal_geschiedenis():
     return api_performance()
@@ -713,13 +841,14 @@ def api_kapitaal_geschiedenis():
 # ──────────────────────────────────────────────
 # API — Backtest resultaten
 # ──────────────────────────────────────────────
+# AUDIT: read-only
 @app.route("/api/backtests")
 def api_backtests():
     import json as _json
-    results_path = os.path.join(BASE_DIR, "reports", "backtest_resultaten.json")
+    results_path = BASE_DIR / "reports" / "backtest_resultaten.json"
     if not os.path.exists(results_path):
         return jsonify({"error": "Nog geen backtest resultaten"}), 404
-    with open(results_path) as f:
+    with open(results_path, encoding="utf-8") as f:
         data = _json.load(f)
     strategieen = []
     for key, s in data.get("strategieen", {}).items():

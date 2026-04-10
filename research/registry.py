@@ -1,17 +1,21 @@
 """
 Research registry:
-centrale bron voor alle strategieën, param-grids en metadata.
+centrale bron voor alle strategieen, param-grids en metadata.
 """
+
+# AGENTS.md rules violation - scheduled for Phase 2 replacement.
+# This file currently performs a brute-force Cartesian parameter sweep.
+# Phase 1 adds a size guard; Phase 2 will replace it with a hypothesis-driven envelope.
 
 from itertools import product
 
 from agent.backtesting.strategies import (
-    rsi_strategie,
-    bollinger_strategie,
     bollinger_regime_strategie,
+    bollinger_strategie,
+    breakout_momentum_strategie,
+    rsi_strategie,
     trend_pullback_strategie,
     trend_pullback_tp_sl_strategie,
-    breakout_momentum_strategie,
 )
 
 STRATEGIES = [
