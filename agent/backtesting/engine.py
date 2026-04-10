@@ -12,11 +12,14 @@ Kosten: 0.5% bitvavo + 0.1% slippage = 0.6% round-trip.
 
 import logging
 import math
+from datetime import UTC
 from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
+
+from data.contracts import Instrument
+from data.repository import DataUnavailableError, MarketRepository
 
 log = logging.getLogger(__name__)
 
@@ -161,26 +164,46 @@ class BacktestEngine:
     def _laad_data(self, asset: str, interval: str) -> Optional[pd.DataFrame]:
         """Download en prepareer OHLCV data. auto_adjust=True altijd."""
         try:
+            if not hasattr(self, "_market_repository"):
+                self._market_repository = MarketRepository()
+
             ticker = asset.replace('/', '-')
-            df = yf.download(
-                ticker,
-                start=self.start,
-                end=self.eind,
-                interval=interval,
-                auto_adjust=True,
-                progress=False,
-                multi_level_index=False,
+            quote_ccy = ticker.split('-')[-1] if '-' in ticker else 'USD'
+            instrument = Instrument(
+                id=ticker.lower(),
+                asset_class='crypto' if self._is_crypto_ticker(ticker) else 'equity',
+                venue='yahoo',
+                native_symbol=ticker,
+                quote_ccy=quote_ccy,
             )
-            if df is None or df.empty:
+
+            response = self._market_repository.get_bars(
+                instrument=instrument,
+                interval=interval,
+                start_utc=self._parse_utc_bound(self.start),
+                end_utc=self._parse_utc_bound(self.eind),
+            )
+            df = response.frame
+            if df.empty:
                 return None
-            df.columns = [column.lower() for column in df.columns]
-            is_crypto = '-EUR' in ticker or '-USD' in ticker or '-BTC' in ticker
-            if not is_crypto:
-                df = df[df['volume'] > 0]
-            return df.dropna()
+            return df
+        except DataUnavailableError as e:
+            log.error(f"[BT] Data laden mislukt {asset}: {e}")
+            return None
         except Exception as e:
             log.error(f"[BT] Data laden mislukt {asset}: {e}")
             return None
+
+    @staticmethod
+    def _is_crypto_ticker(ticker: str) -> bool:
+        return '-EUR' in ticker or '-USD' in ticker or '-BTC' in ticker
+
+    @staticmethod
+    def _parse_utc_bound(value: str) -> pd.Timestamp:
+        timestamp = pd.Timestamp(value)
+        if timestamp.tzinfo is None:
+            return timestamp.tz_localize(UTC)
+        return timestamp.tz_convert(UTC)
 
     def _simuleer(self, df: pd.DataFrame, strategie_func: Callable, asset: str) -> tuple[list, list, list]:
         """
