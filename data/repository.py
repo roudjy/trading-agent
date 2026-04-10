@@ -11,9 +11,9 @@ from typing import Iterable
 
 import pandas as pd
 
-from data.adapters.base import MarketAdapter
+from data.adapters.base import MacroAdapter, MarketAdapter
 from data.adapters.yfinance_adapter import YFinanceMarketAdapter
-from data.contracts import CanonicalBar, Instrument, Provenance
+from data.contracts import CanonicalBar, Instrument, MacroSeriesPoint, Provenance
 
 
 class DataUnavailableError(RuntimeError):
@@ -23,6 +23,12 @@ class DataUnavailableError(RuntimeError):
 @dataclass(frozen=True)
 class BarsResponse:
     frame: pd.DataFrame
+    provenance: Provenance
+
+
+@dataclass(frozen=True)
+class MacroSeriesResponse:
+    points: list[MacroSeriesPoint]
     provenance: Provenance
 
 
@@ -209,3 +215,95 @@ class MarketRepository:
             source_version="",
             cache_hit=False,
         )
+
+
+class MacroRepository:
+    """Canonical macro-data repository with adapter routing and parquet cache."""
+
+    def __init__(
+        self,
+        adapters: dict[str, MacroAdapter] | None = None,
+        cache_dir: Path | None = None,
+    ) -> None:
+        if adapters is None:
+            from data.adapters.fred_adapter import FredMacroAdapter
+
+            adapters = {"fred": FredMacroAdapter()}
+        self._adapters = adapters
+        self._cache_dir = cache_dir or Path("data/cache/macro")
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def get_series(
+        self,
+        series_id: str,
+        start_utc,
+        end_utc,
+        as_of_utc,
+    ) -> MacroSeriesResponse:
+        adapter = self._adapters["fred"]
+        cache_path = self._cache_path(series_id, as_of_utc)
+
+        try:
+            if cache_path.exists():
+                points = self._read_cached_points(cache_path)
+            else:
+                points = adapter.fetch_series(series_id, start_utc, end_utc, as_of_utc)
+                self._write_cached_points(cache_path, points)
+        except Exception as exc:
+            raise DataUnavailableError(f"Unable to load macro series {series_id} via {adapter.name}") from exc
+
+        if not points:
+            return MacroSeriesResponse(points=[], provenance=MarketRepository._empty_provenance(adapter.name))
+
+        return MacroSeriesResponse(points=points, provenance=points[-1].provenance)
+
+    def _cache_path(self, series_id: str, as_of_utc) -> Path:
+        as_of_key = as_of_utc.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ") if as_of_utc else "latest"
+        return self._cache_dir / f"{series_id}__{as_of_key}.parquet"
+
+    def _write_cached_points(self, path: Path, points: Iterable[MacroSeriesPoint]) -> None:
+        raw = pd.DataFrame(
+            [
+                {
+                    "series_id": point.series_id,
+                    "timestamp_utc": point.timestamp_utc,
+                    "value": point.value,
+                    "native_frequency": point.native_frequency,
+                    "vintage_as_of_utc": point.vintage_as_of_utc,
+                    "provenance_adapter": point.provenance.adapter,
+                    "provenance_fetched_at_utc": point.provenance.fetched_at_utc,
+                    "provenance_config_hash": point.provenance.config_hash,
+                    "provenance_source_version": point.provenance.source_version,
+                    "provenance_cache_hit": point.provenance.cache_hit,
+                }
+                for point in points
+            ]
+        )
+        raw.to_parquet(path, index=False)
+
+    def _read_cached_points(self, path: Path) -> list[MacroSeriesPoint]:
+        raw = pd.read_parquet(path)
+        points: list[MacroSeriesPoint] = []
+        for row in raw.to_dict(orient="records"):
+            provenance = Provenance(
+                adapter=str(row["provenance_adapter"]),
+                fetched_at_utc=pd.Timestamp(row["provenance_fetched_at_utc"]).to_pydatetime(),
+                config_hash=str(row["provenance_config_hash"]),
+                source_version=str(row["provenance_source_version"]),
+                cache_hit=True,
+            )
+            points.append(
+                MacroSeriesPoint(
+                    series_id=str(row["series_id"]),
+                    timestamp_utc=pd.Timestamp(row["timestamp_utc"]).to_pydatetime(),
+                    value=float(row["value"]),
+                    native_frequency=str(row["native_frequency"]),
+                    vintage_as_of_utc=(
+                        pd.Timestamp(row["vintage_as_of_utc"]).to_pydatetime()
+                        if pd.notna(row["vintage_as_of_utc"])
+                        else None
+                    ),
+                    provenance=provenance,
+                )
+            )
+        return points
