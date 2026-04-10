@@ -6,7 +6,7 @@ __pycache__/
 
 logs/
 reports/
-data/
+data/cache/
 state/
 
 *.db
