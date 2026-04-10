@@ -146,6 +146,8 @@ class OrderExecutor:
                 regime=signaal.regime,
                 sentiment_score=0.0,
                 exchange='paper',
+                stop_loss_pct=signaal.stop_loss_pct,
+                take_profit_pct=signaal.take_profit_pct,
             )
 
             self.paper_kapitaal -= bedrag
@@ -202,6 +204,8 @@ class OrderExecutor:
                 regime=signaal.regime,
                 sentiment_score=0.0,
                 exchange=type(exchange).__name__.lower(),
+                stop_loss_pct=signaal.stop_loss_pct,
+                take_profit_pct=signaal.take_profit_pct,
             )
 
             log.info(f"[LIVE] Trade geopend: {trade.samenvatting()}")

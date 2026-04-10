@@ -13,8 +13,8 @@ import time
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
-from dataclasses import dataclass, asdict
+from typing import Optional
+from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
 
@@ -86,6 +86,8 @@ class Trade:
     regime: str
     sentiment_score: float
     exchange: str
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
     def samenvatting(self) -> str:
         pnl_str = f"+€{self.pnl:.2f}" if self.pnl and self.pnl > 0 else f"€{self.pnl:.2f}" if self.pnl else "open"
@@ -143,6 +145,7 @@ class AgentMemory:
                     exchange TEXT
                 )
             """)
+            self._migreer_trade_kolommen(conn)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS kapitaal_geschiedenis (
                     tijdstip TEXT,
@@ -180,6 +183,18 @@ class AgentMemory:
             conn.commit()
 
     @staticmethod
+    def _migreer_trade_kolommen(conn) -> None:
+        """Voeg backward-compatible kolommen toe voor persisted stop-loss en take-profit."""
+        bestaande_kolommen = {
+            rij[1]
+            for rij in conn.execute("PRAGMA table_info(trades)").fetchall()
+        }
+        if 'stop_loss_pct' not in bestaande_kolommen:
+            conn.execute("ALTER TABLE trades ADD COLUMN stop_loss_pct REAL")
+        if 'take_profit_pct' not in bestaande_kolommen:
+            conn.execute("ALTER TABLE trades ADD COLUMN take_profit_pct REAL")
+
+    @staticmethod
     def _fmt_dt(dt) -> str | None:
         """Converteer datetime naar ISO string, None als het None is."""
         if dt is None:
@@ -192,8 +207,12 @@ class AgentMemory:
         """Sla een nieuwe trade op in de database."""
         with _db_connect(self.db_pad) as conn:
             conn.execute("""
-                INSERT OR REPLACE INTO trades VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO trades (
+                    id, symbool, richting, strategie_type, entry_prijs, exit_prijs,
+                    hoeveelheid, euro_bedrag, pnl, pnl_pct, entry_tijdstip,
+                    exit_tijdstip, reden_entry, reden_exit, geleerd, regime,
+                    sentiment_score, exchange, stop_loss_pct, take_profit_pct
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 trade.id, trade.symbool, trade.richting, trade.strategie_type,
                 trade.entry_prijs, trade.exit_prijs, trade.hoeveelheid,
@@ -201,7 +220,8 @@ class AgentMemory:
                 self._fmt_dt(trade.entry_tijdstip),
                 self._fmt_dt(trade.exit_tijdstip),
                 trade.reden_entry, trade.reden_exit, trade.geleerd,
-                trade.regime, trade.sentiment_score, trade.exchange
+                trade.regime, trade.sentiment_score, trade.exchange,
+                trade.stop_loss_pct, trade.take_profit_pct
             ))
             conn.commit()
 
