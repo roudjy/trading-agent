@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Iterable
 
@@ -70,6 +71,33 @@ class MarketRepository:
         provenance = bars[-1].provenance
         frame.attrs["provenance"] = provenance
         return BarsResponse(frame=frame, provenance=provenance)
+
+    def get_latest_prices(self, instruments: list[Instrument]) -> dict[str, dict[str, object]]:
+        now = datetime.now(UTC)
+        start_utc = now - timedelta(days=7)
+        prices: dict[str, dict[str, object]] = {}
+
+        for instrument in instruments:
+            try:
+                response = self.get_bars(
+                    instrument=instrument,
+                    interval="1d",
+                    start_utc=start_utc,
+                    end_utc=now,
+                )
+                price = None
+                if not response.frame.empty:
+                    price = round(float(response.frame["close"].iloc[-1]), 4)
+                prices[instrument.id] = {
+                    "prijs": price,
+                    "type": instrument.asset_class,
+                }
+            except DataUnavailableError:
+                prices[instrument.id] = {
+                    "prijs": None,
+                    "type": instrument.asset_class,
+                }
+        return prices
 
     def _resolve_adapter(self, asset_class: str) -> MarketAdapter:
         try:
