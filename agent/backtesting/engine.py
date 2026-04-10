@@ -56,6 +56,7 @@ class BacktestEngine:
         self.eind = eind_datum
         self.kosten_per_kant = transactiekosten / 2 + 0.001
         self.max_sweep_cells = max_sweep_cells
+        self._provenance_events = []
 
     def run(self, strategie_func: Callable, assets: list, interval: str = '1d') -> dict:
         """Walk-forward backtest over meerdere assets. Return metrics dict."""
@@ -183,6 +184,9 @@ class BacktestEngine:
                 start_utc=self._parse_utc_bound(self.start),
                 end_utc=self._parse_utc_bound(self.eind),
             )
+            if not hasattr(self, "_provenance_events"):
+                self._provenance_events = []
+            self._provenance_events.append(response.provenance)
             df = response.frame
             if df.empty:
                 return None

@@ -6,6 +6,7 @@ __pycache__/
 
 logs/
 reports/
+research/provenance/
 state/
 data/*
 !data/__init__.py
