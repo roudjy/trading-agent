@@ -23,6 +23,7 @@ from typing import Optional
 
 import ccxt.async_support as ccxt
 
+from automation import live_gate
 from agent.risk.risk_manager import TradeSignaal, PositieGrootte
 from agent.learning.memory import Trade
 
@@ -62,14 +63,22 @@ class OrderExecutor:
 
     def _is_paper_mode(self, symbool: str) -> bool:
         """Bepaal of paper trading actief is voor dit symbool."""
+        live_gewenst = False
         if '/' in symbool:
             # Crypto symbool
             for exchange_naam in ['bitvavo', 'kraken']:
                 if self.config['exchanges'].get(exchange_naam, {}).get('actief'):
-                    return self.config['exchanges'][exchange_naam].get('paper_trading', True)
+                    live_gewenst = self.config['exchanges'][exchange_naam].get('paper_trading', True) is False
+                    break
         elif any(c.isalpha() for c in symbool):
             # Stock symbool
-            return self.config['exchanges'].get('ibkr', {}).get('paper_trading', True)
+            live_gewenst = self.config['exchanges'].get('ibkr', {}).get('paper_trading', True) is False
+
+        if live_gewenst:
+            if live_gate.is_live_armed():
+                return False
+            log.error(f"Live trading geweigerd voor {symbool}: live gate niet gewapend")
+
         return True  # Default: paper mode
 
     async def voer_uit(self, signaal: TradeSignaal, markt_data: dict = None, max_bedrag: float = None) -> Optional[Trade]:
