@@ -387,3 +387,97 @@ def polymarket_expiry_strategie():
     def func(df: pd.DataFrame) -> pd.Series:
         return pd.Series(0, index=df.index)
     return func
+
+
+# ── SMA Crossover (Trend Following) ───────────────────────────────────────
+
+def sma_crossover_strategie(fast_window: int = 20, slow_window: int = 50):
+    """
+    Classical SMA crossover trend-following strategy.
+    Long when fast SMA > slow SMA, flat otherwise.
+    Long-only per tier 1 baseline (orchestrator_brief §4.1).
+    """
+    def func(df: pd.DataFrame) -> pd.Series:
+        close = df["close"].astype(float)
+        min_bars = max(fast_window, slow_window) + 1
+        if len(close) < min_bars or fast_window >= slow_window:
+            return pd.Series(0, index=df.index)
+
+        sma_fast = close.rolling(window=fast_window).mean()
+        sma_slow = close.rolling(window=slow_window).mean()
+
+        sig = pd.Series(0, index=df.index)
+        sig[sma_fast > sma_slow] = 1
+        return sig
+    return func
+
+
+# ── Z-Score Mean Reversion ────────────────────────────────────────────────
+
+def zscore_mean_reversion_strategie(lookback: int = 20,
+                                    entry_z: float = 2.0,
+                                    exit_z: float = 0.5):
+    """
+    Classical price z-score mean reversion (orchestrator_brief §4.2).
+    Long when z <= -entry_z, short when z >= +entry_z,
+    flat when |z| <= exit_z (flatten-on-threshold exit).
+    """
+    def func(df: pd.DataFrame) -> pd.Series:
+        close = df["close"].astype(float)
+        if len(close) < lookback + 1 or entry_z <= exit_z:
+            return pd.Series(0, index=df.index)
+
+        mean = close.rolling(window=lookback).mean()
+        std = close.rolling(window=lookback).std(ddof=0)
+        z = (close - mean) / std.replace(0.0, np.nan)
+
+        sig = pd.Series(0, index=df.index)
+        sig[z <= -entry_z] = 1
+        sig[z >= entry_z] = -1
+        sig[z.abs() <= exit_z] = 0
+        return sig
+    return func
+
+
+# ── Pairs Trading Z-Score (Statistical Arbitrage) ─────────────────────────
+
+def pairs_zscore_strategie(lookback: int = 30,
+                           entry_z: float = 2.0,
+                           exit_z: float = 0.5,
+                           hedge_ratio: float = 1.0):
+    """
+    Pairs trading z-score strategy (orchestrator_brief §4.3).
+    Requires a DataFrame with BOTH 'close' and 'close_ref' columns.
+    Spread = close - hedge_ratio * close_ref.
+    Long pair when spread z <= -entry_z (long close, short close_ref).
+    Short pair when spread z >= +entry_z (short close, long close_ref).
+    Flat when |z| <= exit_z.
+
+    NOTE: the current backtest engine loads a single DataFrame per
+    asset and does not yet populate a 'close_ref' column. This
+    factory is therefore registered with enabled=False until a
+    separate multi-asset loader scaffold prompt wires in the
+    second price series. The function is independently
+    unit-testable on synthetic two-column frames.
+    """
+    def func(df: pd.DataFrame) -> pd.Series:
+        if "close" not in df.columns or "close_ref" not in df.columns:
+            return pd.Series(0, index=df.index)
+
+        close = df["close"].astype(float)
+        close_ref = df["close_ref"].astype(float)
+
+        if len(close) < lookback + 1 or entry_z <= exit_z:
+            return pd.Series(0, index=df.index)
+
+        spread = close - hedge_ratio * close_ref
+        mean = spread.rolling(window=lookback).mean()
+        std = spread.rolling(window=lookback).std(ddof=0)
+        z = (spread - mean) / std.replace(0.0, np.nan)
+
+        sig = pd.Series(0, index=df.index)
+        sig[z <= -entry_z] = 1
+        sig[z >= entry_z] = -1
+        sig[z.abs() <= exit_z] = 0
+        return sig
+    return func
