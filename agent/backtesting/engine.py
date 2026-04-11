@@ -57,6 +57,8 @@ class BacktestEngine:
         self.kosten_per_kant = transactiekosten / 2 + 0.001
         self.max_sweep_cells = max_sweep_cells
         self._provenance_events = []
+        self.last_evaluation_report: dict = {}
+        self.last_evaluation_samples: dict[str, list[float]] = {}
 
     def run(self, strategie_func: Callable, assets: list, interval: str = '1d') -> dict:
         """Walk-forward backtest over meerdere assets. Return metrics dict."""
@@ -78,6 +80,7 @@ class BacktestEngine:
             dag_returns.extend(dag_ret)
             maand_returns.extend(maand_ret)
 
+        self._capture_evaluation_report(trade_pnls, dag_returns, maand_returns)
         if len(trade_pnls) < MIN_TRADES:
             return {**self._leeg(), 'reden': f'Te weinig trades: {len(trade_pnls)}'}
 
@@ -158,6 +161,7 @@ class BacktestEngine:
             trade_pnls.extend(trades)
             dag_returns.extend(dag)
             maand_returns.extend(maand)
+        self._capture_evaluation_report(trade_pnls, dag_returns, maand_returns)
         if len(trade_pnls) < MIN_TRADES:
             return self._leeg()
         return self._metrics(trade_pnls, dag_returns, maand_returns)
@@ -349,6 +353,56 @@ class BacktestEngine:
             return list(eq.resample('ME').last().pct_change().dropna())
         except Exception:
             return []
+
+    def _capture_evaluation_report(
+        self,
+        trade_pnls: list[float],
+        dag_returns: list[float],
+        maand_returns: list[float],
+    ) -> None:
+        evaluation_samples = {
+            'daily_returns': list(dag_returns),
+            'trade_pnls': list(trade_pnls),
+            'monthly_returns': list(maand_returns),
+        }
+        self.last_evaluation_samples = evaluation_samples
+        self.last_evaluation_report = {
+            'evaluation_samples': evaluation_samples,
+            'sample_statistics': {
+                naam: self._sample_statistics(values)
+                for naam, values in evaluation_samples.items()
+            },
+        }
+
+    @staticmethod
+    def _sample_statistics(values: list[float]) -> dict[str, float]:
+        array = np.asarray(values, dtype=float)
+        if array.size == 0:
+            return {
+                'count': 0,
+                'mean': 0.0,
+                'std': 0.0,
+                'skew': 0.0,
+                'kurt': 0.0,
+            }
+
+        mean = float(array.mean())
+        std = float(array.std())
+        if std == 0.0:
+            skew = 0.0
+            kurt = 3.0
+        else:
+            centered = (array - mean) / std
+            skew = float(np.mean(centered ** 3))
+            kurt = float(np.mean(centered ** 4))
+
+        return {
+            'count': int(array.size),
+            'mean': mean,
+            'std': std,
+            'skew': skew,
+            'kurt': kurt,
+        }
 
     def _metrics(self, trade_pnls: list, dag_returns: list, maand_returns: list) -> dict:
         """Bereken alle prestatiemetrieken."""
