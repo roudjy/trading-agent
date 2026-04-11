@@ -113,6 +113,22 @@ def get_enabled_strategies():
     return [s for s in STRATEGIES if s.get("enabled", True)]
 
 
+def count_param_combinations(strategy_dict):
+    total = 1
+    for values in strategy_dict.get("params", {}).values():
+        total *= len(values)
+    return total
+
+
+def iter_strategy_families():
+    families = {}
+    for strategy in get_enabled_strategies():
+        families.setdefault(strategy["family"], []).append(strategy)
+
+    for family in sorted(families):
+        yield family, sorted(families[family], key=lambda strategy: strategy["name"])
+
+
 def expand_param_grid(param_grid):
     keys = list(param_grid.keys())
     values = list(param_grid.values())
