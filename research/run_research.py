@@ -7,14 +7,22 @@ en schrijft resultaten naar CSV + latest JSON.
 import hashlib
 import json
 import subprocess
+from datetime import timezone
 from pathlib import Path
 
 import yaml
 
-from agent.backtesting.engine import BacktestEngine
+from agent.backtesting.engine import (
+    BacktestEngine,
+    EvaluationScheduleError,
+    FoldLeakageError,
+    normalize_evaluation_config,
+)
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_results_to_csv, write_latest_json
 from research.universe import build_research_universe
+
+WALK_FORWARD_PATH = "research/walk_forward_latest.v1.json"
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -84,10 +92,67 @@ def _write_provenance_sidecar(
     with (target_dir / f"{run_id}.json").open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
 
+
+def _sidecar_strategy_entry(
+    strategy: dict,
+    asset: str,
+    interval: str,
+    report: dict,
+) -> dict:
+    return {
+        "strategy_name": strategy["name"],
+        "asset": asset,
+        "interval": interval,
+        "selected_params": report.get("selected_params", {}),
+        "selection_metric": report.get("selection_metric", "sharpe"),
+        "is_summary": report.get("is_summary", {}),
+        "oos_summary": report.get("oos_summary", {}),
+        "folds": report.get("folds", []),
+        "leakage_checks_ok": report.get("leakage_checks_ok", False),
+    }
+
+
+def _write_walk_forward_sidecar(
+    *,
+    as_of_utc,
+    evaluation_config: dict,
+    strategy_reports: list[dict],
+    path: str = WALK_FORWARD_PATH,
+) -> None:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": "v1",
+        "generated_at_utc": as_of_utc.astimezone(timezone.utc).isoformat(),
+        "evaluation_config": evaluation_config,
+        "strategies": strategy_reports,
+    }
+    with target.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+
+
+def _build_engine(start_datum: str, eind_datum: str, evaluation_config: dict) -> BacktestEngine:
+    try:
+        return BacktestEngine(
+            start_datum=start_datum,
+            eind_datum=eind_datum,
+            evaluation_config=evaluation_config,
+        )
+    except TypeError as exc:
+        if "evaluation_config" not in str(exc):
+            raise
+        return BacktestEngine(
+            start_datum=start_datum,
+            eind_datum=eind_datum,
+        )
+
+
 def run_research():
     rows = []
+    walk_forward_reports = []
     provenance_events = []
     research_config = load_research_config()
+    evaluation_config = normalize_evaluation_config(research_config.get("evaluation"))
     assets, intervals, get_date_range, as_of_utc = build_research_universe(research_config)
     interval_ranges = {}
 
@@ -104,9 +169,10 @@ def run_research():
                 start_datum = interval_ranges[interval]["start"]
                 eind_datum = interval_ranges[interval]["end"]
 
-                engine = BacktestEngine(
+                engine = _build_engine(
                     start_datum=start_datum,
                     eind_datum=eind_datum,
+                    evaluation_config=evaluation_config,
                 )
 
                 try:
@@ -127,6 +193,18 @@ def run_research():
                         as_of_utc=as_of_utc,
                         metrics=metrics,
                     )
+                    report = getattr(engine, "last_evaluation_report", None)
+                    if report is not None:
+                        walk_forward_reports.append(
+                            _sidecar_strategy_entry(
+                                strategy=strategy,
+                                asset=asset.symbol,
+                                interval=interval,
+                                report=report,
+                            )
+                        )
+                except (EvaluationScheduleError, FoldLeakageError):
+                    raise
                 except Exception as e:
                     row = make_result_row(
                         strategy=strategy,
@@ -143,6 +221,13 @@ def run_research():
 
     write_results_to_csv(rows)
     write_latest_json(rows, as_of_utc=as_of_utc)
+    if any(not report["leakage_checks_ok"] for report in walk_forward_reports):
+        raise FoldLeakageError("Leakage check failed; walk-forward sidecar will not be written")
+    _write_walk_forward_sidecar(
+        as_of_utc=as_of_utc,
+        evaluation_config=evaluation_config,
+        strategy_reports=walk_forward_reports,
+    )
     _write_provenance_sidecar(
         research_config=research_config,
         as_of_utc=as_of_utc,
