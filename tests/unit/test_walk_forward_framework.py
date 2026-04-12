@@ -6,11 +6,13 @@ import pandas as pd
 import pytest
 
 from agent.backtesting.engine import (
+    MIN_ROBUSTNESS_FOLDS,
     BacktestEngine,
     EvaluationScheduleError,
     FoldLeakageError,
     anchored_walk_forward,
     build_evaluation_folds,
+    normalize_evaluation_config,
     rolling_walk_forward,
     single_split,
     validate_no_leakage,
@@ -69,18 +71,47 @@ def test_schedule_raises_on_zero_train_or_test_folds():
         rolling_walk_forward(n=10, train_bars=10, test_bars=2, step_bars=1)
 
 
-def test_default_config_matches_current_70_30_split():
+def test_default_config_is_anchored_walk_forward():
     engine = BacktestEngine(
         start_datum="2024-01-01",
         eind_datum="2024-04-30",
     )
 
     assert engine.evaluation_config == {
-        "mode": "single_split",
+        "mode": "anchored",
         "selection_metric": "sharpe",
-        "train_ratio": 0.7,
+        "initial_train_bars": 500,
+        "test_bars": 100,
+        "step_bars": 100,
     }
-    assert build_evaluation_folds(100, None) == [((0, 69), (70, 99))]
+
+
+def test_default_anchored_produces_multiple_folds():
+    folds = build_evaluation_folds(1000, None)
+    assert len(folds) > 1
+    assert len(folds) >= MIN_ROBUSTNESS_FOLDS
+
+
+def test_explicit_single_split_still_produces_one_fold():
+    config = {"mode": "single_split", "train_ratio": 0.7}
+    folds = build_evaluation_folds(100, config)
+    assert folds == [((0, 69), (70, 99))]
+    assert len(folds) == 1
+
+
+def test_normalize_none_config_returns_anchored_defaults():
+    config = normalize_evaluation_config(None)
+    assert config["mode"] == "anchored"
+    assert config["initial_train_bars"] == 500
+    assert config["test_bars"] == 100
+    assert config["step_bars"] == 100
+
+
+def test_rolling_mode_uses_safe_defaults_when_bars_omitted():
+    config = normalize_evaluation_config({"mode": "rolling"})
+    assert config["train_bars"] == 500
+    assert config["test_bars"] == 100
+    assert config["step_bars"] == 100
 
 
 def test_grid_search_selection_uses_train_windows_only(monkeypatch):
@@ -89,6 +120,7 @@ def test_grid_search_selection_uses_train_windows_only(monkeypatch):
     engine = BacktestEngine(
         start_datum="2024-01-01",
         eind_datum="2024-04-30",
+        evaluation_config={"mode": "single_split", "train_ratio": 0.7},
     )
     engine.min_trades = 1
 
