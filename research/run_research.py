@@ -14,6 +14,7 @@ from pathlib import Path
 import yaml
 
 from agent.backtesting.engine import (
+    MIN_ROBUSTNESS_FOLDS,
     BacktestEngine,
     EvaluationScheduleError,
     FoldLeakageError,
@@ -129,6 +130,7 @@ def _sidecar_strategy_entry(
     interval: str,
     report: dict,
 ) -> dict:
+    folds = report.get("folds", [])
     return {
         "strategy_name": strategy["name"],
         "asset": asset,
@@ -137,8 +139,28 @@ def _sidecar_strategy_entry(
         "selection_metric": report.get("selection_metric", "sharpe"),
         "is_summary": report.get("is_summary", {}),
         "oos_summary": report.get("oos_summary", {}),
-        "folds": report.get("folds", []),
+        "folds": folds,
         "leakage_checks_ok": report.get("leakage_checks_ok", False),
+        "robustness": _compute_robustness(folds),
+    }
+
+
+def _compute_robustness(folds: list[dict]) -> dict:
+    """Derive robustness metadata from serialized fold list."""
+    fold_count = len(folds)
+    oos_bars = sum(f["test"][1] - f["test"][0] + 1 for f in folds) if folds else 0
+    total_bars_covered = 0
+    if folds:
+        min_start = min(f["train"][0] for f in folds)
+        max_end = max(f["test"][1] for f in folds)
+        total_bars_covered = max_end - min_start + 1
+    oos_coverage_ratio = round(oos_bars / total_bars_covered, 4) if total_bars_covered > 0 else 0.0
+    return {
+        "fold_count": fold_count,
+        "oos_bar_coverage": oos_bars,
+        "total_bars_covered": total_bars_covered,
+        "oos_coverage_ratio": oos_coverage_ratio,
+        "robustness_sufficient": fold_count >= MIN_ROBUSTNESS_FOLDS,
     }
 
 
@@ -151,10 +173,20 @@ def _write_walk_forward_sidecar(
 ) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
+    insufficient = [
+        r["strategy_name"] for r in strategy_reports
+        if not r.get("robustness", {}).get("robustness_sufficient", False)
+    ]
     payload = {
         "version": "v1",
         "generated_at_utc": as_of_utc.astimezone(timezone.utc).isoformat(),
         "evaluation_config": evaluation_config,
+        "robustness_summary": {
+            "min_robustness_folds": MIN_ROBUSTNESS_FOLDS,
+            "strategy_count": len(strategy_reports),
+            "insufficient_count": len(insufficient),
+            "all_strategies_sufficient": len(insufficient) == 0,
+        },
         "strategies": strategy_reports,
     }
     with target.open("w", encoding="utf-8") as handle:

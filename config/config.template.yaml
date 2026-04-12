@@ -109,14 +109,17 @@ research:
     "4h": 700
   default_lookback_days: 1500
   evaluation:
-    mode: "single_split" # one of: single_split, rolling, anchored
-    train_ratio: 0.7 # used by single_split
-    # rolling / anchored use bar counts:
-    # train_bars: 500
-    # initial_train_bars: 500
-    # test_bars: 100
-    # step_bars: 100
+    mode: "anchored" # one of: single_split, rolling, anchored
+    initial_train_bars: 500 # anchored: expanding train window starts here
+    test_bars: 100 # anchored/rolling: OOS window size
+    step_bars: 100 # anchored/rolling: step between folds
     selection_metric: "sharpe"
+    # single_split mode (1 fold only):
+    # mode: "single_split"
+    # train_ratio: 0.7
+    # rolling mode (fixed train window):
+    # mode: "rolling"
+    # train_bars: 500
   promotion:
     min_oos_sharpe: 0.3
     max_oos_drawdown: 0.35
