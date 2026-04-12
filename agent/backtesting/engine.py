@@ -25,6 +25,12 @@ GAMMA_EM = 0.5772
 MAX_SWEEP_CELLS = 64
 DEFAULT_SELECTION_METRIC = "sharpe"
 DEFAULT_TRAIN_RATIO = 0.7
+DEFAULT_EVALUATION_MODE = "anchored"
+DEFAULT_INITIAL_TRAIN_BARS = 500
+DEFAULT_TRAIN_BARS = 500
+DEFAULT_TEST_BARS = 100
+DEFAULT_STEP_BARS = 100
+MIN_ROBUSTNESS_FOLDS = 3
 
 CRITERIA = {
     "win_rate": ("gt", 0.50),
@@ -73,7 +79,7 @@ class AssetContext:
 
 def normalize_evaluation_config(evaluation_config: Optional[dict[str, Any]]) -> dict[str, Any]:
     config = dict(evaluation_config or {})
-    mode = config.get("mode", "single_split")
+    mode = config.get("mode", DEFAULT_EVALUATION_MODE)
     normalized: dict[str, Any] = {
         "mode": mode,
         "selection_metric": config.get("selection_metric", DEFAULT_SELECTION_METRIC),
@@ -89,15 +95,15 @@ def normalize_evaluation_config(evaluation_config: Optional[dict[str, Any]]) -> 
         return normalized
 
     if mode == "rolling":
-        normalized["train_bars"] = _require_positive_int(config, "train_bars")
-        normalized["test_bars"] = _require_positive_int(config, "test_bars")
-        normalized["step_bars"] = _require_positive_int(config, "step_bars")
+        normalized["train_bars"] = _positive_int_or_default(config, "train_bars", DEFAULT_TRAIN_BARS)
+        normalized["test_bars"] = _positive_int_or_default(config, "test_bars", DEFAULT_TEST_BARS)
+        normalized["step_bars"] = _positive_int_or_default(config, "step_bars", DEFAULT_STEP_BARS)
         return normalized
 
     if mode == "anchored":
-        normalized["initial_train_bars"] = _require_positive_int(config, "initial_train_bars")
-        normalized["test_bars"] = _require_positive_int(config, "test_bars")
-        normalized["step_bars"] = _require_positive_int(config, "step_bars")
+        normalized["initial_train_bars"] = _positive_int_or_default(config, "initial_train_bars", DEFAULT_INITIAL_TRAIN_BARS)
+        normalized["test_bars"] = _positive_int_or_default(config, "test_bars", DEFAULT_TEST_BARS)
+        normalized["step_bars"] = _positive_int_or_default(config, "step_bars", DEFAULT_STEP_BARS)
         return normalized
 
     raise EvaluationScheduleError(f"Unsupported evaluation mode: {mode!r}")
@@ -208,6 +214,14 @@ def _require_positive_int(config: dict[str, Any], key: str) -> int:
     if key not in config:
         raise EvaluationScheduleError(f"Missing required evaluation key: {key}")
     value = int(config[key])
+    if value <= 0:
+        raise EvaluationScheduleError(f"{key} must be > 0, got {value!r}")
+    return value
+
+
+def _positive_int_or_default(config: dict[str, Any], key: str, default: int) -> int:
+    """Return config[key] as positive int, or default if key is absent."""
+    value = int(config.get(key, default))
     if value <= 0:
         raise EvaluationScheduleError(f"{key} must be > 0, got {value!r}")
     return value
