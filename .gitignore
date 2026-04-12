@@ -18,6 +18,22 @@ data/adapters/*
 !data/adapters/base.py
 !data/adapters/yfinance_adapter.py
 !data/adapters/fred_adapter.py
+!data/market/
+data/market/*
+!data/market/__init__.py
+!data/market/fetcher.py
+!data/sentiment/
+data/sentiment/*
+!data/sentiment/__init__.py
+!data/sentiment/scraper.py
+!data/botdetection/
+data/botdetection/*
+!data/botdetection/__init__.py
+!data/botdetection/detector.py
+!data/news/
+data/news/*
+!data/news/__init__.py
+!data/news/nieuws_fetcher.py
 data/cache/
 state/fred.secret
 

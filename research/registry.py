@@ -13,9 +13,12 @@ from agent.backtesting.strategies import (
     bollinger_regime_strategie,
     bollinger_strategie,
     breakout_momentum_strategie,
+    pairs_zscore_strategie,
     rsi_strategie,
+    sma_crossover_strategie,
     trend_pullback_strategie,
     trend_pullback_tp_sl_strategie,
+    zscore_mean_reversion_strategie,
 )
 
 STRATEGIES = [
@@ -105,6 +108,63 @@ STRATEGIES = [
         "family": "trend",
         "hypothesis": "Crypto kan sterker reageren op breakout momentum dan op mean reversion.",
         "enabled": True,
+    },
+    {
+        "name": "sma_crossover",
+        "factory": sma_crossover_strategie,
+        "params": {
+            "fast_window": [10, 20],
+            "slow_window": [50, 100],
+        },
+        "family": "trend",
+        "hypothesis": (
+            "Klassieke SMA crossover capturet persistent directional moves "
+            "per orchestrator_brief §4.1 tier 1 baseline."
+        ),
+        "enabled": True,
+    },
+    {
+        "name": "zscore_mean_reversion",
+        "factory": zscore_mean_reversion_strategie,
+        "params": {
+            "lookback": [20, 30],
+            "entry_z": [2.0],
+            "exit_z": [0.5],
+        },
+        "family": "mean_reversion",
+        "hypothesis": (
+            "Price z-score mean reversion capturet deviations from "
+            "equilibrium per orchestrator_brief §4.2 tier 1 baseline."
+        ),
+        "enabled": True,
+    },
+    # -------------------------------------------------------------------
+    # pairs_zscore — enabled=False is intentional.
+    # Blocker: the backtest engine currently loads one DataFrame per
+    # asset (see agent/backtesting/engine.py:_run_op_split). A
+    # 'close_ref' column is never populated, so the pairs factory
+    # cannot run inside the existing pipeline. Wiring is deferred to
+    # a separate future multi-asset loader scaffold prompt. Do NOT
+    # flip this flag to True without that scaffold in place.
+    # -------------------------------------------------------------------
+    {
+        "name": "pairs_zscore",
+        "factory": pairs_zscore_strategie,
+        "params": {
+            "lookback": [30],
+            "entry_z": [2.0],
+            "exit_z": [0.5],
+            "hedge_ratio": [1.0],
+        },
+        "family": "stat_arb",
+        "hypothesis": (
+            "Spread z-score pairs trading per orchestrator_brief §4.3 "
+            "tier 1 baseline. enabled=False is intentional: the "
+            "current engine has no multi-asset loader to populate "
+            "'close_ref'. Pipeline wiring deferred to a separate "
+            "future multi-asset loader scaffold prompt."
+        ),
+        "enabled": False,
     },
 ]
 
