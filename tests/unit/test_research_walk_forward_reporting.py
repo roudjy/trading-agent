@@ -171,9 +171,11 @@ def test_sidecar_written_with_v1_schema_and_version_field(monkeypatch, tmp_path)
     assert payload["version"] == "v1"
     assert payload["generated_at_utc"] == AS_OF_UTC.isoformat()
     assert payload["evaluation_config"] == {
-        "mode": "single_split",
+        "mode": "anchored",
         "selection_metric": "sharpe",
-        "train_ratio": 0.7,
+        "initial_train_bars": 500,
+        "test_bars": 100,
+        "step_bars": 100,
     }
 
 
@@ -185,6 +187,29 @@ def test_sidecar_contains_folds_and_leakage_checks_ok(monkeypatch, tmp_path):
     strategy_entry = _load_json(tmp_path / "research" / "walk_forward_latest.v1.json")["strategies"][0]
     assert strategy_entry["folds"] == [{"train": [0, 69], "test": [70, 99], "leakage_ok": True}]
     assert strategy_entry["leakage_checks_ok"] is True
+
+
+def test_sidecar_contains_robustness_metadata(monkeypatch, tmp_path):
+    _patch_runner(monkeypatch, tmp_path)
+
+    run_research_module.run_research()
+
+    sidecar = _load_json(tmp_path / "research" / "walk_forward_latest.v1.json")
+    strategy_entry = sidecar["strategies"][0]
+    robustness = strategy_entry["robustness"]
+    assert "fold_count" in robustness
+    assert "oos_bar_coverage" in robustness
+    assert "total_bars_covered" in robustness
+    assert "oos_coverage_ratio" in robustness
+    assert "robustness_sufficient" in robustness
+    assert robustness["fold_count"] == len(strategy_entry["folds"])
+
+    summary = sidecar["robustness_summary"]
+    assert "min_robustness_folds" in summary
+    assert "strategy_count" in summary
+    assert "insufficient_count" in summary
+    assert "all_strategies_sufficient" in summary
+    assert summary["strategy_count"] == 1
 
 
 def test_sidecar_separates_is_and_oos_summaries(monkeypatch, tmp_path):
