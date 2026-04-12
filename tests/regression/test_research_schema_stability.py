@@ -70,6 +70,7 @@ def test_research_outputs_remain_schema_stable(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": {})
     monkeypatch.setattr(run_research_module, "_git_revision", lambda: "deadbeef")
+    monkeypatch.setattr(run_research_module, "_write_candidate_registry", lambda **kwargs: None)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "research").mkdir()
 
