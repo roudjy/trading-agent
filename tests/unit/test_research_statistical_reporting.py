@@ -96,7 +96,7 @@ def _strategies_by_family():
 
 
 class ReportingEngine:
-    def __init__(self, start_datum, eind_datum):
+    def __init__(self, start_datum, eind_datum, **kwargs):
         self.start = start_datum
         self.eind = eind_datum
         self._provenance_events = []
@@ -121,6 +121,12 @@ class ReportingEngine:
                 "trade_pnls": _sample_stats(trade_pnls),
                 "monthly_returns": _sample_stats(monthly_returns),
             },
+            "selected_params": selected_params,
+            "selection_metric": "sharpe",
+            "is_summary": {},
+            "oos_summary": {},
+            "folds": [],
+            "leakage_checks_ok": True,
         }
         return {
             "beste_params": selected_params,
@@ -153,6 +159,7 @@ def _run_reporting(monkeypatch, tmp_path, research_config=None):
     )
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": research_config or {})
     monkeypatch.setattr(run_research_module, "_write_provenance_sidecar", lambda **kwargs: None)
+    monkeypatch.setattr(run_research_module, "_write_walk_forward_sidecar", lambda **kwargs: None)
 
     tmp_path.mkdir(parents=True, exist_ok=True)
     monkeypatch.chdir(tmp_path)
@@ -298,6 +305,7 @@ def test_sidecar_atomic_write_no_partial_on_failure(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": {})
     monkeypatch.setattr(run_research_module, "_write_provenance_sidecar", lambda **kwargs: None)
+    monkeypatch.setattr(run_research_module, "_write_walk_forward_sidecar", lambda **kwargs: None)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "research").mkdir()
     monkeypatch.setattr(
