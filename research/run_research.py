@@ -21,11 +21,13 @@ from agent.backtesting.engine import (
 )
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_latest_json, write_results_to_csv
+from research.promotion_reporting import build_candidate_registry_payload
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
 
 SIDE_CAR_PATH = Path("research/statistical_defensibility_latest.v1.json")
 WALK_FORWARD_PATH = "research/walk_forward_latest.v1.json"
+CANDIDATE_REGISTRY_PATH = Path("research/candidate_registry_latest.v1.json")
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -159,6 +161,42 @@ def _write_walk_forward_sidecar(
         json.dump(payload, handle, indent=2)
 
 
+def _write_candidate_registry(
+    *,
+    rows: list[dict],
+    walk_forward_reports: list[dict],
+    research_config: dict,
+    as_of_utc,
+    path: Path = CANDIDATE_REGISTRY_PATH,
+) -> None:
+    """Build and write candidate registry from in-memory artifacts.
+
+    Skips silently when walk_forward_reports is empty (no OOS data to promote).
+    """
+    if not walk_forward_reports:
+        return
+
+    research_latest = {
+        "generated_at_utc": as_of_utc.isoformat(),
+        "results": rows,
+    }
+    walk_forward = {"strategies": walk_forward_reports}
+
+    statistical_defensibility = None
+    if SIDE_CAR_PATH.exists():
+        with SIDE_CAR_PATH.open(encoding="utf-8") as handle:
+            statistical_defensibility = json.load(handle)
+
+    payload = build_candidate_registry_payload(
+        research_latest=research_latest,
+        walk_forward=walk_forward,
+        statistical_defensibility=statistical_defensibility,
+        promotion_config=research_config.get("promotion"),
+        git_revision=_git_revision(),
+    )
+    _write_json_atomic(path, payload)
+
+
 def _build_engine(start_datum: str, eind_datum: str, evaluation_config: dict) -> BacktestEngine:
     try:
         return BacktestEngine(
@@ -285,6 +323,13 @@ def run_research():
             regime_count=regime_count,
             regime_count_source=regime_count_source,
         )
+
+    _write_candidate_registry(
+        rows=rows,
+        walk_forward_reports=walk_forward_reports,
+        research_config=research_config,
+        as_of_utc=as_of_utc,
+    )
 
     print(f"Klaar. {len(rows)} resultaten geschreven.")
     

@@ -141,6 +141,7 @@ def _patch_runner(monkeypatch, tmp_path: Path, engine_cls=FakeEngine, research_c
     monkeypatch.setattr(run_research_module, "_git_revision", lambda: "deadbeef")
     monkeypatch.setattr(run_research_module, "_write_provenance_sidecar", lambda **kwargs: None)
     monkeypatch.setattr(run_research_module, "_write_statistical_defensibility_sidecar", lambda **kwargs: None)
+    monkeypatch.setattr(run_research_module, "_write_candidate_registry", lambda **kwargs: None)
     monkeypatch.setattr(
         run_research_module,
         "write_results_to_csv",
