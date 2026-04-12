@@ -108,6 +108,15 @@ research:
     "1h": 700
     "4h": 700
   default_lookback_days: 1500
+  evaluation:
+    mode: "single_split" # one of: single_split, rolling, anchored
+    train_ratio: 0.7 # used by single_split
+    # rolling / anchored use bar counts:
+    # train_bars: 500
+    # initial_train_bars: 500
+    # test_bars: 100
+    # step_bars: 100
+    selection_metric: "sharpe"
 
 leren:
   trade_geheugen: 1000

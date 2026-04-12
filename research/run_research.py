@@ -8,17 +8,24 @@ import hashlib
 import json
 import os
 import subprocess
+from datetime import timezone
 from pathlib import Path
 
 import yaml
 
-from agent.backtesting.engine import BacktestEngine
+from agent.backtesting.engine import (
+    BacktestEngine,
+    EvaluationScheduleError,
+    FoldLeakageError,
+    normalize_evaluation_config,
+)
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
 
 SIDE_CAR_PATH = Path("research/statistical_defensibility_latest.v1.json")
+WALK_FORWARD_PATH = "research/walk_forward_latest.v1.json"
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -114,12 +121,68 @@ def _write_statistical_defensibility_sidecar(
     _write_json_atomic(path, payload)
 
 
+def _sidecar_strategy_entry(
+    strategy: dict,
+    asset: str,
+    interval: str,
+    report: dict,
+) -> dict:
+    return {
+        "strategy_name": strategy["name"],
+        "asset": asset,
+        "interval": interval,
+        "selected_params": report.get("selected_params", {}),
+        "selection_metric": report.get("selection_metric", "sharpe"),
+        "is_summary": report.get("is_summary", {}),
+        "oos_summary": report.get("oos_summary", {}),
+        "folds": report.get("folds", []),
+        "leakage_checks_ok": report.get("leakage_checks_ok", False),
+    }
+
+
+def _write_walk_forward_sidecar(
+    *,
+    as_of_utc,
+    evaluation_config: dict,
+    strategy_reports: list[dict],
+    path: str = WALK_FORWARD_PATH,
+) -> None:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": "v1",
+        "generated_at_utc": as_of_utc.astimezone(timezone.utc).isoformat(),
+        "evaluation_config": evaluation_config,
+        "strategies": strategy_reports,
+    }
+    with target.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+
+
+def _build_engine(start_datum: str, eind_datum: str, evaluation_config: dict) -> BacktestEngine:
+    try:
+        return BacktestEngine(
+            start_datum=start_datum,
+            eind_datum=eind_datum,
+            evaluation_config=evaluation_config,
+        )
+    except TypeError as exc:
+        if "evaluation_config" not in str(exc):
+            raise
+        return BacktestEngine(
+            start_datum=start_datum,
+            eind_datum=eind_datum,
+        )
+
+
 def run_research():
     rows = []
     evaluations = []
+    walk_forward_reports = []
     provenance_events = []
     research_config = load_research_config()
     regime_count, regime_count_source = regime_count_settings(research_config)
+    evaluation_config = normalize_evaluation_config(research_config.get("evaluation"))
     assets, intervals, get_date_range, as_of_utc = build_research_universe(research_config)
     interval_ranges = {}
     strategies = get_enabled_strategies()
@@ -131,9 +194,13 @@ def run_research():
     for strategy in strategies:
         for interval in intervals:
             for asset in assets:
-                engine = BacktestEngine(
-                    start_datum=interval_ranges[interval]["start"],
-                    eind_datum=interval_ranges[interval]["end"],
+                start_datum = interval_ranges[interval]["start"]
+                eind_datum = interval_ranges[interval]["end"]
+
+                engine = _build_engine(
+                    start_datum=start_datum,
+                    eind_datum=eind_datum,
+                    evaluation_config=evaluation_config,
                 )
                 try:
                     metrics = engine.grid_search(
@@ -153,6 +220,14 @@ def run_research():
                     )
                     evaluation_report = getattr(engine, "last_evaluation_report", None)
                     if evaluation_report is not None:
+                        walk_forward_reports.append(
+                            _sidecar_strategy_entry(
+                                strategy=strategy,
+                                asset=asset.symbol,
+                                interval=interval,
+                                report=evaluation_report,
+                            )
+                        )
                         evaluations.append(
                             {
                                 "family": strategy["family"],
@@ -162,7 +237,9 @@ def run_research():
                                 "row": row,
                             }
                         )
-                except Exception as exc:
+                except (EvaluationScheduleError, FoldLeakageError):
+                    raise
+                except Exception as e:
                     row = make_result_row(
                         strategy=strategy,
                         asset=asset.symbol,
@@ -170,7 +247,7 @@ def run_research():
                         params={},
                         as_of_utc=as_of_utc,
                         metrics={},
-                        error=str(exc),
+                        error=str(e),
                     )
 
                 provenance_events.extend(getattr(engine, "_provenance_events", []))
@@ -178,6 +255,15 @@ def run_research():
 
     write_results_to_csv(rows)
     write_latest_json(rows, as_of_utc=as_of_utc)
+
+    if any(not report["leakage_checks_ok"] for report in walk_forward_reports):
+        raise FoldLeakageError("Leakage check failed; walk-forward sidecar will not be written")
+
+    _write_walk_forward_sidecar(
+        as_of_utc=as_of_utc,
+        evaluation_config=evaluation_config,
+        strategy_reports=walk_forward_reports,
+    )
     _write_provenance_sidecar(
         research_config=research_config,
         as_of_utc=as_of_utc,
@@ -187,7 +273,9 @@ def run_research():
 
     successful_rows = [row for row in rows if row["success"]]
     if evaluations and len(evaluations) != len(successful_rows):
-        raise RuntimeError("successful research rows are missing evaluation samples for statistical defensibility")
+        raise RuntimeError(
+            "successful research rows are missing evaluation samples for statistical defensibility"
+        )
     if evaluations and len(evaluations) == len(successful_rows):
         _write_statistical_defensibility_sidecar(
             evaluations=evaluations,
@@ -199,7 +287,6 @@ def run_research():
         )
 
     print(f"Klaar. {len(rows)} resultaten geschreven.")
-
-
+    
 if __name__ == "__main__":
     run_research()
