@@ -85,6 +85,14 @@ def _report(evaluation_config: dict, leakage_checks_ok: bool = True) -> dict:
             {"train": [0, 69], "test": [70, 99], "leakage_ok": leakage_checks_ok},
         ],
         "leakage_checks_ok": leakage_checks_ok,
+        "evaluation_samples": {
+            "daily_returns": [0.01, -0.005, 0.003],
+            "trade_pnls": [0.02, -0.01],
+            "monthly_returns": [0.008],
+        },
+        "sample_statistics": {
+            "daily_returns": {"count": 3, "mean": 0.0027, "std": 0.006, "skew": 0.0, "kurt": 3.0},
+        },
     }
 
 
@@ -132,6 +140,7 @@ def _patch_runner(monkeypatch, tmp_path: Path, engine_cls=FakeEngine, research_c
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": research_config)
     monkeypatch.setattr(run_research_module, "_git_revision", lambda: "deadbeef")
     monkeypatch.setattr(run_research_module, "_write_provenance_sidecar", lambda **kwargs: None)
+    monkeypatch.setattr(run_research_module, "_write_statistical_defensibility_sidecar", lambda **kwargs: None)
     monkeypatch.setattr(
         run_research_module,
         "write_results_to_csv",
