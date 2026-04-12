@@ -160,6 +160,7 @@ def _run_reporting(monkeypatch, tmp_path, research_config=None):
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": research_config or {})
     monkeypatch.setattr(run_research_module, "_write_provenance_sidecar", lambda **kwargs: None)
     monkeypatch.setattr(run_research_module, "_write_walk_forward_sidecar", lambda **kwargs: None)
+    monkeypatch.setattr(run_research_module, "_write_candidate_registry", lambda **kwargs: None)
 
     tmp_path.mkdir(parents=True, exist_ok=True)
     monkeypatch.chdir(tmp_path)
@@ -306,6 +307,7 @@ def test_sidecar_atomic_write_no_partial_on_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": {})
     monkeypatch.setattr(run_research_module, "_write_provenance_sidecar", lambda **kwargs: None)
     monkeypatch.setattr(run_research_module, "_write_walk_forward_sidecar", lambda **kwargs: None)
+    monkeypatch.setattr(run_research_module, "_write_candidate_registry", lambda **kwargs: None)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "research").mkdir()
     monkeypatch.setattr(
