@@ -232,6 +232,7 @@ class BacktestEngine:
         self.min_trades = MIN_TRADES
         self._provenance_events: list[Any] = []
         self.last_evaluation_report: Optional[dict[str, Any]] = None
+        self._last_window_samples: dict[str, list[float]] = {}
 
     def run(self, strategie_func: Callable, assets: list, interval: str = "1d") -> dict:
         """Run fixed-parameter evaluation and return public OOS metrics only."""
@@ -374,6 +375,12 @@ class BacktestEngine:
                 dag_returns.extend(dag)
                 maand_returns.extend(maand)
 
+        self._last_window_samples = {
+            "daily_returns": list(dag_returns),
+            "trade_pnls": list(trade_pnls),
+            "monthly_returns": list(maand_returns),
+        }
+
         if len(trade_pnls) < self.min_trades:
             return self._finalize_metrics(self._leeg())
 
@@ -396,7 +403,8 @@ class BacktestEngine:
             for folds in folds_by_asset.values()
             for fold in folds
         )
-        report = {
+        evaluation_samples = dict(self._last_window_samples)
+        report: dict[str, Any] = {
             "evaluation_config": dict(self.evaluation_config),
             "selection_metric": selection_metric,
             "selected_params": dict(selected_params),
@@ -404,6 +412,11 @@ class BacktestEngine:
             "oos_summary": self._summary_payload(oos_summary),
             "folds_by_asset": folds_by_asset,
             "leakage_checks_ok": leakage_checks_ok,
+            "evaluation_samples": evaluation_samples,
+            "sample_statistics": {
+                name: self._sample_statistics(values)
+                for name, values in evaluation_samples.items()
+            },
         }
         if len(folds_by_asset) == 1:
             report["folds"] = next(iter(folds_by_asset.values()))
@@ -620,6 +633,36 @@ class BacktestEngine:
             return list(eq.resample("ME").last().pct_change().dropna())
         except Exception:
             return []
+
+    @staticmethod
+    def _sample_statistics(values: list[float]) -> dict[str, float]:
+        array = np.asarray(values, dtype=float)
+        if array.size == 0:
+            return {
+                'count': 0,
+                'mean': 0.0,
+                'std': 0.0,
+                'skew': 0.0,
+                'kurt': 0.0,
+            }
+
+        mean = float(array.mean())
+        std = float(array.std())
+        if std == 0.0:
+            skew = 0.0
+            kurt = 3.0
+        else:
+            centered = (array - mean) / std
+            skew = float(np.mean(centered ** 3))
+            kurt = float(np.mean(centered ** 4))
+
+        return {
+            'count': int(array.size),
+            'mean': mean,
+            'std': std,
+            'skew': skew,
+            'kurt': kurt,
+        }
 
     def _metrics(self, trade_pnls: list, dag_returns: list, maand_returns: list) -> dict:
         """Bereken alle prestatiemetrieken."""
