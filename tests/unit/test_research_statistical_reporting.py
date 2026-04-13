@@ -155,6 +155,7 @@ def _run_reporting(monkeypatch, tmp_path, research_config=None):
             INTERVALS,
             lambda interval: ("2024-01-01", "2024-12-31"),
             AS_OF_UTC,
+            {"version": "v1", "resolved_count": len(ASSETS)},
         ),
     )
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": research_config or {})
@@ -302,6 +303,7 @@ def test_sidecar_atomic_write_no_partial_on_failure(monkeypatch, tmp_path):
             INTERVALS,
             lambda interval: ("2024-01-01", "2024-12-31"),
             AS_OF_UTC,
+            {"version": "v1", "resolved_count": len(ASSETS)},
         ),
     )
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": {})
