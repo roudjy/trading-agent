@@ -40,33 +40,34 @@
 
   async function loadRunStatus() {
     const payload = await fetchJson("/api/research/run-status");
-    const artifact = payload.artifact || {};
-    const progress = artifact.progress || {};
-    const timing = artifact.timing || {};
+    const stateArtifact = (payload.run_state || {}).artifact || {};
+    const progressArtifact = (payload.run_progress || {}).artifact || {};
+    const progress = progressArtifact.stage_progress || {};
     const observations = payload.dashboard_observations || {};
 
-    text("run-status", artifact.status || payload.artifact_state);
-    text("run-stage", artifact.current_stage);
+    text("run-status", stateArtifact.status || (payload.run_state || {}).artifact_state);
+    const authoritativeRunning = stateArtifact.status === "running";
+    text("run-stage", authoritativeRunning ? (progressArtifact.current_stage || stateArtifact.stage) : stateArtifact.stage);
     text("run-progress", progress.percent != null ? `${progress.percent}%` : "-");
-    text("run-current-item", currentItemLabel(artifact.current_item));
+    text("run-current-item", authoritativeRunning ? currentItemLabel(progressArtifact.current_item) : "-");
     text("run-completed", progress.total != null ? `${progress.completed}/${progress.total}` : "-");
-    text("run-elapsed", timing.elapsed_seconds);
-    text("run-eta", timing.eta_seconds);
-    text("run-updated", artifact.last_updated_at_utc || payload.artifact_modified_at_utc);
+    text("run-elapsed", progressArtifact.elapsed_seconds);
+    text("run-eta", progressArtifact.eta_seconds);
+    text("run-updated", stateArtifact.updated_at_utc || progressArtifact.updated_at_utc);
 
     const observationText = [];
-    if (observations.local_process_active != null) {
-      observationText.push(`Local process active: ${observations.local_process_active}`);
+    if (observations.pid_live != null) {
+      observationText.push(`PID live: ${observations.pid_live}`);
     }
-    if (observations.progress_heartbeat_age_seconds != null) {
-      observationText.push(`Heartbeat age: ${observations.progress_heartbeat_age_seconds}s`);
+    if (observations.heartbeat_age_seconds != null) {
+      observationText.push(`Heartbeat age: ${observations.heartbeat_age_seconds}s`);
     }
     document.getElementById("run-observations").textContent = observationText.join(" | ");
     renderWarning("run-warning", payload.warnings || [], "warning");
 
     const button = document.getElementById("run-research-button");
     if (button) {
-      button.disabled = Boolean(observations.local_process_active || observations.recent_progress_signal);
+      button.disabled = stateArtifact.status === "running";
     }
   }
 

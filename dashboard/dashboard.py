@@ -266,8 +266,7 @@ def research_control_surface():
 @app.route("/api/research/run-status")
 @requires_auth
 def api_research_run_status():
-    artifact = research_artifacts.load_run_progress_artifact()
-    return jsonify(research_runner.build_run_status_response(artifact))
+    return jsonify(research_runner.build_run_status_response())
 
 
 @app.route("/api/research/latest")
@@ -291,8 +290,7 @@ def api_research_universe():
 @app.route("/api/research/run", methods=["POST"])
 @require_operator_auth()
 def api_research_run():
-    artifact = research_artifacts.load_run_progress_artifact()
-    payload, status_code = research_runner.launch_research_run(artifact)
+    payload, status_code = research_runner.launch_research_run()
     return jsonify(payload), status_code
 
 
