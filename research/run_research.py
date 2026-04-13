@@ -20,6 +20,10 @@ from agent.backtesting.engine import (
     FoldLeakageError,
     normalize_evaluation_config,
 )
+from research.empty_run_reporting import (
+    DegenerateResearchRunError,
+    build_empty_run_diagnostics_payload,
+)
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.portfolio_reporting import build_portfolio_aggregation_payload
@@ -34,6 +38,7 @@ CANDIDATE_REGISTRY_PATH = Path("research/candidate_registry_latest.v1.json")
 UNIVERSE_SNAPSHOT_PATH = Path("research/universe_snapshot_latest.v1.json")
 PORTFOLIO_AGGREGATION_PATH = Path("research/portfolio_aggregation_latest.v1.json")
 REGIME_DIAGNOSTICS_PATH = Path("research/regime_diagnostics_latest.v1.json")
+EMPTY_RUN_DIAGNOSTICS_PATH = Path("research/empty_run_diagnostics_latest.v1.json")
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -312,6 +317,88 @@ def _build_engine(
         )
 
 
+def _inspect_engine_readiness(engine, assets: list, interval: str) -> list[dict]:
+    asset_symbols = [asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets]
+    if hasattr(engine, "inspect_asset_readiness"):
+        return list(engine.inspect_asset_readiness(asset_symbols, interval))
+    requested_start = getattr(engine, "start", "")
+    requested_end = getattr(engine, "eind", getattr(engine, "end", ""))
+    return [
+        {
+            "asset": asset,
+            "interval": interval,
+            "requested_start": requested_start,
+            "requested_end": requested_end,
+            "bar_count": 0,
+            "fold_count": 1,
+            "status": "evaluable",
+            "drop_reason": None,
+        }
+        for asset in asset_symbols
+    ]
+
+
+def _count_evaluable_oos_daily_return_evaluations(evaluations: list[dict]) -> int:
+    count = 0
+    for evaluation in evaluations:
+        report = evaluation.get("evaluation_report") or {}
+        samples = report.get("evaluation_samples") or {}
+        daily_returns = samples.get("daily_returns")
+        if isinstance(daily_returns, list) and daily_returns:
+            count += 1
+    return count
+
+
+def _write_empty_run_diagnostics_sidecar(
+    *,
+    as_of_utc,
+    failure_stage: str,
+    assets: list,
+    intervals: list[str],
+    interval_ranges: dict[str, dict[str, str]],
+    pair_diagnostics: list[dict],
+    evaluations_count: int = 0,
+    evaluations_with_oos_daily_returns: int = 0,
+    path: Path = EMPTY_RUN_DIAGNOSTICS_PATH,
+) -> dict:
+    payload = build_empty_run_diagnostics_payload(
+        as_of_utc=as_of_utc,
+        failure_stage=failure_stage,
+        selected_assets=[asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets],
+        selected_intervals=list(intervals),
+        interval_ranges=interval_ranges,
+        pair_diagnostics=pair_diagnostics,
+        evaluations_count=evaluations_count,
+        evaluations_with_oos_daily_returns=evaluations_with_oos_daily_returns,
+    )
+    _write_json_atomic(path, payload)
+    return payload
+
+
+def _raise_degenerate_run(
+    *,
+    as_of_utc,
+    failure_stage: str,
+    assets: list,
+    intervals: list[str],
+    interval_ranges: dict[str, dict[str, str]],
+    pair_diagnostics: list[dict],
+    evaluations_count: int = 0,
+    evaluations_with_oos_daily_returns: int = 0,
+) -> None:
+    payload = _write_empty_run_diagnostics_sidecar(
+        as_of_utc=as_of_utc,
+        failure_stage=failure_stage,
+        assets=assets,
+        intervals=intervals,
+        interval_ranges=interval_ranges,
+        pair_diagnostics=pair_diagnostics,
+        evaluations_count=evaluations_count,
+        evaluations_with_oos_daily_returns=evaluations_with_oos_daily_returns,
+    )
+    raise DegenerateResearchRunError(payload["message"])
+
+
 def run_research():
     rows = []
     evaluations = []
@@ -328,6 +415,31 @@ def run_research():
     for interval in intervals:
         start_datum, eind_datum = get_date_range(interval)
         interval_ranges[interval] = {"start": start_datum, "end": eind_datum}
+
+    pair_diagnostics: list[dict] = []
+    for interval in intervals:
+        start_datum = interval_ranges[interval]["start"]
+        eind_datum = interval_ranges[interval]["end"]
+        engine = _build_engine(
+            start_datum=start_datum,
+            eind_datum=eind_datum,
+            evaluation_config=evaluation_config,
+            regime_config=research_config.get("regime_diagnostics"),
+        )
+        pair_diagnostics.extend(_inspect_engine_readiness(engine, assets, interval))
+
+    evaluable_pair_count = sum(
+        1 for item in pair_diagnostics if item.get("status") == "evaluable"
+    )
+    if evaluable_pair_count == 0:
+        _raise_degenerate_run(
+            as_of_utc=as_of_utc,
+            failure_stage="preflight_no_evaluable_pairs",
+            assets=assets,
+            intervals=intervals,
+            interval_ranges=interval_ranges,
+            pair_diagnostics=pair_diagnostics,
+        )
 
     for strategy in strategies:
         for interval in intervals:
@@ -391,6 +503,20 @@ def run_research():
 
                 provenance_events.extend(getattr(engine, "_provenance_events", []))
                 rows.append(row)
+    evaluable_oos_daily_return_count = _count_evaluable_oos_daily_return_evaluations(
+        evaluations
+    )
+    if evaluations and evaluable_oos_daily_return_count == 0:
+        _raise_degenerate_run(
+            as_of_utc=as_of_utc,
+            failure_stage="postrun_no_oos_daily_returns",
+            assets=assets,
+            intervals=intervals,
+            interval_ranges=interval_ranges,
+            pair_diagnostics=pair_diagnostics,
+            evaluations_count=len(evaluations),
+            evaluations_with_oos_daily_returns=evaluable_oos_daily_return_count,
+        )
 
     write_results_to_csv(rows)
     write_latest_json(rows, as_of_utc=as_of_utc)
