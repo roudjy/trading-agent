@@ -79,6 +79,30 @@ class AssetContext:
     folds: list[Fold]
 
 
+@dataclass(frozen=True)
+class AssetReadiness:
+    asset: str
+    interval: str
+    requested_start: str
+    requested_end: str
+    bar_count: int
+    fold_count: int
+    status: str
+    drop_reason: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "asset": self.asset,
+            "interval": self.interval,
+            "requested_start": self.requested_start,
+            "requested_end": self.requested_end,
+            "bar_count": self.bar_count,
+            "fold_count": self.fold_count,
+            "status": self.status,
+            "drop_reason": self.drop_reason,
+        }
+
+
 def normalize_evaluation_config(evaluation_config: Optional[dict[str, Any]]) -> dict[str, Any]:
     config = dict(evaluation_config or {})
     mode = config.get("mode", DEFAULT_EVALUATION_MODE)
@@ -252,6 +276,7 @@ class BacktestEngine:
         self.last_evaluation_report: Optional[dict[str, Any]] = None
         self._last_window_samples: dict[str, list[float]] = {}
         self._last_window_streams: dict[str, list[dict[str, Any]]] = {}
+        self._last_asset_readiness: list[dict[str, Any]] = []
 
     def run(self, strategie_func: Callable, assets: list, interval: str = "1d") -> dict:
         """Run fixed-parameter evaluation and return public OOS metrics only."""
@@ -364,17 +389,93 @@ class BacktestEngine:
         asset_contexts = _asset_contexts or self._load_asset_contexts(assets, interval)
         return self._evaluate_windows(strategie_func, asset_contexts, use_train=train)
 
+    def inspect_asset_readiness(self, assets: list[str], interval: str) -> list[dict[str, Any]]:
+        """Inspect per-asset readiness via the same load/fold path used in execution."""
+        _, diagnostics = self._load_asset_contexts_with_diagnostics(
+            assets,
+            interval,
+            capture_schedule_errors=True,
+        )
+        return [item.to_dict() for item in diagnostics]
+
     def _load_asset_contexts(self, assets: list[str], interval: str) -> list[AssetContext]:
+        asset_contexts, diagnostics = self._load_asset_contexts_with_diagnostics(
+            assets,
+            interval,
+            capture_schedule_errors=False,
+        )
+        self._last_asset_readiness = [item.to_dict() for item in diagnostics]
+        return asset_contexts
+
+    def _load_asset_contexts_with_diagnostics(
+        self,
+        assets: list[str],
+        interval: str,
+        *,
+        capture_schedule_errors: bool,
+    ) -> tuple[list[AssetContext], list[AssetReadiness]]:
         asset_contexts: list[AssetContext] = []
+        diagnostics: list[AssetReadiness] = []
         for asset in assets:
             df = self._laad_data(asset, interval)
-            if df is None or len(df) < MIN_DATA_BARS:
+            bar_count = 0 if df is None else int(len(df))
+            readiness = AssetReadiness(
+                asset=asset,
+                interval=interval,
+                requested_start=self.start,
+                requested_end=self.eind,
+                bar_count=bar_count,
+                fold_count=0,
+                status="dropped",
+                drop_reason=None,
+            )
+            if df is None:
+                diagnostics.append(
+                    AssetReadiness(
+                        **{**readiness.__dict__, "drop_reason": "data_unavailable"}
+                    )
+                )
                 log.warning(f"[BT] Te weinig data: {asset}")
                 continue
-            folds = build_evaluation_folds(len(df), self.evaluation_config)
+            if bar_count == 0:
+                diagnostics.append(
+                    AssetReadiness(
+                        **{**readiness.__dict__, "drop_reason": "empty_dataset"}
+                    )
+                )
+                log.warning(f"[BT] Te weinig data: {asset}")
+                continue
+            if bar_count < MIN_DATA_BARS:
+                diagnostics.append(
+                    AssetReadiness(
+                        **{**readiness.__dict__, "drop_reason": "insufficient_data_bars"}
+                    )
+                )
+                log.warning(f"[BT] Te weinig data: {asset}")
+                continue
+            try:
+                folds = build_evaluation_folds(bar_count, self.evaluation_config)
+            except EvaluationScheduleError:
+                diagnostics.append(
+                    AssetReadiness(
+                        **{**readiness.__dict__, "drop_reason": "evaluation_schedule_invalid"}
+                    )
+                )
+                if not capture_schedule_errors:
+                    raise
+                continue
             regime_frame = build_regime_frame(df, self.regime_config)
             asset_contexts.append(AssetContext(asset=asset, frame=df, regime_frame=regime_frame, folds=folds))
-        return asset_contexts
+            diagnostics.append(
+                AssetReadiness(
+                    **{
+                        **readiness.__dict__,
+                        "fold_count": len(folds),
+                        "status": "evaluable",
+                    }
+                )
+            )
+        return asset_contexts, diagnostics
 
     def _evaluate_windows(
         self,

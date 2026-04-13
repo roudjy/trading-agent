@@ -51,6 +51,11 @@ def _evaluation() -> dict:
             "oos_summary": {},
             "folds": [],
             "leakage_checks_ok": True,
+            "evaluation_samples": {
+                "daily_returns": [0.01, -0.02, 0.0],
+                "trade_pnls": [0.03, -0.01],
+                "monthly_returns": [-0.01],
+            },
             "evaluation_streams": {
                 "oos_bar_returns": [
                     {
@@ -107,7 +112,16 @@ def _evaluation() -> dict:
                         "entry_combined_regime": "non_trending|low_vol",
                     },
                 ],
-            }
+            },
+            "sample_statistics": {
+                "daily_returns": {
+                    "count": 3,
+                    "mean": -0.0033333333333333335,
+                    "std": 0.012472191289246473,
+                    "skew": 0.0,
+                    "kurt": 3.0,
+                }
+            },
         },
     }
 
