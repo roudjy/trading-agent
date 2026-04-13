@@ -247,6 +247,7 @@ class BacktestEngine:
         self._provenance_events: list[Any] = []
         self.last_evaluation_report: Optional[dict[str, Any]] = None
         self._last_window_samples: dict[str, list[float]] = {}
+        self._last_window_streams: dict[str, list[dict[str, Any]]] = {}
 
     def run(self, strategie_func: Callable, assets: list, interval: str = "1d") -> dict:
         """Run fixed-parameter evaluation and return public OOS metrics only."""
@@ -379,6 +380,7 @@ class BacktestEngine:
         trade_pnls: list[float] = []
         dag_returns: list[float] = []
         maand_returns: list[float] = []
+        oos_daily_return_stream: list[dict[str, Any]] = []
 
         for context in asset_contexts:
             for train_bounds, test_bounds in context.folds:
@@ -388,11 +390,15 @@ class BacktestEngine:
                 trade_pnls.extend(trades)
                 dag_returns.extend(dag)
                 maand_returns.extend(maand)
+                oos_daily_return_stream.extend(self._serialize_daily_return_stream(df_window, dag))
 
         self._last_window_samples = {
             "daily_returns": list(dag_returns),
             "trade_pnls": list(trade_pnls),
             "monthly_returns": list(maand_returns),
+        }
+        self._last_window_streams = {
+            "oos_daily_returns": oos_daily_return_stream,
         }
 
         if len(trade_pnls) < self.min_trades:
@@ -427,6 +433,7 @@ class BacktestEngine:
             "folds_by_asset": folds_by_asset,
             "leakage_checks_ok": leakage_checks_ok,
             "evaluation_samples": evaluation_samples,
+            "evaluation_streams": dict(self._last_window_streams),
             "sample_statistics": {
                 name: self._sample_statistics(values)
                 for name, values in evaluation_samples.items()
@@ -445,6 +452,42 @@ class BacktestEngine:
                 "leakage_ok": train_end < test_start,
             }
             for (train_start, train_end), (test_start, test_end) in folds
+        ]
+
+    @staticmethod
+    def _serialize_daily_return_stream(
+        df_window: pd.DataFrame,
+        period_returns: list[float],
+    ) -> list[dict[str, Any]]:
+        timestamps = [pd.Timestamp(timestamp) for timestamp in df_window.index[1 : len(period_returns) + 1]]
+        if not timestamps:
+            return []
+
+        normalized_index = []
+        for timestamp in timestamps:
+            if timestamp.tzinfo is None:
+                normalized_index.append(timestamp.tz_localize(UTC))
+            else:
+                normalized_index.append(timestamp.tz_convert(UTC))
+
+        equity_values: list[float] = []
+        equity = 1.0
+        for value in period_returns:
+            equity *= 1.0 + float(value)
+            equity_values.append(equity)
+
+        equity_series = pd.Series(equity_values, index=pd.DatetimeIndex(normalized_index), dtype=float)
+        daily_equity = equity_series.resample("1D").last().dropna()
+        if daily_equity.empty:
+            return []
+
+        daily_returns = daily_equity.pct_change().dropna()
+        return [
+            {
+                "timestamp_utc": pd.Timestamp(timestamp).tz_convert(UTC).isoformat(),
+                "return": float(value),
+            }
+            for timestamp, value in daily_returns.items()
         ]
 
     @staticmethod
