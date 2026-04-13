@@ -135,6 +135,7 @@ def _patch_runner(monkeypatch, tmp_path: Path, engine_cls=FakeEngine, research_c
             ["1d"],
             lambda interval: ("2026-01-01", "2026-02-01"),
             AS_OF_UTC,
+            {"version": "v1", "resolved_count": 1},
         ),
     )
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": research_config)
@@ -281,3 +282,4 @@ def test_schema_stability_csv_and_json_bytes_unchanged_by_framework_change(tmp_p
 
     assert list(csv_rows[0].keys()) == ROW_SCHEMA
     assert list(json_payload["results"][0].keys()) == ROW_SCHEMA
+

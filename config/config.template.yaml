@@ -98,11 +98,15 @@ ai:
 
 # Optioneel: research runtime defaults overschrijven
 research:
-  assets:
-    - symbol: "BTC-USD"
-      asset_type: "crypto"
-    - symbol: "ETH-USD"
-      asset_type: "crypto"
+  universe:
+    source: "crypto_major"  # built-in: crypto_major, aex_sample, nasdaq_100_sample, sp500_top20
+    # source: "static"      # use with symbols: list below
+    # symbols:
+    #   - symbol: "BTC-USD"
+    #     asset_type: "crypto"
+    #     asset_class: "crypto"
+    # exclude: []            # remove specific symbols after resolution
+    # include: []            # add symbols (same format as symbols)
   intervals: ["1h", "4h"]
   interval_lookbacks:
     "1h": 700
