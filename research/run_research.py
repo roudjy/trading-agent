@@ -30,6 +30,7 @@ from research.results import make_result_row, write_latest_json, write_results_t
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.regime_reporting import build_regime_diagnostics_payload
+from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
 
@@ -41,6 +42,10 @@ PORTFOLIO_AGGREGATION_PATH = Path("research/portfolio_aggregation_latest.v1.json
 REGIME_DIAGNOSTICS_PATH = Path("research/regime_diagnostics_latest.v1.json")
 EMPTY_RUN_DIAGNOSTICS_PATH = Path("research/empty_run_diagnostics_latest.v1.json")
 RUN_PROGRESS_PATH = Path("research/run_progress_latest.v1.json")
+RUN_STATE_PATH = Path("research/run_state.v1.json")
+RUN_MANIFEST_PATH = Path("research/run_manifest_latest.v1.json")
+RUN_LOG_DIR = Path("logs/research")
+RUN_HEARTBEAT_TIMEOUT_S = 300
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -377,6 +382,55 @@ def _write_empty_run_diagnostics_sidecar(
     return payload
 
 
+def _build_run_manifest_payload(
+    *,
+    run_id: str,
+    started_at_utc,
+    research_config: dict,
+    assets: list,
+    intervals: list[str],
+    total_candidate_count: int,
+    strategies: list[dict],
+    universe_snapshot_path: Path,
+) -> dict:
+    asset_symbols = [asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets]
+    return {
+        "version": "v1",
+        "run_id": run_id,
+        "created_at_utc": started_at_utc.isoformat(),
+        "started_at_utc": started_at_utc.isoformat(),
+        "status": "running",
+        "git_revision": _git_revision(),
+        "config_hash": _config_hash(research_config, []),
+        "universe_snapshot_path": universe_snapshot_path.as_posix(),
+        "resolved_universe_summary": {
+            "asset_count": len(asset_symbols),
+            "interval_count": len(intervals),
+            "assets": asset_symbols,
+            "intervals": list(intervals),
+        },
+        "total_candidate_count": int(total_candidate_count),
+        "candidate_grouping_summary": {
+            "by_strategy": {
+                strategy["name"]: len(asset_symbols) * len(intervals)
+                for strategy in strategies
+            },
+            "by_interval": {
+                interval: len(asset_symbols) * len(strategies)
+                for interval in intervals
+            },
+        },
+        "stage_definitions": [
+            "planning",
+            "preflight",
+            "evaluation",
+            "writing_outputs",
+        ],
+        "screening_enabled": False,
+        "validation_enabled": True,
+    }
+
+
 def _raise_degenerate_run(
     *,
     as_of_utc,
@@ -402,15 +456,33 @@ def _raise_degenerate_run(
 
 
 def run_research():
+    lifecycle = RunStateStore(
+        state_path=RUN_STATE_PATH,
+        history_root=Path("research/history"),
+    )
+    state = lifecycle.start_run(
+        progress_path=RUN_PROGRESS_PATH,
+        manifest_path=RUN_MANIFEST_PATH,
+        log_dir=RUN_LOG_DIR,
+        heartbeat_timeout_s=RUN_HEARTBEAT_TIMEOUT_S,
+        stage="starting",
+        status_reason="research_run_started",
+    )
+    started_at_utc = datetime.fromisoformat(state["started_at_utc"])
     tracker = ProgressTracker(
         path=RUN_PROGRESS_PATH,
-        started_at_utc=datetime.now(UTC),
+        lifecycle=lifecycle,
+        run_id=state["run_id"],
+        started_at_utc=started_at_utc,
+        manifest_path=RUN_MANIFEST_PATH,
+        log_path=Path(state["log_path"]),
     )
     rows = []
     evaluations = []
     walk_forward_reports = []
     provenance_events = []
     try:
+        tracker.start_stage("planning")
         research_config = load_research_config()
         regime_count, regime_count_source = regime_count_settings(research_config)
         evaluation_config = normalize_evaluation_config(research_config.get("evaluation"))
@@ -419,6 +491,19 @@ def run_research():
         interval_ranges = {}
         strategies = get_enabled_strategies()
         total_items = len(strategies) * len(intervals) * len(assets)
+        tracker.write_manifest(
+            _build_run_manifest_payload(
+                run_id=state["run_id"],
+                started_at_utc=started_at_utc,
+                research_config=research_config,
+                assets=assets,
+                intervals=intervals,
+                total_candidate_count=total_items,
+                strategies=strategies,
+                universe_snapshot_path=UNIVERSE_SNAPSHOT_PATH,
+            )
+        )
+        tracker.mark_stage_completed(total_items=total_items)
 
         tracker.start_stage("preflight", total=total_items)
         for interval in intervals:

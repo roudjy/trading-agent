@@ -207,15 +207,23 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     run_research_module.run_research()
 
     progress = _load_json(tmp_path / "research" / "run_progress_latest.v1.json")
+    state = _load_json(tmp_path / "research" / "run_state.v1.json")
+    manifest = _load_json(tmp_path / "research" / "run_manifest_latest.v1.json")
     public_json = _load_json(tmp_path / "research" / "research_latest.json")
     with (tmp_path / "research" / "strategy_matrix.csv").open(encoding="utf-8", newline="") as handle:
         csv_rows = list(csv.DictReader(handle))
 
     assert progress["version"] == "v1"
+    assert progress["run_id"] == state["run_id"]
     assert progress["status"] == "completed"
     assert progress["current_stage"] == "completed"
-    assert progress["progress"] == {"completed": 1, "total": 1, "percent": 100.0}
-    assert progress["failure"] is None
+    assert progress["stage_progress"] == {"completed": 1, "total": 1, "percent": 100.0}
+    assert progress["error"] is None
+    assert state["status"] == "completed"
+    assert state["pid"] is None
+    assert manifest["status"] == "completed"
+    assert (tmp_path / "logs" / "research" / f"{state['run_id']}.jsonl").exists()
+    assert (tmp_path / "research" / "history" / state["run_id"] / "run_state.v1.json").exists()
     assert list(public_json["results"][0].keys()) == ROW_SCHEMA
     assert list(csv_rows[0].keys()) == ROW_SCHEMA
 
@@ -227,7 +235,10 @@ def test_run_research_marks_failed_progress_sidecar_on_degenerate_run(monkeypatc
         run_research_module.run_research()
 
     progress = _load_json(tmp_path / "research" / "run_progress_latest.v1.json")
+    state = _load_json(tmp_path / "research" / "run_state.v1.json")
     assert progress["status"] == "failed"
     assert progress["current_stage"] == "failed"
-    assert progress["failure"]["failure_stage"] == "preflight"
-    assert progress["failure"]["error_type"] == "DegenerateResearchRunError"
+    assert progress["error"]["failure_stage"] == "preflight"
+    assert progress["error"]["error_type"] == "DegenerateResearchRunError"
+    assert state["status"] == "failed"
+    assert state["status_reason"] == "research_run_failed:preflight"
