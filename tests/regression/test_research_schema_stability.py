@@ -66,6 +66,7 @@ def test_research_outputs_remain_schema_stable(monkeypatch, tmp_path):
             ["1d"],
             lambda interval: ("2026-01-01", "2026-02-01"),
             datetime(2026, 4, 8, 10, 59, 31, 381566, tzinfo=UTC),
+            {"version": "v1", "resolved_count": 1},
         ),
     )
     monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": {})

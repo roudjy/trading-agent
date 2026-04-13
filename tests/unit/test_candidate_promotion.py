@@ -432,6 +432,7 @@ class TestCandidateRegistryWiring:
                 ["1d"],
                 lambda interval: ("2026-01-01", "2026-02-01"),
                 AS_OF_UTC,
+                {"version": "v1", "resolved_count": 1},
             ),
         )
         monkeypatch.setattr(run_research_module, "load_research_config", lambda config_path="config/config.yaml": {})
