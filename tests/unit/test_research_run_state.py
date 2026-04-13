@@ -35,7 +35,7 @@ def test_start_run_writes_authoritative_state(tmp_path: Path):
     assert _load_json(tmp_path / "research" / "run_state.v1.json")["run_id"] == payload["run_id"]
 
 
-def test_repair_stale_run_marks_aborted_on_dead_pid(tmp_path: Path):
+def test_repair_stale_run_marks_aborted_on_dead_pid(tmp_path: Path, monkeypatch):
     now = datetime(2026, 4, 13, 12, 5, tzinfo=UTC)
     state_path = tmp_path / "research" / "run_state.v1.json"
     write_json_atomic(
@@ -56,6 +56,7 @@ def test_repair_stale_run_marks_aborted_on_dead_pid(tmp_path: Path):
             "error": None,
         },
     )
+    monkeypatch.setattr("research.run_state._pid_is_live", lambda pid: False)
     store = RunStateStore(
         state_path=state_path,
         history_root=tmp_path / "research" / "history",
