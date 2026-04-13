@@ -14,7 +14,11 @@ jobs:
 
       - name: Read version
         id: version
-        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+        shell: bash
+        run: |
+          VERSION_VALUE="$(tr -d '\r\n' < VERSION)"
+          echo "version=$VERSION_VALUE" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION_VALUE"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,7 +48,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/roudjy/trading-agent-dashboard:latest
-            ghcr.io/roudjy/trading-agent-dashboard:${{ steps.version.outputs.VERSION }}
+            ghcr.io/roudjy/trading-agent-dashboard:${{ steps.version.outputs.version }}
 
       - name: Build & push agent image
         uses: docker/build-push-action@v5
@@ -53,4 +57,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/roudjy/trading-agent-agent:latest
-            ghcr.io/roudjy/trading-agent-agent:${{ steps.version.outputs.VERSION }}
+            ghcr.io/roudjy/trading-agent-agent:${{ steps.version.outputs.version }}
