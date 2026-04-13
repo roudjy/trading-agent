@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+RUN_STATE_PATH = BASE_DIR / "research" / "run_state.v1.json"
 RUN_PROGRESS_PATH = BASE_DIR / "research" / "run_progress_latest.v1.json"
+RUN_MANIFEST_PATH = BASE_DIR / "research" / "run_manifest_latest.v1.json"
 RESEARCH_LATEST_PATH = BASE_DIR / "research" / "research_latest.json"
 EMPTY_RUN_DIAGNOSTICS_PATH = (
     BASE_DIR / "research" / "empty_run_diagnostics_latest.v1.json"
@@ -78,6 +80,14 @@ def load_json_artifact(path: Path) -> dict[str, Any]:
 
 def load_run_progress_artifact() -> dict[str, Any]:
     return load_json_artifact(RUN_PROGRESS_PATH)
+
+
+def load_run_state_artifact() -> dict[str, Any]:
+    return load_json_artifact(RUN_STATE_PATH)
+
+
+def load_run_manifest_artifact() -> dict[str, Any]:
+    return load_json_artifact(RUN_MANIFEST_PATH)
 
 
 def load_research_latest_artifact() -> dict[str, Any]:

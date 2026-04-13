@@ -1,13 +1,5 @@
+import json
 from datetime import UTC, datetime, timedelta
-
-
-class _FakeProcess:
-    def __init__(self, pid=4321, returncode=None):
-        self.pid = pid
-        self._returncode = returncode
-
-    def poll(self):
-        return self._returncode
 
 
 def _set_operator_session(client):
@@ -53,8 +45,8 @@ def test_research_routes_require_auth():
 def test_research_run_status_endpoint_without_sidecar(monkeypatch, tmp_path):
     from dashboard import dashboard as dash
 
+    monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", tmp_path / "missing-state.json")
     monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", tmp_path / "missing.json")
-    monkeypatch.setattr(dash.research_runner, "_ACTIVE_PROCESS", None)
 
     dash.app.testing = True
     client = dash.app.test_client()
@@ -63,35 +55,61 @@ def test_research_run_status_endpoint_without_sidecar(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload["artifact_state"] == "absent"
-    assert payload["dashboard_observations"]["local_process_active"] is False
-    assert payload["artifact"] is None
+    assert payload["run_state"]["artifact_state"] == "absent"
+    assert payload["run_progress"]["artifact_state"] == "absent"
+    assert payload["dashboard_observations"]["authoritative_status"] is None
 
 
 def test_research_run_status_endpoint_with_valid_sidecar(monkeypatch, tmp_path):
     from dashboard import dashboard as dash
 
     now = datetime.now(UTC)
-    path = tmp_path / "run_progress_latest.v1.json"
-    path.write_text(
+    state_path = tmp_path / "run_state.v1.json"
+    progress_path = tmp_path / "run_progress_latest.v1.json"
+    state_path.write_text(
         (
             "{"
             "\"version\":\"v1\","
             "\"status\":\"running\","
             "\"run_id\":\"20260413T100000000000Z\","
-            "\"current_stage\":\"evaluation\","
             f"\"started_at_utc\":\"{(now - timedelta(seconds=180)).isoformat()}\","
-            f"\"last_updated_at_utc\":\"{now.isoformat()}\","
-            "\"progress\":{\"completed\":5,\"total\":10,\"percent\":50.0},"
-            "\"current_item\":{\"strategy\":\"sma\",\"asset\":\"BTC-USD\",\"interval\":\"1h\"},"
-            "\"timing\":{\"elapsed_seconds\":180,\"stage_elapsed_seconds\":120,\"eta_seconds\":180},"
-            "\"failure\":null"
+            f"\"updated_at_utc\":\"{now.isoformat()}\","
+            "\"stage\":\"evaluation\","
+            "\"status_reason\":\"research_run_started\","
+            "\"heartbeat_timeout_s\":300,"
+            "\"progress_path\":\"research/run_progress_latest.v1.json\","
+            "\"manifest_path\":\"research/run_manifest_latest.v1.json\","
+            "\"log_path\":\"logs/research/20260413T100000000000Z.jsonl\","
+            "\"pid\":123,"
+            "\"error\":null"
             "}"
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", path)
-    monkeypatch.setattr(dash.research_runner, "_ACTIVE_PROCESS", None)
+    progress_path.write_text(
+        (
+            "{"
+            "\"version\":\"v1\","
+            "\"run_id\":\"20260413T100000000000Z\","
+            "\"status\":\"running\","
+            "\"current_stage\":\"evaluation\","
+            "\"stage_progress\":{\"completed\":5,\"total\":10,\"percent\":50.0},"
+            "\"total_items\":10,"
+            "\"completed_items\":5,"
+            "\"failed_items\":0,"
+            "\"current_item\":{\"strategy\":\"sma\",\"asset\":\"BTC-USD\",\"interval\":\"1h\"},"
+            f"\"started_at_utc\":\"{(now - timedelta(seconds=180)).isoformat()}\","
+            f"\"updated_at_utc\":\"{now.isoformat()}\","
+            "\"elapsed_seconds\":180,"
+            "\"eta_seconds\":180,"
+            "\"error\":null"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", state_path)
+    monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", progress_path)
+    monkeypatch.setattr("research.run_state._pid_is_live", lambda pid: True)
 
     dash.app.testing = True
     client = dash.app.test_client()
@@ -100,9 +118,10 @@ def test_research_run_status_endpoint_with_valid_sidecar(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload["artifact_state"] == "valid"
-    assert payload["artifact"]["status"] == "running"
-    assert payload["dashboard_observations"]["recent_progress_signal"] is True
+    assert payload["run_state"]["artifact_state"] == "valid"
+    assert payload["run_state"]["artifact"]["status"] == "running"
+    assert payload["run_progress"]["artifact"]["completed_items"] == 5
+    assert payload["dashboard_observations"]["pid_live"] is True
 
 
 def test_research_run_status_endpoint_with_stale_running_sidecar(monkeypatch, tmp_path):
@@ -110,17 +129,29 @@ def test_research_run_status_endpoint_with_stale_running_sidecar(monkeypatch, tm
 
     now = datetime.now(UTC)
     stale_at = (now - timedelta(seconds=601)).isoformat()
-    path = tmp_path / "run_progress_latest.v1.json"
-    path.write_text(
+    state_path = tmp_path / "run_state.v1.json"
+    state_path.write_text(
         (
             "{"
-            f"\"version\":\"v1\",\"status\":\"running\",\"last_updated_at_utc\":\"{stale_at}\""
+            "\"version\":\"v1\","
+            "\"run_id\":\"20260413T100000000000Z\","
+            "\"status\":\"running\","
+            "\"pid\":123,"
+            f"\"started_at_utc\":\"{(now - timedelta(seconds=900)).isoformat()}\","
+            f"\"updated_at_utc\":\"{stale_at}\","
+            "\"stage\":\"evaluation\","
+            "\"status_reason\":\"research_run_started\","
+            "\"heartbeat_timeout_s\":300,"
+            "\"progress_path\":\"research/run_progress_latest.v1.json\","
+            "\"manifest_path\":\"research/run_manifest_latest.v1.json\","
+            "\"log_path\":\"logs/research/20260413T100000000000Z.jsonl\","
+            "\"error\":null"
             "}"
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", path)
-    monkeypatch.setattr(dash.research_runner, "_ACTIVE_PROCESS", None)
+    monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", state_path)
+    monkeypatch.setattr("research.run_state._pid_is_live", lambda pid: True)
 
     dash.app.testing = True
     client = dash.app.test_client()
@@ -128,16 +159,18 @@ def test_research_run_status_endpoint_with_stale_running_sidecar(monkeypatch, tm
     response = client.get("/api/research/run-status")
 
     payload = response.get_json()
-    assert payload["dashboard_observations"]["stale_progress_signal"] is True
+    assert payload["dashboard_observations"]["stale_state_repaired"] is True
     assert payload["warnings"]
+    repaired = json.loads(state_path.read_text(encoding="utf-8"))
+    assert repaired["status"] == "aborted"
 
 
 def test_research_run_status_endpoint_with_invalid_json(monkeypatch, tmp_path):
     from dashboard import dashboard as dash
 
-    path = tmp_path / "run_progress_latest.v1.json"
-    path.write_text("{ invalid", encoding="utf-8")
-    monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", path)
+    state_path = tmp_path / "run_state.v1.json"
+    state_path.write_text("{ invalid", encoding="utf-8")
+    monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", state_path)
 
     dash.app.testing = True
     client = dash.app.test_client()
@@ -145,19 +178,18 @@ def test_research_run_status_endpoint_with_invalid_json(monkeypatch, tmp_path):
     response = client.get("/api/research/run-status")
 
     payload = response.get_json()
-    assert payload["artifact_state"] == "invalid_json"
-    assert payload["artifact_error"]
+    assert payload["run_state"]["artifact_state"] == "invalid_json"
+    assert payload["run_state"]["artifact_error"]
 
 
 def test_research_run_trigger_accepted_when_idle(monkeypatch, tmp_path):
     from dashboard import dashboard as dash
 
-    monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", tmp_path / "missing.json")
-    monkeypatch.setattr(dash.research_runner, "_ACTIVE_PROCESS", None)
+    monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", tmp_path / "missing.json")
     monkeypatch.setattr(
         dash.research_runner.subprocess,
         "Popen",
-        lambda *args, **kwargs: _FakeProcess(pid=999, returncode=None),
+        lambda *args, **kwargs: type("FakeProcess", (), {"pid": 999})(),
     )
 
     dash.app.testing = True
@@ -175,8 +207,30 @@ def test_research_run_trigger_accepted_when_idle(monkeypatch, tmp_path):
 def test_research_run_trigger_blocked_when_process_active(monkeypatch, tmp_path):
     from dashboard import dashboard as dash
 
-    monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", tmp_path / "missing.json")
-    monkeypatch.setattr(dash.research_runner, "_ACTIVE_PROCESS", _FakeProcess(returncode=None))
+    now = datetime.now(UTC)
+    state_path = tmp_path / "run_state.v1.json"
+    state_path.write_text(
+        (
+            "{"
+            "\"version\":\"v1\","
+            "\"run_id\":\"run-live\","
+            "\"status\":\"running\","
+            "\"pid\":123,"
+            f"\"started_at_utc\":\"{(now - timedelta(seconds=60)).isoformat()}\","
+            f"\"updated_at_utc\":\"{now.isoformat()}\","
+            "\"stage\":\"evaluation\","
+            "\"status_reason\":\"research_run_started\","
+            "\"heartbeat_timeout_s\":300,"
+            "\"progress_path\":\"research/run_progress_latest.v1.json\","
+            "\"manifest_path\":\"research/run_manifest_latest.v1.json\","
+            "\"log_path\":\"logs/research/run-live.jsonl\","
+            "\"error\":null"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", state_path)
+    monkeypatch.setattr("research.run_state._pid_is_live", lambda pid: True)
 
     dash.app.testing = True
     client = dash.app.test_client()
@@ -189,31 +243,49 @@ def test_research_run_trigger_blocked_when_process_active(monkeypatch, tmp_path)
     assert payload["launch_state"] == "blocked_active_run"
 
 
-def test_research_run_trigger_returns_stale_signal_behavior(monkeypatch, tmp_path):
+def test_research_run_trigger_repairs_stale_signal_and_starts(monkeypatch, tmp_path):
     from dashboard import dashboard as dash
 
     stale_at = (datetime.now(UTC) - timedelta(seconds=600)).isoformat()
-    path = tmp_path / "run_progress_latest.v1.json"
-    path.write_text(
+    state_path = tmp_path / "run_state.v1.json"
+    state_path.write_text(
         (
             "{"
-            f"\"version\":\"v1\",\"status\":\"running\",\"last_updated_at_utc\":\"{stale_at}\""
+            "\"version\":\"v1\","
+            "\"run_id\":\"run-stale\","
+            "\"status\":\"running\","
+            "\"pid\":123,"
+            "\"started_at_utc\":\"2026-04-13T10:00:00+00:00\","
+            f"\"updated_at_utc\":\"{stale_at}\","
+            "\"stage\":\"evaluation\","
+            "\"status_reason\":\"research_run_started\","
+            "\"heartbeat_timeout_s\":300,"
+            "\"progress_path\":\"research/run_progress_latest.v1.json\","
+            "\"manifest_path\":\"research/run_manifest_latest.v1.json\","
+            "\"log_path\":\"logs/research/run-stale.jsonl\","
+            "\"error\":null"
             "}"
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", path)
-    monkeypatch.setattr(dash.research_runner, "_ACTIVE_PROCESS", None)
+    monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", state_path)
+    monkeypatch.setattr("research.run_state._pid_is_live", lambda pid: True)
+    monkeypatch.setattr(
+        dash.research_runner.subprocess,
+        "Popen",
+        lambda *args, **kwargs: type("FakeProcess", (), {"pid": 888})(),
+    )
 
     dash.app.testing = True
     client = dash.app.test_client()
     _set_operator_session(client)
     response = client.post("/api/research/run")
 
-    assert response.status_code == 409
+    assert response.status_code == 202
     payload = response.get_json()
-    assert payload["accepted"] is False
-    assert payload["launch_state"] == "blocked_stale_signal"
+    assert payload["accepted"] is True
+    assert payload["launch_state"] == "started"
+    assert payload["warnings"]
 
 
 def test_research_latest_endpoint_valid_artifact(monkeypatch, tmp_path):
