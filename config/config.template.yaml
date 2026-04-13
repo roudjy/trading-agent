@@ -133,6 +133,12 @@ research:
     require_leakage_checks_ok: true
     require_goedgekeurd: false
     min_oos_trades: 10
+  regime_diagnostics:
+    trend_lookback_bars: 20
+    volatility_lookback_bars: 20
+    volatility_baseline_lookback_bars: 100
+    trend_strength_threshold: 0.5
+    high_vol_ratio_threshold: 1.5
 
 leren:
   trade_geheugen: 1000

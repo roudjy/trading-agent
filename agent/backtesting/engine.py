@@ -12,6 +12,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 import pandas as pd
 
+from agent.backtesting.regime import UNKNOWN, build_regime_frame, normalize_regime_config
 from data.contracts import Instrument
 from data.repository import DataUnavailableError, MarketRepository
 
@@ -74,6 +75,7 @@ class FoldLeakageError(EvaluationScheduleError):
 class AssetContext:
     asset: str
     frame: pd.DataFrame
+    regime_frame: pd.DataFrame
     folds: list[Fold]
 
 
@@ -237,12 +239,14 @@ class BacktestEngine:
         transactiekosten: float = 0.005,
         max_sweep_cells: int = MAX_SWEEP_CELLS,
         evaluation_config: Optional[dict[str, Any]] = None,
+        regime_config: Optional[dict[str, Any]] = None,
     ):
         self.start = start_datum
         self.eind = eind_datum
         self.kosten_per_kant = transactiekosten / 2 + 0.001
         self.max_sweep_cells = max_sweep_cells
         self.evaluation_config = normalize_evaluation_config(evaluation_config)
+        self.regime_config = normalize_regime_config(regime_config)
         self.min_trades = MIN_TRADES
         self._provenance_events: list[Any] = []
         self.last_evaluation_report: Optional[dict[str, Any]] = None
@@ -368,7 +372,8 @@ class BacktestEngine:
                 log.warning(f"[BT] Te weinig data: {asset}")
                 continue
             folds = build_evaluation_folds(len(df), self.evaluation_config)
-            asset_contexts.append(AssetContext(asset=asset, frame=df, folds=folds))
+            regime_frame = build_regime_frame(df, self.regime_config)
+            asset_contexts.append(AssetContext(asset=asset, frame=df, regime_frame=regime_frame, folds=folds))
         return asset_contexts
 
     def _evaluate_windows(
@@ -381,16 +386,37 @@ class BacktestEngine:
         dag_returns: list[float] = []
         maand_returns: list[float] = []
         oos_daily_return_stream: list[dict[str, Any]] = []
+        oos_bar_return_stream: list[dict[str, Any]] = []
+        oos_trade_events: list[dict[str, Any]] = []
 
         for context in asset_contexts:
-            for train_bounds, test_bounds in context.folds:
+            for fold_index, (train_bounds, test_bounds) in enumerate(context.folds):
                 start_idx, end_idx = train_bounds if use_train else test_bounds
                 df_window = context.frame.iloc[start_idx : end_idx + 1].copy()
-                trades, dag, maand = self._simuleer(df_window, strategie_func, context.asset)
+                regime_window = context.regime_frame.iloc[start_idx : end_idx + 1].copy()
+                trades, dag, maand, trade_events = self._simuleer_detailed(
+                    df_window,
+                    strategie_func,
+                    context.asset,
+                    regime_window=regime_window,
+                    fold_index=fold_index,
+                    include_trade_events=not use_train,
+                )
                 trade_pnls.extend(trades)
                 dag_returns.extend(dag)
                 maand_returns.extend(maand)
-                oos_daily_return_stream.extend(self._serialize_daily_return_stream(df_window, dag))
+                if not use_train:
+                    oos_daily_return_stream.extend(self._serialize_daily_return_stream(df_window, dag))
+                    oos_bar_return_stream.extend(
+                        self._serialize_bar_return_stream(
+                            df_window=df_window,
+                            regime_window=regime_window,
+                            period_returns=dag,
+                            asset=context.asset,
+                            fold_index=fold_index,
+                        )
+                    )
+                    oos_trade_events.extend(trade_events)
 
         self._last_window_samples = {
             "daily_returns": list(dag_returns),
@@ -399,6 +425,8 @@ class BacktestEngine:
         }
         self._last_window_streams = {
             "oos_daily_returns": oos_daily_return_stream,
+            "oos_bar_returns": oos_bar_return_stream,
+            "oos_trade_events": oos_trade_events,
         }
 
         if len(trade_pnls) < self.min_trades:
@@ -491,6 +519,53 @@ class BacktestEngine:
         ]
 
     @staticmethod
+    def _serialize_bar_return_stream(
+        df_window: pd.DataFrame,
+        regime_window: pd.DataFrame,
+        period_returns: list[float],
+        asset: str,
+        fold_index: int,
+    ) -> list[dict[str, Any]]:
+        timestamps = [pd.Timestamp(timestamp) for timestamp in df_window.index[1 : len(period_returns) + 1]]
+        labels = regime_window.iloc[1 : len(period_returns) + 1]
+        stream: list[dict[str, Any]] = []
+        for timestamp, value, (_, label_row) in zip(timestamps, period_returns, labels.iterrows()):
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.tz_localize(UTC)
+            else:
+                timestamp = timestamp.tz_convert(UTC)
+            stream.append(
+                {
+                    "timestamp_utc": timestamp.isoformat(),
+                    "asset": asset,
+                    "fold_index": fold_index,
+                    "return": float(value),
+                    "trend_regime": BacktestEngine._label_or_unknown(label_row, "trend_regime"),
+                    "volatility_regime": BacktestEngine._label_or_unknown(label_row, "volatility_regime"),
+                    "combined_regime": BacktestEngine._label_or_unknown(label_row, "combined_regime"),
+                }
+            )
+        return stream
+
+    @staticmethod
+    def _timestamp_to_utc_iso(timestamp: Any) -> str:
+        ts = pd.Timestamp(timestamp)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize(UTC)
+        else:
+            ts = ts.tz_convert(UTC)
+        return ts.isoformat()
+
+    @staticmethod
+    def _label_or_unknown(row: pd.Series | None, key: str) -> str:
+        if row is None:
+            return UNKNOWN
+        value = row.get(key, UNKNOWN)
+        if pd.isna(value):
+            return UNKNOWN
+        return str(value)
+
+    @staticmethod
     def _summary_payload(metrics: dict[str, Any]) -> dict[str, Any]:
         return {key: metrics.get(key) for key in METRIC_KEYS}
 
@@ -551,6 +626,25 @@ class BacktestEngine:
         return timestamp.tz_convert(UTC)
 
     def _simuleer(self, df: pd.DataFrame, strategie_func: Callable, asset: str) -> tuple[list, list, list]:
+        trade_pnls, dag_returns, maand_returns, _ = self._simuleer_detailed(
+            df,
+            strategie_func,
+            asset,
+            regime_window=None,
+            fold_index=None,
+            include_trade_events=False,
+        )
+        return trade_pnls, dag_returns, maand_returns
+
+    def _simuleer_detailed(
+        self,
+        df: pd.DataFrame,
+        strategie_func: Callable,
+        asset: str,
+        regime_window: Optional[pd.DataFrame],
+        fold_index: Optional[int],
+        include_trade_events: bool,
+    ) -> tuple[list[float], list[float], list[float], list[dict[str, Any]]]:
         """
         Simuleer trades zonder lookahead bias.
         Signaal dag X -> uitvoering dag X+1.
@@ -563,10 +657,12 @@ class BacktestEngine:
         df["sig"] = sig.shift(1).fillna(0)
 
         trade_pnls: list[float] = []
+        trade_events: list[dict[str, Any]] = []
         equity = 1.0
         equity_serie: list[float] = [equity]
         positie = 0
         entry_prijs = 0.0
+        current_trade: Optional[dict[str, Any]] = None
 
         for i in range(1, len(df)):
             prijs = float(df["close"].iloc[i])
@@ -581,6 +677,11 @@ class BacktestEngine:
                 if entry_prijs > 0:
                     pnl = (prijs / entry_prijs - 1.0) * positie - self.kosten_per_kant
                     trade_pnls.append(pnl)
+                    if include_trade_events and current_trade is not None:
+                        current_trade["exit_timestamp_utc"] = self._timestamp_to_utc_iso(df.index[i])
+                        current_trade["pnl"] = pnl
+                        trade_events.append(current_trade)
+                        current_trade = None
                 equity *= 1.0 - self.kosten_per_kant
                 positie = 0
 
@@ -588,6 +689,21 @@ class BacktestEngine:
                 entry_prijs = prijs
                 equity *= 1.0 - self.kosten_per_kant
                 positie = signaal
+                if include_trade_events:
+                    decision_index = max(i - 1, 0)
+                    decision_row = None
+                    if regime_window is not None and len(regime_window) > decision_index:
+                        decision_row = regime_window.iloc[decision_index]
+                    current_trade = {
+                        "asset": asset,
+                        "fold_index": fold_index,
+                        "side": "long" if signaal > 0 else "short",
+                        "entry_decision_timestamp_utc": self._timestamp_to_utc_iso(df.index[decision_index]),
+                        "entry_timestamp_utc": self._timestamp_to_utc_iso(df.index[i]),
+                        "entry_trend_regime": self._label_or_unknown(decision_row, "trend_regime"),
+                        "entry_volatility_regime": self._label_or_unknown(decision_row, "volatility_regime"),
+                        "entry_combined_regime": self._label_or_unknown(decision_row, "combined_regime"),
+                    }
 
             equity_serie.append(equity)
 
@@ -596,7 +712,7 @@ class BacktestEngine:
             for i in range(1, len(equity_serie))
         ]
         maand_returns = self._maand_returns(pd.Series(equity_serie, dtype=float), df)
-        return trade_pnls, dag_returns, maand_returns
+        return trade_pnls, dag_returns, maand_returns, trade_events
 
     def _prepare_bollinger_regime_df(self, df: pd.DataFrame, strategie_func: Callable) -> pd.DataFrame:
         """Precompute regime gating only for bollinger_regime."""

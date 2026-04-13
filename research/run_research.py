@@ -24,6 +24,7 @@ from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
+from research.regime_reporting import build_regime_diagnostics_payload
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
 
@@ -32,6 +33,7 @@ WALK_FORWARD_PATH = "research/walk_forward_latest.v1.json"
 CANDIDATE_REGISTRY_PATH = Path("research/candidate_registry_latest.v1.json")
 UNIVERSE_SNAPSHOT_PATH = Path("research/universe_snapshot_latest.v1.json")
 PORTFOLIO_AGGREGATION_PATH = Path("research/portfolio_aggregation_latest.v1.json")
+REGIME_DIAGNOSTICS_PATH = Path("research/regime_diagnostics_latest.v1.json")
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -254,14 +256,54 @@ def _write_portfolio_aggregation_sidecar(
     _write_json_atomic(path, payload)
 
 
-def _build_engine(start_datum: str, eind_datum: str, evaluation_config: dict) -> BacktestEngine:
+def _write_regime_diagnostics_sidecar(
+    *,
+    evaluations: list[dict],
+    as_of_utc,
+    research_config: dict,
+    evaluation_config: dict,
+    provenance_events: list,
+    path: Path = REGIME_DIAGNOSTICS_PATH,
+) -> None:
+    payload = build_regime_diagnostics_payload(
+        evaluations=evaluations,
+        as_of_utc=as_of_utc,
+        git_revision=_git_revision(),
+        config_hash=_config_hash(research_config, provenance_events),
+        evaluation_config=evaluation_config,
+        regime_config=research_config.get("regime_diagnostics"),
+    )
+    _write_json_atomic(path, payload)
+
+
+def _build_engine(
+    start_datum: str,
+    eind_datum: str,
+    evaluation_config: dict,
+    regime_config: dict | None = None,
+) -> BacktestEngine:
     try:
         return BacktestEngine(
             start_datum=start_datum,
             eind_datum=eind_datum,
             evaluation_config=evaluation_config,
+            regime_config=regime_config,
         )
     except TypeError as exc:
+        if "regime_config" in str(exc):
+            try:
+                return BacktestEngine(
+                    start_datum=start_datum,
+                    eind_datum=eind_datum,
+                    evaluation_config=evaluation_config,
+                )
+            except TypeError as exc2:
+                if "evaluation_config" not in str(exc2):
+                    raise
+                return BacktestEngine(
+                    start_datum=start_datum,
+                    eind_datum=eind_datum,
+                )
         if "evaluation_config" not in str(exc):
             raise
         return BacktestEngine(
@@ -297,6 +339,7 @@ def run_research():
                     start_datum=start_datum,
                     eind_datum=eind_datum,
                     evaluation_config=evaluation_config,
+                    regime_config=research_config.get("regime_diagnostics"),
                 )
                 try:
                     metrics = engine.grid_search(
@@ -391,6 +434,13 @@ def run_research():
     _write_portfolio_aggregation_sidecar(
         evaluations=evaluations,
         as_of_utc=as_of_utc,
+    )
+    _write_regime_diagnostics_sidecar(
+        evaluations=evaluations,
+        as_of_utc=as_of_utc,
+        research_config=research_config,
+        evaluation_config=evaluation_config,
+        provenance_events=provenance_events,
     )
 
     print(f"Klaar. {len(rows)} resultaten geschreven.")
