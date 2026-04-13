@@ -29,6 +29,7 @@ from research.universe import build_research_universe
 SIDE_CAR_PATH = Path("research/statistical_defensibility_latest.v1.json")
 WALK_FORWARD_PATH = "research/walk_forward_latest.v1.json"
 CANDIDATE_REGISTRY_PATH = Path("research/candidate_registry_latest.v1.json")
+UNIVERSE_SNAPSHOT_PATH = Path("research/universe_snapshot_latest.v1.json")
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -102,6 +103,14 @@ def _write_json_atomic(path: Path, payload: dict) -> None:
     with tmp_path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=False)
     os.replace(tmp_path, path)
+
+
+def _write_universe_snapshot_sidecar(
+    snapshot,
+    path: Path = UNIVERSE_SNAPSHOT_PATH,
+) -> None:
+    """Write the resolved universe snapshot for lineage."""
+    _write_json_atomic(path, snapshot.to_dict() if hasattr(snapshot, "to_dict") else snapshot)
 
 
 def _write_statistical_defensibility_sidecar(
@@ -253,7 +262,8 @@ def run_research():
     research_config = load_research_config()
     regime_count, regime_count_source = regime_count_settings(research_config)
     evaluation_config = normalize_evaluation_config(research_config.get("evaluation"))
-    assets, intervals, get_date_range, as_of_utc = build_research_universe(research_config)
+    assets, intervals, get_date_range, as_of_utc, universe_snapshot = build_research_universe(research_config)
+    _write_universe_snapshot_sidecar(universe_snapshot)
     interval_ranges = {}
     strategies = get_enabled_strategies()
 
@@ -367,3 +377,4 @@ def run_research():
     
 if __name__ == "__main__":
     run_research()
+
