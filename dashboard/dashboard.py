@@ -5,7 +5,16 @@ Flask-gebaseerd dashboard voor de JvR Trading Agent.
 Alle data via /api/ endpoints, geen extra packages.
 """
 
-from flask import Flask, send_from_directory, request, Response, jsonify, session, g
+from flask import (
+    Flask,
+    send_from_directory,
+    request,
+    Response,
+    jsonify,
+    session,
+    g,
+    render_template,
+)
 from functools import wraps
 import hmac
 import os
@@ -20,6 +29,7 @@ from datetime import datetime
 
 from data.contracts import Instrument
 from data.repository import MarketRepository
+from dashboard import research_artifacts, research_runner
 from reporting import audit_log
 
 app = Flask(__name__, template_folder="templates")
@@ -245,6 +255,45 @@ def index():
     if not html_pad.exists():
         html_pad = Path("templates/dashboard.html")
     return open(html_pad, encoding="utf-8").read()
+
+
+@app.route("/research")
+@requires_auth
+def research_control_surface():
+    return render_template("research_control_surface.html")
+
+
+@app.route("/api/research/run-status")
+@requires_auth
+def api_research_run_status():
+    artifact = research_artifacts.load_run_progress_artifact()
+    return jsonify(research_runner.build_run_status_response(artifact))
+
+
+@app.route("/api/research/latest")
+@requires_auth
+def api_research_latest():
+    return jsonify(research_artifacts.load_research_latest_artifact())
+
+
+@app.route("/api/research/empty-run-diagnostics")
+@requires_auth
+def api_research_empty_run_diagnostics():
+    return jsonify(research_artifacts.load_empty_run_diagnostics_artifact())
+
+
+@app.route("/api/research/universe")
+@requires_auth
+def api_research_universe():
+    return jsonify(research_artifacts.load_universe_snapshot_artifact())
+
+
+@app.route("/api/research/run", methods=["POST"])
+@require_operator_auth()
+def api_research_run():
+    artifact = research_artifacts.load_run_progress_artifact()
+    payload, status_code = research_runner.launch_research_run(artifact)
+    return jsonify(payload), status_code
 
 
 # ──────────────────────────────────────────────
