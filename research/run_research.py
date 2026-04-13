@@ -22,6 +22,7 @@ from agent.backtesting.engine import (
 )
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_latest_json, write_results_to_csv
+from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
@@ -30,6 +31,7 @@ SIDE_CAR_PATH = Path("research/statistical_defensibility_latest.v1.json")
 WALK_FORWARD_PATH = "research/walk_forward_latest.v1.json"
 CANDIDATE_REGISTRY_PATH = Path("research/candidate_registry_latest.v1.json")
 UNIVERSE_SNAPSHOT_PATH = Path("research/universe_snapshot_latest.v1.json")
+PORTFOLIO_AGGREGATION_PATH = Path("research/portfolio_aggregation_latest.v1.json")
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -238,6 +240,20 @@ def _write_candidate_registry(
     _write_json_atomic(path, payload)
 
 
+def _write_portfolio_aggregation_sidecar(
+    *,
+    evaluations: list[dict],
+    as_of_utc,
+    path: Path = PORTFOLIO_AGGREGATION_PATH,
+) -> None:
+    payload = build_portfolio_aggregation_payload(
+        evaluations=evaluations,
+        as_of_utc=as_of_utc,
+        git_revision=_git_revision(),
+    )
+    _write_json_atomic(path, payload)
+
+
 def _build_engine(start_datum: str, eind_datum: str, evaluation_config: dict) -> BacktestEngine:
     try:
         return BacktestEngine(
@@ -370,6 +386,10 @@ def run_research():
         rows=rows,
         walk_forward_reports=walk_forward_reports,
         research_config=research_config,
+        as_of_utc=as_of_utc,
+    )
+    _write_portfolio_aggregation_sidecar(
+        evaluations=evaluations,
         as_of_utc=as_of_utc,
     )
 
