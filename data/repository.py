@@ -61,9 +61,14 @@ class MarketRepository:
         try:
             if cache_path.exists():
                 bars = self._read_cached_bars(cache_path)
+                if not self._has_cached_bars(bars):
+                    bars = adapter.fetch_bars(instrument, interval, start_utc, end_utc)
+                    if bars:
+                        self._write_cached_bars(cache_path, bars)
             else:
                 bars = adapter.fetch_bars(instrument, interval, start_utc, end_utc)
-                self._write_cached_bars(cache_path, bars)
+                if bars:
+                    self._write_cached_bars(cache_path, bars)
         except Exception as exc:
             raise DataUnavailableError(
                 f"Unable to load data for {instrument.native_symbol} via {adapter.name}"
@@ -77,6 +82,10 @@ class MarketRepository:
         provenance = bars[-1].provenance
         frame.attrs["provenance"] = provenance
         return BarsResponse(frame=frame, provenance=provenance)
+
+    @staticmethod
+    def _has_cached_bars(bars: list[CanonicalBar]) -> bool:
+        return bool(bars)
 
     def get_latest_prices(self, instruments: list[Instrument]) -> dict[str, dict[str, object]]:
         now = datetime.now(UTC)
