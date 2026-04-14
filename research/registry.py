@@ -31,6 +31,9 @@ STRATEGIES = [
             "periode": [14],
         },
         "family": "mean_reversion",
+        "strategy_family": "mean_reversion",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": "RSI mean reversion werkt mogelijk alleen in niet-trending regimes.",
         "enabled": True,
     },
@@ -42,6 +45,9 @@ STRATEGIES = [
             "std": [2.0],
         },
         "family": "mean_reversion",
+        "strategy_family": "mean_reversion",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": "Bollinger mean reversion is waarschijnlijk zwak op intraday crypto.",
         "enabled": True,
     },
@@ -63,6 +69,9 @@ STRATEGIES = [
             "std": [2.0],
         },
         "family": "mean_reversion",
+        "strategy_family": "mean_reversion",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": "Regime filtering kan Bollinger verbeteren, maar lost zwakke MR-edge mogelijk niet op.",
         "enabled": True,
     },
@@ -78,6 +87,9 @@ STRATEGIES = [
             "max_volatility": [0.02, 0.03],
         },
         "family": "trend",
+        "strategy_family": "trend_following",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": "Crypto momentum maakt trend pullback plausibeler dan mean reversion.",
         "enabled": True,
     },
@@ -95,6 +107,9 @@ STRATEGIES = [
             "stop_loss": [0.01, 0.015, 0.02],
         },
         "family": "trend",
+        "strategy_family": "trend_following",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": "Trend pullback kan verbeteren met expliciete take-profit en stop-loss trade management.",
         "enabled": True,
     },
@@ -106,6 +121,9 @@ STRATEGIES = [
             "ema_exit": [10, 20],
         },
         "family": "trend",
+        "strategy_family": "breakout",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": "Crypto kan sterker reageren op breakout momentum dan op mean reversion.",
         "enabled": True,
     },
@@ -117,6 +135,9 @@ STRATEGIES = [
             "slow_window": [50, 100],
         },
         "family": "trend",
+        "strategy_family": "trend_following",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": (
             "Klassieke SMA crossover capturet persistent directional moves "
             "per orchestrator_brief §4.1 tier 1 baseline."
@@ -132,6 +153,9 @@ STRATEGIES = [
             "exit_z": [0.5],
         },
         "family": "mean_reversion",
+        "strategy_family": "mean_reversion",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
         "hypothesis": (
             "Price z-score mean reversion capturet deviations from "
             "equilibrium per orchestrator_brief §4.2 tier 1 baseline."
@@ -157,6 +181,9 @@ STRATEGIES = [
             "hedge_ratio": [1.0],
         },
         "family": "stat_arb",
+        "strategy_family": "stat_arb",
+        "position_structure": "spread",
+        "initial_lane_support": "blocked",
         "hypothesis": (
             "Spread z-score pairs trading per orchestrator_brief §4.3 "
             "tier 1 baseline. enabled=False is intentional: the "

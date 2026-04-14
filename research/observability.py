@@ -198,7 +198,7 @@ class ProgressTracker:
         return max(0, int(round(self._monotonic_source() - self._run_started_monotonic)))
 
     def _eta_seconds(self) -> int | None:
-        if self.status != "running" or self.current_stage != "evaluation":
+        if self.status != "running" or self.current_stage not in {"screening", "validation", "evaluation"}:
             return None
         if self.completed_items <= 0 or self.total_items <= self.completed_items:
             return 0 if self.total_items > 0 and self.completed_items >= self.total_items else None

@@ -29,6 +29,9 @@ def _patch_common_runner(monkeypatch, tmp_path: Path, engine_cls) -> None:
             {
                 "name": "fake_strategy",
                 "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
                 "hypothesis": "Fixture hypothesis",
                 "factory": lambda **params: None,
                 "params": {"periode": [14]},
@@ -39,7 +42,7 @@ def _patch_common_runner(monkeypatch, tmp_path: Path, engine_cls) -> None:
         run_research_module,
         "build_research_universe",
         lambda config: (
-            [SimpleNamespace(symbol="BTC-USD")],
+            [SimpleNamespace(symbol="BTC-USD", asset_type="crypto", asset_class="crypto")],
             ["1h"],
             lambda interval: ("2024-05-13", "2026-04-13"),
             AS_OF_UTC,
@@ -54,7 +57,7 @@ def _patch_common_runner(monkeypatch, tmp_path: Path, engine_cls) -> None:
     monkeypatch.setattr(run_research_module, "_git_revision", lambda: "deadbeef")
 
 
-class _PreflightDegenerateEngine:
+class _EligibilityDegenerateEngine:
     def __init__(self, start_datum, eind_datum, evaluation_config=None, regime_config=None):
         self.start = start_datum
         self.eind = eind_datum
@@ -77,7 +80,7 @@ class _PreflightDegenerateEngine:
         ]
 
     def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
-        raise AssertionError("grid_search should not run when preflight has zero evaluable pairs")
+        raise AssertionError("grid_search should not run when eligibility has zero candidates")
 
 
 class _PostRunDegenerateEngine:
@@ -160,16 +163,65 @@ class _PostRunDegenerateEngine:
         }
 
 
-def test_run_research_fails_fast_before_public_outputs_when_preflight_is_empty(monkeypatch, tmp_path):
-    _patch_common_runner(monkeypatch, tmp_path, _PreflightDegenerateEngine)
+class _ScreeningDegenerateEngine:
+    def __init__(self, start_datum, eind_datum, evaluation_config=None, regime_config=None):
+        self.start = start_datum
+        self.eind = eind_datum
+        self._provenance_events = []
+        self.last_evaluation_report = None
 
-    with pytest.raises(DegenerateResearchRunError, match="preflight_no_evaluable_pairs"):
+    def inspect_asset_readiness(self, assets, interval):
+        return [
+            {
+                "asset": asset,
+                "interval": interval,
+                "requested_start": self.start,
+                "requested_end": self.eind,
+                "bar_count": 700,
+                "fold_count": 2,
+                "status": "evaluable",
+                "drop_reason": None,
+            }
+            for asset in assets
+        ]
+
+    def run(self, strategie_func, assets, interval="1d"):
+        self.last_evaluation_report = {
+            "evaluation_samples": {
+                "daily_returns": [0.01, -0.005, 0.003],
+                "trade_pnls": [0.02, -0.01],
+                "monthly_returns": [0.008],
+            }
+        }
+        return {
+            "win_rate": 0.45,
+            "sharpe": -0.2,
+            "deflated_sharpe": -0.1,
+            "max_drawdown": 0.12,
+            "trades_per_maand": 2.5,
+            "consistentie": 0.3,
+            "totaal_trades": 12,
+            "goedgekeurd": False,
+            "criteria_checks": {},
+            "reden": "",
+        }
+
+    def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
+        raise AssertionError("grid_search should not run when screening has zero survivors")
+
+
+def test_run_research_fails_fast_before_public_outputs_when_eligibility_is_empty(monkeypatch, tmp_path):
+    _patch_common_runner(monkeypatch, tmp_path, _EligibilityDegenerateEngine)
+
+    with pytest.raises(DegenerateResearchRunError, match="eligibility_no_candidates"):
         run_research_module.run_research()
 
     diagnostics = _load_json(tmp_path / "research" / "empty_run_diagnostics_latest.v1.json")
-    assert diagnostics["failure_stage"] == "preflight_no_evaluable_pairs"
+    filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
+    assert diagnostics["failure_stage"] == "eligibility_no_candidates"
     assert diagnostics["summary"]["evaluable_pair_count"] == 0
     assert diagnostics["summary"]["primary_drop_reasons"] == ["empty_dataset"]
+    assert filter_summary["eligibility_rejection_reasons"] == {"empty_dataset": 1}
     assert not (tmp_path / "research" / "research_latest.json").exists()
     assert not (tmp_path / "research" / "strategy_matrix.csv").exists()
 
@@ -185,5 +237,20 @@ def test_run_research_fails_fast_before_public_outputs_when_oos_samples_are_empt
     assert diagnostics["summary"]["evaluable_pair_count"] == 1
     assert diagnostics["summary"]["evaluations_count"] == 1
     assert diagnostics["summary"]["evaluations_with_oos_daily_returns"] == 0
+    assert not (tmp_path / "research" / "research_latest.json").exists()
+    assert not (tmp_path / "research" / "strategy_matrix.csv").exists()
+
+
+def test_run_research_fails_fast_before_public_outputs_when_screening_has_no_survivors(monkeypatch, tmp_path):
+    _patch_common_runner(monkeypatch, tmp_path, _ScreeningDegenerateEngine)
+
+    with pytest.raises(DegenerateResearchRunError, match="screening_no_survivors"):
+        run_research_module.run_research()
+
+    diagnostics = _load_json(tmp_path / "research" / "empty_run_diagnostics_latest.v1.json")
+    filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
+    assert diagnostics["failure_stage"] == "screening_no_survivors"
+    assert filter_summary["summary"]["screening_rejected_count"] == 1
+    assert filter_summary["screening_rejection_reasons"] == {"screening_criteria_not_met": 1}
     assert not (tmp_path / "research" / "research_latest.json").exists()
     assert not (tmp_path / "research" / "strategy_matrix.csv").exists()
