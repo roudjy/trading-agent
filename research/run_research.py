@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import subprocess
+import time
 from datetime import UTC, datetime, timezone
 from pathlib import Path
 
@@ -20,16 +21,31 @@ from agent.backtesting.engine import (
     FoldLeakageError,
     normalize_evaluation_config,
 )
+from research.candidate_pipeline import (
+    SCREENING_PROMOTED,
+    apply_eligibility,
+    apply_fit_prior,
+    build_candidate_artifact_payload,
+    build_filter_summary_payload,
+    deduplicate_candidates,
+    index_readiness,
+    normalize_screening_decision,
+    plan_candidates,
+    screening_candidates,
+    screening_param_samples,
+    summarize_candidates,
+    validation_candidates,
+)
 from research.empty_run_reporting import (
     DegenerateResearchRunError,
     build_empty_run_diagnostics_payload,
 )
 from research.observability import ProgressTracker
-from research.registry import get_enabled_strategies
-from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.regime_reporting import build_regime_diagnostics_payload
+from research.registry import get_enabled_strategies
+from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
@@ -41,11 +57,14 @@ UNIVERSE_SNAPSHOT_PATH = Path("research/universe_snapshot_latest.v1.json")
 PORTFOLIO_AGGREGATION_PATH = Path("research/portfolio_aggregation_latest.v1.json")
 REGIME_DIAGNOSTICS_PATH = Path("research/regime_diagnostics_latest.v1.json")
 EMPTY_RUN_DIAGNOSTICS_PATH = Path("research/empty_run_diagnostics_latest.v1.json")
+RUN_CANDIDATES_PATH = Path("research/run_candidates_latest.v1.json")
+RUN_FILTER_SUMMARY_PATH = Path("research/run_filter_summary_latest.v1.json")
 RUN_PROGRESS_PATH = Path("research/run_progress_latest.v1.json")
 RUN_STATE_PATH = Path("research/run_state.v1.json")
 RUN_MANIFEST_PATH = Path("research/run_manifest_latest.v1.json")
 RUN_LOG_DIR = Path("logs/research")
 RUN_HEARTBEAT_TIMEOUT_S = 300
+SCREENING_PARAM_SAMPLE_LIMIT = 3
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -115,17 +134,28 @@ def _write_provenance_sidecar(
 
 def _write_json_atomic(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+    tmp_path = path.with_suffix(f"{path.suffix}.{os.getpid()}.tmp")
     with tmp_path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=False)
-    os.replace(tmp_path, path)
+    for attempt in range(3):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if attempt == 2:
+                raise
+            time.sleep(0.05)
+
+
+def _write_json_with_history(*, path: Path, payload: dict, run_id: str, history_name: str) -> None:
+    _write_json_atomic(path, payload)
+    _write_json_atomic(Path("research/history") / run_id / history_name, payload)
 
 
 def _write_universe_snapshot_sidecar(
     snapshot,
     path: Path = UNIVERSE_SNAPSHOT_PATH,
 ) -> None:
-    """Write the resolved universe snapshot for lineage."""
     _write_json_atomic(path, snapshot.to_dict() if hasattr(snapshot, "to_dict") else snapshot)
 
 
@@ -171,7 +201,6 @@ def _sidecar_strategy_entry(
 
 
 def _compute_robustness(folds: list[dict]) -> dict:
-    """Derive robustness metadata from serialized fold list."""
     fold_count = len(folds)
     oos_bars = sum(f["test"][1] - f["test"][0] + 1 for f in folds) if folds else 0
     total_bars_covered = 0
@@ -226,10 +255,6 @@ def _write_candidate_registry(
     as_of_utc,
     path: Path = CANDIDATE_REGISTRY_PATH,
 ) -> None:
-    """Build and write candidate registry from in-memory artifacts.
-
-    Skips silently when walk_forward_reports is empty (no OOS data to promote).
-    """
     if not walk_forward_reports:
         return
 
@@ -422,13 +447,62 @@ def _build_run_manifest_payload(
         },
         "stage_definitions": [
             "planning",
-            "preflight",
-            "evaluation",
+            "dedupe",
+            "fit_prior",
+            "eligibility_filter",
+            "screening",
+            "validation",
             "writing_outputs",
         ],
-        "screening_enabled": False,
+        "screening_enabled": True,
         "validation_enabled": True,
+        "screening_param_sample_limit": SCREENING_PARAM_SAMPLE_LIMIT,
+        "screening_cost_model": {
+            "mode": "representative_param_subset",
+            "max_sampled_parameter_combinations": SCREENING_PARAM_SAMPLE_LIMIT,
+        },
+        "artifacts": {
+            "run_candidates_path": RUN_CANDIDATES_PATH.as_posix(),
+            "run_filter_summary_path": RUN_FILTER_SUMMARY_PATH.as_posix(),
+        },
     }
+
+
+def _merge_manifest(path: Path, **fields) -> None:
+    if not path.exists():
+        return
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    for key, value in fields.items():
+        if isinstance(value, dict) and isinstance(payload.get(key), dict):
+            payload[key] = {**payload[key], **value}
+        else:
+            payload[key] = value
+    _write_json_atomic(path, payload)
+
+
+def _persist_candidate_pipeline_sidecars(*, run_id: str, as_of_utc: datetime, candidates: list[dict]) -> None:
+    candidate_payload = build_candidate_artifact_payload(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        candidates=candidates,
+    )
+    filter_payload = build_filter_summary_payload(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        candidates=candidates,
+    )
+    _write_json_with_history(
+        path=RUN_CANDIDATES_PATH,
+        payload=candidate_payload,
+        run_id=run_id,
+        history_name="run_candidates.v1.json",
+    )
+    _write_json_with_history(
+        path=RUN_FILTER_SUMMARY_PATH,
+        payload=filter_payload,
+        run_id=run_id,
+        history_name="run_filter_summary.v1.json",
+    )
 
 
 def _raise_degenerate_run(
@@ -455,6 +529,50 @@ def _raise_degenerate_run(
     raise DegenerateResearchRunError(payload["message"])
 
 
+def _screen_candidate(
+    *,
+    strategy: dict,
+    candidate: dict,
+    engine,
+) -> dict[str, str | None]:
+    if not hasattr(engine, "run"):
+        return {
+            "status": SCREENING_PROMOTED,
+            "reason": None,
+            "sampled_combination_count": 0,
+        }
+
+    sample_results: list[dict[str, str | None]] = []
+    for params in screening_param_samples(
+        strategy.get("params") or {},
+        max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+    ):
+        try:
+            metrics = engine.run(
+                strategy["factory"](**params),
+                assets=[candidate["asset"]],
+                interval=candidate["interval"],
+            )
+            report = getattr(engine, "last_evaluation_report", None) or {}
+            evaluation_samples = report.get("evaluation_samples") or {}
+            daily_returns = evaluation_samples.get("daily_returns") or []
+            if not isinstance(daily_returns, list) or not daily_returns:
+                sample_results.append({"status": "rejected_in_screening", "reason": "no_oos_samples"})
+                continue
+            min_trades = int(getattr(engine, "min_trades", 10))
+            if int(metrics.get("totaal_trades", 0)) < min_trades:
+                sample_results.append({"status": "rejected_in_screening", "reason": "insufficient_trades"})
+                continue
+            if not metrics.get("goedgekeurd", False):
+                sample_results.append({"status": "rejected_in_screening", "reason": "screening_criteria_not_met"})
+                continue
+            sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
+        except Exception:
+            sample_results.append({"status": "rejected_in_screening", "reason": "screening_error"})
+
+    return normalize_screening_decision(sample_results)
+
+
 def run_research():
     lifecycle = RunStateStore(
         state_path=RUN_STATE_PATH,
@@ -477,20 +595,33 @@ def run_research():
         manifest_path=RUN_MANIFEST_PATH,
         log_path=Path(state["log_path"]),
     )
-    rows = []
-    evaluations = []
-    walk_forward_reports = []
-    provenance_events = []
+    rows: list[dict] = []
+    evaluations: list[dict] = []
+    walk_forward_reports: list[dict] = []
+    provenance_events: list = []
+    pair_diagnostics: list[dict] = []
+    interval_ranges: dict[str, dict[str, str]] = {}
+    candidates: list[dict] = []
     try:
-        tracker.start_stage("planning")
         research_config = load_research_config()
         regime_count, regime_count_source = regime_count_settings(research_config)
         evaluation_config = normalize_evaluation_config(research_config.get("evaluation"))
         assets, intervals, get_date_range, as_of_utc, universe_snapshot = build_research_universe(research_config)
-        _write_universe_snapshot_sidecar(universe_snapshot)
-        interval_ranges = {}
         strategies = get_enabled_strategies()
-        total_items = len(strategies) * len(intervals) * len(assets)
+        strategy_by_name = {strategy["name"]: strategy for strategy in strategies}
+
+        _write_universe_snapshot_sidecar(universe_snapshot)
+
+        for interval in intervals:
+            start_datum, eind_datum = get_date_range(interval)
+            interval_ranges[str(interval)] = {"start": start_datum, "end": eind_datum}
+
+        tracker.start_stage("planning")
+        planned_candidates = plan_candidates(
+            strategies=strategies,
+            assets=assets,
+            intervals=intervals,
+        )
         tracker.write_manifest(
             _build_run_manifest_payload(
                 run_id=state["run_id"],
@@ -498,120 +629,237 @@ def run_research():
                 research_config=research_config,
                 assets=assets,
                 intervals=intervals,
-                total_candidate_count=total_items,
+                total_candidate_count=len(planned_candidates),
                 strategies=strategies,
                 universe_snapshot_path=UNIVERSE_SNAPSHOT_PATH,
             )
         )
-        tracker.mark_stage_completed(total_items=total_items)
+        tracker.mark_stage_completed(raw_candidate_count=len(planned_candidates))
 
-        tracker.start_stage("preflight", total=total_items)
-        for interval in intervals:
-            start_datum, eind_datum = get_date_range(interval)
-            interval_ranges[interval] = {"start": start_datum, "end": eind_datum}
+        tracker.start_stage("dedupe", total=len(planned_candidates))
+        candidates, dedupe_summary = deduplicate_candidates(planned_candidates)
+        _persist_candidate_pipeline_sidecars(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            candidates=candidates,
+        )
+        _merge_manifest(RUN_MANIFEST_PATH, **dedupe_summary)
+        tracker.mark_stage_completed(**dedupe_summary)
 
-        pair_diagnostics: list[dict] = []
+        tracker.start_stage("fit_prior", total=len(candidates))
+        candidates, fit_summary = apply_fit_prior(candidates)
+        _persist_candidate_pipeline_sidecars(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            candidates=candidates,
+        )
+        _merge_manifest(RUN_MANIFEST_PATH, **fit_summary)
+        tracker.mark_stage_completed(
+            fit_allowed_count=fit_summary["fit_allowed_count"],
+            fit_discouraged_count=fit_summary["fit_discouraged_count"],
+            fit_blocked_count=fit_summary["fit_blocked_count"],
+        )
+
+        tracker.start_stage("eligibility_filter", total=len(candidates))
         for interval in intervals:
-            start_datum = interval_ranges[interval]["start"]
-            eind_datum = interval_ranges[interval]["end"]
+            start_datum = interval_ranges[str(interval)]["start"]
+            eind_datum = interval_ranges[str(interval)]["end"]
             engine = _build_engine(
                 start_datum=start_datum,
                 eind_datum=eind_datum,
                 evaluation_config=evaluation_config,
                 regime_config=research_config.get("regime_diagnostics"),
             )
-            pair_diagnostics.extend(_inspect_engine_readiness(engine, assets, interval))
+            pair_diagnostics.extend(_inspect_engine_readiness(engine, assets, str(interval)))
+            provenance_events.extend(getattr(engine, "_provenance_events", []))
 
-        evaluable_pair_count = sum(
-            1 for item in pair_diagnostics if item.get("status") == "evaluable"
+        candidates, eligibility_summary = apply_eligibility(
+            candidates=candidates,
+            readiness_by_pair=index_readiness(pair_diagnostics),
+            universe_symbols={asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets},
         )
-        tracker.mark_stage_completed(evaluable_pairs=evaluable_pair_count)
-        if evaluable_pair_count == 0:
+        _persist_candidate_pipeline_sidecars(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            candidates=candidates,
+        )
+        _merge_manifest(RUN_MANIFEST_PATH, **eligibility_summary)
+        tracker.mark_stage_completed(
+            eligible_candidate_count=eligibility_summary["eligible_candidate_count"],
+            eligibility_rejected_count=eligibility_summary["eligibility_rejected_count"],
+        )
+        if eligibility_summary["eligible_candidate_count"] == 0:
             _raise_degenerate_run(
                 as_of_utc=as_of_utc,
-                failure_stage="preflight_no_evaluable_pairs",
+                failure_stage="eligibility_no_candidates",
                 assets=assets,
                 intervals=intervals,
                 interval_ranges=interval_ranges,
                 pair_diagnostics=pair_diagnostics,
             )
 
-        tracker.start_stage("evaluation", total=total_items, total_items=total_items)
-        completed_items = 0
-        for strategy in strategies:
-            for interval in intervals:
-                for asset in assets:
-                    tracker.begin_item(
-                        strategy=strategy["name"],
-                        asset=asset.symbol,
-                        interval=interval,
-                    )
-                    start_datum = interval_ranges[interval]["start"]
-                    eind_datum = interval_ranges[interval]["end"]
+        tracker.start_stage("screening", total=eligibility_summary["eligible_candidate_count"])
+        screening_items = screening_candidates(candidates)
+        for index, candidate in enumerate(screening_items, start=1):
+            tracker.begin_item(
+                strategy=candidate["strategy_name"],
+                asset=candidate["asset"],
+                interval=candidate["interval"],
+            )
+            strategy = strategy_by_name[candidate["strategy_name"]]
+            start_datum = interval_ranges[candidate["interval"]]["start"]
+            eind_datum = interval_ranges[candidate["interval"]]["end"]
+            engine = _build_engine(
+                start_datum=start_datum,
+                eind_datum=eind_datum,
+                evaluation_config=evaluation_config,
+                regime_config=research_config.get("regime_diagnostics"),
+            )
+            decision = _screen_candidate(strategy=strategy, candidate=candidate, engine=engine)
+            provenance_events.extend(getattr(engine, "_provenance_events", []))
+            for item in candidates:
+                if item["candidate_id"] != candidate["candidate_id"]:
+                    continue
+                item["screening"] = dict(decision)
+                if decision["status"] == SCREENING_PROMOTED:
+                    item["current_status"] = "promoted_to_validation"
+                else:
+                    item["current_status"] = "screening_rejected"
+                break
+            tracker.advance(completed=index, total=len(screening_items))
 
-                    engine = _build_engine(
-                        start_datum=start_datum,
-                        eind_datum=eind_datum,
-                        evaluation_config=evaluation_config,
-                        regime_config=research_config.get("regime_diagnostics"),
-                    )
-                    try:
-                        metrics = engine.grid_search(
-                            strategie_factory=strategy["factory"],
-                            param_grid=strategy["params"],
-                            assets=[asset.symbol],
-                            interval=interval,
-                        )
-                        params_used = metrics.get("beste_params", {})
-                        row = make_result_row(
-                            strategy=strategy,
-                            asset=asset.symbol,
-                            interval=interval,
-                            params=params_used,
-                            as_of_utc=as_of_utc,
-                            metrics=metrics,
-                        )
-                        evaluation_report = getattr(engine, "last_evaluation_report", None)
-                        if evaluation_report is not None:
-                            walk_forward_reports.append(
-                                _sidecar_strategy_entry(
-                                    strategy=strategy,
-                                    asset=asset.symbol,
-                                    interval=interval,
-                                    report=evaluation_report,
-                                )
-                            )
-                            evaluations.append(
-                                {
-                                    "family": strategy["family"],
-                                    "interval": interval,
-                                    "selected_params": json.loads(row["params_json"]),
-                                    "evaluation_report": evaluation_report,
-                                    "row": row,
-                                }
-                            )
-                    except (EvaluationScheduleError, FoldLeakageError):
-                        raise
-                    except Exception as e:
-                        row = make_result_row(
-                            strategy=strategy,
-                            asset=asset.symbol,
-                            interval=interval,
-                            params={},
-                            as_of_utc=as_of_utc,
-                            metrics={},
-                            error=str(e),
-                        )
-
-                    provenance_events.extend(getattr(engine, "_provenance_events", []))
-                    rows.append(row)
-                    completed_items += 1
-                    tracker.advance(completed=completed_items, total=total_items)
-
-        tracker.mark_stage_completed(completed_items=completed_items)
-        evaluable_oos_daily_return_count = _count_evaluable_oos_daily_return_evaluations(
-            evaluations
+        screening_summary = summarize_candidates(candidates)
+        _persist_candidate_pipeline_sidecars(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            candidates=candidates,
         )
+        _merge_manifest(
+            RUN_MANIFEST_PATH,
+            screening_rejected_count=screening_summary["screening_rejected_count"],
+            validation_candidate_count=screening_summary["validation_candidate_count"],
+        )
+        tracker.mark_stage_completed(
+            screening_rejected_count=screening_summary["screening_rejected_count"],
+            validation_candidate_count=screening_summary["validation_candidate_count"],
+        )
+        if screening_summary["validation_candidate_count"] == 0:
+            _raise_degenerate_run(
+                as_of_utc=as_of_utc,
+                failure_stage="screening_no_survivors",
+                assets=assets,
+                intervals=intervals,
+                interval_ranges=interval_ranges,
+                pair_diagnostics=pair_diagnostics,
+            )
+
+        tracker.start_stage("validation", total=screening_summary["validation_candidate_count"])
+        validation_items = validation_candidates(candidates)
+        for index, candidate in enumerate(validation_items, start=1):
+            strategy = strategy_by_name[candidate["strategy_name"]]
+            tracker.begin_item(
+                strategy=strategy["name"],
+                asset=candidate["asset"],
+                interval=candidate["interval"],
+            )
+            start_datum = interval_ranges[candidate["interval"]]["start"]
+            eind_datum = interval_ranges[candidate["interval"]]["end"]
+            engine = _build_engine(
+                start_datum=start_datum,
+                eind_datum=eind_datum,
+                evaluation_config=evaluation_config,
+                regime_config=research_config.get("regime_diagnostics"),
+            )
+            try:
+                metrics = engine.grid_search(
+                    strategie_factory=strategy["factory"],
+                    param_grid=strategy["params"],
+                    assets=[candidate["asset"]],
+                    interval=candidate["interval"],
+                )
+                params_used = metrics.get("beste_params", {})
+                row = make_result_row(
+                    strategy=strategy,
+                    asset=candidate["asset"],
+                    interval=candidate["interval"],
+                    params=params_used,
+                    as_of_utc=as_of_utc,
+                    metrics=metrics,
+                )
+                evaluation_report = getattr(engine, "last_evaluation_report", None)
+                if evaluation_report is not None:
+                    walk_forward_reports.append(
+                        _sidecar_strategy_entry(
+                            strategy=strategy,
+                            asset=candidate["asset"],
+                            interval=candidate["interval"],
+                            report=evaluation_report,
+                        )
+                    )
+                    evaluations.append(
+                        {
+                            "family": strategy["family"],
+                            "interval": candidate["interval"],
+                            "selected_params": json.loads(row["params_json"]),
+                            "evaluation_report": evaluation_report,
+                            "row": row,
+                        }
+                    )
+            except (EvaluationScheduleError, FoldLeakageError):
+                raise
+            except Exception as exc:
+                row = make_result_row(
+                    strategy=strategy,
+                    asset=candidate["asset"],
+                    interval=candidate["interval"],
+                    params={},
+                    as_of_utc=as_of_utc,
+                    metrics={},
+                    error=str(exc),
+                )
+
+            provenance_events.extend(getattr(engine, "_provenance_events", []))
+            rows.append(row)
+            for item in candidates:
+                if item["candidate_id"] != candidate["candidate_id"]:
+                    continue
+                item["validation"] = {
+                    "status": "validated",
+                    "result_success": bool(row["success"]),
+                }
+                item["current_status"] = "validated"
+                break
+            tracker.advance(completed=index, total=len(validation_items))
+
+        _persist_candidate_pipeline_sidecars(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            candidates=candidates,
+        )
+        validation_summary = summarize_candidates(candidates)
+        _merge_manifest(
+            RUN_MANIFEST_PATH,
+            validation_candidate_count=validation_summary["validation_candidate_count"],
+            validated_count=validation_summary["validated_count"],
+        )
+        tracker.mark_stage_completed(
+            validation_candidate_count=validation_summary["validation_candidate_count"],
+            validated_count=validation_summary["validated_count"],
+        )
+
+        successful_rows = [row for row in rows if row["success"]]
+        if validation_items and not successful_rows:
+            _raise_degenerate_run(
+                as_of_utc=as_of_utc,
+                failure_stage="validation_no_survivors",
+                assets=assets,
+                intervals=intervals,
+                interval_ranges=interval_ranges,
+                pair_diagnostics=pair_diagnostics,
+                evaluations_count=len(evaluations),
+            )
+
+        evaluable_oos_daily_return_count = _count_evaluable_oos_daily_return_evaluations(evaluations)
         if evaluations and evaluable_oos_daily_return_count == 0:
             _raise_degenerate_run(
                 as_of_utc=as_of_utc,
@@ -624,7 +872,7 @@ def run_research():
                 evaluations_with_oos_daily_returns=evaluable_oos_daily_return_count,
             )
 
-        tracker.start_stage("writing_outputs", total=total_items)
+        tracker.start_stage("writing_outputs", total=len(rows))
         write_results_to_csv(rows)
         write_latest_json(rows, as_of_utc=as_of_utc)
 
@@ -643,7 +891,6 @@ def run_research():
             provenance_events=provenance_events,
         )
 
-        successful_rows = [row for row in rows if row["success"]]
         if evaluations and len(evaluations) != len(successful_rows):
             raise RuntimeError(
                 "successful research rows are missing evaluation samples for statistical defensibility"
@@ -675,13 +922,13 @@ def run_research():
             evaluation_config=evaluation_config,
             provenance_events=provenance_events,
         )
-        tracker.mark_stage_completed()
+        tracker.mark_stage_completed(results_written=len(rows))
         tracker.complete()
         print(f"Klaar. {len(rows)} resultaten geschreven.")
     except Exception as exc:
         tracker.fail(exc, failure_stage=tracker.current_stage)
         raise
 
+
 if __name__ == "__main__":
     run_research()
-

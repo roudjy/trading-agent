@@ -41,6 +41,9 @@ def _patch_common_runner(monkeypatch, tmp_path: Path, engine_cls) -> None:
             {
                 "name": "fake_strategy",
                 "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
                 "hypothesis": "Fixture hypothesis",
                 "factory": lambda **params: None,
                 "params": {"periode": [14]},
@@ -51,7 +54,7 @@ def _patch_common_runner(monkeypatch, tmp_path: Path, engine_cls) -> None:
         run_research_module,
         "build_research_universe",
         lambda config: (
-            [SimpleNamespace(symbol="BTC-USD")],
+            [SimpleNamespace(symbol="BTC-USD", asset_type="crypto", asset_class="crypto")],
             ["1d"],
             lambda interval: ("2026-01-01", "2026-02-01"),
             AS_OF_UTC,
@@ -106,6 +109,27 @@ class _HealthyEngine:
             }
             for asset in assets
         ]
+
+    def run(self, strategie_func, assets, interval="1d"):
+        self.last_evaluation_report = {
+            "evaluation_samples": {
+                "daily_returns": [0.01, -0.005, 0.003],
+                "trade_pnls": [0.02, -0.01],
+                "monthly_returns": [0.008],
+            }
+        }
+        return {
+            "win_rate": 0.55,
+            "sharpe": 1.1,
+            "deflated_sharpe": 0.9,
+            "max_drawdown": 0.12,
+            "trades_per_maand": 2.5,
+            "consistentie": 0.65,
+            "totaal_trades": 12,
+            "goedgekeurd": True,
+            "criteria_checks": {},
+            "reden": "",
+        }
 
     def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
         self.last_evaluation_report = {
@@ -201,6 +225,36 @@ class _DegenerateEngine:
         raise AssertionError("grid_search should not run for preflight failure")
 
 
+class _SelectiveScreeningEngine(_HealthyEngine):
+    validation_calls = 0
+
+    def run(self, strategie_func, assets, interval="1d"):
+        promoted = getattr(strategie_func, "screen_tag", "promote") == "promote"
+        self.last_evaluation_report = {
+            "evaluation_samples": {
+                "daily_returns": [0.01, -0.005, 0.003],
+                "trade_pnls": [0.02, -0.01],
+                "monthly_returns": [0.008],
+            }
+        }
+        return {
+            "win_rate": 0.55 if promoted else 0.45,
+            "sharpe": 1.1 if promoted else -0.2,
+            "deflated_sharpe": 0.9 if promoted else -0.1,
+            "max_drawdown": 0.12,
+            "trades_per_maand": 2.5,
+            "consistentie": 0.65,
+            "totaal_trades": 12,
+            "goedgekeurd": promoted,
+            "criteria_checks": {},
+            "reden": "",
+        }
+
+    def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
+        _SelectiveScreeningEngine.validation_calls += 1
+        return super().grid_search(strategie_factory, param_grid, assets, interval=interval)
+
+
 def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(monkeypatch, tmp_path: Path):
     _patch_common_runner(monkeypatch, tmp_path, _HealthyEngine)
 
@@ -209,6 +263,8 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     progress = _load_json(tmp_path / "research" / "run_progress_latest.v1.json")
     state = _load_json(tmp_path / "research" / "run_state.v1.json")
     manifest = _load_json(tmp_path / "research" / "run_manifest_latest.v1.json")
+    candidates = _load_json(tmp_path / "research" / "run_candidates_latest.v1.json")
+    filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
     public_json = _load_json(tmp_path / "research" / "research_latest.json")
     with (tmp_path / "research" / "strategy_matrix.csv").open(encoding="utf-8", newline="") as handle:
         csv_rows = list(csv.DictReader(handle))
@@ -222,8 +278,22 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     assert state["status"] == "completed"
     assert state["pid"] is None
     assert manifest["status"] == "completed"
+    assert manifest["stage_definitions"] == [
+        "planning",
+        "dedupe",
+        "fit_prior",
+        "eligibility_filter",
+        "screening",
+        "validation",
+        "writing_outputs",
+    ]
+    assert manifest["raw_candidate_count"] == 1
+    assert manifest["validation_candidate_count"] == 1
+    assert candidates["summary"]["validation_candidate_count"] == 1
+    assert filter_summary["screening_decisions"]["promoted_to_validation"] == 1
     assert (tmp_path / "logs" / "research" / f"{state['run_id']}.jsonl").exists()
     assert (tmp_path / "research" / "history" / state["run_id"] / "run_state.v1.json").exists()
+    assert (tmp_path / "research" / "history" / state["run_id"] / "run_candidates.v1.json").exists()
     assert list(public_json["results"][0].keys()) == ROW_SCHEMA
     assert list(csv_rows[0].keys()) == ROW_SCHEMA
 
@@ -231,14 +301,67 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
 def test_run_research_marks_failed_progress_sidecar_on_degenerate_run(monkeypatch, tmp_path: Path):
     _patch_common_runner(monkeypatch, tmp_path, _DegenerateEngine)
 
-    with pytest.raises(DegenerateResearchRunError, match="preflight_no_evaluable_pairs"):
+    with pytest.raises(DegenerateResearchRunError, match="eligibility_no_candidates"):
         run_research_module.run_research()
 
     progress = _load_json(tmp_path / "research" / "run_progress_latest.v1.json")
     state = _load_json(tmp_path / "research" / "run_state.v1.json")
+    filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
     assert progress["status"] == "failed"
     assert progress["current_stage"] == "failed"
-    assert progress["error"]["failure_stage"] == "preflight"
+    assert progress["error"]["failure_stage"] == "eligibility_filter"
     assert progress["error"]["error_type"] == "DegenerateResearchRunError"
     assert state["status"] == "failed"
-    assert state["status_reason"] == "research_run_failed:preflight"
+    assert state["status_reason"] == "research_run_failed:eligibility_filter"
+    assert filter_summary["summary"]["eligibility_rejected_count"] == 1
+    assert filter_summary["eligibility_rejection_reasons"] == {"empty_dataset": 1}
+
+
+def test_only_screening_survivors_reach_validation(monkeypatch, tmp_path: Path):
+    _patch_common_runner(monkeypatch, tmp_path, _SelectiveScreeningEngine)
+    _SelectiveScreeningEngine.validation_calls = 0
+
+    def _factory(tag):
+        def _build(**params):
+            return SimpleNamespace(screen_tag=tag)
+
+        return _build
+
+    monkeypatch.setattr(
+        run_research_module,
+        "get_enabled_strategies",
+        lambda: [
+            {
+                "name": "promoted_strategy",
+                "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "promoted",
+                "factory": _factory("promote"),
+                "params": {"periode": [14, 21, 28]},
+            },
+            {
+                "name": "rejected_strategy",
+                "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "rejected",
+                "factory": _factory("reject"),
+                "params": {"periode": [14, 21, 28]},
+            },
+        ],
+    )
+
+    run_research_module.run_research()
+
+    public_json = _load_json(tmp_path / "research" / "research_latest.json")
+    candidates = _load_json(tmp_path / "research" / "run_candidates_latest.v1.json")
+    filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
+
+    assert _SelectiveScreeningEngine.validation_calls == 1
+    assert public_json["count"] == 1
+    assert candidates["summary"]["screening_rejected_count"] == 1
+    assert candidates["summary"]["validation_candidate_count"] == 1
+    assert filter_summary["screening_rejection_reasons"] == {"screening_criteria_not_met": 1}
