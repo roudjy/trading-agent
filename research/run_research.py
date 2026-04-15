@@ -4,11 +4,13 @@ voert alle enabled strategieen uit via de registry
 en schrijft resultaten naar CSV + latest JSON.
 """
 
+import copy
 import hashlib
 import json
 import os
 import subprocess
 import time
+from concurrent.futures import ProcessPoolExecutor
 from datetime import UTC, datetime, timezone
 from pathlib import Path
 
@@ -40,6 +42,7 @@ from research.batching import (
     build_run_batches_payload,
     partition_execution_batches,
 )
+from research.batch_execution import execute_screening_batch, execute_validation_batch
 from research.campaigns import (
     build_campaign_id,
     build_run_campaign_payload,
@@ -88,6 +91,8 @@ RUN_LOG_DIR = Path("logs/research")
 RUN_HEARTBEAT_TIMEOUT_S = 300
 SCREENING_PARAM_SAMPLE_LIMIT = 3
 DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS = 60
+DEFAULT_EXECUTION_MAX_WORKERS = 1
+BATCH_EXECUTOR_CLASS = ProcessPoolExecutor
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -99,6 +104,16 @@ def load_research_config(config_path="config/config.yaml"):
         config = yaml.safe_load(handle) or {}
 
     return config.get("research") or {}
+
+
+def _resolve_execution_settings(research_config: dict) -> dict[str, str | int]:
+    execution_config = research_config.get("execution") or {}
+    max_workers = max(1, int(execution_config.get("max_workers", DEFAULT_EXECUTION_MAX_WORKERS)))
+    execution_mode = "inline" if max_workers == 1 else "process_pool"
+    return {
+        "max_workers": max_workers,
+        "execution_mode": execution_mode,
+    }
 
 
 def _git_revision() -> str:
@@ -441,6 +456,7 @@ def _build_run_manifest_payload(
     strategies: list[dict],
     universe_snapshot_path: Path,
     screening_candidate_budget_seconds: int,
+    execution_settings: dict[str, str | int],
 ) -> dict:
     asset_symbols = [asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets]
     return {
@@ -486,6 +502,10 @@ def _build_run_manifest_payload(
             "max_sampled_parameter_combinations": SCREENING_PARAM_SAMPLE_LIMIT,
         },
         "screening_candidate_budget_seconds": int(screening_candidate_budget_seconds),
+        "execution": {
+            "max_workers": int(execution_settings["max_workers"]),
+            "execution_mode": str(execution_settings["execution_mode"]),
+        },
         "artifacts": {
             "run_candidates_path": RUN_CANDIDATES_PATH.as_posix(),
             "run_filter_summary_path": RUN_FILTER_SUMMARY_PATH.as_posix(),
@@ -585,6 +605,10 @@ def _write_batch_manifest(*, run_id: str, batch: dict) -> None:
         run_id=run_id,
         batch=batch,
     )
+    _write_json_atomic(
+        Path("research/history") / run_id / "batches" / str(batch["batch_id"]) / "run_batch_manifest.v1.json",
+        payload,
+    )
 
 
 def _campaign_source_artifacts() -> dict[str, str]:
@@ -635,10 +659,6 @@ def _persist_campaign_artifacts(
     )
     _write_json_atomic(RUN_CAMPAIGN_PROGRESS_PATH, progress_payload)
     return latest_payload, progress_payload
-    _write_json_atomic(
-        Path("research/history") / run_id / "batches" / str(batch["batch_id"]) / "run_batch_manifest.v1.json",
-        payload,
-    )
 
 
 def _batch_progress_payload(*, batch: dict | None, total_batches: int) -> dict | None:
@@ -655,6 +675,62 @@ def _batch_progress_payload(*, batch: dict | None, total_batches: int) -> dict |
         "total_candidates": int(batch.get("candidate_count") or 0),
         "elapsed_seconds": int(batch.get("elapsed_seconds") or 0),
     }
+
+
+def _candidate_index(candidates: list[dict]) -> dict[str, dict]:
+    return {
+        str(candidate["candidate_id"]): candidate
+        for candidate in candidates
+    }
+
+
+def _apply_candidate_updates(*, candidates_by_id: dict[str, dict], updates: list[dict]) -> None:
+    for update in updates:
+        candidate = candidates_by_id.get(str(update["candidate_id"]))
+        if candidate is None:
+            continue
+        for key, value in update.items():
+            if key == "candidate_id":
+                continue
+            candidate[key] = value
+
+
+def _apply_screening_record_updates(*, screening_records_by_id: dict[str, dict], records: list[dict]) -> None:
+    for record in records:
+        existing = screening_records_by_id.get(str(record["candidate_id"]))
+        if existing is None:
+            continue
+        existing.update(record)
+
+
+def _apply_batch_result(*, target_batch: dict, source_batch: dict) -> None:
+    target_batch.update(source_batch)
+
+
+def _mark_later_batches_skipped(*, run_id: str, batches: list[dict], failed_batch: dict) -> None:
+    for later_batch in batches:
+        if later_batch["batch_index"] <= failed_batch["batch_index"] or later_batch["status"] != "pending":
+            continue
+        later_batch["status"] = "skipped"
+        later_batch["reason_code"] = "upstream_batch_failed"
+        later_batch["reason_detail"] = f"skipped after failed batch {failed_batch['batch_id']}"
+        later_batch["error_type"] = None
+        _write_batch_manifest(run_id=run_id, batch=later_batch)
+
+
+def _submit_parallel_batch(
+    *,
+    executor,
+    future_by_batch_id: dict[str, object],
+    batch: dict,
+    worker,
+    worker_kwargs: dict,
+) -> None:
+    future_by_batch_id[str(batch["batch_id"])] = executor.submit(
+        worker,
+        batch=copy.deepcopy(batch),
+        **worker_kwargs,
+    )
 
 
 def _screening_progress_payload(
@@ -674,6 +750,465 @@ def _screening_progress_payload(
         "budget_seconds": None if record is None else record.get("budget_seconds"),
         "candidate_elapsed_seconds": None if record is None else record.get("elapsed_seconds"),
     }
+
+
+def _merge_screening_batch_result(
+    *,
+    result: dict,
+    batch: dict,
+    batches: list[dict],
+    candidates_by_id: dict[str, dict],
+    screening_records_by_id: dict[str, dict],
+    candidates: list[dict],
+    screening_records: list[dict],
+    screening_completed: int,
+    screening_items_count: int,
+    run_id: str,
+    started_at_utc: str,
+    as_of_utc: datetime,
+    tracker: ProgressTracker,
+    provenance_events: list,
+) -> tuple[dict, dict, int]:
+    _apply_batch_result(target_batch=batch, source_batch=result["batch"])
+    _apply_candidate_updates(candidates_by_id=candidates_by_id, updates=result["candidate_updates"])
+    _apply_screening_record_updates(
+        screening_records_by_id=screening_records_by_id,
+        records=result["screening_records"],
+    )
+
+    candidate_payload, _ = _persist_candidate_pipeline_sidecars(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        candidates=candidates,
+    )
+    screening_payload = _persist_screening_candidate_sidecar(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        screening_records=screening_records,
+    )
+    _persist_run_batches_sidecar(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        batches=batches,
+    )
+    _write_batch_manifest(run_id=run_id, batch=batch)
+    _persist_campaign_artifacts(
+        run_id=run_id,
+        started_at=started_at_utc,
+        batches=batches,
+        candidate_payload=candidate_payload,
+        screening_payload=screening_payload,
+    )
+
+    for event in result["events"]:
+        tracker.emit_event(event.pop("event"), **event)
+    provenance_events.extend(result.get("provenance_events", []))
+
+    screening_completed += int(result["completed_candidates"])
+    tracker.advance(completed=screening_completed, total=screening_items_count)
+    tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+    tracker.set_screening(
+        _screening_progress_payload(
+            completed_candidates=screening_completed,
+            total_candidates=screening_items_count,
+            record=result.get("last_record"),
+        ),
+        persist=True,
+    )
+
+    if batch["status"] == "partial":
+        tracker.emit_event(
+            "batch_partial",
+            batch_id=batch["batch_id"],
+            batch_index=batch["batch_index"],
+            strategy_family=batch["strategy_family"],
+            interval=batch["interval"],
+            elapsed_seconds=batch["elapsed_seconds"],
+            candidate_count=batch["candidate_count"],
+            completed_candidate_count=batch["completed_candidate_count"],
+            reason_code=batch["reason_code"],
+        )
+    elif batch["status"] == "completed":
+        tracker.emit_event(
+            "batch_completed",
+            batch_id=batch["batch_id"],
+            batch_index=batch["batch_index"],
+            strategy_family=batch["strategy_family"],
+            interval=batch["interval"],
+            elapsed_seconds=batch["elapsed_seconds"],
+            candidate_count=batch["candidate_count"],
+            completed_candidate_count=batch["completed_candidate_count"],
+        )
+    elif batch["status"] == "failed":
+        tracker.emit_event(
+            "batch_failed",
+            batch_id=batch["batch_id"],
+            batch_index=batch["batch_index"],
+            strategy_family=batch["strategy_family"],
+            interval=batch["interval"],
+            elapsed_seconds=batch["elapsed_seconds"],
+            candidate_count=batch["candidate_count"],
+            completed_candidate_count=batch["completed_candidate_count"],
+            reason_code=batch["reason_code"],
+            reason_detail=batch["reason_detail"],
+        )
+
+    return candidate_payload, screening_payload, screening_completed
+
+
+def _merge_validation_batch_result(
+    *,
+    result: dict,
+    batch: dict,
+    batches: list[dict],
+    candidates_by_id: dict[str, dict],
+    candidates: list[dict],
+    rows: list[dict],
+    evaluations: list[dict],
+    walk_forward_reports: list[dict],
+    validation_completed: int,
+    validation_items_count: int,
+    run_id: str,
+    started_at_utc: str,
+    as_of_utc: datetime,
+    screening_payload: dict | None,
+    tracker: ProgressTracker,
+    provenance_events: list,
+) -> tuple[dict, int]:
+    _apply_batch_result(target_batch=batch, source_batch=result["batch"])
+    _apply_candidate_updates(candidates_by_id=candidates_by_id, updates=result["candidate_updates"])
+    rows.extend(result["rows"])
+    evaluations.extend(result["evaluations"])
+    walk_forward_reports.extend(result["walk_forward_reports"])
+    provenance_events.extend(result.get("provenance_events", []))
+
+    candidate_payload, _ = _persist_candidate_pipeline_sidecars(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        candidates=candidates,
+    )
+    _persist_run_batches_sidecar(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        batches=batches,
+    )
+    _write_batch_manifest(run_id=run_id, batch=batch)
+    _persist_campaign_artifacts(
+        run_id=run_id,
+        started_at=started_at_utc,
+        batches=batches,
+        candidate_payload=candidate_payload,
+        screening_payload=screening_payload,
+    )
+
+    validation_completed += int(result["completed_candidates"])
+    tracker.advance(completed=validation_completed, total=validation_items_count)
+    tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+
+    if batch["status"] == "partial":
+        tracker.emit_event(
+            "batch_partial",
+            batch_id=batch["batch_id"],
+            batch_index=batch["batch_index"],
+            strategy_family=batch["strategy_family"],
+            interval=batch["interval"],
+            elapsed_seconds=batch["elapsed_seconds"],
+            candidate_count=batch["candidate_count"],
+            completed_candidate_count=batch["completed_candidate_count"],
+            reason_code=batch["reason_code"],
+        )
+    elif batch["status"] == "completed":
+        tracker.emit_event(
+            "batch_completed",
+            batch_id=batch["batch_id"],
+            batch_index=batch["batch_index"],
+            strategy_family=batch["strategy_family"],
+            interval=batch["interval"],
+            elapsed_seconds=batch["elapsed_seconds"],
+            candidate_count=batch["candidate_count"],
+            completed_candidate_count=batch["completed_candidate_count"],
+        )
+    elif batch["status"] == "failed":
+        tracker.emit_event(
+            "batch_failed",
+            batch_id=batch["batch_id"],
+            batch_index=batch["batch_index"],
+            strategy_family=batch["strategy_family"],
+            interval=batch["interval"],
+            elapsed_seconds=batch["elapsed_seconds"],
+            candidate_count=batch["candidate_count"],
+            completed_candidate_count=batch["completed_candidate_count"],
+            reason_code=batch["reason_code"],
+            reason_detail=batch["reason_detail"],
+        )
+
+    return candidate_payload, validation_completed
+
+
+def _run_parallel_screening_batches(
+    *,
+    batches: list[dict],
+    screening_items: list[dict],
+    interval_ranges: dict[str, dict[str, str]],
+    evaluation_config: dict,
+    regime_config: dict | None,
+    screening_candidate_budget_seconds: int,
+    run_id: str,
+    started_at_utc: str,
+    as_of_utc: datetime,
+    tracker: ProgressTracker,
+    candidates: list[dict],
+    candidate_payload: dict | None,
+    screening_payload: dict | None,
+    screening_records: list[dict],
+    screening_records_by_id: dict[str, dict],
+    screening_completed: int,
+    execution_max_workers: int,
+    provenance_events: list,
+) -> tuple[dict | None, dict | None, int, set[str]]:
+    candidate_lookup = _candidate_index(candidates)
+    items_by_batch_id = {
+        str(batch["batch_id"]): [
+            candidate for candidate in screening_items if str(candidate["candidate_id"]) in {str(candidate_id) for candidate_id in batch["candidate_ids"]}
+        ]
+        for batch in batches
+    }
+    future_by_batch_id: dict[str, object] = {}
+    next_submit_index = 0
+    failed_batch_ids: set[str] = set()
+
+    with BATCH_EXECUTOR_CLASS(max_workers=execution_max_workers) as executor:
+        while next_submit_index < len(batches) and len(future_by_batch_id) < execution_max_workers:
+            batch = batches[next_submit_index]
+            batch["status"] = "running"
+            batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
+            tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+            _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
+            _write_batch_manifest(run_id=run_id, batch=batch)
+            _persist_campaign_artifacts(
+                run_id=run_id,
+                started_at=started_at_utc,
+                batches=batches,
+                candidate_payload=candidate_payload,
+                screening_payload=screening_payload,
+            )
+            tracker.emit_event(
+                "batch_started",
+                batch_id=batch["batch_id"],
+                batch_index=batch["batch_index"],
+                strategy_family=batch["strategy_family"],
+                interval=batch["interval"],
+                elapsed_seconds=0,
+                candidate_count=batch["candidate_count"],
+                completed_candidate_count=batch["completed_candidate_count"],
+            )
+            _submit_parallel_batch(
+                executor=executor,
+                future_by_batch_id=future_by_batch_id,
+                batch=batch,
+                worker=execute_screening_batch,
+                worker_kwargs={
+                    "batch_candidates": items_by_batch_id[str(batch["batch_id"])],
+                    "interval_ranges": interval_ranges,
+                    "evaluation_config": evaluation_config,
+                    "regime_config": regime_config,
+                    "screening_candidate_budget_seconds": screening_candidate_budget_seconds,
+                    "screening_param_sample_limit": SCREENING_PARAM_SAMPLE_LIMIT,
+                },
+            )
+            next_submit_index += 1
+
+        for batch in batches:
+            future = future_by_batch_id.pop(str(batch["batch_id"]), None)
+            if future is None:
+                continue
+            result = future.result()
+            candidate_payload, screening_payload, screening_completed = _merge_screening_batch_result(
+                result=result,
+                batch=batch,
+                batches=batches,
+                candidates_by_id=candidate_lookup,
+                screening_records_by_id=screening_records_by_id,
+                candidates=candidates,
+                screening_records=screening_records,
+                screening_completed=screening_completed,
+                screening_items_count=len(screening_items),
+                run_id=run_id,
+                started_at_utc=started_at_utc,
+                as_of_utc=as_of_utc,
+                tracker=tracker,
+                provenance_events=provenance_events,
+            )
+            if batch["status"] == "failed":
+                failed_batch_ids.add(str(batch["batch_id"]))
+            if not failed_batch_ids and next_submit_index < len(batches):
+                next_batch = batches[next_submit_index]
+                next_batch["status"] = "running"
+                next_batch["started_at"] = next_batch.get("started_at") or datetime.now(UTC).isoformat()
+                tracker.set_batch(_batch_progress_payload(batch=next_batch, total_batches=len(batches)), persist=True)
+                _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
+                _write_batch_manifest(run_id=run_id, batch=next_batch)
+                _persist_campaign_artifacts(
+                    run_id=run_id,
+                    started_at=started_at_utc,
+                    batches=batches,
+                    candidate_payload=candidate_payload,
+                    screening_payload=screening_payload,
+                )
+                tracker.emit_event(
+                    "batch_started",
+                    batch_id=next_batch["batch_id"],
+                    batch_index=next_batch["batch_index"],
+                    strategy_family=next_batch["strategy_family"],
+                    interval=next_batch["interval"],
+                    elapsed_seconds=0,
+                    candidate_count=next_batch["candidate_count"],
+                    completed_candidate_count=next_batch["completed_candidate_count"],
+                )
+                _submit_parallel_batch(
+                    executor=executor,
+                    future_by_batch_id=future_by_batch_id,
+                    batch=next_batch,
+                    worker=execute_screening_batch,
+                    worker_kwargs={
+                        "batch_candidates": items_by_batch_id[str(next_batch["batch_id"])],
+                        "interval_ranges": interval_ranges,
+                        "evaluation_config": evaluation_config,
+                        "regime_config": regime_config,
+                        "screening_candidate_budget_seconds": screening_candidate_budget_seconds,
+                        "screening_param_sample_limit": SCREENING_PARAM_SAMPLE_LIMIT,
+                    },
+                )
+                next_submit_index += 1
+
+    if failed_batch_ids:
+        first_failed = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
+        _mark_later_batches_skipped(run_id=run_id, batches=batches, failed_batch=first_failed)
+        _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
+        _persist_campaign_artifacts(
+            run_id=run_id,
+            started_at=started_at_utc,
+            batches=batches,
+            candidate_payload=candidate_payload,
+            screening_payload=screening_payload,
+        )
+
+    return candidate_payload, screening_payload, screening_completed, failed_batch_ids
+
+
+def _run_parallel_validation_batches(
+    *,
+    batches: list[dict],
+    validation_items: list[dict],
+    candidate_to_batch_id: dict[str, str],
+    interval_ranges: dict[str, dict[str, str]],
+    evaluation_config: dict,
+    regime_config: dict | None,
+    as_of_utc: datetime,
+    run_id: str,
+    started_at_utc: str,
+    screening_payload: dict | None,
+    tracker: ProgressTracker,
+    candidates: list[dict],
+    candidate_payload: dict | None,
+    rows: list[dict],
+    evaluations: list[dict],
+    walk_forward_reports: list[dict],
+    validation_completed: int,
+    execution_max_workers: int,
+    provenance_events: list,
+) -> tuple[dict | None, int, set[str]]:
+    validation_batches = [
+        batch for batch in batches if batch["status"] in {"running", "pending"}
+    ]
+    candidate_lookup = _candidate_index(candidates)
+    items_by_batch_id = {
+        str(batch["batch_id"]): [
+            candidate
+            for candidate in validation_items
+            if candidate_to_batch_id.get(str(candidate["candidate_id"])) == str(batch["batch_id"])
+        ]
+        for batch in validation_batches
+    }
+    future_by_batch_id: dict[str, object] = {}
+    next_submit_index = 0
+    failed_batch_ids: set[str] = set()
+
+    with BATCH_EXECUTOR_CLASS(max_workers=execution_max_workers) as executor:
+        while next_submit_index < len(validation_batches) and len(future_by_batch_id) < execution_max_workers:
+            batch = validation_batches[next_submit_index]
+            tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+            _submit_parallel_batch(
+                executor=executor,
+                future_by_batch_id=future_by_batch_id,
+                batch=batch,
+                worker=execute_validation_batch,
+                worker_kwargs={
+                    "batch_candidates": items_by_batch_id[str(batch["batch_id"])],
+                    "interval_ranges": interval_ranges,
+                    "evaluation_config": evaluation_config,
+                    "regime_config": regime_config,
+                    "as_of_utc": as_of_utc,
+                },
+            )
+            next_submit_index += 1
+
+        for batch in validation_batches:
+            future = future_by_batch_id.pop(str(batch["batch_id"]), None)
+            if future is None:
+                continue
+            result = future.result()
+            candidate_payload, validation_completed = _merge_validation_batch_result(
+                result=result,
+                batch=batch,
+                batches=batches,
+                candidates_by_id=candidate_lookup,
+                candidates=candidates,
+                rows=rows,
+                evaluations=evaluations,
+                walk_forward_reports=walk_forward_reports,
+                validation_completed=validation_completed,
+                validation_items_count=len(validation_items),
+                run_id=run_id,
+                started_at_utc=started_at_utc,
+                as_of_utc=as_of_utc,
+                screening_payload=screening_payload,
+                tracker=tracker,
+                provenance_events=provenance_events,
+            )
+            if batch["status"] == "failed":
+                failed_batch_ids.add(str(batch["batch_id"]))
+            if not failed_batch_ids and next_submit_index < len(validation_batches):
+                next_batch = validation_batches[next_submit_index]
+                tracker.set_batch(_batch_progress_payload(batch=next_batch, total_batches=len(batches)), persist=True)
+                _submit_parallel_batch(
+                    executor=executor,
+                    future_by_batch_id=future_by_batch_id,
+                    batch=next_batch,
+                    worker=execute_validation_batch,
+                    worker_kwargs={
+                        "batch_candidates": items_by_batch_id[str(next_batch["batch_id"])],
+                        "interval_ranges": interval_ranges,
+                        "evaluation_config": evaluation_config,
+                        "regime_config": regime_config,
+                        "as_of_utc": as_of_utc,
+                    },
+                )
+                next_submit_index += 1
+
+    if failed_batch_ids:
+        first_failed = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
+        _mark_later_batches_skipped(run_id=run_id, batches=batches, failed_batch=first_failed)
+        _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
+        _persist_campaign_artifacts(
+            run_id=run_id,
+            started_at=started_at_utc,
+            batches=batches,
+            candidate_payload=candidate_payload,
+            screening_payload=screening_payload,
+        )
+
+    return candidate_payload, validation_completed, failed_batch_ids
 
 
 def _result_row_sort_key(row: dict) -> tuple[str, str, str, str, str]:
@@ -749,6 +1284,8 @@ def run_research():
     screening_payload: dict | None = None
     try:
         research_config = load_research_config()
+        execution_settings = _resolve_execution_settings(research_config)
+        execution_max_workers = int(execution_settings["max_workers"])
         regime_count, regime_count_source = regime_count_settings(research_config)
         evaluation_config = normalize_evaluation_config(research_config.get("evaluation"))
         screening_config = research_config.get("screening") or {}
@@ -783,6 +1320,7 @@ def run_research():
                 strategies=strategies,
                 universe_snapshot_path=UNIVERSE_SNAPSHOT_PATH,
                 screening_candidate_budget_seconds=screening_candidate_budget_seconds,
+                execution_settings=execution_settings,
             )
         )
         tracker.mark_stage_completed(raw_candidate_count=len(planned_candidates))
@@ -852,6 +1390,10 @@ def run_research():
         tracker.start_stage("screening", total=eligibility_summary["eligible_candidate_count"])
         screening_items = screening_candidates(candidates)
         batches = partition_execution_batches(candidates=screening_items)
+        for batch in batches:
+            batch["attempt_count"] = 1
+            batch["execution_mode"] = str(execution_settings["execution_mode"])
+            batch["error_type"] = None
         candidate_to_batch_id = {
             str(candidate_id): str(batch["batch_id"])
             for batch in batches
@@ -870,6 +1412,10 @@ def run_research():
             batch_partitioning={
                 "mode": "strategy_family_x_interval",
                 "batch_count": len(batches),
+            },
+            execution={
+                "max_workers": execution_max_workers,
+                "execution_mode": str(execution_settings["execution_mode"]),
             },
         )
         tracker.set_batch(None, persist=True)
@@ -906,7 +1452,31 @@ def run_research():
             str(candidate["candidate_id"]): candidate
             for candidate in screening_items
         }
-        for batch in batches:
+        if execution_max_workers > 1:
+            candidate_payload, screening_payload, screening_completed, failed_batch_ids = _run_parallel_screening_batches(
+                batches=batches,
+                screening_items=screening_items,
+                interval_ranges=interval_ranges,
+                evaluation_config=evaluation_config,
+                regime_config=research_config.get("regime_diagnostics"),
+                screening_candidate_budget_seconds=screening_candidate_budget_seconds,
+                run_id=state["run_id"],
+                started_at_utc=state["started_at_utc"],
+                as_of_utc=as_of_utc,
+                tracker=tracker,
+                candidates=candidates,
+                candidate_payload=candidate_payload,
+                screening_payload=screening_payload,
+                screening_records=screening_records,
+                screening_records_by_id=screening_records_by_id,
+                screening_completed=screening_completed,
+                execution_max_workers=execution_max_workers,
+                provenance_events=provenance_events,
+            )
+            if failed_batch_ids:
+                failed_batch = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
+                raise RuntimeError(f"batch execution failed for {failed_batch['batch_id']}: {failed_batch['reason_detail']}")
+        for batch in ([] if execution_max_workers > 1 else batches):
             batch_started_monotonic = time.monotonic()
             batch["status"] = "running"
             batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
@@ -1286,7 +1856,32 @@ def run_research():
         tracker.start_stage("validation", total=screening_summary["validation_candidate_count"])
         validation_items = validation_candidates(candidates)
         validation_completed = 0
-        for batch in batches:
+        if execution_max_workers > 1:
+            candidate_payload, validation_completed, failed_batch_ids = _run_parallel_validation_batches(
+                batches=batches,
+                validation_items=validation_items,
+                candidate_to_batch_id=candidate_to_batch_id,
+                interval_ranges=interval_ranges,
+                evaluation_config=evaluation_config,
+                regime_config=research_config.get("regime_diagnostics"),
+                as_of_utc=as_of_utc,
+                run_id=state["run_id"],
+                started_at_utc=state["started_at_utc"],
+                screening_payload=screening_payload,
+                tracker=tracker,
+                candidates=candidates,
+                candidate_payload=candidate_payload,
+                rows=rows,
+                evaluations=evaluations,
+                walk_forward_reports=walk_forward_reports,
+                validation_completed=validation_completed,
+                execution_max_workers=execution_max_workers,
+                provenance_events=provenance_events,
+            )
+            if failed_batch_ids:
+                failed_batch = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
+                raise RuntimeError(f"batch execution failed for {failed_batch['batch_id']}: {failed_batch['reason_detail']}")
+        for batch in ([] if execution_max_workers > 1 else batches):
             if batch["status"] not in {"running", "pending"}:
                 continue
             batch_validation_items = [
@@ -1453,6 +2048,7 @@ def run_research():
                 batch["elapsed_seconds"] = _elapsed_from_started_at(batch.get("started_at"))
                 batch["reason_code"] = "batch_execution_failed"
                 batch["reason_detail"] = str(exc)
+                batch["error_type"] = type(exc).__name__
                 for later_batch in batches:
                     if later_batch["batch_index"] <= batch["batch_index"] or later_batch["status"] != "pending":
                         continue

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from research import batch_execution as batch_execution_module
 from research import run_research as run_research_module
 from research.empty_run_reporting import DegenerateResearchRunError
 from research.results import make_result_row, write_latest_json, write_results_to_csv
@@ -35,8 +36,25 @@ def _patch_common_runner(monkeypatch, tmp_path: Path, engine_cls) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "research").mkdir()
     monkeypatch.setattr(run_research_module, "BacktestEngine", engine_cls)
+    monkeypatch.setattr(batch_execution_module, "BacktestEngine", engine_cls)
     monkeypatch.setattr(
         run_research_module,
+        "get_enabled_strategies",
+        lambda: [
+            {
+                "name": "fake_strategy",
+                "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "Fixture hypothesis",
+                "factory": lambda **params: None,
+                "params": {"periode": [14]},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        batch_execution_module,
         "get_enabled_strategies",
         lambda: [
             {
