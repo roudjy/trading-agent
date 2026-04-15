@@ -90,12 +90,19 @@ class EngineInterrupted(RuntimeError):
         self.snapshot = snapshot
 
 
+class EngineResumeInvalid(ValueError):
+    """Raised when a resume snapshot is incompatible with the current engine configuration."""
+
+
 @dataclass
 class EngineRunProgress:
     phase: str = "load_contexts"
     asset_index: int | None = None
     fold_index: int | None = None
     completed_window_ids: list[CompletedWindowId] = field(default_factory=list)
+    _completed_set: set[CompletedWindowId] = field(
+        default_factory=set, init=False, repr=False, compare=False
+    )
 
     def checkpoint(
         self,
@@ -109,7 +116,10 @@ class EngineRunProgress:
         self.fold_index = fold_index
 
     def mark_completed_window(self, *, asset: str, window_kind: str, fold_index: int) -> None:
-        self.completed_window_ids.append((asset, window_kind, int(fold_index)))
+        entry = (asset, window_kind, int(fold_index))
+        if entry not in self._completed_set:
+            self.completed_window_ids.append(entry)
+            self._completed_set.add(entry)
 
     def snapshot(self) -> EngineExecutionSnapshot:
         return EngineExecutionSnapshot(
@@ -348,6 +358,7 @@ class BacktestEngine:
         *,
         should_stop: Callable[[], bool] | None = None,
         deadline_monotonic: float | None = None,
+        resume_snapshot: EngineExecutionSnapshot | None = None,
     ) -> dict:
         """Run fixed-parameter evaluation and return public OOS metrics only."""
         self.interval = interval
@@ -363,11 +374,17 @@ class BacktestEngine:
             stop_control=stop_control,
             progress=progress,
         )
+        skip_window_ids: frozenset[CompletedWindowId] = frozenset()
+        if resume_snapshot is not None:
+            skip_window_ids = self._validate_resume_snapshot(resume_snapshot, asset_contexts)
+            for (asset, wk, fi) in resume_snapshot.completed_window_ids:
+                progress.mark_completed_window(asset=asset, window_kind=wk, fold_index=fi)
         is_summary = self._run_phase_evaluate_in_sample(
             strategie_func,
             asset_contexts,
             stop_control=stop_control,
             progress=progress,
+            skip_window_ids=skip_window_ids,
         )
         oos_summary = self._run_phase_evaluate_out_of_sample(
             strategie_func,
@@ -407,6 +424,7 @@ class BacktestEngine:
         *,
         stop_control: EngineStopControl,
         progress: EngineRunProgress,
+        skip_window_ids: frozenset[CompletedWindowId] = frozenset(),
     ) -> dict[str, Any]:
         progress.checkpoint(phase="evaluate_in_sample", asset_index=None, fold_index=None)
         self._raise_if_interrupted(stop_control=stop_control, progress=progress)
@@ -416,6 +434,7 @@ class BacktestEngine:
             use_train=True,
             stop_control=stop_control,
             progress=progress,
+            skip_window_ids=skip_window_ids,
         )
 
     def _run_phase_evaluate_out_of_sample(
@@ -664,6 +683,7 @@ class BacktestEngine:
         *,
         stop_control: EngineStopControl | None = None,
         progress: EngineRunProgress | None = None,
+        skip_window_ids: frozenset[CompletedWindowId] = frozenset(),
     ) -> dict:
         trade_pnls: list[float] = []
         dag_returns: list[float] = []
@@ -682,6 +702,9 @@ class BacktestEngine:
             for fold_index, (train_bounds, test_bounds) in enumerate(context.folds):
                 if progress is not None:
                     progress.checkpoint(phase=phase_name, asset_index=asset_index, fold_index=fold_index)
+                # V3.3a: skip completed IS windows deterministically
+                if (context.asset, window_kind, fold_index) in skip_window_ids:
+                    continue
                 self._raise_if_interrupted(stop_control=stop_control, progress=progress)
                 start_idx, end_idx = train_bounds if use_train else test_bounds
                 df_window = context.frame.iloc[start_idx : end_idx + 1].copy()
@@ -746,6 +769,48 @@ class BacktestEngine:
         if reason is None:
             return
         raise EngineInterrupted(reason=reason, snapshot=progress.snapshot())
+
+    def _validate_resume_snapshot(
+        self,
+        snapshot: EngineExecutionSnapshot,
+        asset_contexts: list[AssetContext],
+    ) -> frozenset[CompletedWindowId]:
+        """Validate snapshot against current asset_contexts and return completed window ids.
+
+        Validates that snapshot.completed_window_ids is a valid contiguous prefix of the
+        full expected window sequence for this engine configuration. Raises EngineResumeInvalid
+        if the snapshot is incompatible.
+        """
+        expected: list[CompletedWindowId] = []
+        for window_kind in ("train", "oos"):
+            for context in asset_contexts:
+                for fold_index in range(len(context.folds)):
+                    expected.append((context.asset, window_kind, fold_index))
+
+        completed = list(snapshot.completed_window_ids)
+
+        seen_oos = False
+        for (_, wk, _) in completed:
+            if wk == "oos":
+                seen_oos = True
+            elif seen_oos:
+                raise EngineResumeInvalid(
+                    "snapshot contains a 'train' window appearing after an 'oos' window"
+                )
+
+        if len(completed) > len(expected):
+            raise EngineResumeInvalid(
+                f"snapshot has {len(completed)} completed windows "
+                f"but run expects {len(expected)} total"
+            )
+
+        if completed != expected[: len(completed)]:
+            raise EngineResumeInvalid(
+                "snapshot completed_window_ids is not a valid contiguous prefix "
+                "of the expected window sequence for this engine configuration"
+            )
+
+        return frozenset(completed)
 
     def _build_evaluation_report(
         self,
