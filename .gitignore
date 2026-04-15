@@ -43,3 +43,12 @@ state/fred.secret
 *.log
 
 .DS_Store
+
+# Research runtime artifacts
+research/history/
+research/run_*.v1.json
+research/*_latest.v1.json
+logs/research/*.jsonl
+
+# Local cache
+.cache/
