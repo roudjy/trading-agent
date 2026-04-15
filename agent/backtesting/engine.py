@@ -5,7 +5,8 @@ Backtesting engine with deterministic OOS / walk-forward evaluation.
 import itertools
 import logging
 import math
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from datetime import UTC
 from typing import Any, Callable, Optional
 
@@ -57,6 +58,7 @@ METRIC_KEYS = (
 
 IndexRange = tuple[int, int]
 Fold = tuple[IndexRange, IndexRange]
+CompletedWindowId = tuple[str, str, int]
 
 
 class SweepTooLargeError(RuntimeError):
@@ -69,6 +71,66 @@ class EvaluationScheduleError(ValueError):
 
 class FoldLeakageError(EvaluationScheduleError):
     """Raised when train and test windows overlap or touch."""
+
+
+@dataclass(frozen=True)
+class EngineExecutionSnapshot:
+    phase: str
+    asset_index: int | None
+    fold_index: int | None
+    completed_window_ids: tuple[CompletedWindowId, ...]
+
+
+class EngineInterrupted(RuntimeError):
+    """Raised when BacktestEngine.run is interrupted at a cooperative checkpoint."""
+
+    def __init__(self, *, reason: str, snapshot: EngineExecutionSnapshot):
+        super().__init__(f"engine execution interrupted: {reason}")
+        self.reason = reason
+        self.snapshot = snapshot
+
+
+@dataclass
+class EngineRunProgress:
+    phase: str = "load_contexts"
+    asset_index: int | None = None
+    fold_index: int | None = None
+    completed_window_ids: list[CompletedWindowId] = field(default_factory=list)
+
+    def checkpoint(
+        self,
+        *,
+        phase: str,
+        asset_index: int | None,
+        fold_index: int | None,
+    ) -> None:
+        self.phase = phase
+        self.asset_index = asset_index
+        self.fold_index = fold_index
+
+    def mark_completed_window(self, *, asset: str, window_kind: str, fold_index: int) -> None:
+        self.completed_window_ids.append((asset, window_kind, int(fold_index)))
+
+    def snapshot(self) -> EngineExecutionSnapshot:
+        return EngineExecutionSnapshot(
+            phase=self.phase,
+            asset_index=self.asset_index,
+            fold_index=self.fold_index,
+            completed_window_ids=tuple(self.completed_window_ids),
+        )
+
+
+@dataclass(frozen=True)
+class EngineStopControl:
+    should_stop: Callable[[], bool] | None = None
+    deadline_monotonic: float | None = None
+
+    def interrupt_reason(self) -> str | None:
+        if self.deadline_monotonic is not None and time.monotonic() >= self.deadline_monotonic:
+            return "deadline_exceeded"
+        if self.should_stop is not None and self.should_stop():
+            return "stop_requested"
+        return None
 
 
 @dataclass(frozen=True)
@@ -278,34 +340,101 @@ class BacktestEngine:
         self._last_window_streams: dict[str, list[dict[str, Any]]] = {}
         self._last_asset_readiness: list[dict[str, Any]] = []
 
-    def run(self, strategie_func: Callable, assets: list, interval: str = "1d") -> dict:
+    def run(
+        self,
+        strategie_func: Callable,
+        assets: list,
+        interval: str = "1d",
+        *,
+        should_stop: Callable[[], bool] | None = None,
+        deadline_monotonic: float | None = None,
+    ) -> dict:
         """Run fixed-parameter evaluation and return public OOS metrics only."""
         self.interval = interval
-        asset_contexts = self._run_phase_load_asset_contexts(assets, interval)
-        is_summary = self._run_phase_evaluate_in_sample(strategie_func, asset_contexts)
-        oos_summary = self._run_phase_evaluate_out_of_sample(strategie_func, asset_contexts)
+        self.last_evaluation_report = None
+        stop_control = EngineStopControl(
+            should_stop=should_stop,
+            deadline_monotonic=deadline_monotonic,
+        )
+        progress = EngineRunProgress()
+        asset_contexts = self._run_phase_load_asset_contexts(
+            assets,
+            interval,
+            stop_control=stop_control,
+            progress=progress,
+        )
+        is_summary = self._run_phase_evaluate_in_sample(
+            strategie_func,
+            asset_contexts,
+            stop_control=stop_control,
+            progress=progress,
+        )
+        oos_summary = self._run_phase_evaluate_out_of_sample(
+            strategie_func,
+            asset_contexts,
+            stop_control=stop_control,
+            progress=progress,
+        )
         return self._run_phase_finalize_result(
             asset_contexts=asset_contexts,
             is_summary=is_summary,
             oos_summary=oos_summary,
+            stop_control=stop_control,
+            progress=progress,
         )
 
-    def _run_phase_load_asset_contexts(self, assets: list[str], interval: str) -> list[AssetContext]:
-        return self._load_asset_contexts(assets, interval)
+    def _run_phase_load_asset_contexts(
+        self,
+        assets: list[str],
+        interval: str,
+        *,
+        stop_control: EngineStopControl,
+        progress: EngineRunProgress,
+    ) -> list[AssetContext]:
+        progress.checkpoint(phase="load_contexts", asset_index=None, fold_index=None)
+        self._raise_if_interrupted(stop_control=stop_control, progress=progress)
+        return self._load_asset_contexts(
+            assets,
+            interval,
+            stop_control=stop_control,
+            progress=progress,
+        )
 
     def _run_phase_evaluate_in_sample(
         self,
         strategie_func: Callable,
         asset_contexts: list[AssetContext],
+        *,
+        stop_control: EngineStopControl,
+        progress: EngineRunProgress,
     ) -> dict[str, Any]:
-        return self._evaluate_windows(strategie_func, asset_contexts, use_train=True)
+        progress.checkpoint(phase="evaluate_in_sample", asset_index=None, fold_index=None)
+        self._raise_if_interrupted(stop_control=stop_control, progress=progress)
+        return self._evaluate_windows(
+            strategie_func,
+            asset_contexts,
+            use_train=True,
+            stop_control=stop_control,
+            progress=progress,
+        )
 
     def _run_phase_evaluate_out_of_sample(
         self,
         strategie_func: Callable,
         asset_contexts: list[AssetContext],
+        *,
+        stop_control: EngineStopControl,
+        progress: EngineRunProgress,
     ) -> dict[str, Any]:
-        return self._evaluate_windows(strategie_func, asset_contexts, use_train=False)
+        progress.checkpoint(phase="evaluate_out_of_sample", asset_index=None, fold_index=None)
+        self._raise_if_interrupted(stop_control=stop_control, progress=progress)
+        return self._evaluate_windows(
+            strategie_func,
+            asset_contexts,
+            use_train=False,
+            stop_control=stop_control,
+            progress=progress,
+        )
 
     def _run_phase_finalize_result(
         self,
@@ -313,7 +442,11 @@ class BacktestEngine:
         asset_contexts: list[AssetContext],
         is_summary: dict[str, Any],
         oos_summary: dict[str, Any],
+        stop_control: EngineStopControl,
+        progress: EngineRunProgress,
     ) -> dict[str, Any]:
+        progress.checkpoint(phase="finalize_result", asset_index=None, fold_index=None)
+        self._raise_if_interrupted(stop_control=stop_control, progress=progress)
         result = dict(oos_summary)
         if result["totaal_trades"] < self.min_trades:
             result["reden"] = f"Te weinig trades: {result['totaal_trades']}"
@@ -424,14 +557,25 @@ class BacktestEngine:
             assets,
             interval,
             capture_schedule_errors=True,
+            stop_control=None,
+            progress=None,
         )
         return [item.to_dict() for item in diagnostics]
 
-    def _load_asset_contexts(self, assets: list[str], interval: str) -> list[AssetContext]:
+    def _load_asset_contexts(
+        self,
+        assets: list[str],
+        interval: str,
+        *,
+        stop_control: EngineStopControl | None = None,
+        progress: EngineRunProgress | None = None,
+    ) -> list[AssetContext]:
         asset_contexts, diagnostics = self._load_asset_contexts_with_diagnostics(
             assets,
             interval,
             capture_schedule_errors=False,
+            stop_control=stop_control,
+            progress=progress,
         )
         self._last_asset_readiness = [item.to_dict() for item in diagnostics]
         return asset_contexts
@@ -442,10 +586,15 @@ class BacktestEngine:
         interval: str,
         *,
         capture_schedule_errors: bool,
+        stop_control: EngineStopControl | None,
+        progress: EngineRunProgress | None,
     ) -> tuple[list[AssetContext], list[AssetReadiness]]:
         asset_contexts: list[AssetContext] = []
         diagnostics: list[AssetReadiness] = []
-        for asset in assets:
+        for asset_index, asset in enumerate(assets):
+            if progress is not None:
+                progress.checkpoint(phase="load_contexts", asset_index=asset_index, fold_index=None)
+            self._raise_if_interrupted(stop_control=stop_control, progress=progress)
             df = self._laad_data(asset, interval)
             bar_count = 0 if df is None else int(len(df))
             readiness = AssetReadiness(
@@ -504,6 +653,7 @@ class BacktestEngine:
                     }
                 )
             )
+            self._raise_if_interrupted(stop_control=stop_control, progress=progress)
         return asset_contexts, diagnostics
 
     def _evaluate_windows(
@@ -511,6 +661,9 @@ class BacktestEngine:
         strategie_func: Callable,
         asset_contexts: list[AssetContext],
         use_train: bool,
+        *,
+        stop_control: EngineStopControl | None = None,
+        progress: EngineRunProgress | None = None,
     ) -> dict:
         trade_pnls: list[float] = []
         dag_returns: list[float] = []
@@ -519,8 +672,17 @@ class BacktestEngine:
         oos_bar_return_stream: list[dict[str, Any]] = []
         oos_trade_events: list[dict[str, Any]] = []
 
-        for context in asset_contexts:
+        phase_name = "evaluate_in_sample" if use_train else "evaluate_out_of_sample"
+        window_kind = "train" if use_train else "oos"
+
+        for asset_index, context in enumerate(asset_contexts):
+            if progress is not None:
+                progress.checkpoint(phase=phase_name, asset_index=asset_index, fold_index=None)
+            self._raise_if_interrupted(stop_control=stop_control, progress=progress)
             for fold_index, (train_bounds, test_bounds) in enumerate(context.folds):
+                if progress is not None:
+                    progress.checkpoint(phase=phase_name, asset_index=asset_index, fold_index=fold_index)
+                self._raise_if_interrupted(stop_control=stop_control, progress=progress)
                 start_idx, end_idx = train_bounds if use_train else test_bounds
                 df_window = context.frame.iloc[start_idx : end_idx + 1].copy()
                 regime_window = context.regime_frame.iloc[start_idx : end_idx + 1].copy()
@@ -547,6 +709,14 @@ class BacktestEngine:
                         )
                     )
                     oos_trade_events.extend(trade_events)
+                if progress is not None:
+                    progress.mark_completed_window(
+                        asset=context.asset,
+                        window_kind=window_kind,
+                        fold_index=fold_index,
+                    )
+                    progress.checkpoint(phase=phase_name, asset_index=asset_index, fold_index=fold_index)
+                self._raise_if_interrupted(stop_control=stop_control, progress=progress)
 
         self._last_window_samples = {
             "daily_returns": list(dag_returns),
@@ -563,6 +733,19 @@ class BacktestEngine:
             return self._finalize_metrics(self._leeg())
 
         return self._finalize_metrics(self._metrics(trade_pnls, dag_returns, maand_returns))
+
+    def _raise_if_interrupted(
+        self,
+        *,
+        stop_control: EngineStopControl | None,
+        progress: EngineRunProgress | None,
+    ) -> None:
+        if stop_control is None or progress is None:
+            return
+        reason = stop_control.interrupt_reason()
+        if reason is None:
+            return
+        raise EngineInterrupted(reason=reason, snapshot=progress.snapshot())
 
     def _build_evaluation_report(
         self,
