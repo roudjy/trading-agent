@@ -29,7 +29,6 @@ from research.candidate_pipeline import (
     build_filter_summary_payload,
     deduplicate_candidates,
     index_readiness,
-    normalize_screening_decision,
     plan_candidates,
     screening_candidates,
     screening_param_samples,
@@ -46,6 +45,15 @@ from research.promotion_reporting import build_candidate_registry_payload
 from research.regime_reporting import build_regime_diagnostics_payload
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_latest_json, write_results_to_csv
+from research.screening_runtime import (
+    FINAL_STATUS_ERRORED,
+    FINAL_STATUS_PASSED,
+    FINAL_STATUS_REJECTED,
+    FINAL_STATUS_TIMED_OUT,
+    build_screening_runtime_records,
+    build_screening_sidecar_payload,
+    execute_screening_candidate,
+)
 from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
@@ -59,12 +67,14 @@ REGIME_DIAGNOSTICS_PATH = Path("research/regime_diagnostics_latest.v1.json")
 EMPTY_RUN_DIAGNOSTICS_PATH = Path("research/empty_run_diagnostics_latest.v1.json")
 RUN_CANDIDATES_PATH = Path("research/run_candidates_latest.v1.json")
 RUN_FILTER_SUMMARY_PATH = Path("research/run_filter_summary_latest.v1.json")
+RUN_SCREENING_CANDIDATES_PATH = Path("research/run_screening_candidates_latest.v1.json")
 RUN_PROGRESS_PATH = Path("research/run_progress_latest.v1.json")
 RUN_STATE_PATH = Path("research/run_state.v1.json")
 RUN_MANIFEST_PATH = Path("research/run_manifest_latest.v1.json")
 RUN_LOG_DIR = Path("logs/research")
 RUN_HEARTBEAT_TIMEOUT_S = 300
 SCREENING_PARAM_SAMPLE_LIMIT = 3
+DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS = 60
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -417,6 +427,7 @@ def _build_run_manifest_payload(
     total_candidate_count: int,
     strategies: list[dict],
     universe_snapshot_path: Path,
+    screening_candidate_budget_seconds: int,
 ) -> dict:
     asset_symbols = [asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets]
     return {
@@ -461,9 +472,11 @@ def _build_run_manifest_payload(
             "mode": "representative_param_subset",
             "max_sampled_parameter_combinations": SCREENING_PARAM_SAMPLE_LIMIT,
         },
+        "screening_candidate_budget_seconds": int(screening_candidate_budget_seconds),
         "artifacts": {
             "run_candidates_path": RUN_CANDIDATES_PATH.as_posix(),
             "run_filter_summary_path": RUN_FILTER_SUMMARY_PATH.as_posix(),
+            "run_screening_candidates_path": RUN_SCREENING_CANDIDATES_PATH.as_posix(),
         },
     }
 
@@ -505,6 +518,44 @@ def _persist_candidate_pipeline_sidecars(*, run_id: str, as_of_utc: datetime, ca
     )
 
 
+def _persist_screening_candidate_sidecar(
+    *,
+    run_id: str,
+    as_of_utc: datetime,
+    screening_records: list[dict],
+) -> None:
+    payload = build_screening_sidecar_payload(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        records=screening_records,
+    )
+    _write_json_with_history(
+        path=RUN_SCREENING_CANDIDATES_PATH,
+        payload=payload,
+        run_id=run_id,
+        history_name="run_screening_candidates.v1.json",
+    )
+
+
+def _screening_progress_payload(
+    *,
+    completed_candidates: int,
+    total_candidates: int,
+    record: dict | None,
+) -> dict:
+    return {
+        "completed_screening_candidates": int(completed_candidates),
+        "total_screening_candidates": int(total_candidates),
+        "candidate_id": None if record is None else record.get("candidate_id"),
+        "runtime_status": None if record is None else record.get("runtime_status"),
+        "final_status": None if record is None else record.get("final_status"),
+        "samples_completed": None if record is None else record.get("samples_completed"),
+        "samples_total": None if record is None else record.get("samples_total"),
+        "budget_seconds": None if record is None else record.get("budget_seconds"),
+        "candidate_elapsed_seconds": None if record is None else record.get("elapsed_seconds"),
+    }
+
+
 def _raise_degenerate_run(
     *,
     as_of_utc,
@@ -527,51 +578,6 @@ def _raise_degenerate_run(
         evaluations_with_oos_daily_returns=evaluations_with_oos_daily_returns,
     )
     raise DegenerateResearchRunError(payload["message"])
-
-
-def _screen_candidate(
-    *,
-    strategy: dict,
-    candidate: dict,
-    engine,
-) -> dict[str, str | None]:
-    if not hasattr(engine, "run"):
-        return {
-            "status": SCREENING_PROMOTED,
-            "reason": None,
-            "sampled_combination_count": 0,
-        }
-
-    sample_results: list[dict[str, str | None]] = []
-    for params in screening_param_samples(
-        strategy.get("params") or {},
-        max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
-    ):
-        try:
-            metrics = engine.run(
-                strategy["factory"](**params),
-                assets=[candidate["asset"]],
-                interval=candidate["interval"],
-            )
-            report = getattr(engine, "last_evaluation_report", None) or {}
-            evaluation_samples = report.get("evaluation_samples") or {}
-            daily_returns = evaluation_samples.get("daily_returns") or []
-            if not isinstance(daily_returns, list) or not daily_returns:
-                sample_results.append({"status": "rejected_in_screening", "reason": "no_oos_samples"})
-                continue
-            min_trades = int(getattr(engine, "min_trades", 10))
-            if int(metrics.get("totaal_trades", 0)) < min_trades:
-                sample_results.append({"status": "rejected_in_screening", "reason": "insufficient_trades"})
-                continue
-            if not metrics.get("goedgekeurd", False):
-                sample_results.append({"status": "rejected_in_screening", "reason": "screening_criteria_not_met"})
-                continue
-            sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
-        except Exception:
-            sample_results.append({"status": "rejected_in_screening", "reason": "screening_error"})
-
-    return normalize_screening_decision(sample_results)
-
 
 def run_research():
     lifecycle = RunStateStore(
@@ -606,6 +612,11 @@ def run_research():
         research_config = load_research_config()
         regime_count, regime_count_source = regime_count_settings(research_config)
         evaluation_config = normalize_evaluation_config(research_config.get("evaluation"))
+        screening_config = research_config.get("screening") or {}
+        screening_candidate_budget_seconds = max(
+            0,
+            int(screening_config.get("candidate_budget_seconds", DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS)),
+        )
         assets, intervals, get_date_range, as_of_utc, universe_snapshot = build_research_universe(research_config)
         strategies = get_enabled_strategies()
         strategy_by_name = {strategy["name"]: strategy for strategy in strategies}
@@ -632,6 +643,7 @@ def run_research():
                 total_candidate_count=len(planned_candidates),
                 strategies=strategies,
                 universe_snapshot_path=UNIVERSE_SNAPSHOT_PATH,
+                screening_candidate_budget_seconds=screening_candidate_budget_seconds,
             )
         )
         tracker.mark_stage_completed(raw_candidate_count=len(planned_candidates))
@@ -700,23 +712,153 @@ def run_research():
 
         tracker.start_stage("screening", total=eligibility_summary["eligible_candidate_count"])
         screening_items = screening_candidates(candidates)
+        screening_records = build_screening_runtime_records(
+            candidates=screening_items,
+            budget_seconds=screening_candidate_budget_seconds,
+        )
+        screening_records_by_id = {
+            str(record["candidate_id"]): record
+            for record in screening_records
+        }
+        _persist_screening_candidate_sidecar(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            screening_records=screening_records,
+        )
+        tracker.set_screening(
+            _screening_progress_payload(
+                completed_candidates=0,
+                total_candidates=len(screening_items),
+                record=None,
+            ),
+            persist=True,
+        )
         for index, candidate in enumerate(screening_items, start=1):
+            strategy = strategy_by_name[candidate["strategy_name"]]
+            sampled_params = screening_param_samples(
+                strategy.get("params") or {},
+                max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+            )
+            runtime_record = screening_records_by_id[str(candidate["candidate_id"])]
+            runtime_record["runtime_status"] = "running"
+            runtime_record["final_status"] = None
+            runtime_record["started_at"] = datetime.now(UTC).isoformat()
+            runtime_record["finished_at"] = None
+            runtime_record["elapsed_seconds"] = 0
+            runtime_record["samples_completed"] = 0
+            runtime_record["samples_total"] = len(sampled_params)
+            runtime_record["decision"] = None
+            runtime_record["reason_code"] = None
+            runtime_record["reason_detail"] = None
             tracker.begin_item(
                 strategy=candidate["strategy_name"],
                 asset=candidate["asset"],
                 interval=candidate["interval"],
             )
-            strategy = strategy_by_name[candidate["strategy_name"]]
-            start_datum = interval_ranges[candidate["interval"]]["start"]
-            eind_datum = interval_ranges[candidate["interval"]]["end"]
-            engine = _build_engine(
-                start_datum=start_datum,
-                eind_datum=eind_datum,
-                evaluation_config=evaluation_config,
-                regime_config=research_config.get("regime_diagnostics"),
+            tracker.set_screening(
+                _screening_progress_payload(
+                    completed_candidates=index - 1,
+                    total_candidates=len(screening_items),
+                    record=runtime_record,
+                ),
+                persist=True,
             )
-            decision = _screen_candidate(strategy=strategy, candidate=candidate, engine=engine)
-            provenance_events.extend(getattr(engine, "_provenance_events", []))
+            _persist_screening_candidate_sidecar(
+                run_id=state["run_id"],
+                as_of_utc=as_of_utc,
+                screening_records=screening_records,
+            )
+            tracker.emit_event(
+                "screening_candidate_started",
+                candidate_id=candidate["candidate_id"],
+                strategy=candidate["strategy_name"],
+                asset=candidate["asset"],
+                interval=candidate["interval"],
+                elapsed_seconds=0,
+                samples_completed=0,
+                samples_total=runtime_record["samples_total"],
+            )
+
+            def _on_screening_progress(progress: dict[str, int]) -> None:
+                runtime_record["elapsed_seconds"] = int(progress["elapsed_seconds"])
+                runtime_record["samples_completed"] = int(progress["samples_completed"])
+                runtime_record["samples_total"] = int(progress["samples_total"])
+                tracker.set_screening(
+                    _screening_progress_payload(
+                        completed_candidates=index - 1,
+                        total_candidates=len(screening_items),
+                        record=runtime_record,
+                    ),
+                    persist=True,
+                )
+                _persist_screening_candidate_sidecar(
+                    run_id=state["run_id"],
+                    as_of_utc=as_of_utc,
+                    screening_records=screening_records,
+                )
+                tracker.emit_event(
+                    "screening_candidate_progress",
+                    candidate_id=candidate["candidate_id"],
+                    strategy=candidate["strategy_name"],
+                    asset=candidate["asset"],
+                    interval=candidate["interval"],
+                    elapsed_seconds=runtime_record["elapsed_seconds"],
+                    samples_completed=runtime_record["samples_completed"],
+                    samples_total=runtime_record["samples_total"],
+                )
+
+            engine = None
+            try:
+                start_datum = interval_ranges[candidate["interval"]]["start"]
+                eind_datum = interval_ranges[candidate["interval"]]["end"]
+                engine = _build_engine(
+                    start_datum=start_datum,
+                    eind_datum=eind_datum,
+                    evaluation_config=evaluation_config,
+                    regime_config=research_config.get("regime_diagnostics"),
+                )
+                runtime_record["samples_total"] = (
+                    0
+                    if not hasattr(engine, "run")
+                    else len(sampled_params)
+                )
+                outcome = execute_screening_candidate(
+                    strategy=strategy,
+                    candidate=candidate,
+                    engine=engine,
+                    budget_seconds=screening_candidate_budget_seconds,
+                    max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+                    on_progress=_on_screening_progress,
+                )
+            except Exception as exc:
+                outcome = {
+                    "legacy_decision": {
+                        "status": "rejected_in_screening",
+                        "reason": "screening_candidate_error",
+                        "sampled_combination_count": runtime_record["samples_completed"],
+                    },
+                    "runtime_status": "running",
+                    "final_status": FINAL_STATUS_ERRORED,
+                    "started_at": runtime_record["started_at"],
+                    "finished_at": datetime.now(UTC).isoformat(),
+                    "elapsed_seconds": int(runtime_record["elapsed_seconds"]),
+                    "samples_total": runtime_record["samples_total"],
+                    "samples_completed": runtime_record["samples_completed"],
+                    "decision": "rejected_in_screening",
+                    "reason_code": "screening_candidate_error",
+                    "reason_detail": str(exc),
+                }
+            if engine is not None:
+                provenance_events.extend(getattr(engine, "_provenance_events", []))
+
+            runtime_record.update(outcome)
+            if runtime_record["elapsed_seconds"] is None:
+                runtime_record["elapsed_seconds"] = 0
+            if runtime_record["samples_total"] is None:
+                runtime_record["samples_total"] = 0
+            if runtime_record["samples_completed"] is None:
+                runtime_record["samples_completed"] = 0
+            decision = dict(outcome["legacy_decision"])
             for item in candidates:
                 if item["candidate_id"] != candidate["candidate_id"]:
                     continue
@@ -726,7 +868,78 @@ def run_research():
                 else:
                     item["current_status"] = "screening_rejected"
                 break
+            _persist_candidate_pipeline_sidecars(
+                run_id=state["run_id"],
+                as_of_utc=as_of_utc,
+                candidates=candidates,
+            )
+            _persist_screening_candidate_sidecar(
+                run_id=state["run_id"],
+                as_of_utc=as_of_utc,
+                screening_records=screening_records,
+            )
+            if runtime_record["final_status"] in {FINAL_STATUS_PASSED, FINAL_STATUS_REJECTED}:
+                tracker.emit_event(
+                    "screening_candidate_decision",
+                    candidate_id=candidate["candidate_id"],
+                    strategy=candidate["strategy_name"],
+                    asset=candidate["asset"],
+                    interval=candidate["interval"],
+                    elapsed_seconds=runtime_record["elapsed_seconds"],
+                    samples_completed=runtime_record["samples_completed"],
+                    samples_total=runtime_record["samples_total"],
+                    decision=runtime_record["decision"],
+                    reason_code=runtime_record["reason_code"],
+                )
+            elif runtime_record["final_status"] == FINAL_STATUS_TIMED_OUT:
+                tracker.emit_event(
+                    "screening_candidate_timeout",
+                    candidate_id=candidate["candidate_id"],
+                    strategy=candidate["strategy_name"],
+                    asset=candidate["asset"],
+                    interval=candidate["interval"],
+                    elapsed_seconds=runtime_record["elapsed_seconds"],
+                    samples_completed=runtime_record["samples_completed"],
+                    samples_total=runtime_record["samples_total"],
+                    decision=runtime_record["decision"],
+                    reason_code=runtime_record["reason_code"],
+                )
+            elif runtime_record["final_status"] == FINAL_STATUS_ERRORED:
+                tracker.emit_event(
+                    "screening_candidate_error",
+                    candidate_id=candidate["candidate_id"],
+                    strategy=candidate["strategy_name"],
+                    asset=candidate["asset"],
+                    interval=candidate["interval"],
+                    elapsed_seconds=runtime_record["elapsed_seconds"],
+                    samples_completed=runtime_record["samples_completed"],
+                    samples_total=runtime_record["samples_total"],
+                    decision=runtime_record["decision"],
+                    reason_code=runtime_record["reason_code"],
+                    reason_detail=runtime_record["reason_detail"],
+                )
+            tracker.emit_event(
+                "screening_candidate_finished",
+                candidate_id=candidate["candidate_id"],
+                strategy=candidate["strategy_name"],
+                asset=candidate["asset"],
+                interval=candidate["interval"],
+                elapsed_seconds=runtime_record["elapsed_seconds"],
+                samples_completed=runtime_record["samples_completed"],
+                samples_total=runtime_record["samples_total"],
+                final_status=runtime_record["final_status"],
+                decision=runtime_record["decision"],
+                reason_code=runtime_record["reason_code"],
+            )
             tracker.advance(completed=index, total=len(screening_items))
+            tracker.set_screening(
+                _screening_progress_payload(
+                    completed_candidates=index,
+                    total_candidates=len(screening_items),
+                    record=runtime_record,
+                ),
+                persist=True,
+            )
 
         screening_summary = summarize_candidates(candidates)
         _persist_candidate_pipeline_sidecars(

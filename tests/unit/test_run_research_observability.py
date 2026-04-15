@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -255,6 +256,47 @@ class _SelectiveScreeningEngine(_HealthyEngine):
         return super().grid_search(strategie_factory, param_grid, assets, interval=interval)
 
 
+class _ProgressCaptureEngine(_HealthyEngine):
+    captured_progress = None
+    captured_screening = None
+
+    def run(self, strategie_func, assets, interval="1d"):
+        if _ProgressCaptureEngine.captured_progress is None:
+            _ProgressCaptureEngine.captured_progress = json.loads(
+                Path("research/run_progress_latest.v1.json").read_text(encoding="utf-8")
+            )
+            _ProgressCaptureEngine.captured_screening = json.loads(
+                Path("research/run_screening_candidates_latest.v1.json").read_text(encoding="utf-8")
+            )
+        return super().run(strategie_func, assets, interval=interval)
+
+
+class _TimeoutIsolationEngine(_HealthyEngine):
+    validation_calls = 0
+
+    def run(self, strategie_func, assets, interval="1d"):
+        if getattr(strategie_func, "screen_tag", "") == "timeout":
+            time.sleep(1.1)
+        return super().run(strategie_func, assets, interval=interval)
+
+    def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
+        _TimeoutIsolationEngine.validation_calls += 1
+        return super().grid_search(strategie_factory, param_grid, assets, interval=interval)
+
+
+class _ErrorIsolationEngine(_HealthyEngine):
+    validation_calls = 0
+
+    def run(self, strategie_func, assets, interval="1d"):
+        if getattr(strategie_func, "screen_tag", "") == "error":
+            raise RuntimeError("boom during screening")
+        return super().run(strategie_func, assets, interval=interval)
+
+    def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
+        _ErrorIsolationEngine.validation_calls += 1
+        return super().grid_search(strategie_factory, param_grid, assets, interval=interval)
+
+
 def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(monkeypatch, tmp_path: Path):
     _patch_common_runner(monkeypatch, tmp_path, _HealthyEngine)
 
@@ -265,6 +307,7 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     manifest = _load_json(tmp_path / "research" / "run_manifest_latest.v1.json")
     candidates = _load_json(tmp_path / "research" / "run_candidates_latest.v1.json")
     filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
+    screening_candidates = _load_json(tmp_path / "research" / "run_screening_candidates_latest.v1.json")
     public_json = _load_json(tmp_path / "research" / "research_latest.json")
     with (tmp_path / "research" / "strategy_matrix.csv").open(encoding="utf-8", newline="") as handle:
         csv_rows = list(csv.DictReader(handle))
@@ -289,11 +332,15 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     ]
     assert manifest["raw_candidate_count"] == 1
     assert manifest["validation_candidate_count"] == 1
+    assert manifest["artifacts"]["run_screening_candidates_path"] == "research/run_screening_candidates_latest.v1.json"
     assert candidates["summary"]["validation_candidate_count"] == 1
     assert filter_summary["screening_decisions"]["promoted_to_validation"] == 1
+    assert screening_candidates["summary"]["passed_count"] == 1
+    assert screening_candidates["candidates"][0]["final_status"] == "passed"
     assert (tmp_path / "logs" / "research" / f"{state['run_id']}.jsonl").exists()
     assert (tmp_path / "research" / "history" / state["run_id"] / "run_state.v1.json").exists()
     assert (tmp_path / "research" / "history" / state["run_id"] / "run_candidates.v1.json").exists()
+    assert (tmp_path / "research" / "history" / state["run_id"] / "run_screening_candidates.v1.json").exists()
     assert list(public_json["results"][0].keys()) == ROW_SCHEMA
     assert list(csv_rows[0].keys()) == ROW_SCHEMA
 
@@ -365,3 +412,144 @@ def test_only_screening_survivors_reach_validation(monkeypatch, tmp_path: Path):
     assert candidates["summary"]["screening_rejected_count"] == 1
     assert candidates["summary"]["validation_candidate_count"] == 1
     assert filter_summary["screening_rejection_reasons"] == {"screening_criteria_not_met": 1}
+
+
+def test_screening_progress_is_persisted_immediately_on_candidate_start(monkeypatch, tmp_path: Path):
+    _patch_common_runner(monkeypatch, tmp_path, _ProgressCaptureEngine)
+    _ProgressCaptureEngine.captured_progress = None
+    _ProgressCaptureEngine.captured_screening = None
+
+    run_research_module.run_research()
+
+    progress = _ProgressCaptureEngine.captured_progress
+    screening = _ProgressCaptureEngine.captured_screening
+    assert progress is not None
+    assert progress["current_stage"] == "screening"
+    assert progress["current_item"] == {
+        "strategy": "fake_strategy",
+        "asset": "BTC-USD",
+        "interval": "1d",
+    }
+    assert progress["screening"]["completed_screening_candidates"] == 0
+    assert progress["screening"]["total_screening_candidates"] == 1
+    assert progress["screening"]["runtime_status"] == "running"
+    assert progress["screening"]["candidate_id"] is not None
+    assert screening["candidates"][0]["runtime_status"] == "running"
+    assert screening["candidates"][0]["started_at"] is not None
+    assert screening["candidates"][0]["final_status"] is None
+
+
+def test_screening_timeout_is_persisted_and_run_continues(monkeypatch, tmp_path: Path):
+    _patch_common_runner(monkeypatch, tmp_path, _TimeoutIsolationEngine)
+    _TimeoutIsolationEngine.validation_calls = 0
+
+    def _factory(tag):
+        def _build(**params):
+            return SimpleNamespace(screen_tag=tag)
+
+        return _build
+
+    monkeypatch.setattr(
+        run_research_module,
+        "get_enabled_strategies",
+        lambda: [
+            {
+                "name": "timeout_strategy",
+                "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "timeout",
+                "factory": _factory("timeout"),
+                "params": {"periode": [14, 21, 28]},
+            },
+            {
+                "name": "survivor_strategy",
+                "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "survivor",
+                "factory": _factory("survivor"),
+                "params": {"periode": [14]},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        run_research_module,
+        "load_research_config",
+        lambda config_path="config/config.yaml": {"screening": {"candidate_budget_seconds": 1}},
+    )
+
+    run_research_module.run_research()
+
+    screening = _load_json(tmp_path / "research" / "run_screening_candidates_latest.v1.json")
+    filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
+    public_json = _load_json(tmp_path / "research" / "research_latest.json")
+    log_path = tmp_path / "logs" / "research" / f"{_load_json(tmp_path / 'research' / 'run_state.v1.json')['run_id']}.jsonl"
+    events = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+
+    by_strategy = {item["strategy"]: item for item in screening["candidates"]}
+    assert by_strategy["timeout_strategy"]["final_status"] == "timed_out"
+    assert by_strategy["timeout_strategy"]["reason_code"] == "candidate_budget_exceeded"
+    assert by_strategy["survivor_strategy"]["final_status"] == "passed"
+    assert filter_summary["screening_rejection_reasons"] == {"candidate_budget_exceeded": 1}
+    assert _TimeoutIsolationEngine.validation_calls == 1
+    assert public_json["count"] == 1
+    assert any(event["event"] == "screening_candidate_timeout" for event in events)
+
+
+def test_screening_exception_is_persisted_and_run_continues(monkeypatch, tmp_path: Path):
+    _patch_common_runner(monkeypatch, tmp_path, _ErrorIsolationEngine)
+    _ErrorIsolationEngine.validation_calls = 0
+
+    def _factory(tag):
+        def _build(**params):
+            return SimpleNamespace(screen_tag=tag)
+
+        return _build
+
+    monkeypatch.setattr(
+        run_research_module,
+        "get_enabled_strategies",
+        lambda: [
+            {
+                "name": "error_strategy",
+                "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "error",
+                "factory": _factory("error"),
+                "params": {"periode": [14]},
+            },
+            {
+                "name": "survivor_strategy",
+                "family": "trend",
+                "strategy_family": "trend_following",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "survivor",
+                "factory": _factory("survivor"),
+                "params": {"periode": [14]},
+            },
+        ],
+    )
+
+    run_research_module.run_research()
+
+    screening = _load_json(tmp_path / "research" / "run_screening_candidates_latest.v1.json")
+    filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
+    public_json = _load_json(tmp_path / "research" / "research_latest.json")
+    log_path = tmp_path / "logs" / "research" / f"{_load_json(tmp_path / 'research' / 'run_state.v1.json')['run_id']}.jsonl"
+    events = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+
+    by_strategy = {item["strategy"]: item for item in screening["candidates"]}
+    assert by_strategy["error_strategy"]["final_status"] == "errored"
+    assert by_strategy["error_strategy"]["reason_code"] == "screening_candidate_error"
+    assert by_strategy["error_strategy"]["reason_detail"] == "boom during screening"
+    assert by_strategy["survivor_strategy"]["final_status"] == "passed"
+    assert filter_summary["screening_rejection_reasons"] == {"screening_candidate_error": 1}
+    assert _ErrorIsolationEngine.validation_calls == 1
+    assert public_json["count"] == 1
+    assert any(event["event"] == "screening_candidate_error" for event in events)
