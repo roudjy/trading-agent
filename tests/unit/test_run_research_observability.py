@@ -297,6 +297,58 @@ class _ErrorIsolationEngine(_HealthyEngine):
         return super().grid_search(strategie_factory, param_grid, assets, interval=interval)
 
 
+class _OrderedValidationEngine(_HealthyEngine):
+    def run(self, strategie_func, assets, interval="1d"):
+        self.last_evaluation_report = {
+            "evaluation_samples": {
+                "daily_returns": [0.01, -0.005, 0.003],
+                "trade_pnls": [0.02, -0.01],
+                "monthly_returns": [0.008],
+            }
+        }
+        return {
+            "win_rate": 0.55,
+            "sharpe": 1.1,
+            "deflated_sharpe": 0.9,
+            "max_drawdown": 0.12,
+            "trades_per_maand": 2.5,
+            "consistentie": 0.65,
+            "totaal_trades": 12,
+            "goedgekeurd": True,
+            "criteria_checks": {},
+            "reden": "",
+        }
+
+    def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
+        built = strategie_factory()
+        strategy_name = getattr(built, "name_hint", "unknown")
+        self.last_evaluation_report = {
+            "evaluation_config": {"mode": "anchored", "selection_metric": "sharpe", "initial_train_bars": 500, "test_bars": 100, "step_bars": 100},
+            "selection_metric": "sharpe",
+            "selected_params": {},
+            "is_summary": {"win_rate": 0.6, "sharpe": 1.2, "deflated_sharpe": 1.0, "max_drawdown": 0.1, "trades_per_maand": 3.0, "consistentie": 0.7, "totaal_trades": 12, "goedgekeurd": True, "criteria_checks": {}},
+            "oos_summary": {"win_rate": 0.55, "sharpe": 1.1, "deflated_sharpe": 0.9, "max_drawdown": 0.12, "trades_per_maand": 2.5, "consistentie": 0.65, "totaal_trades": 12, "goedgekeurd": True, "criteria_checks": {}},
+            "folds": [{"train": [0, 499], "test": [500, 599], "leakage_ok": True}],
+            "leakage_checks_ok": True,
+            "evaluation_samples": {"daily_returns": [0.01, -0.005, 0.003], "trade_pnls": [0.02, -0.01], "monthly_returns": [0.008]},
+            "evaluation_streams": {"oos_daily_returns": [{"timestamp_utc": "2026-01-02T00:00:00+00:00", "return": 0.01}], "oos_bar_returns": [], "oos_trade_events": []},
+            "sample_statistics": {"daily_returns": {"count": 3, "mean": 0.0027, "std": 0.006, "skew": 0.0, "kurt": 3.0}},
+        }
+        return {
+            "beste_params": {},
+            "win_rate": 0.55,
+            "sharpe": 1.1,
+            "deflated_sharpe": 0.9,
+            "max_drawdown": 0.12,
+            "trades_per_maand": 2.5,
+            "consistentie": 0.65,
+            "totaal_trades": 12,
+            "goedgekeurd": True,
+            "criteria_checks": {"strategy_name": strategy_name},
+            "reden": "",
+        }
+
+
 def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(monkeypatch, tmp_path: Path):
     _patch_common_runner(monkeypatch, tmp_path, _HealthyEngine)
 
@@ -307,6 +359,7 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     manifest = _load_json(tmp_path / "research" / "run_manifest_latest.v1.json")
     candidates = _load_json(tmp_path / "research" / "run_candidates_latest.v1.json")
     filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
+    batches = _load_json(tmp_path / "research" / "run_batches_latest.v1.json")
     screening_candidates = _load_json(tmp_path / "research" / "run_screening_candidates_latest.v1.json")
     public_json = _load_json(tmp_path / "research" / "research_latest.json")
     with (tmp_path / "research" / "strategy_matrix.csv").open(encoding="utf-8", newline="") as handle:
@@ -332,9 +385,12 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     ]
     assert manifest["raw_candidate_count"] == 1
     assert manifest["validation_candidate_count"] == 1
+    assert manifest["artifacts"]["run_batches_path"] == "research/run_batches_latest.v1.json"
     assert manifest["artifacts"]["run_screening_candidates_path"] == "research/run_screening_candidates_latest.v1.json"
     assert candidates["summary"]["validation_candidate_count"] == 1
     assert filter_summary["screening_decisions"]["promoted_to_validation"] == 1
+    assert batches["summary"]["completed_count"] == 1
+    assert batches["batches"][0]["status"] == "completed"
     assert screening_candidates["summary"]["passed_count"] == 1
     assert screening_candidates["candidates"][0]["final_status"] == "passed"
     assert (tmp_path / "logs" / "research" / f"{state['run_id']}.jsonl").exists()
@@ -434,6 +490,9 @@ def test_screening_progress_is_persisted_immediately_on_candidate_start(monkeypa
     assert progress["screening"]["total_screening_candidates"] == 1
     assert progress["screening"]["runtime_status"] == "running"
     assert progress["screening"]["candidate_id"] is not None
+    assert progress["batch"]["batch_index"] == 1
+    assert progress["batch"]["total_batches"] == 1
+    assert progress["batch"]["status"] == "running"
     assert screening["candidates"][0]["runtime_status"] == "running"
     assert screening["candidates"][0]["started_at"] is not None
     assert screening["candidates"][0]["final_status"] is None
@@ -456,7 +515,7 @@ def test_screening_timeout_is_persisted_and_run_continues(monkeypatch, tmp_path:
             {
                 "name": "timeout_strategy",
                 "family": "trend",
-                "strategy_family": "trend_following",
+                "strategy_family": "a_timeout",
                 "position_structure": "outright",
                 "initial_lane_support": "supported",
                 "hypothesis": "timeout",
@@ -466,7 +525,7 @@ def test_screening_timeout_is_persisted_and_run_continues(monkeypatch, tmp_path:
             {
                 "name": "survivor_strategy",
                 "family": "trend",
-                "strategy_family": "trend_following",
+                "strategy_family": "z_survivor",
                 "position_structure": "outright",
                 "initial_lane_support": "supported",
                 "hypothesis": "survivor",
@@ -484,6 +543,7 @@ def test_screening_timeout_is_persisted_and_run_continues(monkeypatch, tmp_path:
     run_research_module.run_research()
 
     screening = _load_json(tmp_path / "research" / "run_screening_candidates_latest.v1.json")
+    batches = _load_json(tmp_path / "research" / "run_batches_latest.v1.json")
     filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
     public_json = _load_json(tmp_path / "research" / "research_latest.json")
     log_path = tmp_path / "logs" / "research" / f"{_load_json(tmp_path / 'research' / 'run_state.v1.json')['run_id']}.jsonl"
@@ -493,6 +553,7 @@ def test_screening_timeout_is_persisted_and_run_continues(monkeypatch, tmp_path:
     assert by_strategy["timeout_strategy"]["final_status"] == "timed_out"
     assert by_strategy["timeout_strategy"]["reason_code"] == "candidate_budget_exceeded"
     assert by_strategy["survivor_strategy"]["final_status"] == "passed"
+    assert [batch["status"] for batch in batches["batches"]] == ["partial", "completed"]
     assert filter_summary["screening_rejection_reasons"] == {"candidate_budget_exceeded": 1}
     assert _TimeoutIsolationEngine.validation_calls == 1
     assert public_json["count"] == 1
@@ -553,3 +614,49 @@ def test_screening_exception_is_persisted_and_run_continues(monkeypatch, tmp_pat
     assert _ErrorIsolationEngine.validation_calls == 1
     assert public_json["count"] == 1
     assert any(event["event"] == "screening_candidate_error" for event in events)
+
+
+def test_run_level_output_order_remains_deterministic_across_batches(monkeypatch, tmp_path: Path):
+    _patch_common_runner(monkeypatch, tmp_path, _OrderedValidationEngine)
+
+    def _factory(name_hint):
+        def _build(**params):
+            return SimpleNamespace(name_hint=name_hint)
+
+        return _build
+
+    monkeypatch.setattr(
+        run_research_module,
+        "get_enabled_strategies",
+        lambda: [
+            {
+                "name": "zeta_strategy",
+                "family": "trend",
+                "strategy_family": "a_family",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "zeta",
+                "factory": _factory("zeta_strategy"),
+                "params": {"periode": [14]},
+            },
+            {
+                "name": "alpha_strategy",
+                "family": "trend",
+                "strategy_family": "z_family",
+                "position_structure": "outright",
+                "initial_lane_support": "supported",
+                "hypothesis": "alpha",
+                "factory": _factory("alpha_strategy"),
+                "params": {"periode": [14]},
+            },
+        ],
+    )
+
+    run_research_module.run_research()
+
+    public_json = _load_json(tmp_path / "research" / "research_latest.json")
+    with (tmp_path / "research" / "strategy_matrix.csv").open(encoding="utf-8", newline="") as handle:
+        csv_rows = list(csv.DictReader(handle))
+
+    assert [row["strategy_name"] for row in public_json["results"]] == ["alpha_strategy", "zeta_strategy"]
+    assert [row["strategy_name"] for row in csv_rows] == ["alpha_strategy", "zeta_strategy"]
