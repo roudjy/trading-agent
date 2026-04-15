@@ -146,6 +146,9 @@ def _campaign_batch_row(batch: dict[str, Any]) -> dict[str, Any]:
         "timed_out_count": int(batch.get("timed_out_count") or 0),
         "errored_count": int(batch.get("errored_count") or 0),
         "validation_error_count": int(batch.get("validation_error_count") or 0),
+        "attempt_count": int(batch.get("attempt_count") or 1),
+        "execution_mode": batch.get("execution_mode"),
+        "error_type": batch.get("error_type"),
         "reason_code": batch.get("reason_code"),
         "reason_detail": batch.get("reason_detail"),
     }
