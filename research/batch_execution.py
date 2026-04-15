@@ -10,13 +10,13 @@ from agent.backtesting.engine import BacktestEngine, EvaluationScheduleError, Fo
 from research.candidate_pipeline import SCREENING_PROMOTED, screening_param_samples
 from research.registry import get_enabled_strategies
 from research.results import make_result_row
+from research.screening_process import execute_screening_candidate_isolated
 from research.screening_runtime import (
     FINAL_STATUS_ERRORED,
     FINAL_STATUS_PASSED,
     FINAL_STATUS_REJECTED,
     FINAL_STATUS_TIMED_OUT,
     build_screening_runtime_records,
-    execute_screening_candidate,
 )
 
 
@@ -153,24 +153,20 @@ def execute_screening_batch(
             runtime_record["reason_code"] = None
             runtime_record["reason_detail"] = None
 
-            engine = None
             try:
                 start_datum = interval_ranges[str(candidate["interval"])]["start"]
                 eind_datum = interval_ranges[str(candidate["interval"])]["end"]
-                engine = _build_engine(
-                    start_datum=start_datum,
-                    eind_datum=eind_datum,
-                    evaluation_config=evaluation_config,
-                    regime_config=regime_config,
-                )
-                runtime_record["samples_total"] = 0 if not hasattr(engine, "run") else len(sampled_params)
-                outcome = execute_screening_candidate(
+                isolated_result = execute_screening_candidate_isolated(
                     strategy=strategy,
                     candidate=candidate,
-                    engine=engine,
+                    interval_range={"start": start_datum, "end": eind_datum},
+                    evaluation_config=evaluation_config,
+                    regime_config=regime_config,
                     budget_seconds=screening_candidate_budget_seconds,
                     max_samples=screening_param_sample_limit,
+                    engine_class=BacktestEngine,
                 )
+                outcome = dict(isolated_result["outcome"])
             except Exception as exc:
                 outcome = {
                     "legacy_decision": {
@@ -189,8 +185,8 @@ def execute_screening_batch(
                     "reason_code": "screening_candidate_error",
                     "reason_detail": str(exc),
                 }
-            if engine is not None:
-                provenance_events.extend(getattr(engine, "_provenance_events", []))
+                isolated_result = {"provenance_events": []}
+            provenance_events.extend(isolated_result.get("provenance_events") or [])
 
             runtime_record.update(outcome)
             runtime_record["elapsed_seconds"] = int(runtime_record.get("elapsed_seconds") or 0)
