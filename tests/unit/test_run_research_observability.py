@@ -361,6 +361,8 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     filter_summary = _load_json(tmp_path / "research" / "run_filter_summary_latest.v1.json")
     batches = _load_json(tmp_path / "research" / "run_batches_latest.v1.json")
     screening_candidates = _load_json(tmp_path / "research" / "run_screening_candidates_latest.v1.json")
+    campaign = _load_json(tmp_path / "research" / "run_campaign_latest.v1.json")
+    campaign_progress = _load_json(tmp_path / "research" / "run_campaign_progress_latest.v1.json")
     public_json = _load_json(tmp_path / "research" / "research_latest.json")
     with (tmp_path / "research" / "strategy_matrix.csv").open(encoding="utf-8", newline="") as handle:
         csv_rows = list(csv.DictReader(handle))
@@ -387,16 +389,27 @@ def test_run_research_writes_completed_progress_sidecar_and_keeps_public_schema(
     assert manifest["validation_candidate_count"] == 1
     assert manifest["artifacts"]["run_batches_path"] == "research/run_batches_latest.v1.json"
     assert manifest["artifacts"]["run_screening_candidates_path"] == "research/run_screening_candidates_latest.v1.json"
+    assert manifest["artifacts"]["run_campaign_path"] == "research/run_campaign_latest.v1.json"
+    assert manifest["artifacts"]["run_campaign_progress_path"] == "research/run_campaign_progress_latest.v1.json"
     assert candidates["summary"]["validation_candidate_count"] == 1
     assert filter_summary["screening_decisions"]["promoted_to_validation"] == 1
     assert batches["summary"]["completed_count"] == 1
     assert batches["batches"][0]["status"] == "completed"
     assert screening_candidates["summary"]["passed_count"] == 1
     assert screening_candidates["candidates"][0]["final_status"] == "passed"
+    assert campaign["status"] == "completed"
+    assert campaign["summary"]["batch_count"] == 1
+    assert campaign["summary"]["total_candidate_count"] == 1
+    assert campaign["summary"]["promoted_candidate_count"] == 1
+    assert campaign["summary"]["validated_candidate_count"] == 1
+    assert campaign_progress["status"] == "completed"
+    assert campaign_progress["summary"]["completed_batch_count"] == 1
+    assert campaign_progress["active_batch"] is None
     assert (tmp_path / "logs" / "research" / f"{state['run_id']}.jsonl").exists()
     assert (tmp_path / "research" / "history" / state["run_id"] / "run_state.v1.json").exists()
     assert (tmp_path / "research" / "history" / state["run_id"] / "run_candidates.v1.json").exists()
     assert (tmp_path / "research" / "history" / state["run_id"] / "run_screening_candidates.v1.json").exists()
+    assert (tmp_path / "research" / "history" / state["run_id"] / "run_campaign_manifest.v1.json").exists()
     assert list(public_json["results"][0].keys()) == ROW_SCHEMA
     assert list(csv_rows[0].keys()) == ROW_SCHEMA
 

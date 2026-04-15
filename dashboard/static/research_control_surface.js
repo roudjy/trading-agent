@@ -33,6 +33,37 @@
     return parts.length > 0 ? parts.join(" ") : "-";
   }
 
+  function activeBatchLabel(batch) {
+    if (!batch) {
+      return "-";
+    }
+    const prefix = batch.batch_index != null ? `#${batch.batch_index}` : batch.batch_id || "batch";
+    return [prefix, batch.strategy_family, batch.interval].filter(Boolean).join(" ");
+  }
+
+  function renderCampaignBatchTable(rows) {
+    const body = document.getElementById("campaign-batch-table-body");
+    if (!body) {
+      return;
+    }
+    if (!rows || rows.length === 0) {
+      body.innerHTML = '<tr><td colspan="8" class="muted">No campaign batches available.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map((row) => `
+      <tr>
+        <td>${row.batch_index != null ? `#${row.batch_index}` : row.batch_id || "-"}</td>
+        <td>${row.strategy_family || "-"}</td>
+        <td>${row.interval || "-"}</td>
+        <td><span class="pill">${row.status || "-"}</span></td>
+        <td>${row.candidate_count ?? "-"}</td>
+        <td>${row.completed_candidate_count ?? "-"}</td>
+        <td>${row.promoted_candidate_count ?? "-"}</td>
+        <td>${row.validated_candidate_count ?? "-"}</td>
+      </tr>
+    `).join("");
+  }
+
   async function fetchJson(url, options) {
     const response = await fetch(url, options);
     return response.json();
@@ -42,6 +73,10 @@
     const payload = await fetchJson("/api/research/run-status");
     const stateArtifact = (payload.run_state || {}).artifact || {};
     const progressArtifact = (payload.run_progress || {}).artifact || {};
+    const campaignArtifactState = payload.run_campaign || {};
+    const campaignProgressState = payload.run_campaign_progress || {};
+    const campaignArtifact = campaignArtifactState.artifact || {};
+    const campaignProgress = campaignProgressState.artifact || {};
     const progress = progressArtifact.stage_progress || {};
     const observations = payload.dashboard_observations || {};
 
@@ -69,6 +104,38 @@
     if (button) {
       button.disabled = stateArtifact.status === "running";
     }
+
+    const campaignSummary = campaignProgress.summary || campaignArtifact.summary || {};
+    text("campaign-status", campaignProgress.status || campaignArtifact.status || campaignProgressState.artifact_state);
+    text("campaign-active-batch", activeBatchLabel(campaignProgress.active_batch));
+    text("campaign-batch-count", campaignSummary.batch_count);
+    text("campaign-elapsed", campaignProgress.elapsed_seconds != null ? campaignProgress.elapsed_seconds : campaignArtifact.elapsed_seconds);
+    text("campaign-total-candidates", campaignSummary.total_candidate_count);
+    text("campaign-promoted", campaignSummary.promoted_candidate_count);
+    text("campaign-rejected", campaignSummary.rejected_candidate_count);
+    text("campaign-validated", campaignSummary.validated_candidate_count);
+
+    const campaignMeta = document.getElementById("campaign-meta");
+    if (campaignMeta) {
+      if (campaignArtifactState.artifact_state === "valid" || campaignProgressState.artifact_state === "valid") {
+        const campaignId = campaignProgress.campaign_id || campaignArtifact.campaign_id || "-";
+        campaignMeta.textContent =
+          `Campaign: ${campaignId} | Started: ${campaignProgress.started_at || campaignArtifact.started_at || "-"} | Finished: ${campaignProgress.finished_at || campaignArtifact.finished_at || "-"}`;
+      } else {
+        campaignMeta.textContent = `Campaign artifact state: ${campaignArtifactState.artifact_state || "absent"}`;
+      }
+    }
+
+    const batchMeta = document.getElementById("campaign-batch-meta");
+    if (batchMeta) {
+      if (campaignArtifactState.artifact_state === "valid") {
+        batchMeta.textContent =
+          `Completed: ${campaignSummary.completed_batch_count ?? 0} | Partial: ${campaignSummary.partial_batch_count ?? 0} | Failed: ${campaignSummary.failed_batch_count ?? 0}`;
+      } else {
+        batchMeta.textContent = `Campaign batch artifact state: ${campaignArtifactState.artifact_state || "absent"}`;
+      }
+    }
+    renderCampaignBatchTable(Array.isArray(campaignArtifact.batches) ? campaignArtifact.batches : []);
   }
 
   function renderFailureTable(rows) {

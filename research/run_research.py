@@ -40,6 +40,11 @@ from research.batching import (
     build_run_batches_payload,
     partition_execution_batches,
 )
+from research.campaigns import (
+    build_campaign_id,
+    build_run_campaign_payload,
+    build_run_campaign_progress_payload,
+)
 from research.empty_run_reporting import (
     DegenerateResearchRunError,
     build_empty_run_diagnostics_payload,
@@ -74,6 +79,8 @@ RUN_CANDIDATES_PATH = Path("research/run_candidates_latest.v1.json")
 RUN_FILTER_SUMMARY_PATH = Path("research/run_filter_summary_latest.v1.json")
 RUN_BATCHES_PATH = Path("research/run_batches_latest.v1.json")
 RUN_SCREENING_CANDIDATES_PATH = Path("research/run_screening_candidates_latest.v1.json")
+RUN_CAMPAIGN_PATH = Path("research/run_campaign_latest.v1.json")
+RUN_CAMPAIGN_PROGRESS_PATH = Path("research/run_campaign_progress_latest.v1.json")
 RUN_PROGRESS_PATH = Path("research/run_progress_latest.v1.json")
 RUN_STATE_PATH = Path("research/run_state.v1.json")
 RUN_MANIFEST_PATH = Path("research/run_manifest_latest.v1.json")
@@ -484,6 +491,8 @@ def _build_run_manifest_payload(
             "run_filter_summary_path": RUN_FILTER_SUMMARY_PATH.as_posix(),
             "run_batches_path": RUN_BATCHES_PATH.as_posix(),
             "run_screening_candidates_path": RUN_SCREENING_CANDIDATES_PATH.as_posix(),
+            "run_campaign_path": RUN_CAMPAIGN_PATH.as_posix(),
+            "run_campaign_progress_path": RUN_CAMPAIGN_PROGRESS_PATH.as_posix(),
         },
     }
 
@@ -500,7 +509,12 @@ def _merge_manifest(path: Path, **fields) -> None:
     _write_json_atomic(path, payload)
 
 
-def _persist_candidate_pipeline_sidecars(*, run_id: str, as_of_utc: datetime, candidates: list[dict]) -> None:
+def _persist_candidate_pipeline_sidecars(
+    *,
+    run_id: str,
+    as_of_utc: datetime,
+    candidates: list[dict],
+) -> tuple[dict, dict]:
     candidate_payload = build_candidate_artifact_payload(
         run_id=run_id,
         as_of_utc=as_of_utc,
@@ -523,6 +537,7 @@ def _persist_candidate_pipeline_sidecars(*, run_id: str, as_of_utc: datetime, ca
         run_id=run_id,
         history_name="run_filter_summary.v1.json",
     )
+    return candidate_payload, filter_payload
 
 
 def _persist_screening_candidate_sidecar(
@@ -530,7 +545,7 @@ def _persist_screening_candidate_sidecar(
     run_id: str,
     as_of_utc: datetime,
     screening_records: list[dict],
-) -> None:
+) -> dict:
     payload = build_screening_sidecar_payload(
         run_id=run_id,
         as_of_utc=as_of_utc,
@@ -542,6 +557,7 @@ def _persist_screening_candidate_sidecar(
         run_id=run_id,
         history_name="run_screening_candidates.v1.json",
     )
+    return payload
 
 
 def _persist_run_batches_sidecar(
@@ -549,7 +565,7 @@ def _persist_run_batches_sidecar(
     run_id: str,
     as_of_utc: datetime,
     batches: list[dict],
-) -> None:
+) -> dict:
     payload = build_run_batches_payload(
         run_id=run_id,
         as_of_utc=as_of_utc,
@@ -561,6 +577,7 @@ def _persist_run_batches_sidecar(
         run_id=run_id,
         history_name="run_batches.v1.json",
     )
+    return payload
 
 
 def _write_batch_manifest(*, run_id: str, batch: dict) -> None:
@@ -568,6 +585,56 @@ def _write_batch_manifest(*, run_id: str, batch: dict) -> None:
         run_id=run_id,
         batch=batch,
     )
+
+
+def _campaign_source_artifacts() -> dict[str, str]:
+    return {
+        "run_batches_path": RUN_BATCHES_PATH.as_posix(),
+        "run_candidates_path": RUN_CANDIDATES_PATH.as_posix(),
+        "run_screening_candidates_path": RUN_SCREENING_CANDIDATES_PATH.as_posix(),
+    }
+
+
+def _persist_campaign_artifacts(
+    *,
+    run_id: str,
+    started_at: str | None,
+    batches: list[dict],
+    candidate_payload: dict | None,
+    screening_payload: dict | None,
+    finished_at: str | None = None,
+) -> tuple[dict, dict]:
+    generated_at_utc = datetime.now(UTC)
+    campaign_id = build_campaign_id(run_id=run_id)
+    latest_payload = build_run_campaign_payload(
+        campaign_id=campaign_id,
+        run_id=run_id,
+        generated_at_utc=generated_at_utc,
+        started_at=started_at,
+        finished_at=finished_at,
+        batches=batches,
+        candidate_payload=candidate_payload,
+        screening_payload=screening_payload,
+        source_artifacts=_campaign_source_artifacts(),
+    )
+    _write_json_with_history(
+        path=RUN_CAMPAIGN_PATH,
+        payload=latest_payload,
+        run_id=run_id,
+        history_name="run_campaign_manifest.v1.json",
+    )
+    progress_payload = build_run_campaign_progress_payload(
+        campaign_id=campaign_id,
+        run_id=run_id,
+        generated_at_utc=generated_at_utc,
+        started_at=started_at,
+        finished_at=finished_at,
+        batches=batches,
+        candidate_payload=candidate_payload,
+        screening_payload=screening_payload,
+    )
+    _write_json_atomic(RUN_CAMPAIGN_PROGRESS_PATH, progress_payload)
+    return latest_payload, progress_payload
     _write_json_atomic(
         Path("research/history") / run_id / "batches" / str(batch["batch_id"]) / "run_batch_manifest.v1.json",
         payload,
@@ -678,6 +745,8 @@ def run_research():
     interval_ranges: dict[str, dict[str, str]] = {}
     candidates: list[dict] = []
     batches: list[dict] = []
+    candidate_payload: dict | None = None
+    screening_payload: dict | None = None
     try:
         research_config = load_research_config()
         regime_count, regime_count_source = regime_count_settings(research_config)
@@ -720,7 +789,7 @@ def run_research():
 
         tracker.start_stage("dedupe", total=len(planned_candidates))
         candidates, dedupe_summary = deduplicate_candidates(planned_candidates)
-        _persist_candidate_pipeline_sidecars(
+        candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
             as_of_utc=as_of_utc,
             candidates=candidates,
@@ -730,7 +799,7 @@ def run_research():
 
         tracker.start_stage("fit_prior", total=len(candidates))
         candidates, fit_summary = apply_fit_prior(candidates)
-        _persist_candidate_pipeline_sidecars(
+        candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
             as_of_utc=as_of_utc,
             candidates=candidates,
@@ -760,7 +829,7 @@ def run_research():
             readiness_by_pair=index_readiness(pair_diagnostics),
             universe_symbols={asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets},
         )
-        _persist_candidate_pipeline_sidecars(
+        candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
             as_of_utc=as_of_utc,
             candidates=candidates,
@@ -812,10 +881,17 @@ def run_research():
             str(record["candidate_id"]): record
             for record in screening_records
         }
-        _persist_screening_candidate_sidecar(
+        screening_payload = _persist_screening_candidate_sidecar(
             run_id=state["run_id"],
             as_of_utc=as_of_utc,
             screening_records=screening_records,
+        )
+        _persist_campaign_artifacts(
+            run_id=state["run_id"],
+            started_at=state["started_at_utc"],
+            batches=batches,
+            candidate_payload=candidate_payload,
+            screening_payload=screening_payload,
         )
         tracker.set_screening(
             _screening_progress_payload(
@@ -838,6 +914,13 @@ def run_research():
             tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
             _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
             _write_batch_manifest(run_id=state["run_id"], batch=batch)
+            _persist_campaign_artifacts(
+                run_id=state["run_id"],
+                started_at=state["started_at_utc"],
+                batches=batches,
+                candidate_payload=candidate_payload,
+                screening_payload=screening_payload,
+            )
             tracker.emit_event(
                 "batch_started",
                 batch_id=batch["batch_id"],
@@ -882,10 +965,17 @@ def run_research():
                         ),
                         persist=True,
                     )
-                    _persist_screening_candidate_sidecar(
+                    screening_payload = _persist_screening_candidate_sidecar(
                         run_id=state["run_id"],
                         as_of_utc=as_of_utc,
                         screening_records=screening_records,
+                    )
+                    _persist_campaign_artifacts(
+                        run_id=state["run_id"],
+                        started_at=state["started_at_utc"],
+                        batches=batches,
+                        candidate_payload=candidate_payload,
+                        screening_payload=screening_payload,
                     )
                     tracker.emit_event(
                         "screening_candidate_started",
@@ -912,13 +1002,20 @@ def run_research():
                             ),
                             persist=True,
                         )
-                        _persist_screening_candidate_sidecar(
+                        screening_payload = _persist_screening_candidate_sidecar(
                             run_id=state["run_id"],
                             as_of_utc=as_of_utc,
                             screening_records=screening_records,
                         )
                         _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
                         _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                        _persist_campaign_artifacts(
+                            run_id=state["run_id"],
+                            started_at=state["started_at_utc"],
+                            batches=batches,
+                            candidate_payload=candidate_payload,
+                            screening_payload=screening_payload,
+                        )
                         tracker.emit_event(
                             "screening_candidate_progress",
                             candidate_id=candidate["candidate_id"],
@@ -992,8 +1089,12 @@ def run_research():
                     else:
                         batch["screening_rejected_count"] += 1
                         batch["completed_candidate_count"] += 1
-                    _persist_candidate_pipeline_sidecars(run_id=state["run_id"], as_of_utc=as_of_utc, candidates=candidates)
-                    _persist_screening_candidate_sidecar(
+                    candidate_payload, _ = _persist_candidate_pipeline_sidecars(
+                        run_id=state["run_id"],
+                        as_of_utc=as_of_utc,
+                        candidates=candidates,
+                    )
+                    screening_payload = _persist_screening_candidate_sidecar(
                         run_id=state["run_id"],
                         as_of_utc=as_of_utc,
                         screening_records=screening_records,
@@ -1001,6 +1102,13 @@ def run_research():
                     batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
                     _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
                     _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                    _persist_campaign_artifacts(
+                        run_id=state["run_id"],
+                        started_at=state["started_at_utc"],
+                        batches=batches,
+                        candidate_payload=candidate_payload,
+                        screening_payload=screening_payload,
+                    )
                     if runtime_record["final_status"] in {FINAL_STATUS_PASSED, FINAL_STATUS_REJECTED}:
                         tracker.emit_event(
                             "screening_candidate_decision",
@@ -1098,6 +1206,13 @@ def run_research():
                         )
                     _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
                     _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                    _persist_campaign_artifacts(
+                        run_id=state["run_id"],
+                        started_at=state["started_at_utc"],
+                        batches=batches,
+                        candidate_payload=candidate_payload,
+                        screening_payload=screening_payload,
+                    )
                     tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
             except Exception as exc:
                 batch["status"] = "failed"
@@ -1114,6 +1229,13 @@ def run_research():
                     _write_batch_manifest(run_id=state["run_id"], batch=later_batch)
                 _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
                 _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                _persist_campaign_artifacts(
+                    run_id=state["run_id"],
+                    started_at=state["started_at_utc"],
+                    batches=batches,
+                    candidate_payload=candidate_payload,
+                    screening_payload=screening_payload,
+                )
                 tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
                 tracker.emit_event(
                     "batch_failed",
@@ -1130,10 +1252,17 @@ def run_research():
                 raise
 
         screening_summary = summarize_candidates(candidates)
-        _persist_candidate_pipeline_sidecars(
+        candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
             as_of_utc=as_of_utc,
             candidates=candidates,
+        )
+        _persist_campaign_artifacts(
+            run_id=state["run_id"],
+            started_at=state["started_at_utc"],
+            batches=batches,
+            candidate_payload=candidate_payload,
+            screening_payload=screening_payload,
         )
         _merge_manifest(
             RUN_MANIFEST_PATH,
@@ -1251,7 +1380,7 @@ def run_research():
                     else:
                         batch["result_failed_count"] += 1
                         batch["validation_error_count"] += 1
-                    _persist_candidate_pipeline_sidecars(
+                    candidate_payload, _ = _persist_candidate_pipeline_sidecars(
                         run_id=state["run_id"],
                         as_of_utc=as_of_utc,
                         candidates=candidates,
@@ -1262,6 +1391,13 @@ def run_research():
                         batches=batches,
                     )
                     _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                    _persist_campaign_artifacts(
+                        run_id=state["run_id"],
+                        started_at=state["started_at_utc"],
+                        batches=batches,
+                        candidate_payload=candidate_payload,
+                        screening_payload=screening_payload,
+                    )
                     validation_completed += 1
                     batch["elapsed_seconds"] = _elapsed_from_started_at(batch.get("started_at"))
                     tracker.advance(completed=validation_completed, total=len(validation_items))
@@ -1303,6 +1439,13 @@ def run_research():
                     batches=batches,
                 )
                 _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                _persist_campaign_artifacts(
+                    run_id=state["run_id"],
+                    started_at=state["started_at_utc"],
+                    batches=batches,
+                    candidate_payload=candidate_payload,
+                    screening_payload=screening_payload,
+                )
                 tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
             except Exception as exc:
                 batch["status"] = "failed"
@@ -1323,6 +1466,13 @@ def run_research():
                     batches=batches,
                 )
                 _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                _persist_campaign_artifacts(
+                    run_id=state["run_id"],
+                    started_at=state["started_at_utc"],
+                    batches=batches,
+                    candidate_payload=candidate_payload,
+                    screening_payload=screening_payload,
+                )
                 tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
                 tracker.emit_event(
                     "batch_failed",
@@ -1338,10 +1488,17 @@ def run_research():
                 )
                 raise
 
-        _persist_candidate_pipeline_sidecars(
+        candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
             as_of_utc=as_of_utc,
             candidates=candidates,
+        )
+        _persist_campaign_artifacts(
+            run_id=state["run_id"],
+            started_at=state["started_at_utc"],
+            batches=batches,
+            candidate_payload=candidate_payload,
+            screening_payload=screening_payload,
         )
         validation_summary = summarize_candidates(candidates)
         _merge_manifest(
