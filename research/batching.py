@@ -97,6 +97,9 @@ def partition_execution_batches(*, candidates: list[dict[str, Any]]) -> list[dic
                     "assets": assets,
                     "strategies": strategy_names,
                 },
+                "attempt_count": 1,
+                "execution_mode": None,
+                "error_type": None,
                 "reason_code": None,
                 "reason_detail": None,
             }
@@ -156,6 +159,9 @@ def build_batch_manifest_payload(
         "result_failed_count": int(batch.get("result_failed_count") or 0),
         "candidate_summary": copy.deepcopy(batch.get("candidate_summary") or {}),
         "candidate_ids": list(batch.get("candidate_ids") or []),
+        "attempt_count": int(batch.get("attempt_count") or 1),
+        "execution_mode": batch.get("execution_mode"),
+        "error_type": batch.get("error_type"),
         "reason_code": batch.get("reason_code"),
         "reason_detail": batch.get("reason_detail"),
     }

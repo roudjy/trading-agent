@@ -139,6 +139,8 @@ research:
     volatility_baseline_lookback_bars: 100
     trend_strength_threshold: 0.5
     high_vol_ratio_threshold: 1.5
+  execution:
+    max_workers: 1
 
 leren:
   trade_geheugen: 1000
