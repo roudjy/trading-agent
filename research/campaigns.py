@@ -135,6 +135,7 @@ def _campaign_batch_row(batch: dict[str, Any]) -> dict[str, Any]:
         "strategy_family": str(batch["strategy_family"]),
         "interval": str(batch["interval"]),
         "status": str(batch["status"]),
+        "current_stage": str(batch.get("current_stage") or "screening"),
         "started_at": batch.get("started_at"),
         "finished_at": batch.get("finished_at"),
         "elapsed_seconds": int(batch.get("elapsed_seconds") or 0),
@@ -151,6 +152,7 @@ def _campaign_batch_row(batch: dict[str, Any]) -> dict[str, Any]:
         "error_type": batch.get("error_type"),
         "reason_code": batch.get("reason_code"),
         "reason_detail": batch.get("reason_detail"),
+        "last_attempt_reason": batch.get("last_attempt_reason"),
     }
 
 
@@ -164,6 +166,7 @@ def _active_batch_summary(batches: list[dict[str, Any]]) -> dict[str, Any] | Non
             "strategy_family": str(batch["strategy_family"]),
             "interval": str(batch["interval"]),
             "status": str(batch["status"]),
+            "current_stage": str(batch.get("current_stage") or "screening"),
             "completed_candidates": int(batch.get("completed_candidate_count") or 0),
             "total_candidates": int(batch.get("candidate_count") or 0),
             "elapsed_seconds": int(batch.get("elapsed_seconds") or 0),

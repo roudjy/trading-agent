@@ -115,6 +115,7 @@ def execute_screening_batch(
 ) -> dict[str, Any]:
     started_monotonic = time.monotonic()
     updated_batch = deepcopy(batch)
+    updated_batch["current_stage"] = "screening"
     updated_batch["started_at"] = updated_batch.get("started_at") or datetime.now(UTC).isoformat()
     updated_batch["finished_at"] = None
     updated_batch["error_type"] = None
@@ -299,12 +300,16 @@ def execute_screening_batch(
         if updated_batch["promoted_candidate_count"] == 0:
             if updated_batch["timed_out_count"] > 0 or updated_batch["errored_count"] > 0:
                 updated_batch["status"] = "partial"
+                updated_batch["current_stage"] = "screening"
                 updated_batch["reason_code"] = "isolated_candidate_execution_issues"
                 updated_batch["reason_detail"] = "batch completed with screening timeout/error isolation"
             else:
                 updated_batch["status"] = "completed"
+                updated_batch["current_stage"] = "screening"
         else:
-            updated_batch["status"] = "running"
+            updated_batch["status"] = "pending"
+            updated_batch["current_stage"] = "validation"
+            updated_batch["finished_at"] = None
 
         return {
             "batch": updated_batch,
@@ -326,6 +331,7 @@ def execute_screening_batch(
         }
     except Exception as exc:
         updated_batch["status"] = "failed"
+        updated_batch["current_stage"] = "screening"
         updated_batch["finished_at"] = datetime.now(UTC).isoformat()
         updated_batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - started_monotonic)))
         updated_batch["reason_code"] = "batch_execution_failed"
@@ -362,6 +368,7 @@ def execute_validation_batch(
 ) -> dict[str, Any]:
     started_monotonic = time.monotonic()
     updated_batch = deepcopy(batch)
+    updated_batch["current_stage"] = "validation"
     updated_batch["started_at"] = updated_batch.get("started_at") or datetime.now(UTC).isoformat()
     updated_batch["finished_at"] = None
     updated_batch["error_type"] = None
@@ -460,11 +467,13 @@ def execute_validation_batch(
             or updated_batch["validation_error_count"] > 0
         ):
             updated_batch["status"] = "partial"
+            updated_batch["current_stage"] = "validation"
             if updated_batch.get("reason_code") is None:
                 updated_batch["reason_code"] = "isolated_candidate_execution_issues"
                 updated_batch["reason_detail"] = "batch completed with candidate-level timeout/error isolation"
         else:
             updated_batch["status"] = "completed"
+            updated_batch["current_stage"] = "validation"
 
         return {
             "batch": updated_batch,
@@ -477,6 +486,7 @@ def execute_validation_batch(
         }
     except Exception as exc:
         updated_batch["status"] = "failed"
+        updated_batch["current_stage"] = "validation"
         updated_batch["finished_at"] = datetime.now(UTC).isoformat()
         updated_batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - started_monotonic)))
         updated_batch["reason_code"] = "batch_execution_failed"
