@@ -47,6 +47,8 @@ def test_research_run_status_endpoint_without_sidecar(monkeypatch, tmp_path):
 
     monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", tmp_path / "missing-state.json")
     monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", tmp_path / "missing.json")
+    monkeypatch.setattr(dash.research_artifacts, "RUN_CAMPAIGN_PATH", tmp_path / "missing-campaign.json")
+    monkeypatch.setattr(dash.research_artifacts, "RUN_CAMPAIGN_PROGRESS_PATH", tmp_path / "missing-campaign-progress.json")
 
     dash.app.testing = True
     client = dash.app.test_client()
@@ -57,6 +59,8 @@ def test_research_run_status_endpoint_without_sidecar(monkeypatch, tmp_path):
     payload = response.get_json()
     assert payload["run_state"]["artifact_state"] == "absent"
     assert payload["run_progress"]["artifact_state"] == "absent"
+    assert payload["run_campaign"]["artifact_state"] == "absent"
+    assert payload["run_campaign_progress"]["artifact_state"] == "absent"
     assert payload["dashboard_observations"]["authoritative_status"] is None
 
 
@@ -66,6 +70,8 @@ def test_research_run_status_endpoint_with_valid_sidecar(monkeypatch, tmp_path):
     now = datetime.now(UTC)
     state_path = tmp_path / "run_state.v1.json"
     progress_path = tmp_path / "run_progress_latest.v1.json"
+    campaign_path = tmp_path / "run_campaign_latest.v1.json"
+    campaign_progress_path = tmp_path / "run_campaign_progress_latest.v1.json"
     state_path.write_text(
         (
             "{"
@@ -107,8 +113,45 @@ def test_research_run_status_endpoint_with_valid_sidecar(monkeypatch, tmp_path):
         ),
         encoding="utf-8",
     )
+    campaign_path.write_text(
+        (
+            "{"
+            "\"version\":\"v1\","
+            "\"campaign_id\":\"campaign-20260413T100000000000Z\","
+            "\"run_id\":\"20260413T100000000000Z\","
+            f"\"generated_at_utc\":\"{now.isoformat()}\","
+            "\"status\":\"running\","
+            f"\"started_at\":\"{(now - timedelta(seconds=180)).isoformat()}\","
+            "\"finished_at\":null,"
+            "\"elapsed_seconds\":180,"
+            "\"summary\":{\"batch_count\":1,\"pending_batch_count\":0,\"running_batch_count\":1,\"completed_batch_count\":0,\"partial_batch_count\":0,\"failed_batch_count\":0,\"skipped_batch_count\":0,\"total_candidate_count\":3,\"promoted_candidate_count\":1,\"rejected_candidate_count\":1,\"validated_candidate_count\":0,\"timed_out_candidate_count\":0,\"errored_candidate_count\":0},"
+            "\"lineage\":{\"source_artifacts\":{\"run_batches_path\":\"research/run_batches_latest.v1.json\"}},"
+            "\"batches\":[{\"batch_id\":\"batch-1\",\"batch_index\":1,\"strategy_family\":\"breakout\",\"interval\":\"1d\",\"status\":\"running\",\"started_at\":\"2026-04-13T10:00:00+00:00\",\"finished_at\":null,\"elapsed_seconds\":180,\"candidate_count\":3,\"completed_candidate_count\":1,\"promoted_candidate_count\":1,\"validated_candidate_count\":0,\"screening_rejected_count\":1,\"timed_out_count\":0,\"errored_count\":0,\"validation_error_count\":0,\"reason_code\":null,\"reason_detail\":null}]"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+    campaign_progress_path.write_text(
+        (
+            "{"
+            "\"version\":\"v1\","
+            "\"campaign_id\":\"campaign-20260413T100000000000Z\","
+            "\"run_id\":\"20260413T100000000000Z\","
+            f"\"generated_at_utc\":\"{now.isoformat()}\","
+            "\"status\":\"running\","
+            f"\"started_at\":\"{(now - timedelta(seconds=180)).isoformat()}\","
+            "\"finished_at\":null,"
+            "\"elapsed_seconds\":180,"
+            "\"summary\":{\"batch_count\":1,\"pending_batch_count\":0,\"running_batch_count\":1,\"completed_batch_count\":0,\"partial_batch_count\":0,\"failed_batch_count\":0,\"skipped_batch_count\":0,\"total_candidate_count\":3,\"promoted_candidate_count\":1,\"rejected_candidate_count\":1,\"validated_candidate_count\":0,\"timed_out_candidate_count\":0,\"errored_candidate_count\":0},"
+            "\"active_batch\":{\"batch_id\":\"batch-1\",\"batch_index\":1,\"strategy_family\":\"breakout\",\"interval\":\"1d\",\"status\":\"running\",\"completed_candidates\":1,\"total_candidates\":3,\"elapsed_seconds\":180}"
+            "}"
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(dash.research_artifacts, "RUN_STATE_PATH", state_path)
     monkeypatch.setattr(dash.research_artifacts, "RUN_PROGRESS_PATH", progress_path)
+    monkeypatch.setattr(dash.research_artifacts, "RUN_CAMPAIGN_PATH", campaign_path)
+    monkeypatch.setattr(dash.research_artifacts, "RUN_CAMPAIGN_PROGRESS_PATH", campaign_progress_path)
     monkeypatch.setattr("research.run_state._pid_is_live", lambda pid: True)
 
     dash.app.testing = True
@@ -121,6 +164,8 @@ def test_research_run_status_endpoint_with_valid_sidecar(monkeypatch, tmp_path):
     assert payload["run_state"]["artifact_state"] == "valid"
     assert payload["run_state"]["artifact"]["status"] == "running"
     assert payload["run_progress"]["artifact"]["completed_items"] == 5
+    assert payload["run_campaign"]["artifact"]["status"] == "running"
+    assert payload["run_campaign_progress"]["artifact"]["active_batch"]["batch_id"] == "batch-1"
     assert payload["dashboard_observations"]["pid_live"] is True
 
 
