@@ -10,6 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 RUN_STATE_PATH = BASE_DIR / "research" / "run_state.v1.json"
 RUN_PROGRESS_PATH = BASE_DIR / "research" / "run_progress_latest.v1.json"
 RUN_MANIFEST_PATH = BASE_DIR / "research" / "run_manifest_latest.v1.json"
+RUN_CAMPAIGN_PATH = BASE_DIR / "research" / "run_campaign_latest.v1.json"
+RUN_CAMPAIGN_PROGRESS_PATH = BASE_DIR / "research" / "run_campaign_progress_latest.v1.json"
 RESEARCH_LATEST_PATH = BASE_DIR / "research" / "research_latest.json"
 EMPTY_RUN_DIAGNOSTICS_PATH = (
     BASE_DIR / "research" / "empty_run_diagnostics_latest.v1.json"
@@ -88,6 +90,14 @@ def load_run_state_artifact() -> dict[str, Any]:
 
 def load_run_manifest_artifact() -> dict[str, Any]:
     return load_json_artifact(RUN_MANIFEST_PATH)
+
+
+def load_run_campaign_artifact() -> dict[str, Any]:
+    return load_json_artifact(RUN_CAMPAIGN_PATH)
+
+
+def load_run_campaign_progress_artifact() -> dict[str, Any]:
+    return load_json_artifact(RUN_CAMPAIGN_PROGRESS_PATH)
 
 
 def load_research_latest_artifact() -> dict[str, Any]:

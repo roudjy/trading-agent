@@ -131,6 +131,47 @@
       </section>
 
       <section class="card">
+        <h2>Active Campaign</h2>
+        <div class="status-grid">
+          <div class="metric"><div class="metric-label">Campaign Status</div><div class="metric-value" id="campaign-status">-</div></div>
+          <div class="metric"><div class="metric-label">Active Batch</div><div class="metric-value" id="campaign-active-batch">-</div></div>
+          <div class="metric"><div class="metric-label">Total Batches</div><div class="metric-value" id="campaign-batch-count">-</div></div>
+          <div class="metric"><div class="metric-label">Elapsed Seconds</div><div class="metric-value" id="campaign-elapsed">-</div></div>
+        </div>
+        <div class="status-grid">
+          <div class="metric"><div class="metric-label">Total Candidates</div><div class="metric-value" id="campaign-total-candidates">-</div></div>
+          <div class="metric"><div class="metric-label">Promoted</div><div class="metric-value" id="campaign-promoted">-</div></div>
+          <div class="metric"><div class="metric-label">Rejected</div><div class="metric-value" id="campaign-rejected">-</div></div>
+          <div class="metric"><div class="metric-label">Validated</div><div class="metric-value" id="campaign-validated">-</div></div>
+        </div>
+        <div id="campaign-meta" class="muted">No campaign artifact loaded.</div>
+      </section>
+
+      <section class="card">
+        <h2>Campaign Batches</h2>
+        <div id="campaign-batch-meta" class="muted" style="margin-bottom:12px;">No batch lifecycle loaded.</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Batch</th>
+                <th>Strategy Family</th>
+                <th>Interval</th>
+                <th>Status</th>
+                <th>Candidates</th>
+                <th>Completed</th>
+                <th>Promoted</th>
+                <th>Validated</th>
+              </tr>
+            </thead>
+            <tbody id="campaign-batch-table-body">
+              <tr><td colspan="8" class="muted">No campaign batches available.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
         <h2>Failure Diagnostics</h2>
         <div id="failure-summary" class="muted">No diagnostics loaded.</div>
         <div id="failure-message" style="margin:12px 0;"></div>

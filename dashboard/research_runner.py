@@ -49,6 +49,8 @@ def build_run_status_response(*, now: datetime | None = None) -> dict[str, Any]:
     repair_result = lifecycle.repair_stale_run()
     state_artifact = research_artifacts.load_run_state_artifact()
     progress_artifact = research_artifacts.load_run_progress_artifact()
+    campaign_artifact = research_artifacts.load_run_campaign_artifact()
+    campaign_progress_artifact = research_artifacts.load_run_campaign_progress_artifact()
     warnings: list[str] = []
     if repair_result.get("repaired"):
         warnings.append(
@@ -57,6 +59,8 @@ def build_run_status_response(*, now: datetime | None = None) -> dict[str, Any]:
     return {
         "run_state": state_artifact,
         "run_progress": progress_artifact,
+        "run_campaign": campaign_artifact,
+        "run_campaign_progress": campaign_progress_artifact,
         "dashboard_observations": _build_observations(
             state_artifact=state_artifact,
             repair_result=repair_result,
