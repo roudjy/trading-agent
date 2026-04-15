@@ -77,6 +77,7 @@ def partition_execution_batches(*, candidates: list[dict[str, Any]]) -> list[dic
                     "interval": interval,
                 },
                 "status": "pending",
+                "current_stage": "screening",
                 "started_at": None,
                 "finished_at": None,
                 "elapsed_seconds": 0,
@@ -102,6 +103,7 @@ def partition_execution_batches(*, candidates: list[dict[str, Any]]) -> list[dic
                 "error_type": None,
                 "reason_code": None,
                 "reason_detail": None,
+                "last_attempt_reason": "fresh_run",
             }
         )
     return sorted(batches, key=_batch_sort_key)
@@ -144,6 +146,7 @@ def build_batch_manifest_payload(
         "batch_index": int(batch["batch_index"]),
         "partition": copy.deepcopy(batch["partition"]),
         "status": str(batch["status"]),
+        "current_stage": str(batch.get("current_stage") or "screening"),
         "started_at": batch.get("started_at"),
         "finished_at": batch.get("finished_at"),
         "elapsed_seconds": int(batch.get("elapsed_seconds") or 0),
@@ -164,4 +167,5 @@ def build_batch_manifest_payload(
         "error_type": batch.get("error_type"),
         "reason_code": batch.get("reason_code"),
         "reason_detail": batch.get("reason_detail"),
+        "last_attempt_reason": batch.get("last_attempt_reason"),
     }
