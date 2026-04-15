@@ -275,16 +275,17 @@ class _SelectiveScreeningEngine(_HealthyEngine):
 
 
 class _ProgressCaptureEngine(_HealthyEngine):
-    captured_progress = None
-    captured_screening = None
-
     def run(self, strategie_func, assets, interval="1d"):
-        if _ProgressCaptureEngine.captured_progress is None:
-            _ProgressCaptureEngine.captured_progress = json.loads(
-                Path("research/run_progress_latest.v1.json").read_text(encoding="utf-8")
+        progress_capture_path = Path("research/test_progress_capture.json")
+        screening_capture_path = Path("research/test_screening_capture.json")
+        if not progress_capture_path.exists():
+            progress_capture_path.write_text(
+                Path("research/run_progress_latest.v1.json").read_text(encoding="utf-8"),
+                encoding="utf-8",
             )
-            _ProgressCaptureEngine.captured_screening = json.loads(
-                Path("research/run_screening_candidates_latest.v1.json").read_text(encoding="utf-8")
+            screening_capture_path.write_text(
+                Path("research/run_screening_candidates_latest.v1.json").read_text(encoding="utf-8"),
+                encoding="utf-8",
             )
         return super().run(strategie_func, assets, interval=interval)
 
@@ -294,7 +295,7 @@ class _TimeoutIsolationEngine(_HealthyEngine):
 
     def run(self, strategie_func, assets, interval="1d"):
         if getattr(strategie_func, "screen_tag", "") == "timeout":
-            time.sleep(1.1)
+            time.sleep(5.0)
         return super().run(strategie_func, assets, interval=interval)
 
     def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
@@ -503,13 +504,11 @@ def test_only_screening_survivors_reach_validation(monkeypatch, tmp_path: Path):
 
 def test_screening_progress_is_persisted_immediately_on_candidate_start(monkeypatch, tmp_path: Path):
     _patch_common_runner(monkeypatch, tmp_path, _ProgressCaptureEngine)
-    _ProgressCaptureEngine.captured_progress = None
-    _ProgressCaptureEngine.captured_screening = None
 
     run_research_module.run_research()
 
-    progress = _ProgressCaptureEngine.captured_progress
-    screening = _ProgressCaptureEngine.captured_screening
+    progress = _load_json(tmp_path / "research" / "test_progress_capture.json")
+    screening = _load_json(tmp_path / "research" / "test_screening_capture.json")
     assert progress is not None
     assert progress["current_stage"] == "screening"
     assert progress["current_item"] == {

@@ -4,7 +4,7 @@ import copy
 import time
 from collections import Counter
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from research.candidate_pipeline import (
     SCREENING_PROMOTED,
@@ -109,13 +109,13 @@ def build_screening_sidecar_payload(
     }
 
 
-def execute_screening_candidate(
+def execute_screening_candidate_samples(
     *,
-    strategy: dict[str, Any],
     candidate: dict[str, Any],
     engine: Any,
     budget_seconds: int,
-    max_samples: int,
+    strategy_samples: Iterable[tuple[dict[str, Any], Any]],
+    samples_total: int,
     now_source: Callable[[], datetime] | None = None,
     monotonic_source: Callable[[], float] | None = None,
     on_progress: Callable[[dict[str, int]], None] | None = None,
@@ -168,17 +168,15 @@ def execute_screening_candidate(
             "reason_detail": None,
         }
 
-    sampled_params = screening_param_samples(strategy.get("params") or {}, max_samples=max_samples)
-    samples_total = len(sampled_params)
     sample_results: list[dict[str, Any]] = []
 
-    for sample_index, params in enumerate(sampled_params, start=1):
+    for sample_index, (_params, strategy_callable) in enumerate(strategy_samples, start=1):
         if _remaining_budget_seconds(monotonic, deadline_monotonic) <= 0:
             return _timed_out_outcome(samples_completed=len(sample_results))
 
         try:
             metrics = engine.run(
-                strategy["factory"](**params),
+                strategy_callable,
                 assets=[candidate["asset"]],
                 interval=candidate["interval"],
             )
@@ -247,3 +245,27 @@ def execute_screening_candidate(
         "reason_code": reason_code,
         "reason_detail": reason_detail,
     }
+
+
+def execute_screening_candidate(
+    *,
+    strategy: dict[str, Any],
+    candidate: dict[str, Any],
+    engine: Any,
+    budget_seconds: int,
+    max_samples: int,
+    now_source: Callable[[], datetime] | None = None,
+    monotonic_source: Callable[[], float] | None = None,
+    on_progress: Callable[[dict[str, int]], None] | None = None,
+) -> dict[str, Any]:
+    sampled_params = screening_param_samples(strategy.get("params") or {}, max_samples=max_samples)
+    return execute_screening_candidate_samples(
+        candidate=candidate,
+        engine=engine,
+        budget_seconds=budget_seconds,
+        strategy_samples=((params, strategy["factory"](**params)) for params in sampled_params),
+        samples_total=len(sampled_params),
+        now_source=now_source,
+        monotonic_source=monotonic_source,
+        on_progress=on_progress,
+    )

@@ -69,6 +69,7 @@ from research.recovery import (
 from research.regime_reporting import build_regime_diagnostics_payload
 from research.registry import get_enabled_strategies
 from research.results import make_result_row, write_latest_json, write_results_to_csv
+from research.screening_process import execute_screening_candidate_isolated
 from research.screening_runtime import (
     FINAL_STATUS_ERRORED,
     FINAL_STATUS_PASSED,
@@ -76,7 +77,6 @@ from research.screening_runtime import (
     FINAL_STATUS_TIMED_OUT,
     build_screening_runtime_records,
     build_screening_sidecar_payload,
-    execute_screening_candidate,
 )
 from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
@@ -1899,25 +1899,21 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False):
                             samples_total=runtime_record["samples_total"],
                         )
 
-                    engine = None
                     try:
                         start_datum = interval_ranges[candidate["interval"]]["start"]
                         eind_datum = interval_ranges[candidate["interval"]]["end"]
-                        engine = _build_engine(
-                            start_datum=start_datum,
-                            eind_datum=eind_datum,
-                            evaluation_config=evaluation_config,
-                            regime_config=research_config.get("regime_diagnostics"),
-                        )
-                        runtime_record["samples_total"] = 0 if not hasattr(engine, "run") else len(sampled_params)
-                        outcome = execute_screening_candidate(
+                        isolated_result = execute_screening_candidate_isolated(
                             strategy=strategy,
                             candidate=candidate,
-                            engine=engine,
+                            interval_range={"start": start_datum, "end": eind_datum},
+                            evaluation_config=evaluation_config,
+                            regime_config=research_config.get("regime_diagnostics"),
                             budget_seconds=screening_candidate_budget_seconds,
                             max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+                            engine_class=BacktestEngine,
                             on_progress=_on_screening_progress,
                         )
+                        outcome = dict(isolated_result["outcome"])
                     except Exception as exc:
                         outcome = {
                             "legacy_decision": {
@@ -1936,8 +1932,8 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False):
                             "reason_code": "screening_candidate_error",
                             "reason_detail": str(exc),
                         }
-                    if engine is not None:
-                        provenance_events.extend(getattr(engine, "_provenance_events", []))
+                        isolated_result = {"provenance_events": []}
+                    provenance_events.extend(isolated_result.get("provenance_events") or [])
 
                     runtime_record.update(outcome)
                     runtime_record["elapsed_seconds"] = int(runtime_record.get("elapsed_seconds") or 0)
