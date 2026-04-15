@@ -28,8 +28,15 @@ def _elapsed_seconds(monotonic_source: Callable[[], float], started_at_monotonic
     return max(0, int(round(monotonic_source() - started_at_monotonic)))
 
 
-def _elapsed_raw_seconds(monotonic_source: Callable[[], float], started_at_monotonic: float) -> float:
-    return max(0.0, monotonic_source() - started_at_monotonic)
+def _deadline_monotonic(*, started_at_monotonic: float, budget_seconds: int) -> float:
+    return started_at_monotonic + max(0.0, float(budget_seconds))
+
+
+def _remaining_budget_seconds(
+    monotonic_source: Callable[[], float],
+    deadline_monotonic: float,
+) -> float:
+    return deadline_monotonic - monotonic_source()
 
 
 def _screening_sort_key(record: dict[str, Any]) -> tuple[str, str, str, str]:
@@ -117,6 +124,30 @@ def execute_screening_candidate(
     monotonic = monotonic_source or time.monotonic
     started_at = now().astimezone(UTC)
     started_at_monotonic = monotonic()
+    deadline_monotonic = _deadline_monotonic(
+        started_at_monotonic=started_at_monotonic,
+        budget_seconds=budget_seconds,
+    )
+
+    def _timed_out_outcome(*, samples_completed: int) -> dict[str, Any]:
+        elapsed_seconds = _elapsed_seconds(monotonic, started_at_monotonic)
+        return {
+            "legacy_decision": {
+                "status": SCREENING_REJECTED,
+                "reason": "candidate_budget_exceeded",
+                "sampled_combination_count": samples_completed,
+            },
+            "runtime_status": "running",
+            "final_status": FINAL_STATUS_TIMED_OUT,
+            "started_at": started_at.isoformat(),
+            "finished_at": now().astimezone(UTC).isoformat(),
+            "elapsed_seconds": elapsed_seconds,
+            "samples_total": samples_total,
+            "samples_completed": samples_completed,
+            "decision": SCREENING_REJECTED,
+            "reason_code": "candidate_budget_exceeded",
+            "reason_detail": f"candidate exceeded screening budget of {int(budget_seconds)} seconds",
+        }
 
     if not hasattr(engine, "run"):
         return {
@@ -142,25 +173,8 @@ def execute_screening_candidate(
     sample_results: list[dict[str, Any]] = []
 
     for sample_index, params in enumerate(sampled_params, start=1):
-        if _elapsed_raw_seconds(monotonic, started_at_monotonic) > float(budget_seconds):
-            elapsed_seconds = _elapsed_seconds(monotonic, started_at_monotonic)
-            return {
-                "legacy_decision": {
-                    "status": SCREENING_REJECTED,
-                    "reason": "candidate_budget_exceeded",
-                    "sampled_combination_count": len(sample_results),
-                },
-                "runtime_status": "running",
-                "final_status": FINAL_STATUS_TIMED_OUT,
-                "started_at": started_at.isoformat(),
-                "finished_at": now().astimezone(UTC).isoformat(),
-                "elapsed_seconds": elapsed_seconds,
-                "samples_total": samples_total,
-                "samples_completed": len(sample_results),
-                "decision": SCREENING_REJECTED,
-                "reason_code": "candidate_budget_exceeded",
-                "reason_detail": f"candidate exceeded screening budget of {int(budget_seconds)} seconds",
-            }
+        if _remaining_budget_seconds(monotonic, deadline_monotonic) <= 0:
+            return _timed_out_outcome(samples_completed=len(sample_results))
 
         try:
             metrics = engine.run(
@@ -201,6 +215,9 @@ def execute_screening_candidate(
                 sample_results.append({"status": SCREENING_REJECTED, "reason": "screening_criteria_not_met"})
             else:
                 sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
+
+        if _remaining_budget_seconds(monotonic, deadline_monotonic) <= 0:
+            return _timed_out_outcome(samples_completed=len(sample_results))
 
         if on_progress is not None:
             on_progress(
