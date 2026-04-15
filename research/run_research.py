@@ -35,6 +35,11 @@ from research.candidate_pipeline import (
     summarize_candidates,
     validation_candidates,
 )
+from research.batching import (
+    build_batch_manifest_payload,
+    build_run_batches_payload,
+    partition_execution_batches,
+)
 from research.empty_run_reporting import (
     DegenerateResearchRunError,
     build_empty_run_diagnostics_payload,
@@ -67,6 +72,7 @@ REGIME_DIAGNOSTICS_PATH = Path("research/regime_diagnostics_latest.v1.json")
 EMPTY_RUN_DIAGNOSTICS_PATH = Path("research/empty_run_diagnostics_latest.v1.json")
 RUN_CANDIDATES_PATH = Path("research/run_candidates_latest.v1.json")
 RUN_FILTER_SUMMARY_PATH = Path("research/run_filter_summary_latest.v1.json")
+RUN_BATCHES_PATH = Path("research/run_batches_latest.v1.json")
 RUN_SCREENING_CANDIDATES_PATH = Path("research/run_screening_candidates_latest.v1.json")
 RUN_PROGRESS_PATH = Path("research/run_progress_latest.v1.json")
 RUN_STATE_PATH = Path("research/run_state.v1.json")
@@ -476,6 +482,7 @@ def _build_run_manifest_payload(
         "artifacts": {
             "run_candidates_path": RUN_CANDIDATES_PATH.as_posix(),
             "run_filter_summary_path": RUN_FILTER_SUMMARY_PATH.as_posix(),
+            "run_batches_path": RUN_BATCHES_PATH.as_posix(),
             "run_screening_candidates_path": RUN_SCREENING_CANDIDATES_PATH.as_posix(),
         },
     }
@@ -537,6 +544,52 @@ def _persist_screening_candidate_sidecar(
     )
 
 
+def _persist_run_batches_sidecar(
+    *,
+    run_id: str,
+    as_of_utc: datetime,
+    batches: list[dict],
+) -> None:
+    payload = build_run_batches_payload(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        batches=batches,
+    )
+    _write_json_with_history(
+        path=RUN_BATCHES_PATH,
+        payload=payload,
+        run_id=run_id,
+        history_name="run_batches.v1.json",
+    )
+
+
+def _write_batch_manifest(*, run_id: str, batch: dict) -> None:
+    payload = build_batch_manifest_payload(
+        run_id=run_id,
+        batch=batch,
+    )
+    _write_json_atomic(
+        Path("research/history") / run_id / "batches" / str(batch["batch_id"]) / "run_batch_manifest.v1.json",
+        payload,
+    )
+
+
+def _batch_progress_payload(*, batch: dict | None, total_batches: int) -> dict | None:
+    if batch is None:
+        return None
+    return {
+        "batch_id": batch.get("batch_id"),
+        "batch_index": batch.get("batch_index"),
+        "total_batches": int(total_batches),
+        "strategy_family": batch.get("strategy_family"),
+        "interval": batch.get("interval"),
+        "status": batch.get("status"),
+        "completed_candidates": int(batch.get("completed_candidate_count") or 0),
+        "total_candidates": int(batch.get("candidate_count") or 0),
+        "elapsed_seconds": int(batch.get("elapsed_seconds") or 0),
+    }
+
+
 def _screening_progress_payload(
     *,
     completed_candidates: int,
@@ -554,6 +607,22 @@ def _screening_progress_payload(
         "budget_seconds": None if record is None else record.get("budget_seconds"),
         "candidate_elapsed_seconds": None if record is None else record.get("elapsed_seconds"),
     }
+
+
+def _result_row_sort_key(row: dict) -> tuple[str, str, str, str, str]:
+    return (
+        str(row["strategy_name"]),
+        str(row["asset"]),
+        str(row["interval"]),
+        str(row["params_json"]),
+        str(row["error"]),
+    )
+
+
+def _elapsed_from_started_at(started_at: str | None) -> int:
+    if not started_at:
+        return 0
+    return max(0, int(round((datetime.now(UTC) - datetime.fromisoformat(started_at)).total_seconds())))
 
 
 def _raise_degenerate_run(
@@ -608,6 +677,7 @@ def run_research():
     pair_diagnostics: list[dict] = []
     interval_ranges: dict[str, dict[str, str]] = {}
     candidates: list[dict] = []
+    batches: list[dict] = []
     try:
         research_config = load_research_config()
         regime_count, regime_count_source = regime_count_settings(research_config)
@@ -712,6 +782,28 @@ def run_research():
 
         tracker.start_stage("screening", total=eligibility_summary["eligible_candidate_count"])
         screening_items = screening_candidates(candidates)
+        batches = partition_execution_batches(candidates=screening_items)
+        candidate_to_batch_id = {
+            str(candidate_id): str(batch["batch_id"])
+            for batch in batches
+            for candidate_id in batch["candidate_ids"]
+        }
+        _persist_run_batches_sidecar(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            batches=batches,
+        )
+        for batch in batches:
+            _write_batch_manifest(run_id=state["run_id"], batch=batch)
+        _merge_manifest(
+            RUN_MANIFEST_PATH,
+            batching_enabled=True,
+            batch_partitioning={
+                "mode": "strategy_family_x_interval",
+                "batch_count": len(batches),
+            },
+        )
+        tracker.set_batch(None, persist=True)
         screening_records = build_screening_runtime_records(
             candidates=screening_items,
             budget_seconds=screening_candidate_budget_seconds,
@@ -733,213 +825,309 @@ def run_research():
             ),
             persist=True,
         )
-        for index, candidate in enumerate(screening_items, start=1):
-            strategy = strategy_by_name[candidate["strategy_name"]]
-            sampled_params = screening_param_samples(
-                strategy.get("params") or {},
-                max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
-            )
-            runtime_record = screening_records_by_id[str(candidate["candidate_id"])]
-            runtime_record["runtime_status"] = "running"
-            runtime_record["final_status"] = None
-            runtime_record["started_at"] = datetime.now(UTC).isoformat()
-            runtime_record["finished_at"] = None
-            runtime_record["elapsed_seconds"] = 0
-            runtime_record["samples_completed"] = 0
-            runtime_record["samples_total"] = len(sampled_params)
-            runtime_record["decision"] = None
-            runtime_record["reason_code"] = None
-            runtime_record["reason_detail"] = None
-            tracker.begin_item(
-                strategy=candidate["strategy_name"],
-                asset=candidate["asset"],
-                interval=candidate["interval"],
-            )
-            tracker.set_screening(
-                _screening_progress_payload(
-                    completed_candidates=index - 1,
-                    total_candidates=len(screening_items),
-                    record=runtime_record,
-                ),
-                persist=True,
-            )
-            _persist_screening_candidate_sidecar(
-                run_id=state["run_id"],
-                as_of_utc=as_of_utc,
-                screening_records=screening_records,
-            )
+        screening_completed = 0
+        screening_items_by_id = {
+            str(candidate["candidate_id"]): candidate
+            for candidate in screening_items
+        }
+        for batch in batches:
+            batch_started_monotonic = time.monotonic()
+            batch["status"] = "running"
+            batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
+            batch["finished_at"] = None
+            tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+            _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
+            _write_batch_manifest(run_id=state["run_id"], batch=batch)
             tracker.emit_event(
-                "screening_candidate_started",
-                candidate_id=candidate["candidate_id"],
-                strategy=candidate["strategy_name"],
-                asset=candidate["asset"],
-                interval=candidate["interval"],
+                "batch_started",
+                batch_id=batch["batch_id"],
+                batch_index=batch["batch_index"],
+                strategy_family=batch["strategy_family"],
+                interval=batch["interval"],
                 elapsed_seconds=0,
-                samples_completed=0,
-                samples_total=runtime_record["samples_total"],
+                candidate_count=batch["candidate_count"],
+                completed_candidate_count=batch["completed_candidate_count"],
             )
-
-            def _on_screening_progress(progress: dict[str, int]) -> None:
-                runtime_record["elapsed_seconds"] = int(progress["elapsed_seconds"])
-                runtime_record["samples_completed"] = int(progress["samples_completed"])
-                runtime_record["samples_total"] = int(progress["samples_total"])
-                tracker.set_screening(
-                    _screening_progress_payload(
-                        completed_candidates=index - 1,
-                        total_candidates=len(screening_items),
-                        record=runtime_record,
-                    ),
-                    persist=True,
-                )
-                _persist_screening_candidate_sidecar(
-                    run_id=state["run_id"],
-                    as_of_utc=as_of_utc,
-                    screening_records=screening_records,
-                )
-                tracker.emit_event(
-                    "screening_candidate_progress",
-                    candidate_id=candidate["candidate_id"],
-                    strategy=candidate["strategy_name"],
-                    asset=candidate["asset"],
-                    interval=candidate["interval"],
-                    elapsed_seconds=runtime_record["elapsed_seconds"],
-                    samples_completed=runtime_record["samples_completed"],
-                    samples_total=runtime_record["samples_total"],
-                )
-
-            engine = None
             try:
-                start_datum = interval_ranges[candidate["interval"]]["start"]
-                eind_datum = interval_ranges[candidate["interval"]]["end"]
-                engine = _build_engine(
-                    start_datum=start_datum,
-                    eind_datum=eind_datum,
-                    evaluation_config=evaluation_config,
-                    regime_config=research_config.get("regime_diagnostics"),
-                )
-                runtime_record["samples_total"] = (
-                    0
-                    if not hasattr(engine, "run")
-                    else len(sampled_params)
-                )
-                outcome = execute_screening_candidate(
-                    strategy=strategy,
-                    candidate=candidate,
-                    engine=engine,
-                    budget_seconds=screening_candidate_budget_seconds,
-                    max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
-                    on_progress=_on_screening_progress,
-                )
-            except Exception as exc:
-                outcome = {
-                    "legacy_decision": {
-                        "status": "rejected_in_screening",
-                        "reason": "screening_candidate_error",
-                        "sampled_combination_count": runtime_record["samples_completed"],
-                    },
-                    "runtime_status": "running",
-                    "final_status": FINAL_STATUS_ERRORED,
-                    "started_at": runtime_record["started_at"],
-                    "finished_at": datetime.now(UTC).isoformat(),
-                    "elapsed_seconds": int(runtime_record["elapsed_seconds"]),
-                    "samples_total": runtime_record["samples_total"],
-                    "samples_completed": runtime_record["samples_completed"],
-                    "decision": "rejected_in_screening",
-                    "reason_code": "screening_candidate_error",
-                    "reason_detail": str(exc),
-                }
-            if engine is not None:
-                provenance_events.extend(getattr(engine, "_provenance_events", []))
+                for candidate_id in batch["candidate_ids"]:
+                    candidate = screening_items_by_id[str(candidate_id)]
+                    strategy = strategy_by_name[candidate["strategy_name"]]
+                    sampled_params = screening_param_samples(
+                        strategy.get("params") or {},
+                        max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+                    )
+                    runtime_record = screening_records_by_id[str(candidate["candidate_id"])]
+                    runtime_record["runtime_status"] = "running"
+                    runtime_record["final_status"] = None
+                    runtime_record["started_at"] = datetime.now(UTC).isoformat()
+                    runtime_record["finished_at"] = None
+                    runtime_record["elapsed_seconds"] = 0
+                    runtime_record["samples_completed"] = 0
+                    runtime_record["samples_total"] = len(sampled_params)
+                    runtime_record["decision"] = None
+                    runtime_record["reason_code"] = None
+                    runtime_record["reason_detail"] = None
+                    tracker.begin_item(
+                        strategy=candidate["strategy_name"],
+                        asset=candidate["asset"],
+                        interval=candidate["interval"],
+                    )
+                    batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
+                    tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+                    tracker.set_screening(
+                        _screening_progress_payload(
+                            completed_candidates=screening_completed,
+                            total_candidates=len(screening_items),
+                            record=runtime_record,
+                        ),
+                        persist=True,
+                    )
+                    _persist_screening_candidate_sidecar(
+                        run_id=state["run_id"],
+                        as_of_utc=as_of_utc,
+                        screening_records=screening_records,
+                    )
+                    tracker.emit_event(
+                        "screening_candidate_started",
+                        candidate_id=candidate["candidate_id"],
+                        strategy=candidate["strategy_name"],
+                        asset=candidate["asset"],
+                        interval=candidate["interval"],
+                        elapsed_seconds=0,
+                        samples_completed=0,
+                        samples_total=runtime_record["samples_total"],
+                    )
 
-            runtime_record.update(outcome)
-            if runtime_record["elapsed_seconds"] is None:
-                runtime_record["elapsed_seconds"] = 0
-            if runtime_record["samples_total"] is None:
-                runtime_record["samples_total"] = 0
-            if runtime_record["samples_completed"] is None:
-                runtime_record["samples_completed"] = 0
-            decision = dict(outcome["legacy_decision"])
-            for item in candidates:
-                if item["candidate_id"] != candidate["candidate_id"]:
-                    continue
-                item["screening"] = dict(decision)
-                if decision["status"] == SCREENING_PROMOTED:
-                    item["current_status"] = "promoted_to_validation"
-                else:
-                    item["current_status"] = "screening_rejected"
-                break
-            _persist_candidate_pipeline_sidecars(
-                run_id=state["run_id"],
-                as_of_utc=as_of_utc,
-                candidates=candidates,
-            )
-            _persist_screening_candidate_sidecar(
-                run_id=state["run_id"],
-                as_of_utc=as_of_utc,
-                screening_records=screening_records,
-            )
-            if runtime_record["final_status"] in {FINAL_STATUS_PASSED, FINAL_STATUS_REJECTED}:
+                    def _on_screening_progress(progress: dict[str, int]) -> None:
+                        runtime_record["elapsed_seconds"] = int(progress["elapsed_seconds"])
+                        runtime_record["samples_completed"] = int(progress["samples_completed"])
+                        runtime_record["samples_total"] = int(progress["samples_total"])
+                        batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
+                        tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+                        tracker.set_screening(
+                            _screening_progress_payload(
+                                completed_candidates=screening_completed,
+                                total_candidates=len(screening_items),
+                                record=runtime_record,
+                            ),
+                            persist=True,
+                        )
+                        _persist_screening_candidate_sidecar(
+                            run_id=state["run_id"],
+                            as_of_utc=as_of_utc,
+                            screening_records=screening_records,
+                        )
+                        _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
+                        _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                        tracker.emit_event(
+                            "screening_candidate_progress",
+                            candidate_id=candidate["candidate_id"],
+                            strategy=candidate["strategy_name"],
+                            asset=candidate["asset"],
+                            interval=candidate["interval"],
+                            elapsed_seconds=runtime_record["elapsed_seconds"],
+                            samples_completed=runtime_record["samples_completed"],
+                            samples_total=runtime_record["samples_total"],
+                        )
+
+                    engine = None
+                    try:
+                        start_datum = interval_ranges[candidate["interval"]]["start"]
+                        eind_datum = interval_ranges[candidate["interval"]]["end"]
+                        engine = _build_engine(
+                            start_datum=start_datum,
+                            eind_datum=eind_datum,
+                            evaluation_config=evaluation_config,
+                            regime_config=research_config.get("regime_diagnostics"),
+                        )
+                        runtime_record["samples_total"] = 0 if not hasattr(engine, "run") else len(sampled_params)
+                        outcome = execute_screening_candidate(
+                            strategy=strategy,
+                            candidate=candidate,
+                            engine=engine,
+                            budget_seconds=screening_candidate_budget_seconds,
+                            max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+                            on_progress=_on_screening_progress,
+                        )
+                    except Exception as exc:
+                        outcome = {
+                            "legacy_decision": {
+                                "status": "rejected_in_screening",
+                                "reason": "screening_candidate_error",
+                                "sampled_combination_count": runtime_record["samples_completed"],
+                            },
+                            "runtime_status": "running",
+                            "final_status": FINAL_STATUS_ERRORED,
+                            "started_at": runtime_record["started_at"],
+                            "finished_at": datetime.now(UTC).isoformat(),
+                            "elapsed_seconds": int(runtime_record["elapsed_seconds"]),
+                            "samples_total": runtime_record["samples_total"],
+                            "samples_completed": runtime_record["samples_completed"],
+                            "decision": "rejected_in_screening",
+                            "reason_code": "screening_candidate_error",
+                            "reason_detail": str(exc),
+                        }
+                    if engine is not None:
+                        provenance_events.extend(getattr(engine, "_provenance_events", []))
+
+                    runtime_record.update(outcome)
+                    runtime_record["elapsed_seconds"] = int(runtime_record.get("elapsed_seconds") or 0)
+                    runtime_record["samples_total"] = int(runtime_record.get("samples_total") or 0)
+                    runtime_record["samples_completed"] = int(runtime_record.get("samples_completed") or 0)
+                    decision = dict(outcome["legacy_decision"])
+                    for item in candidates:
+                        if item["candidate_id"] != candidate["candidate_id"]:
+                            continue
+                        item["screening"] = dict(decision)
+                        item["current_status"] = "promoted_to_validation" if decision["status"] == SCREENING_PROMOTED else "screening_rejected"
+                        break
+                    if runtime_record["final_status"] == FINAL_STATUS_TIMED_OUT:
+                        batch["timed_out_count"] += 1
+                        batch["completed_candidate_count"] += 1
+                    elif runtime_record["final_status"] == FINAL_STATUS_ERRORED:
+                        batch["errored_count"] += 1
+                        batch["completed_candidate_count"] += 1
+                    elif decision["status"] == SCREENING_PROMOTED:
+                        batch["promoted_candidate_count"] += 1
+                    else:
+                        batch["screening_rejected_count"] += 1
+                        batch["completed_candidate_count"] += 1
+                    _persist_candidate_pipeline_sidecars(run_id=state["run_id"], as_of_utc=as_of_utc, candidates=candidates)
+                    _persist_screening_candidate_sidecar(
+                        run_id=state["run_id"],
+                        as_of_utc=as_of_utc,
+                        screening_records=screening_records,
+                    )
+                    batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
+                    _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
+                    _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                    if runtime_record["final_status"] in {FINAL_STATUS_PASSED, FINAL_STATUS_REJECTED}:
+                        tracker.emit_event(
+                            "screening_candidate_decision",
+                            candidate_id=candidate["candidate_id"],
+                            strategy=candidate["strategy_name"],
+                            asset=candidate["asset"],
+                            interval=candidate["interval"],
+                            elapsed_seconds=runtime_record["elapsed_seconds"],
+                            samples_completed=runtime_record["samples_completed"],
+                            samples_total=runtime_record["samples_total"],
+                            decision=runtime_record["decision"],
+                            reason_code=runtime_record["reason_code"],
+                        )
+                    elif runtime_record["final_status"] == FINAL_STATUS_TIMED_OUT:
+                        tracker.emit_event(
+                            "screening_candidate_timeout",
+                            candidate_id=candidate["candidate_id"],
+                            strategy=candidate["strategy_name"],
+                            asset=candidate["asset"],
+                            interval=candidate["interval"],
+                            elapsed_seconds=runtime_record["elapsed_seconds"],
+                            samples_completed=runtime_record["samples_completed"],
+                            samples_total=runtime_record["samples_total"],
+                            decision=runtime_record["decision"],
+                            reason_code=runtime_record["reason_code"],
+                        )
+                    elif runtime_record["final_status"] == FINAL_STATUS_ERRORED:
+                        tracker.emit_event(
+                            "screening_candidate_error",
+                            candidate_id=candidate["candidate_id"],
+                            strategy=candidate["strategy_name"],
+                            asset=candidate["asset"],
+                            interval=candidate["interval"],
+                            elapsed_seconds=runtime_record["elapsed_seconds"],
+                            samples_completed=runtime_record["samples_completed"],
+                            samples_total=runtime_record["samples_total"],
+                            decision=runtime_record["decision"],
+                            reason_code=runtime_record["reason_code"],
+                            reason_detail=runtime_record["reason_detail"],
+                        )
+                    tracker.emit_event(
+                        "screening_candidate_finished",
+                        candidate_id=candidate["candidate_id"],
+                        strategy=candidate["strategy_name"],
+                        asset=candidate["asset"],
+                        interval=candidate["interval"],
+                        elapsed_seconds=runtime_record["elapsed_seconds"],
+                        samples_completed=runtime_record["samples_completed"],
+                        samples_total=runtime_record["samples_total"],
+                        final_status=runtime_record["final_status"],
+                        decision=runtime_record["decision"],
+                        reason_code=runtime_record["reason_code"],
+                    )
+                    screening_completed += 1
+                    tracker.advance(completed=screening_completed, total=len(screening_items))
+                    tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+                    tracker.set_screening(
+                        _screening_progress_payload(
+                            completed_candidates=screening_completed,
+                            total_candidates=len(screening_items),
+                            record=runtime_record,
+                        ),
+                        persist=True,
+                    )
+
+                if batch["promoted_candidate_count"] == 0:
+                    batch["finished_at"] = datetime.now(UTC).isoformat()
+                    batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
+                    if batch["timed_out_count"] > 0 or batch["errored_count"] > 0:
+                        batch["status"] = "partial"
+                        batch["reason_code"] = "isolated_candidate_execution_issues"
+                        batch["reason_detail"] = "batch completed with screening timeout/error isolation"
+                        tracker.emit_event(
+                            "batch_partial",
+                            batch_id=batch["batch_id"],
+                            batch_index=batch["batch_index"],
+                            strategy_family=batch["strategy_family"],
+                            interval=batch["interval"],
+                            elapsed_seconds=batch["elapsed_seconds"],
+                            candidate_count=batch["candidate_count"],
+                            completed_candidate_count=batch["completed_candidate_count"],
+                            reason_code=batch["reason_code"],
+                        )
+                    else:
+                        batch["status"] = "completed"
+                        tracker.emit_event(
+                            "batch_completed",
+                            batch_id=batch["batch_id"],
+                            batch_index=batch["batch_index"],
+                            strategy_family=batch["strategy_family"],
+                            interval=batch["interval"],
+                            elapsed_seconds=batch["elapsed_seconds"],
+                            candidate_count=batch["candidate_count"],
+                            completed_candidate_count=batch["completed_candidate_count"],
+                        )
+                    _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
+                    _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                    tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+            except Exception as exc:
+                batch["status"] = "failed"
+                batch["finished_at"] = datetime.now(UTC).isoformat()
+                batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
+                batch["reason_code"] = "batch_execution_failed"
+                batch["reason_detail"] = str(exc)
+                for later_batch in batches:
+                    if later_batch["batch_index"] <= batch["batch_index"] or later_batch["status"] != "pending":
+                        continue
+                    later_batch["status"] = "skipped"
+                    later_batch["reason_code"] = "upstream_batch_failed"
+                    later_batch["reason_detail"] = f"skipped after failed batch {batch['batch_id']}"
+                    _write_batch_manifest(run_id=state["run_id"], batch=later_batch)
+                _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
+                _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
                 tracker.emit_event(
-                    "screening_candidate_decision",
-                    candidate_id=candidate["candidate_id"],
-                    strategy=candidate["strategy_name"],
-                    asset=candidate["asset"],
-                    interval=candidate["interval"],
-                    elapsed_seconds=runtime_record["elapsed_seconds"],
-                    samples_completed=runtime_record["samples_completed"],
-                    samples_total=runtime_record["samples_total"],
-                    decision=runtime_record["decision"],
-                    reason_code=runtime_record["reason_code"],
+                    "batch_failed",
+                    batch_id=batch["batch_id"],
+                    batch_index=batch["batch_index"],
+                    strategy_family=batch["strategy_family"],
+                    interval=batch["interval"],
+                    elapsed_seconds=batch["elapsed_seconds"],
+                    candidate_count=batch["candidate_count"],
+                    completed_candidate_count=batch["completed_candidate_count"],
+                    reason_code=batch["reason_code"],
+                    reason_detail=batch["reason_detail"],
                 )
-            elif runtime_record["final_status"] == FINAL_STATUS_TIMED_OUT:
-                tracker.emit_event(
-                    "screening_candidate_timeout",
-                    candidate_id=candidate["candidate_id"],
-                    strategy=candidate["strategy_name"],
-                    asset=candidate["asset"],
-                    interval=candidate["interval"],
-                    elapsed_seconds=runtime_record["elapsed_seconds"],
-                    samples_completed=runtime_record["samples_completed"],
-                    samples_total=runtime_record["samples_total"],
-                    decision=runtime_record["decision"],
-                    reason_code=runtime_record["reason_code"],
-                )
-            elif runtime_record["final_status"] == FINAL_STATUS_ERRORED:
-                tracker.emit_event(
-                    "screening_candidate_error",
-                    candidate_id=candidate["candidate_id"],
-                    strategy=candidate["strategy_name"],
-                    asset=candidate["asset"],
-                    interval=candidate["interval"],
-                    elapsed_seconds=runtime_record["elapsed_seconds"],
-                    samples_completed=runtime_record["samples_completed"],
-                    samples_total=runtime_record["samples_total"],
-                    decision=runtime_record["decision"],
-                    reason_code=runtime_record["reason_code"],
-                    reason_detail=runtime_record["reason_detail"],
-                )
-            tracker.emit_event(
-                "screening_candidate_finished",
-                candidate_id=candidate["candidate_id"],
-                strategy=candidate["strategy_name"],
-                asset=candidate["asset"],
-                interval=candidate["interval"],
-                elapsed_seconds=runtime_record["elapsed_seconds"],
-                samples_completed=runtime_record["samples_completed"],
-                samples_total=runtime_record["samples_total"],
-                final_status=runtime_record["final_status"],
-                decision=runtime_record["decision"],
-                reason_code=runtime_record["reason_code"],
-            )
-            tracker.advance(completed=index, total=len(screening_items))
-            tracker.set_screening(
-                _screening_progress_payload(
-                    completed_candidates=index,
-                    total_candidates=len(screening_items),
-                    record=runtime_record,
-                ),
-                persist=True,
-            )
+                raise
 
         screening_summary = summarize_candidates(candidates)
         _persist_candidate_pipeline_sidecars(
@@ -968,81 +1156,187 @@ def run_research():
 
         tracker.start_stage("validation", total=screening_summary["validation_candidate_count"])
         validation_items = validation_candidates(candidates)
-        for index, candidate in enumerate(validation_items, start=1):
-            strategy = strategy_by_name[candidate["strategy_name"]]
-            tracker.begin_item(
-                strategy=strategy["name"],
-                asset=candidate["asset"],
-                interval=candidate["interval"],
-            )
-            start_datum = interval_ranges[candidate["interval"]]["start"]
-            eind_datum = interval_ranges[candidate["interval"]]["end"]
-            engine = _build_engine(
-                start_datum=start_datum,
-                eind_datum=eind_datum,
-                evaluation_config=evaluation_config,
-                regime_config=research_config.get("regime_diagnostics"),
-            )
+        validation_completed = 0
+        for batch in batches:
+            if batch["status"] not in {"running", "pending"}:
+                continue
+            batch_validation_items = [
+                candidate
+                for candidate in validation_items
+                if candidate_to_batch_id.get(str(candidate["candidate_id"])) == str(batch["batch_id"])
+            ]
+            if not batch_validation_items:
+                continue
+            tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
             try:
-                metrics = engine.grid_search(
-                    strategie_factory=strategy["factory"],
-                    param_grid=strategy["params"],
-                    assets=[candidate["asset"]],
-                    interval=candidate["interval"],
-                )
-                params_used = metrics.get("beste_params", {})
-                row = make_result_row(
-                    strategy=strategy,
-                    asset=candidate["asset"],
-                    interval=candidate["interval"],
-                    params=params_used,
-                    as_of_utc=as_of_utc,
-                    metrics=metrics,
-                )
-                evaluation_report = getattr(engine, "last_evaluation_report", None)
-                if evaluation_report is not None:
-                    walk_forward_reports.append(
-                        _sidecar_strategy_entry(
+                for candidate in batch_validation_items:
+                    strategy = strategy_by_name[candidate["strategy_name"]]
+                    tracker.begin_item(
+                        strategy=strategy["name"],
+                        asset=candidate["asset"],
+                        interval=candidate["interval"],
+                    )
+                    tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+                    start_datum = interval_ranges[candidate["interval"]]["start"]
+                    eind_datum = interval_ranges[candidate["interval"]]["end"]
+                    engine = _build_engine(
+                        start_datum=start_datum,
+                        eind_datum=eind_datum,
+                        evaluation_config=evaluation_config,
+                        regime_config=research_config.get("regime_diagnostics"),
+                    )
+                    try:
+                        metrics = engine.grid_search(
+                            strategie_factory=strategy["factory"],
+                            param_grid=strategy["params"],
+                            assets=[candidate["asset"]],
+                            interval=candidate["interval"],
+                        )
+                        params_used = metrics.get("beste_params", {})
+                        row = make_result_row(
                             strategy=strategy,
                             asset=candidate["asset"],
                             interval=candidate["interval"],
-                            report=evaluation_report,
+                            params=params_used,
+                            as_of_utc=as_of_utc,
+                            metrics=metrics,
                         )
-                    )
-                    evaluations.append(
-                        {
-                            "family": strategy["family"],
-                            "interval": candidate["interval"],
-                            "selected_params": json.loads(row["params_json"]),
-                            "evaluation_report": evaluation_report,
-                            "row": row,
-                        }
-                    )
-            except (EvaluationScheduleError, FoldLeakageError):
-                raise
-            except Exception as exc:
-                row = make_result_row(
-                    strategy=strategy,
-                    asset=candidate["asset"],
-                    interval=candidate["interval"],
-                    params={},
-                    as_of_utc=as_of_utc,
-                    metrics={},
-                    error=str(exc),
-                )
+                        evaluation_report = getattr(engine, "last_evaluation_report", None)
+                        if evaluation_report is not None:
+                            walk_forward_reports.append(
+                                _sidecar_strategy_entry(
+                                    strategy=strategy,
+                                    asset=candidate["asset"],
+                                    interval=candidate["interval"],
+                                    report=evaluation_report,
+                                )
+                            )
+                            evaluations.append(
+                                {
+                                    "family": strategy["family"],
+                                    "interval": candidate["interval"],
+                                    "selected_params": json.loads(row["params_json"]),
+                                    "evaluation_report": evaluation_report,
+                                    "row": row,
+                                }
+                            )
+                    except (EvaluationScheduleError, FoldLeakageError):
+                        raise
+                    except Exception as exc:
+                        row = make_result_row(
+                            strategy=strategy,
+                            asset=candidate["asset"],
+                            interval=candidate["interval"],
+                            params={},
+                            as_of_utc=as_of_utc,
+                            metrics={},
+                            error=str(exc),
+                        )
 
-            provenance_events.extend(getattr(engine, "_provenance_events", []))
-            rows.append(row)
-            for item in candidates:
-                if item["candidate_id"] != candidate["candidate_id"]:
-                    continue
-                item["validation"] = {
-                    "status": "validated",
-                    "result_success": bool(row["success"]),
-                }
-                item["current_status"] = "validated"
-                break
-            tracker.advance(completed=index, total=len(validation_items))
+                    provenance_events.extend(getattr(engine, "_provenance_events", []))
+                    rows.append(row)
+                    for item in candidates:
+                        if item["candidate_id"] != candidate["candidate_id"]:
+                            continue
+                        item["validation"] = {
+                            "status": "validated",
+                            "result_success": bool(row["success"]),
+                        }
+                        item["current_status"] = "validated"
+                        break
+                    batch["validated_candidate_count"] += 1
+                    batch["completed_candidate_count"] += 1
+                    if row["success"]:
+                        batch["result_success_count"] += 1
+                    else:
+                        batch["result_failed_count"] += 1
+                        batch["validation_error_count"] += 1
+                    _persist_candidate_pipeline_sidecars(
+                        run_id=state["run_id"],
+                        as_of_utc=as_of_utc,
+                        candidates=candidates,
+                    )
+                    _persist_run_batches_sidecar(
+                        run_id=state["run_id"],
+                        as_of_utc=as_of_utc,
+                        batches=batches,
+                    )
+                    _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                    validation_completed += 1
+                    batch["elapsed_seconds"] = _elapsed_from_started_at(batch.get("started_at"))
+                    tracker.advance(completed=validation_completed, total=len(validation_items))
+                    tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+
+                batch["finished_at"] = datetime.now(UTC).isoformat()
+                batch["elapsed_seconds"] = _elapsed_from_started_at(batch.get("started_at"))
+                if batch["timed_out_count"] > 0 or batch["errored_count"] > 0 or batch["validation_error_count"] > 0:
+                    batch["status"] = "partial"
+                    if batch["reason_code"] is None:
+                        batch["reason_code"] = "isolated_candidate_execution_issues"
+                        batch["reason_detail"] = "batch completed with candidate-level timeout/error isolation"
+                    tracker.emit_event(
+                        "batch_partial",
+                        batch_id=batch["batch_id"],
+                        batch_index=batch["batch_index"],
+                        strategy_family=batch["strategy_family"],
+                        interval=batch["interval"],
+                        elapsed_seconds=batch["elapsed_seconds"],
+                        candidate_count=batch["candidate_count"],
+                        completed_candidate_count=batch["completed_candidate_count"],
+                        reason_code=batch["reason_code"],
+                    )
+                else:
+                    batch["status"] = "completed"
+                    tracker.emit_event(
+                        "batch_completed",
+                        batch_id=batch["batch_id"],
+                        batch_index=batch["batch_index"],
+                        strategy_family=batch["strategy_family"],
+                        interval=batch["interval"],
+                        elapsed_seconds=batch["elapsed_seconds"],
+                        candidate_count=batch["candidate_count"],
+                        completed_candidate_count=batch["completed_candidate_count"],
+                    )
+                _persist_run_batches_sidecar(
+                    run_id=state["run_id"],
+                    as_of_utc=as_of_utc,
+                    batches=batches,
+                )
+                _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+            except Exception as exc:
+                batch["status"] = "failed"
+                batch["finished_at"] = datetime.now(UTC).isoformat()
+                batch["elapsed_seconds"] = _elapsed_from_started_at(batch.get("started_at"))
+                batch["reason_code"] = "batch_execution_failed"
+                batch["reason_detail"] = str(exc)
+                for later_batch in batches:
+                    if later_batch["batch_index"] <= batch["batch_index"] or later_batch["status"] != "pending":
+                        continue
+                    later_batch["status"] = "skipped"
+                    later_batch["reason_code"] = "upstream_batch_failed"
+                    later_batch["reason_detail"] = f"skipped after failed batch {batch['batch_id']}"
+                    _write_batch_manifest(run_id=state["run_id"], batch=later_batch)
+                _persist_run_batches_sidecar(
+                    run_id=state["run_id"],
+                    as_of_utc=as_of_utc,
+                    batches=batches,
+                )
+                _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+                tracker.emit_event(
+                    "batch_failed",
+                    batch_id=batch["batch_id"],
+                    batch_index=batch["batch_index"],
+                    strategy_family=batch["strategy_family"],
+                    interval=batch["interval"],
+                    elapsed_seconds=batch["elapsed_seconds"],
+                    candidate_count=batch["candidate_count"],
+                    completed_candidate_count=batch["completed_candidate_count"],
+                    reason_code=batch["reason_code"],
+                    reason_detail=batch["reason_detail"],
+                )
+                raise
 
         _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
@@ -1086,6 +1380,7 @@ def run_research():
             )
 
         tracker.start_stage("writing_outputs", total=len(rows))
+        rows = sorted(rows, key=_result_row_sort_key)
         write_results_to_csv(rows)
         write_latest_json(rows, as_of_utc=as_of_utc)
 

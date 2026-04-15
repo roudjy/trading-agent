@@ -45,6 +45,7 @@ class ProgressTracker:
             "asset": None,
             "interval": None,
         }
+        self.batch: dict[str, Any] | None = None
         self.screening: dict[str, Any] | None = None
         self.completed_items = 0
         self.total_items = 0
@@ -71,6 +72,8 @@ class ProgressTracker:
 
     def start_stage(self, stage: str, *, total: int | None = None, **log_fields: Any) -> None:
         self.current_stage = stage
+        if stage not in {"screening", "validation"}:
+            self.batch = None
         if stage != "screening":
             self.screening = None
         self._stage_started_at_utc = self._now_source().astimezone(UTC)
@@ -109,6 +112,11 @@ class ProgressTracker:
 
     def set_screening(self, screening: dict[str, Any] | None, *, persist: bool = False) -> None:
         self.screening = None if screening is None else dict(screening)
+        if persist:
+            self.persist()
+
+    def set_batch(self, batch: dict[str, Any] | None, *, persist: bool = False) -> None:
+        self.batch = None if batch is None else dict(batch)
         if persist:
             self.persist()
 
@@ -162,6 +170,7 @@ class ProgressTracker:
             "asset": None,
             "interval": None,
         }
+        self.batch = None
         self.screening = None
         self._last_updated_at_utc = self._now_source().astimezone(UTC)
         self._write_progress()
@@ -252,6 +261,8 @@ class ProgressTracker:
             "eta_seconds": self._eta_seconds(),
             "error": self.error,
         }
+        if self.batch is not None:
+            payload["batch"] = dict(self.batch)
         if self.screening is not None:
             payload["screening"] = dict(self.screening)
         return payload
