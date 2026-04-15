@@ -45,6 +45,7 @@ class ProgressTracker:
             "asset": None,
             "interval": None,
         }
+        self.screening: dict[str, Any] | None = None
         self.completed_items = 0
         self.total_items = 0
         self.failed_items = 0
@@ -70,6 +71,8 @@ class ProgressTracker:
 
     def start_stage(self, stage: str, *, total: int | None = None, **log_fields: Any) -> None:
         self.current_stage = stage
+        if stage != "screening":
+            self.screening = None
         self._stage_started_at_utc = self._now_source().astimezone(UTC)
         self._stage_started_monotonic = self._monotonic_source()
         if total is not None:
@@ -95,12 +98,26 @@ class ProgressTracker:
         self._log("stage", stage=self.current_stage, status="completed", **log_fields)
         self._log_event("stage_completed", stage=self.current_stage, **log_fields)
 
-    def begin_item(self, *, strategy: str, asset: str, interval: str) -> None:
+    def begin_item(self, *, strategy: str, asset: str, interval: str, persist: bool = False) -> None:
         self.current_item = {
             "strategy": strategy,
             "asset": asset,
             "interval": interval,
         }
+        if persist:
+            self.persist()
+
+    def set_screening(self, screening: dict[str, Any] | None, *, persist: bool = False) -> None:
+        self.screening = None if screening is None else dict(screening)
+        if persist:
+            self.persist()
+
+    def persist(self) -> None:
+        self._last_updated_at_utc = self._now_source().astimezone(UTC)
+        self._write_progress()
+
+    def emit_event(self, event: str, **fields: Any) -> None:
+        self._log_event(event, **fields)
 
     def advance(self, *, completed: int | None = None, total: int | None = None) -> None:
         if completed is not None:
@@ -145,6 +162,7 @@ class ProgressTracker:
             "asset": None,
             "interval": None,
         }
+        self.screening = None
         self._last_updated_at_utc = self._now_source().astimezone(UTC)
         self._write_progress()
         self.finalize_manifest("completed")
@@ -214,7 +232,7 @@ class ProgressTracker:
         return f"{strategy} {asset} {interval}"
 
     def _payload(self) -> dict[str, Any]:
-        return {
+        payload = {
             "version": "v1",
             "run_id": self.run_id,
             "status": self.status,
@@ -234,6 +252,9 @@ class ProgressTracker:
             "eta_seconds": self._eta_seconds(),
             "error": self.error,
         }
+        if self.screening is not None:
+            payload["screening"] = dict(self.screening)
+        return payload
 
     def _write_progress(self) -> None:
         write_json_atomic(self.path, self._payload())
