@@ -281,10 +281,39 @@ class BacktestEngine:
     def run(self, strategie_func: Callable, assets: list, interval: str = "1d") -> dict:
         """Run fixed-parameter evaluation and return public OOS metrics only."""
         self.interval = interval
-        asset_contexts = self._load_asset_contexts(assets, interval)
-        is_summary = self._evaluate_windows(strategie_func, asset_contexts, use_train=True)
-        oos_summary = self._evaluate_windows(strategie_func, asset_contexts, use_train=False)
+        asset_contexts = self._run_phase_load_asset_contexts(assets, interval)
+        is_summary = self._run_phase_evaluate_in_sample(strategie_func, asset_contexts)
+        oos_summary = self._run_phase_evaluate_out_of_sample(strategie_func, asset_contexts)
+        return self._run_phase_finalize_result(
+            asset_contexts=asset_contexts,
+            is_summary=is_summary,
+            oos_summary=oos_summary,
+        )
 
+    def _run_phase_load_asset_contexts(self, assets: list[str], interval: str) -> list[AssetContext]:
+        return self._load_asset_contexts(assets, interval)
+
+    def _run_phase_evaluate_in_sample(
+        self,
+        strategie_func: Callable,
+        asset_contexts: list[AssetContext],
+    ) -> dict[str, Any]:
+        return self._evaluate_windows(strategie_func, asset_contexts, use_train=True)
+
+    def _run_phase_evaluate_out_of_sample(
+        self,
+        strategie_func: Callable,
+        asset_contexts: list[AssetContext],
+    ) -> dict[str, Any]:
+        return self._evaluate_windows(strategie_func, asset_contexts, use_train=False)
+
+    def _run_phase_finalize_result(
+        self,
+        *,
+        asset_contexts: list[AssetContext],
+        is_summary: dict[str, Any],
+        oos_summary: dict[str, Any],
+    ) -> dict[str, Any]:
         result = dict(oos_summary)
         if result["totaal_trades"] < self.min_trades:
             result["reden"] = f"Te weinig trades: {result['totaal_trades']}"
