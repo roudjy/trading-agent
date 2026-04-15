@@ -1,8 +1,20 @@
+# -------------------------
+# Python
+# -------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
-.env
+# Virtual environments
 .venv/
+venv/
+env/
+ENV/
+
+# -------------------------
+# Existing project ignores (KEEP)
+# -------------------------
+.env
 .tmp/
 tests_tmp/
 
@@ -10,6 +22,10 @@ logs/
 reports/
 research/provenance/
 state/
+
+# -------------------------
+# Data layer (CRITICAL WHITELISTING)
+# -------------------------
 data/*
 !data/__init__.py
 !data/contracts.py
@@ -36,19 +52,56 @@ data/botdetection/*
 data/news/*
 !data/news/__init__.py
 !data/news/nieuws_fetcher.py
+
 data/cache/
 state/fred.secret
 
+# -------------------------
+# Databases / logs
+# -------------------------
 *.db
 *.log
 
+# -------------------------
+# OS
+# -------------------------
 .DS_Store
+Thumbs.db
+desktop.ini
 
+# -------------------------
 # Research runtime artifacts
+# -------------------------
 research/history/
 research/run_*.v1.json
 research/*_latest.v1.json
 logs/research/*.jsonl
 
-# Local cache
+# Future-proof (V3.3b resumability)
+research/resume/
+research/tmp/
+
+# -------------------------
+# Pytest / testing
+# -------------------------
+.pytest_cache/
+.coverage
+htmlcov/
 .cache/
+
+# Windows temp test issues (IMPORTANT)
+codex_pytest_tmp/
+pytest-cache-files-*/
+
+# -------------------------
+# Local tooling (IMPORTANT)
+# -------------------------
+.claude/
+.codex/
+
+# -------------------------
+# Misc
+# -------------------------
+*.tmp
+*.bak
+*.swp
