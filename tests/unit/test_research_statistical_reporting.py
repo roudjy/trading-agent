@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from research import batch_execution as batch_execution_module
 from research import run_research as run_research_module
 from research import statistical_reporting as statistical_reporting_module
 from research.results import write_latest_json, write_results_to_csv
@@ -145,7 +146,9 @@ class ReportingEngine:
 
 def _run_reporting(monkeypatch, tmp_path, research_config=None):
     monkeypatch.setattr(run_research_module, "BacktestEngine", ReportingEngine)
+    monkeypatch.setattr(batch_execution_module, "BacktestEngine", ReportingEngine)
     monkeypatch.setattr(run_research_module, "get_enabled_strategies", lambda: STRATEGIES)
+    monkeypatch.setattr(batch_execution_module, "get_enabled_strategies", lambda: STRATEGIES)
     monkeypatch.setattr(statistical_reporting_module, "iter_strategy_families", _strategies_by_family)
     monkeypatch.setattr(
         run_research_module,
@@ -293,7 +296,9 @@ def test_no_corrected_metric_drives_gating_or_status(monkeypatch, tmp_path):
 def test_sidecar_atomic_write_no_partial_on_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(run_research_module, "build_statistical_defensibility_payload", lambda **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
     monkeypatch.setattr(run_research_module, "BacktestEngine", ReportingEngine)
+    monkeypatch.setattr(batch_execution_module, "BacktestEngine", ReportingEngine)
     monkeypatch.setattr(run_research_module, "get_enabled_strategies", lambda: STRATEGIES)
+    monkeypatch.setattr(batch_execution_module, "get_enabled_strategies", lambda: STRATEGIES)
     monkeypatch.setattr(statistical_reporting_module, "iter_strategy_families", _strategies_by_family)
     monkeypatch.setattr(
         run_research_module,

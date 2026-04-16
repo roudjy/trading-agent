@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import time
 from datetime import UTC, datetime
 from json import JSONDecodeError
 from pathlib import Path
@@ -30,7 +31,14 @@ def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     tmp_path = path.with_suffix(f"{path.suffix}.tmp")
     with tmp_path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=False)
-    os.replace(tmp_path, path)
+    for attempt in range(3):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if attempt == 2:
+                raise
+            time.sleep(0.05)
 
 
 def _append_jsonl_event(path: Path, payload: dict[str, Any]) -> None:

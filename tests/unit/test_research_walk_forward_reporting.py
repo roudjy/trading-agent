@@ -109,6 +109,12 @@ class FakeEngine:
         return _metrics()
 
 
+class LeakageEngine(FakeEngine):
+    def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
+        self.last_evaluation_report = _report(self.evaluation_config, leakage_checks_ok=False)
+        return _metrics()
+
+
 def _patch_runner(monkeypatch, tmp_path: Path, engine_cls=FakeEngine, research_config=None):
     research_config = research_config or {}
     monkeypatch.chdir(tmp_path)
@@ -225,11 +231,6 @@ def test_sidecar_separates_is_and_oos_summaries(monkeypatch, tmp_path):
 
 
 def test_runner_never_writes_sidecar_on_leakage_failure(monkeypatch, tmp_path):
-    class LeakageEngine(FakeEngine):
-        def grid_search(self, strategie_factory, param_grid, assets, interval="1d"):
-            self.last_evaluation_report = _report(self.evaluation_config, leakage_checks_ok=False)
-            return _metrics()
-
     _patch_runner(monkeypatch, tmp_path, engine_cls=LeakageEngine)
 
     with pytest.raises(FoldLeakageError, match="Leakage check failed"):
