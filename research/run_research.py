@@ -2286,7 +2286,7 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False):
                                     "row": row,
                                 }
                             )
-                    except (EvaluationScheduleError, FoldLeakageError):
+                    except (EvaluationScheduleError, FoldLeakageError, RuntimeError):
                         raise
                     except Exception as exc:
                         row = make_result_row(
