@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from research import batch_execution as batch_execution_module
 from research import run_research as run_research_module
 from research.promotion import (
     STATUS_CANDIDATE,
@@ -411,8 +412,22 @@ class TestCandidateRegistryWiring:
         monkeypatch.chdir(tmp_path)
         (tmp_path / "research").mkdir()
         monkeypatch.setattr(run_research_module, "BacktestEngine", _WiringEngine)
+        monkeypatch.setattr(batch_execution_module, "BacktestEngine", _WiringEngine)
         monkeypatch.setattr(
             run_research_module,
+            "get_enabled_strategies",
+            lambda: [
+                {
+                    "name": "fake_strategy",
+                    "family": "trend",
+                    "hypothesis": "Test",
+                    "factory": lambda **params: None,
+                    "params": {"periode": [14]},
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            batch_execution_module,
             "get_enabled_strategies",
             lambda: [
                 {
