@@ -54,6 +54,7 @@ from research.empty_run_reporting import (
     build_empty_run_diagnostics_payload,
 )
 from research.observability import ProgressTracker
+from research.orchestration_policy import resolve_continue_latest_policy
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -1475,15 +1476,38 @@ def _raise_degenerate_run(
     )
     raise DegenerateResearchRunError(payload["message"])
 
-def run_research(*, resume: bool = False, retry_failed_batches: bool = False):
-    previous_run_artifacts = _load_previous_run_artifacts() if resume else {"state": None, "manifest": None, "batches": None}
-    requested_resumed_from_run_id = None
-    if isinstance(previous_run_artifacts.get("manifest"), dict):
-        requested_resumed_from_run_id = str(previous_run_artifacts["manifest"].get("run_id") or "") or None
+def run_research(*, resume: bool = False, retry_failed_batches: bool = False, continue_latest: bool = False):
+    if continue_latest and resume:
+        raise RuntimeError("continue-latest cannot be combined with explicit resume")
+
     lifecycle = RunStateStore(
         state_path=RUN_STATE_PATH,
         history_root=Path("research/history"),
     )
+    previous_run_artifacts = {"state": None, "manifest": None, "batches": None}
+    requested_resumed_from_run_id = None
+    continue_latest_resolution: dict | None = None
+    if continue_latest:
+        lifecycle.repair_stale_run()
+        preview_research_config = load_research_config()
+        preview_execution_settings = _resolve_execution_settings(preview_research_config)
+        latest_artifacts = _load_previous_run_artifacts()
+        continue_latest_resolution = resolve_continue_latest_policy(
+            state_payload=latest_artifacts.get("state"),
+            manifest_payload=latest_artifacts.get("manifest"),
+            batches_payload=latest_artifacts.get("batches"),
+            retry_failed_batches=retry_failed_batches,
+            execution_mode=str(preview_execution_settings["execution_mode"]),
+        )
+        resume = bool(continue_latest_resolution["resume"])
+        retry_failed_batches = bool(continue_latest_resolution["retry_failed_batches"])
+        if resume:
+            previous_run_artifacts = latest_artifacts
+            requested_resumed_from_run_id = continue_latest_resolution.get("source_run_id")
+    elif resume:
+        previous_run_artifacts = _load_previous_run_artifacts()
+        if isinstance(previous_run_artifacts.get("manifest"), dict):
+            requested_resumed_from_run_id = str(previous_run_artifacts["manifest"].get("run_id") or "") or None
     state = lifecycle.start_run(
         progress_path=RUN_PROGRESS_PATH,
         manifest_path=RUN_MANIFEST_PATH,
@@ -1567,6 +1591,13 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False):
                 retry_failed_batches=retry_failed_batches,
             )
         )
+        if continue_latest_resolution is not None:
+            tracker.emit_event(
+                "continue_latest_resolved",
+                action=str(continue_latest_resolution["action"]),
+                resumed_from_run_id=continue_latest_resolution.get("source_run_id"),
+                retry_failed_batches=bool(continue_latest_resolution["retry_failed_batches"]),
+            )
         tracker.mark_stage_completed(raw_candidate_count=len(planned_candidates))
 
         tracker.start_stage("dedupe", total=len(planned_candidates))
@@ -2578,13 +2609,21 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False):
 
 def _parse_cli_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run quant research with optional artifact-driven resume.")
+    parser.add_argument(
+        "--continue-latest",
+        action="store_true",
+        help="Resolve the latest run artifacts to fresh, resume, retry_failed_batches, or fail-closed.",
+    )
     parser.add_argument("--resume", action="store_true", help="Resume an interrupted research run from artifacts.")
     parser.add_argument(
         "--retry-failed-batches",
         action="store_true",
         help="When used with --resume, retry failed batches at batch level.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.continue_latest and args.resume:
+        parser.error("--continue-latest cannot be combined with --resume")
+    return args
 
 
 if __name__ == "__main__":
@@ -2592,4 +2631,5 @@ if __name__ == "__main__":
     run_research(
         resume=bool(args.resume),
         retry_failed_batches=bool(args.retry_failed_batches),
+        continue_latest=bool(args.continue_latest),
     )
