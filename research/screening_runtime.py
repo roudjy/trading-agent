@@ -6,6 +6,8 @@ from collections import Counter
 from datetime import UTC, datetime
 from typing import Any, Callable, Iterable
 
+from agent.backtesting.engine import EngineInterrupted, EngineResumeInvalid
+from research.candidate_resume import CandidateResumeState
 from research.candidate_pipeline import (
     SCREENING_PROMOTED,
     SCREENING_REJECTED,
@@ -18,6 +20,24 @@ FINAL_STATUS_REJECTED = "rejected"
 FINAL_STATUS_TIMED_OUT = "timed_out"
 FINAL_STATUS_ERRORED = "errored"
 FINAL_STATUS_SKIPPED = "skipped"
+
+
+class ScreeningCandidateInterrupted(RuntimeError):
+    def __init__(
+        self,
+        *,
+        completed_samples: list[dict[str, Any]],
+        active_sample_index: int,
+        engine_snapshot,
+    ) -> None:
+        super().__init__("screening candidate interrupted")
+        self.completed_samples = [dict(item) for item in completed_samples]
+        self.active_sample_index = int(active_sample_index)
+        self.engine_snapshot = engine_snapshot
+
+
+class ScreeningResumeStateInvalid(RuntimeError):
+    """Raised when a persisted screening resume snapshot is incompatible."""
 
 
 def _utc_now() -> datetime:
@@ -37,6 +57,33 @@ def _remaining_budget_seconds(
     deadline_monotonic: float,
 ) -> float:
     return deadline_monotonic - monotonic_source()
+
+
+def _run_engine_sample(
+    *,
+    engine: Any,
+    strategy_callable: Any,
+    candidate: dict[str, Any],
+    deadline_monotonic: float,
+    resume_snapshot: Any,
+):
+    try:
+        return engine.run(
+            strategy_callable,
+            assets=[candidate["asset"]],
+            interval=candidate["interval"],
+            deadline_monotonic=deadline_monotonic,
+            resume_snapshot=resume_snapshot,
+        )
+    except TypeError as exc:
+        message = str(exc)
+        if "resume_snapshot" in message or "deadline_monotonic" in message:
+            return engine.run(
+                strategy_callable,
+                assets=[candidate["asset"]],
+                interval=candidate["interval"],
+            )
+        raise
 
 
 def _screening_sort_key(record: dict[str, Any]) -> tuple[str, str, str, str]:
@@ -116,9 +163,11 @@ def execute_screening_candidate_samples(
     budget_seconds: int,
     strategy_samples: Iterable[tuple[dict[str, Any], Any]],
     samples_total: int,
+    resume_state: CandidateResumeState | None = None,
     now_source: Callable[[], datetime] | None = None,
     monotonic_source: Callable[[], float] | None = None,
     on_progress: Callable[[dict[str, int]], None] | None = None,
+    on_checkpoint: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> dict[str, Any]:
     now = now_source or _utc_now
     monotonic = monotonic_source or time.monotonic
@@ -168,18 +217,32 @@ def execute_screening_candidate_samples(
             "reason_detail": None,
         }
 
-    sample_results: list[dict[str, Any]] = []
+    sample_results = [dict(item) for item in (resume_state.completed_samples if resume_state is not None else ())]
+    active_sample_index = resume_state.active_sample_index if resume_state is not None else None
+    active_snapshot = resume_state.active_snapshot if resume_state is not None else None
 
-    for sample_index, (_params, strategy_callable) in enumerate(strategy_samples, start=1):
+    for sample_index, (_params, strategy_callable) in enumerate(strategy_samples):
+        if sample_index < len(sample_results):
+            continue
         if _remaining_budget_seconds(monotonic, deadline_monotonic) <= 0:
             return _timed_out_outcome(samples_completed=len(sample_results))
 
         try:
-            metrics = engine.run(
-                strategy_callable,
-                assets=[candidate["asset"]],
-                interval=candidate["interval"],
+            metrics = _run_engine_sample(
+                engine=engine,
+                strategy_callable=strategy_callable,
+                candidate=candidate,
+                deadline_monotonic=deadline_monotonic,
+                resume_snapshot=active_snapshot if active_sample_index == sample_index else None,
             )
+        except EngineInterrupted as exc:
+            raise ScreeningCandidateInterrupted(
+                completed_samples=sample_results,
+                active_sample_index=sample_index,
+                engine_snapshot=exc.snapshot,
+            ) from exc
+        except EngineResumeInvalid as exc:
+            raise ScreeningResumeStateInvalid(str(exc)) from exc
         except Exception as exc:
             elapsed_seconds = _elapsed_seconds(monotonic, started_at_monotonic)
             return {
@@ -213,6 +276,8 @@ def execute_screening_candidate_samples(
                 sample_results.append({"status": SCREENING_REJECTED, "reason": "screening_criteria_not_met"})
             else:
                 sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
+        if on_checkpoint is not None:
+            on_checkpoint(sample_results)
 
         if _remaining_budget_seconds(monotonic, deadline_monotonic) <= 0:
             return _timed_out_outcome(samples_completed=len(sample_results))
@@ -221,7 +286,7 @@ def execute_screening_candidate_samples(
             on_progress(
                 {
                     "elapsed_seconds": _elapsed_seconds(monotonic, started_at_monotonic),
-                    "samples_completed": sample_index,
+                    "samples_completed": len(sample_results),
                     "samples_total": samples_total,
                 }
             )
@@ -254,9 +319,11 @@ def execute_screening_candidate(
     engine: Any,
     budget_seconds: int,
     max_samples: int,
+    resume_state: CandidateResumeState | None = None,
     now_source: Callable[[], datetime] | None = None,
     monotonic_source: Callable[[], float] | None = None,
     on_progress: Callable[[dict[str, int]], None] | None = None,
+    on_checkpoint: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> dict[str, Any]:
     sampled_params = screening_param_samples(strategy.get("params") or {}, max_samples=max_samples)
     return execute_screening_candidate_samples(
@@ -265,7 +332,9 @@ def execute_screening_candidate(
         budget_seconds=budget_seconds,
         strategy_samples=((params, strategy["factory"](**params)) for params in sampled_params),
         samples_total=len(sampled_params),
+        resume_state=resume_state,
         now_source=now_source,
         monotonic_source=monotonic_source,
         on_progress=on_progress,
+        on_checkpoint=on_checkpoint,
     )
