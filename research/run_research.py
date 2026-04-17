@@ -1912,7 +1912,34 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False):
                             max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
                             engine_class=BacktestEngine,
                             on_progress=_on_screening_progress,
+                            run_id=state["run_id"],
+                            resume_run_id=resumed_from_run_id,
+                            batch_id=str(batch["batch_id"]),
+                            history_root=Path("research/history"),
                         )
+                        if isolated_result["execution_state"] == "interrupted":
+                            runtime_record["elapsed_seconds"] = int(isolated_result.get("elapsed_seconds") or 0)
+                            runtime_record["samples_total"] = int(isolated_result.get("samples_total") or 0)
+                            runtime_record["samples_completed"] = int(isolated_result.get("samples_completed") or 0)
+                            screening_payload = _persist_screening_candidate_sidecar(
+                                run_id=state["run_id"],
+                                as_of_utc=as_of_utc,
+                                screening_records=screening_records,
+                            )
+                            batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
+                            _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
+                            _write_batch_manifest(run_id=state["run_id"], batch=batch)
+                            _persist_campaign_artifacts(
+                                run_id=state["run_id"],
+                                started_at=state["started_at_utc"],
+                                batches=batches,
+                                candidate_payload=candidate_payload,
+                                screening_payload=screening_payload,
+                                **campaign_kwargs,
+                            )
+                            raise KeyboardInterrupt(
+                                f"screening candidate interrupted for {candidate['candidate_id']}"
+                            )
                         outcome = dict(isolated_result["outcome"])
                     except Exception as exc:
                         outcome = {
