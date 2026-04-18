@@ -31,13 +31,14 @@ def candidate_resume_state_path(
     batch_id: str,
     candidate_id: str,
 ) -> Path:
+    candidate_key = hashlib.sha256(str(candidate_id).encode("utf-8")).hexdigest()[:16]
     return (
         history_root
         / run_id
         / "batches"
         / batch_id
         / RESUME_STATE_DIRNAME
-        / f"{candidate_id}{RESUME_STATE_FILENAME_SUFFIX}"
+        / f"{candidate_key}{RESUME_STATE_FILENAME_SUFFIX}"
     )
 
 
@@ -245,7 +246,7 @@ def _parse_engine_snapshot(payload: Any) -> EngineExecutionSnapshot | None:
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(f"{path.suffix}.{os.getpid()}.tmp")
+    tmp_path = path.parent / f".candidate-resume-{os.getpid()}.tmp"
     with tmp_path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=False)
     for attempt in range(3):

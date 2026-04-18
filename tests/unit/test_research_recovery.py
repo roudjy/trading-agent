@@ -9,6 +9,7 @@ import pytest
 
 from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
 from research import batch_execution as batch_execution_module
+from research.candidate_resume import candidate_resume_state_path
 from research import run_research as run_research_module
 from tests.unit.test_run_research_observability import _HealthyEngine, _patch_common_runner
 
@@ -35,6 +36,10 @@ class _RetryableFailureEngine(_HealthyEngine):
         return super().grid_search(strategie_factory, param_grid, assets, interval=interval)
 
 
+class _ForcedValidationInterrupt(BaseException):
+    pass
+
+
 class _InterruptibleValidationEngine(_HealthyEngine):
     interrupt_strategies: set[str] = set()
 
@@ -42,7 +47,7 @@ class _InterruptibleValidationEngine(_HealthyEngine):
         built = strategie_factory()
         strategy_name = getattr(built, "name_hint", "unknown")
         if strategy_name in _InterruptibleValidationEngine.interrupt_strategies:
-            raise KeyboardInterrupt(f"forced interrupt for {strategy_name}")
+            raise _ForcedValidationInterrupt(f"forced interrupt for {strategy_name}")
         return super().grid_search(strategie_factory, param_grid, assets, interval=interval)
 
 
@@ -146,7 +151,7 @@ def test_resume_recovers_stale_running_validation_batch_with_new_run_id(monkeypa
     _set_multi_batch_strategies(monkeypatch)
     _InterruptibleValidationEngine.interrupt_strategies = {"omega_strategy"}
 
-    with pytest.raises(KeyboardInterrupt, match="forced interrupt for omega_strategy"):
+    with pytest.raises(_ForcedValidationInterrupt, match="forced interrupt for omega_strategy"):
         run_research_module.run_research()
 
     stale_state = _load_json(workspace_tmp_path / "research" / "run_state.v1.json")
@@ -195,15 +200,11 @@ def test_resume_recovers_stale_running_screening_batch_from_candidate_sidecar(mo
     screening_payload = _load_json(workspace_tmp_path / "research" / "run_screening_candidates_latest.v1.json")
     first_run_id = stale_state["run_id"]
     candidate_id = screening_payload["candidates"][0]["candidate_id"]
-    sidecar_path = (
-        workspace_tmp_path
-        / "research"
-        / "history"
-        / first_run_id
-        / "batches"
-        / stale_batches["batches"][0]["batch_id"]
-        / "candidate_resume"
-        / f"{candidate_id}.v1.json"
+    sidecar_path = candidate_resume_state_path(
+        history_root=workspace_tmp_path / "research" / "history",
+        run_id=first_run_id,
+        batch_id=stale_batches["batches"][0]["batch_id"],
+        candidate_id=candidate_id,
     )
 
     assert stale_state["status"] == "running"
@@ -248,15 +249,11 @@ def test_continue_latest_recovers_stale_running_screening_batch_from_candidate_s
     screening_payload = _load_json(workspace_tmp_path / "research" / "run_screening_candidates_latest.v1.json")
     first_run_id = stale_state["run_id"]
     candidate_id = screening_payload["candidates"][0]["candidate_id"]
-    sidecar_path = (
-        workspace_tmp_path
-        / "research"
-        / "history"
-        / first_run_id
-        / "batches"
-        / stale_batches["batches"][0]["batch_id"]
-        / "candidate_resume"
-        / f"{candidate_id}.v1.json"
+    sidecar_path = candidate_resume_state_path(
+        history_root=workspace_tmp_path / "research" / "history",
+        run_id=first_run_id,
+        batch_id=stale_batches["batches"][0]["batch_id"],
+        candidate_id=candidate_id,
     )
 
     assert sidecar_path.exists()
@@ -316,3 +313,20 @@ def test_continue_latest_fails_closed_for_process_pool_screening_continuation(mo
 
     with pytest.raises(RuntimeError, match="does not support screening continuation with execution_mode=process_pool"):
         run_research_module.run_research(continue_latest=True)
+
+
+def test_manual_resume_fails_closed_for_process_pool_screening_continuation(monkeypatch, workspace_tmp_path: Path):
+    _patch_common_runner(monkeypatch, workspace_tmp_path, _InterruptibleScreeningEngine)
+
+    with pytest.raises(KeyboardInterrupt, match="screening candidate interrupted"):
+        run_research_module.run_research()
+
+    monkeypatch.setattr("research.run_state._pid_is_live", lambda pid: False)
+    monkeypatch.setattr(
+        run_research_module,
+        "load_research_config",
+        lambda config_path="config/config.yaml": {"execution": {"max_workers": 2}},
+    )
+
+    with pytest.raises(RuntimeError, match="resume does not support screening continuation with execution_mode=process_pool"):
+        run_research_module.run_research(resume=True)
