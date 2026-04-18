@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
 from research.candidate_pipeline import SCREENING_PROMOTED
+from research.candidate_resume import candidate_resume_state_path
 from research.screening_process import execute_screening_candidate_isolated
 
 
@@ -125,13 +126,11 @@ def _candidate() -> dict:
 
 
 def _resume_path(history_root: Path, run_id: str) -> Path:
-    return (
-        history_root
-        / run_id
-        / "batches"
-        / "batch-1"
-        / "candidate_resume"
-        / "candidate-1.v1.json"
+    return candidate_resume_state_path(
+        history_root=history_root,
+        run_id=run_id,
+        batch_id="batch-1",
+        candidate_id="candidate-1",
     )
 
 

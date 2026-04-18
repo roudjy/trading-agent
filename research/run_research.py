@@ -54,7 +54,10 @@ from research.empty_run_reporting import (
     build_empty_run_diagnostics_payload,
 )
 from research.observability import ProgressTracker
-from research.orchestration_policy import resolve_continue_latest_policy
+from research.orchestration_policy import (
+    resolve_continue_latest_policy,
+    validate_continuation_compatibility,
+)
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -1508,6 +1511,17 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
         previous_run_artifacts = _load_previous_run_artifacts()
         if isinstance(previous_run_artifacts.get("manifest"), dict):
             requested_resumed_from_run_id = str(previous_run_artifacts["manifest"].get("run_id") or "") or None
+        preview_research_config = load_research_config()
+        preview_execution_settings = _resolve_execution_settings(preview_research_config)
+        compatibility = validate_continuation_compatibility(
+            state_payload=previous_run_artifacts.get("state"),
+            manifest_payload=previous_run_artifacts.get("manifest"),
+            batches_payload=previous_run_artifacts.get("batches"),
+            retry_failed_batches=retry_failed_batches,
+            execution_mode=str(preview_execution_settings["execution_mode"]),
+            context_label="resume",
+        )
+        requested_resumed_from_run_id = compatibility.get("source_run_id")
     state = lifecycle.start_run(
         progress_path=RUN_PROGRESS_PATH,
         manifest_path=RUN_MANIFEST_PATH,
