@@ -311,7 +311,7 @@ def test_no_duplicate_window_ids_in_progress_after_resume() -> None:
     captured: dict[str, EngineRunProgress] = {}
     original_finalize = BacktestEngine._run_phase_finalize_result
 
-    def capturing_finalize(self_inner, *, asset_contexts, is_summary, oos_summary, stop_control, progress):
+    def capturing_finalize(self_inner, *, asset_contexts, is_summary, oos_summary, stop_control, progress, strategie_func):
         captured["progress"] = progress
         return original_finalize(
             self_inner,
@@ -320,6 +320,7 @@ def test_no_duplicate_window_ids_in_progress_after_resume() -> None:
             oos_summary=oos_summary,
             stop_control=stop_control,
             progress=progress,
+            strategie_func=strategie_func,
         )
 
     with patch.object(BacktestEngine, "_run_phase_finalize_result", capturing_finalize):
