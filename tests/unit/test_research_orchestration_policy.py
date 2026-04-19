@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from research.integrity import ArtifactIntegrityError
 from research.orchestration_policy import (
     CONTINUE_LATEST_ACTION_FRESH,
     CONTINUE_LATEST_ACTION_RESUME,
@@ -144,7 +145,7 @@ def test_validate_continuation_compatibility_fails_closed_for_manual_process_poo
 def test_validate_continuation_compatibility_fails_closed_for_incomplete_artifacts():
     state, manifest, _ = _artifacts()
 
-    with pytest.raises(RuntimeError, match="resume requested but latest run artifacts are incomplete or inconsistent"):
+    with pytest.raises(ArtifactIntegrityError, match="ARTIFACT_INCOMPLETE") as excinfo:
         validate_continuation_compatibility(
             state_payload=state,
             manifest_payload=manifest,
@@ -153,6 +154,24 @@ def test_validate_continuation_compatibility_fails_closed_for_incomplete_artifac
             execution_mode="inline",
             context_label="resume",
         )
+    assert excinfo.value.reason_code == "ARTIFACT_INCOMPLETE"
+
+
+def test_validate_continuation_compatibility_fails_closed_for_runid_mismatch():
+    state = {"run_id": "run-a", "status": "aborted", "pid": 123}
+    manifest = {"run_id": "run-b", "status": "aborted"}
+    batches = {"run_id": "run-a", "batches": [{"batch_id": "batch-1", "status": "pending"}]}
+
+    with pytest.raises(ArtifactIntegrityError, match="ARTIFACT_RUNID_MISMATCH") as excinfo:
+        validate_continuation_compatibility(
+            state_payload=state,
+            manifest_payload=manifest,
+            batches_payload=batches,
+            retry_failed_batches=False,
+            execution_mode="inline",
+            context_label="resume",
+        )
+    assert excinfo.value.reason_code == "ARTIFACT_RUNID_MISMATCH"
 
 
 def test_validate_continuation_compatibility_fails_closed_for_completed_run_with_nonterminal_batches():

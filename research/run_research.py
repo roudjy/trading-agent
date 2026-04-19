@@ -24,6 +24,7 @@ from agent.backtesting.engine import (
     FoldLeakageError,
     normalize_evaluation_config,
 )
+from agent.backtesting.features import FEATURE_VERSION
 from research.candidate_pipeline import (
     SCREENING_PROMOTED,
     apply_eligibility,
@@ -38,6 +39,18 @@ from research.candidate_pipeline import (
     summarize_candidates,
     validation_candidates,
 )
+from research.falsification import (
+    check_corrected_significance,
+    check_fee_drag_ratio,
+    check_low_trade_count,
+    check_oos_collapse,
+)
+from research.falsification_reporting import (
+    build_candidate_gate_record,
+    build_falsification_payload,
+)
+from research.integrity import IntegrityCheck, IntegrityReport
+from research.integrity_reporting import build_integrity_report_payload
 from research.batching import (
     build_batch_manifest_payload,
     build_run_batches_payload,
@@ -102,12 +115,17 @@ RUN_CAMPAIGN_PROGRESS_PATH = Path("research/run_campaign_progress_latest.v1.json
 RUN_PROGRESS_PATH = Path("research/run_progress_latest.v1.json")
 RUN_STATE_PATH = Path("research/run_state.v1.json")
 RUN_MANIFEST_PATH = Path("research/run_manifest_latest.v1.json")
+INTEGRITY_REPORT_PATH = Path("research/integrity_report_latest.v1.json")
+FALSIFICATION_GATES_PATH = Path("research/falsification_gates_latest.v1.json")
 RUN_LOG_DIR = Path("logs/research")
 RUN_HEARTBEAT_TIMEOUT_S = 300
 SCREENING_PARAM_SAMPLE_LIMIT = 3
 DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS = 60
 DEFAULT_EXECUTION_MAX_WORKERS = 1
 BATCH_EXECUTOR_CLASS = ProcessPoolExecutor
+
+EVALUATION_VERSION = "1.0"
+DEFAULT_COST_PER_SIDE = 0.0035
 
 
 def load_research_config(config_path="config/config.yaml"):
@@ -355,6 +373,101 @@ def _write_portfolio_aggregation_sidecar(
     _write_json_atomic(path, payload)
 
 
+def _write_integrity_report_sidecar(
+    *,
+    run_id: str,
+    as_of_utc: datetime,
+    research_config: dict,
+    provenance_events: list,
+    integrity_checks: list,
+    path: Path = INTEGRITY_REPORT_PATH,
+) -> dict:
+    report = IntegrityReport(checks=list(integrity_checks))
+    payload = build_integrity_report_payload(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        config_hash=_config_hash(research_config, provenance_events),
+        git_revision=_git_revision(),
+        feature_version=FEATURE_VERSION,
+        evaluation_version=EVALUATION_VERSION,
+        report=report,
+    )
+    _write_json_with_history(
+        path=path,
+        payload=payload,
+        run_id=run_id,
+        history_name="integrity_report.v1.json",
+    )
+    return payload
+
+
+def _write_falsification_gates_sidecar(
+    *,
+    run_id: str,
+    as_of_utc: datetime,
+    rows: list[dict],
+    walk_forward_reports: list[dict],
+    statistical_defensibility: dict | None,
+    cost_per_side: float,
+    path: Path = FALSIFICATION_GATES_PATH,
+) -> dict:
+    wf_index: dict[tuple[str, str, str], dict] = {
+        (str(entry["strategy_name"]), str(entry["asset"]), str(entry["interval"])): entry
+        for entry in walk_forward_reports
+    }
+    def_index: dict[tuple[str, str, str], dict] = {}
+    if isinstance(statistical_defensibility, dict):
+        for family_entry in statistical_defensibility.get("families", []) or []:
+            interval = str(family_entry.get("interval") or "")
+            for member in family_entry.get("members", []) or []:
+                def_index[(str(member["strategy_name"]), str(member["asset"]), interval)] = member
+
+    candidate_records: list[dict] = []
+    for row in rows:
+        if not row.get("success", False):
+            continue
+        strategy_name = str(row["strategy_name"])
+        asset = str(row["asset"])
+        interval = str(row["interval"])
+        key = (strategy_name, asset, interval)
+        wf_entry = wf_index.get(key)
+        if wf_entry is None:
+            continue
+        selected_params = json.loads(row.get("params_json") or "{}")
+        oos_summary = wf_entry.get("oos_summary") or {}
+        is_summary = wf_entry.get("is_summary") or {}
+        defensibility = def_index.get(key)
+        verdicts = [
+            check_low_trade_count(oos_summary),
+            check_oos_collapse(is_summary, oos_summary),
+            check_fee_drag_ratio(oos_summary, cost_per_side=cost_per_side),
+            check_corrected_significance(defensibility),
+        ]
+        candidate_records.append(
+            build_candidate_gate_record(
+                strategy_name=strategy_name,
+                asset=asset,
+                interval=interval,
+                selected_params=selected_params,
+                sizing_regime="fixed_unit",
+                verdicts=verdicts,
+            )
+        )
+
+    payload = build_falsification_payload(
+        run_id=run_id,
+        as_of_utc=as_of_utc,
+        candidate_records=sorted(candidate_records, key=lambda item: str(item["candidate_id"])),
+    )
+    _write_json_with_history(
+        path=path,
+        payload=payload,
+        run_id=run_id,
+        history_name="falsification_gates.v1.json",
+    )
+    return payload
+
+
 def _write_regime_diagnostics_sidecar(
     *,
     evaluations: list[dict],
@@ -496,6 +609,8 @@ def _build_run_manifest_payload(
         "status": "running",
         "git_revision": _git_revision(),
         "config_hash": _config_hash(research_config, []),
+        "feature_version": FEATURE_VERSION,
+        "evaluation_version": EVALUATION_VERSION,
         "lifecycle_mode": lifecycle_mode,
         "resumed_from_run_id": resumed_from_run_id,
         "retry_failed_batches": bool(retry_failed_batches),
@@ -1547,6 +1662,7 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
     interval_ranges: dict[str, dict[str, str]] = {}
     candidates: list[dict] = []
     batches: list[dict] = []
+    integrity_checks: list[IntegrityCheck] = []
     candidate_payload: dict | None = None
     screening_payload: dict | None = None
     lifecycle_mode = "resume" if resume else "fresh"
@@ -1655,6 +1771,7 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
             candidates=candidates,
             readiness_by_pair=index_readiness(pair_diagnostics),
             universe_symbols={asset.symbol if hasattr(asset, "symbol") else str(asset) for asset in assets},
+            integrity_checks=integrity_checks,
         )
         candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
@@ -2612,6 +2729,36 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
             research_config=research_config,
             evaluation_config=evaluation_config,
             provenance_events=provenance_events,
+        )
+        _write_integrity_report_sidecar(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            research_config=research_config,
+            provenance_events=provenance_events,
+            integrity_checks=integrity_checks,
+        )
+        tracker.emit_event(
+            "integrity_report_written",
+            path=INTEGRITY_REPORT_PATH.as_posix(),
+            check_count=len(integrity_checks),
+        )
+        statistical_defensibility_payload: dict | None = None
+        if SIDE_CAR_PATH.exists():
+            statistical_defensibility_payload = json.loads(
+                SIDE_CAR_PATH.read_text(encoding="utf-8")
+            )
+        falsification_payload = _write_falsification_gates_sidecar(
+            run_id=state["run_id"],
+            as_of_utc=as_of_utc,
+            rows=rows,
+            walk_forward_reports=walk_forward_reports,
+            statistical_defensibility=statistical_defensibility_payload,
+            cost_per_side=DEFAULT_COST_PER_SIDE,
+        )
+        tracker.emit_event(
+            "falsification_gates_written",
+            path=FALSIFICATION_GATES_PATH.as_posix(),
+            candidate_count=len(falsification_payload.get("candidates") or []),
         )
         tracker.mark_stage_completed(results_written=len(rows))
         tracker.complete()
