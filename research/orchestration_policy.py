@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from research import run_state as run_state_module
+from research.integrity import ArtifactIntegrityError, check_artifact_integrity
 from research.run_state import ActiveResearchRunError
 
 
@@ -34,16 +35,23 @@ def validate_continuation_compatibility(
     execution_mode: str,
     context_label: str,
 ) -> dict[str, Any]:
+    artifact_check = check_artifact_integrity(
+        state_payload=state_payload,
+        manifest_payload=manifest_payload,
+        batches_payload=batches_payload,
+    )
+    if not artifact_check.passed:
+        reason_code = str(artifact_check.reason_code or "ARTIFACT_INCOMPLETE")
+        raise ArtifactIntegrityError(
+            f"{context_label} refused: artifact integrity check failed ({reason_code}) "
+            f"details={artifact_check.details}",
+            reason_code=reason_code,
+        )
+
     state_run_id = _run_id(state_payload)
     manifest_run_id = _run_id(manifest_payload)
     batches_run_id = _run_id(batches_payload)
     run_ids = {run_id for run_id in (state_run_id, manifest_run_id, batches_run_id) if run_id is not None}
-
-    if not run_ids:
-        raise RuntimeError(f"{context_label} requested but latest run artifacts are missing")
-
-    if len(run_ids) != 1 or not isinstance(state_payload, dict) or not isinstance(manifest_payload, dict) or not isinstance(batches_payload, dict):
-        raise RuntimeError(f"{context_label} requested but latest run artifacts are incomplete or inconsistent")
 
     source_run_id = next(iter(run_ids))
     run_status = str(state_payload.get("status") or manifest_payload.get("status") or "").strip()

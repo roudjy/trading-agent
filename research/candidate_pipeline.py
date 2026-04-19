@@ -243,7 +243,24 @@ def apply_eligibility(
     candidates: list[dict[str, Any]],
     readiness_by_pair: dict[tuple[str, str], dict[str, Any]],
     universe_symbols: set[str],
+    integrity_checks: list[Any] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Mark candidates as eligible / rejected; optionally collect IntegrityCheck evidence.
+
+    Single-gate design per v3.5 plan: strategy-applicability and
+    feature-completeness checks land alongside the existing universe /
+    readiness checks so there is still exactly one eligibility pass.
+    When `integrity_checks` is provided, this function appends typed
+    IntegrityCheck records for every candidate decision. The existing
+    rejection_reasons string taxonomy is preserved so downstream
+    empty_run_diagnostics remains lossless.
+    """
+    from research.integrity import (
+        FEATURE_INCOMPLETE,
+        STRATEGY_NOT_APPLICABLE,
+    )
+    from research.integrity_reporting import make_eligibility_integrity_check
+
     updated: list[dict[str, Any]] = []
     rejection_reasons: Counter[str] = Counter()
     eligible_count = 0
@@ -252,20 +269,42 @@ def apply_eligibility(
     for candidate in sorted(candidates, key=_candidate_sort_key):
         item = copy.deepcopy(candidate)
         if item["fit_prior"]["status"] == FIT_BLOCKED:
+            if integrity_checks is not None:
+                integrity_checks.append(
+                    make_eligibility_integrity_check(
+                        strategy_name=str(item.get("strategy_name") or "unknown"),
+                        asset=str(item.get("asset") or "unknown"),
+                        interval=str(item.get("interval") or "unknown"),
+                        passed=False,
+                        reason_code=STRATEGY_NOT_APPLICABLE,
+                        extras={
+                            "eligibility_reason": "fit_prior_blocked",
+                            "fit_prior_reason": item["fit_prior"].get("reason"),
+                        },
+                    )
+                )
             updated.append(item)
             continue
 
         reason: str | None = None
+        integrity_reason: str | None = None
         if not item.get("strategy_name") or not item.get("asset") or not item.get("interval"):
             reason = "invalid_candidate_shape"
+            integrity_reason = FEATURE_INCOMPLETE
         elif item["asset"] not in universe_symbols:
             reason = "universe_membership_mismatch"
+            integrity_reason = STRATEGY_NOT_APPLICABLE
+        elif item.get("initial_lane_support") == BLOCKED_INITIAL_LANE:
+            reason = "strategy_not_applicable"
+            integrity_reason = STRATEGY_NOT_APPLICABLE
         else:
             readiness = readiness_by_pair.get((str(item["asset"]), str(item["interval"])))
             if readiness is None:
                 reason = "invalid_asset_interval"
+                integrity_reason = FEATURE_INCOMPLETE
             elif readiness.get("status") != "evaluable":
                 reason = str(readiness.get("drop_reason") or "invalid_asset_interval")
+                integrity_reason = FEATURE_INCOMPLETE
 
         if reason is None:
             item["eligibility"] = {"status": "eligible", "reason": None}
@@ -275,6 +314,18 @@ def apply_eligibility(
             item["current_status"] = "eligibility_rejected"
             rejected_count += 1
             rejection_reasons[reason] += 1
+
+        if integrity_checks is not None:
+            integrity_checks.append(
+                make_eligibility_integrity_check(
+                    strategy_name=str(item.get("strategy_name") or "unknown"),
+                    asset=str(item.get("asset") or "unknown"),
+                    interval=str(item.get("interval") or "unknown"),
+                    passed=reason is None,
+                    reason_code=integrity_reason,
+                    extras={"eligibility_reason": reason},
+                )
+            )
         updated.append(item)
 
     return updated, {
