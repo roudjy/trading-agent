@@ -13,7 +13,15 @@ from typing import Any, Callable, Optional
 import numpy as np
 import pandas as pd
 
+from agent.backtesting.features import FEATURE_VERSION
 from agent.backtesting.regime import UNKNOWN, build_regime_frame, normalize_regime_config
+from agent.backtesting.sizing import SIZING_REGIME_FIXED_UNIT, resolve_sizing_spec
+from agent.backtesting.thin_strategy import (
+    THIN_CONTRACT_VERSION,
+    build_features_for,
+    is_thin_strategy,
+    validate_thin_strategy_output,
+)
 from data.contracts import Instrument
 from data.repository import DataUnavailableError, MarketRepository
 
@@ -398,6 +406,7 @@ class BacktestEngine:
             oos_summary=oos_summary,
             stop_control=stop_control,
             progress=progress,
+            strategie_func=strategie_func,
         )
 
     def _run_phase_load_asset_contexts(
@@ -463,6 +472,7 @@ class BacktestEngine:
         oos_summary: dict[str, Any],
         stop_control: EngineStopControl,
         progress: EngineRunProgress,
+        strategie_func: Callable,
     ) -> dict[str, Any]:
         progress.checkpoint(phase="finalize_result", asset_index=None, fold_index=None)
         self._raise_if_interrupted(stop_control=stop_control, progress=progress)
@@ -476,6 +486,7 @@ class BacktestEngine:
             is_summary=is_summary,
             oos_summary=oos_summary,
             selection_metric=self.evaluation_config["selection_metric"],
+            strategie_func=strategie_func,
         )
         return result
 
@@ -554,6 +565,7 @@ class BacktestEngine:
             is_summary=is_summary,
             oos_summary=oos_summary,
             selection_metric=selection_metric,
+            strategie_func=frozen_strategy,
         )
         return result
 
@@ -819,6 +831,7 @@ class BacktestEngine:
         is_summary: dict[str, Any],
         oos_summary: dict[str, Any],
         selection_metric: str,
+        strategie_func: Optional[Callable] = None,
     ) -> dict[str, Any]:
         folds_by_asset = {
             context.asset: self._serialize_folds(context.folds)
@@ -830,6 +843,12 @@ class BacktestEngine:
             for fold in folds
         )
         evaluation_samples = dict(self._last_window_samples)
+        thin = strategie_func is not None and is_thin_strategy(strategie_func)
+        sizing_spec = (
+            getattr(strategie_func, "_sizing_spec", None)
+            if strategie_func is not None
+            else None
+        )
         report: dict[str, Any] = {
             "evaluation_config": dict(self.evaluation_config),
             "selection_metric": selection_metric,
@@ -844,6 +863,9 @@ class BacktestEngine:
                 name: self._sample_statistics(values)
                 for name, values in evaluation_samples.items()
             },
+            "feature_version": FEATURE_VERSION,
+            "thin_contract_version": THIN_CONTRACT_VERSION if thin else None,
+            "sizing_regime": resolve_sizing_spec(sizing_spec),
         }
         if len(folds_by_asset) == 1:
             report["folds"] = next(iter(folds_by_asset.values()))
@@ -1031,7 +1053,7 @@ class BacktestEngine:
         df = self._prepare_bollinger_regime_df(df, strategie_func)
         sig = self._prepare_trend_pullback_tp_sl_sig(df, strategie_func)
         if sig is None:
-            sig = strategie_func(df)
+            sig = self._invoke_strategy(df, strategie_func)
         df["sig"] = sig.shift(1).fillna(0)
 
         trade_pnls: list[float] = []
@@ -1091,6 +1113,37 @@ class BacktestEngine:
         ]
         maand_returns = self._maand_returns(pd.Series(equity_serie, dtype=float), df)
         return trade_pnls, dag_returns, maand_returns, trade_events
+
+    def _invoke_strategy(self, df: pd.DataFrame, strategie_func: Callable) -> pd.Series:
+        """Single call site for strategy invocation.
+
+        Routes legacy `func(df)` strategies and thin `func(df, features)`
+        strategies through one branch. Thin strategies are detected via
+        a single hasattr check on `_thin_contract_version`; when present
+        the engine resolves their feature requirements at fold boundary
+        via build_features_for, then hands the frame and the resolved
+        feature mapping to the strategy. Sizing hook (`_sizing_spec`) is
+        scaffolding-only in v3.5: no Tier 1 strategy opts in, so the
+        legacy ±1 path downstream is preserved bytewise.
+        """
+        if is_thin_strategy(strategie_func):
+            features = build_features_for(
+                strategie_func._feature_requirements,  # type: ignore[attr-defined]
+                df,
+            )
+            sig = strategie_func(df, features)
+            validate_thin_strategy_output(sig, df.index)
+            sizing_spec = getattr(strategie_func, "_sizing_spec", None)
+            if sizing_spec is not None:
+                regime = resolve_sizing_spec(sizing_spec)
+                if regime != SIZING_REGIME_FIXED_UNIT:
+                    raise NotImplementedError(
+                        "engine: non fixed_unit sizing regime requested "
+                        f"({regime}) but no v3.5 strategy opts in; this "
+                        "path lands in a later phase"
+                    )
+            return sig
+        return strategie_func(df)
 
     def _prepare_bollinger_regime_df(self, df: pd.DataFrame, strategie_func: Callable) -> pd.DataFrame:
         """Precompute regime gating only for bollinger_regime."""
