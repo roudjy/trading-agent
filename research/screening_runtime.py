@@ -67,22 +67,33 @@ def _run_engine_sample(
     deadline_monotonic: float,
     resume_snapshot: Any,
 ):
+    requirements = candidate.get("strategy_requirements") or {}
+    reference_asset = requirements.get("reference_asset")
+    run_kwargs: dict[str, Any] = {
+        "assets": [candidate["asset"]],
+        "interval": candidate["interval"],
+        "deadline_monotonic": deadline_monotonic,
+        "resume_snapshot": resume_snapshot,
+    }
+    if reference_asset:
+        run_kwargs["reference_asset"] = reference_asset
     try:
-        return engine.run(
-            strategy_callable,
-            assets=[candidate["asset"]],
-            interval=candidate["interval"],
-            deadline_monotonic=deadline_monotonic,
-            resume_snapshot=resume_snapshot,
-        )
+        return engine.run(strategy_callable, **run_kwargs)
     except TypeError as exc:
         message = str(exc)
-        if "resume_snapshot" in message or "deadline_monotonic" in message:
-            return engine.run(
-                strategy_callable,
-                assets=[candidate["asset"]],
-                interval=candidate["interval"],
-            )
+        unexpected = (
+            "resume_snapshot" in message
+            or "deadline_monotonic" in message
+            or "reference_asset" in message
+        )
+        if unexpected:
+            fallback_kwargs: dict[str, Any] = {
+                "assets": [candidate["asset"]],
+                "interval": candidate["interval"],
+            }
+            if reference_asset and "reference_asset" not in message:
+                fallback_kwargs["reference_asset"] = reference_asset
+            return engine.run(strategy_callable, **fallback_kwargs)
         raise
 
 

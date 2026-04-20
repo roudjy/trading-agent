@@ -93,24 +93,33 @@ def plan_candidates(
         combination_count = count_param_combinations(strategy)
         position_structure = str(strategy.get("position_structure") or POSITION_OUTRIGHT)
         initial_lane_support = str(strategy.get("initial_lane_support") or SUPPORTED_INITIAL_LANE)
+        reference_asset_raw = strategy.get("reference_asset")
+        reference_asset = str(reference_asset_raw) if reference_asset_raw else None
 
         for interval in sorted(str(interval) for interval in intervals):
             for asset in sorted(assets, key=lambda entry: _asset_metadata(entry)[0]):
                 symbol, asset_type, asset_class = _asset_metadata(asset)
+                id_payload: dict[str, Any] = {
+                    "strategy_name": strategy_name,
+                    "strategy_family": strategy_family,
+                    "asset": symbol,
+                    "asset_type": asset_type,
+                    "asset_class": asset_class,
+                    "interval": interval,
+                    "param_grid_hash": param_grid_hash,
+                    "position_structure": position_structure,
+                    "initial_lane_support": initial_lane_support,
+                }
+                if reference_asset is not None:
+                    id_payload["reference_asset"] = reference_asset
+                requirements: dict[str, Any] = {
+                    "position_structure": position_structure,
+                    "initial_lane_support": initial_lane_support,
+                }
+                if reference_asset is not None:
+                    requirements["reference_asset"] = reference_asset
                 candidate = {
-                    "candidate_id": _hash_payload(
-                        {
-                            "strategy_name": strategy_name,
-                            "strategy_family": strategy_family,
-                            "asset": symbol,
-                            "asset_type": asset_type,
-                            "asset_class": asset_class,
-                            "interval": interval,
-                            "param_grid_hash": param_grid_hash,
-                            "position_structure": position_structure,
-                            "initial_lane_support": initial_lane_support,
-                        }
-                    ),
+                    "candidate_id": _hash_payload(id_payload),
                     "current_status": "planned",
                     "strategy_name": strategy_name,
                     "family": str(strategy["family"]),
@@ -123,10 +132,7 @@ def plan_candidates(
                         "param_grid_hash": param_grid_hash,
                         "combination_count": int(combination_count),
                     },
-                    "strategy_requirements": {
-                        "position_structure": position_structure,
-                        "initial_lane_support": initial_lane_support,
-                    },
+                    "strategy_requirements": requirements,
                     "fit_prior": {
                         "status": "pending",
                         "reason": None,
@@ -188,7 +194,8 @@ def _normalized_asset_type(candidate: dict[str, Any]) -> str:
 def assess_fit_prior(candidate: dict[str, Any]) -> tuple[str, str]:
     requirements = candidate.get("strategy_requirements") or {}
     if requirements.get("position_structure") == POSITION_SPREAD:
-        return FIT_BLOCKED, "requires_spread_not_outright"
+        if not requirements.get("reference_asset"):
+            return FIT_BLOCKED, "requires_spread_not_outright"
     if requirements.get("initial_lane_support") == BLOCKED_INITIAL_LANE:
         return FIT_BLOCKED, "unsupported_for_initial_lane"
 
