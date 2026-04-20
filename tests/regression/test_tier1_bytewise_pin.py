@@ -34,7 +34,20 @@ from agent.backtesting.strategies import (
     sma_crossover_strategie,
     zscore_mean_reversion_strategie,
 )
+from agent.backtesting.thin_strategy import build_features_for, is_thin_strategy
 from tests._harness_helpers import build_ohlcv_frame, build_pairs_frame
+
+
+def _invoke(strategy, frame: pd.DataFrame) -> pd.Series:
+    """Mirror the engine's _invoke_strategy: route thin strategies through
+    build_features_for; legacy strategies keep the func(df) signature.
+    Tier 1 baselines moved to the thin contract in v3.5, so this branch
+    is what the bytewise pins actually exercise post-refactor.
+    """
+    if is_thin_strategy(strategy):
+        features = build_features_for(strategy._feature_requirements, frame)
+        return strategy(frame, features)
+    return strategy(frame)
 
 
 def _series_digest(sig: pd.Series) -> str:
@@ -88,7 +101,7 @@ def test_sma_crossover_bytewise_pin(fast: int, slow: int, expected: str) -> None
     frame = build_ohlcv_frame(length=SMA_OHLCV_LEN, seed=SMA_OHLCV_SEED)
     strategy = sma_crossover_strategie(fast_window=fast, slow_window=slow)
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     assert _series_digest(sig) == expected, (
         f"sma_crossover drift fast={fast} slow={slow} — "
@@ -107,7 +120,7 @@ def test_zscore_mean_reversion_bytewise_pin(
         lookback=lookback, entry_z=entry_z, exit_z=exit_z
     )
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     assert _series_digest(sig) == expected, (
         f"zscore_mean_reversion drift lookback={lookback} "
@@ -136,7 +149,7 @@ def test_pairs_zscore_bytewise_pin(
         hedge_ratio=hedge_ratio,
     )
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     assert _series_digest(sig) == expected, (
         f"pairs_zscore drift lookback={lookback} entry_z={entry_z} "
@@ -151,7 +164,7 @@ def test_sma_crossover_insufficient_bars_is_all_zero() -> None:
     frame = build_ohlcv_frame(length=50, seed=SMA_OHLCV_SEED)
     strategy = sma_crossover_strategie(fast_window=20, slow_window=50)
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     expected = "bb34a61c56d81faadb380a87e78e794c33e5e7efe36f9d7839ece3e3b90f4527"
     assert _series_digest(sig) == expected
@@ -163,7 +176,7 @@ def test_sma_crossover_fast_not_less_than_slow_is_all_zero() -> None:
     frame = build_ohlcv_frame(length=200, seed=SMA_OHLCV_SEED)
     strategy = sma_crossover_strategie(fast_window=50, slow_window=20)
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     assert int((sig != 0).sum()) == 0
     assert sig.dtype.name == "int64"
@@ -176,7 +189,7 @@ def test_zscore_mean_reversion_insufficient_bars_is_all_zero() -> None:
         lookback=20, entry_z=2.0, exit_z=0.5
     )
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     expected = "690abc53e164d170eb36eeca1e6ffb1931651e02feb3adc528bd4c0587c0a7d0"
     assert _series_digest(sig) == expected
@@ -190,24 +203,26 @@ def test_zscore_mean_reversion_invalid_band_is_all_zero() -> None:
         lookback=20, entry_z=0.5, exit_z=0.5
     )
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     assert int((sig != 0).sum()) == 0
     assert sig.dtype.name == "int64"
     assert sig.index.equals(frame.index)
 
 
-def test_pairs_zscore_missing_close_ref_is_all_zero() -> None:
+def test_pairs_zscore_missing_close_ref_raises_feature_error() -> None:
+    """Post-refactor semantics: missing close_ref is a feature
+    resolution failure (KeyError from build_features_for), not a
+    silent zero-signal. The integrity layer surfaces this as
+    FEATURE_INCOMPLETE upstream in apply_eligibility.
+    """
     frame = build_ohlcv_frame(length=200, seed=PAIRS_SEED)
     strategy = pairs_zscore_strategie(
         lookback=30, entry_z=2.0, exit_z=0.5, hedge_ratio=1.0
     )
 
-    sig = strategy(frame)
-
-    assert int((sig != 0).sum()) == 0
-    assert sig.dtype.name == "int64"
-    assert sig.index.equals(frame.index)
+    with pytest.raises(KeyError, match="close_ref"):
+        _invoke(strategy, frame)
 
 
 def test_pairs_zscore_insufficient_bars_is_all_zero() -> None:
@@ -216,7 +231,7 @@ def test_pairs_zscore_insufficient_bars_is_all_zero() -> None:
         lookback=30, entry_z=2.0, exit_z=0.5, hedge_ratio=1.0
     )
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     expected = "35d7521c986ed5a1cd08a64870089669ed1374b76de4bd889f5b047c6d82c79a"
     assert _series_digest(sig) == expected
@@ -230,7 +245,7 @@ def test_pairs_zscore_invalid_band_is_all_zero() -> None:
         lookback=30, entry_z=0.5, exit_z=0.5, hedge_ratio=1.0
     )
 
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     assert int((sig != 0).sum()) == 0
     assert sig.dtype.name == "int64"
@@ -241,8 +256,8 @@ def test_series_digest_is_stable_for_identical_inputs() -> None:
     frame = build_ohlcv_frame(length=SMA_OHLCV_LEN, seed=SMA_OHLCV_SEED)
     strategy = sma_crossover_strategie(fast_window=10, slow_window=50)
 
-    first = _series_digest(strategy(frame))
-    second = _series_digest(strategy(frame))
+    first = _series_digest(_invoke(strategy, frame))
+    second = _series_digest(_invoke(strategy, frame))
 
     assert first == second
 
@@ -250,7 +265,7 @@ def test_series_digest_is_stable_for_identical_inputs() -> None:
 def test_series_digest_detects_value_drift() -> None:
     frame = build_ohlcv_frame(length=SMA_OHLCV_LEN, seed=SMA_OHLCV_SEED)
     strategy = sma_crossover_strategie(fast_window=10, slow_window=50)
-    sig = strategy(frame)
+    sig = _invoke(strategy, frame)
 
     drifted = sig.copy()
     drifted.iloc[-1] = -1 if drifted.iloc[-1] != -1 else 0

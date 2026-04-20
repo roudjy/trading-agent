@@ -3,13 +3,23 @@ STRATEGIE FUNCTIES voor backtesting.
 Elke factory geeft een func(df) → pd.Series[int] terug.
 Waarden: 1=long, -1=short, 0=geen positie.
 Signaal wordt door engine.shift(1) gezet → geen lookahead bias.
+
+Thin contract note (v3.5): Tier 1 baselines (SMA crossover,
+zscore mean reversion, pairs zscore) are wrapped with
+declare_thin and take (df, features). Their bodies read only
+df.index and the features mapping - all indicator computation
+flows through agent/backtesting/features.py primitives. Legacy
+factories below still use func(df); migration is staged per the
+v3.5 plan.
 """
 import logging
-from typing import Optional
+from typing import Mapping, Optional
 
 import numpy as np
 import pandas as pd
 import ta
+
+from agent.backtesting.thin_strategy import FeatureRequirement, declare_thin
 
 log = logging.getLogger(__name__)
 
@@ -396,20 +406,26 @@ def sma_crossover_strategie(fast_window: int = 20, slow_window: int = 50):
     Classical SMA crossover trend-following strategy.
     Long when fast SMA > slow SMA, flat otherwise.
     Long-only per tier 1 baseline (orchestrator_brief §4.1).
+
+    Thin contract v1.0: body reads only df.index and features.
     """
-    def func(df: pd.DataFrame) -> pd.Series:
-        close = df["close"].astype(float)
+    def func(df: pd.DataFrame, features: Mapping[str, pd.Series]) -> pd.Series:
+        sma_fast = features["sma_fast"]
+        sma_slow = features["sma_slow"]
         min_bars = max(fast_window, slow_window) + 1
-        if len(close) < min_bars or fast_window >= slow_window:
-            return pd.Series(0, index=df.index)
-
-        sma_fast = close.rolling(window=fast_window).mean()
-        sma_slow = close.rolling(window=slow_window).mean()
-
         sig = pd.Series(0, index=df.index)
+        if len(df.index) < min_bars or fast_window >= slow_window:
+            return sig
         sig[sma_fast > sma_slow] = 1
         return sig
-    return func
+
+    return declare_thin(
+        func,
+        feature_requirements=[
+            FeatureRequirement(name="sma", params={"window": fast_window}, alias="sma_fast"),
+            FeatureRequirement(name="sma", params={"window": slow_window}, alias="sma_slow"),
+        ],
+    )
 
 
 # ── Z-Score Mean Reversion ────────────────────────────────────────────────
@@ -421,22 +437,25 @@ def zscore_mean_reversion_strategie(lookback: int = 20,
     Classical price z-score mean reversion (orchestrator_brief §4.2).
     Long when z <= -entry_z, short when z >= +entry_z,
     flat when |z| <= exit_z (flatten-on-threshold exit).
+
+    Thin contract v1.0: body reads only df.index and features.
     """
-    def func(df: pd.DataFrame) -> pd.Series:
-        close = df["close"].astype(float)
-        if len(close) < lookback + 1 or entry_z <= exit_z:
-            return pd.Series(0, index=df.index)
-
-        mean = close.rolling(window=lookback).mean()
-        std = close.rolling(window=lookback).std(ddof=0)
-        z = (close - mean) / std.replace(0.0, np.nan)
-
+    def func(df: pd.DataFrame, features: Mapping[str, pd.Series]) -> pd.Series:
         sig = pd.Series(0, index=df.index)
+        if len(df.index) < lookback + 1 or entry_z <= exit_z:
+            return sig
+        z = features["z"]
         sig[z <= -entry_z] = 1
         sig[z >= entry_z] = -1
         sig[z.abs() <= exit_z] = 0
         return sig
-    return func
+
+    return declare_thin(
+        func,
+        feature_requirements=[
+            FeatureRequirement(name="zscore", params={"lookback": lookback}, alias="z"),
+        ],
+    )
 
 
 # ── Pairs Trading Z-Score (Statistical Arbitrage) ─────────────────────────
@@ -453,31 +472,29 @@ def pairs_zscore_strategie(lookback: int = 30,
     Short pair when spread z >= +entry_z (short close, long close_ref).
     Flat when |z| <= exit_z.
 
-    NOTE: the current backtest engine loads a single DataFrame per
-    asset and does not yet populate a 'close_ref' column. This
-    factory is therefore registered with enabled=False until a
-    separate multi-asset loader scaffold prompt wires in the
-    second price series. The function is independently
-    unit-testable on synthetic two-column frames.
+    Thin contract v1.0 (scaffolded; pairs remains enabled=False in
+    v3.5 per registry). Body reads only df.index + features. The
+    multi-asset loader that populates 'close_ref' lands in v3.6+.
     """
-    def func(df: pd.DataFrame) -> pd.Series:
-        if "close" not in df.columns or "close_ref" not in df.columns:
-            return pd.Series(0, index=df.index)
-
-        close = df["close"].astype(float)
-        close_ref = df["close_ref"].astype(float)
-
-        if len(close) < lookback + 1 or entry_z <= exit_z:
-            return pd.Series(0, index=df.index)
-
-        spread = close - hedge_ratio * close_ref
-        mean = spread.rolling(window=lookback).mean()
-        std = spread.rolling(window=lookback).std(ddof=0)
-        z = (spread - mean) / std.replace(0.0, np.nan)
-
+    def func(df: pd.DataFrame, features: Mapping[str, pd.Series]) -> pd.Series:
         sig = pd.Series(0, index=df.index)
+        if len(df.index) < lookback + 1 or entry_z <= exit_z:
+            return sig
+        if "z" not in features:
+            return sig
+        z = features["z"]
         sig[z <= -entry_z] = 1
         sig[z >= entry_z] = -1
         sig[z.abs() <= exit_z] = 0
         return sig
-    return func
+
+    return declare_thin(
+        func,
+        feature_requirements=[
+            FeatureRequirement(
+                name="spread_zscore",
+                params={"hedge_ratio": hedge_ratio, "lookback": lookback},
+                alias="z",
+            ),
+        ],
+    )

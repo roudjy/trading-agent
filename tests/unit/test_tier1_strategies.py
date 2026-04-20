@@ -143,11 +143,16 @@ def test_pairs_zscore_signal_values_in_valid_set():
     assert set(sig.unique()) <= {-1, 0, 1}
 
 
-def test_pairs_zscore_returns_zeros_when_close_ref_missing():
+def test_pairs_zscore_raises_when_close_ref_missing():
+    """Post-refactor semantics: missing close_ref is surfaced as a
+    feature resolution failure (KeyError), not a silent zero-signal.
+    The integrity layer flags this as FEATURE_INCOMPLETE upstream in
+    apply_eligibility so the run aborts with a typed reason code.
+    """
     df = make_ohlcv_frame(300, seed=11)[["close"]]
-    sig = pairs_zscore_strategie()(df)
 
-    assert (sig == 0).all()
+    with pytest.raises(KeyError, match="close_ref"):
+        pairs_zscore_strategie()(df)
 
 
 def test_pairs_zscore_returns_zeros_when_insufficient_bars():
