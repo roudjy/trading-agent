@@ -184,17 +184,21 @@ def test_registry_includes_all_tier1_baseline_names():
 
 
 def test_tier1_enabled_flags_match_baseline_blocker():
+    """v3.6: pairs_zscore flips to enabled once the multi-asset loader
+    + candidate-pipeline plumbing land. All three Tier 1 baselines are
+    enabled together under a single public output contract."""
     lookup = {strategy["name"]: strategy["enabled"] for strategy in STRATEGIES}
 
     assert lookup["sma_crossover"] is True
     assert lookup["zscore_mean_reversion"] is True
-    assert lookup["pairs_zscore"] is False
+    assert lookup["pairs_zscore"] is True
 
 
-def test_get_enabled_strategies_excludes_pairs_zscore():
+def test_get_enabled_strategies_includes_all_tier1_baselines():
+    """v3.6 Tier 1 roster: sma_crossover + zscore_mean_reversion + pairs_zscore."""
     names = {strategy["name"] for strategy in get_enabled_strategies()}
 
-    assert "pairs_zscore" not in names
+    assert "pairs_zscore" in names
     assert "sma_crossover" in names
     assert "zscore_mean_reversion" in names
 

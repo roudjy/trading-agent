@@ -388,12 +388,24 @@ def execute_validation_batch(
                 regime_config=regime_config,
             )
             try:
-                metrics = engine.grid_search(
-                    strategie_factory=strategy["factory"],
-                    param_grid=strategy["params"],
-                    assets=[candidate["asset"]],
-                    interval=candidate["interval"],
-                )
+                requirements = candidate.get("strategy_requirements") or {}
+                reference_asset = requirements.get("reference_asset")
+                grid_kwargs: dict[str, Any] = {
+                    "strategie_factory": strategy["factory"],
+                    "param_grid": strategy["params"],
+                    "assets": [candidate["asset"]],
+                    "interval": candidate["interval"],
+                }
+                if reference_asset:
+                    grid_kwargs["reference_asset"] = reference_asset
+                try:
+                    metrics = engine.grid_search(**grid_kwargs)
+                except TypeError as exc:
+                    if reference_asset and "reference_asset" in str(exc):
+                        grid_kwargs.pop("reference_asset", None)
+                        metrics = engine.grid_search(**grid_kwargs)
+                    else:
+                        raise
                 params_used = metrics.get("beste_params", {})
                 row = make_result_row(
                     strategy=strategy,

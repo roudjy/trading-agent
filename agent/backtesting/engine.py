@@ -516,10 +516,19 @@ class BacktestEngine:
         param_grid: dict,
         assets: list,
         interval: str = "1d",
+        *,
+        reference_asset: str | None = None,
     ) -> dict:
         """
         Grid search over parameterruimte op train folds.
         Beste params worden opnieuw gevalideerd op train en test folds.
+
+        reference_asset: when set, each primary asset is paired with this
+        symbol via the multi-asset loader, the aligned reference frame
+        is attached to the AssetContext, and thin-strategy feature
+        resolution at fold boundary routes through build_features_for_multi.
+        v3.6 scope lock: a single optional reference leg, not a pair
+        universe or selection mechanism.
         """
         self.interval = interval
         beste_params = None
@@ -537,7 +546,9 @@ class BacktestEngine:
                 f"Sweep van {n_combis} combinaties overschrijdt MAX_SWEEP_CELLS={self.max_sweep_cells}"
             )
 
-        asset_contexts = self._load_asset_contexts(assets, interval)
+        asset_contexts = self._load_asset_contexts(
+            assets, interval, reference_asset=reference_asset
+        )
         selection_metric = self.evaluation_config["selection_metric"]
         log.info(f"[BT] Grid search: {n_combis} combinaties op train folds")
 
