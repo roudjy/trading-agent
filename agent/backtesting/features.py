@@ -152,6 +152,21 @@ def spread(
     return close_a.astype(float) - float(hedge_ratio) * close_b.astype(float)
 
 
+def spread_zscore(
+    close_a: pd.Series,
+    close_b: pd.Series,
+    hedge_ratio: float,
+    lookback: int,
+) -> pd.Series:
+    """Rolling z-score of the pairs-trading spread.
+
+    Composite of `spread` and `zscore` - kept as a single registry
+    entry so the thin pairs strategy declares exactly one feature
+    requirement rather than chaining primitives in its body.
+    """
+    return zscore(spread(close_a, close_b, hedge_ratio), lookback)
+
+
 # v3.6+: rolling OLS hedge ratio. Unused in v3.5 (pairs uses the fixed
 # scalar path above). Implementation kept minimal and well-typed so the
 # v3.6 pairs migration can turn it on without another primitive pass.
@@ -203,6 +218,10 @@ def _warmup_spread(_params: dict) -> int:
     return 0
 
 
+def _warmup_spread_zscore(params: dict) -> int:
+    return int(params.get("lookback", 0))
+
+
 FEATURE_REGISTRY: dict[str, FeatureSpec] = {
     "log_returns": FeatureSpec(
         fn=log_returns,
@@ -246,6 +265,12 @@ FEATURE_REGISTRY: dict[str, FeatureSpec] = {
         required_columns=("close", "close_ref"),
         warmup_bars_fn=_warmup_spread,
     ),
+    "spread_zscore": FeatureSpec(
+        fn=spread_zscore,
+        param_names=("hedge_ratio", "lookback"),
+        required_columns=("close", "close_ref"),
+        warmup_bars_fn=_warmup_spread_zscore,
+    ),
 }
 
 
@@ -260,5 +285,6 @@ __all__ = [
     "rolling_volatility",
     "sma",
     "spread",
+    "spread_zscore",
     "zscore",
 ]

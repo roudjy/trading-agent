@@ -143,6 +143,7 @@ STRATEGIES = [
             "per orchestrator_brief §4.1 tier 1 baseline."
         ),
         "enabled": True,
+        "contract_version": "1.0",
     },
     {
         "name": "zscore_mean_reversion",
@@ -161,6 +162,7 @@ STRATEGIES = [
             "equilibrium per orchestrator_brief §4.2 tier 1 baseline."
         ),
         "enabled": True,
+        "contract_version": "1.0",
     },
     # -------------------------------------------------------------------
     # pairs_zscore — enabled=False is intentional.
@@ -192,6 +194,7 @@ STRATEGIES = [
             "future multi-asset loader scaffold prompt."
         ),
         "enabled": False,
+        "contract_version": "1.0",
     },
 ]
 

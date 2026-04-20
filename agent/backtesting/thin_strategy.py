@@ -31,6 +31,7 @@ off `df`, or recomputing indicators inside the strategy body.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
@@ -65,12 +66,19 @@ def declare_thin(
     *,
     feature_requirements: list[FeatureRequirement],
     sizing_spec: dict[str, Any] | None = None,
-) -> Callable[[pd.DataFrame, Mapping[str, pd.Series]], pd.Series]:
-    """Stamp thin contract metadata on a strategy callable.
+) -> Callable[..., pd.Series]:
+    """Stamp thin contract metadata and return a dual-arity wrapper.
 
-    Returns the same callable with attributes set so the engine can
-    detect it with a single hasattr check. The callable itself is
-    returned unwrapped - decorators can compose freely.
+    The wrapper accepts either the engine's canonical `(df, features)`
+    call or a legacy `(df)` call — in the legacy case it auto-resolves
+    the declared feature requirements via build_features_for. This
+    preserves the v3.4 `strategy(df)` call contract for determinism
+    suites and registry consumers while the engine always routes
+    through the explicit two-arg form.
+
+    Metadata `_thin_contract_version`, `_feature_requirements`, and
+    `_sizing_spec` is stamped on the returned wrapper so the engine
+    detects thin strategies with a single hasattr check.
     """
     for req in feature_requirements:
         if req.name not in FEATURE_REGISTRY:
@@ -78,10 +86,22 @@ def declare_thin(
                 f"declare_thin: unknown feature '{req.name}'; "
                 f"registered={sorted(FEATURE_REGISTRY)}"
             )
-    func._thin_contract_version = THIN_CONTRACT_VERSION  # type: ignore[attr-defined]
-    func._feature_requirements = list(feature_requirements)  # type: ignore[attr-defined]
-    func._sizing_spec = dict(sizing_spec) if sizing_spec else None  # type: ignore[attr-defined]
-    return func
+    reqs = list(feature_requirements)
+
+    @functools.wraps(func)
+    def wrapper(
+        df: pd.DataFrame,
+        features: Mapping[str, pd.Series] | None = None,
+    ) -> pd.Series:
+        if features is None:
+            features = build_features_for(reqs, df)
+        return func(df, features)
+
+    wrapper._thin_contract_version = THIN_CONTRACT_VERSION  # type: ignore[attr-defined]
+    wrapper._feature_requirements = reqs  # type: ignore[attr-defined]
+    wrapper._sizing_spec = dict(sizing_spec) if sizing_spec else None  # type: ignore[attr-defined]
+    wrapper._thin_unwrapped = func  # type: ignore[attr-defined]
+    return wrapper
 
 
 def is_thin_strategy(func: Callable) -> bool:
