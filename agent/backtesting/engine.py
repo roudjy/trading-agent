@@ -14,6 +14,13 @@ import numpy as np
 import pandas as pd
 
 from agent.backtesting.features import FEATURE_VERSION
+from agent.backtesting.multi_asset_loader import (
+    AlignedPairFrame,
+    EmptyIntersectionError,
+    LegUnavailableError,
+    MixedAssetClassError,
+    load_aligned_pair,
+)
 from agent.backtesting.regime import UNKNOWN, build_regime_frame, normalize_regime_config
 from agent.backtesting.sizing import SIZING_REGIME_FIXED_UNIT, resolve_sizing_spec
 from agent.backtesting.thin_strategy import (
@@ -369,8 +376,16 @@ class BacktestEngine:
         should_stop: Callable[[], bool] | None = None,
         deadline_monotonic: float | None = None,
         resume_snapshot: EngineExecutionSnapshot | None = None,
+        reference_asset: str | None = None,
     ) -> dict:
-        """Run fixed-parameter evaluation and return public OOS metrics only."""
+        """Run fixed-parameter evaluation and return public OOS metrics only.
+
+        reference_asset: when set, each primary asset in `assets` is paired
+        with this symbol via the multi-asset loader, and the aligned
+        reference frame is threaded to multi-asset feature resolution.
+        v3.6 scope lock: a single optional reference leg, not a pair
+        universe or a selection mechanism.
+        """
         self.interval = interval
         self.last_evaluation_report = None
         stop_control = EngineStopControl(
@@ -383,6 +398,7 @@ class BacktestEngine:
             interval,
             stop_control=stop_control,
             progress=progress,
+            reference_asset=reference_asset,
         )
         skip_window_ids: frozenset[CompletedWindowId] = frozenset()
         if resume_snapshot is not None:
@@ -418,6 +434,7 @@ class BacktestEngine:
         *,
         stop_control: EngineStopControl,
         progress: EngineRunProgress,
+        reference_asset: str | None = None,
     ) -> list[AssetContext]:
         progress.checkpoint(phase="load_contexts", asset_index=None, fold_index=None)
         self._raise_if_interrupted(stop_control=stop_control, progress=progress)
@@ -426,6 +443,7 @@ class BacktestEngine:
             interval,
             stop_control=stop_control,
             progress=progress,
+            reference_asset=reference_asset,
         )
 
     def _run_phase_evaluate_in_sample(
@@ -602,6 +620,7 @@ class BacktestEngine:
         *,
         stop_control: EngineStopControl | None = None,
         progress: EngineRunProgress | None = None,
+        reference_asset: str | None = None,
     ) -> list[AssetContext]:
         asset_contexts, diagnostics = self._load_asset_contexts_with_diagnostics(
             assets,
@@ -609,6 +628,7 @@ class BacktestEngine:
             capture_schedule_errors=False,
             stop_control=stop_control,
             progress=progress,
+            reference_asset=reference_asset,
         )
         self._last_asset_readiness = [item.to_dict() for item in diagnostics]
         return asset_contexts
@@ -621,6 +641,7 @@ class BacktestEngine:
         capture_schedule_errors: bool,
         stop_control: EngineStopControl | None,
         progress: EngineRunProgress | None,
+        reference_asset: str | None = None,
     ) -> tuple[list[AssetContext], list[AssetReadiness]]:
         asset_contexts: list[AssetContext] = []
         diagnostics: list[AssetReadiness] = []
@@ -628,7 +649,20 @@ class BacktestEngine:
             if progress is not None:
                 progress.checkpoint(phase="load_contexts", asset_index=asset_index, fold_index=None)
             self._raise_if_interrupted(stop_control=stop_control, progress=progress)
-            df = self._laad_data(asset, interval)
+            use_pair = (
+                reference_asset is not None and str(asset) != str(reference_asset)
+            )
+            reference_frame: Optional[pd.DataFrame] = None
+            if use_pair:
+                assert reference_asset is not None  # narrowed by use_pair
+                pair = self._load_pair(asset, reference_asset, interval)
+                if pair is None:
+                    df = None
+                else:
+                    df = pair.primary
+                    reference_frame = pair.reference
+            else:
+                df = self._laad_data(asset, interval)
             bar_count = 0 if df is None else int(len(df))
             readiness = AssetReadiness(
                 asset=asset,
@@ -676,7 +710,15 @@ class BacktestEngine:
                     raise
                 continue
             regime_frame = build_regime_frame(df, self.regime_config)
-            asset_contexts.append(AssetContext(asset=asset, frame=df, regime_frame=regime_frame, folds=folds))
+            asset_contexts.append(
+                AssetContext(
+                    asset=asset,
+                    frame=df,
+                    regime_frame=regime_frame,
+                    folds=folds,
+                    reference_frame=reference_frame,
+                )
+            )
             diagnostics.append(
                 AssetReadiness(
                     **{
@@ -1020,6 +1062,38 @@ class BacktestEngine:
             return None
         except Exception as e:
             log.error(f"[BT] Data laden mislukt {asset}: {e}")
+            return None
+
+    def _load_pair(
+        self, primary: str, reference: str, interval: str
+    ) -> Optional[AlignedPairFrame]:
+        """Fetch and inner-join a two-leg pair via the multi-asset loader.
+
+        Returns None when the pair cannot be aligned (empty intersection,
+        missing leg, mixed asset class). Callers treat None the same as
+        single-asset data_unavailable so the primary asset is dropped
+        with a typed diagnostic reason.
+        """
+        if not hasattr(self, "_market_repository"):
+            self._market_repository = MarketRepository()
+        try:
+            return load_aligned_pair(
+                primary,
+                reference,
+                interval,
+                self._parse_utc_bound(self.start),
+                self._parse_utc_bound(self.eind),
+                market_repository=self._market_repository,
+            )
+        except (
+            EmptyIntersectionError,
+            LegUnavailableError,
+            MixedAssetClassError,
+        ) as exc:
+            log.warning(f"[BT] Pair {primary}/{reference} niet geladen: {exc}")
+            return None
+        except DataUnavailableError as exc:
+            log.error(f"[BT] Pair data laden mislukt {primary}/{reference}: {exc}")
             return None
 
     @staticmethod

@@ -185,13 +185,14 @@ STRATEGIES = [
         "family": "stat_arb",
         "strategy_family": "stat_arb",
         "position_structure": "spread",
-        "initial_lane_support": "blocked",
+        "initial_lane_support": "supported",
+        "reference_asset": "ETH-EUR",
         "hypothesis": (
             "Spread z-score pairs trading per orchestrator_brief §4.3 "
-            "tier 1 baseline. enabled=False is intentional: the "
-            "current engine has no multi-asset loader to populate "
-            "'close_ref'. Pipeline wiring deferred to a separate "
-            "future multi-asset loader scaffold prompt."
+            "tier 1 baseline. reference_asset carries the single "
+            "two-leg baseline config (v3.6 scope lock: not a pair "
+            "universe / not selection). enabled flip happens in Step "
+            "4/6 once end-to-end path is green."
         ),
         "enabled": False,
         "contract_version": "1.0",
