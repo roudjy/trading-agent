@@ -12,6 +12,7 @@ from tests._harness_helpers import (
     assert_frame_matches,
     assert_signal_matches,
     build_ohlcv_frame,
+    build_pairs_frame,
 )
 
 
@@ -49,6 +50,12 @@ STRATEGY_CASES = _strategy_cases()
 
 
 def _input_frame(strategy_name: str) -> pd.DataFrame:
+    if strategy_name == "pairs_zscore":
+        base = build_ohlcv_frame(length=260, seed=29)
+        pair = build_pairs_frame(length=260, seed=29)
+        frame = base.copy()
+        frame["close_ref"] = pair["close_ref"].to_numpy()
+        return frame
     frame = build_ohlcv_frame(length=260, seed=29)
     if strategy_name == "bollinger_regime":
         frame["_mr_regime_ok"] = True

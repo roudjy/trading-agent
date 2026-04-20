@@ -179,6 +179,31 @@ def test_integrity_check_dataclass_carries_no_status_field():
     assert "status" not in payload
 
 
+def test_row_schema_has_no_reference_asset_key_with_pairs_in_registry():
+    """Scope-lock pin for v3.6: enabling pairs_zscore in the registry
+    MUST NOT introduce a `reference_asset` column into the public row
+    schema. reference_asset is an internal identity field only -
+    public `asset` carries the primary symbol and nothing else.
+    """
+    from research.registry import STRATEGIES
+
+    pairs_entries = [s for s in STRATEGIES if s["name"] == "pairs_zscore"]
+    assert len(pairs_entries) == 1, "pairs_zscore registry entry missing"
+    assert pairs_entries[0].get("enabled") is True, (
+        "pairs_zscore must be enabled for this v3.6 contract pin to be meaningful"
+    )
+    assert pairs_entries[0].get("reference_asset") == "ETH-EUR"
+
+    assert "reference_asset" not in ROW_SCHEMA, (
+        "Public CSV/JSON row schema must not expose reference_asset - "
+        "it lives only on internal candidate surfaces"
+    )
+    assert "reference_asset" not in JSON_TOP_LEVEL_SCHEMA, (
+        "Public research_latest.json top-level schema must not expose "
+        "reference_asset - it lives only on internal candidate surfaces"
+    )
+
+
 def test_falsification_sidecar_preserves_heuristic_label_on_fee_gate():
     """D3 pin: the fee drag gate stays labelled 'heuristic', never
     drifts toward presenting itself as true sensitivity analysis.

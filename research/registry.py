@@ -165,13 +165,13 @@ STRATEGIES = [
         "contract_version": "1.0",
     },
     # -------------------------------------------------------------------
-    # pairs_zscore — enabled=False is intentional.
-    # Blocker: the backtest engine currently loads one DataFrame per
-    # asset (see agent/backtesting/engine.py:_run_op_split). A
-    # 'close_ref' column is never populated, so the pairs factory
-    # cannot run inside the existing pipeline. Wiring is deferred to
-    # a separate future multi-asset loader scaffold prompt. Do NOT
-    # flip this flag to True without that scaffold in place.
+    # pairs_zscore — enabled=True as of v3.6 Step 4.
+    # The multi-asset loader (agent/backtesting/multi_asset_loader.py)
+    # populates `close_ref` via an inner-joined reference leg.
+    # `reference_asset` is the single two-leg baseline config (scope
+    # lock: not a pair universe, not selection). The public `asset`
+    # column stays singular; reference_asset lives on internal
+    # candidate surfaces only.
     # -------------------------------------------------------------------
     {
         "name": "pairs_zscore",
@@ -191,10 +191,9 @@ STRATEGIES = [
             "Spread z-score pairs trading per orchestrator_brief §4.3 "
             "tier 1 baseline. reference_asset carries the single "
             "two-leg baseline config (v3.6 scope lock: not a pair "
-            "universe / not selection). enabled flip happens in Step "
-            "4/6 once end-to-end path is green."
+            "universe / not selection)."
         ),
-        "enabled": False,
+        "enabled": True,
         "contract_version": "1.0",
     },
 ]

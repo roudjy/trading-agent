@@ -56,6 +56,28 @@ def build_pairs_frame(
     )
 
 
+def build_aligned_pair_frames(
+    seed_primary: int = 7,
+    seed_reference: int = 13,
+    length: int = 180,
+    start: str = DEFAULT_START,
+    freq: str = "D",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Build two deterministic OHLCV frames that share a DatetimeIndex.
+
+    Intended for multi-asset loader / pairs end-to-end tests: the two
+    frames are shaped for inner-join alignment without any overlap
+    surgery required, and their seeds differ so the close columns are
+    not trivially correlated. Idempotent under truncation: slicing either
+    frame and then joining equals joining then slicing.
+    """
+    primary = build_ohlcv_frame(length=length, seed=seed_primary, start=start, freq=freq)
+    reference = build_ohlcv_frame(
+        length=length, seed=seed_reference, start=start, freq=freq
+    )
+    return primary, reference
+
+
 def assert_frame_matches(left: pd.DataFrame, right: pd.DataFrame) -> None:
     """Assert frames match on values, index, columns, and dtypes."""
     assert_frame_equal(left, right, check_dtype=True, check_like=False)
