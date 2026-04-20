@@ -19,6 +19,7 @@ from agent.backtesting.sizing import SIZING_REGIME_FIXED_UNIT, resolve_sizing_sp
 from agent.backtesting.thin_strategy import (
     THIN_CONTRACT_VERSION,
     build_features_for,
+    build_features_for_multi,
     is_thin_strategy,
     validate_thin_strategy_output,
 )
@@ -157,6 +158,7 @@ class AssetContext:
     frame: pd.DataFrame
     regime_frame: pd.DataFrame
     folds: list[Fold]
+    reference_frame: Optional[pd.DataFrame] = None
 
 
 @dataclass(frozen=True)
@@ -721,6 +723,11 @@ class BacktestEngine:
                 start_idx, end_idx = train_bounds if use_train else test_bounds
                 df_window = context.frame.iloc[start_idx : end_idx + 1].copy()
                 regime_window = context.regime_frame.iloc[start_idx : end_idx + 1].copy()
+                reference_window = (
+                    context.reference_frame.iloc[start_idx : end_idx + 1].copy()
+                    if context.reference_frame is not None
+                    else None
+                )
                 trades, dag, maand, trade_events = self._simuleer_detailed(
                     df_window,
                     strategie_func,
@@ -728,6 +735,7 @@ class BacktestEngine:
                     regime_window=regime_window,
                     fold_index=fold_index,
                     include_trade_events=not use_train,
+                    reference_window=reference_window,
                 )
                 trade_pnls.extend(trades)
                 dag_returns.extend(dag)
@@ -1044,6 +1052,7 @@ class BacktestEngine:
         regime_window: Optional[pd.DataFrame],
         fold_index: Optional[int],
         include_trade_events: bool,
+        reference_window: Optional[pd.DataFrame] = None,
     ) -> tuple[list[float], list[float], list[float], list[dict[str, Any]]]:
         """
         Simuleer trades zonder lookahead bias.
@@ -1053,7 +1062,7 @@ class BacktestEngine:
         df = self._prepare_bollinger_regime_df(df, strategie_func)
         sig = self._prepare_trend_pullback_tp_sl_sig(df, strategie_func)
         if sig is None:
-            sig = self._invoke_strategy(df, strategie_func)
+            sig = self._invoke_strategy(df, strategie_func, reference_frame=reference_window)
         df["sig"] = sig.shift(1).fillna(0)
 
         trade_pnls: list[float] = []
@@ -1114,23 +1123,36 @@ class BacktestEngine:
         maand_returns = self._maand_returns(pd.Series(equity_serie, dtype=float), df)
         return trade_pnls, dag_returns, maand_returns, trade_events
 
-    def _invoke_strategy(self, df: pd.DataFrame, strategie_func: Callable) -> pd.Series:
+    def _invoke_strategy(
+        self,
+        df: pd.DataFrame,
+        strategie_func: Callable,
+        reference_frame: Optional[pd.DataFrame] = None,
+    ) -> pd.Series:
         """Single call site for strategy invocation.
 
         Routes legacy `func(df)` strategies and thin `func(df, features)`
         strategies through one branch. Thin strategies are detected via
         a single hasattr check on `_thin_contract_version`; when present
         the engine resolves their feature requirements at fold boundary
-        via build_features_for, then hands the frame and the resolved
-        feature mapping to the strategy. Sizing hook (`_sizing_spec`) is
-        scaffolding-only in v3.5: no Tier 1 strategy opts in, so the
-        legacy ±1 path downstream is preserved bytewise.
+        via build_features_for (single-asset) or build_features_for_multi
+        (when a reference_frame is supplied by the caller, as for pairs),
+        then hands the frame and the resolved feature mapping to the
+        strategy. Sizing hook (`_sizing_spec`) is scaffolding-only in
+        v3.5: no Tier 1 strategy opts in, so the legacy ±1 path
+        downstream is preserved bytewise.
         """
         if is_thin_strategy(strategie_func):
-            features = build_features_for(
-                strategie_func._feature_requirements,  # type: ignore[attr-defined]
-                df,
+            requirements = (
+                strategie_func._feature_requirements  # type: ignore[attr-defined]
             )
+            if reference_frame is not None:
+                features = build_features_for_multi(
+                    requirements,
+                    {"primary": df, "reference": reference_frame},
+                )
+            else:
+                features = build_features_for(requirements, df)
             sig = strategie_func(df, features)
             validate_thin_strategy_output(sig, df.index)
             sizing_spec = getattr(strategie_func, "_sizing_spec", None)

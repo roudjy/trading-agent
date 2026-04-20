@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Literal, Mapping
 
 import pandas as pd
 
@@ -41,6 +41,9 @@ from agent.backtesting.features import FEATURE_REGISTRY
 
 
 THIN_CONTRACT_VERSION = "1.0"
+
+
+SourceRole = Literal["primary", "reference"]
 
 
 @dataclass(frozen=True)
@@ -51,11 +54,18 @@ class FeatureRequirement:
     - params: kwargs forwarded to the feature function
     - alias: key under which the computed series is placed in the
       features mapping handed to the strategy. Defaults to `name`.
+    - source_role: which asset leg supplies the columns for this
+      feature. None (default) is equivalent to "primary" and preserves
+      v3.5 single-frame resolution byte-for-byte. "reference" pulls
+      from the reference leg; only meaningful in the multi-asset path.
+      Multi-asset primitives that already read both legs via convention
+      (columns `close` + `close_ref`) do not need source_role set.
     """
 
     name: str
     params: dict[str, Any]
     alias: str | None = None
+    source_role: SourceRole | None = None
 
     def resolved_alias(self) -> str:
         return self.alias or self.name
@@ -133,6 +143,60 @@ def build_features_for(
     return features
 
 
+def build_features_for_multi(
+    requirements: list[FeatureRequirement],
+    frames: Mapping[str, pd.DataFrame],
+) -> dict[str, pd.Series]:
+    """Resolve thin strategy requirements against aligned multi-asset frames.
+
+    `frames` must contain a "primary" entry; "reference" is optional.
+    When a reference frame is supplied, its `close` column is exposed
+    to the feature resolver as `close_ref` on a combined primary view -
+    this mirrors how the bytewise pin test feeds a single frame with
+    both columns, keeping multi-asset primitive output byte-identical
+    to the single-frame path.
+
+    A requirement with `source_role="reference"` is resolved directly
+    against the reference frame (useful for single-asset features
+    computed on the reference leg). All other requirements resolve
+    against the combined-primary view.
+
+    v3.6 scope: exactly two legs (primary + optional reference). The
+    single-frame `build_features_for` is unchanged and still owns the
+    v3.5 bytewise pin path.
+    """
+    if "primary" not in frames:
+        raise KeyError("build_features_for_multi requires a 'primary' frame")
+    primary = frames["primary"]
+    reference = frames.get("reference")
+
+    if reference is not None:
+        combined = primary.copy()
+        combined["close_ref"] = reference["close"]
+    else:
+        combined = primary
+
+    primary_reqs: list[FeatureRequirement] = []
+    reference_reqs: list[FeatureRequirement] = []
+    for req in requirements:
+        if req.source_role == "reference":
+            reference_reqs.append(req)
+        else:
+            primary_reqs.append(req)
+
+    features: dict[str, pd.Series] = {}
+    if primary_reqs:
+        features.update(build_features_for(primary_reqs, combined))
+    if reference_reqs:
+        if reference is None:
+            raise KeyError(
+                "thin_strategy: source_role='reference' requires a reference "
+                "frame in frames['reference']"
+            )
+        features.update(build_features_for(reference_reqs, reference))
+    return features
+
+
 def validate_thin_strategy_output(sig: pd.Series, index: pd.Index) -> None:
     """Assert shape, dtype and index conformance of a thin strategy output.
 
@@ -157,8 +221,10 @@ def validate_thin_strategy_output(sig: pd.Series, index: pd.Index) -> None:
 
 __all__ = [
     "FeatureRequirement",
+    "SourceRole",
     "THIN_CONTRACT_VERSION",
     "build_features_for",
+    "build_features_for_multi",
     "declare_thin",
     "is_thin_strategy",
     "validate_thin_strategy_output",

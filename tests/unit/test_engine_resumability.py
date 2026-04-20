@@ -240,6 +240,7 @@ def test_completed_is_windows_are_truly_skipped() -> None:
         regime_window: pd.DataFrame,
         fold_index: int,
         include_trade_events: bool,
+        reference_window: pd.DataFrame | None = None,
     ):
         if include_trade_events:
             counts["oos"] += 1
@@ -253,6 +254,7 @@ def test_completed_is_windows_are_truly_skipped() -> None:
             regime_window=regime_window,
             fold_index=fold_index,
             include_trade_events=include_trade_events,
+            reference_window=reference_window,
         )
 
     # Baseline: fresh run counts
