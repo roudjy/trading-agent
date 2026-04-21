@@ -13,6 +13,12 @@ from typing import Any, Callable, Optional
 import numpy as np
 import pandas as pd
 
+from agent.backtesting.cost_sensitivity import (
+    COST_SENSITIVITY_VERSION,
+    DEFAULT_SCENARIOS,
+    ScenarioSpec,
+    build_cost_sensitivity_report,
+)
 from agent.backtesting.execution import ExecutionEvent
 from agent.backtesting.features import FEATURE_VERSION
 from agent.backtesting.multi_asset_loader import (
@@ -1068,6 +1074,88 @@ class BacktestEngine:
         finalized["deflated_sharpe"] = self._deflated_sharpe(finalized["sharpe"])
         finalized["goedgekeurd"] = self._goedkeuren(finalized)
         return finalized
+
+    def build_cost_sensitivity(
+        self,
+        scenarios: "Optional[list[ScenarioSpec]]" = None,
+    ) -> Optional[dict[str, Any]]:
+        """Opt-in post-run cost sensitivity diagnostic.
+
+        Groups OOS execution events and bar returns by
+        ``(asset, fold_index)`` and runs the pure cost-sensitivity
+        harness per group. NOT called from ``run()``. Baseline metrics
+        and public artifacts are unaffected; this is a side-channel
+        inspection of how sensitive the current result is to execution
+        cost assumptions.
+
+        Returns ``None`` when ``_last_window_streams`` has no OOS data.
+        """
+        specs = (
+            tuple(scenarios)
+            if scenarios is not None
+            else DEFAULT_SCENARIOS
+        )
+        streams = self._last_window_streams or {}
+        events_list: list[ExecutionEvent] = list(
+            streams.get("oos_execution_events", [])
+        )
+        bar_stream: list[dict[str, Any]] = list(
+            streams.get("oos_bar_returns", [])
+        )
+        if not events_list and not bar_stream:
+            return None
+
+        # Group by (asset, fold_index)
+        groups: dict[
+            tuple[str, Optional[int]],
+            dict[str, list[Any]],
+        ] = {}
+        for entry in bar_stream:
+            key = (str(entry["asset"]), entry.get("fold_index"))
+            groups.setdefault(
+                key, {"events": [], "bars": []}
+            )["bars"].append(entry)
+        for ev in events_list:
+            key = (ev.asset, ev.fold_index)
+            groups.setdefault(
+                key, {"events": [], "bars": []}
+            )["events"].append(ev)
+
+        def _sort_key(
+            item: tuple[tuple[str, Optional[int]], Any],
+        ) -> tuple[str, int]:
+            (asset, fold), _ = item
+            return (asset, -1 if fold is None else int(fold))
+
+        per_window: list[dict[str, Any]] = []
+        for (asset, fold), data in sorted(
+            groups.items(), key=_sort_key
+        ):
+            bars = data["bars"]
+            evs = data["events"]
+            if not bars:
+                # No bar stream means no baseline returns to replay
+                # against; skip this window. (Possible when a window
+                # has events only for train phase, which we already
+                # exclude upstream, but defensive anyway.)
+                continue
+            dag_returns = [float(b["return"]) for b in bars]
+            report = build_cost_sensitivity_report(
+                events=evs,
+                bar_return_stream=bars,
+                baseline_dag_returns=dag_returns,
+                kosten_per_kant=float(self.kosten_per_kant),
+                scenarios=specs,
+            )
+            report["asset"] = asset
+            report["fold_index"] = fold
+            per_window.append(report)
+
+        return {
+            "version": COST_SENSITIVITY_VERSION,
+            "kosten_per_kant": float(self.kosten_per_kant),
+            "per_window": per_window,
+        }
 
     def _laad_data(self, asset: str, interval: str) -> Optional[pd.DataFrame]:
         """Download en prepareer OHLCV data. auto_adjust=True altijd."""
