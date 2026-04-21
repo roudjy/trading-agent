@@ -13,6 +13,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 import pandas as pd
 
+from agent.backtesting.execution import ExecutionEvent
 from agent.backtesting.features import FEATURE_VERSION
 from agent.backtesting.multi_asset_loader import (
     AlignedPairFrame,
@@ -368,7 +369,7 @@ class BacktestEngine:
         self._provenance_events: list[Any] = []
         self.last_evaluation_report: Optional[dict[str, Any]] = None
         self._last_window_samples: dict[str, list[float]] = {}
-        self._last_window_streams: dict[str, list[dict[str, Any]]] = {}
+        self._last_window_streams: dict[str, list[Any]] = {}
         self._last_asset_readiness: list[dict[str, Any]] = []
 
     def run(
@@ -762,6 +763,7 @@ class BacktestEngine:
         oos_daily_return_stream: list[dict[str, Any]] = []
         oos_bar_return_stream: list[dict[str, Any]] = []
         oos_trade_events: list[dict[str, Any]] = []
+        oos_execution_events: list[ExecutionEvent] = []
 
         phase_name = "evaluate_in_sample" if use_train else "evaluate_out_of_sample"
         window_kind = "train" if use_train else "oos"
@@ -796,7 +798,13 @@ class BacktestEngine:
                     if context.reference_frame is not None
                     else None
                 )
-                trades, dag, maand, trade_events = self._simuleer_detailed(
+                (
+                    trades,
+                    dag,
+                    maand,
+                    trade_events,
+                    execution_events,
+                ) = self._simuleer_detailed(
                     df_window,
                     strategie_func,
                     context.asset,
@@ -806,6 +814,7 @@ class BacktestEngine:
                     reference_window=reference_window,
                     train_frame=train_frame,
                     train_reference_frame=train_reference_frame,
+                    include_execution_events=not use_train,
                 )
                 trade_pnls.extend(trades)
                 dag_returns.extend(dag)
@@ -822,6 +831,7 @@ class BacktestEngine:
                         )
                     )
                     oos_trade_events.extend(trade_events)
+                    oos_execution_events.extend(execution_events)
                 if progress is not None:
                     progress.mark_completed_window(
                         asset=context.asset,
@@ -840,6 +850,7 @@ class BacktestEngine:
             "oos_daily_returns": oos_daily_return_stream,
             "oos_bar_returns": oos_bar_return_stream,
             "oos_trade_events": oos_trade_events,
+            "oos_execution_events": oos_execution_events,
         }
 
         if len(trade_pnls) < self.min_trades:
@@ -1136,7 +1147,7 @@ class BacktestEngine:
         return timestamp.tz_convert(UTC)
 
     def _simuleer(self, df: pd.DataFrame, strategie_func: Callable, asset: str) -> tuple[list, list, list]:
-        trade_pnls, dag_returns, maand_returns, _ = self._simuleer_detailed(
+        trade_pnls, dag_returns, maand_returns, _, _ = self._simuleer_detailed(
             df,
             strategie_func,
             asset,
@@ -1157,7 +1168,14 @@ class BacktestEngine:
         reference_window: Optional[pd.DataFrame] = None,
         train_frame: Optional[pd.DataFrame] = None,
         train_reference_frame: Optional[pd.DataFrame] = None,
-    ) -> tuple[list[float], list[float], list[float], list[dict[str, Any]]]:
+        include_execution_events: bool = False,
+    ) -> tuple[
+        list[float],
+        list[float],
+        list[float],
+        list[dict[str, Any]],
+        list[ExecutionEvent],
+    ]:
         """
         Simuleer trades zonder lookahead bias.
         Signaal dag X -> uitvoering dag X+1.
@@ -1168,6 +1186,34 @@ class BacktestEngine:
         fit on the current fold's training slice while transform runs
         on ``df`` (the evaluation slice). Non-fitted strategies ignore
         these arguments - default behavior is byte-identical.
+
+        v3.8 step 2: emits canonical ``ExecutionEvent``s on every
+        entry and exit fill when ``include_execution_events`` is
+        True. Emission is additive and purely descriptive - it does
+        not influence fills, fees, equity, or strategy behavior.
+
+        Pinned attribution semantics under current engine (no
+        slippage beyond the next-bar-close convention, flat
+        ``kosten_per_kant`` on each side):
+
+        - ``intended_price == fill_price == close[i]`` - the bar
+          close the engine books the trade at. The current engine
+          has no slippage model, so these are identical. Step 3
+          will introduce a stressed-execution model by changing
+          only ``fill_price`` and ``slippage_bps``.
+        - ``slippage_bps = 0.0`` - explicit zero; the engine has
+          no slippage model yet.
+        - ``fee_amount = equity_before_fee * self.kosten_per_kant``
+          - the exact equity drag the engine applies on that side
+          (normalized equity units; equity starts at 1.0).
+        - ``requested_size == filled_size == 1.0`` - the engine
+          has no fractional sizing; position is always +/-1 or 0.
+        - emission order on each filled bar: ``accepted`` (pre-fill
+          acknowledgement) then ``full_fill`` (realized fill),
+          sharing ``timestamp_utc`` and adjacent ``sequence`` ids.
+
+        No ``rejected`` / ``canceled`` events are emitted: the
+        current engine has no explicit no-execution branch.
         """
         df = self._prepare_bollinger_regime_df(df, strategie_func)
         sig = self._prepare_trend_pullback_tp_sl_sig(df, strategie_func)
@@ -1183,6 +1229,8 @@ class BacktestEngine:
 
         trade_pnls: list[float] = []
         trade_events: list[dict[str, Any]] = []
+        execution_events: list[ExecutionEvent] = []
+        event_sequence = 0
         equity = 1.0
         equity_serie: list[float] = [equity]
         positie = 0
@@ -1207,11 +1255,77 @@ class BacktestEngine:
                         current_trade["pnl"] = pnl
                         trade_events.append(current_trade)
                         current_trade = None
+                    if include_execution_events:
+                        exit_ts = self._timestamp_to_utc_iso(df.index[i])
+                        exit_side = "long" if positie > 0 else "short"
+                        exit_fee_amount = (
+                            float(equity) * float(self.kosten_per_kant)
+                        )
+                        execution_events.append(
+                            ExecutionEvent.accepted(
+                                asset=asset,
+                                side=exit_side,
+                                timestamp_utc=exit_ts,
+                                sequence=event_sequence,
+                                intended_price=float(prijs),
+                                requested_size=1.0,
+                                fold_index=fold_index,
+                            )
+                        )
+                        event_sequence += 1
+                        execution_events.append(
+                            ExecutionEvent.full_fill(
+                                asset=asset,
+                                side=exit_side,
+                                timestamp_utc=exit_ts,
+                                sequence=event_sequence,
+                                intended_price=float(prijs),
+                                requested_size=1.0,
+                                fill_price=float(prijs),
+                                filled_size=1.0,
+                                fee_amount=exit_fee_amount,
+                                slippage_bps=0.0,
+                                fold_index=fold_index,
+                            )
+                        )
+                        event_sequence += 1
                 equity *= 1.0 - self.kosten_per_kant
                 positie = 0
 
             if positie == 0 and signaal != 0:
                 entry_prijs = prijs
+                entry_side = "long" if signaal > 0 else "short"
+                entry_fee_amount = float(equity) * float(self.kosten_per_kant)
+                if include_execution_events:
+                    entry_ts = self._timestamp_to_utc_iso(df.index[i])
+                    execution_events.append(
+                        ExecutionEvent.accepted(
+                            asset=asset,
+                            side=entry_side,
+                            timestamp_utc=entry_ts,
+                            sequence=event_sequence,
+                            intended_price=float(prijs),
+                            requested_size=1.0,
+                            fold_index=fold_index,
+                        )
+                    )
+                    event_sequence += 1
+                    execution_events.append(
+                        ExecutionEvent.full_fill(
+                            asset=asset,
+                            side=entry_side,
+                            timestamp_utc=entry_ts,
+                            sequence=event_sequence,
+                            intended_price=float(prijs),
+                            requested_size=1.0,
+                            fill_price=float(prijs),
+                            filled_size=1.0,
+                            fee_amount=entry_fee_amount,
+                            slippage_bps=0.0,
+                            fold_index=fold_index,
+                        )
+                    )
+                    event_sequence += 1
                 equity *= 1.0 - self.kosten_per_kant
                 positie = signaal
                 if include_trade_events:
@@ -1237,7 +1351,13 @@ class BacktestEngine:
             for i in range(1, len(equity_serie))
         ]
         maand_returns = self._maand_returns(pd.Series(equity_serie, dtype=float), df)
-        return trade_pnls, dag_returns, maand_returns, trade_events
+        return (
+            trade_pnls,
+            dag_returns,
+            maand_returns,
+            trade_events,
+            execution_events,
+        )
 
     def _resolve_fitted_features(
         self,
