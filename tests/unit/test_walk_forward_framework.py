@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -17,6 +18,9 @@ from agent.backtesting.engine import (
     single_split,
     validate_no_leakage,
 )
+from agent.backtesting.multi_asset_loader import load_aligned_pair
+from data.contracts import Provenance
+from data.repository import BarsResponse
 
 
 def _frame_from_closes(closes: list[float]) -> pd.DataFrame:
@@ -112,6 +116,96 @@ def test_rolling_mode_uses_safe_defaults_when_bars_omitted():
     assert config["train_bars"] == 500
     assert config["test_bars"] == 100
     assert config["step_bars"] == 100
+
+
+def _ohlcv(index: pd.DatetimeIndex, base: float) -> pd.DataFrame:
+    n = len(index)
+    return pd.DataFrame(
+        {
+            "open": [base + i for i in range(n)],
+            "high": [base + i + 0.5 for i in range(n)],
+            "low": [base + i - 0.5 for i in range(n)],
+            "close": [base + i + 0.25 for i in range(n)],
+            "volume": [1_000.0 + i for i in range(n)],
+        },
+        index=index,
+    )
+
+
+def _repo_returning(primary: pd.DataFrame, reference: pd.DataFrame) -> MagicMock:
+    provenance = Provenance(
+        adapter="fixture",
+        fetched_at_utc=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+        config_hash="cfg",
+        source_version="1.0",
+        cache_hit=False,
+    )
+    repo = MagicMock()
+
+    def _get_bars(*, instrument, interval, start_utc, end_utc):
+        if instrument.native_symbol.startswith("BTC"):
+            frame = primary
+        else:
+            frame = reference
+        return BarsResponse(frame=frame, provenance=provenance)
+
+    repo.get_bars.side_effect = _get_bars
+    return repo
+
+
+def test_multi_asset_fold_slices_match_direct_alignment_per_fold():
+    """v3.6 fold-safety invariant: slicing a full-range AlignedPairFrame
+    at a fold boundary produces exactly the same primary/reference pair
+    as invoking the loader directly over that fold's date range.
+
+    If this ever drifts, fold iteration can leak information across
+    boundaries through the reference leg — the multi-asset analogue of
+    FoldLeakageError. Pinned here because the engine's fold loop does
+    `context.reference_frame.iloc[start:end+1]` and must not diverge
+    from a direct alignment over the same window.
+    """
+    start = pd.Timestamp("2026-01-01", tz="UTC")
+    end = pd.Timestamp("2026-02-09", tz="UTC")
+    full_index = pd.date_range("2026-01-01", periods=40, freq="D")
+    primary = _ohlcv(full_index, base=100.0)
+    reference = _ohlcv(full_index, base=200.0)
+
+    full = load_aligned_pair(
+        "BTC-EUR",
+        "ETH-EUR",
+        "1d",
+        start,
+        end,
+        market_repository=_repo_returning(primary, reference),
+    )
+
+    folds = anchored_walk_forward(
+        n=40, initial_train_bars=10, test_bars=5, step_bars=5
+    )
+    assert len(folds) >= MIN_ROBUSTNESS_FOLDS
+
+    for (train_start, train_end), (test_start, test_end) in folds:
+        window_start = train_start
+        window_end = test_end
+        sliced_primary = full.primary.iloc[window_start : window_end + 1]
+        sliced_reference = full.reference.iloc[window_start : window_end + 1]
+
+        truncated_primary = primary.iloc[window_start : window_end + 1]
+        truncated_reference = reference.iloc[window_start : window_end + 1]
+        direct = load_aligned_pair(
+            "BTC-EUR",
+            "ETH-EUR",
+            "1d",
+            start,
+            end,
+            market_repository=_repo_returning(
+                truncated_primary, truncated_reference
+            ),
+        )
+
+        pd.testing.assert_frame_equal(sliced_primary, direct.primary)
+        pd.testing.assert_frame_equal(sliced_reference, direct.reference)
+        assert sliced_primary.index.equals(sliced_reference.index)
 
 
 def test_grid_search_selection_uses_train_windows_only(monkeypatch):
