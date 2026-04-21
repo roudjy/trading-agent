@@ -4,6 +4,139 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.8] — Execution Realism & Evaluation Hardening
+
+Date: 2026-04-21
+Branch: `feature/v3.7-fitted-feature-abstraction`
+
+Evaluation-hardening phase. Additive abstractions and opt-in
+evaluation hooks only. No change to strategy logic, feature logic,
+fitted-feature semantics, baseline equity / trade booking, public
+JSON / CSV schemas, `candidate_id` hashing, or Tier 1 bytewise
+pins. See
+[ADR-008](docs/adr/ADR-008-execution-realism-and-evaluation-hardening.md)
+for the full design record, rejected alternatives, pinned
+semantics, and deferred items.
+
+### Added
+
+- `agent/backtesting/execution.py` (v3.8 step 1). Canonical
+  execution event scaffold. `EXECUTION_EVENT_VERSION = "1.0"`,
+  frozen `ExecutionEvent` with five pinned kinds (`accepted`,
+  `partial_fill`, `full_fill`, `rejected`, `canceled`), typed
+  `ALLOWED_REASON_CODES`, factory builders (`.accepted`,
+  `.full_fill`, `.partial_fill`, `.rejected`, `.canceled`),
+  pandas / numpy sentinel rejection, dict round-trip helpers
+  (`execution_event_to_dict`, `execution_event_from_dict`),
+  structural `fingerprint` placeholder (unset in v1.0).
+  Deliberately disjoint from `execution/protocols.py::Fill`
+  (live / paper-broker success record).
+- `agent/backtesting/engine.py::_simuleer_detailed` (v3.8 step 2).
+  Deterministic emission of `ExecutionEvent.accepted` +
+  `ExecutionEvent.full_fill` pairs at each booked entry and exit.
+  Monotone `sequence` within `(run_id, asset, fold_index)`; every
+  event carries `fold_index`. Gated behind
+  `include_execution_events` keyword flag; enabled only on OOS
+  folds. Events land in
+  `_last_window_streams["oos_execution_events"]` and surface on
+  the research result dict as `evaluation_streams`. Baseline
+  equity math, fee application, and trade PnL bytewise unchanged.
+- `agent/backtesting/cost_sensitivity.py` (v3.8 step 3).
+  `COST_SENSITIVITY_VERSION = "1.0"`, frozen `ScenarioSpec`,
+  `DEFAULT_SCENARIOS`, `run_cost_sensitivity`,
+  `derive_fill_positions`, `build_cost_sensitivity_report`. Pure
+  evaluation-layer replay applying per-fill multiplicative
+  adjustment `(1 - m*k) * (1 - s_bps/1e4) / (1 - k)`. Baseline
+  scenario reproduces the engine's `dag_returns` bytewise;
+  alternative scenarios apply stress without mutating the
+  baseline. Opt-in hook `BacktestEngine.build_cost_sensitivity`
+  (not called from `run()`).
+- `agent/backtesting/exit_diagnostics.py` (v3.8 step 4).
+  `EXIT_DIAGNOSTICS_VERSION = "1.0"`, frozen `TradeDiagnostic`,
+  `compute_trade_diagnostic`, `extract_interior_bar_returns`,
+  `build_exit_diagnostics_report`. Pure evaluation-layer path
+  analysis consuming `oos_trade_events` + `oos_bar_returns` +
+  `kosten_per_kant`. Pinned per-trade definitions: MFE, MAE,
+  realized return, capture ratio (with `None` on zero MFE),
+  winner giveback (with `None` on losers), exit lag, holding
+  bars. Pinned aggregate: turnover-adjusted exit quality
+  (`avg_capture * (1 - density)`, zero on zero-trade). Exit-bar
+  pollution by `(1 - k)` fee factor is handled by anchoring the
+  exit path point at `pnl + k`. Opt-in hook
+  `BacktestEngine.build_exit_diagnostics` (not called from
+  `run()`).
+- `tests/unit/test_execution_event_scaffold.py` (v3.8 step 1,
+  ~23 tests).
+- `tests/unit/test_execution_event_emission.py` (v3.8 step 2).
+- `tests/unit/test_cost_sensitivity.py` (v3.8 step 3, 30 tests).
+- `tests/unit/test_exit_diagnostics.py` (v3.8 step 4, 26 tests).
+- `docs/adr/ADR-008-execution-realism-and-evaluation-hardening.md`
+  (v3.8 step 5).
+- `docs/orchestrator_brief.md` §Addendum: v3.8 scope, layer
+  placement, execution-event / cost-sensitivity / exit-quality
+  semantics, deferred items, preserved bytewise invariants, phase
+  character.
+
+### Unchanged — explicitly pinned
+
+- `research_latest.json` row schema and top-level schema
+  (bytewise).
+- 19-column CSV row schema (bytewise).
+- Integrity (`integrity_report_latest.v1.json`) and falsification
+  (`falsification_gates_latest.v1.json`) sidecar schemas.
+- Integrity D4 boundary.
+- Tier 1 bytewise digests (`sma_crossover`,
+  `zscore_mean_reversion`, `pairs_zscore`).
+- Walk-forward `FoldLeakageError` semantics.
+- Resume-integrity gate.
+- `candidate_id` hashing inputs (`research/candidate_pipeline.py
+  ::_hash_payload`). Execution shape is explicitly out of the
+  hash.
+- `FEATURE_REGISTRY`, `FEATURE_VERSION = "1.0"`,
+  `build_features_for`, `build_features_for_multi`.
+- `FITTED_FEATURE_REGISTRY`, `FITTED_FEATURE_VERSION = "1.0"`,
+  fold-aware builders.
+- Strategy logic (`strategies.py`, `thin_strategy.py`).
+- Baseline equity math, fee application, trade PnL formula in
+  `_simuleer_detailed`.
+- Live / paper broker path (`execution/protocols.py`,
+  `execution/paper/polymarket_sim.py`).
+
+### Deferred
+
+- Paper validation as a formal gate.
+- Live / paper divergence reporting between live `Fill` outcomes
+  and backtest `ExecutionEvent` projections.
+- Full execution shortfall framework (quote midpoint, bid/ask,
+  impact curves). Current backtest slippage is `0.0 bps`
+  (next-bar close).
+- Richer rejection / partial-fill semantics in the engine. The
+  scaffold exists; current emission is entry + exit fills only.
+- Broader promotion framework integration of cost-sensitivity and
+  exit-quality reports. Both remain opt-in side-channels and are
+  not gates in v3.8.
+- Regime / portfolio research.
+- Broader orchestration / platform automation.
+- Thin contract v2.0 unification. See
+  [ADR-006](docs/adr/ADR-006-v2-contract-deferred.md). v3.8 does
+  not introduce new ADR-006 triggers and does not resolve any of
+  its conditions.
+- Broader strategy migration to the fitted path (ADR-007). v3.8
+  neither widens nor narrows the v3.7 opt-in surface.
+- `ExecutionEvent.fingerprint` computation. v1.0 reserves the
+  field as a structural placeholder.
+- Config-level surfacing of `build_cost_sensitivity` and
+  `build_exit_diagnostics` on the research pipeline. Both remain
+  callable on `BacktestEngine` instances only.
+
+### Phase character
+
+v3.8 is an evaluation-hardening phase, not a strategy-expansion
+phase. Every change is additive, deterministic, non-mutating with
+respect to baseline results, and gated behind opt-in hooks or
+flags that default off. Tier 1 digests, public artifacts, and
+promotion inputs are pinned at their v3.7 values.
+
 ## [v3.7] — Fitted Feature Abstraction
 
 Date: 2026-04-21

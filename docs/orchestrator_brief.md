@@ -351,3 +351,209 @@ v3.7 is **not** a substitute for:
   design, rationale, rejected alternatives, and walk-forward
   invariants.
 
+---
+
+## Addendum: v3.8 — Execution Realism & Evaluation Hardening
+
+This addendum documents the v3.8 additions on top of the base
+specification and the v3.6 / v3.7 addenda. It does **not** alter
+§1–5; those remain the load-bearing architecture. v3.8 is an
+additive **evaluation-hardening** phase: it does not change
+strategy logic, feature logic, fitted-feature semantics, or
+baseline equity / trade booking. See
+[ADR-008](adr/ADR-008-execution-realism-and-evaluation-hardening.md)
+for the full design record, rejected alternatives, and pinned
+semantics.
+
+### Problem solved
+
+Before v3.8 the engine collapsed "signal emitted → trade booked"
+into a single inline step. A shifted signal was converted directly
+into equity impact with a flat `kosten_per_kant` applied inline at
+entry and exit. There was no auditable record of intended versus
+realized price, fee amount, typed slippage, rejection reason, or
+fold-local execution identity. That implicit boundary was
+sufficient for v3.5 / v3.6 / v3.7 but blocked four
+evaluation-hardening questions: fee attribution, slippage
+attribution, execution sensitivity, and exit quality.
+
+v3.8 makes the existing research truth auditable and
+stress-testable. It does **not** change what that truth is.
+
+### Scope
+
+v3.8 delivers five additive steps:
+
+1. **Canonical execution event scaffold.**
+   `agent/backtesting/execution.py`,
+   `EXECUTION_EVENT_VERSION = "1.0"`. Frozen `ExecutionEvent` with
+   five pinned kinds (`accepted`, `partial_fill`, `full_fill`,
+   `rejected`, `canceled`), typed reason-code vocabulary, factory
+   builders, pandas/numpy-rejection sentinel, dict round-trip
+   helpers. Explicitly disjoint from `execution/protocols.py::Fill`
+   (the live / paper-broker success record).
+2. **Deterministic engine emission.** `_simuleer_detailed` emits
+   an `accepted` + `full_fill` pair at each booked entry and exit
+   with monotone `sequence` and fold-local `event_id`. Gated by
+   `include_execution_events`; enabled only on OOS folds. Events
+   land in `_last_window_streams["oos_execution_events"]`. Baseline
+   equity math, fee application, and trade PnL are bytewise
+   unchanged.
+3. **Fee / slippage attribution basis.** Every emitted `full_fill`
+   carries `fill_price`, `fee_amount` (derived from the
+   pre-multiplication equity and `kosten_per_kant`),
+   `slippage_bps = 0.0` (next-bar-close model),
+   `requested_size = filled_size = 1.0`, and `intended_price`.
+   Event-derived fee sums reconcile with the engine's inline
+   equity drag.
+4. **Cost sensitivity harness.**
+   `agent/backtesting/cost_sensitivity.py`,
+   `COST_SENSITIVITY_VERSION = "1.0"`. Pure evaluation-layer
+   replay with per-fill adjustment
+   `(1 - m*k) * (1 - s_bps/1e4) / (1 - k)`. Baseline scenario
+   reproduces the engine's `dag_returns` bytewise; alternative
+   scenarios apply stress without mutating the baseline. Opt-in
+   hook `BacktestEngine.build_cost_sensitivity`.
+5. **Exit-quality diagnostics.**
+   `agent/backtesting/exit_diagnostics.py`,
+   `EXIT_DIAGNOSTICS_VERSION = "1.0"`. Pure evaluation-layer
+   path analysis on `oos_trade_events` + `oos_bar_returns` +
+   `kosten_per_kant`. Per-trade MFE / MAE / realized return /
+   capture ratio / winner giveback / exit lag + run-level
+   turnover-adjusted exit quality. Opt-in hook
+   `BacktestEngine.build_exit_diagnostics`.
+
+### Layer placement
+
+- **Execution-model layer (new, inside the backtest path)** owns
+  the event record. Lives in `agent/backtesting/execution.py`.
+- **Engine layer** owns emission. Events are produced
+  deterministically inside `_simuleer_detailed` during OOS folds;
+  the event stream is a side-channel stored in
+  `_last_window_streams` and surfaces on the research result dict
+  as `evaluation_streams`.
+- **Evaluation layer** owns replay and diagnostics
+  (`cost_sensitivity.py`, `exit_diagnostics.py`). Both are
+  stdlib-only, non-mutating, and invoked through opt-in hooks on
+  `BacktestEngine` — never from `run()`.
+- **Strategy layer, feature layer, fitted-feature layer** — all
+  unchanged.
+- **Live / paper broker layer (`execution/protocols.py`,
+  `execution/paper/polymarket_sim.py`)** — unchanged and
+  disjoint. `Fill` is a live success record; `ExecutionEvent` is
+  a backtest evaluation record. Nothing imports across.
+
+### Execution-event semantics (pinned by ADR-008)
+
+- `accepted` + `full_fill` are emitted per entry and per exit. The
+  current engine mirrors the v3.7 truth: next-bar-close fills,
+  one-sided fee per side, no partials, no explicit rejections.
+- `partial_fill`, `rejected`, `canceled` are **scaffolded** in the
+  model but not emitted by the current engine. Richer emission
+  awaits a concrete trigger (capacity-bounded sizing, liquidity
+  filters, venue-state modeling).
+- Field semantics v1.0: `intended_price` = next-bar close;
+  `fill_price == intended_price` and `slippage_bps = 0.0`;
+  `requested_size = filled_size = 1.0`; `fee_amount` is account
+  currency, `>= 0`, reconciles with the engine's equity drag;
+  `sequence` monotone within `(run_id, asset, fold_index)`;
+  `fold_index` carried on every event; `fingerprint` reserved,
+  unset.
+
+### Cost sensitivity semantics (pinned by ADR-008)
+
+- Replay layer only. Does not call strategies, does not rebuild
+  features, does not invoke the engine loop.
+- Baseline scenario (`fee_multiplier=1.0, slippage_bps=0.0`)
+  reproduces `dag_returns` bytewise. This invariant is pinned by
+  unit tests and is the reason the replay can be trusted as a
+  side-channel on the baseline.
+- Alternative scenarios apply a per-fill multiplicative adjustment;
+  the baseline is not mutated.
+- Any stress-conditioned metrics are **internal / additive** and
+  do not replace the main evaluation framework. Tier 1 metrics in
+  `research_latest` are unchanged.
+
+### Exit-quality semantics (pinned by ADR-008)
+
+Per-trade path: `[0.0, interior_cumulative (side-adjusted raw
+ratios), realized_pnl + kosten_per_kant]`. Interior bars are the
+`oos_bar_returns` entries strictly between entry and exit for the
+matching `(asset, fold_index)` partition. The exit bar's bar-stream
+return is polluted by the engine's `(1 - k)` fee factor and is
+**not** used; the clean exit-bar anchor is `pnl + k`.
+
+Pinned per-trade definitions:
+
+- `mfe = max(max(path), 0.0)`; `mae = max(-min(path), 0.0)`.
+- `realized_return = path[-1] = pnl + k`.
+- `capture_ratio = realized_return / mfe if mfe > 0.0 else None`.
+- `winner_giveback = mfe - realized_return if realized_return >
+  0.0 else None`.
+- `exit_lag_bars = len(path) - 1 - argmax(path)`;
+  `holding_bars = len(path) - 1`.
+
+Pinned aggregate: `turnover_adjusted_exit_quality =
+avg_capture_ratio * (1 - min(trade_count / max(total_bars, 1),
+1.0))`; `0.0` when `trade_count == 0`.
+
+Long/short symmetry: `side_sign ∈ {+1, -1}` makes the path
+construction symmetric under the engine's side-adjusted bar stream.
+
+Zero-opportunity / zero-trade conventions: `capture_ratio` and
+`winner_giveback` are `None` where undefined; zero-trade runs
+return valid empty structures with all summary floats `0.0`.
+
+Bar-based path only: exit-quality diagnostics are a bar-resolution
+analysis of the engine's own truth. No intrabar inference, no tick
+data, no touches the engine did not observe.
+
+### Out of scope (explicitly deferred)
+
+v3.8 does not deliver:
+
+- Paper validation as a formal gate.
+- Live / paper divergence reporting between live `Fill` outcomes
+  and backtest `ExecutionEvent` projections.
+- Full execution shortfall framework (quote midpoint, bid/ask,
+  impact curves). Current backtest slippage is `0.0 bps` (next-bar
+  close).
+- Richer rejection / partial-fill semantics in the engine. The
+  scaffold exists; engine emission is still entry + exit fills
+  only.
+- Broader promotion framework integration. Cost-sensitivity and
+  exit-diagnostic reports are opt-in side-channels and are not
+  gates.
+- Regime / portfolio research. Unchanged.
+- Broader orchestration / platform automation. Unchanged.
+- Thin contract v2.0 unification (ADR-006) and broader strategy
+  migration to the fitted path (ADR-007). Still deferred; v3.8
+  neither introduces new ADR-006 triggers nor resolves any of its
+  conditions.
+- Config-level surfacing of `build_cost_sensitivity` and
+  `build_exit_diagnostics`. Both are callable on `BacktestEngine`
+  instances only.
+
+### Preserved bytewise
+
+- Tier 1 digest pins (SMA crossover, z-score mean reversion, pairs
+  z-score).
+- `research_latest.json` row and top-level schema.
+- 19-column CSV row schema.
+- Integrity and falsification sidecar schemas; D4 boundary.
+- Walk-forward `FoldLeakageError` semantics.
+- Resume-integrity gate.
+- `candidate_id` hashing inputs (execution shape is explicitly
+  out of the hash).
+- `FEATURE_REGISTRY`, `FEATURE_VERSION = "1.0"`,
+  `FITTED_FEATURE_REGISTRY`, `FITTED_FEATURE_VERSION = "1.0"`.
+- `execution/protocols.py`, `execution/paper/polymarket_sim.py`.
+
+### Phase character
+
+v3.8 is an **evaluation-hardening phase**, not a
+strategy-expansion phase. Every change is additive,
+deterministic, non-mutating with respect to baseline results, and
+gated behind opt-in hooks or flags that default off. See
+[ADR-008](adr/ADR-008-execution-realism-and-evaluation-hardening.md).
+
