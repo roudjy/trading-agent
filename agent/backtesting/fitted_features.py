@@ -236,6 +236,114 @@ class FittedFeatureSpec:
 FITTED_FEATURE_REGISTRY: dict[str, FittedFeatureSpec] = {}
 
 
+# ---------------------------------------------------------------------------
+# hedge_ratio_ols - static OLS hedge ratio (v3.7 step 2)
+# ---------------------------------------------------------------------------
+
+_HEDGE_RATIO_OLS_NAME = "hedge_ratio_ols"
+_HEDGE_RATIO_OLS_REQUIRED_COLUMNS: tuple[str, ...] = ("close", "close_ref")
+_MIN_OLS_ROWS = 2
+
+
+def _fit_hedge_ratio_ols(df: pd.DataFrame) -> FittedParams:
+    """Fit a static OLS hedge ratio on the training window.
+
+    Convention (locked):
+
+    - y = df["close"] (primary leg)
+    - x = df["close_ref"] (reference leg)
+    - Model: y = alpha + beta * x + eps. Intercept is allowed during
+      fit; slope is computed as Cov(x, y) / Var(x, ddof=0) which is
+      the OLS slope of a regression *with* intercept. Only beta is
+      retained in FittedParams - the intercept is absorbed into the
+      mean of the resulting spread and centered away downstream by
+      the z-score (not this function's concern).
+
+    Loud-fails (ValueError) on: missing required columns, empty input,
+    fewer than ``_MIN_OLS_ROWS`` rows, NaN in inputs, zero / non-finite
+    variance in the reference leg, or a non-finite fitted beta. No
+    silent fallback to a naive ratio; the caller gets a clear error.
+    """
+    missing = [c for c in _HEDGE_RATIO_OLS_REQUIRED_COLUMNS
+               if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"{_HEDGE_RATIO_OLS_NAME}.fit: missing required columns "
+            f"{missing}"
+        )
+    if len(df) == 0:
+        raise ValueError(
+            f"{_HEDGE_RATIO_OLS_NAME}.fit: empty input frame"
+        )
+    if len(df) < _MIN_OLS_ROWS:
+        raise ValueError(
+            f"{_HEDGE_RATIO_OLS_NAME}.fit: need >= {_MIN_OLS_ROWS} rows, "
+            f"got {len(df)}"
+        )
+    y = df["close"].astype(float)
+    x = df["close_ref"].astype(float)
+    if y.isna().any() or x.isna().any():
+        raise ValueError(
+            f"{_HEDGE_RATIO_OLS_NAME}.fit: NaN values present in "
+            f"required inputs"
+        )
+    var_x = float(x.var(ddof=0))
+    if var_x == 0.0 or not np.isfinite(var_x):
+        raise ValueError(
+            f"{_HEDGE_RATIO_OLS_NAME}.fit: reference series has zero "
+            f"or non-finite variance (singular design)"
+        )
+    cov_xy = float((x * y).mean() - x.mean() * y.mean())
+    beta = cov_xy / var_x
+    if not np.isfinite(beta):
+        raise ValueError(
+            f"{_HEDGE_RATIO_OLS_NAME}.fit: fitted beta is non-finite "
+            f"({beta!r})"
+        )
+    return FittedParams.build(
+        values={"beta": float(beta)},
+        feature_name=_HEDGE_RATIO_OLS_NAME,
+    )
+
+
+def _transform_hedge_ratio_ols(
+    df: pd.DataFrame, params: FittedParams
+) -> pd.Series:
+    """Transform: spread = close - beta * close_ref.
+
+    Reads only ``df`` and the frozen ``params``; no refit, no external
+    state. Index-preserving, non-mutating. Loud-fails (ValueError) on
+    missing required columns or a params object that does not belong
+    to ``hedge_ratio_ols``.
+    """
+    validate_fitted_params(params, _HEDGE_RATIO_OLS_NAME)
+    missing = [c for c in _HEDGE_RATIO_OLS_REQUIRED_COLUMNS
+               if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"{_HEDGE_RATIO_OLS_NAME}.transform: missing required "
+            f"columns {missing}"
+        )
+    beta = float(params.values["beta"])
+    y = df["close"].astype(float)
+    x = df["close_ref"].astype(float)
+    return y - beta * x
+
+
+def _warmup_hedge_ratio_ols(_params: dict) -> int:
+    """Static fit has no rolling warmup on the transform path."""
+    return 0
+
+
+FITTED_FEATURE_REGISTRY[_HEDGE_RATIO_OLS_NAME] = FittedFeatureSpec(
+    fit_fn=_fit_hedge_ratio_ols,
+    transform_fn=_transform_hedge_ratio_ols,
+    param_names=(),
+    required_columns=_HEDGE_RATIO_OLS_REQUIRED_COLUMNS,
+    warmup_bars_fn=_warmup_hedge_ratio_ols,
+)
+
+
 def validate_fitted_params(params: FittedParams, spec_name: str) -> None:
     """Assert params originate from ``spec_name`` at the current version.
 

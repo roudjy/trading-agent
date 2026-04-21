@@ -78,9 +78,12 @@ def test_fitted_feature_version_is_pinned_string() -> None:
     assert FITTED_FEATURE_VERSION == "1.0"
 
 
-def test_fitted_feature_registry_is_initially_empty() -> None:
+def test_fitted_feature_registry_contains_expected_entries() -> None:
+    # Step 2 registers hedge_ratio_ols. Any additional fitted features
+    # land in later steps (or a future phase) and must update this
+    # pin consciously.
     assert isinstance(FITTED_FEATURE_REGISTRY, dict)
-    assert FITTED_FEATURE_REGISTRY == {}
+    assert set(FITTED_FEATURE_REGISTRY.keys()) == {"hedge_ratio_ols"}
 
 
 def test_fit_is_deterministic() -> None:
@@ -387,3 +390,182 @@ def test_fingerprint_defaults_to_none_and_is_frozen_after_build() -> None:
 
     with pytest.raises(dataclasses.FrozenInstanceError):
         p_set.fingerprint = "other"  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# hedge_ratio_ols (v3.7 step 2)
+# ---------------------------------------------------------------------------
+
+
+def _linear_pairs_frame(
+    n: int = 20, beta_true: float = 2.0, alpha_true: float = 5.0
+) -> pd.DataFrame:
+    """Build a clean y = alpha + beta*x frame with integer-spaced x."""
+    x = np.arange(1, n + 1, dtype=float)
+    y = alpha_true + beta_true * x
+    index = pd.date_range("2024-01-01", periods=n, freq="D")
+    return pd.DataFrame({"close": y, "close_ref": x}, index=index)
+
+
+def test_hedge_ratio_ols_is_registered_as_fitted_feature() -> None:
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    assert isinstance(spec, FittedFeatureSpec)
+    assert spec.required_columns == ("close", "close_ref")
+    assert spec.param_names == ()
+    assert spec.warmup_bars_fn({}) == 0
+
+
+def test_hedge_ratio_ols_fit_returns_expected_beta_on_known_linear_input(
+) -> None:
+    df = _linear_pairs_frame(n=20, beta_true=2.0, alpha_true=5.0)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    params = spec.fit_fn(df)
+    beta = params.values["beta"]
+    assert isinstance(beta, float)
+    assert beta == pytest.approx(2.0, rel=0, abs=1e-12)
+
+
+def test_hedge_ratio_ols_intercept_is_allowed_during_fit() -> None:
+    # y = 2x + 5. OLS with intercept -> beta = 2.0 exactly.
+    # Through-origin OLS (beta = sum(xy)/sum(x^2)) on x=1..20 would give
+    # ~2.357 - materially different. This test locks the intercept-
+    # allowed convention against an accidental through-origin drift.
+    df = _linear_pairs_frame(n=20, beta_true=2.0, alpha_true=5.0)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    params = spec.fit_fn(df)
+    beta = params.values["beta"]
+    assert beta == pytest.approx(2.0, rel=0, abs=1e-12)
+
+    x = df["close_ref"].to_numpy()
+    y = df["close"].to_numpy()
+    through_origin = float((x * y).sum() / (x * x).sum())
+    assert abs(through_origin - 2.0) > 0.1
+
+
+def test_hedge_ratio_ols_transform_returns_expected_spread_on_known_input(
+) -> None:
+    # y = 2x + 5; with beta=2 the spread is the constant intercept 5.
+    df = _linear_pairs_frame(n=20, beta_true=2.0, alpha_true=5.0)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    params = spec.fit_fn(df)
+    spread = spec.transform_fn(df, params)
+    expected = pd.Series(
+        np.full(len(df), 5.0), index=df.index
+    )
+    pd.testing.assert_series_equal(
+        spread, expected, check_names=False, atol=1e-12
+    )
+
+
+def test_hedge_ratio_ols_fit_is_deterministic() -> None:
+    df = _linear_pairs_frame(n=30)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    p1 = spec.fit_fn(df)
+    p2 = spec.fit_fn(df)
+    assert p1.values["beta"] == p2.values["beta"]
+
+
+def test_hedge_ratio_ols_transform_is_deterministic_given_params() -> None:
+    df = _linear_pairs_frame(n=30)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    params = spec.fit_fn(df)
+    s1 = spec.transform_fn(df, params)
+    s2 = spec.transform_fn(df, params)
+    pd.testing.assert_series_equal(s1, s2)
+
+
+def test_hedge_ratio_ols_transform_is_index_preserving() -> None:
+    df = _linear_pairs_frame(n=15)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    params = spec.fit_fn(df)
+    out = spec.transform_fn(df, params)
+    assert out.index.equals(df.index)
+    assert len(out) == len(df)
+
+
+def test_hedge_ratio_ols_fit_does_not_mutate_input() -> None:
+    df = _linear_pairs_frame(n=20)
+    snapshot = df.copy(deep=True)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    spec.fit_fn(df)
+    pd.testing.assert_frame_equal(df, snapshot)
+
+
+def test_hedge_ratio_ols_transform_does_not_mutate_input() -> None:
+    df = _linear_pairs_frame(n=20)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    params = spec.fit_fn(df)
+    snapshot = df.copy(deep=True)
+    spec.transform_fn(df, params)
+    pd.testing.assert_frame_equal(df, snapshot)
+
+
+def test_hedge_ratio_ols_rejects_missing_columns() -> None:
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    df = _linear_pairs_frame(n=10).drop(columns=["close_ref"])
+    with pytest.raises(ValueError, match="missing required columns"):
+        spec.fit_fn(df)
+
+    params = spec.fit_fn(_linear_pairs_frame(n=10))
+    with pytest.raises(ValueError, match="missing required columns"):
+        spec.transform_fn(df, params)
+
+
+def test_hedge_ratio_ols_rejects_empty_input() -> None:
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    df = pd.DataFrame(
+        {"close": pd.Series([], dtype=float),
+         "close_ref": pd.Series([], dtype=float)}
+    )
+    with pytest.raises(ValueError, match="empty input frame"):
+        spec.fit_fn(df)
+
+
+def test_hedge_ratio_ols_rejects_too_few_rows() -> None:
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    df = pd.DataFrame(
+        {"close": [1.0], "close_ref": [1.0]},
+        index=pd.date_range("2024-01-01", periods=1, freq="D"),
+    )
+    with pytest.raises(ValueError, match="need >= 2 rows"):
+        spec.fit_fn(df)
+
+
+def test_hedge_ratio_ols_rejects_nan_inputs() -> None:
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    df = _linear_pairs_frame(n=10)
+    df.loc[df.index[3], "close"] = np.nan
+    with pytest.raises(ValueError, match="NaN values"):
+        spec.fit_fn(df)
+
+    df2 = _linear_pairs_frame(n=10)
+    df2.loc[df2.index[5], "close_ref"] = np.nan
+    with pytest.raises(ValueError, match="NaN values"):
+        spec.fit_fn(df2)
+
+
+def test_hedge_ratio_ols_rejects_constant_or_singular_reference_series(
+) -> None:
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    df = pd.DataFrame(
+        {"close": np.arange(10, dtype=float),
+         "close_ref": np.full(10, 3.14, dtype=float)},
+        index=pd.date_range("2024-01-01", periods=10, freq="D"),
+    )
+    with pytest.raises(ValueError, match="zero or non-finite variance"):
+        spec.fit_fn(df)
+
+
+def test_hedge_ratio_ols_params_stay_small_and_carry_no_training_data(
+) -> None:
+    df = _linear_pairs_frame(n=50)
+    spec = FITTED_FEATURE_REGISTRY["hedge_ratio_ols"]
+    params = spec.fit_fn(df)
+
+    assert set(params.values.keys()) == {"beta"}
+    assert isinstance(params.values["beta"], float)
+    # Defensive: no pandas-ish payload, no ndarrays, no sequences.
+    for v in params.values.values():
+        assert not isinstance(v, (pd.Series, pd.DataFrame, pd.Index))
+        assert not isinstance(v, np.ndarray)
+        assert not isinstance(v, (tuple, list))
