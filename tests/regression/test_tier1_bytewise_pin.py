@@ -34,7 +34,11 @@ from agent.backtesting.strategies import (
     sma_crossover_strategie,
     zscore_mean_reversion_strategie,
 )
-from agent.backtesting.thin_strategy import build_features_for, is_thin_strategy
+from agent.backtesting.thin_strategy import (
+    build_features_for,
+    build_features_for_multi,
+    is_thin_strategy,
+)
 from tests._harness_helpers import build_ohlcv_frame, build_pairs_frame
 
 
@@ -48,6 +52,24 @@ def _invoke(strategy, frame: pd.DataFrame) -> pd.Series:
         features = build_features_for(strategy._feature_requirements, frame)
         return strategy(frame, features)
     return strategy(frame)
+
+
+def _invoke_multi(
+    strategy,
+    primary: pd.DataFrame,
+    reference: pd.DataFrame,
+) -> pd.Series:
+    """Mirror the engine's _invoke_strategy multi-asset branch: thin
+    strategies resolve through build_features_for_multi with a
+    {"primary", "reference"} mapping. This is the production path the
+    engine takes when AssetContext.reference_frame is populated (v3.6).
+    """
+    assert is_thin_strategy(strategy)
+    features = build_features_for_multi(
+        strategy._feature_requirements,
+        {"primary": primary, "reference": reference},
+    )
+    return strategy(primary, features)
 
 
 def _series_digest(sig: pd.Series) -> str:
@@ -158,6 +180,39 @@ def test_pairs_zscore_bytewise_pin(
     )
     assert sig.dtype.name == "int64"
     assert sig.index.equals(frame.index)
+
+
+def test_pairs_bytewise_pin_through_multi_asset_engine() -> None:
+    """v3.6 guardrail: pairs digest through the multi-asset engine path
+    (build_features_for_multi + {"primary", "reference"}) is byte-identical
+    to the single-frame pin. Drift here means the multi-asset routing
+    introduced a numerical difference vs the v3.5 bytewise pin — a
+    contract break that must stop the refactor before Step 6.
+    """
+    pinned = PAIRS_PINS[0]
+    lookback, entry_z, exit_z, hedge_ratio, expected = pinned
+
+    pairs_frame = build_pairs_frame(length=PAIRS_LEN, seed=PAIRS_SEED)
+    primary = build_ohlcv_frame(length=PAIRS_LEN, seed=PAIRS_SEED)
+    reference = build_ohlcv_frame(length=PAIRS_LEN, seed=PAIRS_SEED)
+    reference["close"] = pairs_frame["close_ref"].to_numpy()
+
+    strategy = pairs_zscore_strategie(
+        lookback=lookback,
+        entry_z=entry_z,
+        exit_z=exit_z,
+        hedge_ratio=hedge_ratio,
+    )
+
+    sig = _invoke_multi(strategy, primary, reference)
+
+    assert _series_digest(sig) == expected, (
+        "pairs_zscore digest drift through multi-asset engine path — "
+        "build_features_for_multi diverges from the single-frame pin; "
+        "stop before Step 6"
+    )
+    assert sig.dtype.name == "int64"
+    assert sig.index.equals(primary.index)
 
 
 def test_sma_crossover_insufficient_bars_is_all_zero() -> None:
