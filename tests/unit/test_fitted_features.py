@@ -79,11 +79,15 @@ def test_fitted_feature_version_is_pinned_string() -> None:
 
 
 def test_fitted_feature_registry_contains_expected_entries() -> None:
-    # Step 2 registers hedge_ratio_ols. Any additional fitted features
-    # land in later steps (or a future phase) and must update this
-    # pin consciously.
+    # Step 2 registered hedge_ratio_ols; step 4 added spread_zscore_ols
+    # so pairs_zscore can opt in to the fitted-spread z-score via a
+    # single feature requirement. Any additional fitted features must
+    # update this pin consciously.
     assert isinstance(FITTED_FEATURE_REGISTRY, dict)
-    assert set(FITTED_FEATURE_REGISTRY.keys()) == {"hedge_ratio_ols"}
+    assert set(FITTED_FEATURE_REGISTRY.keys()) == {
+        "hedge_ratio_ols",
+        "spread_zscore_ols",
+    }
 
 
 def test_fit_is_deterministic() -> None:

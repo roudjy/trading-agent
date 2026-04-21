@@ -51,6 +51,8 @@ from typing import Any, Callable, Mapping
 import numpy as np
 import pandas as pd
 
+from agent.backtesting.features import spread, zscore
+
 
 FITTED_FEATURE_VERSION = "1.0"
 
@@ -241,8 +243,50 @@ FITTED_FEATURE_REGISTRY: dict[str, FittedFeatureSpec] = {}
 # ---------------------------------------------------------------------------
 
 _HEDGE_RATIO_OLS_NAME = "hedge_ratio_ols"
+_SPREAD_ZSCORE_OLS_NAME = "spread_zscore_ols"
 _HEDGE_RATIO_OLS_REQUIRED_COLUMNS: tuple[str, ...] = ("close", "close_ref")
 _MIN_OLS_ROWS = 2
+
+
+def _fit_ols_beta(df: pd.DataFrame, caller: str) -> float:
+    """Shared OLS beta fit over close ~ close_ref with intercept.
+
+    Centralizes the fit math so ``hedge_ratio_ols`` and
+    ``spread_zscore_ols`` share one implementation. ``caller`` is
+    interpolated into the ValueError messages so failure diagnostics
+    remain specific to the feature being fit.
+    """
+    missing = [c for c in _HEDGE_RATIO_OLS_REQUIRED_COLUMNS
+               if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"{caller}.fit: missing required columns {missing}"
+        )
+    if len(df) == 0:
+        raise ValueError(f"{caller}.fit: empty input frame")
+    if len(df) < _MIN_OLS_ROWS:
+        raise ValueError(
+            f"{caller}.fit: need >= {_MIN_OLS_ROWS} rows, got {len(df)}"
+        )
+    y = df["close"].astype(float)
+    x = df["close_ref"].astype(float)
+    if y.isna().any() or x.isna().any():
+        raise ValueError(
+            f"{caller}.fit: NaN values present in required inputs"
+        )
+    var_x = float(x.var(ddof=0))
+    if var_x == 0.0 or not np.isfinite(var_x):
+        raise ValueError(
+            f"{caller}.fit: reference series has zero or non-finite "
+            f"variance (singular design)"
+        )
+    cov_xy = float((x * y).mean() - x.mean() * y.mean())
+    beta = cov_xy / var_x
+    if not np.isfinite(beta):
+        raise ValueError(
+            f"{caller}.fit: fitted beta is non-finite ({beta!r})"
+        )
+    return float(beta)
 
 
 def _fit_hedge_ratio_ols(df: pd.DataFrame) -> FittedParams:
@@ -264,44 +308,9 @@ def _fit_hedge_ratio_ols(df: pd.DataFrame) -> FittedParams:
     variance in the reference leg, or a non-finite fitted beta. No
     silent fallback to a naive ratio; the caller gets a clear error.
     """
-    missing = [c for c in _HEDGE_RATIO_OLS_REQUIRED_COLUMNS
-               if c not in df.columns]
-    if missing:
-        raise ValueError(
-            f"{_HEDGE_RATIO_OLS_NAME}.fit: missing required columns "
-            f"{missing}"
-        )
-    if len(df) == 0:
-        raise ValueError(
-            f"{_HEDGE_RATIO_OLS_NAME}.fit: empty input frame"
-        )
-    if len(df) < _MIN_OLS_ROWS:
-        raise ValueError(
-            f"{_HEDGE_RATIO_OLS_NAME}.fit: need >= {_MIN_OLS_ROWS} rows, "
-            f"got {len(df)}"
-        )
-    y = df["close"].astype(float)
-    x = df["close_ref"].astype(float)
-    if y.isna().any() or x.isna().any():
-        raise ValueError(
-            f"{_HEDGE_RATIO_OLS_NAME}.fit: NaN values present in "
-            f"required inputs"
-        )
-    var_x = float(x.var(ddof=0))
-    if var_x == 0.0 or not np.isfinite(var_x):
-        raise ValueError(
-            f"{_HEDGE_RATIO_OLS_NAME}.fit: reference series has zero "
-            f"or non-finite variance (singular design)"
-        )
-    cov_xy = float((x * y).mean() - x.mean() * y.mean())
-    beta = cov_xy / var_x
-    if not np.isfinite(beta):
-        raise ValueError(
-            f"{_HEDGE_RATIO_OLS_NAME}.fit: fitted beta is non-finite "
-            f"({beta!r})"
-        )
+    beta = _fit_ols_beta(df, _HEDGE_RATIO_OLS_NAME)
     return FittedParams.build(
-        values={"beta": float(beta)},
+        values={"beta": beta},
         feature_name=_HEDGE_RATIO_OLS_NAME,
     )
 
@@ -341,6 +350,74 @@ FITTED_FEATURE_REGISTRY[_HEDGE_RATIO_OLS_NAME] = FittedFeatureSpec(
     param_names=(),
     required_columns=_HEDGE_RATIO_OLS_REQUIRED_COLUMNS,
     warmup_bars_fn=_warmup_hedge_ratio_ols,
+)
+
+
+# ---------------------------------------------------------------------------
+# spread_zscore_ols - rolling z-score of the OLS-fitted pairs spread
+# (v3.7 step 4). Sibling of hedge_ratio_ols: shares the static OLS fit
+# on the training window, then transforms any frame (test slice) into
+# the rolling z-score of (close - beta * close_ref) over ``lookback``.
+# Added so pairs_zscore can opt in to a fitted-spread z-score without
+# chaining fitted + plain features in the strategy body.
+# ---------------------------------------------------------------------------
+
+
+def _fit_spread_zscore_ols(
+    df: pd.DataFrame, lookback: int | None = None
+) -> FittedParams:
+    """Fit OLS beta on the training window.
+
+    ``lookback`` is accepted (and ignored) so the fit call signature
+    matches ``transform_fn`` - the thin strategy layer forwards the
+    same kwargs to both phases. Lookback has no effect on the static
+    beta; it controls only the downstream rolling z-score.
+    """
+    _ = lookback
+    beta = _fit_ols_beta(df, _SPREAD_ZSCORE_OLS_NAME)
+    return FittedParams.build(
+        values={"beta": beta},
+        feature_name=_SPREAD_ZSCORE_OLS_NAME,
+    )
+
+
+def _transform_spread_zscore_ols(
+    df: pd.DataFrame, params: FittedParams, lookback: int
+) -> pd.Series:
+    """Transform: z = zscore(close - beta * close_ref, lookback).
+
+    Composes the existing ``spread`` and ``zscore`` primitives so the
+    rolling z-score math is byte-identical to the plain
+    ``spread_zscore`` feature when ``beta`` equals the caller's fixed
+    ``hedge_ratio``. Only the hedge ratio source differs.
+    """
+    validate_fitted_params(params, _SPREAD_ZSCORE_OLS_NAME)
+    missing = [c for c in _HEDGE_RATIO_OLS_REQUIRED_COLUMNS
+               if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"{_SPREAD_ZSCORE_OLS_NAME}.transform: missing required "
+            f"columns {missing}"
+        )
+    if not isinstance(lookback, int) or lookback <= 0:
+        raise ValueError(
+            f"{_SPREAD_ZSCORE_OLS_NAME}.transform: lookback must be a "
+            f"positive int, got {lookback!r}"
+        )
+    beta = float(params.values["beta"])
+    return zscore(spread(df["close"], df["close_ref"], beta), lookback)
+
+
+def _warmup_spread_zscore_ols(params: dict) -> int:
+    return int(params.get("lookback", 0))
+
+
+FITTED_FEATURE_REGISTRY[_SPREAD_ZSCORE_OLS_NAME] = FittedFeatureSpec(
+    fit_fn=_fit_spread_zscore_ols,
+    transform_fn=_transform_spread_zscore_ols,
+    param_names=("lookback",),
+    required_columns=_HEDGE_RATIO_OLS_REQUIRED_COLUMNS,
+    warmup_bars_fn=_warmup_spread_zscore_ols,
 )
 
 

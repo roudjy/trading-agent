@@ -463,7 +463,8 @@ def zscore_mean_reversion_strategie(lookback: int = 20,
 def pairs_zscore_strategie(lookback: int = 30,
                            entry_z: float = 2.0,
                            exit_z: float = 0.5,
-                           hedge_ratio: float = 1.0):
+                           hedge_ratio: float = 1.0,
+                           use_fitted_hedge_ratio: bool = False):
     """
     Pairs trading z-score strategy (orchestrator_brief §4.3).
     Requires a DataFrame with BOTH 'close' and 'close_ref' columns.
@@ -472,9 +473,21 @@ def pairs_zscore_strategie(lookback: int = 30,
     Short pair when spread z >= +entry_z (short close, long close_ref).
     Flat when |z| <= exit_z.
 
-    Thin contract v1.0 (scaffolded; pairs remains enabled=False in
-    v3.5 per registry). Body reads only df.index + features. The
+    Thin contract v1.0. Body reads only df.index + features. The
     multi-asset loader that populates 'close_ref' lands in v3.6+.
+
+    v3.7 step 4: ``use_fitted_hedge_ratio`` (default False) is an
+    explicit opt-in to the fitted OLS hedge ratio path. When False
+    (the default), the strategy emits exactly the v3.6 requirement
+    ``spread_zscore`` with the caller-provided scalar ``hedge_ratio``
+    - behavior is byte-identical to pre-v3.7. When True, the strategy
+    emits ``spread_zscore_ols`` (fitted) instead; the engine fits beta
+    on the training slice of each fold and reuses the frozen params
+    on the test slice via the fold-aware train/test helpers. The
+    scalar ``hedge_ratio`` is ignored in fitted mode - its value is
+    replaced by the fold-local OLS beta. Signal semantics
+    (entry_z / exit_z / lookback) are identical between the two
+    modes; only the spread's hedge ratio source differs.
     """
     def func(df: pd.DataFrame, features: Mapping[str, pd.Series]) -> pd.Series:
         sig = pd.Series(0, index=df.index)
@@ -488,13 +501,22 @@ def pairs_zscore_strategie(lookback: int = 30,
         sig[z.abs() <= exit_z] = 0
         return sig
 
-    return declare_thin(
-        func,
-        feature_requirements=[
+    if use_fitted_hedge_ratio:
+        requirements = [
+            FeatureRequirement(
+                name="spread_zscore_ols",
+                params={"lookback": lookback},
+                alias="z",
+                feature_kind="fitted",
+            ),
+        ]
+    else:
+        requirements = [
             FeatureRequirement(
                 name="spread_zscore",
                 params={"hedge_ratio": hedge_ratio, "lookback": lookback},
                 alias="z",
             ),
-        ],
-    )
+        ]
+
+    return declare_thin(func, feature_requirements=requirements)
