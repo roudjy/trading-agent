@@ -27,6 +27,10 @@ from agent.backtesting.thin_strategy import (
     THIN_CONTRACT_VERSION,
     build_features_for,
     build_features_for_multi,
+    build_features_test,
+    build_features_test_multi,
+    build_features_train,
+    build_features_train_multi,
     is_thin_strategy,
     validate_thin_strategy_output,
 )
@@ -781,6 +785,17 @@ class BacktestEngine:
                     if context.reference_frame is not None
                     else None
                 )
+                train_start, train_end = train_bounds
+                train_frame = context.frame.iloc[
+                    train_start : train_end + 1
+                ].copy()
+                train_reference_frame = (
+                    context.reference_frame.iloc[
+                        train_start : train_end + 1
+                    ].copy()
+                    if context.reference_frame is not None
+                    else None
+                )
                 trades, dag, maand, trade_events = self._simuleer_detailed(
                     df_window,
                     strategie_func,
@@ -789,6 +804,8 @@ class BacktestEngine:
                     fold_index=fold_index,
                     include_trade_events=not use_train,
                     reference_window=reference_window,
+                    train_frame=train_frame,
+                    train_reference_frame=train_reference_frame,
                 )
                 trade_pnls.extend(trades)
                 dag_returns.extend(dag)
@@ -1138,16 +1155,30 @@ class BacktestEngine:
         fold_index: Optional[int],
         include_trade_events: bool,
         reference_window: Optional[pd.DataFrame] = None,
+        train_frame: Optional[pd.DataFrame] = None,
+        train_reference_frame: Optional[pd.DataFrame] = None,
     ) -> tuple[list[float], list[float], list[float], list[dict[str, Any]]]:
         """
         Simuleer trades zonder lookahead bias.
         Signaal dag X -> uitvoering dag X+1.
         Equity dagelijks bijgehouden voor correcte Sharpe/Sortino.
+
+        v3.7 step 4: ``train_frame`` (and ``train_reference_frame``)
+        are forwarded to ``_invoke_strategy`` so fitted strategies can
+        fit on the current fold's training slice while transform runs
+        on ``df`` (the evaluation slice). Non-fitted strategies ignore
+        these arguments - default behavior is byte-identical.
         """
         df = self._prepare_bollinger_regime_df(df, strategie_func)
         sig = self._prepare_trend_pullback_tp_sl_sig(df, strategie_func)
         if sig is None:
-            sig = self._invoke_strategy(df, strategie_func, reference_frame=reference_window)
+            sig = self._invoke_strategy(
+                df,
+                strategie_func,
+                reference_frame=reference_window,
+                train_frame=train_frame,
+                train_reference_frame=train_reference_frame,
+            )
         df["sig"] = sig.shift(1).fillna(0)
 
         trade_pnls: list[float] = []
@@ -1208,11 +1239,64 @@ class BacktestEngine:
         maand_returns = self._maand_returns(pd.Series(equity_serie, dtype=float), df)
         return trade_pnls, dag_returns, maand_returns, trade_events
 
+    def _resolve_fitted_features(
+        self,
+        *,
+        requirements: list,
+        df: pd.DataFrame,
+        reference_frame: Optional[pd.DataFrame],
+        train_frame: Optional[pd.DataFrame],
+        train_reference_frame: Optional[pd.DataFrame],
+    ) -> dict[str, pd.Series]:
+        """Fit-on-train / transform-on-df for fitted strategy requirements.
+
+        Loud-fails if the engine caller did not supply a training slice
+        for the current fold. Fold-local ownership is enforced
+        structurally: the returned features are computed from params
+        that live only in this stack frame; no cache escapes this
+        method.
+        """
+        if train_frame is None:
+            raise ValueError(
+                "engine: fitted strategy requires a training frame for "
+                "the current fold; received train_frame=None. The fold "
+                "loop must supply train_frame (and train_reference_frame "
+                "for multi-asset) so the fitted feature path can fit on "
+                "train and transform on the evaluation slice without "
+                "leakage."
+            )
+        if reference_frame is not None:
+            if train_reference_frame is None:
+                raise ValueError(
+                    "engine: multi-asset fitted strategy requires "
+                    "train_reference_frame when reference_frame is set; "
+                    "received train_reference_frame=None for the current "
+                    "fold"
+                )
+            train_frames = {
+                "primary": train_frame,
+                "reference": train_reference_frame,
+            }
+            _train_features, fitted_params = build_features_train_multi(
+                requirements, train_frames
+            )
+            return build_features_test_multi(
+                requirements,
+                {"primary": df, "reference": reference_frame},
+                fitted_params,
+            )
+        _train_features, fitted_params = build_features_train(
+            requirements, train_frame
+        )
+        return build_features_test(requirements, df, fitted_params)
+
     def _invoke_strategy(
         self,
         df: pd.DataFrame,
         strategie_func: Callable,
         reference_frame: Optional[pd.DataFrame] = None,
+        train_frame: Optional[pd.DataFrame] = None,
+        train_reference_frame: Optional[pd.DataFrame] = None,
     ) -> pd.Series:
         """Single call site for strategy invocation.
 
@@ -1226,12 +1310,30 @@ class BacktestEngine:
         strategy. Sizing hook (`_sizing_spec`) is scaffolding-only in
         v3.5: no Tier 1 strategy opts in, so the legacy ±1 path
         downstream is preserved bytewise.
+
+        v3.7 step 4: when any feature requirement declares
+        ``feature_kind='fitted'`` the engine routes through the
+        fold-aware train/test helpers. ``train_frame`` (and optionally
+        ``train_reference_frame``) must be supplied by the caller and
+        they must be the training slice of the *current* fold. Fit
+        runs once on the train slice; transform runs on ``df`` using
+        those frozen params. No cross-fold reuse, no module-level
+        cache, no silent fallback to the plain path.
         """
         if is_thin_strategy(strategie_func):
             requirements = (
                 strategie_func._feature_requirements  # type: ignore[attr-defined]
             )
-            if reference_frame is not None:
+            any_fitted = any(r.is_fitted() for r in requirements)
+            if any_fitted:
+                features = self._resolve_fitted_features(
+                    requirements=requirements,
+                    df=df,
+                    reference_frame=reference_frame,
+                    train_frame=train_frame,
+                    train_reference_frame=train_reference_frame,
+                )
+            elif reference_frame is not None:
                 features = build_features_for_multi(
                     requirements,
                     {"primary": df, "reference": reference_frame},
