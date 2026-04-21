@@ -20,6 +20,10 @@ from agent.backtesting.cost_sensitivity import (
     build_cost_sensitivity_report,
 )
 from agent.backtesting.execution import ExecutionEvent
+from agent.backtesting.exit_diagnostics import (
+    EXIT_DIAGNOSTICS_VERSION,
+    build_exit_diagnostics_report,
+)
 from agent.backtesting.features import FEATURE_VERSION
 from agent.backtesting.multi_asset_loader import (
     AlignedPairFrame,
@@ -1153,6 +1157,72 @@ class BacktestEngine:
 
         return {
             "version": COST_SENSITIVITY_VERSION,
+            "kosten_per_kant": float(self.kosten_per_kant),
+            "per_window": per_window,
+        }
+
+    def build_exit_diagnostics(self) -> Optional[dict[str, Any]]:
+        """Opt-in post-run exit-quality diagnostic.
+
+        Groups OOS trade events and bar returns by
+        ``(asset, fold_index)`` and runs the pure exit-diagnostics
+        report per group. NOT called from ``run()``. Baseline metrics
+        and public artifacts are unaffected; this is a side-channel
+        audit of how trades behaved relative to their favorable /
+        adverse price excursions.
+
+        Returns ``None`` when ``_last_window_streams`` has no OOS data.
+        """
+        streams = self._last_window_streams or {}
+        trades_list: list[dict[str, Any]] = list(
+            streams.get("oos_trade_events", [])
+        )
+        bar_stream: list[dict[str, Any]] = list(
+            streams.get("oos_bar_returns", [])
+        )
+        if not trades_list and not bar_stream:
+            return None
+
+        groups: dict[
+            tuple[str, Optional[int]],
+            dict[str, list[Any]],
+        ] = {}
+        for entry in bar_stream:
+            key = (str(entry["asset"]), entry.get("fold_index"))
+            groups.setdefault(
+                key, {"trades": [], "bars": []}
+            )["bars"].append(entry)
+        for tr in trades_list:
+            key = (str(tr["asset"]), tr.get("fold_index"))
+            groups.setdefault(
+                key, {"trades": [], "bars": []}
+            )["trades"].append(tr)
+
+        def _sort_key(
+            item: tuple[tuple[str, Optional[int]], Any],
+        ) -> tuple[str, int]:
+            (asset, fold), _ = item
+            return (asset, -1 if fold is None else int(fold))
+
+        per_window: list[dict[str, Any]] = []
+        for (asset, fold), data in sorted(
+            groups.items(), key=_sort_key
+        ):
+            bars = data["bars"]
+            trs = data["trades"]
+            if not bars:
+                continue
+            report = build_exit_diagnostics_report(
+                trade_events=trs,
+                bar_return_stream=bars,
+                kosten_per_kant=float(self.kosten_per_kant),
+            )
+            report["asset"] = asset
+            report["fold_index"] = fold
+            per_window.append(report)
+
+        return {
+            "version": EXIT_DIAGNOSTICS_VERSION,
             "kosten_per_kant": float(self.kosten_per_kant),
             "per_window": per_window,
         }
