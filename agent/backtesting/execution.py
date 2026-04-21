@@ -172,9 +172,25 @@ def _validate_timestamp_utc(value: Any) -> None:
 
 
 def _build_event_id(
-    sequence: int, asset: str, timestamp_utc: str, kind: str
+    sequence: int,
+    asset: str,
+    timestamp_utc: str,
+    kind: str,
+    fold_index: Optional[int] = None,
 ) -> str:
-    return f"{sequence}|{asset}|{timestamp_utc}|{kind}"
+    """Deterministic event_id.
+
+    Step 1 composition (fold_index=None):
+        ``f"{sequence}|{asset}|{timestamp_utc}|{kind}"``
+
+    Step 2 extension (fold_index is set): prepends a fold tag so
+    event_ids remain globally unique across folds when each fold
+    restarts its own sequence counter at 0. The Step 1 None-path
+    behaviour is preserved bytewise for the Step 1 pin tests.
+    """
+    if fold_index is None:
+        return f"{sequence}|{asset}|{timestamp_utc}|{kind}"
+    return f"f{fold_index}|{sequence}|{asset}|{timestamp_utc}|{kind}"
 
 
 @dataclass(frozen=True)
@@ -263,7 +279,8 @@ class ExecutionEvent:
     ) -> "ExecutionEvent":
         return cls(
             event_id=_build_event_id(
-                sequence, asset, timestamp_utc, "accepted"
+                sequence, asset, timestamp_utc, "accepted",
+                fold_index=fold_index,
             ),
             kind="accepted",
             asset=asset,
@@ -300,7 +317,8 @@ class ExecutionEvent:
     ) -> "ExecutionEvent":
         return cls(
             event_id=_build_event_id(
-                sequence, asset, timestamp_utc, "full_fill"
+                sequence, asset, timestamp_utc, "full_fill",
+                fold_index=fold_index,
             ),
             kind="full_fill",
             asset=asset,
@@ -337,7 +355,8 @@ class ExecutionEvent:
     ) -> "ExecutionEvent":
         return cls(
             event_id=_build_event_id(
-                sequence, asset, timestamp_utc, "partial_fill"
+                sequence, asset, timestamp_utc, "partial_fill",
+                fold_index=fold_index,
             ),
             kind="partial_fill",
             asset=asset,
@@ -371,7 +390,8 @@ class ExecutionEvent:
     ) -> "ExecutionEvent":
         return cls(
             event_id=_build_event_id(
-                sequence, asset, timestamp_utc, "rejected"
+                sequence, asset, timestamp_utc, "rejected",
+                fold_index=fold_index,
             ),
             kind="rejected",
             asset=asset,
@@ -405,7 +425,8 @@ class ExecutionEvent:
     ) -> "ExecutionEvent":
         return cls(
             event_id=_build_event_id(
-                sequence, asset, timestamp_utc, "canceled"
+                sequence, asset, timestamp_utc, "canceled",
+                fold_index=fold_index,
             ),
             kind="canceled",
             asset=asset,

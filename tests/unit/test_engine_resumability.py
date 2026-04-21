@@ -243,6 +243,7 @@ def test_completed_is_windows_are_truly_skipped() -> None:
         reference_window: pd.DataFrame | None = None,
         train_frame: pd.DataFrame | None = None,
         train_reference_frame: pd.DataFrame | None = None,
+        include_execution_events: bool = False,
     ):
         if include_trade_events:
             counts["oos"] += 1
@@ -259,6 +260,7 @@ def test_completed_is_windows_are_truly_skipped() -> None:
             reference_window=reference_window,
             train_frame=train_frame,
             train_reference_frame=train_reference_frame,
+            include_execution_events=include_execution_events,
         )
 
     # Baseline: fresh run counts
