@@ -189,3 +189,165 @@ optional payload inside existing evidence `details` dicts).
   [ADR-006](adr/ADR-006-v2-contract-deferred.md) for the trigger
   conditions and migration approach when v2.0 becomes warranted.
 
+---
+
+## Addendum: v3.7 — Fitted Feature Abstraction
+
+This addendum documents the v3.7 additions. It does **not** alter
+§1–5 of the base specification or the v3.6 addendum. v3.7 is a
+feature-layer extension along one axis (features that require a
+fit/transform lifecycle) plus the minimum engine wiring required to
+honor walk-forward semantics for such features. No strategy
+migration, no public contract drift, no schema change.
+
+### Scope
+
+- Introduce a parallel feature abstraction for features that carry a
+  training phase: `FittedFeatureSpec`, `FittedParams`,
+  `FITTED_FEATURE_REGISTRY`.
+- Register two fitted features: `hedge_ratio_ols` and
+  `spread_zscore_ols`. Both share an OLS fit helper; the latter
+  returns `zscore(spread(close, close_ref, beta), lookback)` using
+  the fitted `beta`.
+- Extend `FeatureRequirement` with an explicit
+  `feature_kind: Literal["plain", "fitted"]` discriminator. Default
+  `"plain"` preserves every v3.5 / v3.6 path byte-identically.
+- Introduce fold-aware builders: `build_features_train`,
+  `build_features_test`, and their multi-asset counterparts. The
+  single-frame `build_features_for` and multi-frame
+  `build_features_for_multi` paths are **unchanged** and remain the
+  owners of the v3.5 / v3.6 bytewise pins.
+- Engine sequencing: `BacktestEngine._evaluate_windows`
+  materializes each fold's training slice (and
+  `train_reference_frame` when multi-asset) and forwards them
+  through `_simuleer_detailed → _invoke_strategy`. A new
+  `_resolve_fitted_features` helper handles fit-on-train /
+  transform-on-test routing when any requirement declares
+  `feature_kind="fitted"`. Non-fitted strategies ignore the new
+  kwargs.
+- `pairs_zscore_strategie` gains an explicit
+  `use_fitted_hedge_ratio: bool = False` opt-in. Default behavior
+  is byte-identical to v3.6; `True` swaps the `spread_zscore`
+  requirement for `spread_zscore_ols`.
+- Preserve every v3.5 / v3.6 guarantee bytewise: Tier 1 digest
+  pins, multi-asset parity pins, public output contract
+  (`research_latest.json` row and top-level schema, 19-column CSV
+  row schema), integrity / falsification sidecar schemas, D4
+  boundary, `FoldLeakageError` semantics, resume-integrity gate.
+
+### Layer placement
+
+- **Feature layer** owns fitted transforms. Fit and transform are
+  pure, deterministic, non-mutating functions registered in
+  `FITTED_FEATURE_REGISTRY`.
+- **Strategy layer** remains signal generation only. A fitted
+  strategy declares a fitted `FeatureRequirement`; it never fits
+  anything itself and never touches `FittedParams` directly.
+- **Engine layer** owns fold slicing and fit/test sequencing. It
+  materializes the training slice per fold, calls fit exactly once,
+  and calls transform on the evaluation slice using the frozen
+  params.
+- **Evaluation layer** is untouched. Metrics remain what they were
+  in v3.5 / v3.6.
+
+### Walk-forward semantics (pinned by ADR-007)
+
+For each fold:
+
+1. The engine selects the fold's training slice.
+2. `fit_fn` runs once on that slice; `FittedParams` are frozen and
+   fold-local.
+3. `transform_fn` runs on the evaluation slice using those params.
+4. The evaluation slice never influences params.
+5. There is no refit on the test slice and no cross-fold param
+   reuse.
+6. Train-slice transform may occur when the same fold's feature
+   assembly needs the fitted feature's train-time output. It uses
+   the same params returned by the single fit call.
+
+Strategies that declare only `feature_kind="plain"` requirements —
+which is every Tier 1 strategy's default configuration as of v3.7 —
+follow the v3.6 `build_features_for{_multi}` path byte-for-byte.
+
+### Param safety (enforced at `FittedParams.build`)
+
+- `FittedParams.values` is stored as
+  `types.MappingProxyType` over a deep-validated, deep-copied dict.
+  Keys must be `str`; leaves must be `int`, `float`, `bool`, `str`,
+  `None`, a small numeric ndarray, or a small tuple/list of leaves.
+  Lists are normalized to tuples; arrays are copied with
+  `flags.writeable=False`; nested dicts are rejected.
+- Pandas objects are rejected at construction with a named error.
+  Any object exposing `.index` or `.columns` is likewise rejected.
+  This closes the accidental-training-frame-retention path by
+  construction.
+- Hard caps: `MAX_PARAM_VALUES_ENTRIES = 64`,
+  `MAX_PARAM_ARRAY_ELEMENTS = 1024`,
+  `MAX_PARAM_SEQUENCE_LEN = 1024`.
+
+### Pairs strategy behavior
+
+- `pairs_zscore_strategie(..., use_fitted_hedge_ratio=False)`
+  (default) emits the v3.6 requirement
+  `FeatureRequirement(name="spread_zscore",
+  params={"hedge_ratio", "lookback"}, alias="z")`. The Tier 1
+  bytewise pin continues to resolve through this path.
+- `pairs_zscore_strategie(..., use_fitted_hedge_ratio=True)` emits
+  `FeatureRequirement(name="spread_zscore_ols",
+  params={"lookback"}, alias="z", feature_kind="fitted")`. The
+  scalar `hedge_ratio` argument is ignored in this mode; the engine
+  replaces it with the fold-local OLS beta per the walk-forward
+  rules above.
+- The strategy body is unchanged between modes: it still reads only
+  `df.index` and `features["z"]`. The signal semantics
+  (`entry_z`, `exit_z`, `lookback`) are identical. Only the
+  spread's hedge-ratio source differs.
+- Public artifacts, sidecars, registry entries, and the Tier 1
+  bytewise pin are untouched.
+
+### Out of scope (explicitly deferred)
+
+- Unified thin strategy v2.0 contract. ADR-007 records that v3.7
+  introduces one of the ADR-006 triggers (fit/transform abstraction)
+  but does not itself migrate any strategy to `func(features)`.
+- Broader strategy migration to the fitted path. SMA crossover and
+  z-score mean reversion remain plain-only.
+- Generalized lineage or persistence for fitted params. The
+  `FittedParams.fingerprint` placeholder reserves the surface;
+  computation and persistence are future work.
+- Rolling / time-varying fitted parameters. v3.7 is static fit per
+  fold; rolling fit is an additive shape for a later phase.
+- Config flags exposing the fitted path at the research-pipeline
+  level. The opt-in lives at the strategy factory call site today.
+- Evaluation hardening, exit diagnostics, regime / portfolio work.
+
+### Relationship to v3.6 and the larger roadmap
+
+v3.7 is a prerequisite for:
+
+- Correct walk-forward semantics for any fitted feature.
+- Statistically honest pairs spread construction (fitted hedge
+  ratio available as opt-in; promotion to default is a future
+  decision backed by evidence).
+- Future train/transform-style statistical features (PCA,
+  factor loadings, fitted regressions).
+
+v3.7 is **not** a substitute for:
+
+- Thin contract unification (ADR-006, deferred).
+- Evaluation hardening, exit diagnostics, portfolio / regime
+  work — all of which remain future phases.
+
+### Thin contract maturity
+
+- **v1.0: production.** All Tier 1 strategies, including pairs, run
+  under `func(df, features)`.
+- **v2.0: still deferred.** See
+  [ADR-006](adr/ADR-006-v2-contract-deferred.md). v3.7 introduces
+  the fit/transform abstraction trigger listed there without
+  migrating any strategy.
+- **Fitted feature abstraction: production for opt-in callers.**
+  See [ADR-007](adr/ADR-007-fitted-feature-abstraction.md) for
+  design, rationale, rejected alternatives, and walk-forward
+  invariants.
+
