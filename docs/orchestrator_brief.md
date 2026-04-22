@@ -557,3 +557,221 @@ deterministic, non-mutating with respect to baseline results, and
 gated behind opt-in hooks or flags that default off. See
 [ADR-008](adr/ADR-008-execution-realism-and-evaluation-hardening.md).
 
+---
+
+## Addendum: v3.9 — Orchestration Layer (Phases 1-3)
+
+This addendum documents the v3.9 additions on top of the base
+specification and the v3.6 / v3.7 / v3.8 addenda. It does **not**
+alter §1-5; those remain the load-bearing architecture. v3.9 is an
+**orchestration-hardening** phase: it introduces a dedicated
+platform layer as a peer package to `agent/`, `research/`, and
+`dashboard/`, and routes the existing batch-execution flow through a
+named `Orchestrator` entity - without altering strategy, feature,
+fitted-feature, or engine semantics and without breaking any public
+output contract. See
+[ADR-009](adr/ADR-009-platform-layer-introduction.md) for the full
+design record, rejected alternatives, and dependency rules.
+
+### Scope (phases 1-3)
+
+v3.9 phases 1-3 deliver three additive steps:
+
+1. **Package shell and boundary contract.** New `orchestration/`
+   top-level package with an empty public surface in
+   `orchestration/__init__.py` (only `ORCHESTRATION_LAYER_VERSION`
+   is exported). Static import-direction lint in
+   [tests/unit/test_orchestration_boundary.py](../tests/unit/test_orchestration_boundary.py)
+   enforces the allowed / forbidden import matrix at CI time.
+   ADR-009 and this addendum document the boundary contract.
+2. **Task data model.** Frozen dataclasses in
+   `orchestration/task.py`: `Task`, `TaskResult`, `TaskFailure`, plus
+   the typed `ReasonCode` enum and its retriable / non-retriable
+   classification. All types are pickle-safe by construction.
+   `task_id` is deterministic in `(candidate_id, kind, attempt)`.
+3. **ExecutionBackend + Orchestrator, behavior-preserving.**
+   `orchestration/executor.py` introduces the `ExecutionBackend`
+   abstract interface with two concrete implementations
+   (`InlineBackend`, `ProcessPoolBackend`). `orchestration/worker.py`
+   exposes the worker-side entry point that constructs a fresh
+   `BacktestEngine` per task. `orchestration/orchestrator.py`
+   introduces the `Orchestrator` entity as a thin seam that
+   `research/run_research.py` now calls into for its screening and
+   validation phase execution. Behavior is bytewise preserved:
+   `research/run_research.py` continues to own CLI parsing, config
+   loading, candidate planning, D4 gating, artifact writing, and
+   post-run reporting; only the direct invocations of
+   `_run_parallel_screening_batches`, `_run_parallel_validation_batches`,
+   and the inline per-batch drivers are routed through the
+   Orchestrator seam.
+
+### Package-name rationale
+
+The v3.9 design brief calls this "the platform layer". The package
+is named `orchestration`, not `platform`, because a top-level Python
+package named `platform` collides with the Python standard library
+`platform` module. The collision is unavoidable on common installs:
+Python 3.11+ with the frozen stdlib in `python313.zip` at
+`sys.path[0]` resolves stdlib ahead of any project-root package,
+leaving the local package unimportable; Linux installs without the
+frozen stdlib resolve the local package ahead of stdlib, breaking
+every library that uses stdlib `platform.system()`,
+`platform.python_version()`, etc. The name `orchestration` matches
+this brief's §5 "Orchestration Layer" and avoids the shadow
+entirely. The conceptual label "platform layer" remains valid in
+prose.
+
+### Layer placement (pinned by ADR-009)
+
+- **Orchestration layer (new top-level `orchestration/` package)**
+  owns run lifecycle coordination, task dispatch, and (in later
+  v3.9 phases) scheduling, queueing, and failure handling. It
+  instantiates the engine at worker boundaries and nowhere else.
+- **Engine layer (`agent/backtesting/`)** is unchanged. The engine
+  imports nothing from `orchestration/` or `research/`. Tier 1
+  bytewise digest pins continue to resolve through the v3.5 / v3.6 /
+  v3.7 / v3.8 paths byte-for-byte.
+- **Research layer (`research/`)** keeps its v3.8 contents. Existing
+  modules (`run_state.py`, `batching.py`, `batch_execution.py`,
+  `recovery.py`, `orchestration_policy.py`, `observability.py`,
+  `screening_process.py`) remain in `research/` and are called
+  through narrow named-symbol imports from `orchestration/`. No file
+  is relocated in v3.9 phases 1-3.
+- **Dashboard layer (`dashboard/`)** is unchanged in phases 1-3.
+
+### Dependency rules (enforced by test)
+
+The complete matrix is defined in
+[ADR-009](adr/ADR-009-platform-layer-introduction.md). In summary:
+
+- `agent/backtesting/` imports nothing from `orchestration/` or
+  `research/`, and no concurrency primitives.
+- `research/` (excluding `research/run_research.py`) imports nothing
+  from `orchestration/`.
+- `orchestration/` imports from `agent/backtesting/` through the
+  engine-construction surface only, and imports narrow pure helpers
+  from `research/`; it must not import `research.run_research` or
+  any strategy-defining module.
+- `research/run_research.py` is the single crossing from research
+  into `orchestration/`.
+- `dashboard/` must not reach into engine or research orchestration
+  modules.
+
+### Worker defaults
+
+Fresh `BacktestEngine` per task. No engine reuse across tasks. No
+module-level engine cache. The ProcessPool may keep worker processes
+alive, but the engine instance is constructed inside the task body
+and released at task completion. Any future cross-task caching is
+deferred and gated behind explicit proof obligations documented in
+ADR-009.
+
+### Out of scope (explicitly deferred)
+
+v3.9 phases 1-3 do not deliver:
+
+- Scheduler and Queue as separate named entities (phase 4).
+- Cross-Batch parallelism (phase 4, gated on bytewise regression).
+- Task-level resume (phase 5, provisional).
+- Platform event log (phase 5, provisional).
+- Retry policy tuning (phase 5).
+- Selective file relocation from `research/` to `orchestration/`
+  (phase 6, zero to two files).
+- Dashboard launch API (phase 7).
+- Any change to `ExecutionEvent` semantics, cost-sensitivity,
+  exit-diagnostics, fitted-feature behavior, or engine purity.
+
+### Preserved bytewise
+
+- Tier 1 digest pins (SMA crossover, z-score mean reversion, pairs
+  z-score).
+- Multi-asset and fitted-feature parity pins.
+- `research_latest.json` row and top-level schema.
+- 19-column CSV row schema.
+- Integrity and falsification sidecar schemas; D4 boundary.
+- Walk-forward `FoldLeakageError` semantics.
+- Resume-integrity gate.
+- `candidate_id` hashing inputs.
+- `FEATURE_REGISTRY`, `FEATURE_VERSION = "1.0"`,
+  `FITTED_FEATURE_REGISTRY`, `FITTED_FEATURE_VERSION = "1.0"`,
+  `EXECUTION_EVENT_VERSION = "1.0"`,
+  `COST_SENSITIVITY_VERSION = "1.0"`,
+  `EXIT_DIAGNOSTICS_VERSION = "1.0"`.
+- `execution/protocols.py`, `execution/paper/polymarket_sim.py`.
+- `dashboard/` behavior.
+
+### Phase character
+
+v3.9 phases 1-3 are an **orchestration-hardening phase**, not a
+strategy-expansion, feature-expansion, or engine-behavior-changing
+phase. Every change is additive, deterministic, non-mutating with
+respect to baseline engine behavior, and enforced by a static
+boundary lint test plus the existing Tier 1 regression pins. See
+[ADR-009](adr/ADR-009-platform-layer-introduction.md).
+
+---
+
+## Addendum: v3.9 Closure (Phase 6)
+
+v3.9 is formally closed. The closure rationale, the preserved
+bytewise guarantees, and the explicit classification of remaining
+open points (resolved-now / accepted / deferred-to-v4+) are
+recorded in
+[ADR-010](adr/ADR-010-v3.9-closure.md).
+
+### Closure evidence
+
+- **Tier 1 bytewise pins:** unchanged across all v3.9 phases.
+- **Public artifact contracts:** unchanged across all v3.9 phases
+  (`research_latest.json`, 19-column CSV, integrity and
+  falsification sidecars, run/batch/candidate state artifacts).
+- **Engine purity:** unchanged. `agent/backtesting/` imports
+  nothing from `orchestration/` or `research/`; no concurrency
+  primitives added to the engine. CI-enforced by
+  `tests/unit/test_orchestration_boundary.py`.
+- **Orchestration layer:** `orchestration/` exists as a peer
+  top-level package. Owns dispatch for both inline and parallel
+  research paths. `Scheduler`, `TaskQueue`, `BatchOutcome`
+  express the orchestration contract.
+- **Artifact-truth invariant:** the `TaskQueue` is an in-memory
+  cache scoped to one Orchestrator instance; recovery reads only
+  artifacts. Pinned by
+  `tests/unit/test_orchestration_artifact_truth.py`.
+- **Crash/resume canary:** an end-to-end test
+  (`tests/resilience/test_orchestration_crash_resume_canary.py`)
+  forces a mid-run crash via a monkey-patched persistence helper,
+  then re-invokes `run_research(resume=True,
+  retry_failed_batches=True)`. The canary validates: (1) the
+  crashed run records a consistent `status="failed"` lifecycle
+  state, (2) the resume run completes with `status="completed"`,
+  (3) no duplicate strategy rows appear in the final
+  `research_latest.json` or `strategy_matrix.csv`, (4) all
+  batches reach a terminal status, (5) two distinct `Orchestrator`
+  instances are constructed across the boundary with disjoint
+  `TaskQueue` state - proving the resume cannot have read back
+  stale in-memory state.
+- **`_default_complete` fallback:** scoped by docstring to
+  "legacy / test fallback only"; pinned by a static AST test
+  (`tests/unit/test_orchestration_default_complete_scope.py`)
+  that asserts every `dispatch_serial_batches` /
+  `dispatch_parallel_batches` call in `research/run_research.py`
+  supplies an explicit `on_batch_complete=` hook.
+
+### Out of scope (deferred to v4+)
+
+- Automatic intra-run retry (surface exists via
+  `BatchOutcome.is_retriable()`; not exercised).
+- Task-level resume beyond the existing batch-level path.
+- Distributed execution, cross-host orchestration, durable queue.
+- Dashboard launch API upgrade.
+- Campaign framework spanning multiple runs.
+- Richer `ExecutionEvent` emission kinds.
+- Typed `BatchTaskResult` wrapper for
+  `TaskResult.payload["batch_result"]`.
+- Selective relocation of orchestration-native `research/`
+  modules into `orchestration/` (zero moves occurred during
+  v3.9).
+
+See [ADR-010](adr/ADR-010-v3.9-closure.md) for the full closure
+record and classification of each remaining open point.
+
