@@ -42,7 +42,7 @@ services:
   dashboard:
     build: .
     container_name: jvr_dashboard
-    command: python dashboard/dashboard.py
+    command: python -m dashboard.dashboard
     restart: unless-stopped
     expose:
       - "8050"                     # v3.10: enkel intern bereikbaar; nginx praat er mee
