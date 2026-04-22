@@ -1,0 +1,27 @@
+# ============================================================
+# PRODUCTIE OVERRIDE - GHCR-gepulde images i.p.v. lokaal build
+# ============================================================
+# Gebruik op VPS:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Rollback naar eerdere tag:
+#   IMAGE_TAG=3.9.x docker compose \
+#     -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# NOOT: beide images (dashboard + agent) komen uit dezelfde multi-stage
+# build (Dockerfile). GHCR ghcr.io/roudjy/trading-agent-dashboard:${IMAGE_TAG}
+# en ghcr.io/roudjy/trading-agent-agent:${IMAGE_TAG} worden gepusht door
+# .github/workflows/docker-build.yml bij elke push naar main.
+
+services:
+  agent:
+    image: ghcr.io/roudjy/trading-agent-agent:${IMAGE_TAG:-latest}
+    pull_policy: always
+
+  dashboard:
+    image: ghcr.io/roudjy/trading-agent-dashboard:${IMAGE_TAG:-latest}
+    pull_policy: always
+
+  # nginx + ops config files are mounted from the repo checkout on the VPS;
+  # no image override needed.
