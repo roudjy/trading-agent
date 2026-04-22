@@ -4,6 +4,16 @@
 # Gebruik: docker compose up -d
 # Stop:    docker compose down
 # Logs:    docker compose logs -f agent
+#
+# Productie (VPS): voeg docker-compose.prod.yml toe zodat
+# GHCR images worden gepulld i.p.v. lokaal gebouwd.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# v3.10 wijzigingen:
+# - nginx reverse proxy bindt host :8050; dashboard is intern.
+# - ./state bind-mount behoudt session/operator secrets.
+# - Geen watchtower. Geen compose-scheduler (systemd-timer op de
+#   VPS, zie ops/systemd/).
 
 services:
 
@@ -21,29 +31,48 @@ services:
       - ./logs:/app/logs           # Logs bewaren buiten de container
       - ./reports:/app/reports     # Rapporten bewaren
       - ./config:/app/config       # Config aanpasbaar zonder rebuild
+      - ./state:/app/state         # v3.10: session/operator secrets bewaren
     environment:
       - TZ=Europe/Amsterdam        # Nederlandse tijdzone
     networks:
       - agent_netwerk
 
-  # Het dashboard
+  # Het dashboard (Flask backend + React SPA bundle)
   dashboard:
     build: .
     container_name: jvr_dashboard
     command: python dashboard/dashboard.py
     restart: unless-stopped
-    ports:
-      - "8050:8050"               # Bereikbaar via browser op poort 8050
+    expose:
+      - "8050"                     # v3.10: enkel intern bereikbaar; nginx praat er mee
     volumes:
       - ./logs:/app/logs
       - ./reports:/app/reports
       - ./config:/app/config
+      - ./state:/app/state         # v3.10: session/operator secrets bewaren
+      - ./research:/app/research   # run-meta + report artifacts adjacent to the frozen contract
     environment:
       - TZ=Europe/Amsterdam
     networks:
       - agent_netwerk
     depends_on:
       - agent
+
+  # nginx reverse proxy — anti-indexing + AI-crawler UA block.
+  # Terminates host :8050 en proxyt naar dashboard:8050 intern.
+  nginx:
+    image: nginx:alpine
+    container_name: jvr_nginx
+    restart: unless-stopped
+    ports:
+      - "8050:80"
+    volumes:
+      - ./ops/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ops/nginx/robots.txt:/usr/share/nginx/html/robots.txt:ro
+    networks:
+      - agent_netwerk
+    depends_on:
+      - dashboard
 
 networks:
   agent_netwerk:
