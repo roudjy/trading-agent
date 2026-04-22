@@ -296,7 +296,15 @@ def resolve_preset_bundle(preset: ResearchPreset) -> list[dict]:
 
 
 def validate_preset(preset: ResearchPreset) -> list[str]:
-    """Return a list of issues; empty list means the preset is executable."""
+    """Return a list of issues; empty list means the preset is executable.
+
+    v3.11: hypothesis metadata (rationale, expected_behavior,
+    falsification, preset_class) produces *soft* issues for enabled
+    presets when fields are empty. Callers treat these as warnings by
+    default. The runner may elevate to hard failures when the
+    ``QRE_STRICT_PRESET_VALIDATION`` env var is set (see
+    ``run_research._preset_validation_is_strict``).
+    """
     issues: list[str] = []
     if not preset.enabled:
         if preset.backlog_reason is None:
@@ -326,7 +334,34 @@ def validate_preset(preset: ResearchPreset) -> list[str]:
             "diagnostic_only preset must also set "
             "excluded_from_candidate_promotion"
         )
+
+    # v3.11 soft-issue: hypothesis metadata completeness on enabled presets.
+    if not preset.rationale.strip():
+        issues.append("hypothesis_metadata_missing: rationale is empty")
+    if not preset.expected_behavior.strip():
+        issues.append(
+            "hypothesis_metadata_missing: expected_behavior is empty"
+        )
+    if not preset.falsification:
+        issues.append(
+            "hypothesis_metadata_missing: falsification criteria empty"
+        )
+
     return issues
+
+
+def hypothesis_metadata_issues(preset: ResearchPreset) -> list[str]:
+    """Return only the v3.11 hypothesis-metadata soft issues.
+
+    Helper for the runner: lets us emit a dedicated
+    ``preset_validation_warning`` event distinct from structural
+    issues (unknown strategies, mis-shaped universe, etc.).
+    """
+    return [
+        issue
+        for issue in validate_preset(preset)
+        if issue.startswith("hypothesis_metadata_missing:")
+    ]
 
 
 def daily_schedulable_presets() -> list[ResearchPreset]:
@@ -374,6 +409,7 @@ __all__ = [
     "daily_schedulable_presets",
     "default_daily_preset",
     "get_preset",
+    "hypothesis_metadata_issues",
     "list_presets",
     "preset_to_card",
     "resolve_preset_bundle",
