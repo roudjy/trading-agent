@@ -26,12 +26,17 @@ from research.run_meta import RUN_META_PATH, read_run_meta_sidecar
 
 REPORT_MARKDOWN_PATH = Path("research/report_latest.md")
 REPORT_JSON_PATH = Path("research/report_latest.json")
-REPORT_SCHEMA_VERSION = "1.0"
+REPORT_SCHEMA_VERSION = "1.1"
 
 _RESEARCH_LATEST_JSON = Path("research/research_latest.json")
 _FALSIFICATION_SIDECAR = Path("research/falsification_gates_latest.v1.json")
 _INTEGRITY_SIDECAR = Path("research/integrity_report_latest.v1.json")
 _EMPTY_RUN_SIDECAR = Path("research/empty_run_diagnostics_latest.v1.json")
+_CANDIDATE_REGISTRY_SIDECAR = Path("research/candidate_registry_latest.v1.json")
+_DEFENSIBILITY_SIDECAR = Path("research/statistical_defensibility_latest.v1.json")
+_REGIME_SIDECAR = Path("research/regime_diagnostics_latest.v1.json")
+_RUN_FILTER_SUMMARY_SIDECAR = Path("research/run_filter_summary_latest.v1.json")
+_COST_SENSITIVITY_SIDECAR = Path("research/cost_sensitivity_latest.v1.json")
 
 
 VERDICT_PROMOTED = "promoted"
@@ -102,6 +107,131 @@ def _summarize_counts(
         "rejected": len(rows) - len(promoted_rows),
         "promoted": len(promoted_rows),
     }
+
+
+def _summarize_screening(
+    rows: list[dict[str, Any]],
+    filter_summary: dict[str, Any] | None,
+) -> dict[str, int]:
+    """v3.11 screening-layer counts, joined from run_filter_summary.
+
+    Falls back to deriving counts from the rows when the sidecar is
+    missing. All integers; never negative.
+    """
+    success_rows = [r for r in rows if r.get("success")]
+    if isinstance(filter_summary, dict):
+        summary = filter_summary.get("summary") or {}
+        raw = int(summary.get("raw_candidate_count", 0) or 0)
+        eligible = int(summary.get("eligible_candidate_count", 0) or 0)
+        screening = filter_summary.get("screening_decisions") or {}
+        promoted = int(screening.get("promoted_to_validation", 0) or 0)
+        rejected = int(screening.get("rejected_in_screening", 0) or 0)
+        return {
+            "raw": raw,
+            "eligible": eligible,
+            "screening_passed": promoted,
+            "screening_rejected": rejected,
+        }
+    return {
+        "raw": len(rows),
+        "eligible": len(rows),
+        "screening_passed": len(success_rows),
+        "screening_rejected": len(rows) - len(success_rows),
+    }
+
+
+def _summarize_promotion(
+    rows: list[dict[str, Any]],
+    candidate_registry: dict[str, Any] | None,
+) -> dict[str, int]:
+    """v3.11 promotion-layer counts, joined from candidate_registry.
+
+    Falls back to deriving counts from rows.goedgekeurd when the
+    registry sidecar is missing.
+    """
+    success_rows = [r for r in rows if r.get("success")]
+    promoted_rows = [r for r in success_rows if r.get("goedgekeurd")]
+    if isinstance(candidate_registry, dict):
+        summary = candidate_registry.get("summary") or {}
+        total = int(summary.get("total", len(success_rows)) or 0)
+        return {
+            "evaluated": total,
+            "promoted": int(summary.get("candidate", len(promoted_rows)) or 0),
+            "needs_investigation": int(summary.get("needs_investigation", 0) or 0),
+            "rejected_promotion": int(summary.get("rejected", 0) or 0),
+        }
+    return {
+        "evaluated": len(success_rows),
+        "promoted": len(promoted_rows),
+        "needs_investigation": 0,
+        "rejected_promotion": len(success_rows) - len(promoted_rows),
+    }
+
+
+def _screening_layer_reason_counts(
+    rows: list[dict[str, Any]],
+    filter_summary: dict[str, Any] | None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Aggregate screening-layer rejection reasons.
+
+    Sources read in priority order:
+    1. ``run_filter_summary.screening_rejection_reasons`` (canonical)
+    2. ``run_filter_summary.eligibility_rejection_reasons``
+    3. ``run_filter_summary.fit_blocked_reasons``
+    4. Non-empty ``reden`` strings in the rows (fallback)
+    """
+    counter: Counter[str] = Counter()
+    if isinstance(filter_summary, dict):
+        for key in (
+            "screening_rejection_reasons",
+            "eligibility_rejection_reasons",
+            "fit_blocked_reasons",
+        ):
+            bucket = filter_summary.get(key)
+            if isinstance(bucket, dict):
+                for reason, count in bucket.items():
+                    if isinstance(reason, str) and reason:
+                        counter[reason] += int(count or 0)
+    if not counter:
+        for row in rows:
+            reden = row.get("reden") if isinstance(row, dict) else None
+            if isinstance(reden, str) and reden.strip():
+                counter[reden.strip()] += 1
+    return [
+        {"reason": reason, "count": int(count)}
+        for reason, count in counter.most_common(limit)
+    ]
+
+
+def _promotion_layer_reason_counts(
+    candidate_registry: dict[str, Any] | None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Aggregate promotion-layer rejection reasons from the candidate
+    registry's per-candidate ``reasoning.failed`` + ``.escalated``
+    codes. Consumer-only; we do not re-classify."""
+    if not isinstance(candidate_registry, dict):
+        return []
+    candidates = candidate_registry.get("candidates")
+    if not isinstance(candidates, list):
+        return []
+    counter: Counter[str] = Counter()
+    for entry in candidates:
+        if not isinstance(entry, dict):
+            continue
+        reasoning = entry.get("reasoning") or {}
+        for bucket_key in ("failed", "escalated"):
+            bucket = reasoning.get(bucket_key)
+            if not isinstance(bucket, list):
+                continue
+            for code in bucket:
+                if isinstance(code, str) and code:
+                    counter[code] += 1
+    return [
+        {"reason": reason, "count": int(count)}
+        for reason, count in counter.most_common(limit)
+    ]
 
 
 def _extract_red_flags() -> list[dict[str, Any]]:
@@ -196,15 +326,35 @@ def build_report_payload(
     meta = read_run_meta_sidecar(run_meta_path)
     rows: list[dict[str, Any]] = list(research.get("results") or [])
 
+    # v3.11: load sidecars read-only for screening/promotion split.
+    candidate_registry = _load_json(_CANDIDATE_REGISTRY_SIDECAR)
+    filter_summary = _load_json(_RUN_FILTER_SUMMARY_SIDECAR)
+
     summary = _summarize_counts(
         rows,
         meta.get("candidate_summary") if isinstance(meta, dict) else None,
     )
-    rejection_reasons = (
+    # v3.11 additive: screening + promotion counts alongside the
+    # existing v3.10 raw/screened/validated/rejected/promoted keys so
+    # dashboard consumers that only know v3.10 keep working.
+    summary["screening"] = _summarize_screening(rows, filter_summary)
+    summary["promotion"] = _summarize_promotion(rows, candidate_registry)
+
+    legacy_rejection_reasons = (
         meta.get("top_rejection_reasons")
         if isinstance(meta, dict) and meta.get("top_rejection_reasons")
         else _extract_rejection_counts(rows)
     )
+    # v3.11: same top_rejection_reasons key now carries screening and
+    # promotion-layer breakdowns as a dict under ``by_layer``. The
+    # flat list shape remains the default for the key itself — keeping
+    # v3.10 consumers working — while ``top_rejection_reasons_by_layer``
+    # is the new sibling key with the split.
+    rejection_reasons_by_layer = {
+        "screening_layer": _screening_layer_reason_counts(rows, filter_summary),
+        "promotion_layer": _promotion_layer_reason_counts(candidate_registry),
+    }
+
     candidates = _extract_candidates(rows)
     red_flags = _extract_red_flags()
     next_experiment = suggest_next_experiment(summary, candidates, meta)
@@ -218,7 +368,8 @@ def build_report_payload(
         "preset": preset_name,
         "generated_at_utc": datetime.now(UTC).isoformat(),
         "summary": summary,
-        "top_rejection_reasons": rejection_reasons,
+        "top_rejection_reasons": legacy_rejection_reasons,
+        "top_rejection_reasons_by_layer": rejection_reasons_by_layer,
         "candidates": candidates,
         "red_flags": red_flags,
         "regime_diagnostics": _regime_diagnostics(),
