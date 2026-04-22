@@ -1,0 +1,14 @@
+[Unit]
+Description=JvR Trading Agent — daily research run timer (06:00 UTC)
+Documentation=https://github.com/roudjy/trading-agent docs/adr/ADR-011-v3.10-architecture.md
+
+[Timer]
+# 06:00 UTC every day. OnCalendar uses the systemd wall-clock in UTC when
+# the system timezone is UTC; otherwise use the "UTC" keyword to force it.
+OnCalendar=*-*-* 06:00:00 UTC
+# If the system was down at the scheduled time, fire once it comes back.
+Persistent=true
+Unit=trading-agent-daily-research.service
+
+[Install]
+WantedBy=timers.target

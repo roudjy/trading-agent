@@ -246,17 +246,94 @@ def _table_bestaat(conn, naam):
 
 
 # ──────────────────────────────────────────────
-# Hoofdpagina
+# Hoofdpagina — React SPA (v3.10) with legacy Flask templates kept
+# reachable at /legacy/* for 1 release (ADR-011 §2).
 # ──────────────────────────────────────────────
+FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+LEGACY_TEMPLATE_DIR = BASE_DIR / "dashboard" / "templates"
+
+
+def _serve_spa_index():
+    index = FRONTEND_DIST / "index.html"
+    if index.exists():
+        return index.read_text(encoding="utf-8")
+    # Fallback: instruct the operator to build the frontend. The legacy
+    # dashboard is still reachable via /legacy/dashboard.
+    return (
+        "<!doctype html><meta charset=\"utf-8\">"
+        "<meta name=\"robots\" content=\"noindex,nofollow,noarchive,nosnippet\">"
+        "<title>JvR Trading Agent — frontend not built</title>"
+        "<h1>Frontend bundle niet gevonden</h1>"
+        "<p>Bouw de React app: <code>cd frontend &amp;&amp; npm ci &amp;&amp; npm run build</code>.</p>"
+        "<p>Of gebruik tijdelijk de <a href=\"/legacy/dashboard\">legacy dashboard</a>.</p>"
+    )
+
+
 @app.route("/")
 @requires_auth
 def index():
-    html_pad = Path("dashboard/templates/dashboard.html")
+    response = Response(_serve_spa_index(), mimetype="text/html")
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+    return response
+
+
+@app.route("/assets/<path:filename>")
+@requires_auth
+def spa_assets(filename: str):
+    assets_dir = FRONTEND_DIST / "assets"
+    return send_from_directory(assets_dir, filename)
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    return Response(
+        "User-agent: *\nDisallow: /\n",
+        mimetype="text/plain",
+        headers={"X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet"},
+    )
+
+
+# React client-side routing: authed deep-links (Dashboard, Presets, History,
+# Reports, Candidates) serve the SPA entrypoint after auth, so hard-reloads
+# on e.g. /presets keep working.
+@app.route("/presets")
+@app.route("/history")
+@app.route("/reports")
+@app.route("/candidates")
+@requires_auth
+def spa_fallback_authed():
+    return index()
+
+
+# /login must NOT require auth — it's how the user authenticates. Serve the
+# SPA entrypoint without auth so the React Login component can render and
+# POST to /api/session/login.
+@app.route("/login")
+def spa_login():
+    return Response(
+        _serve_spa_index(),
+        mimetype="text/html",
+        headers={"X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet"},
+    )
+
+
+@app.route("/legacy/dashboard")
+@requires_auth
+def legacy_dashboard():
+    html_pad = LEGACY_TEMPLATE_DIR / "dashboard.html"
     if not html_pad.exists():
-        html_pad = Path("templates/dashboard.html")
+        return Response("Legacy dashboard niet gevonden", status=404)
     return open(html_pad, encoding="utf-8").read()
 
 
+@app.route("/legacy/research-control")
+@requires_auth
+def legacy_research_control_surface():
+    return render_template("research_control_surface.html")
+
+
+# Backwards-compat routes that used to live at /research; legacy clients
+# that bookmarked these paths keep working.
 @app.route("/research")
 @requires_auth
 def research_control_surface():
@@ -290,8 +367,137 @@ def api_research_universe():
 @app.route("/api/research/run", methods=["POST"])
 @require_operator_auth()
 def api_research_run():
-    payload, status_code = research_runner.launch_research_run()
+    body = request.get_json(silent=True) or {}
+    preset = body.get("preset") if isinstance(body, dict) else None
+    payload, status_code = research_runner.launch_research_run(
+        preset=preset if isinstance(preset, str) and preset else None,
+    )
     return jsonify(payload), status_code
+
+
+# ──────────────────────────────────────────────
+# API — v3.10 preset catalog + report + candidates + health + session/login
+# ──────────────────────────────────────────────
+@app.route("/api/presets")
+@requires_auth
+def api_presets():
+    from research.presets import list_presets, preset_to_card
+    return jsonify({
+        "presets": [preset_to_card(p) for p in list_presets()],
+    })
+
+
+@app.route("/api/presets/<name>/run", methods=["POST"])
+@require_operator_auth()
+def api_presets_run(name: str):
+    payload, status_code = research_runner.launch_research_run(preset=str(name))
+    return jsonify(payload), status_code
+
+
+@app.route("/api/report/latest")
+@requires_auth
+def api_report_latest():
+    md_path = Path("research/report_latest.md")
+    json_path = Path("research/report_latest.json")
+    response = {
+        "markdown": md_path.read_text(encoding="utf-8") if md_path.exists() else None,
+        "payload": json.loads(json_path.read_text(encoding="utf-8")) if json_path.exists() else None,
+    }
+    return jsonify(response)
+
+
+@app.route("/api/report/history")
+@requires_auth
+def api_report_history():
+    root = Path("research/history")
+    if not root.exists():
+        return jsonify({"reports": []})
+    entries = []
+    for path in sorted(root.rglob("report_*.md")):
+        entries.append({
+            "path": path.as_posix(),
+            "run_id": path.stem.replace("report_", ""),
+            "modified_at_utc": datetime.utcfromtimestamp(path.stat().st_mtime).isoformat() + "Z",
+        })
+    return jsonify({"reports": entries[-100:]})
+
+
+@app.route("/api/candidates/latest")
+@requires_auth
+def api_candidates_latest():
+    path = Path("research/run_candidates_latest.v1.json")
+    if not path.exists():
+        return jsonify({"candidates": [], "artifact_state": "missing"})
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return jsonify(payload)
+    except (json.JSONDecodeError, OSError) as exc:
+        return jsonify({"error": str(exc), "candidates": []}), 500
+
+
+_VERSION_PATH = Path("VERSION")
+
+
+def _read_version() -> str:
+    try:
+        return _VERSION_PATH.read_text(encoding="utf-8").strip() or "unknown"
+    except OSError:
+        return "unknown"
+
+
+def _last_run_age_seconds() -> float | None:
+    meta_path = Path("research/run_meta_latest.v1.json")
+    if not meta_path.exists():
+        return None
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        completed = payload.get("completed_at_utc") or payload.get("started_at_utc")
+        if not completed:
+            return None
+        ts = datetime.fromisoformat(str(completed).replace("Z", "+00:00"))
+        return (datetime.now(ts.tzinfo) - ts).total_seconds()
+    except (json.JSONDecodeError, OSError, ValueError):
+        return None
+
+
+def _scheduler_next_fire_utc() -> str | None:
+    """Derived from the v3.10 systemd-timer contract (06:00 UTC daily)."""
+    from datetime import timedelta, timezone as _tz
+    now = datetime.now(_tz.utc)
+    fire = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    if fire <= now:
+        fire = fire + timedelta(days=1)
+    return fire.isoformat()
+
+
+@app.route("/api/health")
+def api_health():
+    # unauth: liveness + version + scheduler next fire + last run age.
+    return jsonify({
+        "status": "ok",
+        "version": _read_version(),
+        "last_run_age_seconds": _last_run_age_seconds(),
+        "scheduler_next_fire_utc": _scheduler_next_fire_utc(),
+    })
+
+
+@app.route("/api/session/login", methods=["POST"])
+def api_session_login():
+    body = request.get_json(silent=True) or {}
+    username = str(body.get("username") or "")
+    password = str(body.get("password") or "")
+    if not check_auth(username, password):
+        return jsonify({"ok": False, "error": "invalid credentials"}), 401
+    session["operator_authenticated"] = True
+    session["operator_actor"] = username
+    return jsonify({"ok": True, "actor": username})
+
+
+@app.route("/api/session/logout", methods=["POST"])
+def api_session_logout():
+    session.pop("operator_authenticated", None)
+    session.pop("operator_actor", None)
+    return jsonify({"ok": True})
 
 
 # ──────────────────────────────────────────────
