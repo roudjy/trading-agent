@@ -197,3 +197,199 @@ def test_suggest_next_experiment_covers_known_shapes():
 def test_default_report_paths_live_inside_research_folder():
     assert REPORT_MARKDOWN_PATH == Path("research/report_latest.md")
     assert REPORT_JSON_PATH == Path("research/report_latest.json")
+
+
+# ---------------------------------------------------------------------------
+# v3.11 report schema additions
+# ---------------------------------------------------------------------------
+
+
+def test_report_schema_version_is_v11():
+    from research.report_agent import REPORT_SCHEMA_VERSION
+
+    assert REPORT_SCHEMA_VERSION == "1.1"
+
+
+def test_summary_carries_screening_and_promotion_split(tmp_path: Path):
+    research_path = tmp_path / "research_latest.json"
+    meta_path = tmp_path / "run_meta.json"
+    _write_research_latest(
+        research_path,
+        rows=[
+            {"strategy_name": "sma_crossover", "asset": "NVDA", "interval": "4h",
+             "success": True, "goedgekeurd": False, "reden": ""},
+            {"strategy_name": "breakout_momentum", "asset": "NVDA", "interval": "4h",
+             "success": True, "goedgekeurd": True, "reden": ""},
+        ],
+    )
+    _write_meta(meta_path)
+
+    report = build_report_payload(
+        run_id="run-split-test",
+        research_latest_path=research_path,
+        run_meta_path=meta_path,
+    )
+    summary = report["summary"]
+    # v3.10 keys still there
+    assert "raw" in summary
+    assert "promoted" in summary
+    # v3.11 additive split
+    assert isinstance(summary["screening"], dict)
+    assert set(summary["screening"].keys()) >= {
+        "raw", "eligible", "screening_passed", "screening_rejected"
+    }
+    assert isinstance(summary["promotion"], dict)
+    assert set(summary["promotion"].keys()) >= {
+        "evaluated", "promoted", "needs_investigation", "rejected_promotion"
+    }
+
+
+def test_top_rejection_reasons_by_layer_split(tmp_path: Path):
+    research_path = tmp_path / "research_latest.json"
+    meta_path = tmp_path / "run_meta.json"
+    _write_research_latest(
+        research_path,
+        rows=[
+            {"strategy_name": "rsi", "asset": "BTC-USD", "interval": "1h",
+             "success": False, "reden": "screening_criteria_not_met"},
+            {"strategy_name": "rsi", "asset": "ETH-USD", "interval": "1h",
+             "success": False, "reden": "screening_criteria_not_met"},
+        ],
+    )
+    _write_meta(meta_path)
+
+    report = build_report_payload(
+        run_id="run-rejections",
+        research_latest_path=research_path,
+        run_meta_path=meta_path,
+    )
+    by_layer = report["top_rejection_reasons_by_layer"]
+    assert set(by_layer.keys()) == {"screening_layer", "promotion_layer"}
+    # Screening reasons derived from rows.reden when filter summary
+    # sidecar is absent
+    assert by_layer["screening_layer"]
+    assert by_layer["screening_layer"][0]["reason"] == "screening_criteria_not_met"
+    # promotion layer is empty without candidate_registry
+    assert by_layer["promotion_layer"] == []
+
+
+def test_per_candidate_diagnostics_and_join_stats(tmp_path: Path):
+    research_path = tmp_path / "research_latest.json"
+    meta_path = tmp_path / "run_meta.json"
+    _write_research_latest(
+        research_path,
+        rows=[
+            {"strategy_name": "sma_crossover", "asset": "NVDA", "interval": "4h",
+             "params_json": "{}", "success": True, "goedgekeurd": True,
+             "sharpe": 1.5, "win_rate": 0.55, "reden": ""},
+            {"strategy_name": "sma_crossover", "asset": "AMD", "interval": "4h",
+             "params_json": "{}", "success": False,
+             "reden": "screening_criteria_not_met"},
+        ],
+    )
+    _write_meta(meta_path)
+
+    report = build_report_payload(
+        run_id="run-diagnostics",
+        research_latest_path=research_path,
+        run_meta_path=meta_path,
+    )
+    per_candidate = report["per_candidate_diagnostics"]
+    assert len(per_candidate) == 2
+    verdicts = {entry["verdict"] for entry in per_candidate}
+    assert verdicts <= {
+        "promoted",
+        "needs_investigation",
+        "rejected_promotion",
+        "rejected_screening",
+    }
+    # Promoted row flips to 'promoted'; screened-out flips to
+    # 'rejected_screening'
+    assert any(e["verdict"] == "promoted" for e in per_candidate)
+    assert any(e["verdict"] == "rejected_screening" for e in per_candidate)
+
+    join_stats = report["join_stats"]
+    assert join_stats["total_rows"] == 2
+    # No candidate_registry sidecar in tmp_path => all unmatched
+    assert join_stats["unmatched_candidate_registry"] == 2
+
+
+def test_markdown_shows_hypothesis_and_waarom_sections(tmp_path: Path):
+    research_path = tmp_path / "research_latest.json"
+    meta_path = tmp_path / "run_meta.json"
+    _write_research_latest(
+        research_path,
+        rows=[
+            {"strategy_name": "sma_crossover", "asset": "NVDA", "interval": "4h",
+             "params_json": "{}", "success": True, "goedgekeurd": True,
+             "sharpe": 1.5, "win_rate": 0.6, "reden": ""},
+        ],
+    )
+    _write_meta(meta_path)
+
+    from research.report_agent import render_markdown, build_report_payload
+
+    report = build_report_payload(
+        run_id="run-md",
+        research_latest_path=research_path,
+        run_meta_path=meta_path,
+    )
+    md = render_markdown(report)
+    assert "## Hypothese" in md
+    assert "## Wat werkte" in md
+    assert "## Wat werkte niet" in md
+    assert "## Waarom" in md
+    assert "## Volgende stap" in md
+
+
+def test_next_experiment_is_layer_aware_on_statistical_promotion_failures():
+    report_like = {
+        "raw": 10, "promoted": 0, "validated": 0, "screened": 0,
+    }
+    # dominant promotion-layer statistical failures
+    reasons_by_layer = {
+        "screening_layer": [],
+        "promotion_layer": [
+            {"reason": "psr_below_threshold", "count": 4},
+            {"reason": "bootstrap_sharpe_ci_includes_zero", "count": 2},
+        ],
+    }
+    msg = suggest_next_experiment(
+        report_like,
+        [],
+        None,
+        rejection_reasons_by_layer=reasons_by_layer,
+    )
+    assert "PSR" in msg or "statistische" in msg.lower()
+
+
+def test_next_experiment_is_layer_aware_on_drawdown_failure():
+    reasons_by_layer = {
+        "screening_layer": [],
+        "promotion_layer": [
+            {"reason": "drawdown_above_limit", "count": 5},
+        ],
+    }
+    msg = suggest_next_experiment(
+        {"raw": 5, "promoted": 0},
+        [],
+        None,
+        rejection_reasons_by_layer=reasons_by_layer,
+    )
+    assert "drawdown" in msg.lower() or "risk" in msg.lower()
+
+
+def test_next_experiment_steers_to_hypothesis_when_screening_dominant():
+    reasons_by_layer = {
+        "screening_layer": [
+            {"reason": "screening_criteria_not_met", "count": 30},
+        ],
+        "promotion_layer": [],
+    }
+    msg = suggest_next_experiment(
+        {"raw": 30, "promoted": 0},
+        [],
+        None,
+        rejection_reasons_by_layer=reasons_by_layer,
+    )
+    assert "hypothese" in msg.lower() or "family" in msg.lower()
