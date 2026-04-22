@@ -290,8 +290,137 @@ def api_research_universe():
 @app.route("/api/research/run", methods=["POST"])
 @require_operator_auth()
 def api_research_run():
-    payload, status_code = research_runner.launch_research_run()
+    body = request.get_json(silent=True) or {}
+    preset = body.get("preset") if isinstance(body, dict) else None
+    payload, status_code = research_runner.launch_research_run(
+        preset=preset if isinstance(preset, str) and preset else None,
+    )
     return jsonify(payload), status_code
+
+
+# ──────────────────────────────────────────────
+# API — v3.10 preset catalog + report + candidates + health + session/login
+# ──────────────────────────────────────────────
+@app.route("/api/presets")
+@requires_auth
+def api_presets():
+    from research.presets import list_presets, preset_to_card
+    return jsonify({
+        "presets": [preset_to_card(p) for p in list_presets()],
+    })
+
+
+@app.route("/api/presets/<name>/run", methods=["POST"])
+@require_operator_auth()
+def api_presets_run(name: str):
+    payload, status_code = research_runner.launch_research_run(preset=str(name))
+    return jsonify(payload), status_code
+
+
+@app.route("/api/report/latest")
+@requires_auth
+def api_report_latest():
+    md_path = Path("research/report_latest.md")
+    json_path = Path("research/report_latest.json")
+    response = {
+        "markdown": md_path.read_text(encoding="utf-8") if md_path.exists() else None,
+        "payload": json.loads(json_path.read_text(encoding="utf-8")) if json_path.exists() else None,
+    }
+    return jsonify(response)
+
+
+@app.route("/api/report/history")
+@requires_auth
+def api_report_history():
+    root = Path("research/history")
+    if not root.exists():
+        return jsonify({"reports": []})
+    entries = []
+    for path in sorted(root.rglob("report_*.md")):
+        entries.append({
+            "path": path.as_posix(),
+            "run_id": path.stem.replace("report_", ""),
+            "modified_at_utc": datetime.utcfromtimestamp(path.stat().st_mtime).isoformat() + "Z",
+        })
+    return jsonify({"reports": entries[-100:]})
+
+
+@app.route("/api/candidates/latest")
+@requires_auth
+def api_candidates_latest():
+    path = Path("research/run_candidates_latest.v1.json")
+    if not path.exists():
+        return jsonify({"candidates": [], "artifact_state": "missing"})
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return jsonify(payload)
+    except (json.JSONDecodeError, OSError) as exc:
+        return jsonify({"error": str(exc), "candidates": []}), 500
+
+
+_VERSION_PATH = Path("VERSION")
+
+
+def _read_version() -> str:
+    try:
+        return _VERSION_PATH.read_text(encoding="utf-8").strip() or "unknown"
+    except OSError:
+        return "unknown"
+
+
+def _last_run_age_seconds() -> float | None:
+    meta_path = Path("research/run_meta_latest.v1.json")
+    if not meta_path.exists():
+        return None
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        completed = payload.get("completed_at_utc") or payload.get("started_at_utc")
+        if not completed:
+            return None
+        ts = datetime.fromisoformat(str(completed).replace("Z", "+00:00"))
+        return (datetime.now(ts.tzinfo) - ts).total_seconds()
+    except (json.JSONDecodeError, OSError, ValueError):
+        return None
+
+
+def _scheduler_next_fire_utc() -> str | None:
+    """Derived from the v3.10 systemd-timer contract (06:00 UTC daily)."""
+    from datetime import timedelta, timezone as _tz
+    now = datetime.now(_tz.utc)
+    fire = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    if fire <= now:
+        fire = fire + timedelta(days=1)
+    return fire.isoformat()
+
+
+@app.route("/api/health")
+def api_health():
+    # unauth: liveness + version + scheduler next fire + last run age.
+    return jsonify({
+        "status": "ok",
+        "version": _read_version(),
+        "last_run_age_seconds": _last_run_age_seconds(),
+        "scheduler_next_fire_utc": _scheduler_next_fire_utc(),
+    })
+
+
+@app.route("/api/session/login", methods=["POST"])
+def api_session_login():
+    body = request.get_json(silent=True) or {}
+    username = str(body.get("username") or "")
+    password = str(body.get("password") or "")
+    if not check_auth(username, password):
+        return jsonify({"ok": False, "error": "invalid credentials"}), 401
+    session["operator_authenticated"] = True
+    session["operator_actor"] = username
+    return jsonify({"ok": True, "actor": username})
+
+
+@app.route("/api/session/logout", methods=["POST"])
+def api_session_logout():
+    session.pop("operator_authenticated", None)
+    session.pop("operator_actor", None)
+    return jsonify({"ok": True})
 
 
 # ──────────────────────────────────────────────
