@@ -37,11 +37,33 @@ from research.registry import STRATEGIES
 ScreeningMode = Literal["strict", "lenient", "diagnostic"]
 CostMode = Literal["realistic", "zero", "stress"]
 PresetStatus = Literal["stable", "planned", "diagnostic", "not_executable"]
+PresetClass = Literal["baseline", "diagnostic", "experimental"]
 
 
 @dataclass(frozen=True)
 class ResearchPreset:
-    """Frozen preset descriptor consumed by CLI / API / scheduler."""
+    """Frozen preset descriptor consumed by CLI / API / scheduler.
+
+    Two orthogonal classification axes:
+
+    - ``status`` is the *lifecycle* label ("stable" / "planned" /
+      "diagnostic" / "not_executable"). It answers: may the scheduler
+      run this preset today? Honoured by the scheduler + promotion
+      guards.
+    - ``preset_class`` (v3.11) is the *research role* ("baseline" /
+      "diagnostic" / "experimental"). It answers: what function does
+      this preset serve in our research? A diagnostic preset may be
+      ``status="stable"`` (always-on observability); an experimental
+      preset may be ``status="planned"`` (backlog). Neither field is
+      derived from the other.
+
+    v3.11 hypothesis metadata (``rationale``, ``expected_behavior``,
+    ``falsification``) elaborates the narrative ``hypothesis`` field.
+    On enabled presets these are expected to be non-empty;
+    ``validate_preset`` surfaces missing values as soft issues so the
+    runner can warn without self-blocking (see ADR-011 §9 and the
+    v3.11 addendum).
+    """
 
     name: str
     hypothesis: str
@@ -59,6 +81,10 @@ class ResearchPreset:
     regime_modes: tuple[str, ...] = field(default_factory=tuple)
     optional_bundle: tuple[str, ...] = field(default_factory=tuple)
     backlog_reason: str | None = None
+    preset_class: PresetClass = "experimental"
+    rationale: str = ""
+    expected_behavior: str = ""
+    falsification: tuple[str, ...] = field(default_factory=tuple)
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +121,29 @@ PRESETS: tuple[ResearchPreset, ...] = (
         cost_mode="realistic",
         status="stable",
         enabled=True,
+        preset_class="baseline",
+        rationale=(
+            "Large-cap US equities tonen historisch persistente trend "
+            "episodes op multi-bar timeframes (orchestrator_brief §1.1, "
+            "§4.1). Twee orthogonale trend families (MA-crossover en "
+            "breakout) dekken zowel gradual trend entries als "
+            "range-expansion entries zonder overlap in signal construction."
+        ),
+        expected_behavior=(
+            "Positieve OOS Sharpe op >=1 asset/interval combinatie na "
+            "walk-forward + promotion gates (PSR >=0.90, DSR >0.0, "
+            "drawdown <=0.35). Stability flags grotendeels schoon op "
+            "gepromoveerde runs."
+        ),
+        falsification=(
+            "Alle runs falen op insufficient_trades binnen de 4h window "
+            "op dit universe.",
+            "Elke run die screening haalt faalt in promotion op "
+            "bootstrap_sharpe_ci_includes_zero over 3 achtereenvolgende "
+            "runs.",
+            "Deflated Sharpe structureel negatief ondanks volume in "
+            "trending equity regimes (Q2-2026 big-tech rallies).",
+        ),
     ),
     ResearchPreset(
         name="pairs_equities_daily_baseline",
@@ -115,6 +164,10 @@ PRESETS: tuple[ResearchPreset, ...] = (
             "v3.11 equity-pairs ADR required: OLS hedge ratio + "
             "multi-reference_asset. See ADR-011 \u00a77."
         ),
+        preset_class="experimental",
+        rationale="",
+        expected_behavior="",
+        falsification=(),
     ),
     ResearchPreset(
         name="trend_regime_filtered_equities_4h",
@@ -133,6 +186,28 @@ PRESETS: tuple[ResearchPreset, ...] = (
         cost_mode="realistic",
         status="stable",
         enabled=True,
+        preset_class="diagnostic",
+        rationale=(
+            "Trend strategies zijn gevoelig voor choppy / mean-reverting "
+            "regimes. Door dezelfde trendbundel te draaien onder een "
+            "bollinger-afgeleid regime-filter (trend_only + low_vol_only) "
+            "krijgen we een directe vergelijking met de ongefilterde "
+            "baseline preset — zo kunnen we zien of regimefiltering de "
+            "trend-edge versterkt dan wel beknot."
+        ),
+        expected_behavior=(
+            "Gefilterde runs vertonen hogere OOS Sharpe en/of lagere "
+            "drawdown vs de ongefilterde baseline op dezelfde "
+            "asset/interval combinaties. Minder trades per maand door "
+            "filtering is verwacht."
+        ),
+        falsification=(
+            "Gefilterde runs scoren consistent lager dan ongefilterde "
+            "baseline op Sharpe over 3 achtereenvolgende runs — dan is "
+            "het regime-filter ruis.",
+            "Regime-filter reduceert trade count onder min_oos_trades "
+            "waardoor elke run in promotion faalt op insufficient_trades.",
+        ),
     ),
     ResearchPreset(
         name="crypto_diagnostic_1h",
@@ -152,6 +227,27 @@ PRESETS: tuple[ResearchPreset, ...] = (
         diagnostic_only=True,
         excluded_from_daily_scheduler=True,
         excluded_from_candidate_promotion=True,
+        preset_class="diagnostic",
+        rationale=(
+            "Crypto 1h mean reversion is volgens orchestrator_brief "
+            "§7.2 deprioriteerd als primaire alpha richting. Deze preset "
+            "draait onder stress cost_mode + diagnostic screening om de "
+            "rejection-patronen zichtbaar te houden, zodat we weten "
+            "wanneer de aannames veranderen (bijv. marktstructuur shift)."
+        ),
+        expected_behavior=(
+            "Alle runs falen in screening of promotion (verwachte "
+            "uitkomst). Rejection reasons zijn stabiel tussen runs: "
+            "voornamelijk negatieve Sharpe of insufficient_trades. "
+            "Geen enkele run promoteert (excluded_from_candidate_promotion)."
+        ),
+        falsification=(
+            "Een crypto 1h MR run promoteert ondanks diagnostic status "
+            "— duidt op regressie in de exclusion pipeline.",
+            "Rejection patronen wijken plotseling sterk af van historische "
+            "distributie — signaal dat marktstructuur kantelt en de "
+            "diagnostische hypothese herzien moet worden.",
+        ),
     ),
 )
 
@@ -261,12 +357,17 @@ def preset_to_card(preset: ResearchPreset) -> dict:
         "regime_filter": preset.regime_filter,
         "regime_modes": list(preset.regime_modes),
         "backlog_reason": preset.backlog_reason,
+        "preset_class": preset.preset_class,
+        "rationale": preset.rationale,
+        "expected_behavior": preset.expected_behavior,
+        "falsification": list(preset.falsification),
     }
 
 
 __all__ = [
     "CostMode",
     "PRESETS",
+    "PresetClass",
     "PresetStatus",
     "ResearchPreset",
     "ScreeningMode",
