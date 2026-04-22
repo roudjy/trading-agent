@@ -4,6 +4,48 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.10] — Research Ops & Frontend Migration
+
+Date: 2026-04-22
+Branch: `feature/v3.10-research-ops-react`
+
+Operations release. Preset catalog, single-command `researchctl`
+CLI, post-run analysis/report agent, Flask control-surface API
+extension, React + TypeScript SPA on `:8050`, nginx anti-indexing
+reverse proxy, host-level systemd-timer for the daily default run,
+and explicit `scripts/deploy.sh` deploy channel from GHCR to the
+VPS. No strategy-logic changes. Public output contracts
+(`research_latest.json`, `strategy_matrix.csv`) are byte-identical
+to pre-v3.10; new fields land in adjacent artifacts
+(`research/run_meta_latest.v1.json`, `research/report_latest.md`,
+`research/report_latest.json`). See
+[ADR-011](docs/adr/ADR-011-v3.10-architecture.md) for the full
+design record and
+[ADR-012](docs/adr/ADR-012-v3.10-approval-override-audit.md) for
+the engine approval-override audit outcome.
+
+### Added
+
+- *(filled per commit)*
+
+### Changed
+
+- `VERSION`: `0.1.0` → `3.10.0`.
+
+### Fixed
+
+- *(filled per commit)*
+
+### Security
+
+- *(filled per commit)*
+
+### Contracts
+
+- No mutations to `ROW_SCHEMA`, `JSON_TOP_LEVEL_SCHEMA`, or
+  `JSON_SUMMARY_SCHEMA` in `research/results.py`. All new v3.10
+  fields are recorded in adjacent sidecar artifacts.
+
 ## [v3.8] — Execution Realism & Evaluation Hardening
 
 Date: 2026-04-21
