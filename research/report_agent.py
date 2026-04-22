@@ -22,6 +22,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research.registry import STRATEGIES
+from research.report_candidate_diagnostics import build_candidate_diagnostics
 from research.run_meta import RUN_META_PATH, read_run_meta_sidecar
 
 REPORT_MARKDOWN_PATH = Path("research/report_latest.md")
@@ -326,9 +328,22 @@ def build_report_payload(
     meta = read_run_meta_sidecar(run_meta_path)
     rows: list[dict[str, Any]] = list(research.get("results") or [])
 
-    # v3.11: load sidecars read-only for screening/promotion split.
+    # v3.11: load sidecars read-only for screening/promotion split +
+    # per-candidate diagnostics.
     candidate_registry = _load_json(_CANDIDATE_REGISTRY_SIDECAR)
     filter_summary = _load_json(_RUN_FILTER_SUMMARY_SIDECAR)
+    defensibility_payload = _load_json(_DEFENSIBILITY_SIDECAR)
+    regime_payload = _load_json(_REGIME_SIDECAR)
+    cost_sensitivity_payload = _load_json(_COST_SENSITIVITY_SIDECAR)
+    strategy_index = {entry["name"]: entry for entry in STRATEGIES}
+    per_candidate, join_stats = build_candidate_diagnostics(
+        rows=rows,
+        candidate_registry=candidate_registry,
+        defensibility=defensibility_payload,
+        regime=regime_payload,
+        cost_sensitivity=cost_sensitivity_payload,
+        strategy_index=strategy_index,
+    )
 
     summary = _summarize_counts(
         rows,
@@ -371,6 +386,8 @@ def build_report_payload(
         "top_rejection_reasons": legacy_rejection_reasons,
         "top_rejection_reasons_by_layer": rejection_reasons_by_layer,
         "candidates": candidates,
+        "per_candidate_diagnostics": per_candidate,
+        "join_stats": join_stats,
         "red_flags": red_flags,
         "regime_diagnostics": _regime_diagnostics(),
         "statistical_diagnostics": _statistical_diagnostics(),
