@@ -4,6 +4,145 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.11] — Research Quality Engine
+
+Date: 2026-04-22
+Branch: `feature/v3.11-research-quality-engine`
+
+Quality-hardening release. Zero new infra, zero new strategy
+families, zero new metrics. Every change is additive and consumer-only
+against the existing v3.10 artifact landscape. Public output contracts
+(`research_latest.json`, `strategy_matrix.csv`) remain **byte-identical
+to v3.10**; new data lands exclusively in schema-bumped adjacent
+sidecars (`run_meta_latest.v1.json` v1.1, `report_latest.{md,json}`
+v1.1) and a new consumer-only join module.
+
+The bottleneck after v3.10 was input + interpretation quality, not
+throughput. v3.11 formalises hypothesis metadata per preset, separates
+screening (mild, observability) from promotion (strict, DSR/PSR/
+stability) in report output, and wires per-candidate diagnostics that
+explain **why** each row survived, stalled, or failed — without the
+engine growing a single new threshold or metric.
+
+### Added
+
+- **Preset Quality Layer.** `ResearchPreset` dataclass extended with
+  four fields:
+  - `preset_class: Literal["baseline", "diagnostic", "experimental"]`
+    — orthogonal to the existing `status` lifecycle label.
+  - `rationale`, `expected_behavior`, `falsification` — structured
+    hypothesis metadata. All three enabled presets
+    (`trend_equities_4h_baseline`, `trend_regime_filtered_equities_4h`,
+    `crypto_diagnostic_1h`) ship with the fields filled. Planned
+    `pairs_equities_daily_baseline` stays empty (backlog_reason still
+    load-bearing).
+  - `hypothesis_metadata_issues()` helper returns only the v3.11
+    soft-issue codes so the runner can emit dedicated warnings.
+- **Soft preset validation + opt-in strict mode.** `validate_preset`
+  returns soft issues on empty rationale / expected_behavior /
+  falsification for enabled presets. The runner emits
+  `preset_validation_warning` tracker events. Setting
+  `QRE_STRICT_PRESET_VALIDATION=1` elevates to hard failure via a
+  new `PresetValidationError`. Default is soft — v3.11 never
+  self-blocks.
+- **run_meta schema v1.1** (additive). New fields on
+  `research/run_meta_latest.v1.json`: `preset_class`,
+  `preset_rationale`, `preset_expected_behavior`, `preset_falsification`,
+  `preset_bundle_hypotheses` (resolved read-only from `STRATEGIES`).
+  `is_run_excluded_from_promotion` and all v1.0 keys are unchanged.
+  v1.0-shaped sidecars remain readable bytewise.
+- **`research/report_candidate_diagnostics.py`** (new module). Pure
+  join functions — no IO, no new metrics, no threshold derivation.
+  Returns `(per_candidate_diagnostics, join_stats)`.
+  - Verdict enum pinned at four values:
+    `promoted | needs_investigation | rejected_promotion | rejected_screening`.
+  - Rejection_layer enum: `fit_prior | eligibility | screening |
+    promotion | null`.
+  - Stability flags (`noise_warning`, `psr_below_threshold`,
+    `dsr_canonical_below_threshold`, `bootstrap_sharpe_ci_includes_zero`)
+    sourced read-only from
+    `candidate_registry.candidates[].reasoning.failed/.escalated/.passed`.
+  - `cost_sensitivity_flag` and `regime_suspicion_flag` consume
+    pre-computed booleans only; null when the source sidecar is
+    absent or exposes only numeric fields.
+  - Join discipline: primary key `build_strategy_id(name, asset,
+    interval, params)`; defensibility triple `(name, asset, interval)`;
+    unmatched counts surface in `join_stats`.
+  - Soft warning sentinel `join_stats.warning = "large_candidate_count"`
+    at > 1000 rows; no hard cap.
+- **Report agent v1.1.** `research/report_agent.py`:
+  - `REPORT_SCHEMA_VERSION = "1.1"`.
+  - `summary` carries additive `screening` and `promotion` sub-dicts
+    (legacy v3.10 keys preserved for dashboard consumers).
+  - `top_rejection_reasons_by_layer` splits screening-layer codes
+    (from `run_filter_summary_latest.v1.json`) and promotion-layer
+    codes (from `candidate_registry_latest.v1.json`). Flat
+    `top_rejection_reasons` list remains for legacy consumers.
+  - `per_candidate_diagnostics` and `join_stats` payload keys.
+  - Markdown sections: **Hypothese**, **Samenvatting** (with
+    Screening-laag + Promotion-laag + Join stats sub-blocks), **Wat
+    werkte**, **Wat werkte niet** (split), **Waarom (per candidate)**,
+    **Volgende stap**.
+  - `suggest_next_experiment` extended with layer-aware + failure-type
+    logic (statistical / risk / trades / noise) driven by existing
+    promotion-reason codes only. Signature adds keyword-only
+    `rejection_reasons_by_layer` (backwards compatible).
+- **Test coverage.** 43 new unit tests pinning the v3.11 contract:
+  - `tests/unit/test_presets.py` +9 tests.
+  - `tests/unit/test_run_meta.py` +6 tests.
+  - `tests/unit/test_report_agent.py` +8 tests.
+  - `tests/unit/test_report_candidate_diagnostics.py` (new) 20 tests
+    covering verdict mapping, stability flag sourcing, cost/regime
+    flag null-safety, join mismatches, malformed rows, soft warning.
+
+### Changed
+
+- `render_markdown` section titles updated from v3.10 English labels
+  to v3.11 Dutch narrative labels (Samenvatting / Wat werkte / Wat
+  werkte niet / Waarom / Volgende stap). Corresponding test assertions
+  updated in the same commit as the rename.
+- `build_run_meta_payload` now resolves `preset_bundle_hypotheses`
+  via a read-only local import of `STRATEGIES`; avoids a module-level
+  circular import with the registry.
+
+### Preserved bytewise
+
+- `ROW_SCHEMA` (19 columns) and `JSON_TOP_LEVEL_SCHEMA`.
+- `candidate_registry_latest.v1.json` schema + writer.
+- All other sidecar schemas and writers (statistical defensibility,
+  regime diagnostics, falsification gates, integrity report,
+  portfolio aggregation, empty run diagnostics).
+- Tier 1 digest pins, walk-forward `FoldLeakageError` semantics,
+  resume-integrity gate.
+- `run_meta` v1.0-shaped sidecars still parse via
+  `read_run_meta_sidecar`.
+
+### Deferred (explicit)
+
+- Portfolio layer (v3.12).
+- Candidate registry schema extensions (v3.12).
+- Regime classification engine (v3.13).
+- Paper trading, new strategy families, ML/ranking, UI expansion
+  beyond the preset-card additive fields.
+- Hard-fail default for preset validation (remains opt-in via env
+  flag in v3.11).
+
+### Known risks
+
+- Dashboard report-viewer must tolerate the new v1.1 schema fields;
+  they are additive and null-safe but any tight JSON-Schema consumer
+  will need an update.
+- `cost_sensitivity_flag` and `regime_suspicion_flag` stay `null` in
+  the current pipeline because no upstream sidecar writer emits a
+  pre-computed boolean. They go live the moment the writers choose
+  to expose one — no v3.11 code change needed.
+- Falsification criteria quality is subjective on the initial fill
+  of the 3 enabled presets. Iteration happens via runs + feedback
+  loop, not via engine changes.
+- Per-candidate diagnostics can grow with universe size; the soft
+  warning at >1000 rows is a visibility aid, not a guard. Retention
+  discipline arrives with v3.12's candidate registry.
+
 ## [v3.10] — Research Ops & Frontend Migration
 
 Date: 2026-04-22
