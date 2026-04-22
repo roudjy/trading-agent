@@ -26,25 +26,102 @@ the engine approval-override audit outcome.
 
 ### Added
 
-- *(filled per commit)*
+- `research/presets.py`: frozen `ResearchPreset` dataclass + four
+  registered presets (`trend_equities_4h_baseline` default,
+  `pairs_equities_daily_baseline` planned/disabled,
+  `trend_regime_filtered_equities_4h`, `crypto_diagnostic_1h` with
+  diagnostic/exclusion flags). Public API: `list_presets`,
+  `get_preset`, `resolve_preset_bundle`, `validate_preset`,
+  `default_daily_preset`, `daily_schedulable_presets`, `preset_to_card`.
+- `research/run_meta.py`: new adjacent sidecar
+  `research/run_meta_latest.v1.json` (schema v1.0) carrying preset
+  metadata, candidate summary, top rejection reasons, and artifact
+  paths. Safe-default promotion-exclusion when the sidecar is missing
+  or diagnostic (ADR-011 §9).
+- `research/report_agent.py`: post-run analysis that composes
+  `research/report_latest.md` + `research/report_latest.json` from
+  the existing reporting modules. Verdicts:
+  `promoted | candidates_no_promotion | niets_bruikbaars_vandaag`.
+- `research/run_research.py --preset <name>`: threads a preset through
+  candidate planning, writes the run_meta sidecar, and invokes the
+  report agent at the end of each run (best-effort, never fails the run).
+- `researchctl.py` CLI at the repo root with subcommands
+  `run / report / history / doctor` (no `deploy` — ADR-011 §4).
+- Dashboard endpoints: `/api/presets`, `/api/presets/<name>/run`,
+  `/api/report/latest`, `/api/report/history`, `/api/candidates/latest`,
+  `/api/health`, `/api/session/login`, `/api/session/logout`.
+- React + TypeScript SPA under `frontend/` with Login, Dashboard,
+  Presets, History, Reports, Candidate Inspector screens. Multi-stage
+  Dockerfile builds the bundle on `node:20-alpine` and ships it in the
+  Python runtime image.
+- `ops/nginx/nginx.conf` + `robots.txt`: reverse proxy with
+  `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`, AI/crawler
+  UA block (20+ agents → 403), cookie/auth pass-through to Flask.
+- `ops/systemd/trading-agent-daily-research.{service,timer}` + README:
+  host-level systemd-timer that calls
+  `docker exec jvr_dashboard python /app/researchctl.py run
+  trend_equities_4h_baseline` at 06:00 UTC daily. Crypto diagnostic
+  preset is never auto-scheduled.
+- `scripts/deploy.sh`: explicit GHCR pull + compose up + health-check
+  deploy with retry, rollback via `IMAGE_TAG=<prev-tag>`.
+- `docker-compose.prod.yml`: GHCR-image override for VPS deploys.
+- `docs/adr/ADR-011-v3.10-architecture.md`: architecture record for the
+  whole v3.10 shape.
+- `docs/adr/ADR-012-v3.10-approval-override-audit.md`: audit of
+  engine.py / promotion.py / run_research.py for gate-bypass logic —
+  outcome A, no production bypass exists.
+- Regression / smoke coverage: `test_make_result_row_strategy_name.py`,
+  `test_execution_event_roundtrip.py`,
+  `test_screening_interrupt_reason_detail.py`,
+  `test_daily_preset_smoke.py`, `test_presets.py`,
+  `test_run_meta.py`, `test_report_agent.py`,
+  `test_dashboard_api_v310.py`.
 
 ### Changed
 
 - `VERSION`: `0.1.0` → `3.10.0`.
+- `Dockerfile` is now multi-stage (node builder → python runtime copies
+  `frontend/dist`).
+- `docker-compose.yml`: dashboard no longer binds the host port; nginx
+  binds `8050:80` and proxies to `dashboard:8050` internally. New
+  `./state:/app/state` bind-mount preserves session/operator secrets
+  across deploys.
+- `dashboard/dashboard.py`: SPA index served at `/`; legacy Jinja
+  dashboards kept reachable at `/legacy/dashboard` and
+  `/legacy/research-control` for one release.
+- `dashboard/research_runner.launch_research_run` accepts an optional
+  `preset` kwarg and threads `--preset <name>` into the subprocess
+  command.
 
 ### Fixed
 
-- *(filled per commit)*
+- `research/results.py::make_result_row` now raises `ValueError` when
+  `strategy["name"]` is None or empty, closing the strategy-None leak
+  in `strategy_matrix.csv` / `research_latest.json`. The frozen
+  ROW_SCHEMA tuple is untouched — only a precondition was added.
+- `researchctl doctor` detects stale `strategy_matrix.csv` headers
+  (the v3.x legacy `strategy_family,asset_type,…` header class) and
+  fails the check instead of letting it slide.
 
 ### Security
 
-- *(filled per commit)*
+- Anti-indexing enforced at three layers: nginx `X-Robots-Tag`
+  response header + AI-crawler UA 403 block, Flask `X-Robots-Tag`
+  injection on the SPA index, and React `<meta name="robots">` tag.
+  `/robots.txt` served by both nginx and Flask.
+- New `/api/session/login` validates via the existing SHA256+SALT hash
+  and `hmac.compare_digest`; no new credential store. Session cookie
+  `SameSite=Lax` (no TLS in v3.10, `Secure` flag deferred to v3.11).
 
 ### Contracts
 
 - No mutations to `ROW_SCHEMA`, `JSON_TOP_LEVEL_SCHEMA`, or
   `JSON_SUMMARY_SCHEMA` in `research/results.py`. All new v3.10
-  fields are recorded in adjacent sidecar artifacts.
+  fields are recorded in adjacent sidecar artifacts
+  (`research/run_meta_latest.v1.json`, `research/report_latest.md`,
+  `research/report_latest.json`).
+- Existing `/api/research/run-status` remains the canonical run-status
+  endpoint (ADR-011 §12). No `/api/run-status` introduced.
 
 ## [v3.8] — Execution Realism & Evaluation Hardening
 
