@@ -70,7 +70,11 @@ def build_run_status_response(*, now: datetime | None = None) -> dict[str, Any]:
     }
 
 
-def launch_research_run(*, now: datetime | None = None) -> tuple[dict[str, Any], int]:
+def launch_research_run(
+    *,
+    now: datetime | None = None,
+    preset: str | None = None,
+) -> tuple[dict[str, Any], int]:
     lifecycle = RunStateStore(
         state_path=research_artifacts.RUN_STATE_PATH,
         history_root=research_artifacts.RUN_STATE_PATH.parent / "history",
@@ -102,9 +106,12 @@ def launch_research_run(*, now: datetime | None = None) -> tuple[dict[str, Any],
             409,
         )
 
+    cmd = [sys.executable, "research/run_research.py"]
+    if preset:
+        cmd.extend(["--preset", str(preset)])
     try:
         process = subprocess.Popen(
-            [sys.executable, "research/run_research.py"],
+            cmd,
             cwd=str(BASE_DIR),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -129,6 +136,7 @@ def launch_research_run(*, now: datetime | None = None) -> tuple[dict[str, Any],
             "accepted": True,
             "launch_state": "started",
             "pid": process.pid,
+            "preset": preset,
             "observations": _build_observations(
                 state_artifact=state_artifact,
                 repair_result=repair_result,
