@@ -99,6 +99,20 @@ from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import build_research_universe
 
+# v3.9 orchestration seam: research is the only module permitted to
+# import from `orchestration/` beyond dashboard's late-phase launch
+# API. Phase 4 upgrades the Orchestrator from a pass-through seam
+# to the real owner of batch dispatch for both inline and parallel
+# modes via dispatch_serial_batches / dispatch_parallel_batches.
+# See ADR-009.
+from orchestration import (
+    BatchOutcome,
+    Orchestrator,
+    TaskKind,
+    classify_batch_reason,
+    deepcopy_batch,
+)
+
 SIDE_CAR_PATH = Path("research/statistical_defensibility_latest.v1.json")
 WALK_FORWARD_PATH = "research/walk_forward_latest.v1.json"
 CANDIDATE_REGISTRY_PATH = Path("research/candidate_registry_latest.v1.json")
@@ -1230,8 +1244,36 @@ def _merge_validation_batch_result(
     return candidate_payload, validation_completed
 
 
+def _inline_on_batch_complete(batch: dict, _result: object) -> BatchOutcome:
+    """v3.9 phase 6: explicit `on_batch_complete` hook for inline
+    dispatch.
+
+    Inline batches carry their own exception handling inside the
+    per-batch closure (the closure sets ``batch["status"] = "failed"``
+    and re-raises on error, which `Orchestrator.dispatch_serial_batches`
+    catches). This hook translates the closure's final ``batch["status"]``
+    into a typed ``BatchOutcome``.
+
+    Serial dispatch does not act on the outcome for flow control
+    (failures propagate via the re-raised exception). The hook exists
+    to make the inline path's outcome contract explicit at the call
+    site - removing the Phase-5 implicit dependency on
+    `orchestration.orchestrator._default_complete` that was pinned
+    open at Phase-5 exit and closed by Phase 6
+    (`tests/unit/test_orchestration_default_complete_scope.py`).
+    """
+
+    if batch.get("status") == "failed":
+        return BatchOutcome.failure(
+            reason_code=classify_batch_reason(batch.get("reason_code")),
+            message=str(batch.get("reason_detail") or ""),
+        )
+    return BatchOutcome.success()
+
+
 def _run_parallel_screening_batches(
     *,
+    orchestrator: Orchestrator,
     batches: list[dict],
     screening_items: list[dict],
     interval_ranges: dict[str, dict[str, str]],
@@ -1254,6 +1296,16 @@ def _run_parallel_screening_batches(
     resumed_from_run_id: str | None,
     continuation_summary: dict[str, int],
 ) -> tuple[dict | None, dict | None, int, set[str]]:
+    """Route parallel screening through the v3.9 Orchestrator.
+
+    The batch-dispatch loop (rolling-submit, in-order result
+    collection, stop-on-failure) lives in
+    `orchestration.Orchestrator.dispatch_parallel_batches`. This
+    function supplies the pre-submit hook (batch state + sidecars +
+    tracker events), the per-batch task payload builder, and the
+    post-submit merge hook, all of which were the v3.8 inline logic.
+    """
+
     screening_batches = [batch for batch in batches if _batch_needs_screening(batch)]
     candidate_lookup = _candidate_index(candidates)
     items_by_batch_id = {
@@ -1262,124 +1314,118 @@ def _run_parallel_screening_batches(
         ]
         for batch in screening_batches
     }
-    future_by_batch_id: dict[str, object] = {}
-    next_submit_index = 0
     failed_batch_ids: set[str] = set()
+    state_box = {
+        "candidate_payload": candidate_payload,
+        "screening_payload": screening_payload,
+        "screening_completed": screening_completed,
+    }
 
-    with BATCH_EXECUTOR_CLASS(max_workers=execution_max_workers) as executor:
-        while next_submit_index < len(screening_batches) and len(future_by_batch_id) < execution_max_workers:
-            batch = screening_batches[next_submit_index]
-            batch["status"] = "running"
-            batch["current_stage"] = "screening"
-            batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
-            tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
-            _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
-            _write_batch_manifest(run_id=run_id, batch=batch)
-            _persist_campaign_artifacts(
-                run_id=run_id,
-                started_at=started_at_utc,
-                batches=batches,
-                candidate_payload=candidate_payload,
-                screening_payload=screening_payload,
-                lifecycle_mode=lifecycle_mode,
-                resumed_from_run_id=resumed_from_run_id,
-                continuation_summary=continuation_summary,
-            )
-            tracker.emit_event(
-                "batch_started",
-                batch_id=batch["batch_id"],
-                batch_index=batch["batch_index"],
-                strategy_family=batch["strategy_family"],
-                interval=batch["interval"],
-                elapsed_seconds=0,
-                candidate_count=batch["candidate_count"],
-                completed_candidate_count=batch["completed_candidate_count"],
-            )
-            _submit_parallel_batch(
-                executor=executor,
-                future_by_batch_id=future_by_batch_id,
-                batch=batch,
-                worker=execute_screening_batch,
-                worker_kwargs={
-                    "batch_candidates": items_by_batch_id[str(batch["batch_id"])],
-                    "interval_ranges": interval_ranges,
-                    "evaluation_config": evaluation_config,
-                    "regime_config": regime_config,
-                    "screening_candidate_budget_seconds": screening_candidate_budget_seconds,
-                    "screening_param_sample_limit": SCREENING_PARAM_SAMPLE_LIMIT,
-                },
-            )
-            next_submit_index += 1
+    def _on_start(batch: dict) -> None:
+        batch["status"] = "running"
+        batch["current_stage"] = "screening"
+        batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
+        tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+        _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
+        _write_batch_manifest(run_id=run_id, batch=batch)
+        _persist_campaign_artifacts(
+            run_id=run_id,
+            started_at=started_at_utc,
+            batches=batches,
+            candidate_payload=state_box["candidate_payload"],
+            screening_payload=state_box["screening_payload"],
+            lifecycle_mode=lifecycle_mode,
+            resumed_from_run_id=resumed_from_run_id,
+            continuation_summary=continuation_summary,
+        )
+        tracker.emit_event(
+            "batch_started",
+            batch_id=batch["batch_id"],
+            batch_index=batch["batch_index"],
+            strategy_family=batch["strategy_family"],
+            interval=batch["interval"],
+            elapsed_seconds=0,
+            candidate_count=batch["candidate_count"],
+            completed_candidate_count=batch["completed_candidate_count"],
+        )
 
-        for batch in screening_batches:
-            future = future_by_batch_id.pop(str(batch["batch_id"]), None)
-            if future is None:
-                continue
-            result = future.result()
-            candidate_payload, screening_payload, screening_completed = _merge_screening_batch_result(
-                result=result,
-                batch=batch,
-                batches=batches,
-                candidates_by_id=candidate_lookup,
-                screening_records_by_id=screening_records_by_id,
-                candidates=candidates,
-                screening_records=screening_records,
-                screening_completed=screening_completed,
-                screening_items_count=len(screening_items),
-                run_id=run_id,
-                started_at_utc=started_at_utc,
-                as_of_utc=as_of_utc,
-                tracker=tracker,
-                provenance_events=provenance_events,
-                lifecycle_mode=lifecycle_mode,
-                resumed_from_run_id=resumed_from_run_id,
-                continuation_summary=continuation_summary,
+    def _payload_for(batch: dict) -> dict:
+        # Deepcopy matches v3.8 `_submit_parallel_batch` behavior
+        # (the batch dict that travels to the worker is decoupled
+        # from the submit-side batch reference).
+        return {
+            "batch": deepcopy_batch(batch),
+            "batch_candidates": items_by_batch_id[str(batch["batch_id"])],
+            "interval_ranges": interval_ranges,
+            "evaluation_config": evaluation_config,
+            "regime_config": regime_config,
+            "screening_candidate_budget_seconds": screening_candidate_budget_seconds,
+            "screening_param_sample_limit": SCREENING_PARAM_SAMPLE_LIMIT,
+        }
+
+    def _on_complete(batch: dict, result: dict | None) -> BatchOutcome:
+        """Phase 5: translate the research-semantic batch result into
+        a typed BatchOutcome. The Orchestrator drives
+        stop_on_failure from the returned outcome (it no longer
+        inspects `batch["status"]`)."""
+
+        if result is None:
+            # Phase 4/5 batch kinds do not emit None results on
+            # success; this branch fires only when the worker
+            # returned a typed TaskFailure (per-candidate kinds) or
+            # the dispatch observed a protocol violation. Mark the
+            # batch failed for the runner's own failure-tracking
+            # (downstream skip logic still reads batch state) and
+            # return a typed failure outcome to the dispatch.
+            batch["status"] = "failed"
+            failed_batch_ids.add(str(batch["batch_id"]))
+            return BatchOutcome.failure(
+                reason_code=classify_batch_reason(batch.get("reason_code")),
+                message=str(batch.get("reason_detail") or "worker returned no result"),
             )
-            if batch["status"] == "failed":
-                failed_batch_ids.add(str(batch["batch_id"]))
-            if not failed_batch_ids and next_submit_index < len(screening_batches):
-                next_batch = screening_batches[next_submit_index]
-                next_batch["status"] = "running"
-                next_batch["current_stage"] = "screening"
-                next_batch["started_at"] = next_batch.get("started_at") or datetime.now(UTC).isoformat()
-                tracker.set_batch(_batch_progress_payload(batch=next_batch, total_batches=len(batches)), persist=True)
-                _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
-                _write_batch_manifest(run_id=run_id, batch=next_batch)
-                _persist_campaign_artifacts(
-                    run_id=run_id,
-                    started_at=started_at_utc,
-                    batches=batches,
-                    candidate_payload=candidate_payload,
-                    screening_payload=screening_payload,
-                    lifecycle_mode=lifecycle_mode,
-                    resumed_from_run_id=resumed_from_run_id,
-                    continuation_summary=continuation_summary,
-                )
-                tracker.emit_event(
-                    "batch_started",
-                    batch_id=next_batch["batch_id"],
-                    batch_index=next_batch["batch_index"],
-                    strategy_family=next_batch["strategy_family"],
-                    interval=next_batch["interval"],
-                    elapsed_seconds=0,
-                    candidate_count=next_batch["candidate_count"],
-                    completed_candidate_count=next_batch["completed_candidate_count"],
-                )
-                _submit_parallel_batch(
-                    executor=executor,
-                    future_by_batch_id=future_by_batch_id,
-                    batch=next_batch,
-                    worker=execute_screening_batch,
-                    worker_kwargs={
-                        "batch_candidates": items_by_batch_id[str(next_batch["batch_id"])],
-                        "interval_ranges": interval_ranges,
-                        "evaluation_config": evaluation_config,
-                        "regime_config": regime_config,
-                        "screening_candidate_budget_seconds": screening_candidate_budget_seconds,
-                        "screening_param_sample_limit": SCREENING_PARAM_SAMPLE_LIMIT,
-                    },
-                )
-                next_submit_index += 1
+        cp, sp, sc = _merge_screening_batch_result(
+            result=result,
+            batch=batch,
+            batches=batches,
+            candidates_by_id=candidate_lookup,
+            screening_records_by_id=screening_records_by_id,
+            candidates=candidates,
+            screening_records=screening_records,
+            screening_completed=state_box["screening_completed"],
+            screening_items_count=len(screening_items),
+            run_id=run_id,
+            started_at_utc=started_at_utc,
+            as_of_utc=as_of_utc,
+            tracker=tracker,
+            provenance_events=provenance_events,
+            lifecycle_mode=lifecycle_mode,
+            resumed_from_run_id=resumed_from_run_id,
+            continuation_summary=continuation_summary,
+        )
+        state_box["candidate_payload"] = cp
+        state_box["screening_payload"] = sp
+        state_box["screening_completed"] = sc
+        if batch["status"] == "failed":
+            failed_batch_ids.add(str(batch["batch_id"]))
+            return BatchOutcome.failure(
+                reason_code=classify_batch_reason(batch.get("reason_code")),
+                message=str(batch.get("reason_detail") or ""),
+            )
+        return BatchOutcome.success()
+
+    orchestrator.dispatch_parallel_batches(
+        batches=screening_batches,
+        kind=TaskKind.SCREENING_BATCH,
+        max_workers=execution_max_workers,
+        task_payload_for=_payload_for,
+        on_batch_starting=_on_start,
+        on_batch_complete=_on_complete,
+        stop_on_failure=True,
+        # Honor the module-level BATCH_EXECUTOR_CLASS so tests can
+        # monkey-patch in ThreadPoolExecutor for in-process dispatch.
+        # Production config is ProcessPoolExecutor; see v3.8 baseline.
+        executor_class=BATCH_EXECUTOR_CLASS,
+    )
 
     if failed_batch_ids:
         first_failed = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
@@ -1389,18 +1435,24 @@ def _run_parallel_screening_batches(
             run_id=run_id,
             started_at=started_at_utc,
             batches=batches,
-            candidate_payload=candidate_payload,
-            screening_payload=screening_payload,
+            candidate_payload=state_box["candidate_payload"],
+            screening_payload=state_box["screening_payload"],
             lifecycle_mode=lifecycle_mode,
             resumed_from_run_id=resumed_from_run_id,
             continuation_summary=continuation_summary,
         )
 
-    return candidate_payload, screening_payload, screening_completed, failed_batch_ids
+    return (
+        state_box["candidate_payload"],
+        state_box["screening_payload"],
+        state_box["screening_completed"],
+        failed_batch_ids,
+    )
 
 
 def _run_parallel_validation_batches(
     *,
+    orchestrator: Orchestrator,
     batches: list[dict],
     validation_items: list[dict],
     candidate_to_batch_id: dict[str, str],
@@ -1425,6 +1477,13 @@ def _run_parallel_validation_batches(
     resumed_from_run_id: str | None,
     continuation_summary: dict[str, int],
 ) -> tuple[dict | None, int, set[str]]:
+    """Route parallel validation through the v3.9 Orchestrator.
+
+    Same pattern as `_run_parallel_screening_batches`: the batch
+    dispatch loop lives in `Orchestrator.dispatch_parallel_batches`;
+    this function supplies the pre-submit hook, task payload
+    builder, and merge hook that were v3.8 inline logic.
+    """
     validation_batches = [
         batch for batch in batches if _batch_ready_for_validation(batch)
     ]
@@ -1437,105 +1496,95 @@ def _run_parallel_validation_batches(
         ]
         for batch in validation_batches
     }
-    future_by_batch_id: dict[str, object] = {}
-    next_submit_index = 0
     failed_batch_ids: set[str] = set()
+    state_box = {
+        "candidate_payload": candidate_payload,
+        "validation_completed": validation_completed,
+    }
 
-    with BATCH_EXECUTOR_CLASS(max_workers=execution_max_workers) as executor:
-        while next_submit_index < len(validation_batches) and len(future_by_batch_id) < execution_max_workers:
-            batch = validation_batches[next_submit_index]
-            batch["status"] = "running"
-            batch["current_stage"] = "validation"
-            batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
-            tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
-            _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
-            _write_batch_manifest(run_id=run_id, batch=batch)
-            _persist_campaign_artifacts(
-                run_id=run_id,
-                started_at=started_at_utc,
-                batches=batches,
-                candidate_payload=candidate_payload,
-                screening_payload=screening_payload,
-                lifecycle_mode=lifecycle_mode,
-                resumed_from_run_id=resumed_from_run_id,
-                continuation_summary=continuation_summary,
-            )
-            _submit_parallel_batch(
-                executor=executor,
-                future_by_batch_id=future_by_batch_id,
-                batch=batch,
-                worker=execute_validation_batch,
-                worker_kwargs={
-                    "batch_candidates": items_by_batch_id[str(batch["batch_id"])],
-                    "interval_ranges": interval_ranges,
-                    "evaluation_config": evaluation_config,
-                    "regime_config": regime_config,
-                    "as_of_utc": as_of_utc,
-                },
-            )
-            next_submit_index += 1
+    def _on_start(batch: dict) -> None:
+        batch["status"] = "running"
+        batch["current_stage"] = "validation"
+        batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
+        tracker.set_batch(_batch_progress_payload(batch=batch, total_batches=len(batches)), persist=True)
+        _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
+        _write_batch_manifest(run_id=run_id, batch=batch)
+        _persist_campaign_artifacts(
+            run_id=run_id,
+            started_at=started_at_utc,
+            batches=batches,
+            candidate_payload=state_box["candidate_payload"],
+            screening_payload=screening_payload,
+            lifecycle_mode=lifecycle_mode,
+            resumed_from_run_id=resumed_from_run_id,
+            continuation_summary=continuation_summary,
+        )
 
-        for batch in validation_batches:
-            future = future_by_batch_id.pop(str(batch["batch_id"]), None)
-            if future is None:
-                continue
-            result = future.result()
-            candidate_payload, validation_completed = _merge_validation_batch_result(
-                result=result,
-                batch=batch,
-                batches=batches,
-                candidates_by_id=candidate_lookup,
-                candidates=candidates,
-                screening_records=screening_records,
-                rows=rows,
-                evaluations=evaluations,
-                walk_forward_reports=walk_forward_reports,
-                validation_completed=validation_completed,
-                validation_items_count=len(validation_items),
-                run_id=run_id,
-                started_at_utc=started_at_utc,
-                as_of_utc=as_of_utc,
-                screening_payload=screening_payload,
-                tracker=tracker,
-                provenance_events=provenance_events,
-                lifecycle_mode=lifecycle_mode,
-                resumed_from_run_id=resumed_from_run_id,
-                continuation_summary=continuation_summary,
+    def _payload_for(batch: dict) -> dict:
+        return {
+            "batch": deepcopy_batch(batch),
+            "batch_candidates": items_by_batch_id[str(batch["batch_id"])],
+            "interval_ranges": interval_ranges,
+            "evaluation_config": evaluation_config,
+            "regime_config": regime_config,
+            "as_of_utc": as_of_utc,
+        }
+
+    def _on_complete(batch: dict, result: dict | None) -> BatchOutcome:
+        """Phase 5: return a typed BatchOutcome that the Orchestrator
+        uses to drive stop_on_failure."""
+
+        if result is None:
+            batch["status"] = "failed"
+            failed_batch_ids.add(str(batch["batch_id"]))
+            return BatchOutcome.failure(
+                reason_code=classify_batch_reason(batch.get("reason_code")),
+                message=str(batch.get("reason_detail") or "worker returned no result"),
             )
-            if batch["status"] == "failed":
-                failed_batch_ids.add(str(batch["batch_id"]))
-            if not failed_batch_ids and next_submit_index < len(validation_batches):
-                next_batch = validation_batches[next_submit_index]
-                next_batch["status"] = "running"
-                next_batch["current_stage"] = "validation"
-                next_batch["started_at"] = next_batch.get("started_at") or datetime.now(UTC).isoformat()
-                tracker.set_batch(_batch_progress_payload(batch=next_batch, total_batches=len(batches)), persist=True)
-                _persist_run_batches_sidecar(run_id=run_id, as_of_utc=as_of_utc, batches=batches)
-                _write_batch_manifest(run_id=run_id, batch=next_batch)
-                _persist_campaign_artifacts(
-                    run_id=run_id,
-                    started_at=started_at_utc,
-                    batches=batches,
-                    candidate_payload=candidate_payload,
-                    screening_payload=screening_payload,
-                    lifecycle_mode=lifecycle_mode,
-                    resumed_from_run_id=resumed_from_run_id,
-                    continuation_summary=continuation_summary,
-                )
-                _submit_parallel_batch(
-                    executor=executor,
-                    future_by_batch_id=future_by_batch_id,
-                    batch=next_batch,
-                    worker=execute_validation_batch,
-                    worker_kwargs={
-                        "batch_candidates": items_by_batch_id[str(next_batch["batch_id"])],
-                        "interval_ranges": interval_ranges,
-                        "evaluation_config": evaluation_config,
-                        "regime_config": regime_config,
-                        "as_of_utc": as_of_utc,
-                    },
-                )
-                next_submit_index += 1
+        cp, vc = _merge_validation_batch_result(
+            result=result,
+            batch=batch,
+            batches=batches,
+            candidates_by_id=candidate_lookup,
+            candidates=candidates,
+            screening_records=screening_records,
+            rows=rows,
+            evaluations=evaluations,
+            walk_forward_reports=walk_forward_reports,
+            validation_completed=state_box["validation_completed"],
+            validation_items_count=len(validation_items),
+            run_id=run_id,
+            started_at_utc=started_at_utc,
+            as_of_utc=as_of_utc,
+            screening_payload=screening_payload,
+            tracker=tracker,
+            provenance_events=provenance_events,
+            lifecycle_mode=lifecycle_mode,
+            resumed_from_run_id=resumed_from_run_id,
+            continuation_summary=continuation_summary,
+        )
+        state_box["candidate_payload"] = cp
+        state_box["validation_completed"] = vc
+        if batch["status"] == "failed":
+            failed_batch_ids.add(str(batch["batch_id"]))
+            return BatchOutcome.failure(
+                reason_code=classify_batch_reason(batch.get("reason_code")),
+                message=str(batch.get("reason_detail") or ""),
+            )
+        return BatchOutcome.success()
+
+    orchestrator.dispatch_parallel_batches(
+        batches=validation_batches,
+        kind=TaskKind.VALIDATION_BATCH,
+        max_workers=execution_max_workers,
+        task_payload_for=_payload_for,
+        on_batch_starting=_on_start,
+        on_batch_complete=_on_complete,
+        stop_on_failure=True,
+        # Honor the module-level BATCH_EXECUTOR_CLASS so tests can
+        # monkey-patch in ThreadPoolExecutor for in-process dispatch.
+        executor_class=BATCH_EXECUTOR_CLASS,
+    )
 
     if failed_batch_ids:
         first_failed = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
@@ -1545,14 +1594,18 @@ def _run_parallel_validation_batches(
             run_id=run_id,
             started_at=started_at_utc,
             batches=batches,
-            candidate_payload=candidate_payload,
+            candidate_payload=state_box["candidate_payload"],
             screening_payload=screening_payload,
             lifecycle_mode=lifecycle_mode,
             resumed_from_run_id=resumed_from_run_id,
             continuation_summary=continuation_summary,
         )
 
-    return candidate_payload, validation_completed, failed_batch_ids
+    return (
+        state_box["candidate_payload"],
+        state_box["validation_completed"],
+        failed_batch_ids,
+    )
 
 
 def _result_row_sort_key(row: dict) -> tuple[str, str, str, str, str]:
@@ -1646,6 +1699,14 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
         status_reason="research_run_started",
     )
     started_at_utc = datetime.fromisoformat(state["started_at_utc"])
+    # v3.9 phase 4: Orchestrator owns dispatch for both inline and
+    # parallel modes. Its Scheduler + Queue track pending / in-flight /
+    # completed / failed state across the run; parallel dispatch uses
+    # an internal ProcessPoolBackend sized per dispatch call. The
+    # default InlineBackend field is unused for dispatch in phase 4
+    # (inline mode uses dispatch_serial_batches with callbacks, not
+    # worker Tasks).
+    orchestrator = Orchestrator(run_id=str(state["run_id"]))
     tracker = ProgressTracker(
         path=RUN_PROGRESS_PATH,
         lifecycle=lifecycle,
@@ -1910,7 +1971,11 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
             for candidate in screening_items
         }
         if execution_max_workers > 1:
+            # v3.9 phase 4: the parallel screening adapter internally
+            # drives dispatch through the Orchestrator
+            # (Scheduler + Queue + ProcessPoolBackend).
             candidate_payload, screening_payload, screening_completed, failed_batch_ids = _run_parallel_screening_batches(
+                orchestrator=orchestrator,
                 batches=batches,
                 screening_items=screening_items,
                 interval_ranges=interval_ranges,
@@ -1936,7 +2001,17 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
             if failed_batch_ids:
                 failed_batch = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
                 raise RuntimeError(f"batch execution failed for {failed_batch['batch_id']}: {failed_batch['reason_detail']}")
-        for batch in ([] if execution_max_workers > 1 else [item for item in batches if _batch_needs_screening(item)]):
+        def _inline_screening_batch(batch: dict) -> None:
+            """Phase 4 inline-screening closure.
+
+            Routed through orchestrator.dispatch_serial_batches so that
+            inline mode (max_workers == 1) no longer bypasses the
+            Orchestrator. Body is the v3.8 per-batch inline logic
+            verbatim; only rebindings of outer-scope payload / counter
+            variables are declared nonlocal.
+            """
+
+            nonlocal candidate_payload, screening_payload, screening_completed
             batch_started_monotonic = time.monotonic()
             batch["status"] = "running"
             batch["current_stage"] = "screening"
@@ -2326,6 +2401,23 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
                 )
                 raise
 
+        if execution_max_workers == 1:
+            # v3.9 phase 4: route inline-mode screening through the
+            # Orchestrator seam. Lifecycle (Queue + Scheduler) is
+            # exercised; execute_batch is the local closure defined
+            # above which contains the v3.8 per-batch body unchanged.
+            #
+            # v3.9 phase 6: supply an explicit on_batch_complete hook
+            # so production code does not silently rely on
+            # `_default_complete`. See
+            # tests/unit/test_orchestration_default_complete_scope.py.
+            orchestrator.dispatch_serial_batches(
+                batches=[item for item in batches if _batch_needs_screening(item)],
+                kind=TaskKind.SCREENING_BATCH,
+                execute_batch=_inline_screening_batch,
+                on_batch_complete=_inline_on_batch_complete,
+            )
+
         screening_summary = summarize_candidates(candidates)
         candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
@@ -2369,7 +2461,11 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
         if validation_completed > 0:
             tracker.advance(completed=validation_completed, total=len(validation_items))
         if execution_max_workers > 1:
+            # v3.9 phase 4: the parallel validation adapter internally
+            # drives dispatch through the Orchestrator
+            # (Scheduler + Queue + ProcessPoolBackend).
             candidate_payload, validation_completed, failed_batch_ids = _run_parallel_validation_batches(
+                orchestrator=orchestrator,
                 batches=batches,
                 validation_items=validation_items,
                 candidate_to_batch_id=candidate_to_batch_id,
@@ -2397,14 +2493,25 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
             if failed_batch_ids:
                 failed_batch = next(batch for batch in batches if str(batch["batch_id"]) in failed_batch_ids)
                 raise RuntimeError(f"batch execution failed for {failed_batch['batch_id']}: {failed_batch['reason_detail']}")
-        for batch in ([] if execution_max_workers > 1 else [item for item in batches if _batch_ready_for_validation(item)]):
+        def _inline_validation_batch(batch: dict) -> None:
+            """Phase 4 inline-validation closure.
+
+            Routed through orchestrator.dispatch_serial_batches so that
+            inline mode (max_workers == 1) no longer bypasses the
+            Orchestrator. Body is the v3.8 per-batch inline logic
+            verbatim; the original `continue` that skipped batches with
+            no validation items is replaced with `return` (closure
+            semantics) but has identical effect.
+            """
+
+            nonlocal candidate_payload, validation_completed
             batch_validation_items = [
                 candidate
                 for candidate in validation_items
                 if candidate_to_batch_id.get(str(candidate["candidate_id"])) == str(batch["batch_id"])
             ]
             if not batch_validation_items:
-                continue
+                return
             batch["status"] = "running"
             batch["current_stage"] = "validation"
             batch["started_at"] = batch.get("started_at") or datetime.now(UTC).isoformat()
@@ -2629,6 +2736,24 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
                     reason_detail=batch["reason_detail"],
                 )
                 raise
+
+        if execution_max_workers == 1:
+            # v3.9 phase 4: route inline-mode validation through the
+            # Orchestrator seam. Queue + Scheduler track batch
+            # lifecycle state; execute_batch is the local closure
+            # defined above which contains the v3.8 per-batch body
+            # unchanged.
+            #
+            # v3.9 phase 6: supply an explicit on_batch_complete hook
+            # so production code does not silently rely on
+            # `_default_complete`. See
+            # tests/unit/test_orchestration_default_complete_scope.py.
+            orchestrator.dispatch_serial_batches(
+                batches=[item for item in batches if _batch_ready_for_validation(item)],
+                kind=TaskKind.VALIDATION_BATCH,
+                execute_batch=_inline_validation_batch,
+                on_batch_complete=_inline_on_batch_complete,
+            )
 
         candidate_payload, _ = _persist_candidate_pipeline_sidecars(
             run_id=state["run_id"],
