@@ -135,16 +135,22 @@ def test_render_markdown_contains_required_sections():
         "candidates": [{"strategy_name": "sma_crossover", "asset": "NVDA",
                         "interval": "4h", "sharpe": 1.5, "win_rate": 0.6}],
         "top_rejection_reasons": [],
+        "top_rejection_reasons_by_layer": {"screening_layer": [], "promotion_layer": []},
+        "per_candidate_diagnostics": [],
+        "join_stats": {},
         "red_flags": [],
         "regime_diagnostics": {},
         "statistical_diagnostics": {},
         "next_experiment": "Hercheck OOS",
     })
     assert "# Research report" in md
-    assert "## Summary" in md
-    assert "## Promoted candidates" in md
-    assert "## Top rejection reasons" in md
-    assert "## Next experiment" in md
+    # v3.11 narrative section titles
+    assert "## Hypothese" in md
+    assert "## Samenvatting" in md
+    assert "## Wat werkte" in md
+    assert "## Wat werkte niet" in md
+    assert "## Waarom" in md
+    assert "## Volgende stap" in md
 
 
 def test_generate_post_run_report_writes_both_artifacts(tmp_path: Path):
