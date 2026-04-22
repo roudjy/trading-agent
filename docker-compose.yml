@@ -34,6 +34,7 @@ services:
       - ./state:/app/state         # v3.10: session/operator secrets bewaren
     environment:
       - TZ=Europe/Amsterdam        # Nederlandse tijdzone
+      - PYTHONPATH=/app            # absolute imports (data.contracts, reporting.*) werken als script
     networks:
       - agent_netwerk
 
@@ -53,6 +54,7 @@ services:
       - ./research:/app/research   # run-meta + report artifacts adjacent to the frozen contract
     environment:
       - TZ=Europe/Amsterdam
+      - PYTHONPATH=/app            # absolute imports (data.contracts, reporting.*) werken als script
     networks:
       - agent_netwerk
     depends_on:
