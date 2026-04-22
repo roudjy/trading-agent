@@ -66,9 +66,16 @@ def format_utc_timestamp(as_of_utc: datetime) -> str:
 def make_result_row(strategy, asset, interval, params, as_of_utc, metrics=None, error=None):
     metrics = metrics or {}
 
+    name = strategy.get("name") if isinstance(strategy, dict) else None
+    if not isinstance(name, str) or not name:
+        raise ValueError(
+            "make_result_row: strategy['name'] must be a non-empty string; "
+            f"got {name!r} from strategy={strategy!r}"
+        )
+
     return {
         "timestamp_utc": format_utc_timestamp(as_of_utc),
-        "strategy_name": strategy["name"],
+        "strategy_name": name,
         "family": strategy["family"],
         "hypothesis": strategy["hypothesis"],
         "asset": asset,
