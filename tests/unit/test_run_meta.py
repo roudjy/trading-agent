@@ -120,3 +120,107 @@ def test_sidecar_atomic_write_produces_json(tmp_path: Path):
 
 def test_default_run_meta_path_is_adjacent_to_frozen_artifacts():
     assert RUN_META_PATH == Path("research/run_meta_latest.v1.json")
+
+
+# ---------------------------------------------------------------------------
+# v3.11 schema v1.1 additions
+# ---------------------------------------------------------------------------
+
+
+def test_schema_version_is_v11():
+    assert RUN_META_SCHEMA_VERSION == "1.1"
+
+
+def test_payload_carries_v311_preset_class_and_hypothesis_metadata():
+    payload = _sample_payload("trend_equities_4h_baseline")
+    assert payload["preset_class"] == "baseline"
+    assert isinstance(payload["preset_rationale"], str)
+    assert payload["preset_rationale"]
+    assert isinstance(payload["preset_expected_behavior"], str)
+    assert payload["preset_expected_behavior"]
+    assert isinstance(payload["preset_falsification"], list)
+    assert payload["preset_falsification"]
+
+
+def test_preset_bundle_hypotheses_is_populated_from_registry():
+    payload = _sample_payload("trend_equities_4h_baseline")
+    bundle = payload["preset_bundle_hypotheses"]
+    assert isinstance(bundle, list)
+    names = {entry["strategy_name"] for entry in bundle}
+    assert "sma_crossover" in names
+    assert "breakout_momentum" in names
+    for entry in bundle:
+        assert isinstance(entry["hypothesis"], str)
+        assert entry["hypothesis"].strip()
+
+
+def test_no_preset_yields_null_safe_v311_fields():
+    payload = build_run_meta_payload(
+        run_id="run-no-preset",
+        preset=None,
+        started_at_utc="2026-04-22T00:00:00+00:00",
+        completed_at_utc=None,
+        git_revision=None,
+        config_hash=None,
+        candidate_summary=None,
+        top_rejection_reasons=None,
+        artifact_paths=None,
+    )
+    assert payload["preset_class"] is None
+    assert payload["preset_rationale"] is None
+    assert payload["preset_expected_behavior"] is None
+    assert payload["preset_falsification"] == []
+    assert payload["preset_bundle_hypotheses"] == []
+
+
+def test_v10_shaped_sidecar_remains_readable(tmp_path: Path):
+    """A sidecar produced by a v3.10 runner (no v1.1 fields) must still
+    parse back via read_run_meta_sidecar. We assert the reader does not
+    raise and returns a dict; v1.1 consumers that expect the new keys
+    must treat their absence as null-equivalent."""
+    v10_payload = {
+        "schema_version": "1.0",
+        "run_id": "legacy-run",
+        "preset_name": "trend_equities_4h_baseline",
+        "preset_hypothesis": "legacy hypothesis",
+        "preset_universe": ["NVDA"],
+        "preset_bundle": ["sma_crossover"],
+        "preset_optional_bundle": [],
+        "preset_status": "stable",
+        "diagnostic_only": False,
+        "excluded_from_candidate_promotion": False,
+        "screening_mode": "strict",
+        "cost_mode": "realistic",
+        "regime_filter": None,
+        "regime_modes": [],
+        "started_at_utc": "2026-03-01T00:00:00+00:00",
+        "completed_at_utc": "2026-03-01T00:30:00+00:00",
+        "git_revision": "deadbeef",
+        "config_hash": "cafe",
+        "candidate_summary": {
+            "raw": 0, "screened": 0, "validated": 0,
+            "rejected": 0, "promoted": 0,
+        },
+        "top_rejection_reasons": [],
+        "artifact_paths": {},
+    }
+    path = tmp_path / "legacy_run_meta.v1.json"
+    path.write_text(json.dumps(v10_payload), encoding="utf-8")
+    restored = read_run_meta_sidecar(path)
+    assert isinstance(restored, dict)
+    assert restored["schema_version"] == "1.0"
+    # New v1.1 fields absent — consumers must be null-safe
+    assert "preset_class" not in restored
+    assert "preset_bundle_hypotheses" not in restored
+
+
+def test_is_run_excluded_from_promotion_unaffected_by_v10_legacy(tmp_path: Path):
+    """Safe-default promotion-exclusion still works against v1.0 payloads."""
+    v10_payload = {
+        "schema_version": "1.0",
+        "excluded_from_candidate_promotion": True,
+        "diagnostic_only": False,
+    }
+    path = tmp_path / "legacy.json"
+    path.write_text(json.dumps(v10_payload), encoding="utf-8")
+    assert is_run_excluded_from_promotion(path) is True
