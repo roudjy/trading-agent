@@ -84,7 +84,16 @@ from research.recovery import (
     write_batch_recovery_state,
 )
 from research.regime_reporting import build_regime_diagnostics_payload
+from research.presets import ResearchPreset, get_preset, resolve_preset_bundle
 from research.registry import get_enabled_strategies
+from research.report_agent import generate_post_run_report
+from research.run_meta import (
+    RUN_META_PATH,
+    build_run_meta_payload,
+    rollup_rejection_reasons,
+    summarize_candidates,
+    write_run_meta_sidecar,
+)
 from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.screening_process import execute_screening_candidate_isolated
 from research.screening_runtime import (
@@ -1647,9 +1656,23 @@ def _raise_degenerate_run(
     )
     raise DegenerateResearchRunError(payload["message"])
 
-def run_research(*, resume: bool = False, retry_failed_batches: bool = False, continue_latest: bool = False):
+def run_research(
+    *,
+    resume: bool = False,
+    retry_failed_batches: bool = False,
+    continue_latest: bool = False,
+    preset: str | None = None,
+):
     if continue_latest and resume:
         raise RuntimeError("continue-latest cannot be combined with explicit resume")
+    preset_obj: ResearchPreset | None = None
+    if preset is not None:
+        preset_obj = get_preset(preset)
+        if not preset_obj.enabled:
+            raise RuntimeError(
+                f"preset {preset!r} is disabled (status={preset_obj.status!r}); "
+                f"backlog_reason={preset_obj.backlog_reason!r}"
+            )
 
     lifecycle = RunStateStore(
         state_path=RUN_STATE_PATH,
@@ -1748,7 +1771,14 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
             int(screening_config.get("candidate_budget_seconds", DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS)),
         )
         assets, intervals, get_date_range, as_of_utc, universe_snapshot = build_research_universe(research_config)
-        strategies = get_enabled_strategies()
+        if preset_obj is not None:
+            strategies = resolve_preset_bundle(preset_obj)
+            if not strategies:
+                raise RuntimeError(
+                    f"preset {preset_obj.name!r} has no executable strategies"
+                )
+        else:
+            strategies = get_enabled_strategies()
         strategy_by_name = {strategy["name"]: strategy for strategy in strategies}
 
         _write_universe_snapshot_sidecar(universe_snapshot)
@@ -2886,6 +2916,41 @@ def run_research(*, resume: bool = False, retry_failed_batches: bool = False, co
             candidate_count=len(falsification_payload.get("candidates") or []),
         )
         tracker.mark_stage_completed(results_written=len(rows))
+
+        # v3.10: run_meta sidecar + post-run report agent.
+        # Adjacent artifacts — no mutation of the frozen public contract.
+        try:
+            meta_payload = build_run_meta_payload(
+                run_id=str(state["run_id"]),
+                preset=preset_obj,
+                started_at_utc=state["started_at_utc"],
+                completed_at_utc=datetime.now(UTC).isoformat(),
+                git_revision=_git_revision(),
+                config_hash=_config_hash(research_config, provenance_events),
+                candidate_summary=summarize_candidates(
+                    raw=len(rows),
+                    screened=sum(1 for r in rows if r.get("success")),
+                    validated=len(evaluations),
+                    rejected=sum(1 for r in rows if not r.get("goedgekeurd")),
+                    promoted=sum(1 for r in rows if r.get("goedgekeurd")),
+                ),
+                top_rejection_reasons=rollup_rejection_reasons(rows),
+                artifact_paths={
+                    "run_state": RUN_STATE_PATH.as_posix(),
+                    "run_manifest": RUN_MANIFEST_PATH.as_posix(),
+                    "run_candidates": RUN_CANDIDATES_PATH.as_posix(),
+                    "report_markdown": "research/report_latest.md",
+                    "report_json": "research/report_latest.json",
+                },
+            )
+            write_run_meta_sidecar(meta_payload, path=RUN_META_PATH)
+        except Exception as meta_exc:
+            tracker.emit_event("run_meta_sidecar_failed", error=str(meta_exc))
+        try:
+            generate_post_run_report(run_id=str(state["run_id"]))
+        except Exception as report_exc:
+            tracker.emit_event("report_agent_failed", error=str(report_exc))
+
         tracker.complete()
         print(f"Klaar. {len(rows)} resultaten geschreven.")
     except Exception as exc:
@@ -2906,6 +2971,12 @@ def _parse_cli_args() -> argparse.Namespace:
         action="store_true",
         help="When used with --resume, retry failed batches at batch level.",
     )
+    parser.add_argument(
+        "--preset",
+        type=str,
+        default=None,
+        help="Named research preset (see research/presets.py). Filters bundle to the preset's strategies.",
+    )
     args = parser.parse_args()
     if args.continue_latest and args.resume:
         parser.error("--continue-latest cannot be combined with --resume")
@@ -2918,4 +2989,5 @@ if __name__ == "__main__":
         resume=bool(args.resume),
         retry_failed_batches=bool(args.retry_failed_batches),
         continue_latest=bool(args.continue_latest),
+        preset=args.preset,
     )
