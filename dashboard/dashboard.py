@@ -246,17 +246,94 @@ def _table_bestaat(conn, naam):
 
 
 # ──────────────────────────────────────────────
-# Hoofdpagina
+# Hoofdpagina — React SPA (v3.10) with legacy Flask templates kept
+# reachable at /legacy/* for 1 release (ADR-011 §2).
 # ──────────────────────────────────────────────
+FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+LEGACY_TEMPLATE_DIR = BASE_DIR / "dashboard" / "templates"
+
+
+def _serve_spa_index():
+    index = FRONTEND_DIST / "index.html"
+    if index.exists():
+        return index.read_text(encoding="utf-8")
+    # Fallback: instruct the operator to build the frontend. The legacy
+    # dashboard is still reachable via /legacy/dashboard.
+    return (
+        "<!doctype html><meta charset=\"utf-8\">"
+        "<meta name=\"robots\" content=\"noindex,nofollow,noarchive,nosnippet\">"
+        "<title>JvR Trading Agent — frontend not built</title>"
+        "<h1>Frontend bundle niet gevonden</h1>"
+        "<p>Bouw de React app: <code>cd frontend &amp;&amp; npm ci &amp;&amp; npm run build</code>.</p>"
+        "<p>Of gebruik tijdelijk de <a href=\"/legacy/dashboard\">legacy dashboard</a>.</p>"
+    )
+
+
 @app.route("/")
 @requires_auth
 def index():
-    html_pad = Path("dashboard/templates/dashboard.html")
+    response = Response(_serve_spa_index(), mimetype="text/html")
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+    return response
+
+
+@app.route("/assets/<path:filename>")
+@requires_auth
+def spa_assets(filename: str):
+    assets_dir = FRONTEND_DIST / "assets"
+    return send_from_directory(assets_dir, filename)
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    return Response(
+        "User-agent: *\nDisallow: /\n",
+        mimetype="text/plain",
+        headers={"X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet"},
+    )
+
+
+# React client-side routing: authed deep-links (Dashboard, Presets, History,
+# Reports, Candidates) serve the SPA entrypoint after auth, so hard-reloads
+# on e.g. /presets keep working.
+@app.route("/presets")
+@app.route("/history")
+@app.route("/reports")
+@app.route("/candidates")
+@requires_auth
+def spa_fallback_authed():
+    return index()
+
+
+# /login must NOT require auth — it's how the user authenticates. Serve the
+# SPA entrypoint without auth so the React Login component can render and
+# POST to /api/session/login.
+@app.route("/login")
+def spa_login():
+    return Response(
+        _serve_spa_index(),
+        mimetype="text/html",
+        headers={"X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet"},
+    )
+
+
+@app.route("/legacy/dashboard")
+@requires_auth
+def legacy_dashboard():
+    html_pad = LEGACY_TEMPLATE_DIR / "dashboard.html"
     if not html_pad.exists():
-        html_pad = Path("templates/dashboard.html")
+        return Response("Legacy dashboard niet gevonden", status=404)
     return open(html_pad, encoding="utf-8").read()
 
 
+@app.route("/legacy/research-control")
+@requires_auth
+def legacy_research_control_surface():
+    return render_template("research_control_surface.html")
+
+
+# Backwards-compat routes that used to live at /research; legacy clients
+# that bookmarked these paths keep working.
 @app.route("/research")
 @requires_auth
 def research_control_surface():
