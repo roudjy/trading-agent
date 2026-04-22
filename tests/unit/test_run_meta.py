@@ -11,11 +11,11 @@ from research.presets import get_preset
 from research.run_meta import (
     RUN_META_PATH,
     RUN_META_SCHEMA_VERSION,
+    build_candidate_summary,
     build_run_meta_payload,
     is_run_excluded_from_promotion,
     read_run_meta_sidecar,
     rollup_rejection_reasons,
-    summarize_candidates,
     write_run_meta_sidecar,
 )
 
@@ -29,7 +29,7 @@ def _sample_payload(preset_name: str = "trend_equities_4h_baseline"):
         completed_at_utc="2026-04-22T06:40:00+00:00",
         git_revision="abc123",
         config_hash="hash0",
-        candidate_summary=summarize_candidates(raw=10, screened=6, validated=6, rejected=5, promoted=1),
+        candidate_summary=build_candidate_summary(raw=10, screened=6, validated=6, rejected=5, promoted=1),
         top_rejection_reasons=[{"reason": "deflated_sharpe_fail", "count": 3}],
         artifact_paths={"run_state": "research/run_state.v1.json"},
     )
@@ -102,8 +102,8 @@ def test_rollup_rejection_reasons_orders_by_count():
     assert len(rollup) == 2
 
 
-def test_summarize_candidates_defaults_to_zero():
-    summary = summarize_candidates()
+def test_build_candidate_summary_defaults_to_zero():
+    summary = build_candidate_summary()
     assert summary == {
         "raw": 0, "screened": 0, "validated": 0, "rejected": 0, "promoted": 0,
     }

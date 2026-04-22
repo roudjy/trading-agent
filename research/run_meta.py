@@ -159,7 +159,7 @@ def is_run_excluded_from_promotion(path: Path = RUN_META_PATH) -> bool:
     return False
 
 
-def summarize_candidates(
+def build_candidate_summary(
     *,
     raw: int = 0,
     screened: int = 0,
@@ -167,6 +167,13 @@ def summarize_candidates(
     rejected: int = 0,
     promoted: int = 0,
 ) -> dict[str, int]:
+    """Build the v3.10 run_meta candidate_summary dict.
+
+    Named deliberately distinct from
+    ``research.candidate_pipeline.summarize_candidates`` (which aggregates
+    the live candidate list) — this helper only formats counts for the
+    run-meta sidecar payload.
+    """
     return {
         "raw": int(raw),
         "screened": int(screened),
@@ -194,10 +201,10 @@ def rollup_rejection_reasons(
 __all__ = [
     "RUN_META_PATH",
     "RUN_META_SCHEMA_VERSION",
+    "build_candidate_summary",
     "build_run_meta_payload",
     "is_run_excluded_from_promotion",
     "read_run_meta_sidecar",
     "rollup_rejection_reasons",
-    "summarize_candidates",
     "write_run_meta_sidecar",
 ]
