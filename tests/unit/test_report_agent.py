@@ -22,7 +22,7 @@ from research.report_agent import (
 )
 from research.run_meta import (
     build_run_meta_payload,
-    summarize_candidates,
+    build_candidate_summary,
     write_run_meta_sidecar,
 )
 
@@ -50,7 +50,7 @@ def _write_meta(path: Path, preset_name: str = "trend_equities_4h_baseline", **k
         completed_at_utc=kw.get("completed_at_utc", "2026-04-22T06:30:00+00:00"),
         git_revision=kw.get("git_revision", "abc"),
         config_hash=kw.get("config_hash", "hash"),
-        candidate_summary=kw.get("candidate_summary") or summarize_candidates(),
+        candidate_summary=kw.get("candidate_summary") or build_candidate_summary(),
         top_rejection_reasons=kw.get("top_rejection_reasons") or [],
         artifact_paths={},
     )
@@ -86,7 +86,7 @@ def test_candidates_but_no_promotion(tmp_path: Path):
     )
     _write_meta(
         meta_path,
-        candidate_summary=summarize_candidates(raw=2, screened=2, validated=2, rejected=2, promoted=0),
+        candidate_summary=build_candidate_summary(raw=2, screened=2, validated=2, rejected=2, promoted=0),
         top_rejection_reasons=[{"reason": "deflated_sharpe_fail", "count": 2}],
     )
 
@@ -112,7 +112,7 @@ def test_promoted_candidate_verdict(tmp_path: Path):
     )
     _write_meta(
         meta_path,
-        candidate_summary=summarize_candidates(raw=1, screened=1, validated=1, rejected=0, promoted=1),
+        candidate_summary=build_candidate_summary(raw=1, screened=1, validated=1, rejected=0, promoted=1),
     )
 
     report = build_report_payload(

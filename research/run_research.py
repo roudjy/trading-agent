@@ -89,9 +89,9 @@ from research.registry import get_enabled_strategies
 from research.report_agent import generate_post_run_report
 from research.run_meta import (
     RUN_META_PATH,
+    build_candidate_summary,
     build_run_meta_payload,
     rollup_rejection_reasons,
-    summarize_candidates,
     write_run_meta_sidecar,
 )
 from research.results import make_result_row, write_latest_json, write_results_to_csv
@@ -2927,7 +2927,7 @@ def run_research(
                 completed_at_utc=datetime.now(UTC).isoformat(),
                 git_revision=_git_revision(),
                 config_hash=_config_hash(research_config, provenance_events),
-                candidate_summary=summarize_candidates(
+                candidate_summary=build_candidate_summary(
                     raw=len(rows),
                     screened=sum(1 for r in rows if r.get("success")),
                     validated=len(evaluations),
