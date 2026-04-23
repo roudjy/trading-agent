@@ -71,6 +71,10 @@ from research.orchestration_policy import (
     resolve_continue_latest_policy,
     validate_continuation_compatibility,
 )
+from research.candidate_sidecars import (
+    SidecarBuildContext,
+    build_and_write_all as build_and_write_v3_12_sidecars,
+)
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -133,6 +137,7 @@ CANDIDATE_REGISTRY_PATH = Path("research/candidate_registry_latest.v1.json")
 UNIVERSE_SNAPSHOT_PATH = Path("research/universe_snapshot_latest.v1.json")
 PORTFOLIO_AGGREGATION_PATH = Path("research/portfolio_aggregation_latest.v1.json")
 REGIME_DIAGNOSTICS_PATH = Path("research/regime_diagnostics_latest.v1.json")
+COST_SENSITIVITY_PATH = Path("research/cost_sensitivity_latest.v1.json")
 EMPTY_RUN_DIAGNOSTICS_PATH = Path("research/empty_run_diagnostics_latest.v1.json")
 RUN_CANDIDATES_PATH = Path("research/run_candidates_latest.v1.json")
 RUN_FILTER_SUMMARY_PATH = Path("research/run_filter_summary_latest.v1.json")
@@ -2998,6 +3003,34 @@ def run_research(
             write_run_meta_sidecar(meta_payload, path=RUN_META_PATH)
         except Exception as meta_exc:
             tracker.emit_event("run_meta_sidecar_failed", error=str(meta_exc))
+        # v3.12: first-class candidate sidecars (registry v2, status
+        # history, advisory agent definitions). Additive only — does
+        # not mutate research_latest.json / strategy_matrix.csv /
+        # candidate_registry_latest.v1.json.
+        try:
+            v3_12_ctx = SidecarBuildContext(
+                run_id=str(state["run_id"]),
+                generated_at_utc=as_of_utc.isoformat(),
+                git_revision=_git_revision(),
+                research_latest={
+                    "generated_at_utc": as_of_utc.isoformat(),
+                    "results": rows,
+                },
+                candidate_registry_v1=_read_json_if_exists(CANDIDATE_REGISTRY_PATH)
+                or {"candidates": []},
+                run_candidates=_read_json_if_exists(RUN_CANDIDATES_PATH),
+                run_meta=meta_payload,
+                defensibility=_read_json_if_exists(SIDE_CAR_PATH),
+                regime=_read_json_if_exists(REGIME_DIAGNOSTICS_PATH),
+                cost_sens=_read_json_if_exists(COST_SENSITIVITY_PATH),
+            )
+            v3_12_paths = build_and_write_v3_12_sidecars(v3_12_ctx)
+            tracker.emit_event(
+                "v3_12_candidate_sidecars_written",
+                paths={name: path.as_posix() for name, path in v3_12_paths.items()},
+            )
+        except Exception as v3_12_exc:
+            tracker.emit_event("v3_12_candidate_sidecars_failed", error=str(v3_12_exc))
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
         except Exception as report_exc:
