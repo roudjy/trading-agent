@@ -210,7 +210,13 @@ def test_report_schema_version_is_v11():
     assert REPORT_SCHEMA_VERSION == "1.1"
 
 
-def test_summary_carries_screening_and_promotion_split(tmp_path: Path):
+def test_summary_carries_screening_and_promotion_split(tmp_path: Path, monkeypatch):
+    # v3.11: build_report_payload reads sidecars (candidate_registry,
+    # run_filter_summary, defensibility, regime, cost_sensitivity) from
+    # relative "research/*.v1.json" paths. Isolate the test by pointing
+    # CWD at tmp_path so stray local sidecars from an earlier run don't
+    # pollute the assertion.
+    monkeypatch.chdir(tmp_path)
     research_path = tmp_path / "research_latest.json"
     meta_path = tmp_path / "run_meta.json"
     _write_research_latest(
@@ -244,7 +250,8 @@ def test_summary_carries_screening_and_promotion_split(tmp_path: Path):
     }
 
 
-def test_top_rejection_reasons_by_layer_split(tmp_path: Path):
+def test_top_rejection_reasons_by_layer_split(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # isolate sidecar lookups — see comment above
     research_path = tmp_path / "research_latest.json"
     meta_path = tmp_path / "run_meta.json"
     _write_research_latest(
@@ -273,7 +280,8 @@ def test_top_rejection_reasons_by_layer_split(tmp_path: Path):
     assert by_layer["promotion_layer"] == []
 
 
-def test_per_candidate_diagnostics_and_join_stats(tmp_path: Path):
+def test_per_candidate_diagnostics_and_join_stats(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # isolate sidecar lookups — see comment above
     research_path = tmp_path / "research_latest.json"
     meta_path = tmp_path / "run_meta.json"
     _write_research_latest(
@@ -314,7 +322,8 @@ def test_per_candidate_diagnostics_and_join_stats(tmp_path: Path):
     assert join_stats["unmatched_candidate_registry"] == 2
 
 
-def test_markdown_shows_hypothesis_and_waarom_sections(tmp_path: Path):
+def test_markdown_shows_hypothesis_and_waarom_sections(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # isolate sidecar lookups — see comment above
     research_path = tmp_path / "research_latest.json"
     meta_path = tmp_path / "run_meta.json"
     _write_research_latest(
