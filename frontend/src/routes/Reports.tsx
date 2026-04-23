@@ -35,11 +35,16 @@ export function Reports() {
             <dt className="muted">Samenvatting</dt>
             <dd>
               <ul>
-                {Object.entries(payload.summary ?? {}).map(([k, v]) => (
-                  <li key={k}>
-                    {k}: <strong>{v}</strong>
-                  </li>
-                ))}
+                {/* v3.11: summary may carry nested dicts (screening,
+                    promotion). Only render primitive values here; the
+                    nested v3.11 blocks ship in the markdown below. */}
+                {Object.entries(payload.summary ?? {})
+                  .filter(([, v]) => typeof v === "number" || typeof v === "string")
+                  .map(([k, v]) => (
+                    <li key={k}>
+                      {k}: <strong>{String(v)}</strong>
+                    </li>
+                  ))}
               </ul>
             </dd>
             <dt className="muted">Volgende experiment</dt>
