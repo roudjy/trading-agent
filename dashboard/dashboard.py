@@ -463,6 +463,32 @@ def api_registry_status_history():
         return jsonify({"error": str(exc), "history": {}}), 500
 
 
+@app.route("/api/registry/regime")
+@requires_auth
+def api_registry_regime():
+    """Read-only view of research/regime_intelligence_latest.v1.json (v3.13).
+
+    Missing-state is a stable schema with null versions and an empty
+    ``entries`` list so downstream consumers can distinguish a fresh
+    environment from a corrupted sidecar.
+    """
+    path = Path("research/regime_intelligence_latest.v1.json")
+    missing = {
+        "schema_version": "1.0",
+        "classifier_version": None,
+        "generated_at_utc": None,
+        "artifact_state": "missing",
+        "entries": [],
+    }
+    if not path.exists():
+        return jsonify(missing)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return jsonify(payload)
+    except (json.JSONDecodeError, OSError) as exc:
+        return jsonify({"error": str(exc), "entries": []}), 500
+
+
 _VERSION_PATH = Path("VERSION")
 
 

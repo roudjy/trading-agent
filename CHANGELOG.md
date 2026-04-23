@@ -4,6 +4,146 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.13] — Regime Intelligence & Gating
+
+Date: 2026-04-23
+Branch: `feature/v3.13-regime-intelligence`
+
+Diagnostic-first regime layer on top of the realized v3.12 candidate
+infrastructure. No new strategies, no new presets, no new base
+metrics, no allocation logic. Every change is additive; the
+v3.11/v3.12 public contracts (`research_latest.json`,
+`strategy_matrix.csv`, `candidate_registry_latest.v1.json`, and the
+shape/values of every v3.12 field on
+`candidate_registry_latest.v2.json`) remain byte-identical. All v3.13
+data lands in two new adjacent sidecars joined on `candidate_id` —
+no in-place v2-registry enrichment.
+
+### Added
+
+- **Regime classifier** (`research/regime_classifier.py`).
+  Axis-separable, deterministic, `shift(1)` no-lookahead. Three
+  independent axes: `trend` (trending / non_trending / insufficient),
+  `vol` (low_vol / high_vol / insufficient), `width` (expansion /
+  compression / insufficient). Trend and volatility normalizers
+  consume the labels already produced by
+  `agent/backtesting/regime.py`; the width axis is a new Bollinger
+  bandwidth vs rolling-median comparator. Explicit named constants
+  for every threshold; no tuning loop.
+  `REGIME_CLASSIFIER_VERSION = "v0.1"`.
+- **Per-candidate regime diagnostics**
+  (`research/regime_diagnostics.py`). HHI-style per-axis dependency
+  scores (`regime_dependency_score_trend|vol|width`) plus an
+  explicit aggregate (`overall`). Hard sufficiency gates
+  (`MIN_TRADES_PER_AXIS=10`, `MIN_REGIMES_WITH_EVIDENCE=2`) produce
+  `regime_assessment_status ∈ {sufficient,
+  insufficient_regime_evidence}`. Silence is preferred over
+  fabricated precision — missing or thin axes emit `null` metrics,
+  never crash. `REGIME_CONCENTRATED_THRESHOLD = 0.7`.
+- **Multi-rule gating framework** (`research/regime_gating.py`).
+  Three fixed predefined rules — `trend_only`, `trend_low_vol`,
+  `trend_expansion` — each reported with baseline / filtered /
+  delta for every sufficient candidate. No gate search, no
+  optimization loop, no winner-picking (no `best_rule` field — it
+  is always `null` in v3.13). Width-dependent rules mark
+  `insufficient_axis_evidence` rather than fabricate a filter.
+  Conjunctions with vol use an explicitly documented conservative
+  intersection (joint bar tagging is deferred to v3.14).
+- **Parallel façade** (`research/regime_sidecars.py`). One
+  `RegimeSidecarBuildContext` + `build_and_write_regime_sidecars()`
+  call is the sole new hook in `run_research.py`. Canonical atomic
+  writes reuse `_sidecar_io.write_sidecar_atomic`. v3.12 façade
+  stays untouched.
+- **New sidecars** (overlay-first):
+  - `research/regime_intelligence_latest.v1.json`
+    (`schema_version="1.0"`, `classifier_version="v0.1"`,
+    `regime_layer_version="v0.1"`).
+  - `research/candidate_registry_regime_overlay_latest.v1.json`
+    (`schema_version="1.0"`). Registry-shaped overlay; consumers
+    join on `candidate_id` against `candidate_registry_latest.v2.json`.
+    Fields: `regime_assessment_status`,
+    `regime_dependency_scores`, `regime_concentrated_status`
+    (`emitted | below_threshold | insufficient_evidence |
+    absent_sidecar`), `regime_gating_summary.best_rule = null`.
+- **API endpoint** — `GET /api/registry/regime`. Read-only,
+  `@requires_auth`, mirrors the v3.12 endpoint pattern. Stable
+  missing-state payload with `schema_version="1.0"`,
+  `classifier_version=null`, `generated_at_utc=null`,
+  `artifact_state="missing"`, `entries=[]`.
+
+### Changed (additive only)
+
+- `research/rejection_taxonomy.py`: `derive_taxonomy()` accepts
+  optional `regime_intelligence=` and
+  `regime_concentrated_threshold=` kwargs. When the intelligence
+  sidecar carries a matching entry with sufficient evidence and any
+  per-axis score ≥ threshold, `regime_concentrated` is emitted with
+  `derivation_method="classifier_output"` and
+  `observed_sources` lists the triggering axis
+  (e.g. `regime_dependency_score_trend`). Sidecar absent for the
+  candidate → legacy `flag_source` path unchanged. Sidecar present
+  but evidence insufficient → silence (no overclaiming). Positional
+  v3.12 signature stays byte-compatible.
+- `research/report_agent.py`: new `_enrich_with_regime_fields()`
+  additive helper and new optional top-level key
+  `regime_layer_summary`. Report `schema_version` stays `"1.1"`.
+- `research/run_research.py`: one new thin call after the v3.12
+  façade. In v3.13 `width_distributions=None` so the width axis is
+  marked insufficient until v3.14 wires a per-asset OHLCV feed.
+- `dashboard/dashboard.py`: `/api/registry/regime` added.
+
+### Deliberately **not** changed in v3.13
+
+- `research/candidate_scoring.py` — untouched to keep every v3.12
+  field on the v2 registry byte-identical in shape and value.
+  Regime-breadth integration into the composite is deferred to
+  v3.14 with a proper `SCORING_FORMULA_VERSION` bump and regression
+  golden update.
+- `research/candidate_registry_v2.py` — untouched. Overlay join
+  replaces in-place enrichment.
+- `agent/backtesting/*` — untouched. No engine-contract widening.
+- No new strategies, no new presets, no frontend refactor, no
+  execution/paper/live surfaces, no dynamic allocation.
+
+### Tests (44 new)
+
+- `tests/unit/test_regime_classifier.py` (15): determinism,
+  no-lookahead invariant, expansion/compression synthetic fixtures,
+  insufficient lookback handling.
+- `tests/unit/test_research_regime_diagnostics.py` (8): per-axis
+  HHI scores, sufficiency gates, width plumbing, upstream
+  unknown-label collapse, overall aggregate semantics.
+- `tests/unit/test_regime_gating.py` (7): three fixed rules,
+  width-dependent rules marked insufficient, conservative
+  intersection on `trend_low_vol`, no winner-picking API surface.
+- `tests/unit/test_rejection_taxonomy_v3_13.py` (5):
+  classifier-output derivation above threshold, silence below and
+  on insufficient evidence, legacy fallback when the sidecar is
+  absent.
+- `tests/unit/test_dashboard_api_v313.py` (3): auth, missing-state
+  schema, happy-path payload.
+- `tests/integration/test_regime_sidecars_end_to_end.py` (6):
+  both sidecars written, overlay join on every `candidate_id`,
+  missing-state graceful, byte-identical reruns, `best_rule=null`.
+- `tests/regression/test_v12_contracts_preserved.py` (4):
+  `derive_taxonomy` v3.12 signature and semantics preserved when
+  the new v3.13 optional params are unused.
+
+Full suite: **1221 passed, 1 skipped, 0 failed**.
+mypy / flake8 / bandit clean on every new and modified v3.13 module.
+
+### Known v3.13 limitations (v3.14 pickup)
+
+- Width axis runs empty in production (width_distributions=None);
+  classifier is complete and tested, only the feed is deferred.
+- Joint (trend, vol) bar tagging is not available in
+  `regime_diagnostics_latest.v1.json`; `trend_low_vol` uses a
+  conservative intersection.
+- Sharpe / max-drawdown on filtered subsets are reported as `null`
+  because bar-level streams are not serialized.
+- Composite scoring is unchanged; regime-breadth integration is
+  v3.14 work.
+
 ## [v3.12] — Candidate Promotion Framework 2.0
 
 Date: 2026-04-23
