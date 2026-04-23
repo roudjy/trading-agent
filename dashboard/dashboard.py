@@ -435,6 +435,34 @@ def api_candidates_latest():
         return jsonify({"error": str(exc), "candidates": []}), 500
 
 
+@app.route("/api/registry/v2")
+@requires_auth
+def api_registry_v2():
+    """Read-only view of research/candidate_registry_latest.v2.json (v3.12)."""
+    path = Path("research/candidate_registry_latest.v2.json")
+    if not path.exists():
+        return jsonify({"entries": [], "artifact_state": "missing"})
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return jsonify(payload)
+    except (json.JSONDecodeError, OSError) as exc:
+        return jsonify({"error": str(exc), "entries": []}), 500
+
+
+@app.route("/api/registry/status-history")
+@requires_auth
+def api_registry_status_history():
+    """Read-only view of research/candidate_status_history_latest.v1.json (v3.12)."""
+    path = Path("research/candidate_status_history_latest.v1.json")
+    if not path.exists():
+        return jsonify({"history": {}, "artifact_state": "missing"})
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return jsonify(payload)
+    except (json.JSONDecodeError, OSError) as exc:
+        return jsonify({"error": str(exc), "history": {}}), 500
+
+
 _VERSION_PATH = Path("VERSION")
 
 
