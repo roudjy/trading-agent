@@ -775,3 +775,149 @@ recorded in
 See [ADR-010](adr/ADR-010-v3.9-closure.md) for the full closure
 record and classification of each remaining open point.
 
+---
+
+## Addendum: v3.11 — Research Quality Engine
+
+This addendum documents the v3.11 additions on top of the base
+specification and all prior addenda. It does **not** alter §1–5 of
+the base specification or any prior addendum. v3.11 is a
+**quality-hardening phase**: it formalises hypothesis metadata per
+preset, splits screening from promotion in report output, and wires
+per-candidate diagnostics — without introducing new metrics,
+thresholds, or engine behavior changes. The registry, engine, and
+orchestration layers are untouched.
+
+### Scope
+
+v3.11 delivers five additive capabilities:
+
+1. **Preset Quality Layer.** `research.presets.ResearchPreset` gains
+   four fields: `preset_class`, `rationale`, `expected_behavior`,
+   `falsification`. `preset_class` is orthogonal to the existing
+   `status` lifecycle label — one answers "what function does this
+   preset serve in our research?" while the other answers "may the
+   scheduler run this preset today?"
+2. **Hypothesis Formalization.** `research/run_meta_latest.v1.json`
+   bumps to schema v1.1 with additive preset metadata fields plus
+   `preset_bundle_hypotheses` resolved read-only from the registry.
+   All v1.0 consumers keep reading; the safe-default promotion
+   exclusion rule (ADR-011 §9) is preserved.
+3. **Screening vs Promotion Separation (labeling).** `report_agent`
+   surfaces the two layers explicitly: `summary.screening` and
+   `summary.promotion` sub-dicts, and `top_rejection_reasons_by_layer`
+   sibling key. No pipeline logic changes; the existing
+   `research.screening_process` / `research.screening_runtime` and
+   `research.promotion` / `research.promotion_reporting` modules
+   remain the owners of their respective decisions.
+4. **Candidate Diagnostics (Report Intelligence).** New module
+   `research/report_candidate_diagnostics.py` — pure join functions,
+   consumer-only, no new metrics. Returns per-row verdict +
+   rejection_layer + rejection_reasons + stability_flags +
+   cost_sensitivity_flag + regime_suspicion_flag + hypothesis +
+   metrics, plus explicit `join_stats` that surface unmatched
+   counts per sidecar.
+5. **Research Interpretability.** Markdown report sections
+   (Hypothese / Samenvatting / Wat werkte / Wat werkte niet /
+   Waarom / Volgende stap) render the joined diagnostics.
+   `suggest_next_experiment` becomes layer-aware + failure-type
+   aware using only existing reason-code vocabularies.
+
+### Layer placement
+
+- **Preset layer** (`research/presets.py`) owns the hypothesis
+  metadata shape. The runner only *reads* it via
+  `hypothesis_metadata_issues` + `validate_preset`.
+- **Research layer** gains one new consumer module
+  (`research/report_candidate_diagnostics.py`). All existing
+  modules remain unchanged in schema + writer behavior.
+- **Engine layer** is untouched. Tier 1 bytewise digest pins and
+  walk-forward semantics remain byte-identical.
+- **Orchestration layer** is untouched.
+- **Dashboard / frontend** may optionally surface the new preset
+  card fields (`preset_class`, `rationale`, `expected_behavior`,
+  `falsification`); no mandatory change.
+
+### Verdict semantics (pinned)
+
+`report_candidate_diagnostics` emits exactly four verdicts:
+
+- `rejected_screening` — fit_prior / eligibility / screening failure.
+- `rejected_promotion` — passed screening, failed promotion hard gates.
+- `needs_investigation` — promotion escalation (soft gates).
+- `promoted` — promotion pass and row `goedgekeurd=True`.
+
+Internal inconsistencies (`candidate_registry.status == "candidate"`
+while `row.goedgekeurd=False`) surface as an explicit
+`internal_final_gate_conflict` rejection_reason — never hidden.
+
+### Stability / cost / regime flags — consumer-only
+
+- **Stability flags** (`noise_warning`, `psr_below_threshold`,
+  `dsr_canonical_below_threshold`, `bootstrap_sharpe_ci_includes_zero`)
+  read the `reasoning.failed` / `.escalated` / `.passed` code lists
+  from `candidate_registry_latest.v1.json`. True means the check
+  fired, False means the check was explicitly passed, null means the
+  check was not evaluated for this candidate.
+- **cost_sensitivity_flag** reads a pre-computed boolean from the
+  cost-sensitivity sidecar (when present). v3.11 never derives this
+  boolean from raw numeric deltas; null when no pre-computed flag
+  exists.
+- **regime_suspicion_flag** reads a pre-computed per-candidate
+  boolean from the regime-diagnostics sidecar (when present). v3.11
+  introduces no new regime classification rules; null when the
+  sidecar omits a flag.
+
+### Join discipline (pinned)
+
+- Primary key between `research_latest.results[]` rows and
+  `candidate_registry.candidates[]`:
+  `build_strategy_id(strategy_name, asset, interval, parsed_params)`
+  — imported from `research.promotion.build_strategy_id` (used by
+  the candidate registry writer since v3.9).
+- Secondary key for defensibility / regime / cost sidecars:
+  `(strategy_name, asset, interval)` triple.
+- Unmatched counts surface in `join_stats`. Silent failures are a
+  pinned non-goal; rows that cannot be joined carry an
+  `unmatched_candidate_registry` rejection_reason so the mismatch
+  remains visible.
+
+### Validation semantics
+
+`validate_preset` retains its v3.10 structural checks and adds
+three hypothesis-metadata soft checks on enabled presets. Runner
+default: emit `preset_validation_warning` tracker events and
+continue. Opt-in strict: set `QRE_STRICT_PRESET_VALIDATION=1` to
+raise `PresetValidationError` before the run starts. Graduation of
+strict mode to default is deferred (v3.12+).
+
+### Out of scope (explicitly deferred)
+
+v3.11 does not deliver:
+
+- Portfolio layer, candidate registry schema extensions,
+  paper-trading validation gate, regime classification engine — see
+  CHANGELOG.md §v3.11 Deferred.
+- Any change to the engine, strategy registry, orchestration layer,
+  or any frozen public output contract.
+- New metrics, thresholds, or decisions in the report layer. The
+  report remains explanation-only.
+
+### Preserved bytewise
+
+- `ROW_SCHEMA` (19 columns), `JSON_TOP_LEVEL_SCHEMA`.
+- Tier 1 digest pins, multi-asset parity pins, fitted-feature
+  semantics, execution event semantics, cost sensitivity replay
+  invariants, exit diagnostics semantics.
+- `candidate_registry_latest.v1.json` schema + writer; all other
+  sidecar schemas and writers.
+- Walk-forward `FoldLeakageError` semantics, resume-integrity gate,
+  orchestration boundary import rules.
+
+### Phase character
+
+v3.11 is a **quality-hardening phase**, not a strategy-expansion,
+feature-expansion, or engine-behavior-changing phase. Every change
+is additive, consumer-only against the v3.10 artifact landscape,
+and visible in the report output rather than the engine decisions.
+

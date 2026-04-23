@@ -1,6 +1,12 @@
-"""Unit tests for the v3.10 preset catalog."""
+"""Unit tests for the v3.10 preset catalog.
+
+v3.11 additions: preset_class, rationale, expected_behavior,
+falsification soft validation.
+"""
 
 from __future__ import annotations
+
+from dataclasses import replace
 
 import pytest
 
@@ -10,6 +16,7 @@ from research.presets import (
     daily_schedulable_presets,
     default_daily_preset,
     get_preset,
+    hypothesis_metadata_issues,
     list_presets,
     preset_to_card,
     resolve_preset_bundle,
@@ -145,3 +152,117 @@ def test_presets_are_frozen_dataclasses():
     preset = get_preset("trend_equities_4h_baseline")
     with pytest.raises(Exception):
         preset.name = "mutated"  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# v3.11 hypothesis metadata
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "preset_name",
+    [
+        "trend_equities_4h_baseline",
+        "trend_regime_filtered_equities_4h",
+        "crypto_diagnostic_1h",
+    ],
+)
+def test_enabled_presets_carry_hypothesis_metadata(preset_name: str):
+    """v3.11: every enabled preset has non-empty rationale /
+    expected_behavior / falsification and a valid preset_class."""
+    preset = get_preset(preset_name)
+    assert preset.enabled is True
+    assert preset.preset_class in {"baseline", "diagnostic", "experimental"}
+    assert preset.rationale.strip(), preset_name
+    assert preset.expected_behavior.strip(), preset_name
+    assert preset.falsification, preset_name
+    assert all(
+        isinstance(item, str) and item.strip() for item in preset.falsification
+    ), preset_name
+
+
+def test_preset_class_distinguishes_research_role():
+    assert get_preset("trend_equities_4h_baseline").preset_class == "baseline"
+    assert get_preset("trend_regime_filtered_equities_4h").preset_class == "diagnostic"
+    assert get_preset("crypto_diagnostic_1h").preset_class == "diagnostic"
+    # disabled planned preset may remain experimental
+    assert get_preset("pairs_equities_daily_baseline").preset_class == "experimental"
+
+
+def test_hypothesis_metadata_missing_yields_soft_issues():
+    """Emptying rationale / expected_behavior / falsification produces
+    soft issues but never raises. validate_preset remains non-blocking
+    for v3.11."""
+    baseline = get_preset("trend_equities_4h_baseline")
+    stripped = replace(
+        baseline,
+        rationale="",
+        expected_behavior="",
+        falsification=(),
+    )
+    issues = validate_preset(stripped)
+    codes = "\n".join(issues)
+    assert "hypothesis_metadata_missing: rationale is empty" in codes
+    assert "hypothesis_metadata_missing: expected_behavior is empty" in codes
+    assert "hypothesis_metadata_missing: falsification criteria empty" in codes
+
+
+def test_hypothesis_metadata_issues_returns_only_v311_codes():
+    baseline = get_preset("trend_equities_4h_baseline")
+    stripped = replace(baseline, rationale="", expected_behavior="", falsification=())
+    issues = hypothesis_metadata_issues(stripped)
+    assert issues  # non-empty
+    for issue in issues:
+        assert issue.startswith("hypothesis_metadata_missing:")
+
+
+def test_hypothesis_metadata_issues_empty_for_disabled_presets():
+    pairs = get_preset("pairs_equities_daily_baseline")
+    assert pairs.enabled is False
+    # disabled presets short-circuit validate_preset; no hypothesis issues
+    assert hypothesis_metadata_issues(pairs) == []
+
+
+def test_preset_to_card_exposes_v311_fields():
+    card = preset_to_card(get_preset("trend_equities_4h_baseline"))
+    assert card["preset_class"] == "baseline"
+    assert card["rationale"]
+    assert card["expected_behavior"]
+    assert isinstance(card["falsification"], list)
+    assert card["falsification"]
+
+
+def test_qre_strict_preset_validation_env_flag(monkeypatch):
+    """The opt-in env flag only flips runner behavior; validate_preset
+    itself remains a pure function that always returns issues without
+    raising."""
+    from research.run_research import (
+        _preset_validation_is_strict,
+        PresetValidationError,
+        _enforce_preset_validation,
+    )
+
+    class _StubTracker:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, dict]] = []
+
+        def emit_event(self, name: str, **kwargs) -> None:
+            self.events.append((name, kwargs))
+
+    baseline = get_preset("trend_equities_4h_baseline")
+    stripped = replace(baseline, rationale="", expected_behavior="", falsification=())
+
+    monkeypatch.delenv("QRE_STRICT_PRESET_VALIDATION", raising=False)
+    assert _preset_validation_is_strict() is False
+    tracker = _StubTracker()
+    _enforce_preset_validation(stripped, tracker)  # soft path
+    event_names = {name for name, _ in tracker.events}
+    assert event_names == {"preset_validation_warning"}
+
+    monkeypatch.setenv("QRE_STRICT_PRESET_VALIDATION", "1")
+    assert _preset_validation_is_strict() is True
+    tracker2 = _StubTracker()
+    with pytest.raises(PresetValidationError):
+        _enforce_preset_validation(stripped, tracker2)
+    # even in strict mode the warning events still fire before the raise
+    assert any(name == "preset_validation_warning" for name, _ in tracker2.events)
