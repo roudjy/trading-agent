@@ -39,11 +39,72 @@ _DEFENSIBILITY_SIDECAR = Path("research/statistical_defensibility_latest.v1.json
 _REGIME_SIDECAR = Path("research/regime_diagnostics_latest.v1.json")
 _RUN_FILTER_SUMMARY_SIDECAR = Path("research/run_filter_summary_latest.v1.json")
 _COST_SENSITIVITY_SIDECAR = Path("research/cost_sensitivity_latest.v1.json")
+_REGISTRY_V2_SIDECAR = Path("research/candidate_registry_latest.v2.json")
 
 
 VERDICT_PROMOTED = "promoted"
 VERDICT_CANDIDATES_NO_PROMOTION = "candidates_no_promotion"
 VERDICT_NIETS_BRUIKBAARS = "niets_bruikbaars_vandaag"
+
+
+def _enrich_with_v3_12_fields(
+    per_candidate: list[dict[str, Any]],
+    registry_v2: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Additively merge v3.12 fields into per_candidate_diagnostics entries.
+
+    The v3.11 shape of each per_candidate entry is preserved; only new
+    keys (``lifecycle_status``, ``legacy_verdict``,
+    ``observed_reason_codes``, ``taxonomy_rejection_codes``, ``scores``)
+    are attached when a matching v2 entry is available. Missing
+    entries simply do not gain the v3.12 fields — consumers check
+    with ``.get()``.
+    """
+    if not per_candidate or not registry_v2:
+        return per_candidate
+
+    v2_index = {
+        entry.get("candidate_id"): entry
+        for entry in registry_v2.get("entries") or []
+        if isinstance(entry, dict)
+    }
+    if not v2_index:
+        return per_candidate
+
+    enriched: list[dict[str, Any]] = []
+    for entry in per_candidate:
+        strategy_id = entry.get("strategy_id")
+        v2_entry = v2_index.get(strategy_id)
+        if v2_entry is None:
+            enriched.append(entry)
+            continue
+        merged = dict(entry)
+        merged["lifecycle_status"] = v2_entry.get("lifecycle_status")
+        merged["legacy_verdict"] = v2_entry.get("legacy_verdict")
+        merged["observed_reason_codes"] = v2_entry.get("observed_reason_codes") or []
+        merged["taxonomy_rejection_codes"] = (
+            v2_entry.get("taxonomy_rejection_codes") or []
+        )
+        merged["scores"] = v2_entry.get("scores")
+        enriched.append(merged)
+    return enriched
+
+
+def _lifecycle_breakdown(
+    per_candidate: list[dict[str, Any]],
+) -> dict[str, int] | None:
+    """Count per_candidate entries by lifecycle_status (v3.12)."""
+    if not per_candidate:
+        return None
+    counts: dict[str, int] = {}
+    has_any = False
+    for entry in per_candidate:
+        status = entry.get("lifecycle_status")
+        if status is None:
+            continue
+        has_any = True
+        counts[status] = counts.get(status, 0) + 1
+    return counts if has_any else None
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -461,6 +522,13 @@ def build_report_payload(
         strategy_index=strategy_index,
     )
 
+    # v3.12: additive enrichment of per_candidate_diagnostics with
+    # lifecycle_status, legacy_verdict, observed_reason_codes,
+    # taxonomy_rejection_codes, and scores. Report schema_version
+    # stays "1.1" — these are optional fields consumers may ignore.
+    registry_v2 = _load_json(_REGISTRY_V2_SIDECAR)
+    per_candidate = _enrich_with_v3_12_fields(per_candidate, registry_v2)
+
     summary = _summarize_counts(
         rows,
         meta.get("candidate_summary") if isinstance(meta, dict) else None,
@@ -514,6 +582,7 @@ def build_report_payload(
         "statistical_diagnostics": _statistical_diagnostics(),
         "next_experiment": next_experiment,
         "verdict": verdict,
+        "lifecycle_breakdown": _lifecycle_breakdown(per_candidate),
     }
 
 
@@ -543,6 +612,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         report.get("top_rejection_reasons") or [],
     )
     _append_waarom_section(lines, report.get("per_candidate_diagnostics") or [])
+    _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
 
     red_flags = report.get("red_flags") or []
     if red_flags:
@@ -558,6 +628,18 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- {report.get('next_experiment')}")
     lines.append("")
     return "\n".join(lines)
+
+
+def _append_lifecycle_breakdown_section(
+    lines: list[str], breakdown: dict[str, int] | None
+) -> None:
+    """v3.12 additive markdown section — rendered only when data is present."""
+    if not breakdown:
+        return
+    lines.append("## Candidate Lifecycle Breakdown (v3.12)")
+    for status in sorted(breakdown.keys()):
+        lines.append(f"- {status}: {breakdown[status]}")
+    lines.append("")
 
 
 def _append_hypothesis_section(lines: list[str]) -> None:
