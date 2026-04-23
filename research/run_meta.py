@@ -6,10 +6,12 @@ per-run preset metadata, completion timestamp, candidate summary, and top
 rejection reasons all live in this new sidecar at
 ``research/run_meta_latest.v1.json``.
 
-Schema v1.0 (stable within the v3.10 release line):
+Schema v1.1 (v3.11; additive on v1.0). All v1.0 consumers keep reading —
+the new fields are null-safe; a missing v1.0 sidecar is still handled by
+``is_run_excluded_from_promotion`` with safe-default=True.
 
     {
-      "schema_version": "1.0",
+      "schema_version": "1.1",
       "run_id": str,
       "preset_name": str | None,
       "preset_hypothesis": str | None,
@@ -17,6 +19,13 @@ Schema v1.0 (stable within the v3.10 release line):
       "preset_bundle": [str, ...],
       "preset_optional_bundle": [str, ...],
       "preset_status": str | None,
+      "preset_class": str | None,                   # v3.11 additive
+      "preset_rationale": str | None,               # v3.11 additive
+      "preset_expected_behavior": str | None,       # v3.11 additive
+      "preset_falsification": [str, ...],           # v3.11 additive
+      "preset_bundle_hypotheses": [                 # v3.11 additive
+        {"strategy_name": str, "hypothesis": str}, ...
+      ],
       "diagnostic_only": bool,
       "excluded_from_candidate_promotion": bool,
       "screening_mode": str | None,
@@ -56,11 +65,42 @@ from typing import Any
 from research.presets import ResearchPreset
 
 RUN_META_PATH = Path("research/run_meta_latest.v1.json")
-RUN_META_SCHEMA_VERSION = "1.0"
+RUN_META_SCHEMA_VERSION = "1.1"
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _resolve_bundle_hypotheses(
+    preset: ResearchPreset | None,
+) -> list[dict[str, str]]:
+    """v3.11: look up per-strategy hypothesis strings from the registry.
+
+    Read-only; does not mutate the registry. Strategies not in the
+    registry are silently skipped (the preset card still carries them
+    for UI surfacing — consistent with ``resolve_preset_bundle``'s
+    contract in ``presets.py``).
+    """
+    if preset is None:
+        return []
+    # Local import to avoid a module-load cycle with research.registry.
+    from research.registry import STRATEGIES
+
+    by_name = {entry["name"]: entry for entry in STRATEGIES}
+    resolved: list[dict[str, str]] = []
+    for strategy_name in preset.bundle:
+        entry = by_name.get(strategy_name)
+        if entry is None:
+            continue
+        hypothesis = entry.get("hypothesis")
+        if not isinstance(hypothesis, str) or not hypothesis.strip():
+            continue
+        resolved.append({
+            "strategy_name": strategy_name,
+            "hypothesis": hypothesis,
+        })
+    return resolved
 
 
 def build_run_meta_payload(
@@ -84,6 +124,11 @@ def build_run_meta_payload(
             "preset_bundle": [],
             "preset_optional_bundle": [],
             "preset_status": None,
+            "preset_class": None,
+            "preset_rationale": None,
+            "preset_expected_behavior": None,
+            "preset_falsification": [],
+            "preset_bundle_hypotheses": [],
             "diagnostic_only": False,
             "excluded_from_candidate_promotion": True,
             "screening_mode": None,
@@ -99,6 +144,11 @@ def build_run_meta_payload(
             "preset_bundle": list(preset.bundle),
             "preset_optional_bundle": list(preset.optional_bundle),
             "preset_status": preset.status,
+            "preset_class": preset.preset_class,
+            "preset_rationale": preset.rationale or None,
+            "preset_expected_behavior": preset.expected_behavior or None,
+            "preset_falsification": list(preset.falsification),
+            "preset_bundle_hypotheses": _resolve_bundle_hypotheses(preset),
             "diagnostic_only": preset.diagnostic_only,
             "excluded_from_candidate_promotion": preset.excluded_from_candidate_promotion,
             "screening_mode": preset.screening_mode,

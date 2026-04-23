@@ -84,7 +84,12 @@ from research.recovery import (
     write_batch_recovery_state,
 )
 from research.regime_reporting import build_regime_diagnostics_payload
-from research.presets import ResearchPreset, get_preset, resolve_preset_bundle
+from research.presets import (
+    ResearchPreset,
+    get_preset,
+    hypothesis_metadata_issues,
+    resolve_preset_bundle,
+)
 from research.registry import get_enabled_strategies
 from research.report_agent import generate_post_run_report
 from research.run_meta import (
@@ -187,6 +192,51 @@ def _git_revision() -> str:
 
 def _run_id(as_of_utc) -> str:
     return as_of_utc.strftime("%Y%m%dT%H%M%S%fZ")
+
+
+def _preset_validation_is_strict() -> bool:
+    """v3.11: strict preset validation is opt-in via env flag.
+
+    Default is soft (warnings only). Setting
+    ``QRE_STRICT_PRESET_VALIDATION=1`` elevates hypothesis-metadata
+    issues to hard failures so the runner refuses to start. Any of
+    {"1", "true", "yes", "on"} (case-insensitive) enables strict mode.
+    """
+    raw = os.environ.get("QRE_STRICT_PRESET_VALIDATION", "")
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+class PresetValidationError(RuntimeError):
+    """Raised when strict preset validation is enabled and issues exist."""
+
+
+def _enforce_preset_validation(
+    preset_obj: ResearchPreset,
+    tracker,
+) -> None:
+    """Surface preset hypothesis-metadata issues as warnings or failures.
+
+    v3.11 soft-validation contract:
+    - Empty rationale / expected_behavior / falsification on enabled
+      presets emit a ``preset_validation_warning`` tracker event.
+    - Under ``QRE_STRICT_PRESET_VALIDATION=1`` the runner raises
+      ``PresetValidationError`` so misconfigured presets cannot reach
+      a daily run.
+    """
+    issues = hypothesis_metadata_issues(preset_obj)
+    if not issues:
+        return
+    for issue in issues:
+        tracker.emit_event(
+            "preset_validation_warning",
+            preset_name=preset_obj.name,
+            issue=issue,
+        )
+    if _preset_validation_is_strict():
+        raise PresetValidationError(
+            f"preset {preset_obj.name!r} failed strict hypothesis "
+            f"metadata validation: {issues}"
+        )
 
 
 def _config_hash(research_config: dict, provenance_events: list) -> str:
@@ -1760,6 +1810,8 @@ def run_research(
     }
     recovery_policy = default_recovery_policy(heartbeat_timeout_s=RUN_HEARTBEAT_TIMEOUT_S)
     try:
+        if preset_obj is not None:
+            _enforce_preset_validation(preset_obj, tracker)
         research_config = load_research_config()
         execution_settings = _resolve_execution_settings(research_config)
         execution_max_workers = int(execution_settings["max_workers"])
