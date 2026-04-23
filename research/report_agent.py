@@ -42,6 +42,8 @@ _COST_SENSITIVITY_SIDECAR = Path("research/cost_sensitivity_latest.v1.json")
 _REGISTRY_V2_SIDECAR = Path("research/candidate_registry_latest.v2.json")
 _REGIME_INTELLIGENCE_SIDECAR = Path("research/regime_intelligence_latest.v1.json")
 _REGIME_OVERLAY_SIDECAR = Path("research/candidate_registry_regime_overlay_latest.v1.json")
+_SLEEVE_REGISTRY_SIDECAR = Path("research/sleeve_registry_latest.v1.json")
+_PORTFOLIO_DIAGNOSTICS_SIDECAR = Path("research/portfolio_diagnostics_latest.v1.json")
 
 
 VERDICT_PROMOTED = "promoted"
@@ -149,6 +151,46 @@ def _regime_layer_summary(
             "candidates_with_sufficient_evidence"
         ),
         "gate_rule_ids": summary.get("gate_rule_ids") or [],
+    }
+
+
+def _portfolio_layer_summary(
+    sleeve_registry: dict[str, Any] | None,
+    portfolio_diagnostics: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """v3.14 additive summary for the report payload.
+
+    Returns ``None`` when neither sidecar is present so consumers can
+    differentiate between "no v3.14 run yet" and "empty portfolio".
+    """
+    if not sleeve_registry and not portfolio_diagnostics:
+        return None
+    sleeves = (sleeve_registry or {}).get("sleeves") or []
+    memberships = (sleeve_registry or {}).get("memberships") or []
+    diagnostics = portfolio_diagnostics or {}
+    ewp = diagnostics.get("equal_weight_portfolio") or {}
+    return {
+        "sleeve_count": int(len(sleeves)),
+        "candidate_members_total": int(len(memberships)),
+        "diagnostics_layer_version": diagnostics.get("diagnostics_layer_version"),
+        "authoritative": bool(diagnostics.get("authoritative", False)),
+        "thresholds": diagnostics.get("thresholds") or {},
+        "equal_weight_portfolio": {
+            "candidate_count": ewp.get("candidate_count"),
+            "overlap_days": ewp.get("overlap_days"),
+            "insufficient_overlap": ewp.get("insufficient_overlap"),
+            "sharpe": ewp.get("sharpe"),
+            "sortino": ewp.get("sortino"),
+            "max_drawdown": ewp.get("max_drawdown"),
+            "calmar": ewp.get("calmar"),
+            "annualized_return": ewp.get("annualized_return"),
+        },
+        "concentration_warning_count": int(
+            len(diagnostics.get("concentration_warnings") or [])
+        ),
+        "intra_sleeve_correlation_warning_count": int(
+            len(diagnostics.get("intra_sleeve_correlation_warnings") or [])
+        ),
     }
 
 
@@ -654,6 +696,10 @@ def build_report_payload(
         "verdict": verdict,
         "lifecycle_breakdown": _lifecycle_breakdown(per_candidate),
         "regime_layer_summary": _regime_layer_summary(regime_intelligence_payload),
+        "portfolio_layer_summary": _portfolio_layer_summary(
+            _load_json(_SLEEVE_REGISTRY_SIDECAR),
+            _load_json(_PORTFOLIO_DIAGNOSTICS_SIDECAR),
+        ),
     }
 
 
@@ -684,6 +730,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     )
     _append_waarom_section(lines, report.get("per_candidate_diagnostics") or [])
     _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
+    _append_portfolio_layer_section(lines, report.get("portfolio_layer_summary"))
 
     red_flags = report.get("red_flags") or []
     if red_flags:
@@ -710,6 +757,47 @@ def _append_lifecycle_breakdown_section(
     lines.append("## Candidate Lifecycle Breakdown (v3.12)")
     for status in sorted(breakdown.keys()):
         lines.append(f"- {status}: {breakdown[status]}")
+    lines.append("")
+
+
+def _append_portfolio_layer_section(
+    lines: list[str], summary: dict[str, Any] | None
+) -> None:
+    """v3.14 additive markdown section — rendered only when v3.14 sidecars exist.
+
+    Non-authoritative by construction: the section title and every
+    metric explicitly labels itself as diagnostic so the reader does
+    not mistake it for a portfolio allocation decision.
+    """
+    if not summary:
+        return
+    lines.append("## Portfolio Layer Summary (v3.14 — diagnostic only)")
+    lines.append(
+        f"- sleeve_count: {summary.get('sleeve_count')} "
+        f"(candidate members total: {summary.get('candidate_members_total')})"
+    )
+    ewp = summary.get("equal_weight_portfolio") or {}
+    lines.append(
+        "- equal_weight_portfolio: "
+        f"candidate_count={ewp.get('candidate_count')}, "
+        f"overlap_days={ewp.get('overlap_days')}, "
+        f"insufficient_overlap={ewp.get('insufficient_overlap')}, "
+        f"sharpe={ewp.get('sharpe')}, "
+        f"sortino={ewp.get('sortino')}, "
+        f"max_drawdown={ewp.get('max_drawdown')}, "
+        f"calmar={ewp.get('calmar')}"
+    )
+    lines.append(
+        f"- concentration_warnings: {summary.get('concentration_warning_count')}"
+    )
+    lines.append(
+        "- intra_sleeve_correlation_warnings: "
+        f"{summary.get('intra_sleeve_correlation_warning_count')}"
+    )
+    lines.append(
+        "- authoritative: "
+        f"{summary.get('authoritative')} (diagnostics are non-authoritative)"
+    )
     lines.append("")
 
 

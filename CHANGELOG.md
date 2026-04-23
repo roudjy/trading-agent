@@ -4,6 +4,170 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.14] — Portfolio / Sleeve Research
+
+Date: 2026-04-23
+Branch: `feature/v3.14-portfolio-sleeve-research`
+
+Strictly additive portfolio / sleeve research layer on top of the
+v3.12 candidate and v3.13 regime infrastructure. No paper / live /
+broker surfaces, no allocator, no Kelly overlay, no optimizer. Every
+change is additive; `research/research_latest.json`,
+`research/strategy_matrix.csv`, `research/candidate_registry_latest.v1.json`,
+and the shape / values of every v3.12 field on
+`research/candidate_registry_latest.v2.json` remain byte-identical.
+All v3.14 data lands in four new adjacent sidecars joined on
+`candidate_id` / `sleeve_id` — no in-place v2/v3.13 mutation.
+
+The v3.14 layer answers "how do these candidates *compose*?" rather
+than "is this candidate good?". It is diagnostic-first and explicitly
+non-authoritative (`authoritative=false`, `diagnostic_only=true` in
+every payload).
+
+### Added
+
+- **Sleeve registry** (`research/sleeve_registry.py`). Deterministic
+  grouping of v3.12 candidates by `(strategy_family, asset_class,
+  interval)` triples, derived from the existing `experiment_family`
+  and `interval` fields on the v2 registry. Only lifecycle
+  `candidate` entries are members; `rejected` / `exploratory` are
+  excluded. Optional research-variant sleeves with a
+  `__regime_filtered` suffix exist for every candidate whose v3.13
+  overlay reports `regime_assessment_status == "sufficient"`.
+  `ASSIGNMENT_RULE_VERSION = "v0.1"`.
+- **Per-candidate returns bridge** (`research/candidate_returns_feed.py`).
+  Typed extraction of per-candidate daily-return series from the
+  in-memory `evaluations` list populated in
+  `research.run_research.run_research`. Returns are read from the
+  engine's public `last_evaluation_report.evaluation_samples.daily_returns`
+  accessor — no engine contract widening. Every record carries an
+  explicit `alignment = "utc_daily_close"` and
+  `timestamp_semantics = "engine_window_close_utc"` so consumers can
+  reason about the data lineage.
+- **Width-axis feed** (`research/regime_width_feed.py`). Closes the
+  v3.13 §8.1 gap. For every `(asset, interval)` pair in the v2
+  registry the feed reuses the cached OHLCV response produced by the
+  backtest's own `data.repository.MarketRepository.get_bars` call,
+  runs `research.regime_classifier.classify_bars`, and produces a
+  per-candidate `width_distributions` dict. The v3.13 façade now
+  consumes this dict so `regime_dependency_score_width`,
+  `regime_tags_summary.width`, and the `trend_expansion` gate can
+  emit real evidence-backed values. Per-source lineage (asset,
+  interval, bar count, adapter, `cache_hit`) is persisted alongside
+  the raw distributions. `WIDTH_FEED_VERSION = "v0.1"`.
+- **Portfolio / sleeve diagnostics**
+  (`research/portfolio_diagnostics.py`). Diagnostic-only correlation
+  matrix (aligned-suffix) across the candidate universe, an
+  equal-weight research portfolio (Sharpe / Sortino / annualised
+  return / max drawdown / Calmar), drawdown attribution over the
+  worst-window of the equal-weight portfolio, HHI-based concentration
+  warnings on asset and sleeve dimensions, intra-sleeve correlation
+  warnings, turnover-activity-ratio per sleeve, and a
+  regime-conditioned `regime_breadth_diagnostic` per sleeve derived
+  from v3.13 per-axis dependency scores. Every threshold is a named,
+  warning-only constant exposed in the artifact `thresholds` block:
+  `MIN_OVERLAP_DAYS=90`, `HHI_WARN_THRESHOLD=0.4`,
+  `INTRA_SLEEVE_CORR_WARN_THRESHOLD=0.7`,
+  `MAX_DRAWDOWN_CONTRIBUTION_WARN_THRESHOLD=0.5`,
+  `MIN_SAMPLES_FOR_STATS=5`. `DIAGNOSTICS_LAYER_VERSION = "v0.1"`.
+- **Parallel façade** (`research/portfolio_sleeve_sidecars.py`).
+  Mirrors the v3.12 and v3.13 façade pattern exactly. One
+  `PortfolioSleeveBuildContext` dataclass + single
+  `build_and_write_portfolio_sleeve_sidecars(ctx)` entry point
+  invoked once from `run_research.py` after the v3.13 façade.
+  Canonical atomic writes reuse `_sidecar_io.write_sidecar_atomic`.
+- **New sidecars** (overlay-first, all `schema_version="1.0"`):
+  - `research/sleeve_registry_latest.v1.json`
+  - `research/candidate_returns_latest.v1.json`
+  - `research/portfolio_diagnostics_latest.v1.json`
+  - `research/regime_width_distributions_latest.v1.json`
+- **API endpoint** — `GET /api/registry/portfolio`. Read-only,
+  `@requires_auth`, mirrors `/api/registry/regime` verbatim. Stable
+  missing-state payload with
+  `artifact_state="missing"`, `authoritative=false`,
+  `diagnostic_only=true`, and empty collection fields so consumers
+  can differentiate "fresh environment" from "corrupted sidecar".
+
+### Changed (additive only)
+
+- `research/run_research.py`: three new thin additions after the
+  v3.12/v3.13 façade block — (1) width feed driver, (2) in-place
+  wiring of `width_distributions=...` into the existing v3.13
+  context, (3) single call to the v3.14 façade with registry v2 +
+  regime overlay + in-memory evaluations. No engine-contract change.
+- `research/report_agent.py`: new `_portfolio_layer_summary()` helper
+  + new optional top-level key `portfolio_layer_summary` + one
+  additive markdown section. Report `schema_version` stays `"1.1"`.
+- `dashboard/dashboard.py`: `/api/registry/portfolio` added.
+
+### Deliberately **not** changed in v3.14
+
+- `research/candidate_scoring.py` — untouched. `regime_breadth` is
+  exposed only as a diagnostic in the portfolio artifacts and the
+  sleeve registry. No scoring-formula bump in v3.14;
+  `SCORING_FORMULA_VERSION = "v0.1-experimental"`,
+  `composite_status = "provisional"`, `authoritative = False` are all
+  preserved.
+- `research/candidate_registry_v2.py` — untouched. Overlay join is
+  preserved as the canonical pattern.
+- `research/regime_sidecars.py` — signature untouched.
+  `width_distributions` is now populated via the new feed instead of
+  `None`; no API change.
+- `agent/backtesting/*` — untouched. No engine-contract widening.
+- No new strategies, no new presets, no frontend work, no
+  execution / paper / live surfaces, no allocator, no optimizer, no
+  Kelly overlay.
+
+### Tests (34 new)
+
+- `tests/unit/test_regime_width_feed.py` (5): cache-hit determinism,
+  graceful fetch-failure, bucket-count correctness, per-pair
+  deduplication, missing-date-range skip.
+- `tests/unit/test_candidate_returns_feed.py` (5): record schema,
+  insufficient-returns path, alignment field, canonical ordering,
+  deduplication rule.
+- `tests/unit/test_sleeve_registry.py` (6): empty-registry
+  behaviour, lifecycle filter, family/interval grouping,
+  regime-filtered variant emission only on `sufficient`, determinism
+  under input reordering, canonical payload shape.
+- `tests/unit/test_portfolio_diagnostics.py` (6): empty-input
+  payload shape, correlation+portfolio happy path, concentration
+  warning threshold trip, intra-sleeve correlation warning for
+  duplicated series, `MIN_OVERLAP_DAYS` flag semantics, envelope
+  shape.
+- `tests/unit/test_portfolio_sleeve_sidecars_facade.py` (4):
+  all-core sidecars written, width sidecar present only when feed
+  attached, byte-identical across reruns, graceful empty-registry
+  fallback.
+- `tests/unit/test_dashboard_api_v314.py` (3): auth, missing-state
+  schema, happy-path payload.
+- `tests/regression/test_v3_14_artifacts_deterministic.py` (3):
+  byte-identical reruns, pinned `schema_version` everywhere, frozen
+  v1 registry never touched.
+- `tests/integration/test_portfolio_sleeve_end_to_end.py` (2):
+  end-to-end wiring produces all four sidecars, rerun byte-identity.
+
+Full suite: **1322 passed, 1 skipped, 0 failed** in 11m12s.
+mypy / flake8 / bandit clean on every new and modified v3.14 module.
+
+### Known v3.14 limitations (v3.15 pickup)
+
+- Correlation matrix uses suffix-alignment on aggregated daily
+  returns rather than timestamp alignment — honest for the current
+  engine output shape, but loses precision when candidates run on
+  non-overlapping windows. A typed timestamped returns stream in
+  v3.15 would upgrade this.
+- Joint `(trend, vol)` bar tagging is still not available;
+  `trend_low_vol` continues to use the conservative intersection
+  documented in v3.13.
+- `regime_breadth_signal` is a diagnostic on portfolio artifacts
+  only — `candidate_scoring.py` remains at `v0.1-experimental` and
+  non-authoritative. Promoting breadth into the composite is v3.15+.
+- No frontend surface. Consumption via `/api/registry/portfolio` and
+  the markdown report.
+- Equal-weight only. Volatility-targeted and capped-concentration
+  research portfolios deferred.
+
 ## [v3.13] — Regime Intelligence & Gating
 
 Date: 2026-04-23
