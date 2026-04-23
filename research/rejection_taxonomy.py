@@ -1,11 +1,11 @@
-"""Unified rejection taxonomy for v3.12.
+"""Unified rejection taxonomy for v3.12 (extended in v3.13).
 
 Spec §5 defines eight taxonomy codes that describe WHY a candidate
 was rejected at a high level. v3.11 already produces fine-grained
 "observed" reason codes (e.g. ``oos_sharpe_below_threshold``,
 ``psr_below_threshold``) via ``research.promotion``. This module
 translates those observed codes into the eight-code taxonomy without
-fabricating signals that v3.12 cannot defensibly derive yet.
+fabricating signals that cannot be defensibly derived.
 
 Design points:
 
@@ -15,16 +15,34 @@ Design points:
   unchanged for audit.
 
 - ``taxonomy_rejection_codes`` is the conservative derived subset.
-  Codes that v3.12 cannot reliably derive from existing artifacts
+  Codes that cannot be reliably derived from existing artifacts
   (``unstable_parameter_neighborhood``, ``single_asset_dependency``)
   are deliberately NOT emitted here; they are future work for
-  v3.13+.
+  v3.14+.
 
 - ``taxonomy_derivations`` documents how each emitted taxonomy code
   was produced (which observed sources, which derivation method).
   Per-entry timestamps are deliberately omitted: byte-reproducibility
   at the artifact level is more valuable than local provenance
   timestamps that would drift between reruns.
+
+v3.13 extension
+---------------
+
+``regime_concentrated`` is now derived from the v3.13 regime
+intelligence sidecar when it is present *and* the candidate has
+sufficient regime evidence. Derivation rules, in order:
+
+1. Regime intelligence sidecar **absent** for this candidate → fall
+   back to the legacy ``regime_suspicion_flag`` path (unchanged).
+2. Sidecar present, ``regime_assessment_status == "sufficient"`` and
+   any per-axis dependency score is ≥
+   :data:`research.regime_diagnostics.REGIME_CONCENTRATED_THRESHOLD`
+   → emit ``regime_concentrated`` with
+   ``derivation_method="classifier_output"`` and the triggering axis
+   listed under ``observed_sources``.
+3. Sidecar present but evidence insufficient → stay silent. We
+   prefer silence to overclaiming.
 """
 
 from __future__ import annotations
@@ -146,10 +164,49 @@ def _flag_from_sidecar(
     return None
 
 
+def _regime_concentrated_from_intelligence(
+    regime_intelligence: dict[str, Any] | None,
+    candidate_id: str,
+    threshold: float,
+) -> tuple[bool, tuple[str, ...], str] | None:
+    """Inspect the v3.13 regime intelligence sidecar for one candidate.
+
+    Returns ``None`` when the sidecar does not carry a matching
+    entry for this candidate (caller falls back to the legacy
+    ``regime_suspicion_flag`` path).
+
+    Returns a tuple ``(emit, triggering_axes, status)`` otherwise:
+    - ``emit`` is True iff evidence is sufficient and at least one
+      per-axis dependency score ≥ ``threshold``.
+    - ``triggering_axes`` lists axes whose score met the threshold.
+    - ``status`` is one of "sufficient"/"insufficient_evidence" for
+      the caveats payload.
+    """
+    if not regime_intelligence or not candidate_id:
+        return None
+    for entry in regime_intelligence.get("entries") or []:
+        if entry.get("candidate_id") != candidate_id:
+            continue
+        assessment = entry.get("regime_assessment_status")
+        if assessment != "sufficient":
+            return False, (), "insufficient_evidence"
+        scores = entry.get("regime_dependency_scores") or {}
+        triggering: list[str] = []
+        for axis in ("trend", "vol", "width"):
+            score = scores.get(axis)
+            if isinstance(score, (int, float)) and float(score) >= threshold:
+                triggering.append(axis)
+        emit = bool(triggering)
+        return emit, tuple(triggering), "sufficient"
+    return None
+
+
 def derive_taxonomy(
     v1_entry: dict[str, Any],
     regime_diag: dict[str, Any] | None,
     cost_sens: dict[str, Any] | None,
+    regime_intelligence: dict[str, Any] | None = None,
+    regime_concentrated_threshold: float = 0.7,
 ) -> tuple[tuple[str, ...], tuple[TaxonomyDerivation, ...]]:
     """Derive taxonomy codes for a single candidate.
 
@@ -158,9 +215,16 @@ def derive_taxonomy(
     - ``derivations`` is a tuple (sorted by ``taxonomy_code``) that
       explains how each code was produced
 
-    v3.12 only emits taxonomy codes that can be defensibly derived
-    from existing v3.11 artifacts. DEFERRED_TAXONOMY_CODES are
+    Only taxonomy codes that can be defensibly derived from available
+    artifacts are emitted. :data:`DEFERRED_TAXONOMY_CODES` are
     deliberately skipped.
+
+    When ``regime_intelligence`` is provided (the v3.13 sidecar) and
+    carries an entry for this candidate, it takes precedence over
+    the legacy ``regime_suspicion_flag`` path: the regime-concentrated
+    code is emitted only when evidence is sufficient *and* a
+    per-axis dependency score exceeds
+    ``regime_concentrated_threshold``.
     """
     observed = collect_observed_reason_codes(v1_entry)
     buckets: dict[str, list[str]] = {}
@@ -172,7 +236,7 @@ def derive_taxonomy(
             continue
         buckets.setdefault(mapped, []).append(code)
 
-    # Flag-sourced codes (cost_sensitive, regime_concentrated).
+    # Flag-sourced codes (cost_sensitive, regime_concentrated legacy).
     key = (
         v1_entry.get("strategy_name", ""),
         v1_entry.get("asset", ""),
@@ -183,17 +247,39 @@ def derive_taxonomy(
     if cost_flag is True:
         buckets.setdefault("cost_sensitive", []).append("cost_sensitivity_flag")
 
-    regime_flag = _flag_from_sidecar(regime_diag, key)
-    if regime_flag is True:
-        buckets.setdefault("regime_concentrated", []).append("regime_suspicion_flag")
+    # v3.13: prefer classifier-output derivation when the regime
+    # intelligence sidecar carries an entry for this candidate.
+    regime_intelligence_result = _regime_concentrated_from_intelligence(
+        regime_intelligence,
+        str(v1_entry.get("strategy_id") or ""),
+        regime_concentrated_threshold,
+    )
+    regime_classifier_used = False
+    if regime_intelligence_result is not None:
+        regime_classifier_used = True
+        emit, triggering_axes, _status = regime_intelligence_result
+        if emit:
+            # Preserve the triggering axes in observed_sources for audit.
+            buckets.setdefault("regime_concentrated", []).extend(
+                f"regime_dependency_score_{axis}" for axis in triggering_axes
+            )
+    else:
+        # Legacy flag-source fallback only when the v3.13 sidecar is
+        # absent for this candidate.
+        regime_flag = _flag_from_sidecar(regime_diag, key)
+        if regime_flag is True:
+            buckets.setdefault("regime_concentrated", []).append("regime_suspicion_flag")
 
     derivations: list[TaxonomyDerivation] = []
     for code, sources in buckets.items():
-        method = (
-            "flag_source"
-            if code in {"cost_sensitive", "regime_concentrated"}
-            else "direct_mapping"
-        )
+        if code == "regime_concentrated":
+            method = (
+                "classifier_output" if regime_classifier_used else "flag_source"
+            )
+        elif code == "cost_sensitive":
+            method = "flag_source"
+        else:
+            method = "direct_mapping"
         caveats: tuple[str, ...] = ()
         if code == "low_statistical_defensibility" and len(sources) == 1:
             caveats = ("single_observed_signal",)

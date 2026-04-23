@@ -40,6 +40,8 @@ _REGIME_SIDECAR = Path("research/regime_diagnostics_latest.v1.json")
 _RUN_FILTER_SUMMARY_SIDECAR = Path("research/run_filter_summary_latest.v1.json")
 _COST_SENSITIVITY_SIDECAR = Path("research/cost_sensitivity_latest.v1.json")
 _REGISTRY_V2_SIDECAR = Path("research/candidate_registry_latest.v2.json")
+_REGIME_INTELLIGENCE_SIDECAR = Path("research/regime_intelligence_latest.v1.json")
+_REGIME_OVERLAY_SIDECAR = Path("research/candidate_registry_regime_overlay_latest.v1.json")
 
 
 VERDICT_PROMOTED = "promoted"
@@ -88,6 +90,66 @@ def _enrich_with_v3_12_fields(
         merged["scores"] = v2_entry.get("scores")
         enriched.append(merged)
     return enriched
+
+
+def _enrich_with_regime_fields(
+    per_candidate: list[dict[str, Any]],
+    regime_intelligence: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Additively merge v3.13 regime-intelligence fields into per-candidate diagnostics.
+
+    Parallel to :func:`_enrich_with_v3_12_fields`; adds only new
+    optional keys so existing v3.10/v3.11/v3.12 consumers stay
+    unaffected. Missing intelligence entries are a no-op.
+    """
+    if not per_candidate or not regime_intelligence:
+        return per_candidate
+
+    intel_index = {
+        entry.get("candidate_id"): entry
+        for entry in regime_intelligence.get("entries") or []
+        if isinstance(entry, dict)
+    }
+    if not intel_index:
+        return per_candidate
+
+    enriched: list[dict[str, Any]] = []
+    for entry in per_candidate:
+        strategy_id = entry.get("strategy_id")
+        intel_entry = intel_index.get(strategy_id)
+        if intel_entry is None:
+            enriched.append(entry)
+            continue
+        merged = dict(entry)
+        merged["regime_assessment_status"] = intel_entry.get("regime_assessment_status")
+        merged["regime_dependency_scores"] = intel_entry.get("regime_dependency_scores")
+        experiments = intel_entry.get("regime_gating_experiments") or []
+        merged["regime_gating_summary"] = {
+            "rule_ids": [exp.get("rule_id") for exp in experiments],
+            "evaluated_count": sum(
+                1 for exp in experiments if exp.get("status") == "evaluated"
+            ),
+        }
+        enriched.append(merged)
+    return enriched
+
+
+def _regime_layer_summary(
+    regime_intelligence: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Top-level additive summary for the report payload."""
+    if not regime_intelligence:
+        return None
+    summary = regime_intelligence.get("summary") or {}
+    return {
+        "classifier_version": regime_intelligence.get("classifier_version"),
+        "regime_layer_version": regime_intelligence.get("regime_layer_version"),
+        "candidates_total": summary.get("candidates_total"),
+        "candidates_with_sufficient_evidence": summary.get(
+            "candidates_with_sufficient_evidence"
+        ),
+        "gate_rule_ids": summary.get("gate_rule_ids") or [],
+    }
 
 
 def _lifecycle_breakdown(
@@ -529,6 +591,14 @@ def build_report_payload(
     registry_v2 = _load_json(_REGISTRY_V2_SIDECAR)
     per_candidate = _enrich_with_v3_12_fields(per_candidate, registry_v2)
 
+    # v3.13: additive enrichment with regime_assessment_status,
+    # regime_dependency_scores, and a gating-rule summary. Report
+    # schema_version remains "1.1" — v3.13 only adds optional fields.
+    regime_intelligence_payload = _load_json(_REGIME_INTELLIGENCE_SIDECAR)
+    per_candidate = _enrich_with_regime_fields(
+        per_candidate, regime_intelligence_payload
+    )
+
     summary = _summarize_counts(
         rows,
         meta.get("candidate_summary") if isinstance(meta, dict) else None,
@@ -583,6 +653,7 @@ def build_report_payload(
         "next_experiment": next_experiment,
         "verdict": verdict,
         "lifecycle_breakdown": _lifecycle_breakdown(per_candidate),
+        "regime_layer_summary": _regime_layer_summary(regime_intelligence_payload),
     }
 
 
