@@ -489,6 +489,38 @@ def api_registry_regime():
         return jsonify({"error": str(exc), "entries": []}), 500
 
 
+@app.route("/api/registry/portfolio")
+@requires_auth
+def api_registry_portfolio():
+    """Read-only view of research/portfolio_diagnostics_latest.v1.json (v3.14).
+
+    Mirrors the v3.13 ``/api/registry/regime`` pattern exactly:
+    auth-gated, stable missing-state schema, pass-through on the
+    happy path.
+    """
+    path = Path("research/portfolio_diagnostics_latest.v1.json")
+    missing = {
+        "schema_version": "1.0",
+        "diagnostics_layer_version": None,
+        "generated_at_utc": None,
+        "artifact_state": "missing",
+        "authoritative": False,
+        "diagnostic_only": True,
+        "correlation": {},
+        "equal_weight_portfolio": {},
+        "concentration_warnings": [],
+        "drawdown_attribution": [],
+        "regime_conditioned": [],
+    }
+    if not path.exists():
+        return jsonify(missing)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return jsonify(payload)
+    except (json.JSONDecodeError, OSError) as exc:
+        return jsonify({"error": str(exc), "concentration_warnings": []}), 500
+
+
 _VERSION_PATH = Path("VERSION")
 
 
