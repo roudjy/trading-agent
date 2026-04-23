@@ -75,6 +75,10 @@ from research.candidate_sidecars import (
     SidecarBuildContext,
     build_and_write_all as build_and_write_v3_12_sidecars,
 )
+from research.regime_sidecars import (
+    RegimeSidecarBuildContext,
+    build_and_write_regime_sidecars,
+)
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -3031,6 +3035,31 @@ def run_research(
             )
         except Exception as v3_12_exc:
             tracker.emit_event("v3_12_candidate_sidecars_failed", error=str(v3_12_exc))
+        # v3.13: parallel regime-intelligence façade. Writes two
+        # adjacent sidecars joined on candidate_id. Additive only —
+        # v3.12 artifacts and frozen public contracts are not
+        # mutated. Width axis has no per-trade attribution in v3.13,
+        # so width_distributions is None and the width axis is
+        # marked insufficient; trend and volatility axes come from
+        # regime_diagnostics_latest.v1.json.
+        try:
+            regime_ctx = RegimeSidecarBuildContext(
+                run_id=str(state["run_id"]),
+                generated_at_utc=as_of_utc.isoformat(),
+                git_revision=_git_revision(),
+                registry_v2=_read_json_if_exists(
+                    Path("research/candidate_registry_latest.v2.json")
+                ) or {"entries": []},
+                regime_diagnostics=_read_json_if_exists(REGIME_DIAGNOSTICS_PATH),
+                width_distributions=None,
+            )
+            regime_paths = build_and_write_regime_sidecars(regime_ctx)
+            tracker.emit_event(
+                "v3_13_regime_sidecars_written",
+                paths={name: path.as_posix() for name, path in regime_paths.items()},
+            )
+        except Exception as v3_13_exc:
+            tracker.emit_event("v3_13_regime_sidecars_failed", error=str(v3_13_exc))
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
         except Exception as report_exc:
