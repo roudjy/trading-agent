@@ -79,6 +79,15 @@ from research.regime_sidecars import (
     RegimeSidecarBuildContext,
     build_and_write_regime_sidecars,
 )
+from research.regime_width_feed import (
+    WidthFeedResult,
+    build_width_distributions,
+)
+from research.candidate_returns_feed import build_records_from_evaluations
+from research.portfolio_sleeve_sidecars import (
+    PortfolioSleeveBuildContext,
+    build_and_write_portfolio_sleeve_sidecars,
+)
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -3038,20 +3047,37 @@ def run_research(
         # v3.13: parallel regime-intelligence façade. Writes two
         # adjacent sidecars joined on candidate_id. Additive only —
         # v3.12 artifacts and frozen public contracts are not
-        # mutated. Width axis has no per-trade attribution in v3.13,
-        # so width_distributions is None and the width axis is
-        # marked insufficient; trend and volatility axes come from
-        # regime_diagnostics_latest.v1.json.
+        # mutated. v3.14 populates width_distributions via the
+        # research.regime_width_feed module (same OHLCV cache the
+        # backtest used; no re-downloads).
+        registry_v2_payload = _read_json_if_exists(
+            Path("research/candidate_registry_latest.v2.json")
+        ) or {"entries": []}
+        width_feed_result: WidthFeedResult | None = None
+        try:
+            date_range_by_interval: dict[str, tuple[str, str]] = {}
+            for interval, ranges in interval_ranges.items():
+                start = ranges.get("start")
+                end = ranges.get("end")
+                if isinstance(start, str) and isinstance(end, str):
+                    date_range_by_interval[interval] = (start, end)
+            width_feed_result = build_width_distributions(
+                registry_v2=registry_v2_payload,
+                date_range_by_interval=date_range_by_interval,
+            )
+        except Exception as width_exc:
+            tracker.emit_event("v3_14_width_feed_failed", error=str(width_exc))
+            width_feed_result = None
         try:
             regime_ctx = RegimeSidecarBuildContext(
                 run_id=str(state["run_id"]),
                 generated_at_utc=as_of_utc.isoformat(),
                 git_revision=_git_revision(),
-                registry_v2=_read_json_if_exists(
-                    Path("research/candidate_registry_latest.v2.json")
-                ) or {"entries": []},
+                registry_v2=registry_v2_payload,
                 regime_diagnostics=_read_json_if_exists(REGIME_DIAGNOSTICS_PATH),
-                width_distributions=None,
+                width_distributions=(
+                    width_feed_result.distributions if width_feed_result else None
+                ),
             )
             regime_paths = build_and_write_regime_sidecars(regime_ctx)
             tracker.emit_event(
@@ -3060,6 +3086,33 @@ def run_research(
             )
         except Exception as v3_13_exc:
             tracker.emit_event("v3_13_regime_sidecars_failed", error=str(v3_13_exc))
+        # v3.14: portfolio / sleeve research façade. Strictly
+        # additive — consumes v3.12 registry v2 + v3.13 overlay +
+        # per-candidate daily returns captured from in-memory
+        # evaluations. Produces sleeve registry, candidate returns,
+        # portfolio diagnostics, and (when width-feed data is
+        # available) the regime width distributions sidecar.
+        try:
+            regime_overlay_payload = _read_json_if_exists(
+                Path("research/candidate_registry_regime_overlay_latest.v1.json")
+            )
+            candidate_returns_records = build_records_from_evaluations(evaluations)
+            portfolio_ctx = PortfolioSleeveBuildContext(
+                run_id=str(state["run_id"]),
+                generated_at_utc=as_of_utc.isoformat(),
+                git_revision=_git_revision(),
+                registry_v2=registry_v2_payload,
+                regime_overlay=regime_overlay_payload,
+                candidate_returns=candidate_returns_records,
+                width_feed_result=width_feed_result,
+            )
+            portfolio_paths = build_and_write_portfolio_sleeve_sidecars(portfolio_ctx)
+            tracker.emit_event(
+                "v3_14_portfolio_sleeve_sidecars_written",
+                paths={name: path.as_posix() for name, path in portfolio_paths.items()},
+            )
+        except Exception as v3_14_exc:
+            tracker.emit_event("v3_14_portfolio_sleeve_sidecars_failed", error=str(v3_14_exc))
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
         except Exception as report_exc:
