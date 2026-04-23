@@ -4,6 +4,163 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.12] — Candidate Promotion Framework 2.0
+
+Date: 2026-04-23
+Branch: `feature/v3.12-candidate-promotion-framework`
+
+First-class candidate lifecycle and lineage. No new strategies, no
+new metrics, no new promotion thresholds. Every change is additive;
+the v3.11 public contracts (`research_latest.json`,
+`strategy_matrix.csv`, `candidate_registry_latest.v1.json`) remain
+byte-identical. All v3.12 data lands in new adjacent sidecars with
+their own `schema_version` pins.
+
+### Added
+
+- **Candidate lifecycle status model** (`research/candidate_lifecycle.py`).
+  Durable 8-status enum spanning v3.12–v3.17:
+  `rejected | exploratory | candidate | paper_ready | paper_validated
+  | live_shadow_ready | live_enabled | retired`. Two-layer validation:
+  - `FULL_LIFECYCLE_GRAPH` — the complete reference graph for
+    downstream phases.
+  - `ACTIVE_TRANSITIONS_V3_12` — strict runtime subset
+    (`exploratory → candidate | rejected`, `candidate → rejected`).
+    Transitions into reserved statuses raise `ReservedStatusError`
+    so later-phase slots cannot be entered accidentally.
+  - `map_legacy_verdict()` returns `(lifecycle_status, mapping_reason)`,
+    preserving `needs_investigation → exploratory` as
+    `legacy_needs_investigation_mapped_to_exploratory`.
+  - `STATUS_MODEL_VERSION = "v3.12.0"`.
+- **Unified rejection taxonomy** (`research/rejection_taxonomy.py`).
+  Eight codes from the spec: `insufficient_trades`, `no_oos_samples`,
+  `oos_collapse`, `cost_sensitive`,
+  `unstable_parameter_neighborhood`, `regime_concentrated`,
+  `single_asset_dependency`, `low_statistical_defensibility`.
+  Observed vs derived split:
+  - `collect_observed_reason_codes()` — raw v3.11 reasoning codes,
+    unchanged.
+  - `derive_taxonomy()` — only emits codes with defensible
+    derivation (direct mapping from promotion codes,
+    flag_source from regime/cost sidecars).
+  - `DEFERRED_TAXONOMY_CODES`: `unstable_parameter_neighborhood`,
+    `single_asset_dependency`, `no_oos_samples` — deliberately not
+    derived in v3.12.
+  - No per-entry timestamps — per-entry byte-reproducibility.
+- **Deterministic candidate scoring** (`research/candidate_scoring.py`).
+  Components (each 0..1, `None` when source missing): `dsr_signal`,
+  `psr_signal`, `drawdown_signal`, `stability_signal`,
+  `trade_density_signal`, `breadth_signal`. Composite is
+  equal-weighted mean of available components, emitted with
+  `composite_status="provisional"` and `authoritative=False`
+  (double signal so no downstream consumer mistakes it for a
+  promotion authority). `SCORING_FORMULA_VERSION = "v0.1-experimental"`.
+- **Candidate status history** (`research/candidate_status_history.py`).
+  Append-only sidecar with deterministic
+  `event_id = sha256(candidate_id|from|to|run_id|reason_code)`.
+  Merge is idempotent (rerun on identical input yields zero new
+  events), stable-sorted per candidate on `(at_utc, event_id)`,
+  with sorted top-level candidate_id keys. Writes via atomic
+  tempfile+rename through `_sidecar_io`.
+- **Candidate registry v2** (`research/candidate_registry_v2.py`).
+  Additive first-class view alongside the frozen v1 sidecar.
+  Entries carry `candidate_id`, `experiment_family`, `preset_origin`,
+  strict separation of `processing_state` (v3.11) and
+  `lifecycle_status` (v3.12), `legacy_verdict + mapping_reason`,
+  `observed_reason_codes + taxonomy_rejection_codes +
+  taxonomy_derivations`, `scores`, `paper_readiness_flags = null`
+  with `paper_readiness_assessment_status =
+  "reserved_for_future_phase"`, `deployment_eligibility =
+  "reserved_for_future_phase"`, full `lineage_metadata`, and
+  `source_artifact_references`. Schema pinned at `"2.0"`.
+- **Advisory-only agent_definition bridge** (`research/execution_bridge/`).
+  Single artifact (`research/agent_definitions_latest.v1.json`).
+  Every entry carries `runnable=false` +
+  `execution_scope="future_paper_phase_only"`; payload
+  `runnable_entries` is pinned to 0 as a structural invariant.
+  Scope-locked to `trend_equities_4h_baseline` and
+  `regime_filter_equities_4h_experimental` presets with
+  `lifecycle_status in {exploratory, candidate}`. AST test asserts
+  no imports from `agent.execution`, `execution.paper`, `ccxt`,
+  `yfinance`, `polymarket`, or `alchemy`.
+- **Single candidate-sidecars façade** (`research/candidate_sidecars.py`).
+  `build_and_write_all(ctx)` is the only new call-site in
+  `run_research.py`, orchestrating registry-v2 → status-history →
+  agent-definitions through the shared
+  `_sidecar_io.write_sidecar_atomic` helper.
+- **Canonical sidecar IO helper** (`research/_sidecar_io.py`).
+  `sort_keys=True, indent=2, LF line endings, trailing newline,
+  tempfile+rename`. Used by every v3.12 sidecar writer for uniform
+  determinism and atomicity.
+- **Report additive enrichment** (`research/report_agent.py`).
+  `per_candidate_diagnostics[]` gains optional `lifecycle_status`,
+  `legacy_verdict`, `observed_reason_codes`,
+  `taxonomy_rejection_codes`, and `scores` fields pulled from the
+  v2 sidecar. Top-level `lifecycle_breakdown` counter and optional
+  "Candidate Lifecycle Breakdown (v3.12)" markdown section.
+  Report `schema_version` unchanged ("1.1") — consumers read with
+  `.get()`; no breaking change.
+- **Read-only API endpoints** (`dashboard/dashboard.py`).
+  `GET /api/registry/v2` and `GET /api/registry/status-history`
+  follow the existing `/api/candidates/latest` auth + error pattern.
+  Graceful `{ artifact_state: "missing" }` response when sidecars
+  are absent.
+
+### Preserved / frozen
+
+- `research/research_latest.json` — 19-column schema, byte-identical.
+- `research/strategy_matrix.csv` — column order, byte-identical.
+- `research/candidate_registry_latest.v1.json` — structure + summary
+  keys byte-identical (regression test
+  `tests/regression/test_candidate_registry_v1_immutable.py` pins
+  this).
+- `research/run_meta_latest.v1.json` — v1.1 unchanged.
+- `research/report_latest.{md,json}` — v1.1 schema_version unchanged.
+- Frontend components — untouched. React Reports.tsx primitive
+  filter already tolerates new nested v3.12 keys.
+
+### Tests added (v3.12)
+
+- `tests/unit/test_sidecar_io.py` — 12 tests, canonical serialization.
+- `tests/unit/test_candidate_lifecycle.py` — 21 tests, graph +
+  transitions + legacy mapping.
+- `tests/unit/test_rejection_taxonomy.py` — 16 tests, observed vs
+  derived split, no per-entry timestamps.
+- `tests/unit/test_candidate_scoring.py` — 14 tests, deterministic
+  unit signals + provisional composite.
+- `tests/unit/test_candidate_status_history.py` — 16 tests,
+  event_id determinism, idempotent merge, stable sort.
+- `tests/unit/test_candidate_registry_v2.py` — 14 tests.
+- `tests/unit/test_agent_definition_bridge.py` — 13 tests incl.
+  AST-based import isolation.
+- `tests/unit/test_candidate_sidecars_facade.py` — 7 tests.
+- `tests/unit/test_report_agent_v312_enrichment.py` — 7 tests.
+- `tests/unit/test_dashboard_api_v312.py` — 7 tests.
+- `tests/integration/test_v312_sidecars_e2e.py` — 5 end-to-end
+  scenarios incl. rerun byte-identity.
+- `tests/regression/test_candidate_registry_v1_immutable.py` — 6
+  tests pinning v1 contract.
+- `tests/regression/test_v312_sidecar_schema_stability.py` — 14
+  tests pinning key sets and schema_version values for all three
+  v3.12 artifacts.
+
+### Explicitly out of scope (deferred)
+
+- Execution preview with replay / fees / slippage / synthetic PnL
+  → **v3.15 Paper Validation Engine**.
+- Runnable paper path → **v3.15**.
+- Regime classifier and gating → **v3.13 Regime Intelligence**.
+- Portfolio / sleeves → **v3.14**.
+- Kill switches, shadow mode, monitoring → **v3.16**.
+- Controlled live enablement → **v3.17**.
+- ML or optimizer-heavy scoring — permanently out of roadmap scope.
+- Frontend component changes — deferred; additive report schema
+  is enough for v3.12.
+- `unstable_parameter_neighborhood` and `single_asset_dependency`
+  taxonomy derivation — both remain `DEFERRED_TAXONOMY_CODES` in
+  v3.12, scheduled for v3.13+ when breadth and neighborhood context
+  become first-class.
+
 ## [v3.11] — Research Quality Engine
 
 Date: 2026-04-22
