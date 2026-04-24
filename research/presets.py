@@ -85,6 +85,7 @@ class ResearchPreset:
     rationale: str = ""
     expected_behavior: str = ""
     falsification: tuple[str, ...] = field(default_factory=tuple)
+    enablement_criteria: tuple[str, ...] = field(default_factory=tuple)
 
 
 # ---------------------------------------------------------------------------
@@ -165,9 +166,53 @@ PRESETS: tuple[ResearchPreset, ...] = (
             "multi-reference_asset. See ADR-011 \u00a77."
         ),
         preset_class="experimental",
-        rationale="",
-        expected_behavior="",
-        falsification=(),
+        rationale=(
+            "Mean-reverting z-score spreads op equity-paren zijn "
+            "wiskundig orthogonaal aan de trend-hypothese van "
+            "trend_equities_4h_baseline en aan de crypto MR-diagnose "
+            "van crypto_diagnostic_1h. Een eventueel werkende edge "
+            "hier representeert een aparte strategiefamilie en mag "
+            "alleen enabled worden nadat de onderliggende wiskundige "
+            "voorwaarden — OLS hedge ratio, multi-reference_asset, "
+            "cointegration discipline — architecturaal ondersteund "
+            "zijn. Dit preset staat bewust in de catalog als "
+            "product-/roadmapbeslissing: niet runnable, niet stil "
+            "verborgen."
+        ),
+        expected_behavior=(
+            "Zou — na enablement — per equity-paar een spread-signaal "
+            "produceren dat statistisch onafhankelijk is van de "
+            "directional trend-hypothese. Een positieve Deflated "
+            "Sharpe op \u22651 paar/interval-combinatie op OOS, met "
+            "cointegration-stabiliteit en bounded drawdown, zou het "
+            "preset tot een eigen volwaardig research-pad maken."
+        ),
+        falsification=(
+            "Paren vertonen geen stationaire spread: ADF of "
+            "Johansen-test faalt consistent op de gekozen universe "
+            "over \u22653 achtereenvolgende runs.",
+            "OLS hedge ratio is fold-instabiel: beta's verschuiven "
+            ">50% tussen walk-forward folds zonder economisch "
+            "motief.",
+            "Kosten-gevoeligheid vreet de edge op: na Bitvavo / IBKR "
+            "fee-profile sluit bootstrap_sharpe_ci zero in op elk "
+            "geteste paar.",
+        ),
+        enablement_criteria=(
+            "v3.11 equity-pairs ADR geschreven en goedgekeurd: "
+            "scope, hedge-ratio-methode (OLS vs rolling vs "
+            "cointegration), multi-reference_asset discipline.",
+            "Fitted-feature abstractie (v3.7) uitgebreid naar "
+            "multi-asset fit zodat hedge_ratio per fold "
+            "fit-on-train / transform-on-test volgt.",
+            "Pair-universe selectiebeleid vastgelegd: statische "
+            "lijst vs cointegration-geselecteerd; rebalancing-"
+            "frequentie; survivorship-bias mitigatie.",
+            "Pairs-specifieke screening en falsificatiegates "
+            "bevestigd in rejection_taxonomy (o.a. "
+            "stationarity_fail, hedge_instability, "
+            "insufficient_cointegration).",
+        ),
     ),
     ResearchPreset(
         name="trend_regime_filtered_equities_4h",
@@ -373,8 +418,70 @@ def daily_schedulable_presets() -> list[ResearchPreset]:
     ]
 
 
+def _decision_for(preset: ResearchPreset) -> dict:
+    """Backend-side product-decision inference for a preset card.
+
+    Keeps UI rendering logic out of the frontend: a disabled/planned
+    preset is not a bug, it is a deliberate product / roadmap decision
+    and this helper records that as a first-class field so consumers
+    don't have to reconstruct it from status / enabled / backlog_reason
+    themselves.
+
+    ``kind`` vocabulary (closed):
+    - ``disabled_planned``  — enabled=False with a backlog_reason.
+    - ``diagnostic_only``   — enabled but flagged diagnostic, never
+      promoted.
+    - ``scheduler_excluded`` — enabled but held back from the daily
+      scheduler.
+    - ``null``              — no product decision beyond "run normally".
+    """
+    if not preset.enabled:
+        return {
+            "is_product_decision": True,
+            "kind": "disabled_planned",
+            "summary": (
+                "Bewuste product-/roadmapbeslissing: preset staat in "
+                "de catalog maar is niet runnable tot de enablement-"
+                "criteria zijn voldaan. Dit is geen bug."
+            ),
+            "requires_enablement": True,
+        }
+    if preset.diagnostic_only:
+        return {
+            "is_product_decision": True,
+            "kind": "diagnostic_only",
+            "summary": (
+                "Diagnostisch preset: draait voor observatie maar "
+                "wordt nooit gepromoveerd naar candidate-selectie."
+            ),
+            "requires_enablement": False,
+        }
+    if preset.excluded_from_daily_scheduler:
+        return {
+            "is_product_decision": True,
+            "kind": "scheduler_excluded",
+            "summary": (
+                "Preset is runnable maar bewust niet opgenomen in de "
+                "dagelijkse scheduler. Start handmatig wanneer nodig."
+            ),
+            "requires_enablement": False,
+        }
+    return {
+        "is_product_decision": False,
+        "kind": None,
+        "summary": "",
+        "requires_enablement": False,
+    }
+
+
 def preset_to_card(preset: ResearchPreset) -> dict:
-    """Flatten a preset into a JSON-safe card for the UI."""
+    """Flatten a preset into a JSON-safe card for the UI.
+
+    v3.15.1 additive: ``enablement_criteria`` + ``decision`` surface.
+    The ``decision`` dict carries backend-side inference so the
+    frontend renders based on explicit product state, not by
+    reconstructing it from (status, enabled, backlog_reason, ...).
+    """
     return {
         "name": preset.name,
         "hypothesis": preset.hypothesis,
@@ -396,6 +503,8 @@ def preset_to_card(preset: ResearchPreset) -> dict:
         "rationale": preset.rationale,
         "expected_behavior": preset.expected_behavior,
         "falsification": list(preset.falsification),
+        "enablement_criteria": list(preset.enablement_criteria),
+        "decision": _decision_for(preset),
     }
 
 
