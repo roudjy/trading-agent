@@ -179,6 +179,14 @@ INTEGRITY_REPORT_PATH = Path("research/integrity_report_latest.v1.json")
 FALSIFICATION_GATES_PATH = Path("research/falsification_gates_latest.v1.json")
 RUN_LOG_DIR = Path("logs/research")
 RUN_HEARTBEAT_TIMEOUT_S = 300
+
+# v3.15.2 Campaign Operating Layer breadcrumb.
+# When the launcher (research.campaign_launcher) invokes this module as a
+# subprocess it passes ``--campaign-id CID``; we stash it here so the
+# campaign artifacts (run_state, run_campaign_latest) can record the
+# linkage without threading a new kwarg through every _persist_campaign
+# call site. None when the flag is absent — all callers see a null field.
+_COL_CAMPAIGN_ID: str | None = None
 SCREENING_PARAM_SAMPLE_LIMIT = 3
 DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS = 300
 DEFAULT_EXECUTION_MAX_WORKERS = 1
@@ -975,6 +983,7 @@ def _persist_campaign_artifacts(
     latest_payload["lifecycle_mode"] = lifecycle_mode
     latest_payload["resumed_from_run_id"] = resumed_from_run_id
     latest_payload["continuation_summary"] = copy.deepcopy(continuation_summary or {})
+    latest_payload["col_campaign_id"] = _COL_CAMPAIGN_ID
     _write_json_with_history(
         path=RUN_CAMPAIGN_PATH,
         payload=latest_payload,
@@ -994,6 +1003,7 @@ def _persist_campaign_artifacts(
     progress_payload["lifecycle_mode"] = lifecycle_mode
     progress_payload["resumed_from_run_id"] = resumed_from_run_id
     progress_payload["continuation_summary"] = copy.deepcopy(continuation_summary or {})
+    progress_payload["col_campaign_id"] = _COL_CAMPAIGN_ID
     _write_json_atomic(RUN_CAMPAIGN_PROGRESS_PATH, progress_payload)
     return latest_payload, progress_payload
 
@@ -1793,9 +1803,14 @@ def run_research(
     retry_failed_batches: bool = False,
     continue_latest: bool = False,
     preset: str | None = None,
+    col_campaign_id: str | None = None,
 ):
     if continue_latest and resume:
         raise RuntimeError("continue-latest cannot be combined with explicit resume")
+    # v3.15.2: stash the breadcrumb for artifact writers below. Additive
+    # only; downstream behaviour is unchanged when the kwarg is None.
+    global _COL_CAMPAIGN_ID
+    _COL_CAMPAIGN_ID = col_campaign_id
     preset_obj: ResearchPreset | None = None
     if preset is not None:
         preset_obj = get_preset(preset)
@@ -1852,6 +1867,10 @@ def run_research(
         stage="starting",
         status_reason="research_run_started",
     )
+    # v3.15.2: additive linkage so the campaign launcher can reconcile this
+    # subprocess back to its parent COL campaign. Null when absent.
+    state["col_campaign_id"] = _COL_CAMPAIGN_ID
+    _write_json_atomic(RUN_STATE_PATH, state)
     started_at_utc = datetime.fromisoformat(state["started_at_utc"])
     # v3.9 phase 4: Orchestrator owns dispatch for both inline and
     # parallel modes. Its Scheduler + Queue track pending / in-flight /
@@ -3289,6 +3308,16 @@ def _parse_cli_args() -> argparse.Namespace:
         default=None,
         help="Named research preset (see research/presets.py). Filters bundle to the preset's strategies.",
     )
+    parser.add_argument(
+        "--campaign-id",
+        type=str,
+        default=None,
+        help=(
+            "v3.15.2 COL breadcrumb. Usually injected by "
+            "research.campaign_launcher; pipeline behaviour is unchanged "
+            "when absent."
+        ),
+    )
     args = parser.parse_args()
     if args.continue_latest and args.resume:
         parser.error("--continue-latest cannot be combined with --resume")
@@ -3302,4 +3331,5 @@ if __name__ == "__main__":
         retry_failed_batches=bool(args.retry_failed_batches),
         continue_latest=bool(args.continue_latest),
         preset=args.preset,
+        col_campaign_id=args.campaign_id,
     )

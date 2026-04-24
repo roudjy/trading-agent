@@ -30,6 +30,7 @@ from datetime import datetime
 from data.contracts import Instrument
 from data.repository import MarketRepository
 from dashboard import research_artifacts, research_runner
+from dashboard.api_campaigns import register_campaign_routes
 from reporting import audit_log
 
 app = Flask(__name__, template_folder="templates")
@@ -48,6 +49,9 @@ def _read_or_create_secret(path: Path) -> str:
 
 
 app.secret_key = _read_or_create_secret(SESSION_SECRET_PATH)
+
+# v3.15.2: Campaign Operating Layer read-only endpoints.
+register_campaign_routes(app)
 
 
 @app.errorhandler(Exception)
