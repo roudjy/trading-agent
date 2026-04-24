@@ -88,6 +88,10 @@ from research.portfolio_sleeve_sidecars import (
     PortfolioSleeveBuildContext,
     build_and_write_portfolio_sleeve_sidecars,
 )
+from research.paper_validation_sidecars import (
+    PaperValidationBuildContext,
+    build_and_write_paper_validation_sidecars,
+)
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -3148,6 +3152,30 @@ def run_research(
             )
         except Exception as v3_14_exc:
             tracker.emit_event("v3_14_portfolio_sleeve_sidecars_failed", error=str(v3_14_exc))
+        # v3.15: paper validation engine — additive, isolated,
+        # diagnostic-only. Produces timestamped-returns, ledger,
+        # divergence, and readiness sidecars. Consumes the v3.14
+        # sleeve_registry payload for sleeve lookup; never writes
+        # to v3.12/v3.13/v3.14 artifacts.
+        try:
+            sleeve_registry_payload = _read_json_if_exists(
+                Path("research/sleeve_registry_latest.v1.json")
+            )
+            paper_ctx = PaperValidationBuildContext(
+                run_id=str(state["run_id"]),
+                generated_at_utc=as_of_utc.isoformat(),
+                git_revision=_git_revision(),
+                registry_v2=registry_v2_payload,
+                sleeve_registry=sleeve_registry_payload,
+                evaluations=list(evaluations),
+            )
+            paper_paths = build_and_write_paper_validation_sidecars(paper_ctx)
+            tracker.emit_event(
+                "v3_15_paper_validation_sidecars_written",
+                paths={name: path.as_posix() for name, path in paper_paths.items()},
+            )
+        except Exception as v3_15_exc:
+            tracker.emit_event("v3_15_paper_validation_sidecars_failed", error=str(v3_15_exc))
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
         except Exception as report_exc:

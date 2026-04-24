@@ -98,6 +98,7 @@ class TimestampedCandidateReturnsPayload:
             "git_revision": self.git_revision,
             "alignment": self.alignment,
             "timestamp_semantics": self.timestamp_semantics,
+            "live_eligible": False,
             "entries": [e.to_payload() for e in self.entries],
         }
 
