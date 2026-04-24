@@ -358,6 +358,17 @@ def api_research_empty_run_diagnostics():
     return jsonify(research_artifacts.load_empty_run_diagnostics_artifact())
 
 
+@app.route("/api/research/public-artifact-status")
+@requires_auth
+def api_research_public_artifact_status():
+    """v3.15.1 freshness surface for the public research artifacts.
+
+    Missing status file is reported with ``state="absent"`` and
+    ``public_artifacts_stale=null`` — explicit unknown, never implicit ok.
+    """
+    return jsonify(research_artifacts.load_public_artifact_status())
+
+
 @app.route("/api/research/universe")
 @requires_auth
 def api_research_universe():

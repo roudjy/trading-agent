@@ -318,3 +318,116 @@ pre.markdown {
 .candidate-table tbody tr:hover {
   background: var(--bg);
 }
+
+/* v3.15.1 stale-artifact banner + preset decision surface */
+
+.banner {
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.banner.warn {
+  border-color: var(--warn);
+  background: rgba(255, 181, 69, 0.08);
+}
+
+.banner.warn strong {
+  color: var(--warn);
+}
+
+.banner-body {
+  font-size: 0.88rem;
+  color: var(--fg-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.banner-body code {
+  margin-left: 0.25rem;
+}
+
+.banner-code {
+  font-size: 0.78rem;
+  margin-left: 0.5rem;
+  opacity: 0.75;
+}
+
+.preset-class-badge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+  margin-left: 0.5rem;
+}
+
+.preset-class-badge.baseline {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.preset-class-badge.diagnostic {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.preset-class-badge.experimental {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.decision-block {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border-left: 3px solid var(--warn);
+  background: rgba(255, 181, 69, 0.06);
+  border-radius: 4px;
+  font-size: 0.88rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.decision-block h4 {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--warn);
+}
+
+.decision-block ol {
+  margin: 0.2rem 0 0 1.2rem;
+  padding: 0;
+}
+
+.decision-block li {
+  margin-bottom: 0.2rem;
+}
+
+.preset-hypothesis-section {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.preset-hypothesis-section h4 {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+}

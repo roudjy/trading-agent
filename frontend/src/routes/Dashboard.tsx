@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Health, ReportPayload, RunStatus } from "../api/client";
+import { StaleArtifactBanner } from "../components/StaleArtifactBanner";
 
 export function Dashboard() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -27,6 +28,8 @@ export function Dashboard() {
   return (
     <>
       <h2 style={{ marginTop: 0 }}>Home</h2>
+
+      <StaleArtifactBanner />
 
       {error && <div className="card danger">Fout: {error}</div>}
 
