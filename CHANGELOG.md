@@ -4,6 +4,107 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.14.1] — Runtime budget + preset universe hotfix
+
+Date: 2026-04-24
+Branch: `fix/v3.14.1-runtime-budget-and-preset-universe`
+
+Targeted hotfix on top of v3.14 for the two blocking bugs that
+prevented daily / canary runs from completing on the VPS. No new
+features, no v3.15 work, no new strategies, no output contract
+changes. `research/research_latest.json` and
+`research/strategy_matrix.csv` schemas are untouched.
+
+### Fixed
+
+- **Screening candidate budget default** — raised from 60s to
+  300s (`research/run_research.py::DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS`).
+  The 60s default was too aggressive for warm-start screening on
+  Hetzner CX22 and caused frequent unwanted candidate interrupts.
+  Config override via `research.screening.candidate_budget_seconds`
+  remains authoritative — explicit values (including `0` =
+  no budget) are respected verbatim.
+- **Candidate-level timeout on screening interrupt** —
+  `execute_screening_candidate_isolated` returning
+  `execution_state="interrupted"` no longer raises
+  `KeyboardInterrupt`. That `BaseException` bypassed the enclosing
+  `except Exception` and killed the entire daily / canary run on
+  a single candidate timeout, leaving `running` artifacts behind.
+  The branch now emits a candidate-level outcome:
+  - `final_status = FINAL_STATUS_TIMED_OUT`
+  - `reason_code = "candidate_budget_exceeded"` (already a
+    documented v3.12 taxonomy code; no new strings)
+  - `legacy_decision.status = "rejected_in_screening"`
+  - `legacy_decision.reason = "candidate_budget_exceeded"`
+  - preserves isolated_result `elapsed_seconds`, `samples_total`,
+    `samples_completed`
+  - emits a `screening_candidate_budget_exceeded` tracker event
+  Control falls through into the regular post-candidate loop; the
+  existing `FINAL_STATUS_TIMED_OUT` branch at
+  `run_research.py:2313` continues to tally
+  `batch["timed_out_count"]`. The run proceeds to the next
+  candidate. A real user `Ctrl-C` from outside still raises
+  `BaseException` and propagates unchanged — the enclosing handler
+  was never widened.
+- **Preset universe is load-bearing for preset-runs** — new helper
+  `research.universe.build_research_universe_from_preset`. Before
+  v3.14.1, preset-runs first resolved assets via
+  `build_research_universe(research_config)`, which reads
+  `research.universe.source` (default `crypto_major`). The
+  preset's `universe` field was effectively ignored. That meant
+  `trend_equities_4h_baseline` silently ran on crypto assets
+  instead of NVDA/AMD/ASML/MSFT/META/AMZN/TSM.
+  The runner at `run_research.py:1843-1853` now branches: if a
+  preset is active, route through the preset helper; otherwise
+  use the config-driven path. `preset.universe` is authoritative,
+  `intervals` defaults to `[preset.timeframe]`,
+  `interval_lookbacks` / `default_lookback_days` still come from
+  `research_config`. Empty `preset.universe` raises `ValueError`.
+  Snapshot provenance uses `source="preset:<name>"` and
+  `resolver="preset"` so lineage is unambiguous.
+
+### Changed (additive only)
+
+- `research/run_research.py`: three edits (budget default,
+  interrupted branch rewrite, preset-aware universe wiring).
+- `research/universe.py`: new public function
+  `build_research_universe_from_preset` +
+  `_infer_asset_type_from_symbol` helper.
+- `VERSION`: `3.14.0` → `3.14.1`.
+
+### Deliberately **not** changed
+
+- No new config keys.
+- No taxonomy extensions (`candidate_budget_exceeded` is a v3.12
+  code).
+- No engine / cost_sensitivity / backtesting surface change.
+- No sidecar schema or byte-identity change.
+- No frontend work, no dashboard endpoints, no execution-bridge
+  surface.
+- No v3.15 paper-validation changes on this branch.
+
+### Tests (19 new)
+
+- `tests/unit/test_run_research_screening_budget_v3_14_1.py` (9):
+  default = 300, config override authoritative, zero = no-budget
+  sentinel, negative clamped to zero, interrupted branch projects
+  to candidate-level timeout with correct shape, no legacy
+  `KeyboardInterrupt` raise, taxonomy membership, except-scope
+  invariant (`except Exception`, not `BaseException`).
+- `tests/unit/test_run_research_preset_universe_v3_14_1.py` (10):
+  trend_equities_4h_baseline resolves to its preset universe (not
+  crypto_major), crypto preset resolves to crypto asset_type,
+  intervals = [preset.timeframe], empty preset.universe → clear
+  ValueError, None preset rejected, preset path ignores config
+  `research.universe.source`, lookback config still honoured,
+  non-preset runs still use `build_research_universe`, default
+  still `crypto_major` for empty config, runner source actually
+  calls the preset helper.
+
+All 19 green. Full suite: green (delta documented in handoff).
+
+---
+
 ## [v3.14] — Portfolio / Sleeve Research
 
 Date: 2026-04-23
