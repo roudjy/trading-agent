@@ -128,7 +128,10 @@ from research.screening_runtime import (
 )
 from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
-from research.universe import build_research_universe
+from research.universe import (
+    build_research_universe,
+    build_research_universe_from_preset,
+)
 
 # v3.9 orchestration seam: research is the only module permitted to
 # import from `orchestration/` beyond dashboard's late-phase launch
@@ -166,7 +169,7 @@ FALSIFICATION_GATES_PATH = Path("research/falsification_gates_latest.v1.json")
 RUN_LOG_DIR = Path("logs/research")
 RUN_HEARTBEAT_TIMEOUT_S = 300
 SCREENING_PARAM_SAMPLE_LIMIT = 3
-DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS = 60
+DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS = 300
 DEFAULT_EXECUTION_MAX_WORKERS = 1
 BATCH_EXECUTOR_CLASS = ProcessPoolExecutor
 
@@ -1840,14 +1843,24 @@ def run_research(
             0,
             int(screening_config.get("candidate_budget_seconds", DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS)),
         )
-        assets, intervals, get_date_range, as_of_utc, universe_snapshot = build_research_universe(research_config)
+        # v3.14.1: preset.universe is load-bearing for preset-runs. The
+        # config ``research.universe`` stanza is only consulted when no
+        # preset is active — this stops preset-driven runs from silently
+        # resolving to ``crypto_major`` when the preset actually specifies
+        # an equity universe. See docs/handoffs/v3.15-to-v3.16.md §4.
         if preset_obj is not None:
+            assets, intervals, get_date_range, as_of_utc, universe_snapshot = (
+                build_research_universe_from_preset(preset_obj, research_config)
+            )
             strategies = resolve_preset_bundle(preset_obj)
             if not strategies:
                 raise RuntimeError(
                     f"preset {preset_obj.name!r} has no executable strategies"
                 )
         else:
+            assets, intervals, get_date_range, as_of_utc, universe_snapshot = (
+                build_research_universe(research_config)
+            )
             strategies = get_enabled_strategies()
         strategy_by_name = {strategy["name"]: strategy for strategy in strategies}
 
@@ -2255,29 +2268,51 @@ def run_research(
                             history_root=Path("research/history"),
                         )
                         if isolated_result["execution_state"] == "interrupted":
-                            runtime_record["elapsed_seconds"] = int(isolated_result.get("elapsed_seconds") or 0)
-                            runtime_record["samples_total"] = int(isolated_result.get("samples_total") or 0)
-                            runtime_record["samples_completed"] = int(isolated_result.get("samples_completed") or 0)
-                            screening_payload = _persist_screening_candidate_sidecar(
-                                run_id=state["run_id"],
-                                as_of_utc=as_of_utc,
-                                screening_records=screening_records,
+                            # v3.14.1: budget exhaustion is a candidate-level
+                            # timeout. The run continues with the next
+                            # candidate. A real user KeyboardInterrupt from
+                            # outside this block is a BaseException and still
+                            # propagates — only the isolated_result
+                            # "interrupted" state is handled here.
+                            elapsed = int(isolated_result.get("elapsed_seconds") or 0)
+                            samples_total = int(isolated_result.get("samples_total") or 0)
+                            samples_done = int(isolated_result.get("samples_completed") or 0)
+                            runtime_record["elapsed_seconds"] = elapsed
+                            runtime_record["samples_total"] = samples_total
+                            runtime_record["samples_completed"] = samples_done
+                            outcome = {
+                                "legacy_decision": {
+                                    "status": "rejected_in_screening",
+                                    "reason": "candidate_budget_exceeded",
+                                    "sampled_combination_count": samples_done,
+                                },
+                                "runtime_status": "running",
+                                "final_status": FINAL_STATUS_TIMED_OUT,
+                                "started_at": runtime_record["started_at"],
+                                "finished_at": datetime.now(UTC).isoformat(),
+                                "elapsed_seconds": elapsed,
+                                "samples_total": samples_total,
+                                "samples_completed": samples_done,
+                                "decision": "rejected_in_screening",
+                                "reason_code": "candidate_budget_exceeded",
+                                "reason_detail": (
+                                    f"screening candidate budget exceeded "
+                                    f"(elapsed={elapsed}s, "
+                                    f"budget={screening_candidate_budget_seconds}s)"
+                                ),
+                            }
+                            tracker.emit_event(
+                                "screening_candidate_budget_exceeded",
+                                candidate_id=candidate["candidate_id"],
+                                strategy=candidate["strategy_name"],
+                                asset=candidate["asset"],
+                                interval=candidate["interval"],
+                                elapsed_seconds=elapsed,
+                                budget_seconds=screening_candidate_budget_seconds,
+                                samples_completed=samples_done,
                             )
-                            batch["elapsed_seconds"] = max(0, int(round(time.monotonic() - batch_started_monotonic)))
-                            _persist_run_batches_sidecar(run_id=state["run_id"], as_of_utc=as_of_utc, batches=batches)
-                            _write_batch_manifest(run_id=state["run_id"], batch=batch)
-                            _persist_campaign_artifacts(
-                                run_id=state["run_id"],
-                                started_at=state["started_at_utc"],
-                                batches=batches,
-                                candidate_payload=candidate_payload,
-                                screening_payload=screening_payload,
-                                **campaign_kwargs,
-                            )
-                            raise KeyboardInterrupt(
-                                f"screening candidate interrupted for {candidate['candidate_id']}"
-                            )
-                        outcome = dict(isolated_result["outcome"])
+                        else:
+                            outcome = dict(isolated_result["outcome"])
                     except Exception as exc:
                         outcome = {
                             "legacy_decision": {

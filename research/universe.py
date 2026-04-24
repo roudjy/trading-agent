@@ -342,3 +342,106 @@ def build_research_universe(research_config: dict[str, Any] | None = None):
         return start.strftime("%Y-%m-%d"), as_of_utc.strftime("%Y-%m-%d")
 
     return assets, intervals, date_range_for_interval, as_of_utc, snapshot
+
+
+def _infer_asset_type_from_symbol(symbol: str) -> tuple[str, str]:
+    """Best-effort inference used only for preset.universe entries.
+
+    Rules (in order):
+    - ``BTC-EUR`` / ``ETH-USD`` / any ``-EUR`` / ``-USD`` suffix → crypto
+    - ``FOO/BAR`` equity pair → equity (pair handling is upstream)
+    - otherwise → equity
+
+    Preset authors can always override by extending the preset schema
+    later; for v3.14.1 the heuristic covers every shipped preset.
+    """
+    sym = symbol.strip()
+    upper = sym.upper()
+    if upper.endswith("-EUR") or upper.endswith("-USD"):
+        return "crypto", "crypto"
+    return "equity", "equity"
+
+
+def build_research_universe_from_preset(
+    preset,
+    research_config: dict[str, Any] | None = None,
+):
+    """v3.14.1 preset-aware universe builder.
+
+    For preset-runs, ``preset.universe`` is authoritative. The config
+    ``research.universe`` stanza is ignored for asset resolution so
+    ``trend_equities_4h_baseline`` actually runs on equities instead
+    of the default ``crypto_major`` built-in.
+
+    Intervals default to ``[preset.timeframe]`` — a preset is a frozen
+    bundle of (universe, timeframe, …) so the timeframe is always
+    well-defined. ``interval_lookbacks`` and ``default_lookback_days``
+    continue to come from ``research_config`` so operations tuning
+    stays honoured.
+
+    Returns the same 5-tuple as :func:`build_research_universe`.
+
+    Raises:
+        ValueError: if ``preset.universe`` is empty.
+    """
+    if preset is None:
+        raise ValueError(
+            "build_research_universe_from_preset requires a non-None preset"
+        )
+    symbols = list(getattr(preset, "universe", ()) or ())
+    if not symbols:
+        raise ValueError(
+            f"preset {getattr(preset, 'name', '<unknown>')!r} has an empty "
+            f"universe; preset-driven runs require a non-empty preset.universe"
+        )
+
+    research_config = research_config or {}
+    as_of_utc = resolve_as_of_utc(research_config)
+
+    # Deterministic de-dup on symbol (first occurrence wins)
+    seen: set[str] = set()
+    assets: list[ResearchAsset] = []
+    for symbol in symbols:
+        if symbol in seen:
+            continue
+        seen.add(symbol)
+        asset_type, asset_class = _infer_asset_type_from_symbol(symbol)
+        assets.append(
+            ResearchAsset(
+                symbol=symbol,
+                asset_type=asset_type,
+                asset_class=asset_class,
+            )
+        )
+
+    snapshot = _build_snapshot(
+        source=f"preset:{getattr(preset, 'name', '<unnamed>')}",
+        resolver="preset",
+        as_of_utc=as_of_utc.isoformat(),
+        config={
+            "preset_name": getattr(preset, "name", None),
+            "preset_universe": symbols,
+            "preset_timeframe": getattr(preset, "timeframe", None),
+        },
+        assets=assets,
+        excluded=[],
+    )
+
+    timeframe = getattr(preset, "timeframe", None)
+    if timeframe:
+        intervals: list[str] = [timeframe]
+    else:
+        intervals = list(research_config.get("intervals", DEFAULT_INTERVALS))
+
+    interval_lookbacks = research_config.get("interval_lookbacks", {})
+    default_lookback_days = research_config.get("default_lookback_days", 1500)
+
+    def date_range_for_interval(interval):
+        lookback_days = interval_lookbacks.get(
+            interval,
+            700 if interval in ["1h", "4h"] else default_lookback_days,
+        )
+        start = as_of_utc - timedelta(days=lookback_days)
+        return start.strftime("%Y-%m-%d"), as_of_utc.strftime("%Y-%m-%d")
+
+    return assets, intervals, date_range_for_interval, as_of_utc, snapshot
