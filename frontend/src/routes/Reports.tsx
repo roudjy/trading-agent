@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ReportPayload } from "../api/client";
+import { StaleArtifactBanner } from "../components/StaleArtifactBanner";
 
 export function Reports() {
   const [markdown, setMarkdown] = useState<string | null>(null);
@@ -21,6 +22,7 @@ export function Reports() {
   return (
     <>
       <h2 style={{ marginTop: 0 }}>Reports</h2>
+      <StaleArtifactBanner />
       {error && <div className="card danger">Fout: {error}</div>}
       {payload && (
         <section className="card">
