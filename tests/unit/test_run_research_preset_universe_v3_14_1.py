@@ -23,7 +23,6 @@ from research.presets import PRESETS
 from research.universe import (
     BUILTIN_UNIVERSES,
     DEFAULT_SOURCE,
-    ResearchAsset,
     build_research_universe,
     build_research_universe_from_preset,
 )

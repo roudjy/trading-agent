@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from research import run_research
 
 
@@ -110,12 +108,6 @@ def test_interrupted_result_is_projected_to_candidate_level_timeout_outcome():
     }
     screening_budget = 300
     runtime_record = {"started_at": "2026-04-24T10:00:00+00:00"}
-    candidate = {
-        "candidate_id": "X",
-        "strategy_name": "ema_trend",
-        "asset": "NVDA",
-        "interval": "4h",
-    }
 
     # Replica of the v3.14.1 branch body
     elapsed = int(isolated_result.get("elapsed_seconds") or 0)
