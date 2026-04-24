@@ -128,7 +128,10 @@ from research.screening_runtime import (
 )
 from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
-from research.universe import build_research_universe
+from research.universe import (
+    build_research_universe,
+    build_research_universe_from_preset,
+)
 
 # v3.9 orchestration seam: research is the only module permitted to
 # import from `orchestration/` beyond dashboard's late-phase launch
@@ -1840,14 +1843,24 @@ def run_research(
             0,
             int(screening_config.get("candidate_budget_seconds", DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS)),
         )
-        assets, intervals, get_date_range, as_of_utc, universe_snapshot = build_research_universe(research_config)
+        # v3.14.1: preset.universe is load-bearing for preset-runs. The
+        # config ``research.universe`` stanza is only consulted when no
+        # preset is active — this stops preset-driven runs from silently
+        # resolving to ``crypto_major`` when the preset actually specifies
+        # an equity universe. See docs/handoffs/v3.15-to-v3.16.md §4.
         if preset_obj is not None:
+            assets, intervals, get_date_range, as_of_utc, universe_snapshot = (
+                build_research_universe_from_preset(preset_obj, research_config)
+            )
             strategies = resolve_preset_bundle(preset_obj)
             if not strategies:
                 raise RuntimeError(
                     f"preset {preset_obj.name!r} has no executable strategies"
                 )
         else:
+            assets, intervals, get_date_range, as_of_utc, universe_snapshot = (
+                build_research_universe(research_config)
+            )
             strategies = get_enabled_strategies()
         strategy_by_name = {strategy["name"]: strategy for strategy in strategies}
 
