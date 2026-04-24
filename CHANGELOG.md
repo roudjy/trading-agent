@@ -4,6 +4,144 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.1] — Stale Artifact Banner + Pairs Decision Surface
+
+Date: 2026-04-24
+Branch: `fix/v3.15.1-stale-artifact-banner-and-pairs-decision`
+
+Kleine operationele / product-verduidelijking bovenop v3.15. Geen
+alpha-uitbreiding, geen nieuwe strategieën, geen engine-contract
+wijziging. Twee gaten gesloten:
+
+1. Stale public artifacts bij degenerate / no-survivor runs zijn nu
+   zichtbaar in API + UI; `research_latest.json` en
+   `strategy_matrix.csv` blijven frozen en onaangeraakt.
+2. `pairs_equities_daily_baseline` is expliciet als
+   product-/roadmapbeslissing gevisualiseerd — geen kapotte
+   placeholder, maar een gedocumenteerde disabled/planned preset met
+   rationale, verwacht gedrag, falsificatiecriteria en
+   enablement-criteria.
+
+### Added
+
+- **Public artifact status sidecar** (`research/public_artifact_status.py`,
+  schema v1.0, `PUBLIC_ARTIFACT_STATUS_VERSION="v0.1"`). Adjacent
+  artifact `research/public_artifact_status_latest.v1.json` geschreven
+  na **elke** run-poging (success én degenerate). Velden:
+  `last_attempted_run` (run_id, attempted_at_utc, preset, outcome,
+  failure_stage), `last_public_artifact_write` (run_id, written_at_utc,
+  preset), `last_public_write_age_seconds`, `public_artifacts_stale`,
+  `stale_reason` (gesloten vocabulary:
+  `degenerate_run_no_public_write`, `error_no_public_write`,
+  `public_write_never_occurred`), `stale_since_utc`. Missing file is
+  **expliciet unknown** (niet impliciet fresh). `stale_since_utc`
+  wordt bewaard over opeenvolgende stale runs; een succesvolle run
+  reset naar fresh.
+- **Dashboard endpoint** `GET /api/research/public-artifact-status`
+  (`@requires_auth`, missing-state-safe). Absent-state payload draagt
+  `state="absent"` + `public_artifacts_stale=null` zodat consumers
+  "confirmed fresh" kunnen onderscheiden van "no signal yet".
+- **Frontend banner** `frontend/src/components/StaleArtifactBanner.tsx`.
+  Rendert alleen bij `state="valid"` + `public_artifacts_stale=true`.
+  Getoond op `/` (Dashboard), `/reports`, `/candidates`. Absent-state
+  rendert niets — onbekend is niet onveilig, maar het is ook geen
+  impliciete fresh.
+- **Preset `enablement_criteria`**: nieuw veld op `ResearchPreset`
+  (`tuple[str, ...] = ()`, backward-compatible).
+- **Gevulde hypothesis-metadata voor `pairs_equities_daily_baseline`**:
+  `rationale`, `expected_behavior`, `falsification`,
+  `enablement_criteria` zijn nu gedocumenteerd — van lege placeholder
+  naar first-class productbeslissing.
+- **Backend-side preset decision inference**: `preset_to_card()`
+  exposeert een `decision` dict met gesloten `kind` vocabulary
+  (`disabled_planned`, `diagnostic_only`, `scheduler_excluded`, null)
+  + `is_product_decision` + `summary` + `requires_enablement`.
+  Frontend rendert op basis hiervan — geen business-logic in de UI.
+- **Frontend preset decision surface**: `Presets.tsx` toont
+  `preset_class` badge + rationale/expected_behavior/falsification
+  secties + een dedicated decision-block met backlog_reason en
+  genummerde `enablement_criteria` wanneer
+  `decision.is_product_decision=true`.
+
+### Changed
+
+- `research/run_research.py`: success-path schrijft nu altijd
+  `public_artifact_status` na `write_latest_json`. Elk van de vier
+  degenerate-paths (`eligibility_no_candidates`,
+  `screening_no_survivors`, `validation_no_survivors`,
+  `postrun_no_oos_daily_returns`) schrijft de stale-versie. Fouten
+  op de sidecar-write worden gemeld via
+  `public_artifact_status_sidecar_failed` tracker-event maar blokkeren
+  nooit de run — dit is een observability artifact.
+- `research/presets.py`: `ResearchPreset.enablement_criteria` toegevoegd,
+  `preset_to_card()` exposeert `enablement_criteria` + `decision`.
+- `dashboard/research_artifacts.py`: `load_public_artifact_status()`
+  + `PUBLIC_ARTIFACT_STATUS_PATH` constant.
+- `frontend/src/api/client.ts`: `PresetCard` interface uitgebreid met
+  v3.11 velden (`preset_class`, `rationale`, `expected_behavior`,
+  `falsification`) + v3.15.1 velden (`enablement_criteria`,
+  `decision`). Nieuwe `PublicArtifactStatus` type +
+  `api.publicArtifactStatus()`.
+- `frontend/src/routes/Dashboard.tsx`, `Reports.tsx`, `Candidates.tsx`:
+  mount `<StaleArtifactBanner />` bovenaan.
+- `frontend/src/routes/Presets.tsx`: gesplitst in `PresetCardView`
+  met expliciete rendering van hypothesis-metadata + decision-block.
+- `frontend/package.json` + `vitest.config.ts`: vitest +
+  @testing-library opzet voor frontend-tests.
+
+### Deliberately not changed
+
+- `research_latest.json`: frozen, schema onveranderd.
+- `strategy_matrix.csv`: frozen, schema onveranderd.
+- `empty_run_diagnostics_latest.v1.json`: onveranderd (blijft
+  authoritative source voor degenerate-run detail); de nieuwe sidecar
+  is een aparte freshness-surface, geen replacement.
+- `run_meta_latest.v1.json`: onveranderd.
+- v3.12 / v3.13 / v3.14 / v3.15 sidecars: onveranderd.
+- `candidate_registry_latest.v1.json` / `.v2.json`: onveranderd.
+- Engine / strategy registry / orchestration layer: onveranderd.
+- `pairs_equities_daily_baseline`: blijft `enabled=False`,
+  `status="planned"`. Deze release activeert géén pairs-logic —
+  documenteert alleen de bestaande beslissing als first-class surface.
+- `SCORING_FORMULA_VERSION`: blijft `v0.1-experimental`.
+
+### Tests
+
+- `tests/unit/test_public_artifact_status.py` (16): version pins,
+  outcome handling (success / degenerate / error), stale_reason
+  vocabulary, stale_since_utc preservation, stale→fresh transition,
+  atomic write round-trip, schema validation.
+- `tests/unit/test_dashboard_api_public_artifact_status.py` (5): auth
+  gate, explicit absent-state (`public_artifacts_stale=null`),
+  success pass-through, stale pass-through with
+  `last_public_write_age_seconds`, invalid-json fallback.
+- `tests/unit/test_presets.py` (+6): `enablement_criteria` default,
+  pairs preset carries full research metadata + enablement criteria,
+  card exposes new fields, decision inference on pairs / baseline /
+  diagnostic presets, JSON safety.
+- `tests/integration/test_public_artifact_status_end_to_end.py` (5):
+  success → fresh, degenerate-without-prior →
+  `public_write_never_occurred`, degenerate-after-success preserves
+  write block, stale → fresh transition after later success, sidecar
+  write failure still emits tracker event + raises degenerate error.
+- `frontend/src/components/__tests__/StaleArtifactBanner.test.tsx` (4):
+  absent / fresh / stale / api-error rendering behavior.
+- `frontend/src/routes/__tests__/Presets.test.tsx` (3): decision block
+  visible on disabled_planned, hidden on enabled stable, no
+  cross-contamination in mixed preset lists.
+
+### Known limitations
+
+- Geen bar-level freshness — de sidecar is run-granulariteit.
+- Geen per-sidecar freshness (elk v3.12+ sidecar apart). v3.15.1
+  dekt alleen de twee publieke frozen contracts.
+- `enablement_criteria` voor pairs zijn indicatief — de formele
+  v3.11 equity-pairs ADR blijft de gate voor een latere enablement.
+- Error-outcome (`STALE_REASON_ERROR`) is geschikt voor toekomstige
+  outer try/except wrapper rond `run_research`; wordt in v3.15.1 niet
+  automatisch geschreven bij onverwachte exceptions buiten de
+  degenerate / success paden.
+
 ## [v3.15] — Paper Validation Engine
 
 Date: 2026-04-24
