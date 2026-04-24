@@ -10,6 +10,21 @@ export interface Health {
   scheduler_next_fire_utc: string | null;
 }
 
+export type PresetClass = "baseline" | "diagnostic" | "experimental";
+
+export type PresetDecisionKind =
+  | "disabled_planned"
+  | "diagnostic_only"
+  | "scheduler_excluded"
+  | null;
+
+export interface PresetDecision {
+  is_product_decision: boolean;
+  kind: PresetDecisionKind;
+  summary: string;
+  requires_enablement: boolean;
+}
+
 export interface PresetCard {
   name: string;
   hypothesis: string;
@@ -27,6 +42,39 @@ export interface PresetCard {
   regime_filter: string | null;
   regime_modes: string[];
   backlog_reason: string | null;
+  preset_class: PresetClass;
+  rationale: string;
+  expected_behavior: string;
+  falsification: string[];
+  enablement_criteria: string[];
+  decision: PresetDecision;
+}
+
+export interface PublicArtifactRunBlock {
+  run_id: string | null;
+  attempted_at_utc?: string | null;
+  written_at_utc?: string | null;
+  preset: string | null;
+  outcome?: "success" | "degenerate" | "error" | null;
+  failure_stage?: string | null;
+}
+
+export interface PublicArtifactStatus {
+  state: "valid" | "absent" | "empty" | "invalid_json" | "unreadable";
+  schema_version: string | null;
+  public_artifact_status_version: string | null;
+  generated_at_utc?: string | null;
+  artifact_modified_at_utc: string | null;
+  last_attempted_run: PublicArtifactRunBlock | null;
+  last_public_artifact_write: PublicArtifactRunBlock | null;
+  last_public_write_age_seconds: number | null;
+  public_artifacts_stale: boolean | null;
+  stale_reason:
+    | "degenerate_run_no_public_write"
+    | "error_no_public_write"
+    | "public_write_never_occurred"
+    | null;
+  stale_since_utc: string | null;
 }
 
 export interface ReportPayload {
@@ -102,6 +150,8 @@ export const api = {
     ),
   candidatesLatest: () => request<Record<string, unknown>>("/api/candidates/latest"),
   runStatus: () => request<RunStatus>("/api/research/run-status"),
+  publicArtifactStatus: () =>
+    request<PublicArtifactStatus>("/api/research/public-artifact-status"),
   login: (username: string, password: string) =>
     request<{ ok: boolean; actor?: string; error?: string }>("/api/session/login", {
       method: "POST",

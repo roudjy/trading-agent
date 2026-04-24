@@ -232,6 +232,70 @@ def test_preset_to_card_exposes_v311_fields():
     assert card["falsification"]
 
 
+# ---------------------------------------------------------------------------
+# v3.15.1 — enablement_criteria + backend-side decision inference
+# ---------------------------------------------------------------------------
+
+
+def test_enablement_criteria_field_defaults_to_empty_tuple():
+    baseline = get_preset("trend_equities_4h_baseline")
+    assert baseline.enablement_criteria == ()
+
+
+def test_pairs_preset_now_carries_full_research_metadata():
+    pairs = get_preset("pairs_equities_daily_baseline")
+    assert pairs.enabled is False
+    assert pairs.status == "planned"
+    assert pairs.rationale.strip()
+    assert pairs.expected_behavior.strip()
+    assert pairs.falsification and all(
+        isinstance(item, str) and item.strip()
+        for item in pairs.falsification
+    )
+    assert pairs.enablement_criteria and all(
+        isinstance(item, str) and item.strip()
+        for item in pairs.enablement_criteria
+    )
+
+
+def test_preset_to_card_exposes_enablement_criteria_and_decision():
+    card = preset_to_card(get_preset("pairs_equities_daily_baseline"))
+    assert isinstance(card["enablement_criteria"], list)
+    assert card["enablement_criteria"]
+    decision = card["decision"]
+    assert decision["is_product_decision"] is True
+    assert decision["kind"] == "disabled_planned"
+    assert decision["requires_enablement"] is True
+    assert decision["summary"].strip()
+
+
+def test_enabled_stable_preset_decision_is_not_product_decision():
+    card = preset_to_card(get_preset("trend_equities_4h_baseline"))
+    decision = card["decision"]
+    assert decision["is_product_decision"] is False
+    assert decision["kind"] is None
+    assert decision["requires_enablement"] is False
+
+
+def test_diagnostic_only_preset_decision_kind_is_diagnostic_only():
+    card = preset_to_card(get_preset("crypto_diagnostic_1h"))
+    decision = card["decision"]
+    assert decision["is_product_decision"] is True
+    assert decision["kind"] == "diagnostic_only"
+    assert decision["requires_enablement"] is False
+
+
+def test_decision_block_is_json_safe():
+    import json
+
+    for preset in PRESETS:
+        card = preset_to_card(preset)
+        blob = json.dumps(card)
+        restored = json.loads(blob)
+        assert "decision" in restored
+        assert "enablement_criteria" in restored
+
+
 def test_qre_strict_preset_validation_env_flag(monkeypatch):
     """The opt-in env flag only flips runner behavior; validate_preset
     itself remains a pure function that always returns issues without

@@ -14,6 +14,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor
 from datetime import UTC, datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -112,6 +113,12 @@ from research.presets import (
     resolve_preset_bundle,
 )
 from research.registry import get_enabled_strategies
+from research.public_artifact_status import (
+    PUBLIC_ARTIFACT_STATUS_PATH,
+    build_public_artifact_status,
+    read_public_artifact_status,
+    write_public_artifact_status,
+)
 from research.report_agent import generate_post_run_report
 from research.run_meta import (
     RUN_META_PATH,
@@ -1708,6 +1715,33 @@ def _elapsed_from_started_at(started_at: str | None) -> int:
     return max(0, int(round((datetime.now(UTC) - datetime.fromisoformat(started_at)).total_seconds())))
 
 
+def _write_public_artifact_status_sidecar(
+    *,
+    outcome: str,
+    run_id: str | None,
+    attempted_at_utc: str,
+    preset_name: str | None,
+    failure_stage: str | None = None,
+    path: Path = PUBLIC_ARTIFACT_STATUS_PATH,
+) -> dict | None:
+    """Emit the v3.15.1 freshness sidecar.
+
+    Write failures are logged via the caller's tracker but must never
+    block the run — this is an observability artifact, not a gate.
+    """
+    existing = read_public_artifact_status(path)
+    payload = build_public_artifact_status(
+        outcome=outcome,  # type: ignore[arg-type]
+        run_id=str(run_id) if run_id is not None else "",
+        attempted_at_utc=attempted_at_utc,
+        preset=preset_name,
+        failure_stage=failure_stage,
+        existing=existing,
+    )
+    write_public_artifact_status(payload, path=path)
+    return payload
+
+
 def _raise_degenerate_run(
     *,
     as_of_utc,
@@ -1718,6 +1752,9 @@ def _raise_degenerate_run(
     pair_diagnostics: list[dict],
     evaluations_count: int = 0,
     evaluations_with_oos_daily_returns: int = 0,
+    run_id: str | None = None,
+    preset_name: str | None = None,
+    tracker: Any | None = None,
 ) -> None:
     payload = _write_empty_run_diagnostics_sidecar(
         as_of_utc=as_of_utc,
@@ -1729,6 +1766,25 @@ def _raise_degenerate_run(
         evaluations_count=evaluations_count,
         evaluations_with_oos_daily_returns=evaluations_with_oos_daily_returns,
     )
+    try:
+        _write_public_artifact_status_sidecar(
+            outcome="degenerate",
+            run_id=run_id,
+            attempted_at_utc=as_of_utc.isoformat(),
+            preset_name=preset_name,
+            failure_stage=failure_stage,
+        )
+    except Exception as status_exc:
+        if tracker is not None:
+            try:
+                tracker.emit_event(
+                    "public_artifact_status_sidecar_failed",
+                    error=str(status_exc),
+                    outcome="degenerate",
+                    failure_stage=failure_stage,
+                )
+            except Exception:
+                pass
     raise DegenerateResearchRunError(payload["message"])
 
 def run_research(
@@ -1969,6 +2025,9 @@ def run_research(
                 intervals=intervals,
                 interval_ranges=interval_ranges,
                 pair_diagnostics=pair_diagnostics,
+                run_id=str(state["run_id"]),
+                preset_name=preset_obj.name if preset_obj else None,
+                tracker=tracker,
             )
 
         tracker.start_stage("screening", total=eligibility_summary["eligible_candidate_count"])
@@ -2588,6 +2647,9 @@ def run_research(
                 intervals=intervals,
                 interval_ranges=interval_ranges,
                 pair_diagnostics=pair_diagnostics,
+                run_id=str(state["run_id"]),
+                preset_name=preset_obj.name if preset_obj else None,
+                tracker=tracker,
             )
 
         tracker.start_stage("validation", total=screening_summary["validation_candidate_count"])
@@ -2928,6 +2990,9 @@ def run_research(
                 interval_ranges=interval_ranges,
                 pair_diagnostics=pair_diagnostics,
                 evaluations_count=len(evaluations),
+                run_id=str(state["run_id"]),
+                preset_name=preset_obj.name if preset_obj else None,
+                tracker=tracker,
             )
 
         evaluable_oos_daily_return_count = _count_evaluable_oos_daily_return_evaluations(evaluations)
@@ -2941,12 +3006,29 @@ def run_research(
                 pair_diagnostics=pair_diagnostics,
                 evaluations_count=len(evaluations),
                 evaluations_with_oos_daily_returns=evaluable_oos_daily_return_count,
+                run_id=str(state["run_id"]),
+                preset_name=preset_obj.name if preset_obj else None,
+                tracker=tracker,
             )
 
         tracker.start_stage("writing_outputs", total=len(rows))
         rows = sorted(rows, key=_result_row_sort_key)
         write_results_to_csv(rows)
         write_latest_json(rows, as_of_utc=as_of_utc)
+
+        try:
+            _write_public_artifact_status_sidecar(
+                outcome="success",
+                run_id=str(state["run_id"]),
+                attempted_at_utc=as_of_utc.isoformat(),
+                preset_name=preset_obj.name if preset_obj else None,
+            )
+        except Exception as status_exc:
+            tracker.emit_event(
+                "public_artifact_status_sidecar_failed",
+                error=str(status_exc),
+                outcome="success",
+            )
 
         if any(not report["leakage_checks_ok"] for report in walk_forward_reports):
             raise FoldLeakageError("Leakage check failed; walk-forward sidecar will not be written")
