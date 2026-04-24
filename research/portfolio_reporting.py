@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from research._oos_stream import normalize_oos_daily_return_stream
 from research.promotion import build_strategy_id
 
 VIEW_SPECS: tuple[tuple[str, str], ...] = (
@@ -411,28 +412,13 @@ def _normalize_run(evaluation: dict[str, Any]) -> dict[str, Any]:
 
 
 def _normalize_stream(raw_stream: Any) -> tuple[list[dict[str, Any]], str | None]:
-    if not isinstance(raw_stream, list) or not raw_stream:
-        return [], "missing_oos_daily_return_stream"
+    """Thin delegate to :func:`research._oos_stream.normalize_oos_daily_return_stream`.
 
-    stream: list[dict[str, Any]] = []
-    seen_timestamps: set[str] = set()
-    for point in raw_stream:
-        if not isinstance(point, dict):
-            return [], "malformed_oos_daily_return_stream"
-        timestamp = point.get("timestamp_utc")
-        value = point.get("return")
-        if not isinstance(timestamp, str) or not isinstance(value, (int, float)):
-            return [], "malformed_oos_daily_return_stream"
-        if timestamp in seen_timestamps:
-            return [], "duplicate_timestamp_in_oos_daily_return_stream"
-        seen_timestamps.add(timestamp)
-        stream.append({
-            "timestamp_utc": timestamp,
-            "return": float(value),
-        })
-
-    stream.sort(key=lambda item: item["timestamp_utc"])
-    return stream, None
+    Kept as a private alias so existing call-sites inside
+    ``portfolio_reporting`` stay unchanged and byte-identity of
+    v3.12+ artifacts is preserved.
+    """
+    return normalize_oos_daily_return_stream(raw_stream)
 
 
 def _aligned_return_map(sleeve: dict[str, Any]) -> dict[str, float]:
