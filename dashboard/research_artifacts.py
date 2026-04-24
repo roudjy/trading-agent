@@ -17,6 +17,9 @@ EMPTY_RUN_DIAGNOSTICS_PATH = (
     BASE_DIR / "research" / "empty_run_diagnostics_latest.v1.json"
 )
 UNIVERSE_SNAPSHOT_PATH = BASE_DIR / "research" / "universe_snapshot_latest.v1.json"
+PUBLIC_ARTIFACT_STATUS_PATH = (
+    BASE_DIR / "research" / "public_artifact_status_latest.v1.json"
+)
 
 
 def _path_label(path: Path) -> str:
@@ -110,3 +113,78 @@ def load_empty_run_diagnostics_artifact() -> dict[str, Any]:
 
 def load_universe_snapshot_artifact() -> dict[str, Any]:
     return load_json_artifact(UNIVERSE_SNAPSHOT_PATH)
+
+
+def load_public_artifact_status(
+    path: Path | None = None,
+) -> dict[str, Any]:
+    """Freshness surface for research_latest.json / strategy_matrix.csv.
+
+    Missing status file is reported as an explicit ``state="absent"``
+    payload with ``public_artifacts_stale=None`` — unknown, not false.
+    This lets dashboards differentiate "verified fresh" from
+    "no signal yet" instead of defaulting to an implicit ok.
+
+    The default path is resolved at call-time (not at function-def
+    time) so tests can monkeypatch ``PUBLIC_ARTIFACT_STATUS_PATH``
+    without rebinding the function.
+    """
+    if path is None:
+        path = PUBLIC_ARTIFACT_STATUS_PATH
+    if not path.exists():
+        return {
+            "artifact_path": _path_label(path),
+            "state": "absent",
+            "artifact_modified_at_utc": None,
+            "public_artifacts_stale": None,
+            "stale_reason": None,
+            "stale_since_utc": None,
+            "last_attempted_run": None,
+            "last_public_artifact_write": None,
+            "last_public_write_age_seconds": None,
+            "schema_version": None,
+            "public_artifact_status_version": None,
+        }
+
+    raw_artifact = load_json_artifact(path)
+    payload = raw_artifact.get("artifact")
+    if not isinstance(payload, dict):
+        return {
+            "artifact_path": _path_label(path),
+            "state": raw_artifact.get("artifact_state", "invalid_json"),
+            "artifact_modified_at_utc": raw_artifact.get(
+                "artifact_modified_at_utc"
+            ),
+            "public_artifacts_stale": None,
+            "stale_reason": None,
+            "stale_since_utc": None,
+            "last_attempted_run": None,
+            "last_public_artifact_write": None,
+            "last_public_write_age_seconds": None,
+            "schema_version": None,
+            "public_artifact_status_version": None,
+            "artifact_error": raw_artifact.get("artifact_error"),
+        }
+
+    return {
+        "artifact_path": _path_label(path),
+        "state": "valid",
+        "artifact_modified_at_utc": raw_artifact.get(
+            "artifact_modified_at_utc"
+        ),
+        "schema_version": payload.get("schema_version"),
+        "public_artifact_status_version": payload.get(
+            "public_artifact_status_version"
+        ),
+        "generated_at_utc": payload.get("generated_at_utc"),
+        "last_attempted_run": payload.get("last_attempted_run"),
+        "last_public_artifact_write": payload.get(
+            "last_public_artifact_write"
+        ),
+        "last_public_write_age_seconds": payload.get(
+            "last_public_write_age_seconds"
+        ),
+        "public_artifacts_stale": payload.get("public_artifacts_stale"),
+        "stale_reason": payload.get("stale_reason"),
+        "stale_since_utc": payload.get("stale_since_utc"),
+    }
