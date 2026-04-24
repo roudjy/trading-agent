@@ -521,6 +521,171 @@ def api_registry_portfolio():
         return jsonify({"error": str(exc), "concentration_warnings": []}), 500
 
 
+# ---------------------------------------------------------------------------
+# v3.15 paper validation endpoints
+# ---------------------------------------------------------------------------
+
+_V3_15_PAPER_LEDGER_PATH = Path("research/paper_ledger_latest.v1.json")
+_V3_15_PAPER_DIVERGENCE_PATH = Path("research/paper_divergence_latest.v1.json")
+_V3_15_PAPER_READINESS_PATH = Path("research/paper_readiness_latest.v1.json")
+
+
+def _load_paper_artifact(path: Path) -> tuple[dict | None, str | None]:
+    if not path.exists():
+        return None, None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), None
+    except (json.JSONDecodeError, OSError) as exc:
+        return None, str(exc)
+
+
+@app.route("/api/registry/paper/ledger")
+@requires_auth
+def api_registry_paper_ledger():
+    """Read-only view of research/paper_ledger_latest.v1.json (v3.15)."""
+    missing = {
+        "schema_version": "1.0",
+        "paper_ledger_version": None,
+        "paper_venues_version": None,
+        "generated_at_utc": None,
+        "artifact_state": "missing",
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "event_types": [],
+        "evidence_statuses": [],
+        "overall_event_counts": {},
+        "per_candidate": [],
+    }
+    payload, err = _load_paper_artifact(_V3_15_PAPER_LEDGER_PATH)
+    if err is not None:
+        return jsonify({"error": err, "per_candidate": []}), 500
+    if payload is None:
+        return jsonify(missing)
+    return jsonify(payload)
+
+
+@app.route("/api/registry/paper/divergence")
+@requires_auth
+def api_registry_paper_divergence():
+    """Read-only view of research/paper_divergence_latest.v1.json (v3.15)."""
+    missing = {
+        "schema_version": "1.0",
+        "paper_divergence_version": None,
+        "paper_venues_version": None,
+        "generated_at_utc": None,
+        "artifact_state": "missing",
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "alignment_policy": {},
+        "severity_thresholds_bps": {},
+        "severity_counts": {"low": 0, "medium": 0, "high": 0},
+        "per_candidate": [],
+        "per_sleeve_equal_weight": [],
+        "portfolio_equal_weight": {},
+    }
+    payload, err = _load_paper_artifact(_V3_15_PAPER_DIVERGENCE_PATH)
+    if err is not None:
+        return jsonify({"error": err, "per_candidate": []}), 500
+    if payload is None:
+        return jsonify(missing)
+    return jsonify(payload)
+
+
+@app.route("/api/registry/paper/readiness")
+@requires_auth
+def api_registry_paper_readiness():
+    """Read-only view of research/paper_readiness_latest.v1.json (v3.15)."""
+    missing = {
+        "schema_version": "1.0",
+        "paper_readiness_version": None,
+        "generated_at_utc": None,
+        "artifact_state": "missing",
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "thresholds": {},
+        "blocking_reasons_taxonomy": [],
+        "warning_reasons_taxonomy": [],
+        "readiness_statuses": [],
+        "counts": {},
+        "entries": [],
+    }
+    payload, err = _load_paper_artifact(_V3_15_PAPER_READINESS_PATH)
+    if err is not None:
+        return jsonify({"error": err, "entries": []}), 500
+    if payload is None:
+        return jsonify(missing)
+    return jsonify(payload)
+
+
+@app.route("/api/registry/paper")
+@requires_auth
+def api_registry_paper_summary():
+    """Summary view aggregating the three v3.15 detail artifacts.
+
+    Reports readiness status counts, divergence severity
+    distribution, ledger event counts, and each artifact's
+    individual state. ``live_eligible`` is hard-pinned False.
+    """
+    ledger_payload, ledger_err = _load_paper_artifact(
+        _V3_15_PAPER_LEDGER_PATH
+    )
+    divergence_payload, div_err = _load_paper_artifact(
+        _V3_15_PAPER_DIVERGENCE_PATH
+    )
+    readiness_payload, rdy_err = _load_paper_artifact(
+        _V3_15_PAPER_READINESS_PATH
+    )
+
+    artifact_states = {
+        "ledger": "present" if ledger_payload else (
+            "error" if ledger_err else "missing"
+        ),
+        "divergence": "present" if divergence_payload else (
+            "error" if div_err else "missing"
+        ),
+        "readiness": "present" if readiness_payload else (
+            "error" if rdy_err else "missing"
+        ),
+    }
+
+    readiness_counts = (readiness_payload or {}).get("counts") or {}
+    divergence_severity = (
+        (divergence_payload or {}).get("severity_counts")
+        or {"low": 0, "medium": 0, "high": 0}
+    )
+    ledger_event_counts = (
+        (ledger_payload or {}).get("overall_event_counts") or {}
+    )
+
+    generated_at_utc = None
+    for payload in (ledger_payload, divergence_payload, readiness_payload):
+        if payload and payload.get("generated_at_utc"):
+            generated_at_utc = payload["generated_at_utc"]
+            break
+
+    summary = {
+        "schema_version": "1.0",
+        "paper_summary_version": "v0.1",
+        "generated_at_utc": generated_at_utc,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "artifact_state": (
+            "present" if all(v == "present" for v in artifact_states.values())
+            else "partial" if any(v == "present" for v in artifact_states.values())
+            else "missing"
+        ),
+        "artifact_states": artifact_states,
+        "readiness_counts": readiness_counts,
+        "divergence_severity_distribution": divergence_severity,
+        "ledger_event_counts": ledger_event_counts,
+    }
+    return jsonify(summary)
+
+
 _VERSION_PATH = Path("VERSION")
 
 

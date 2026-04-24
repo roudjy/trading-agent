@@ -44,6 +44,9 @@ _REGIME_INTELLIGENCE_SIDECAR = Path("research/regime_intelligence_latest.v1.json
 _REGIME_OVERLAY_SIDECAR = Path("research/candidate_registry_regime_overlay_latest.v1.json")
 _SLEEVE_REGISTRY_SIDECAR = Path("research/sleeve_registry_latest.v1.json")
 _PORTFOLIO_DIAGNOSTICS_SIDECAR = Path("research/portfolio_diagnostics_latest.v1.json")
+_PAPER_LEDGER_SIDECAR = Path("research/paper_ledger_latest.v1.json")
+_PAPER_DIVERGENCE_SIDECAR = Path("research/paper_divergence_latest.v1.json")
+_PAPER_READINESS_SIDECAR = Path("research/paper_readiness_latest.v1.json")
 
 
 VERDICT_PROMOTED = "promoted"
@@ -191,6 +194,43 @@ def _portfolio_layer_summary(
         "intra_sleeve_correlation_warning_count": int(
             len(diagnostics.get("intra_sleeve_correlation_warnings") or [])
         ),
+    }
+
+
+def _paper_layer_summary(
+    paper_ledger: dict[str, Any] | None,
+    paper_divergence: dict[str, Any] | None,
+    paper_readiness: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """v3.15 additive summary for the report payload.
+
+    Returns ``None`` when none of the three v3.15 sidecars are
+    present so consumers can differentiate "no v3.15 run yet"
+    from "empty paper evidence".
+    """
+    if not paper_ledger and not paper_divergence and not paper_readiness:
+        return None
+    ledger = paper_ledger or {}
+    divergence = paper_divergence or {}
+    readiness = paper_readiness or {}
+    return {
+        "paper_ledger_version": ledger.get("paper_ledger_version"),
+        "paper_divergence_version": divergence.get("paper_divergence_version"),
+        "paper_readiness_version": readiness.get("paper_readiness_version"),
+        "paper_venues_version": (
+            ledger.get("paper_venues_version")
+            or divergence.get("paper_venues_version")
+        ),
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "ledger_event_counts": ledger.get("overall_event_counts") or {},
+        "divergence_severity_counts": (
+            divergence.get("severity_counts")
+            or {"low": 0, "medium": 0, "high": 0}
+        ),
+        "readiness_counts": readiness.get("counts") or {},
+        "candidate_count": int(len(readiness.get("entries") or [])),
     }
 
 
@@ -700,6 +740,11 @@ def build_report_payload(
             _load_json(_SLEEVE_REGISTRY_SIDECAR),
             _load_json(_PORTFOLIO_DIAGNOSTICS_SIDECAR),
         ),
+        "paper_layer_summary": _paper_layer_summary(
+            _load_json(_PAPER_LEDGER_SIDECAR),
+            _load_json(_PAPER_DIVERGENCE_SIDECAR),
+            _load_json(_PAPER_READINESS_SIDECAR),
+        ),
     }
 
 
@@ -731,6 +776,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     _append_waarom_section(lines, report.get("per_candidate_diagnostics") or [])
     _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
     _append_portfolio_layer_section(lines, report.get("portfolio_layer_summary"))
+    _append_paper_layer_section(lines, report.get("paper_layer_summary"))
 
     red_flags = report.get("red_flags") or []
     if red_flags:
@@ -797,6 +843,51 @@ def _append_portfolio_layer_section(
     lines.append(
         "- authoritative: "
         f"{summary.get('authoritative')} (diagnostics are non-authoritative)"
+    )
+    lines.append("")
+
+
+def _append_paper_layer_section(
+    lines: list[str], summary: dict[str, Any] | None
+) -> None:
+    """v3.15 additive markdown section — rendered only when v3.15 sidecars exist.
+
+    All metrics are diagnostic-only. ``live_eligible`` is always
+    ``False`` — the section header and the trailing bullet reinforce
+    that v3.15 evidence cannot promote anything to live.
+    """
+    if not summary:
+        return
+    lines.append("## Paper Layer Summary (v3.15 — diagnostic only, live_eligible=False)")
+    lines.append(
+        f"- candidate_count: {summary.get('candidate_count')}"
+    )
+    ec = summary.get("ledger_event_counts") or {}
+    lines.append(
+        "- ledger_event_counts: "
+        f"signal={ec.get('signal', 0)}, "
+        f"order={ec.get('order', 0)}, "
+        f"fill={ec.get('fill', 0)}, "
+        f"reject={ec.get('reject', 0)}, "
+        f"skip={ec.get('skip', 0)}, "
+        f"position={ec.get('position', 0)}"
+    )
+    sev = summary.get("divergence_severity_counts") or {}
+    lines.append(
+        "- divergence_severity: "
+        f"low={sev.get('low', 0)}, "
+        f"medium={sev.get('medium', 0)}, "
+        f"high={sev.get('high', 0)}"
+    )
+    rc = summary.get("readiness_counts") or {}
+    lines.append(
+        "- readiness_counts: "
+        f"ready_for_paper_promotion={rc.get('ready_for_paper_promotion', 0)}, "
+        f"blocked={rc.get('blocked', 0)}, "
+        f"insufficient_evidence={rc.get('insufficient_evidence', 0)}"
+    )
+    lines.append(
+        f"- live_eligible: {summary.get('live_eligible')} (v3.15 is research-only)"
     )
     lines.append("")
 

@@ -4,6 +4,205 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15] — Paper Validation Engine
+
+Date: 2026-04-24
+Branch: `feature/v3.15-paper-validation-engine`
+
+Strictly additive **paper validation engine** on top of the v3.14
+portfolio / sleeve layer. Geen live trading, geen broker-integratie,
+geen shadow deployment, geen allocator. Elke wijziging is additief;
+de v3.12 / v3.13 / v3.14 frozen artifacts blijven onaangetast en
+v3.15 schrijft nooit naar hun paths.
+
+v3.15 beantwoordt drie vragen per kandidaat:
+
+1. **Ledger** — welke signal/order/fill/reject/skip/position events
+   genereert deze kandidaat onder paper-semantiek?
+2. **Divergence** — hoe wijkt paper af van de engine baseline
+   (metrics delta, venue-cost delta, timestamp-aligned coverage)?
+3. **Readiness** — is deze kandidaat klaar voor een eventuele v3.16+
+   paper-promotion, of is er een blocking reason? `live_eligible`
+   is in v3.15 altijd `False`, hard gepind.
+
+### Added
+
+- **Venue mapping** (`research/paper_venues.py`). `asset_type →
+  ScenarioSpec` mapping voor `crypto` (Bitvavo: 0.25% per kant +
+  10 bps slippage), `equity` (IBKR: €1/€2000 notional = 5 bps per
+  kant + 10 bps slippage; `VENUE_IBKR_EQUITY_ASSUMED_NOTIONAL_EUR`
+  geëxposeerd in elk artifact dat IBKR gebruikt), en
+  `polymarket_binary` (2% spread + 10 bps — **gedefinieerd, niet
+  toegepast** in v3.15). `unknown` / `futures` / `index_like`
+  krijgen geen fallback — `venue_name_for_asset_type` returnt
+  `None` en readiness vertaalt dat naar een
+  `insufficient_venue_mapping` blocking reason.
+  `PAPER_VENUES_VERSION = "v0.1"`.
+- **Timestamped returns bridge**
+  (`research/candidate_timestamped_returns_feed.py`). Closes v3.14
+  handoff §8.1. Consumeert de al-bestaande
+  `evaluation_report.evaluation_streams.oos_daily_returns` typed
+  stream van de engine zonder engine-contract uitbreiding. Nieuwe
+  `TimestampedCandidateReturnsRecord` dataclass draagt parallel
+  `timestamps` en `daily_returns` arrays plus een expliciete
+  `stream_error` code wanneer de engine stream missing / malformed
+  / duplicate was. v3.14 `CandidateReturnsRecord` blijft frozen.
+- **Shared OOS-stream validator** (`research/_oos_stream.py`).
+  Extracted uit `portfolio_reporting._normalize_stream` zodat
+  `candidate_timestamped_returns_feed` en `paper_divergence`
+  dezelfde implementatie hergebruiken. Gedrag byte-identical met
+  pre-extraction — v3.12+ artifacts blijven byte-identical.
+- **Paper ledger** (`research/paper_ledger.py`). First-class
+  lifecycle projectie. Gesloten event-taxonomy (`signal`, `order`,
+  `fill`, `reject`, `skip`, `position`) en gesloten
+  evidence-status taxonomy (`reconstructed`, `projected_minimal`,
+  `projected_insufficient`). Elk event draagt expliciete `lineage`
+  pointers naar `oos_execution_events`. Signal + position events
+  zijn `projected_minimal` omdat de engine ze niet apart
+  serialiseert — v3.15 vindt nooit bron-evidence uit. Unmapped
+  venues krijgen alleen `signal` + `reject(reason=
+  insufficient_venue_mapping)`. Deterministic ordering via
+  `(timestamp_utc, lifecycle_index, event_id)`.
+  `PAPER_LEDGER_VERSION = "v0.1"`.
+- **Paper divergence** (`research/paper_divergence.py`). Per
+  candidate / per sleeve / portfolio-level divergence. Math is het
+  per-fill multiplicatieve model uit
+  `agent.backtesting.cost_sensitivity` (analytisch equivalent voor
+  scalar metrics; bar-level timestamped paper-returns stream
+  deferred naar v3.16). Rapporteert: `metrics_delta` (final
+  equity, cumulative adjustment, sharpe proxy), `venue_cost_delta`
+  (per-fill adjustment, fee drag delta vs baseline, slippage drag),
+  `timestamp_aligned_return_diff` (coverage window), en
+  `divergence_severity` via named drempels
+  (`DIVERGENCE_SEVERITY_MEDIUM_BPS=25`,
+  `DIVERGENCE_SEVERITY_HIGH_BPS=75`). Portfolio-level gebruikt
+  `exact_timestamp_intersection` (mirror van
+  `portfolio_reporting.ALIGNMENT_POLICY`).
+  `PAPER_DIVERGENCE_VERSION = "v0.1"`.
+- **Paper readiness** (`research/paper_readiness.py`). First-class
+  gate. Gesloten blocking-reason taxonomy:
+  `insufficient_venue_mapping`, `insufficient_oos_days`,
+  `missing_execution_events`, `excessive_divergence`,
+  `malformed_return_stream`, `no_candidate_returns`. Gesloten
+  warning taxonomy: `negative_paper_sharpe` (warning by default,
+  niet blocking), `projected_insufficient_events_ratio_high`,
+  `medium_divergence`. Status ∈ `{ready_for_paper_promotion,
+  blocked, insufficient_evidence}`. Thresholds named:
+  `MIN_PAPER_OOS_DAYS=60`, `MIN_PAPER_SHARPE_FOR_READY=0.3`,
+  `WARN_PROJECTED_INSUFFICIENT_RATIO=0.20`. `live_eligible=False`
+  is top-level hard-pinned in de payload — geen enkel codepath
+  zet het op `True`. `PAPER_READINESS_VERSION = "v0.1"`.
+- **Parallel façade** (`research/paper_validation_sidecars.py`).
+  Mirrors v3.14 façade exactly. Frozen
+  `PaperValidationBuildContext` + single
+  `build_and_write_paper_validation_sidecars(ctx)` entry. All
+  writes gaan door `_sidecar_io.write_sidecar_atomic` zodat elke
+  artifact canonical en byte-reproducible is.
+- **Runner hook** (`research/run_research.py`). Één additieve block
+  na de v3.14 portfolio-sleeve hook. Leest
+  `sleeve_registry_latest.v1.json` voor sleeve membership lookup,
+  construeert `PaperValidationBuildContext` uit de al-bestaande
+  `evaluations` accumulator + registry_v2 payload, en roept de
+  façade aan. Try/except zodat v3.15 falen nooit de v3.14 run
+  maskeert.
+- **Report extension** (`research/report_agent.py`).
+  `_paper_layer_summary()` helper + optionele top-level
+  `paper_layer_summary` key + `_append_paper_layer_section()`
+  markdown renderer. Aggregeert ledger event counts, divergence
+  severity distribution, readiness counts, candidate count. Report
+  `schema_version` blijft `"1.1"`.
+- **Dashboard endpoints** (`dashboard/dashboard.py`). Vier read-only
+  `@requires_auth` endpoints:
+  - `GET /api/registry/paper` — summary (readiness counts +
+    divergence severity distribution + ledger event counts +
+    artifact states)
+  - `GET /api/registry/paper/ledger`
+  - `GET /api/registry/paper/divergence`
+  - `GET /api/registry/paper/readiness`
+  Alle vier pinnen `live_eligible=false` in zowel missing-state
+  als happy-path schemas.
+- **Vier nieuwe sidecars** (alle `schema_version="1.0"`,
+  `authoritative=false`, `diagnostic_only=true`,
+  `live_eligible=false`):
+  - `research/candidate_timestamped_returns_latest.v1.json`
+  - `research/paper_ledger_latest.v1.json`
+  - `research/paper_divergence_latest.v1.json`
+  - `research/paper_readiness_latest.v1.json`
+
+### Changed
+
+- `research/portfolio_reporting.py`: `_normalize_stream` is nu een
+  thin delegate naar `research._oos_stream.normalize_oos_daily_return_stream`.
+  Gedrag byte-identical; v3.12 artifacts blijven byte-identical.
+- `research/run_research.py`: één nieuwe try/except block met
+  `build_and_write_paper_validation_sidecars` direct na de v3.14
+  hook. Runner blijft dun.
+- `research/report_agent.py`: additief — `paper_layer_summary` top-
+  level key + markdown sectie. `schema_version` blijft `"1.1"`.
+- `dashboard/dashboard.py`: vier nieuwe routes; bestaande routes
+  onveranderd.
+- `VERSION`: `3.14.1` → `3.15.0`.
+
+### Deliberately NOT changed
+
+- `research/candidate_returns_feed.py` (v3.14 frozen). De v3.15
+  precision-upgrade is een *nieuwe* sidecar — v3.14's shape en
+  bytes blijven onaangetast.
+- `research/candidate_scoring.py`. `SCORING_FORMULA_VERSION` blijft
+  `"v0.1-experimental"`, `composite_status` blijft `"provisional"`,
+  `authoritative` blijft `False`. Scoring-bump naar
+  `v0.2-experimental` is uitgesteld naar v3.16 (vereist
+  evidence-gedreven goldens-update).
+- `agent/backtesting/engine.py` + `agent/backtesting/cost_sensitivity.py`.
+  v3.15 hergebruikt beide zonder wijziging.
+- Geen forced-sleeves, geen allocator, geen Kelly, geen
+  vol-targeting, geen frontend UI-tab.
+
+### Tests
+
+- **Unit**: 63 nieuw
+  - `tests/unit/test_paper_venues.py` (16)
+  - `tests/unit/test_oos_stream.py` (9)
+  - `tests/unit/test_candidate_timestamped_returns_feed.py` (6)
+  - `tests/unit/test_paper_ledger.py` (8)
+  - `tests/unit/test_paper_divergence.py` (7)
+  - `tests/unit/test_paper_readiness.py` (11)
+  - `tests/unit/test_paper_validation_sidecars_facade.py` (5)
+  - `tests/unit/test_dashboard_api_v315.py` (8)
+  - `tests/unit/test_paper_no_live_invariant.py` (3)
+  - `tests/unit/test_report_agent_paper_layer.py` (5)
+- **Integration**: 3 nieuw
+  - `tests/integration/test_paper_validation_end_to_end.py` (3)
+- **Regression**: 4 nieuw
+  - `tests/regression/test_v3_15_artifacts_deterministic.py` (4)
+
+Totaal **70 nieuwe tests**, alle green. Static analysis (mypy,
+flake8, bandit) schoon op alle v3.15 modules.
+
+### Known limitations (voor v3.16)
+
+- **Bar-level timestamped paper-returns stream** deferred. v3.15
+  gebruikt het analytische per-fill multiplicatieve model
+  (scalar-equivalent aan `cost_sensitivity`). v3.16 kan bar-exact
+  replay inschakelen via `build_cost_sensitivity_report` met
+  `oos_bar_returns` + `fill_positions` plumbing.
+- **Polymarket venue** gedefinieerd, niet toegepast. Wacht op
+  Polymarket candidates in de research pipeline via Bot /
+  DataArbitrage agent integratie.
+- **Scoring bump** `v0.1-experimental → v0.2-experimental` blijft
+  uitgesteld. `regime_breadth_signal` als composite-component is
+  pas gerechtvaardigd na meerdere runs met consistent bewijs.
+- **Allocator / Kelly / vol-targeting** expliciet buiten scope.
+  v3.15 blijft equal-weight paper-portfolio (mirror v3.14).
+- **Frontend UI**: geen paper-tab; consumptie via 4 endpoints +
+  markdown report. v3.16+ kan een read-only paper-tab toevoegen
+  wanneer operationele behoefte bevestigd is.
+- **Paper-to-live promotion** niet geïmplementeerd.
+  `live_eligible=False` is hard gepind en v3.15 levert geen
+  codepath die dit verandert.
+
+---
+
 ## [v3.14.1] — Runtime budget + preset universe hotfix
 
 Date: 2026-04-24
