@@ -130,7 +130,13 @@ STRATEGY_CAMPAIGN_METADATA: Final[tuple[HypothesisCampaignMetadata, ...]] = (
             "paper_followup": True,
         },
         priority_profile={"initial_priority_tier": 2},
-        failure_mode_mapping={},
+        failure_mode_mapping={
+            "volatility_compression_breakout_cost_fragile": "cost_fragile",
+            "volatility_compression_breakout_parameter_fragile": "parameter_fragile",
+            "volatility_compression_breakout_overtrading": "overtrading",
+            "volatility_compression_breakout_no_baseline_edge": "no_baseline_edge",
+            "volatility_compression_breakout_insufficient_trades": "insufficient_trades",
+        },
     ),
     HypothesisCampaignMetadata(
         hypothesis_id="dynamic_pairs_v0",

@@ -45,6 +45,15 @@ STRATEGY_SPECIFIC_ALIASES: Final[dict[str, str]] = {
     "trend_pullback_cost_fragile": "cost_fragile",
     "trend_pullback_parameter_fragile": "parameter_fragile",
     "trend_pullback_no_baseline_edge": "no_baseline_edge",
+    # v3.15.4: volatility_compression_breakout aliases. The strategy
+    # may emit any of these raw codes from its campaign module; the
+    # campaign policy collapses them to canonical taxonomy via
+    # ``canonicalize`` for cooldown / deprioritization decisions.
+    "volatility_compression_breakout_cost_fragile": "cost_fragile",
+    "volatility_compression_breakout_parameter_fragile": "parameter_fragile",
+    "volatility_compression_breakout_overtrading": "overtrading",
+    "volatility_compression_breakout_no_baseline_edge": "no_baseline_edge",
+    "volatility_compression_breakout_insufficient_trades": "insufficient_trades",
 }
 
 
