@@ -39,6 +39,9 @@ from research.campaign_templates import (
     EligibilityPredicate,
 )
 from research.presets import get_preset
+from research.strategy_hypothesis_catalog import (
+    get_by_id as _hypothesis_get_by_id,
+)
 
 POLICY_SCHEMA_VERSION: str = "1.0"
 POLICY_DECISION_PATH: Path = Path(
@@ -671,6 +674,17 @@ def _check_template_eligibility(
     A preset whose name is no longer in the catalog is rejected with
     ``preset_not_in_catalog`` so a stale follow-up cannot run against
     a removed preset definition.
+
+    v3.15.3: when the template declares ``require_hypothesis_status``
+    (default ``()``), the bridged strategy_hypothesis_catalog row must
+    carry one of the allowed statuses. The bridge is **explicit**:
+    preset.hypothesis_id → catalog.status. Presets without a
+    ``hypothesis_id`` are rejected with ``preset_missing_hypothesis_id``
+    so the campaign launcher never silently picks an unmapped preset
+    when hypothesis enforcement is on. The legacy
+    ``bundle[0] → registry → strategy_family`` walk has been removed:
+    presets opt in to hypothesis enforcement by setting
+    ``hypothesis_id``, full stop.
     """
     template = spec.template
     eligibility: EligibilityPredicate = template.eligibility
@@ -698,6 +712,43 @@ def _check_template_eligibility(
             spec,
             f"preset_status_{preset.status}_not_in_required",
         )
+    if eligibility.require_hypothesis_status:
+        rejection = _check_hypothesis_status(spec, preset, eligibility)
+        if rejection is not None:
+            return rejection
+    return None
+
+
+def _check_hypothesis_status(
+    spec: _CandidateSpec,
+    preset: Any,
+    eligibility: EligibilityPredicate,
+) -> CandidateRejection | None:
+    """Resolve the preset's hypothesis via the explicit
+    ``preset.hypothesis_id`` mapping and gate on its catalog status.
+
+    The bridge is intentionally narrow: a preset that opts into
+    hypothesis enforcement MUST set ``hypothesis_id``. Multi-strategy
+    bundles, optional bundles, and registry walks are deliberately
+    NOT consulted here — the eligibility decision must be readable
+    from one preset attribute, full stop.
+    """
+    hypothesis_id = preset.hypothesis_id
+    if hypothesis_id is None:
+        return _build_eligibility_rejection(
+            spec, "preset_missing_hypothesis_id"
+        )
+    try:
+        hypothesis = _hypothesis_get_by_id(hypothesis_id)
+    except KeyError:
+        return _build_eligibility_rejection(
+            spec, "hypothesis_not_in_catalog"
+        )
+    if hypothesis.status not in eligibility.require_hypothesis_status:
+        return _build_eligibility_rejection(
+            spec,
+            f"hypothesis_status_{hypothesis.status}_not_in_required",
+        )
     return None
 
 
@@ -724,6 +775,9 @@ def _build_eligibility_rejection(
             ),
             "require_preset_status": list(
                 spec.template.eligibility.require_preset_status
+            ),
+            "require_hypothesis_status": list(
+                spec.template.eligibility.require_hypothesis_status
             ),
         },
     )

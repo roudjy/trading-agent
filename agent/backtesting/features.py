@@ -167,6 +167,42 @@ def spread_zscore(
     return zscore(spread(close_a, close_b, hedge_ratio), lookback)
 
 
+def pullback_distance(
+    close: pd.Series,
+    ema_fast_window: int,
+    vol_window: int,
+) -> pd.Series:
+    """Volatility-normalised distance from a short EMA (v3.15.3).
+
+    Composite of ``ema(close, span=ema_fast_window)`` and
+    ``rolling_volatility(log_returns(close), window=vol_window)``::
+
+        ema_fast = ema(close, ema_fast_window)
+        vol      = rolling_volatility(log_returns(close), vol_window)
+        pullback_distance = (close - ema_fast) / vol
+
+    Owns the zero-volatility guard explicitly: bars where ``vol == 0``
+    yield NaN rather than ±inf so the consuming thin strategy gets a
+    safe missing-data signal. NaN propagation in the warmup tail is
+    inherited from the underlying primitives — no special-casing.
+
+    Layer rules (v3.15.3 §6 feature layer):
+    - deterministic
+    - explicit NaN handling
+    - zero-volatility handling
+    - stable indexing (output index == close.index)
+    - no lookahead (uses pandas ``ewm`` / ``rolling`` semantics only)
+
+    Used exclusively by ``trend_pullback_v1_strategie``.
+    """
+    c = close.astype(float)
+    ema_fast = c.ewm(span=int(ema_fast_window), adjust=False).mean()
+    returns = np.log(c / c.shift(1))
+    vol = returns.rolling(window=int(vol_window)).std()
+    safe_vol = vol.where(vol != 0.0, np.nan)
+    return (c - ema_fast) / safe_vol
+
+
 # v3.6+: rolling OLS hedge ratio. Unused in v3.5 (pairs uses the fixed
 # scalar path above). Implementation kept minimal and well-typed so the
 # v3.6 pairs migration can turn it on without another primitive pass.
@@ -222,6 +258,15 @@ def _warmup_spread_zscore(params: dict) -> int:
     return int(params.get("lookback", 0))
 
 
+def _warmup_pullback_distance(params: dict) -> int:
+    # Composite warmup: max of EMA span and the rolling-vol window so
+    # the integrity layer counts the longest required look-back.
+    return max(
+        int(params.get("ema_fast_window", 0)),
+        int(params.get("vol_window", 0)),
+    )
+
+
 FEATURE_REGISTRY: dict[str, FeatureSpec] = {
     "log_returns": FeatureSpec(
         fn=log_returns,
@@ -271,6 +316,12 @@ FEATURE_REGISTRY: dict[str, FeatureSpec] = {
         required_columns=("close", "close_ref"),
         warmup_bars_fn=_warmup_spread_zscore,
     ),
+    "pullback_distance": FeatureSpec(
+        fn=pullback_distance,
+        param_names=("ema_fast_window", "vol_window"),
+        required_columns=("close",),
+        warmup_bars_fn=_warmup_pullback_distance,
+    ),
 }
 
 
@@ -282,6 +333,7 @@ __all__ = [
     "ema",
     "hedge_ratio_ols",
     "log_returns",
+    "pullback_distance",
     "rolling_volatility",
     "sma",
     "spread",

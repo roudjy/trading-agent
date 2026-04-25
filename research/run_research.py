@@ -93,6 +93,10 @@ from research.paper_validation_sidecars import (
     PaperValidationBuildContext,
     build_and_write_paper_validation_sidecars,
 )
+from research.strategy_campaign_metadata import (
+    write_campaign_metadata_sidecar,
+)
+from research.strategy_hypothesis_catalog import write_catalog_sidecar
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -3277,6 +3281,34 @@ def run_research(
             )
         except Exception as v3_15_exc:
             tracker.emit_event("v3_15_paper_validation_sidecars_failed", error=str(v3_15_exc))
+        # v3.15.3: strategy hypothesis catalog + campaign metadata.
+        # Adjacent artifacts only — never spliced into research_latest.json
+        # or strategy_matrix.csv. The v3.15.2 Campaign Operating Layer
+        # reads these sidecars at tick boundaries to gate spawning by
+        # hypothesis status (active_discovery / planned / disabled /
+        # diagnostic). Hard invariant: exactly one active_discovery row.
+        try:
+            v3_15_3_paths = {
+                "strategy_hypothesis_catalog": write_catalog_sidecar(
+                    generated_at_utc=as_of_utc,
+                    git_revision=_git_revision(),
+                    run_id=str(state["run_id"]),
+                ),
+                "strategy_campaign_metadata": write_campaign_metadata_sidecar(
+                    generated_at_utc=as_of_utc,
+                    git_revision=_git_revision(),
+                    run_id=str(state["run_id"]),
+                ),
+            }
+            tracker.emit_event(
+                "v3_15_3_hypothesis_catalog_sidecars_written",
+                paths={name: path.as_posix() for name, path in v3_15_3_paths.items()},
+            )
+        except Exception as v3_15_3_exc:
+            tracker.emit_event(
+                "v3_15_3_hypothesis_catalog_sidecars_failed",
+                error=str(v3_15_3_exc),
+            )
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
         except Exception as report_exc:

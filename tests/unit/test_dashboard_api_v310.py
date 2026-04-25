@@ -38,7 +38,9 @@ def test_presets_requires_auth(client):
     assert resp.status_code == 401
 
 
-def test_presets_authed_returns_four_presets(authed_client):
+def test_presets_authed_returns_full_catalog(authed_client):
+    """v3.15.3 adds ``trend_pullback_crypto_1h`` as the executable bridge
+    for the active_discovery hypothesis catalog row."""
     resp = authed_client.get("/api/presets")
     assert resp.status_code == 200
     data = resp.get_json()
@@ -47,6 +49,7 @@ def test_presets_authed_returns_four_presets(authed_client):
         "trend_equities_4h_baseline",
         "pairs_equities_daily_baseline",
         "trend_regime_filtered_equities_4h",
+        "trend_pullback_crypto_1h",
         "crypto_diagnostic_1h",
     ]
 

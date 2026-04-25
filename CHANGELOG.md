@@ -4,6 +4,203 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.3] — Strategy Hypothesis Catalog + First Controlled Strategy Candidate
+
+Date: 2026-04-25
+Branch: `feature/v3.15.3-hypothesis-catalog`
+
+v3.15.3 introduces strategy hypotheses as first-class artifact-backed
+objects so the v3.15.2 Campaign Operating Layer can autonomously
+**select / negate / falsify / cooldown / escalate / deprioritize**
+them. This release is **not alpha-expansion**: exactly **one**
+hypothesis (`trend_pullback_v1`) carries `status="active_discovery"`;
+all other catalog rows are visible-but-not-spawned (`planned`),
+explicitly blocked (`disabled`), or enrichment-only (`diagnostic`).
+
+### Added
+
+- **Strategy Hypothesis Catalog** (`research/strategy_hypothesis_catalog.py`,
+  `CATALOG_SCHEMA_VERSION="1.0"`,
+  `HYPOTHESIS_CATALOG_VERSION="v0.1"`). Closed status enum
+  `(active_discovery, planned, disabled, diagnostic)`. Five rows:
+  `trend_pullback_v1` (active_discovery), `regime_diagnostics_v1`
+  (diagnostic), `atr_adaptive_trend_v0` (planned),
+  `volatility_compression_breakout_v0` (planned), `dynamic_pairs_v0`
+  (disabled). Hard invariant: exactly one `active_discovery`,
+  enforced at import via `_validate_catalog`.
+- **Adjacent artifact `research/strategy_hypothesis_catalog_latest.v1.json`**
+  written every research run via the canonical `_sidecar_io.write_sidecar_atomic`
+  helper. Carries the v3.15.2 campaign-os pin block
+  (`schema_version=1.0, authoritative=False, diagnostic_only=True,
+  live_eligible=False`).
+- **Per-hypothesis Campaign Metadata sidecar**
+  (`research/strategy_campaign_metadata.py`,
+  `CAMPAIGN_METADATA_SCHEMA_VERSION="1.0"`,
+  `STRATEGY_CAMPAIGN_METADATA_VERSION="v0.1"`). Carries
+  `eligible_campaign_types`, `cooldown_policy`, `followup_policy`,
+  `priority_profile`, `failure_mode_mapping` per hypothesis.
+  Adjacent artifact `research/strategy_campaign_metadata_latest.v1.json`.
+- **Strategy Failure Taxonomy** (`research/strategy_failure_taxonomy.py`).
+  Closed canonical codes
+  `(insufficient_trades, cost_fragile, parameter_fragile,
+  asset_singleton, oos_collapse, no_baseline_edge, overtrading,
+  drawdown_unacceptable, liquidity_sensitive, baseline_underperform)`
+  + strategy-specific `STRATEGY_SPECIFIC_ALIASES` mapping (e.g.
+  `trend_pullback_cost_fragile -> cost_fragile`). Lives outside
+  `research/rejection_taxonomy.py` to protect the v3.11 contract.
+- **`pullback_distance` feature primitive** (`agent/backtesting/features.py`)
+  registered in `FEATURE_REGISTRY`. Composite of `ema(close, span)` +
+  `rolling_volatility(log_returns(close), window)`. Explicit
+  zero-volatility guard returns NaN rather than ±inf.
+- **`trend_pullback_v1_strategie`** (`agent/backtesting/strategies.py`)
+  thin-contract long-only strategy. Max 3 parameters
+  (`ema_fast_window, ema_slow_window, entry_k`); declares four
+  `FeatureRequirement`s. Bridges to the active_discovery catalog row.
+- **`trend_pullback_crypto_1h` preset** (`research/presets.py`)
+  bundle=`("trend_pullback_v1",)`, `status="stable"`,
+  `preset_class="experimental"`, full hypothesis metadata
+  (rationale / expected_behavior / falsification / enablement_criteria).
+- **Hypothesis-status filter in campaign policy**
+  (`research/campaign_policy._check_template_eligibility`). Bridges
+  `preset.bundle[0] -> registry.strategy_family -> catalog.status`,
+  rejecting with canonical reasons `hypothesis_not_in_catalog`,
+  `hypothesis_status_<status>_not_in_required`,
+  `strategy_not_in_registry`, or `preset_bundle_empty`.
+- **Eligibility-predicate extension**
+  (`research/campaign_templates.py`). New field
+  `EligibilityPredicate.require_hypothesis_status: tuple[str, ...]`
+  with default `()`. `to_payload()` **omits** the field when empty
+  so the existing 3 baseline preset templates remain
+  byte-identical in `campaign_templates_latest.v1.json`.
+- **Tests:** 86 new tests across:
+  - `tests/unit/test_strategy_failure_taxonomy.py` (9)
+  - `tests/unit/test_strategy_hypothesis_catalog.py` (18)
+  - `tests/unit/test_strategy_campaign_metadata.py` (10)
+  - `tests/unit/test_trend_pullback_v1_feature.py` (8)
+  - `tests/unit/test_trend_pullback_v1_strategy.py` (10)
+  - `tests/unit/test_campaign_policy_hypothesis_status.py` (10)
+  - `tests/regression/test_v3_15_2_campaign_templates_byte_identity.py` (6)
+  - Plus updated `tests/unit/test_presets.py` count assertion
+    (4 -> 5 presets).
+
+### Changed
+
+- `research/run_research.py`: post-run sidecar block (after the v3.15
+  paper-validation hook, before `report_agent`) now also writes the
+  hypothesis-catalog + campaign-metadata sidecars. Try/except wrapped
+  with `tracker.emit_event("v3_15_3_hypothesis_catalog_sidecars_written"
+  / "_failed")`.
+- `research/registry.py`: appended `trend_pullback_v1` (3 params,
+  thin contract, `strategy_family="trend_pullback"`). Legacy
+  `trend_pullback` (6 params, `strategy_family="trend_following"`)
+  and `trend_pullback_tp_sl` (8 params) are unchanged.
+- `research/presets.py`: appended `trend_pullback_crypto_1h` between
+  `trend_regime_filtered_equities_4h` and `crypto_diagnostic_1h`.
+- `VERSION`: `3.15.1` → `3.15.3`. (v3.15.2 was deployed via the
+  campaign operating layer cutover but did not bump the file in
+  the local repo.)
+
+### Deliberately not changed (frozen contracts)
+
+- `research/research_latest.json` row + top-level schema.
+- 19-column `research/strategy_matrix.csv` row schema.
+- `research/candidate_registry_latest.v1.json` schema + writer.
+- `research/candidate_registry_latest.v2.json` schema + writer.
+- `research/rejection_taxonomy.py` v3.11 canonical codes (the new
+  `strategy_failure_taxonomy` is an adjacent module).
+- `research/regime_diagnostics.py` behavior — never gates trade
+  signals, only registered in catalog as `diagnostic`.
+- All v3.12 / v3.13 / v3.14 / v3.15 / v3.15.1 / v3.15.2 sidecar
+  schemas + writers.
+- Legacy `trend_pullback` and `trend_pullback_tp_sl` registry
+  entries (pinned by `test_legacy_trend_pullback_unchanged`).
+- v3.15.2 `campaign_templates_latest.v1.json` byte-identity for
+  the existing 3 baseline preset templates (pinned by
+  `test_v3_15_2_campaign_templates_byte_identity.py`).
+- v3.15.2 fb02c2f eligibility hotfix tests still pass unchanged.
+
+### Known limitations
+
+- Auto-status transitions (`active_discovery → cooldown / negated /
+  deprioritized`) are not implemented. The catalog ships with
+  hand-curated initial statuses; future versions will let the
+  campaign launcher mutate status based on accumulated evidence.
+- The hypothesis bridge uses `preset.bundle[0]` — multi-strategy
+  bundles (e.g. `trend_equities_4h_baseline` with sma_crossover +
+  breakout_momentum) are intentionally NOT hypothesis-aware in
+  v3.15.3; their templates carry `require_hypothesis_status=()`
+  and are gated only by the v3.15.2 preset filters.
+- `regime_diagnostics_latest.v1.json` was NOT introduced in
+  v3.15.3 (the existing `regime_diagnostics_latest.v1.json`
+  already exists from earlier versions; v3.15.3 only registers
+  the diagnostic hypothesis row in the catalog).
+- The five v3.15.2 verification carry-overs (C1–C5) recorded in
+  the v3.15.2 closeout remain explicitly out of scope.
+
+## [v3.15.2] — Autonomous Campaign Operating Layer
+
+Date: 2026-04-25 (production cutover; merged via
+`feat/v3.15.2-campaign-operating-layer` + hotfix
+`fix/v3.15.2-eligibility-enforcement`)
+Branches: `feat/v3.15.2-campaign-operating-layer`,
+`fix/v3.15.2-eligibility-enforcement`
+
+Retroactive entry: v3.15.2 shipped via the campaign-operating-layer
+cutover commits (`c1c4fd6`, `b6f6ca1`, `798d880`, `fb02c2f`,
+`a1dfc88`) but the local `VERSION` and `CHANGELOG.md` were not
+bumped at the time. This entry records the shipped scope so
+v3.15.3 has a clean continuation.
+
+### Added
+
+- **Autonomous Campaign Operating Layer** (the COL): hourly
+  `campaign_launcher` tick decides spawn / skip / reclaim / cancel
+  per-tick across 9 closed taxonomies (registry, queue, lease,
+  budget, evidence ledger, preset policy, family policy,
+  templates, decision).
+- **Closed campaign taxonomies** + per-artifact pin-block
+  (`research/campaign_os_artifacts.py`, `CAMPAIGN_OS_VERSION="v0.1"`).
+- **Modules**: `campaigns.py`, `campaign_policy.py`,
+  `campaign_preset_policy.py`, `campaign_family_policy.py`,
+  `campaign_templates.py`, `campaign_launcher.py`,
+  `campaign_queue.py`, `campaign_registry.py`,
+  `campaign_invariants.py`, `campaign_followup.py`,
+  `campaign_lease.py`, `campaign_budget.py`,
+  `campaign_digest.py`, `campaign_evidence_ledger.py`,
+  `campaign_os_artifacts.py`.
+- **Sidecars** (10): `campaign_registry_latest.v1.json`,
+  `campaign_queue_latest.v1.json`,
+  `campaign_policy_decision_latest.v1.json`,
+  `preset_policy_state_latest.v1.json`,
+  `candidate_family_policy_state_latest.v1.json`,
+  `campaign_budget_latest.v1.json`,
+  `campaign_digest_latest.v1.json`,
+  `campaign_evidence_ledger_latest.v1.jsonl` (+ `.meta.json`),
+  `campaign_templates_latest.v1.json`.
+- **fb02c2f hotfix**: `_check_template_eligibility` (Filter 0)
+  centralised to honour `EligibilityPredicate` against live preset
+  attributes before any campaign candidate can be selected. Closes
+  the gap that allowed `crypto_diagnostic_1h` (diagnostic_only +
+  excluded_from_daily_scheduler) to be picked for `daily_primary`.
+
+### Production-cutover verification (2026-04-25)
+
+- 08:00 UTC tick — R0 reclaimed stale lease.
+- 09:00 UTC tick — R1 cancelled upstream-stale candidate.
+- 10:00 UTC tick — autonomous spawn of
+  `trend_regime_filtered_equities_4h`; eligibility filter blocked
+  `crypto_diagnostic_1h` correctly; subprocess ran the trend-equities
+  research subprocess. All 7 campaign API endpoints HTTP 200; pin
+  blocks intact across all 9 COL artifacts.
+
+### Carry-over backlog (out of scope for v3.15.3)
+
+- C1: degenerate research run misclassified as `worker_crashed`.
+- C2: `build_campaign_id` uses local TZ but suffixes `Z`.
+- C3: pending entries from R0 reclaim not re-picked.
+- C4: GHA `docker-build` workflow lag for `:latest` tag.
+- C5: lock-contention error visibility.
+
 ## [v3.15.1] — Stale Artifact Banner + Pairs Decision Surface
 
 Date: 2026-04-24
