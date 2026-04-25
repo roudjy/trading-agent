@@ -1799,6 +1799,35 @@ def _raise_degenerate_run(
                 )
             except Exception:
                 pass
+    # v3.15.3.1 audit-sidecar hotfix: the strategy hypothesis catalog +
+    # campaign metadata sidecars are pure descriptions of static config —
+    # they must be written even when a run terminates as
+    # degenerate / no-survivor so the COL audit trail is never missing
+    # the catalog snapshot at the moment of the rejection. Mirrors the
+    # public_artifact_status pattern above: best-effort with tracker
+    # event on failure, never blocks the original DegenerateResearchRunError.
+    try:
+        write_catalog_sidecar(
+            generated_at_utc=as_of_utc,
+            git_revision=_git_revision(),
+            run_id=run_id,
+        )
+        write_campaign_metadata_sidecar(
+            generated_at_utc=as_of_utc,
+            git_revision=_git_revision(),
+            run_id=run_id,
+        )
+    except Exception as v3_15_3_exc:
+        if tracker is not None:
+            try:
+                tracker.emit_event(
+                    "v3_15_3_hypothesis_catalog_sidecars_failed",
+                    error=str(v3_15_3_exc),
+                    outcome="degenerate",
+                    failure_stage=failure_stage,
+                )
+            except Exception:
+                pass
     raise DegenerateResearchRunError(payload["message"])
 
 def run_research(
