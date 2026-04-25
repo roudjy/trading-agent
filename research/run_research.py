@@ -3333,7 +3333,9 @@ def run_research(
         # or strategy_matrix.csv. The v3.15.2 Campaign Operating Layer
         # reads these sidecars at tick boundaries to gate spawning by
         # hypothesis status (active_discovery / planned / disabled /
-        # diagnostic). Hard invariant: exactly one active_discovery row.
+        # diagnostic). Invariant (v3.15.4): >=1 active_discovery row, plus
+        # per-row strict checks (bounded grid, non-empty eligible types,
+        # canonical failure modes) enforced by _validate_catalog().
         try:
             v3_15_3_paths = {
                 "strategy_hypothesis_catalog": write_catalog_sidecar(
