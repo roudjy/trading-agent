@@ -24,16 +24,18 @@ from research.presets import (
 )
 
 
-def test_five_presets_registered():
-    """v3.15.3 adds ``trend_pullback_crypto_1h`` as the executable
-    bridge for the active_discovery hypothesis catalog row. Original
-    four v3.10/v3.11 presets remain in their original positions to
-    preserve downstream consumers that snapshot the order."""
+def test_six_presets_registered():
+    """v3.15.4 adds ``vol_compression_breakout_crypto_1h`` as the
+    executable bridge for the second active_discovery catalog row
+    (volatility_compression_breakout_v0). Earlier 5 presets keep
+    their original positions to preserve downstream consumers that
+    snapshot the order."""
     assert [p.name for p in PRESETS] == [
         "trend_equities_4h_baseline",
         "pairs_equities_daily_baseline",
         "trend_regime_filtered_equities_4h",
         "trend_pullback_crypto_1h",
+        "vol_compression_breakout_crypto_1h",
         "crypto_diagnostic_1h",
     ]
 

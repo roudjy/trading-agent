@@ -76,22 +76,37 @@ def test_bridge_rejects_active_without_preset_binding() -> None:
     assert "orphan_v0" in str(exc.value)
 
 
-def test_bridge_imports_lazily_does_not_run_at_import() -> None:
-    """Importing the catalog module must NOT trigger the cross-module
-    bridge validator (which would couple catalog → presets at import).
+def test_bridge_validator_imports_presets_lazily() -> None:
+    """The bridge validator must import ``research.presets`` from
+    inside the function body, not at module top — this keeps the
+    catalog ↔ presets layering one-directional. Verified by source
+    inspection (more robust than importlib.reload tricks, which would
+    invalidate already-imported HypothesisCatalogError class identity
+    and break sibling tests).
     """
-    # If the bridge ran at import, importing the catalog while a
-    # synthetic broken state existed would have already failed. We
-    # demonstrate the inverse: re-importing the module here is a no-op.
-    import importlib
+    import inspect
 
     import research.strategy_hypothesis_catalog as cat_module
 
-    importlib.reload(cat_module)
-    # Bridge function is exposed but not auto-invoked.
-    assert hasattr(cat_module, "validate_active_discovery_preset_bridges")
-    # The live state still bridges cleanly.
-    cat_module.validate_active_discovery_preset_bridges()
+    src = inspect.getsource(cat_module.validate_active_discovery_preset_bridges)
+    assert "from research.presets import" in src, (
+        "validate_active_discovery_preset_bridges must lazy-import "
+        "research.presets inside its body"
+    )
+    # And the module-level imports MUST NOT pull in research.presets.
+    module_src = inspect.getsource(cat_module)
+    top_level_lines = []
+    for line in module_src.splitlines():
+        # Stop at first function definition; module-level statements
+        # all live above it.
+        if line.startswith("def ") or line.startswith("class "):
+            break
+        top_level_lines.append(line)
+    top_level = "\n".join(top_level_lines)
+    assert "from research.presets" not in top_level, (
+        "research.presets must NOT be imported at catalog module top "
+        "level"
+    )
 
 
 def test_bridge_skips_planned_disabled_diagnostic_rows() -> None:
