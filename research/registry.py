@@ -19,6 +19,7 @@ from agent.backtesting.strategies import (
     trend_pullback_strategie,
     trend_pullback_tp_sl_strategie,
     trend_pullback_v1_strategie,
+    volatility_compression_breakout_strategie,
     zscore_mean_reversion_strategie,
 )
 
@@ -224,6 +225,39 @@ STRATEGIES = [
             "v3.15.3 controlled trend pullback. Long-only entry into a "
             "vol-normalised pullback inside an established trend; flat "
             "when trend breaks or pullback resolves. See "
+            "research.strategy_hypothesis_catalog (status=active_discovery)."
+        ),
+        "enabled": True,
+        "contract_version": "1.0",
+    },
+    # -------------------------------------------------------------------
+    # volatility_compression_breakout — v3.15.4 second controlled
+    # active_discovery. Thin contract (func(df, features)). Max 3
+    # parameters per AGENTS.md / v3.15.3 §6 (atr_short_window /
+    # atr_long_window / compression_threshold; the rolling-high/low
+    # window is coupled to atr_long_window deliberately to stay within
+    # the 3-parameter budget). Bridges to the
+    # research.strategy_hypothesis_catalog row whose
+    # ``strategy_family="volatility_compression_breakout"`` carries
+    # ``status="active_discovery"`` (was "planned" pre-v3.15.4).
+    # -------------------------------------------------------------------
+    {
+        "name": "volatility_compression_breakout",
+        "factory": volatility_compression_breakout_strategie,
+        "params": {
+            "atr_short_window": [5, 10],
+            "atr_long_window": [20, 50],
+            "compression_threshold": [0.5, 0.7],
+        },
+        "family": "trend",
+        "strategy_family": "volatility_compression_breakout",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
+        "hypothesis": (
+            "v3.15.4 controlled volatility compression breakout. "
+            "Long-only entry on a confirmed range-breakout out of a "
+            "prior compressed-vol regime; flat on opposite-side "
+            "breakdown or compression release. See "
             "research.strategy_hypothesis_catalog (status=active_discovery)."
         ),
         "enabled": True,
