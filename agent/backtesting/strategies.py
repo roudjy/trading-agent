@@ -603,3 +603,105 @@ def trend_pullback_v1_strategie(
             ),
         ],
     )
+
+
+# ── Volatility Compression Breakout (v3.15.4 active_discovery) ──────────────
+
+def volatility_compression_breakout_strategie(
+    atr_short_window: int = 5,
+    atr_long_window: int = 20,
+    compression_threshold: float = 0.6,
+):
+    """v3.15.4 controlled Volatility Compression Breakout hypothesis.
+
+    Long-only. Enters on a confirmed range-breakout out of a prior
+    compressed-vol regime. Exits to flat on the opposite breakdown or
+    when the compression has clearly released. The matching catalog
+    row is ``volatility_compression_breakout_v0`` /
+    family ``volatility_compression_breakout`` /
+    status ``active_discovery``.
+
+    Thin contract v1.0: body reads only ``df.index`` and ``features``.
+    All indicator calculations live in the feature layer
+    (``agent.backtesting.features``); the strategy never touches raw
+    OHLCV columns.
+
+    Signal semantics (exact):
+
+    - **Entry (long)**: ``compression_ratio[t-1] < compression_threshold``
+      AND ``close[t] > rolling_high_previous[t]`` — both conditions on
+      the same bar. The lag-1 on ``compression_ratio`` is explicit:
+      compression must already have been observed before the breakout
+      bar prints.
+    - **Exit (flat)**: ``close[t] < rolling_low_previous[t]`` OR
+      ``compression_ratio[t-1] > 1.0`` — opposite-side breakdown OR a
+      released compression (volatility expanded back above the
+      long-horizon baseline).
+    - **No reversal**: opposite breakout means flat, never short.
+    - **NaN feature** at bar t (warmup or zero-vol guard) → no entry
+      and no forced exit; the prior signal value is held.
+    - **No-lookahead**: ``rolling_high_previous`` and
+      ``rolling_low_previous`` use ``.shift(1)`` by construction;
+      ``compression_ratio[t-1]`` is fed via explicit ``.shift(1)``.
+
+    Parameters (max 3, per AGENTS.md / v3.15.3 §6). The
+    ``rolling_high_previous`` / ``rolling_low_previous`` window is
+    coupled to ``atr_long_window`` deliberately so the parameter
+    budget stays within 3.
+
+    - atr_short_window      : short-horizon ATR window (positive int).
+    - atr_long_window       : long-horizon ATR window AND
+                              rolling-high/low window (positive int,
+                              must exceed atr_short_window).
+    - compression_threshold : compression_ratio strict upper bound
+                              that qualifies the prior bar as
+                              compressed (0 < threshold <= 1.0).
+    """
+
+    def func(df: pd.DataFrame, features: Mapping[str, pd.Series]) -> pd.Series:
+        sig = pd.Series(0, index=df.index)
+        min_bars = int(atr_long_window) + 2
+        if len(df.index) < min_bars:
+            return sig
+        if atr_short_window <= 0 or atr_long_window <= 0:
+            return sig
+        if atr_short_window >= atr_long_window:
+            return sig
+        if compression_threshold <= 0.0 or compression_threshold > 1.0:
+            return sig
+        compression = features["compression_ratio"]
+        roll_high_prev = features["rolling_high_previous"]
+        roll_low_prev = features["rolling_low_previous"]
+        close = df["close"].astype(float)
+        prev_compression = compression.shift(1)
+        compressed_prior = prev_compression < float(compression_threshold)
+        breakout_up = close > roll_high_prev
+        breakdown = close < roll_low_prev
+        compression_released = prev_compression > 1.0
+        sig[compressed_prior & breakout_up] = 1
+        sig[breakdown | compression_released] = 0
+        return sig
+
+    return declare_thin(
+        func,
+        feature_requirements=[
+            FeatureRequirement(
+                name="compression_ratio",
+                params={
+                    "atr_short_window": atr_short_window,
+                    "atr_long_window": atr_long_window,
+                },
+                alias="compression_ratio",
+            ),
+            FeatureRequirement(
+                name="rolling_high_previous",
+                params={"window": atr_long_window},
+                alias="rolling_high_previous",
+            ),
+            FeatureRequirement(
+                name="rolling_low_previous",
+                params={"window": atr_long_window},
+                alias="rolling_low_previous",
+            ),
+        ],
+    )
