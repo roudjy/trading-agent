@@ -1,13 +1,22 @@
-"""Strategy hypothesis catalog (v3.15.3).
+"""Strategy hypothesis catalog (v3.15.3, strict validation v3.15.4).
 
 First-class artifact-backed registry of strategy hypotheses with a
 closed status enum. The v3.15.2 Campaign Operating Layer reads this
 catalog through ``research.campaign_policy`` to decide which hypotheses
 are eligible for autonomous campaign spawning.
 
-Hard invariant: exactly ONE hypothesis carries ``status="active_discovery"``
-at any time. Other statuses are visible-but-not-spawned (``planned``),
-explicitly blocked (``disabled``), or enrichment-only (``diagnostic``).
+Invariant (v3.15.4): at least one hypothesis carries
+``status="active_discovery"`` and every active_discovery hypothesis is
+fully wired (executable registry strategy, bounded grid, non-empty
+eligible_campaign_types, canonical failure modes). Other statuses are
+visible-but-not-spawned (``planned``), explicitly blocked
+(``disabled``), or enrichment-only (``diagnostic``); none of those may
+declare campaign eligibility.
+
+Cross-module preset-bridge validation
+(:func:`validate_active_discovery_preset_bridges`) is invoked
+explicitly by the orchestrator at startup; it is NOT run at module
+import to keep the catalog ↔ presets layering one-directional.
 
 Layer rules:
 - This module is pure configuration + payload assembly. It does not
@@ -36,6 +45,7 @@ from research._sidecar_io import (
 )
 from research.campaign_os_artifacts import build_pin_block
 from research.registry import STRATEGIES
+from research.strategy_failure_taxonomy import CANONICAL_FAILURE_CODES
 
 
 CATALOG_SCHEMA_VERSION: Final[str] = "1.0"
@@ -57,6 +67,12 @@ CLOSED_STATUSES: Final[tuple[str, ...]] = (
 # Statuses that the campaign policy may consider for *alpha* spawning.
 # Diagnostic hypotheses are enrichment-only by design.
 ALPHA_ELIGIBLE_STATUSES: Final[tuple[str, ...]] = ("active_discovery",)
+
+# Hard ceiling on default_parameter_grid size for active_discovery
+# hypotheses. AGENTS.md mandates max 3 parameters; with conservative
+# 2-value sweeps that is 8 combos, so 16 is a comfortable upper bound
+# that still rules out brute-force search.
+_MAX_DEFAULT_GRID_COMBOS: Final[int] = 16
 
 # Cost classes a hypothesis may declare. Closed vocabulary so the
 # campaign-budget layer can reason over it without parsing free text.
@@ -289,15 +305,33 @@ class HypothesisCatalogError(RuntimeError):
 
 
 def _validate_catalog(catalog: tuple[StrategyHypothesis, ...]) -> None:
-    """Enforce the v3.15.3 hard invariants on the catalog.
+    """Enforce v3.15.4 strict catalog invariants (structural, import-time).
 
     1. Every status is in ``CLOSED_STATUSES``.
-    2. Exactly one hypothesis has ``status="active_discovery"``.
+    2. Every cost_class is in ``COST_CLASSES``.
     3. Hypothesis ids are unique.
     4. Strategy families are unique within the catalog.
-    5. Every executable family bridges to an enabled registry strategy
-       OR is in the metadata-only allowlist.
-    6. Every cost_class is in the closed COST_CLASSES vocabulary.
+    5. ``active_discovery`` count is at least 1.
+    6. For each ``active_discovery`` hypothesis (see
+       :func:`_assert_active_discovery_strict` for full detail):
+       a. family bridges to >= 1 enabled registry strategy
+       b. family is NOT in ``_METADATA_ONLY_FAMILIES``
+       c. ``default_parameter_grid`` is non-empty AND
+          <= ``_MAX_DEFAULT_GRID_COMBOS``
+       d. ``eligible_campaign_types`` is non-empty
+       e. ``parameter_schema`` is non-empty
+       f. every grid combo's keys are a subset of parameter_schema keys
+    7. ``expected_failure_modes`` ⊆ ``CANONICAL_FAILURE_CODES`` (every
+       hypothesis, regardless of status — declaring a non-canonical
+       code is always wrong).
+    8. Non-active hypotheses MUST declare empty
+       ``eligible_campaign_types`` (no dead-eligibility noise).
+    9. Non-active hypotheses whose family is NOT in
+       ``_METADATA_ONLY_FAMILIES`` MUST bridge to a registry entry.
+
+    Cross-module bridge to the preset layer is enforced separately by
+    :func:`validate_active_discovery_preset_bridges`, called by the
+    orchestrator at startup, NOT at module import.
     """
     seen_ids: set[str] = set()
     seen_families: set[str] = set()
@@ -323,23 +357,38 @@ def _validate_catalog(catalog: tuple[StrategyHypothesis, ...]) -> None:
             )
         seen_ids.add(hyp.hypothesis_id)
         seen_families.add(hyp.strategy_family)
+
+        for code in hyp.expected_failure_modes:
+            if code not in CANONICAL_FAILURE_CODES:
+                raise HypothesisCatalogError(
+                    f"hypothesis {hyp.hypothesis_id!r} declares "
+                    f"non-canonical failure code {code!r}; canonical="
+                    f"{sorted(CANONICAL_FAILURE_CODES)}"
+                )
+
         if hyp.status == "active_discovery":
             active_discovery_count += 1
-            _assert_executable_family_bridges(hyp)
-        elif hyp.strategy_family not in _METADATA_ONLY_FAMILIES:
-            # Non-executable hypotheses must either bridge to a registry
-            # family or be on the metadata-only allowlist; otherwise they
-            # are unreachable noise.
-            if not _family_in_registry(hyp.strategy_family):
+            _assert_active_discovery_strict(hyp)
+        else:
+            if hyp.eligible_campaign_types:
                 raise HypothesisCatalogError(
-                    f"hypothesis {hyp.hypothesis_id!r} family "
-                    f"{hyp.strategy_family!r} is neither registered nor "
-                    f"in the metadata-only allowlist "
-                    f"{sorted(_METADATA_ONLY_FAMILIES)}"
+                    f"hypothesis {hyp.hypothesis_id!r} status "
+                    f"{hyp.status!r} declares "
+                    f"eligible_campaign_types="
+                    f"{hyp.eligible_campaign_types!r}; "
+                    f"only active_discovery may be eligible"
                 )
-    if active_discovery_count != 1:
+            if hyp.strategy_family not in _METADATA_ONLY_FAMILIES:
+                if not _family_in_registry(hyp.strategy_family):
+                    raise HypothesisCatalogError(
+                        f"hypothesis {hyp.hypothesis_id!r} family "
+                        f"{hyp.strategy_family!r} is neither registered "
+                        f"nor in the metadata-only allowlist "
+                        f"{sorted(_METADATA_ONLY_FAMILIES)}"
+                    )
+    if active_discovery_count < 1:
         raise HypothesisCatalogError(
-            f"exactly one active_discovery hypothesis required; "
+            f"at least one active_discovery hypothesis required; "
             f"got {active_discovery_count}"
         )
 
@@ -350,7 +399,12 @@ def _family_in_registry(strategy_family: str) -> bool:
     )
 
 
-def _assert_executable_family_bridges(hyp: StrategyHypothesis) -> None:
+def _assert_active_discovery_strict(hyp: StrategyHypothesis) -> None:
+    """Strict per-hypothesis checks for ``active_discovery`` rows.
+
+    See ``_validate_catalog`` rule 6 for the full set; the function
+    raises :class:`HypothesisCatalogError` on the first violation.
+    """
     matches = [
         s for s in STRATEGIES
         if s.get("strategy_family") == hyp.strategy_family
@@ -362,6 +416,97 @@ def _assert_executable_family_bridges(hyp: StrategyHypothesis) -> None:
             f"family {hyp.strategy_family!r} has no enabled registry "
             f"strategy"
         )
+    if hyp.strategy_family in _METADATA_ONLY_FAMILIES:
+        raise HypothesisCatalogError(
+            f"active_discovery hypothesis {hyp.hypothesis_id!r} "
+            f"family {hyp.strategy_family!r} is in the metadata-only "
+            f"allowlist {sorted(_METADATA_ONLY_FAMILIES)}; promote the "
+            f"family out of the allowlist before activating"
+        )
+    if not hyp.default_parameter_grid:
+        raise HypothesisCatalogError(
+            f"active_discovery hypothesis {hyp.hypothesis_id!r} has "
+            f"empty default_parameter_grid"
+        )
+    if len(hyp.default_parameter_grid) > _MAX_DEFAULT_GRID_COMBOS:
+        raise HypothesisCatalogError(
+            f"active_discovery hypothesis {hyp.hypothesis_id!r} "
+            f"default_parameter_grid has "
+            f"{len(hyp.default_parameter_grid)} combos; max is "
+            f"{_MAX_DEFAULT_GRID_COMBOS}"
+        )
+    if not hyp.eligible_campaign_types:
+        raise HypothesisCatalogError(
+            f"active_discovery hypothesis {hyp.hypothesis_id!r} has "
+            f"empty eligible_campaign_types"
+        )
+    if not hyp.parameter_schema:
+        raise HypothesisCatalogError(
+            f"active_discovery hypothesis {hyp.hypothesis_id!r} has "
+            f"empty parameter_schema"
+        )
+    schema_keys = set(hyp.parameter_schema.keys())
+    for combo in hyp.default_parameter_grid:
+        unknown = set(combo.keys()) - schema_keys
+        if unknown:
+            raise HypothesisCatalogError(
+                f"active_discovery hypothesis {hyp.hypothesis_id!r} "
+                f"grid combo references unknown parameter keys "
+                f"{sorted(unknown)}; schema keys={sorted(schema_keys)}"
+            )
+
+
+def validate_active_discovery_preset_bridges(
+    *,
+    catalog: tuple[StrategyHypothesis, ...] = STRATEGY_HYPOTHESIS_CATALOG,
+) -> None:
+    """Cross-module bridge: every active_discovery has a stable preset.
+
+    For each ``active_discovery`` hypothesis verifies that:
+
+    - at least one preset declares ``hypothesis_id == hyp.hypothesis_id``
+      AND ``status="stable"`` AND ``enabled=True``;
+    - that preset's bundle resolves to >= 1 enabled registry strategy
+      via :func:`research.presets.resolve_preset_bundle`.
+
+    Raises :class:`HypothesisCatalogError` with a ``bridge:`` message
+    prefix on the first violation. Imports ``research.presets`` lazily
+    so the catalog module's import path stays independent of the
+    preset layer.
+
+    Called explicitly by ``research.run_research`` at startup; NOT
+    invoked at module import.
+    """
+    from research.presets import PRESETS, resolve_preset_bundle
+
+    by_hypothesis_id: dict[str, list[Any]] = {}
+    for preset in PRESETS:
+        if preset.hypothesis_id is None:
+            continue
+        by_hypothesis_id.setdefault(preset.hypothesis_id, []).append(preset)
+
+    for hyp in catalog:
+        if hyp.status != "active_discovery":
+            continue
+        bound = by_hypothesis_id.get(hyp.hypothesis_id) or []
+        stable_enabled = [
+            p for p in bound if p.status == "stable" and p.enabled
+        ]
+        if not stable_enabled:
+            raise HypothesisCatalogError(
+                f"bridge: active_discovery hypothesis "
+                f"{hyp.hypothesis_id!r} has no stable+enabled preset "
+                f"binding via hypothesis_id"
+            )
+        for preset in stable_enabled:
+            resolved = resolve_preset_bundle(preset)
+            if not resolved:
+                raise HypothesisCatalogError(
+                    f"bridge: preset {preset.name!r} bound to "
+                    f"hypothesis {hyp.hypothesis_id!r} resolves to "
+                    f"zero enabled registry strategies; bundle="
+                    f"{list(preset.bundle)}"
+                )
 
 
 _validate_catalog(STRATEGY_HYPOTHESIS_CATALOG)
@@ -485,5 +630,6 @@ __all__ = [
     "get_by_id",
     "list_active_discovery",
     "list_by_status",
+    "validate_active_discovery_preset_bridges",
     "write_catalog_sidecar",
 ]
