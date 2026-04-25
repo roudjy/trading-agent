@@ -86,6 +86,14 @@ class ResearchPreset:
     expected_behavior: str = ""
     falsification: tuple[str, ...] = field(default_factory=tuple)
     enablement_criteria: tuple[str, ...] = field(default_factory=tuple)
+    # v3.15.3 pre-merge: explicit hypothesis bridge.
+    # When the campaign policy enforces ``require_hypothesis_status``, it
+    # consults this field directly — no implicit ``bundle[0] → registry
+    # → strategy_family`` walk. Default ``None`` keeps every existing
+    # preset bytewise stable in templates_latest.v1.json (the template's
+    # own ``require_hypothesis_status`` stays empty for those presets, so
+    # the field is never consulted).
+    hypothesis_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -271,6 +279,7 @@ PRESETS: tuple[ResearchPreset, ...] = (
         universe=_TREND_PULLBACK_CRYPTO_UNIVERSE,
         timeframe="1h",
         bundle=("trend_pullback_v1",),
+        hypothesis_id="trend_pullback_v1",
         screening_mode="strict",
         cost_mode="realistic",
         status="stable",

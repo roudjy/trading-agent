@@ -39,9 +39,8 @@ from research.campaign_templates import (
     EligibilityPredicate,
 )
 from research.presets import get_preset
-from research.registry import STRATEGIES
 from research.strategy_hypothesis_catalog import (
-    get_by_family as _hypothesis_get_by_family,
+    get_by_id as _hypothesis_get_by_id,
 )
 
 POLICY_SCHEMA_VERSION: str = "1.0"
@@ -678,10 +677,14 @@ def _check_template_eligibility(
 
     v3.15.3: when the template declares ``require_hypothesis_status``
     (default ``()``), the bridged strategy_hypothesis_catalog row must
-    carry one of the allowed statuses. The bridge is preset →
-    bundle[0] → registry.strategy_family → catalog. Empty bundles or
-    missing strategies / families surface as canonical reject reasons
-    so the campaign launcher records *why* a tick stalled.
+    carry one of the allowed statuses. The bridge is **explicit**:
+    preset.hypothesis_id → catalog.status. Presets without a
+    ``hypothesis_id`` are rejected with ``preset_missing_hypothesis_id``
+    so the campaign launcher never silently picks an unmapped preset
+    when hypothesis enforcement is on. The legacy
+    ``bundle[0] → registry → strategy_family`` walk has been removed:
+    presets opt in to hypothesis enforcement by setting
+    ``hypothesis_id``, full stop.
     """
     template = spec.template
     eligibility: EligibilityPredicate = template.eligibility
@@ -721,24 +724,22 @@ def _check_hypothesis_status(
     preset: Any,
     eligibility: EligibilityPredicate,
 ) -> CandidateRejection | None:
-    """Resolve the preset's hypothesis and gate on its catalog status.
+    """Resolve the preset's hypothesis via the explicit
+    ``preset.hypothesis_id`` mapping and gate on its catalog status.
 
-    Bridge: preset.bundle[0] → STRATEGIES[strategy_family] →
-    STRATEGY_HYPOTHESIS_CATALOG[strategy_family]. The first bundle
-    entry is treated as the controlling strategy for the hypothesis
-    bridge — multi-strategy bundles carry diagnostic intent and are
-    out of scope for v3.15.3.
+    The bridge is intentionally narrow: a preset that opts into
+    hypothesis enforcement MUST set ``hypothesis_id``. Multi-strategy
+    bundles, optional bundles, and registry walks are deliberately
+    NOT consulted here — the eligibility decision must be readable
+    from one preset attribute, full stop.
     """
-    if not preset.bundle:
-        return _build_eligibility_rejection(spec, "preset_bundle_empty")
-    strategy_name = preset.bundle[0]
-    strategy_family = _strategy_family_for(strategy_name)
-    if strategy_family is None:
+    hypothesis_id = preset.hypothesis_id
+    if hypothesis_id is None:
         return _build_eligibility_rejection(
-            spec, "strategy_not_in_registry"
+            spec, "preset_missing_hypothesis_id"
         )
     try:
-        hypothesis = _hypothesis_get_by_family(strategy_family)
+        hypothesis = _hypothesis_get_by_id(hypothesis_id)
     except KeyError:
         return _build_eligibility_rejection(
             spec, "hypothesis_not_in_catalog"
@@ -748,15 +749,6 @@ def _check_hypothesis_status(
             spec,
             f"hypothesis_status_{hypothesis.status}_not_in_required",
         )
-    return None
-
-
-def _strategy_family_for(strategy_name: str) -> str | None:
-    """Look up the registry strategy_family for ``strategy_name``."""
-    for entry in STRATEGIES:
-        if entry.get("name") == strategy_name:
-            family = entry.get("strategy_family")
-            return str(family) if family is not None else None
     return None
 
 
