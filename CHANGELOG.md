@@ -4,6 +4,55 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.3.1] — Audit-sidecar hotfix on degenerate runs
+
+Date: 2026-04-25
+Branch: `fix/v3.15.3.1-audit-sidecar-on-degenerate`
+
+Hotfix on top of v3.15.3. The two new audit sidecars
+(``strategy_hypothesis_catalog_latest.v1.json`` and
+``strategy_campaign_metadata_latest.v1.json``) are now written even
+when a research run terminates as degenerate / no-survivor, so the
+COL audit trail is never missing the catalog snapshot at the moment
+of the rejection.
+
+### Changed
+
+- ``research/run_research.py``: ``_raise_degenerate_run`` writes
+  both v3.15.3 sidecars before re-raising
+  ``DegenerateResearchRunError``. Mirrors the existing
+  ``_write_public_artifact_status_sidecar`` pattern in the same
+  function — best-effort with ``tracker.emit_event(
+  "v3_15_3_hypothesis_catalog_sidecars_failed", ...)`` on failure,
+  never blocks the original degenerate-run exception.
+
+### Deliberately not changed
+
+- No policy changes. ``campaign_policy._check_template_eligibility``
+  still reads the in-memory catalog tuple, not the sidecar file —
+  the hotfix only fills an audit-trail gap, never alters a
+  selection decision.
+- No strategy changes. ``trend_pullback_v1`` and the legacy
+  trend_pullback / trend_pullback_tp_sl entries are untouched.
+- No artifact schema changes. The sidecar schemas
+  (``CATALOG_SCHEMA_VERSION="1.0"``,
+  ``CAMPAIGN_METADATA_SCHEMA_VERSION="1.0"``) are unchanged; this
+  release only adjusts WHEN they are written.
+- Frozen contracts preserved: ``research_latest.json``,
+  ``strategy_matrix.csv``, the v3.15.2
+  ``campaign_templates_latest.v1.json`` byte-identity for the 3
+  baseline preset templates.
+
+### Tests
+
+- 6 new regression tests in
+  ``tests/regression/test_v3_15_3_1_audit_sidecars_on_degenerate.py``:
+  catalog sidecar written on degenerate, metadata sidecar written
+  on degenerate, sidecar-failure does not mask the original
+  ``DegenerateResearchRunError``, sidecar-failure emits the typed
+  tracker event, sidecar carries the v3.15.3 pin block invariants
+  on the degenerate path, sidecar records run_id.
+
 ## [v3.15.3] — Strategy Hypothesis Catalog + First Controlled Strategy Candidate
 
 Date: 2026-04-25
