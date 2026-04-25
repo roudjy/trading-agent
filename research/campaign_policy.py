@@ -36,7 +36,9 @@ from research.campaign_templates import (
     CampaignOsConfig,
     CampaignTemplate,
     CampaignType,
+    EligibilityPredicate,
 )
+from research.presets import get_preset
 
 POLICY_SCHEMA_VERSION: str = "1.0"
 POLICY_DECISION_PATH: Path = Path(
@@ -523,6 +525,16 @@ def _filter_candidate(
 ) -> CandidateRejection | None:
     template = spec.template
 
+    # Filter 0 — template eligibility predicate (v3.15.2 hotfix).
+    # Honours operator-set preset flags before any other gate so that
+    # ``excluded_from_daily_scheduler``, ``diagnostic_only``, ``enabled``,
+    # and ``status`` are enforced uniformly across every phase
+    # (follow-ups, daily_primary, daily_control, weekly_retest). A
+    # missing preset rejects defensively.
+    eligibility_rejection = _check_template_eligibility(spec)
+    if eligibility_rejection is not None:
+        return eligibility_rejection
+
     # Filter 1 — already guarded upstream for primaries/retests; for
     # follow-ups we re-check frozen-preset gate here so eligibility is
     # uniform.
@@ -642,6 +654,79 @@ def _filter_candidate(
             reject_reason="daily_cap_reached",
         )
     return None
+
+
+def _check_template_eligibility(
+    spec: _CandidateSpec,
+) -> CandidateRejection | None:
+    """Apply the template's ``EligibilityPredicate`` against the live preset.
+
+    v3.15.2 hotfix: prior to this filter the policy engine appended
+    candidates without consulting ``template.eligibility``, so presets
+    flagged ``excluded_from_daily_scheduler=True`` or
+    ``diagnostic_only=True`` could still be selected for ``daily_primary``.
+    Centralising the check here covers every phase (A/B/C/D) and every
+    follow-up template.
+
+    A preset whose name is no longer in the catalog is rejected with
+    ``preset_not_in_catalog`` so a stale follow-up cannot run against
+    a removed preset definition.
+    """
+    template = spec.template
+    eligibility: EligibilityPredicate = template.eligibility
+    try:
+        preset = get_preset(spec.preset_name)
+    except KeyError:
+        return _build_eligibility_rejection(spec, "preset_not_in_catalog")
+
+    if eligibility.require_preset_enabled and not preset.enabled:
+        return _build_eligibility_rejection(spec, "preset_disabled")
+    if (
+        eligibility.forbid_excluded_from_daily_scheduler
+        and preset.excluded_from_daily_scheduler
+    ):
+        return _build_eligibility_rejection(
+            spec, "preset_excluded_from_daily_scheduler"
+        )
+    if eligibility.forbid_diagnostic_only and preset.diagnostic_only:
+        return _build_eligibility_rejection(spec, "preset_diagnostic_only")
+    if (
+        eligibility.require_preset_status
+        and preset.status not in eligibility.require_preset_status
+    ):
+        return _build_eligibility_rejection(
+            spec,
+            f"preset_status_{preset.status}_not_in_required",
+        )
+    return None
+
+
+def _build_eligibility_rejection(
+    spec: _CandidateSpec,
+    reject_reason: str,
+) -> CandidateRejection:
+    return CandidateRejection(
+        template_id=spec.template.template_id,
+        preset_name=spec.preset_name,
+        campaign_type=spec.campaign_type,
+        appended_in_phase=spec.appended_in_phase,
+        appended_index=spec.appended_index,
+        reject_reason=reject_reason,
+        details={
+            "require_preset_enabled": (
+                spec.template.eligibility.require_preset_enabled
+            ),
+            "forbid_excluded_from_daily_scheduler": (
+                spec.template.eligibility.forbid_excluded_from_daily_scheduler
+            ),
+            "forbid_diagnostic_only": (
+                spec.template.eligibility.forbid_diagnostic_only
+            ),
+            "require_preset_status": list(
+                spec.template.eligibility.require_preset_status
+            ),
+        },
+    )
 
 
 def _guess_family_key(registry: dict[str, Any], preset_name: str) -> str:
