@@ -39,6 +39,10 @@ from research.campaign_templates import (
     EligibilityPredicate,
 )
 from research.presets import get_preset
+from research.registry import STRATEGIES
+from research.strategy_hypothesis_catalog import (
+    get_by_family as _hypothesis_get_by_family,
+)
 
 POLICY_SCHEMA_VERSION: str = "1.0"
 POLICY_DECISION_PATH: Path = Path(
@@ -671,6 +675,13 @@ def _check_template_eligibility(
     A preset whose name is no longer in the catalog is rejected with
     ``preset_not_in_catalog`` so a stale follow-up cannot run against
     a removed preset definition.
+
+    v3.15.3: when the template declares ``require_hypothesis_status``
+    (default ``()``), the bridged strategy_hypothesis_catalog row must
+    carry one of the allowed statuses. The bridge is preset →
+    bundle[0] → registry.strategy_family → catalog. Empty bundles or
+    missing strategies / families surface as canonical reject reasons
+    so the campaign launcher records *why* a tick stalled.
     """
     template = spec.template
     eligibility: EligibilityPredicate = template.eligibility
@@ -698,6 +709,54 @@ def _check_template_eligibility(
             spec,
             f"preset_status_{preset.status}_not_in_required",
         )
+    if eligibility.require_hypothesis_status:
+        rejection = _check_hypothesis_status(spec, preset, eligibility)
+        if rejection is not None:
+            return rejection
+    return None
+
+
+def _check_hypothesis_status(
+    spec: _CandidateSpec,
+    preset: Any,
+    eligibility: EligibilityPredicate,
+) -> CandidateRejection | None:
+    """Resolve the preset's hypothesis and gate on its catalog status.
+
+    Bridge: preset.bundle[0] → STRATEGIES[strategy_family] →
+    STRATEGY_HYPOTHESIS_CATALOG[strategy_family]. The first bundle
+    entry is treated as the controlling strategy for the hypothesis
+    bridge — multi-strategy bundles carry diagnostic intent and are
+    out of scope for v3.15.3.
+    """
+    if not preset.bundle:
+        return _build_eligibility_rejection(spec, "preset_bundle_empty")
+    strategy_name = preset.bundle[0]
+    strategy_family = _strategy_family_for(strategy_name)
+    if strategy_family is None:
+        return _build_eligibility_rejection(
+            spec, "strategy_not_in_registry"
+        )
+    try:
+        hypothesis = _hypothesis_get_by_family(strategy_family)
+    except KeyError:
+        return _build_eligibility_rejection(
+            spec, "hypothesis_not_in_catalog"
+        )
+    if hypothesis.status not in eligibility.require_hypothesis_status:
+        return _build_eligibility_rejection(
+            spec,
+            f"hypothesis_status_{hypothesis.status}_not_in_required",
+        )
+    return None
+
+
+def _strategy_family_for(strategy_name: str) -> str | None:
+    """Look up the registry strategy_family for ``strategy_name``."""
+    for entry in STRATEGIES:
+        if entry.get("name") == strategy_name:
+            family = entry.get("strategy_family")
+            return str(family) if family is not None else None
     return None
 
 
@@ -724,6 +783,9 @@ def _build_eligibility_rejection(
             ),
             "require_preset_status": list(
                 spec.template.eligibility.require_preset_status
+            ),
+            "require_hypothesis_status": list(
+                spec.template.eligibility.require_hypothesis_status
             ),
         },
     )

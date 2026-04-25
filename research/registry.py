@@ -18,6 +18,7 @@ from agent.backtesting.strategies import (
     sma_crossover_strategie,
     trend_pullback_strategie,
     trend_pullback_tp_sl_strategie,
+    trend_pullback_v1_strategie,
     zscore_mean_reversion_strategie,
 )
 
@@ -192,6 +193,38 @@ STRATEGIES = [
             "tier 1 baseline. reference_asset carries the single "
             "two-leg baseline config (v3.6 scope lock: not a pair "
             "universe / not selection)."
+        ),
+        "enabled": True,
+        "contract_version": "1.0",
+    },
+    # -------------------------------------------------------------------
+    # trend_pullback_v1 — v3.15.3 first controlled active_discovery.
+    # Thin contract (func(df, features)). Max 3 parameters per
+    # AGENTS.md / v3.15.3 spec §6. Bridges to the
+    # research.strategy_hypothesis_catalog row whose
+    # ``strategy_family="trend_pullback"`` carries
+    # ``status="active_discovery"``. Legacy ``trend_pullback`` and
+    # ``trend_pullback_tp_sl`` (above) stay registered as
+    # ``strategy_family="trend_following"`` and are intentionally NOT
+    # part of the v3.15.3 hypothesis-catalog bridge.
+    # -------------------------------------------------------------------
+    {
+        "name": "trend_pullback_v1",
+        "factory": trend_pullback_v1_strategie,
+        "params": {
+            "ema_fast_window": [10, 20],
+            "ema_slow_window": [50, 100],
+            "entry_k": [0.5, 1.0],
+        },
+        "family": "trend",
+        "strategy_family": "trend_pullback",
+        "position_structure": "outright",
+        "initial_lane_support": "supported",
+        "hypothesis": (
+            "v3.15.3 controlled trend pullback. Long-only entry into a "
+            "vol-normalised pullback inside an established trend; flat "
+            "when trend breaks or pullback resolves. See "
+            "research.strategy_hypothesis_catalog (status=active_discovery)."
         ),
         "enabled": True,
         "contract_version": "1.0",

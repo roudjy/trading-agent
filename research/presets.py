@@ -104,6 +104,10 @@ _CRYPTO_DIAGNOSTIC_UNIVERSE: tuple[str, ...] = (
     "BTC-EUR", "ETH-EUR",
 )
 
+_TREND_PULLBACK_CRYPTO_UNIVERSE: tuple[str, ...] = (
+    "BTC-EUR", "ETH-EUR", "SOL-EUR",
+)
+
 
 PRESETS: tuple[ResearchPreset, ...] = (
     ResearchPreset(
@@ -252,6 +256,61 @@ PRESETS: tuple[ResearchPreset, ...] = (
             "het regime-filter ruis.",
             "Regime-filter reduceert trade count onder min_oos_trades "
             "waardoor elke run in promotion faalt op insufficient_trades.",
+        ),
+    ),
+    ResearchPreset(
+        name="trend_pullback_crypto_1h",
+        hypothesis=(
+            "v3.15.3 controlled active_discovery: een trend pullback v1 "
+            "thin strategy (max 3 parameters) test of een vol-genormaliseerde "
+            "pullback in een gevestigde EMA-trend op crypto 1h een edge "
+            "oplevert. Bridges naar de strategy_hypothesis_catalog row "
+            "trend_pullback_v1 / family trend_pullback / status "
+            "active_discovery."
+        ),
+        universe=_TREND_PULLBACK_CRYPTO_UNIVERSE,
+        timeframe="1h",
+        bundle=("trend_pullback_v1",),
+        screening_mode="strict",
+        cost_mode="realistic",
+        status="stable",
+        enabled=True,
+        diagnostic_only=False,
+        excluded_from_daily_scheduler=False,
+        preset_class="experimental",
+        rationale=(
+            "Crypto 1h vertoont episodes van persistente trend afgewisseld "
+            "met intra-trend pullbacks. De v3.15.3 catalog markeert "
+            "trend_pullback als enige active_discovery hypothese; deze "
+            "preset is het enige executable kanaal waarmee de v3.15.2 "
+            "Campaign Operating Layer die hypothese autonoom kan testen, "
+            "negeren, falsificeren of cooldownen. Max 3 parameters per "
+            "AGENTS.md."
+        ),
+        expected_behavior=(
+            "Per fold: long entries alleen wanneer ema_fast > ema_slow EN "
+            "pullback_distance < -entry_k. Flat zodra trend breekt of "
+            "pullback resolveert. Bounded grid (\u22648 combinaties) — "
+            "geen brute-force search. Promotion gates uit v3.12 (PSR, DSR, "
+            "drawdown) blijven leidend; geen zelfgekozen drempels."
+        ),
+        falsification=(
+            "Drie achtereenvolgende daily_primary runs falen op "
+            "insufficient_trades binnen het crypto 1h universum.",
+            "Cost-sensitivity (v3.8) zet bootstrap_sharpe_ci over zero "
+            "op elk asset/parameter combo \u2014 cost_fragile bevestigd.",
+            "Parameter-neighborhood instabiel: top combos verschuiven "
+            ">50% tussen 3 walk-forward runs zonder regime-shift.",
+            "Geen baseline edge: trend_pullback_v1 onderpresteert "
+            "ema_trend_baseline op alle asset/interval combinaties.",
+        ),
+        enablement_criteria=(
+            "Hypothesis catalog status remains 'active_discovery'; "
+            "promotion to other status flows via the catalog, not via "
+            "this preset.",
+            "v3.15.2 Campaign Operating Layer hourly tick is healthy "
+            "(systemd-timer Active(running), pin block live_eligible=False).",
+            "Bounded parameter grid (\u22648 combos) verified each run.",
         ),
     ),
     ResearchPreset(
