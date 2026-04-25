@@ -167,6 +167,55 @@ def spread_zscore(
     return zscore(spread(close_a, close_b, hedge_ratio), lookback)
 
 
+def compression_ratio(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    atr_short_window: int,
+    atr_long_window: int,
+) -> pd.Series:
+    """Volatility-compression ratio: ``atr_short / atr_long`` (v3.15.4).
+
+    Composite of the existing ``atr`` primitive at two horizons. The
+    ratio is < 1.0 when short-term volatility has compressed below the
+    long-term baseline (a quiet, range-bound regime); a ratio > 1.0
+    indicates expansion. Used by ``volatility_compression_breakout_strategie``
+    to gate entries on a prior-bar compressed state.
+
+    Layer rules (v3.15.3 §6 feature layer):
+    - deterministic
+    - explicit zero-vol handling (``atr_long == 0`` → NaN, no inf)
+    - stable indexing (output index == close.index)
+    - no lookahead (uses pandas ``rolling`` semantics only)
+    """
+    short = atr(high, low, close, window=int(atr_short_window))
+    long_ = atr(high, low, close, window=int(atr_long_window))
+    safe_long = long_.where(long_ != 0.0, np.nan)
+    return short / safe_long
+
+
+def rolling_high_previous(close: pd.Series, window: int) -> pd.Series:
+    """Highest close over the previous ``window`` bars (v3.15.4).
+
+    ``close.rolling(window).max().shift(1)`` — the explicit shift(1)
+    is the no-lookahead guarantee: the value at index ``t`` never
+    includes the bar ``t`` itself. Used by
+    ``volatility_compression_breakout_strategie`` as the breakout
+    reference for long entries.
+    """
+    return close.astype(float).rolling(window=int(window)).max().shift(1)
+
+
+def rolling_low_previous(close: pd.Series, window: int) -> pd.Series:
+    """Lowest close over the previous ``window`` bars (v3.15.4).
+
+    Symmetric to :func:`rolling_high_previous`; explicit shift(1)
+    enforces no-lookahead. Used as the breakdown exit reference for
+    ``volatility_compression_breakout_strategie``.
+    """
+    return close.astype(float).rolling(window=int(window)).min().shift(1)
+
+
 def pullback_distance(
     close: pd.Series,
     ema_fast_window: int,
@@ -267,6 +316,20 @@ def _warmup_pullback_distance(params: dict) -> int:
     )
 
 
+def _warmup_compression_ratio(params: dict) -> int:
+    # Longest atr horizon governs first-non-NaN bar.
+    return max(
+        int(params.get("atr_short_window", 0)),
+        int(params.get("atr_long_window", 0)),
+    )
+
+
+def _warmup_rolling_previous(params: dict) -> int:
+    # rolling(window).max().shift(1) — first (window) bars of the
+    # rolling output are NaN, the shift adds one more leading NaN.
+    return int(params.get("window", 0)) + 1
+
+
 FEATURE_REGISTRY: dict[str, FeatureSpec] = {
     "log_returns": FeatureSpec(
         fn=log_returns,
@@ -322,6 +385,24 @@ FEATURE_REGISTRY: dict[str, FeatureSpec] = {
         required_columns=("close",),
         warmup_bars_fn=_warmup_pullback_distance,
     ),
+    "compression_ratio": FeatureSpec(
+        fn=compression_ratio,
+        param_names=("atr_short_window", "atr_long_window"),
+        required_columns=("high", "low", "close"),
+        warmup_bars_fn=_warmup_compression_ratio,
+    ),
+    "rolling_high_previous": FeatureSpec(
+        fn=rolling_high_previous,
+        param_names=("window",),
+        required_columns=("close",),
+        warmup_bars_fn=_warmup_rolling_previous,
+    ),
+    "rolling_low_previous": FeatureSpec(
+        fn=rolling_low_previous,
+        param_names=("window",),
+        required_columns=("close",),
+        warmup_bars_fn=_warmup_rolling_previous,
+    ),
 }
 
 
@@ -330,10 +411,13 @@ __all__ = [
     "FEATURE_VERSION",
     "FeatureSpec",
     "atr",
+    "compression_ratio",
     "ema",
     "hedge_ratio_ols",
     "log_returns",
     "pullback_distance",
+    "rolling_high_previous",
+    "rolling_low_previous",
     "rolling_volatility",
     "sma",
     "spread",
