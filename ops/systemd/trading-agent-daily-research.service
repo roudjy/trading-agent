@@ -1,5 +1,5 @@
 [Unit]
-Description=JvR Trading Agent — daily default research run (v3.10)
+Description=JvR Trading Agent — autonomous campaign operating layer tick (v3.15.2)
 Documentation=https://github.com/roudjy/trading-agent docs/adr/ADR-011-v3.10-architecture.md
 # Only fire once the dashboard container is up. The unit fails loudly and
 # the journal captures it when the container is not running.
@@ -7,11 +7,14 @@ After=docker.service network-online.target
 
 [Service]
 Type=oneshot
-# Run the default daily preset inside the existing jvr_dashboard container,
-# so CLI + UI + scheduler all share the SAME execution path (ADR-011 §5).
-ExecStart=/usr/bin/docker exec jvr_dashboard python /app/researchctl.py run trend_equities_4h_baseline
-# Never auto-run the crypto_diagnostic_1h preset from this timer; it is
-# excluded_from_daily_scheduler=True. That preset must stay manual.
+# v3.15.2: each tick runs the campaign operating layer inside the existing
+# jvr_dashboard container. The launcher is a single-tick CLI: it loads
+# artifacts, runs the pure decide() function, applies the chosen action
+# under a queue file lock, and exits. Cron fires it hourly; preset
+# selection, follow-ups, freezes, and budget are now policy-driven, not
+# hand-picked. Presets with excluded_from_daily_scheduler=True remain
+# excluded by the policy engine (ADR-011 §5 honoured end-to-end).
+ExecStart=/usr/bin/docker exec jvr_dashboard python -m research.campaign_launcher
 StandardOutput=journal
 StandardError=journal
 
