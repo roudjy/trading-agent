@@ -56,10 +56,11 @@ def test_cost_classes_closed_set() -> None:
         assert hyp.cost_class in COST_CLASSES
 
 
-def test_exactly_one_active_discovery_invariant() -> None:
+def test_at_least_one_active_discovery_invariant() -> None:
+    """v3.15.4 relaxed: >= 1 active_discovery (was == 1 in v3.15.3)."""
     actives = list_active_discovery()
-    assert len(actives) == 1
-    assert actives[0].hypothesis_id == "trend_pullback_v1"
+    assert len(actives) >= 1
+    assert "trend_pullback_v1" in {h.hypothesis_id for h in actives}
 
 
 def test_planned_disabled_diagnostic_present() -> None:
@@ -145,24 +146,115 @@ def test_payload_byte_identical_across_runs() -> None:
     assert serialize_canonical(p1) == serialize_canonical(p2)
 
 
-def test_validate_catalog_rejects_two_active_discovery() -> None:
-    a = STRATEGY_HYPOTHESIS_CATALOG[0]  # trend_pullback_v1 (active)
-    twin = StrategyHypothesis(
-        hypothesis_id=f"{a.hypothesis_id}_twin",
-        strategy_family=a.strategy_family + "_twin",
+def test_validate_catalog_rejects_zero_active_discovery() -> None:
+    """v3.15.4 strict: catalog with no active_discovery is invalid."""
+    no_actives = tuple(
+        StrategyHypothesis(
+            hypothesis_id=h.hypothesis_id,
+            strategy_family=h.strategy_family,
+            status="planned" if h.status == "active_discovery" else h.status,
+            description=h.description,
+            feature_dependencies=h.feature_dependencies,
+            parameter_schema=h.parameter_schema,
+            default_parameter_grid=h.default_parameter_grid,
+            eligible_campaign_types=()
+            if h.status == "active_discovery"
+            else h.eligible_campaign_types,
+            expected_failure_modes=h.expected_failure_modes,
+            baseline_reference=h.baseline_reference,
+            cost_class=h.cost_class,
+            policy_metadata=dict(h.policy_metadata),
+        )
+        for h in STRATEGY_HYPOTHESIS_CATALOG
+    )
+    with pytest.raises(HypothesisCatalogError):
+        _validate_catalog(no_actives)
+
+
+def test_validate_catalog_active_discovery_must_have_grid() -> None:
+    """v3.15.4 strict: active_discovery with empty grid is invalid."""
+    bad_active = StrategyHypothesis(
+        hypothesis_id="needs_grid_v0",
+        strategy_family="trend_pullback",  # bridges to existing registry entry
         status="active_discovery",
-        description="dup",
+        description="x",
         feature_dependencies=(),
-        parameter_schema={},
-        default_parameter_grid=(),
-        eligible_campaign_types=(),
+        parameter_schema={"x": {"type": "int"}},
+        default_parameter_grid=(),  # offending: empty
+        eligible_campaign_types=("daily_primary",),
         expected_failure_modes=(),
         baseline_reference=None,
         cost_class="low",
     )
-    bad = STRATEGY_HYPOTHESIS_CATALOG + (twin,)
+    others = tuple(
+        h for h in STRATEGY_HYPOTHESIS_CATALOG
+        if h.status != "active_discovery"
+    )
     with pytest.raises(HypothesisCatalogError):
-        _validate_catalog(bad)
+        _validate_catalog(others + (bad_active,))
+
+
+def test_validate_catalog_active_discovery_must_have_eligible_types() -> None:
+    """v3.15.4 strict: active_discovery without eligible_campaign_types
+    is invalid."""
+    bad_active = StrategyHypothesis(
+        hypothesis_id="needs_eligible_v0",
+        strategy_family="trend_pullback",
+        status="active_discovery",
+        description="x",
+        feature_dependencies=(),
+        parameter_schema={"x": {"type": "int"}},
+        default_parameter_grid=({"x": 1},),
+        eligible_campaign_types=(),  # offending: empty
+        expected_failure_modes=(),
+        baseline_reference=None,
+        cost_class="low",
+    )
+    others = tuple(
+        h for h in STRATEGY_HYPOTHESIS_CATALOG
+        if h.status != "active_discovery"
+    )
+    with pytest.raises(HypothesisCatalogError):
+        _validate_catalog(others + (bad_active,))
+
+
+def test_validate_catalog_non_active_must_have_empty_eligible() -> None:
+    """v3.15.4 strict: planned/disabled/diagnostic with non-empty
+    eligible_campaign_types is dead-eligibility noise."""
+    bad_planned = StrategyHypothesis(
+        hypothesis_id="dead_eligibility_v0",
+        strategy_family="dead_family",
+        status="planned",
+        description="x",
+        feature_dependencies=(),
+        parameter_schema={},
+        default_parameter_grid=(),
+        eligible_campaign_types=("daily_primary",),  # offending
+        expected_failure_modes=(),
+        baseline_reference=None,
+        cost_class="low",
+    )
+    with pytest.raises(HypothesisCatalogError):
+        _validate_catalog(STRATEGY_HYPOTHESIS_CATALOG + (bad_planned,))
+
+
+def test_validate_catalog_rejects_non_canonical_failure_code() -> None:
+    """v3.15.4 strict: every expected_failure_mode must be canonical."""
+    bad = StrategyHypothesis(
+        hypothesis_id="non_canonical_code_v0",
+        strategy_family="non_canonical_family",
+        status="planned",
+        description="x",
+        feature_dependencies=(),
+        parameter_schema={},
+        default_parameter_grid=(),
+        eligible_campaign_types=(),
+        expected_failure_modes=("not_a_canonical_code",),  # offending
+        baseline_reference=None,
+        cost_class="low",
+    )
+    with pytest.raises(HypothesisCatalogError):
+        _validate_catalog(STRATEGY_HYPOTHESIS_CATALOG + (bad,))
 
 
 def test_validate_catalog_rejects_invalid_status() -> None:
