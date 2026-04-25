@@ -96,7 +96,11 @@ from research.paper_validation_sidecars import (
 from research.strategy_campaign_metadata import (
     write_campaign_metadata_sidecar,
 )
-from research.strategy_hypothesis_catalog import write_catalog_sidecar
+from research.strategy_hypothesis_catalog import (
+    HypothesisCatalogError,
+    validate_active_discovery_preset_bridges,
+    write_catalog_sidecar,
+)
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -1943,6 +1947,20 @@ def run_research(
     }
     recovery_policy = default_recovery_policy(heartbeat_timeout_s=RUN_HEARTBEAT_TIMEOUT_S)
     try:
+        # v3.15.4: cross-module bridge invariant — every active_discovery
+        # hypothesis in the catalog must have a stable+enabled preset
+        # whose bundle resolves to >=1 enabled registry strategy. Runs
+        # once per invocation; not at module import to keep catalog ↔
+        # presets one-directional. Fails fast before any preset / config
+        # work happens.
+        try:
+            validate_active_discovery_preset_bridges()
+        except HypothesisCatalogError as exc:
+            tracker.emit_event(
+                "active_discovery_preset_bridge_violation",
+                error=str(exc),
+            )
+            raise
         if preset_obj is not None:
             _enforce_preset_validation(preset_obj, tracker)
         research_config = load_research_config()
