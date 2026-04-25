@@ -156,12 +156,14 @@ def test_catalog_sidecar_carries_pin_block_invariants(
     assert payload["diagnostic_only"] is True
     assert payload["authoritative"] is False
     assert payload["hypothesis_catalog_version"] == "v0.1"
-    # Hard invariant: exactly one active_discovery hypothesis.
+    # v3.15.4: relaxed to >= 1 active_discovery (was == 1 in v3.15.3).
+    # The strict catalog validator continues to enforce per-hypothesis
+    # rules (bounded grid, eligible types, canonical failure modes).
     actives = [
         h for h in payload["hypotheses"]
         if h["status"] == "active_discovery"
     ]
-    assert len(actives) == 1
+    assert len(actives) >= 1
 
 
 def test_catalog_sidecar_records_run_id(temp_research_dir: Path) -> None:
