@@ -70,10 +70,13 @@ fi
 rm -f /tmp/jvr-health.$$
 
 # Advisory systemd-timer status report (non-fatal).
+# Unit name kept as trading-agent-daily-research.timer for stable
+# install paths; the underlying behaviour is now an hourly COL tick.
 if command -v systemctl >/dev/null 2>&1; then
     TIMER_STATUS=$(systemctl is-active trading-agent-daily-research.timer 2>/dev/null || true)
-    echo ">> daily research timer: ${TIMER_STATUS:-not-installed}"
+    echo ">> campaign operating layer timer: ${TIMER_STATUS:-not-installed}"
     if [ "${TIMER_STATUS}" != "active" ]; then
         echo "   (enable once with: sudo systemctl enable --now trading-agent-daily-research.timer)"
+        echo "   after every change to the unit files: sudo systemctl daemon-reload"
     fi
 fi
