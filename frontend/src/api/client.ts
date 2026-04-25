@@ -152,6 +152,10 @@ export const api = {
   runStatus: () => request<RunStatus>("/api/research/run-status"),
   publicArtifactStatus: () =>
     request<PublicArtifactStatus>("/api/research/public-artifact-status"),
+  campaignDigest: () => request<Record<string, unknown>>("/api/campaigns/digest"),
+  campaignQueue: () => request<Record<string, unknown>>("/api/campaigns/queue"),
+  campaignRegistry: () => request<Record<string, unknown>>("/api/campaigns/registry"),
+  campaignPresetState: () => request<Record<string, unknown>>("/api/campaigns/preset-state"),
   login: (username: string, password: string) =>
     request<{ ok: boolean; actor?: string; error?: string }>("/api/session/login", {
       method: "POST",
