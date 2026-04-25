@@ -64,16 +64,31 @@ _DEFAULT_TIER1_FAIRNESS_CAP: int = 4
 
 @dataclass(frozen=True)
 class EligibilityPredicate:
-    """Preset-field gates that a candidate template must satisfy."""
+    """Preset-field gates that a candidate template must satisfy.
+
+    v3.15.3 additive: ``require_hypothesis_status`` enforces that the
+    bridged ``research.strategy_hypothesis_catalog`` row carries one of
+    the allowed statuses. Default ``()`` preserves v3.15.2 byte-identity
+    for the three baseline presets — ``to_payload()`` omits the field
+    when empty so the existing ``campaign_templates_latest.v1.json``
+    sidecar stays bytewise unchanged on those presets.
+    """
 
     require_preset_enabled: bool = True
     forbid_excluded_from_daily_scheduler: bool = False
     forbid_diagnostic_only: bool = False
     require_preset_status: tuple[str, ...] = field(default_factory=tuple)
     require_parent_outcome: tuple[str, ...] = field(default_factory=tuple)
+    require_hypothesis_status: tuple[str, ...] = field(default_factory=tuple)
 
     def to_payload(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        # Omit when empty so v3.15.2 templates_latest.v1.json sidecars
+        # for the existing baseline presets remain byte-identical after
+        # the v3.15.3 dataclass extension.
+        if not self.require_hypothesis_status:
+            data.pop("require_hypothesis_status", None)
+        return data
 
 
 @dataclass(frozen=True)
@@ -119,7 +134,11 @@ class CampaignOsConfig:
 # ---------------------------------------------------------------------------
 
 
-def _daily_primary(preset_name: str) -> CampaignTemplate:
+def _daily_primary(
+    preset_name: str,
+    *,
+    require_hypothesis_status: tuple[str, ...] = (),
+) -> CampaignTemplate:
     return CampaignTemplate(
         template_id=f"daily_primary__{preset_name}",
         preset_name=preset_name,
@@ -132,6 +151,7 @@ def _daily_primary(preset_name: str) -> CampaignTemplate:
             forbid_excluded_from_daily_scheduler=True,
             forbid_diagnostic_only=True,
             require_preset_status=("stable",),
+            require_hypothesis_status=require_hypothesis_status,
         ),
         estimated_runtime_seconds_default=_DEFAULT_ESTIMATED_RUNTIME_S,
         spawn_triggers=("cron_tick",),
@@ -143,7 +163,11 @@ def _daily_primary(preset_name: str) -> CampaignTemplate:
     )
 
 
-def _daily_control(preset_name: str) -> CampaignTemplate:
+def _daily_control(
+    preset_name: str,
+    *,
+    require_hypothesis_status: tuple[str, ...] = (),
+) -> CampaignTemplate:
     return CampaignTemplate(
         template_id=f"daily_control__{preset_name}",
         preset_name=preset_name,
@@ -154,6 +178,7 @@ def _daily_control(preset_name: str) -> CampaignTemplate:
         eligibility=EligibilityPredicate(
             require_preset_enabled=True,
             require_preset_status=("stable",),
+            require_hypothesis_status=require_hypothesis_status,
         ),
         estimated_runtime_seconds_default=_DEFAULT_ESTIMATED_RUNTIME_S,
         spawn_triggers=("cron_tick",),
@@ -161,7 +186,11 @@ def _daily_control(preset_name: str) -> CampaignTemplate:
     )
 
 
-def _survivor_confirmation(preset_name: str) -> CampaignTemplate:
+def _survivor_confirmation(
+    preset_name: str,
+    *,
+    require_hypothesis_status: tuple[str, ...] = (),
+) -> CampaignTemplate:
     return CampaignTemplate(
         template_id=f"survivor_confirmation__{preset_name}",
         preset_name=preset_name,
@@ -172,6 +201,7 @@ def _survivor_confirmation(preset_name: str) -> CampaignTemplate:
         eligibility=EligibilityPredicate(
             require_preset_enabled=True,
             require_parent_outcome=("completed_with_candidates",),
+            require_hypothesis_status=require_hypothesis_status,
         ),
         estimated_runtime_seconds_default=_DEFAULT_ESTIMATED_RUNTIME_S,
         spawn_triggers=("parent_completed",),
@@ -179,7 +209,11 @@ def _survivor_confirmation(preset_name: str) -> CampaignTemplate:
     )
 
 
-def _paper_followup(preset_name: str) -> CampaignTemplate:
+def _paper_followup(
+    preset_name: str,
+    *,
+    require_hypothesis_status: tuple[str, ...] = (),
+) -> CampaignTemplate:
     return CampaignTemplate(
         template_id=f"paper_followup__{preset_name}",
         preset_name=preset_name,
@@ -189,6 +223,7 @@ def _paper_followup(preset_name: str) -> CampaignTemplate:
         max_per_day=2,
         eligibility=EligibilityPredicate(
             require_preset_enabled=True,
+            require_hypothesis_status=require_hypothesis_status,
         ),
         estimated_runtime_seconds_default=_DEFAULT_ESTIMATED_RUNTIME_S,
         spawn_triggers=("parent_paper_blocked",),
@@ -196,7 +231,11 @@ def _paper_followup(preset_name: str) -> CampaignTemplate:
     )
 
 
-def _weekly_retest(preset_name: str) -> CampaignTemplate:
+def _weekly_retest(
+    preset_name: str,
+    *,
+    require_hypothesis_status: tuple[str, ...] = (),
+) -> CampaignTemplate:
     return CampaignTemplate(
         template_id=f"weekly_retest__{preset_name}",
         preset_name=preset_name,
@@ -206,6 +245,7 @@ def _weekly_retest(preset_name: str) -> CampaignTemplate:
         max_per_day=1,
         eligibility=EligibilityPredicate(
             require_preset_enabled=True,
+            require_hypothesis_status=require_hypothesis_status,
         ),
         estimated_runtime_seconds_default=_DEFAULT_ESTIMATED_RUNTIME_S,
         spawn_triggers=("cron_tick",),
@@ -219,6 +259,15 @@ _BASELINE_PRESETS: tuple[str, ...] = (
     "crypto_diagnostic_1h",
 )
 
+# v3.15.3: presets whose templates must check the hypothesis catalog
+# status. The empty tuple on legacy baseline presets keeps the
+# campaign_templates_latest.v1.json sidecar byte-identical (see
+# EligibilityPredicate.to_payload). Trend Pullback v1 is the only
+# active_discovery hypothesis in v3.15.3.
+_HYPOTHESIS_AWARE_PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("trend_pullback_crypto_1h", ("active_discovery",)),
+)
+
 
 def _build_default_catalog() -> tuple[CampaignTemplate, ...]:
     templates: list[CampaignTemplate] = []
@@ -230,6 +279,31 @@ def _build_default_catalog() -> tuple[CampaignTemplate, ...]:
                 _survivor_confirmation(preset_name),
                 _paper_followup(preset_name),
                 _weekly_retest(preset_name),
+            )
+        )
+    for preset_name, allowed_statuses in _HYPOTHESIS_AWARE_PRESETS:
+        templates.extend(
+            (
+                _daily_primary(
+                    preset_name,
+                    require_hypothesis_status=allowed_statuses,
+                ),
+                _daily_control(
+                    preset_name,
+                    require_hypothesis_status=allowed_statuses,
+                ),
+                _survivor_confirmation(
+                    preset_name,
+                    require_hypothesis_status=allowed_statuses,
+                ),
+                _paper_followup(
+                    preset_name,
+                    require_hypothesis_status=allowed_statuses,
+                ),
+                _weekly_retest(
+                    preset_name,
+                    require_hypothesis_status=allowed_statuses,
+                ),
             )
         )
     return tuple(sorted(templates, key=lambda t: t.template_id))

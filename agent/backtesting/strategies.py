@@ -520,3 +520,86 @@ def pairs_zscore_strategie(lookback: int = 30,
         ]
 
     return declare_thin(func, feature_requirements=requirements)
+
+
+# ── Trend Pullback v1 (v3.15.3 active_discovery) ──────────────────────────
+
+def trend_pullback_v1_strategie(
+    ema_fast_window: int = 20,
+    ema_slow_window: int = 100,
+    entry_k: float = 1.0,
+):
+    """v3.15.3 controlled Trend Pullback hypothesis (single active discovery).
+
+    Long-only. Enters when the established trend (ema_fast > ema_slow) is
+    pulling back ``entry_k`` volatility-units below the short EMA — i.e.
+    ``pullback_distance < -entry_k``. Exits to flat when either the
+    pullback resolves above the EMA (``pullback_distance > 0``) or the
+    trend breaks (``ema_fast <= ema_slow``).
+
+    Thin contract v1.0: body reads only ``df.index`` and ``features``.
+    All indicator calculations live in the feature layer
+    (``agent.backtesting.features``); the strategy itself never touches
+    raw OHLCV columns.
+
+    Parameters (max 3, per v3.15.3 §6 + AGENTS.md "max 3 parameters per
+    agent"):
+
+    - ema_fast_window : EMA span for the short trend filter.
+    - ema_slow_window : EMA span for the trend gate.
+    - entry_k         : volatility-units below ema_fast that triggers a
+                        long entry (positive float).
+
+    The matching hypothesis row in
+    ``research.strategy_hypothesis_catalog.STRATEGY_HYPOTHESIS_CATALOG``
+    is ``trend_pullback_v1`` / family ``trend_pullback`` /
+    status ``active_discovery``.
+    """
+
+    def func(df: pd.DataFrame, features: Mapping[str, pd.Series]) -> pd.Series:
+        sig = pd.Series(0, index=df.index)
+        min_bars = max(ema_fast_window, ema_slow_window) + 1
+        if len(df.index) < min_bars:
+            return sig
+        if ema_fast_window >= ema_slow_window:
+            return sig
+        if entry_k <= 0:
+            return sig
+        ema_fast = features["ema_fast"]
+        ema_slow = features["ema_slow"]
+        pd_dist = features["pullback_distance"]
+        trend_up = ema_fast > ema_slow
+        pullback = pd_dist < -float(entry_k)
+        sig[trend_up & pullback] = 1
+        # Exit conditions: trend breaks or pullback resolves above ema_fast.
+        sig[(pd_dist > 0) | (ema_fast <= ema_slow)] = 0
+        return sig
+
+    return declare_thin(
+        func,
+        feature_requirements=[
+            FeatureRequirement(
+                name="ema",
+                params={"span": ema_fast_window},
+                alias="ema_fast",
+            ),
+            FeatureRequirement(
+                name="ema",
+                params={"span": ema_slow_window},
+                alias="ema_slow",
+            ),
+            FeatureRequirement(
+                name="rolling_volatility",
+                params={"window": ema_fast_window},
+                alias="rolling_volatility",
+            ),
+            FeatureRequirement(
+                name="pullback_distance",
+                params={
+                    "ema_fast_window": ema_fast_window,
+                    "vol_window": ema_fast_window,
+                },
+                alias="pullback_distance",
+            ),
+        ],
+    )
