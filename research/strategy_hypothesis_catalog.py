@@ -83,12 +83,16 @@ COST_CLASSES: Final[tuple[str, ...]] = ("low", "medium", "high")
 # Families that the catalog may carry without a backing executable
 # entry in research.registry.STRATEGIES. These are deliberately
 # metadata-only branchpoints (regime diagnostics, planned strategies,
-# disabled branchpoint).
+# disabled branchpoint). v3.15.4: removed
+# ``volatility_compression_breakout`` (now executable / active_discovery);
+# added ``multi_asset_trend_sleeve`` and ``cross_sectional_momentum``
+# (planned-tier, executable wiring deferred to follow-up branches).
 _METADATA_ONLY_FAMILIES: Final[frozenset[str]] = frozenset({
     "regime_diagnostics",
     "atr_adaptive_trend",
-    "volatility_compression_breakout",
     "dynamic_pairs",
+    "multi_asset_trend_sleeve",
+    "cross_sectional_momentum",
 })
 
 
@@ -237,10 +241,16 @@ STRATEGY_HYPOTHESIS_CATALOG: Final[tuple[StrategyHypothesis, ...]] = (
     StrategyHypothesis(
         hypothesis_id="volatility_compression_breakout_v0",
         strategy_family="volatility_compression_breakout",
-        status="planned",
+        status="active_discovery",
         description=(
-            "Volatility compression gevolgd door range-breakout entry. "
-            "Metadata only in v3.15.3; geen executable strategy of preset."
+            "v3.15.4 second controlled active_discovery: long-only "
+            "range-breakout entry uit een prior compressed-vol regime "
+            "(compression_ratio[t-1] < threshold AND close[t] > "
+            "rolling_high_previous[t]). Flat op opposite-side breakdown "
+            "of compression release. Bridges naar de "
+            "volatility_compression_breakout family in research.registry; "
+            "v0 id behouden (geen destructieve rename) want geen "
+            "historische evidence-ledger entries onder v0."
         ),
         feature_dependencies=(
             "atr_short",
@@ -249,6 +259,53 @@ STRATEGY_HYPOTHESIS_CATALOG: Final[tuple[StrategyHypothesis, ...]] = (
             "rolling_high_previous",
             "rolling_low_previous",
         ),
+        parameter_schema={
+            "atr_short_window": {"type": "int"},
+            "atr_long_window": {"type": "int"},
+            "compression_threshold": {"type": "float"},
+        },
+        default_parameter_grid=(
+            {"atr_short_window": 5, "atr_long_window": 20, "compression_threshold": 0.5},
+            {"atr_short_window": 5, "atr_long_window": 20, "compression_threshold": 0.7},
+            {"atr_short_window": 5, "atr_long_window": 50, "compression_threshold": 0.5},
+            {"atr_short_window": 5, "atr_long_window": 50, "compression_threshold": 0.7},
+            {"atr_short_window": 10, "atr_long_window": 20, "compression_threshold": 0.5},
+            {"atr_short_window": 10, "atr_long_window": 20, "compression_threshold": 0.7},
+            {"atr_short_window": 10, "atr_long_window": 50, "compression_threshold": 0.5},
+            {"atr_short_window": 10, "atr_long_window": 50, "compression_threshold": 0.7},
+        ),
+        eligible_campaign_types=(
+            "daily_primary",
+            "survivor_confirmation",
+            "weekly_retest",
+        ),
+        expected_failure_modes=(
+            "insufficient_trades",
+            "cost_fragile",
+            "parameter_fragile",
+            "overtrading",
+            "no_baseline_edge",
+        ),
+        baseline_reference="ema_trend_baseline",
+        cost_class="medium",
+        policy_metadata={"max_active_discovery": True},
+    ),
+    StrategyHypothesis(
+        hypothesis_id="multi_asset_trend_sleeve_v0",
+        strategy_family="multi_asset_trend_sleeve",
+        status="planned",
+        description=(
+            "Sleeve-aggregated trend signaal over een multi-asset "
+            "basket (geen hidden single-asset dominance). Executable "
+            "wiring deferred — requires portfolio-level sleeve execution "
+            "layer (out of scope v3.15.4). Catalog-metadata-only in "
+            "v3.15.4 als expliciet branchpoint; geen registry alias om "
+            "misleidende family-labels te vermijden."
+        ),
+        feature_dependencies=(
+            "ema_fast",
+            "ema_slow",
+        ),
         parameter_schema={},
         default_parameter_grid=(),
         eligible_campaign_types=(),
@@ -256,7 +313,37 @@ STRATEGY_HYPOTHESIS_CATALOG: Final[tuple[StrategyHypothesis, ...]] = (
             "insufficient_trades",
             "cost_fragile",
             "parameter_fragile",
-            "overtrading",
+            "asset_singleton",
+            "no_baseline_edge",
+        ),
+        baseline_reference=None,
+        cost_class="medium",
+        policy_metadata={"max_active_discovery": False},
+    ),
+    StrategyHypothesis(
+        hypothesis_id="cross_sectional_momentum_v0",
+        strategy_family="cross_sectional_momentum",
+        status="planned",
+        description=(
+            "Cross-sectional rank momentum: per rebalance window de "
+            "top-k assets long en/of bottom-k short, ranking exclusief "
+            "huidige bar. Executable wiring deferred — requires "
+            "cross-sectional rank infrastructure (rank_returns + "
+            "multi-asset universe ranking primitive; out of scope "
+            "v3.15.4). Catalog-metadata-only in v3.15.4."
+        ),
+        feature_dependencies=(
+            "lookback_returns",
+            "rank_returns",
+        ),
+        parameter_schema={},
+        default_parameter_grid=(),
+        eligible_campaign_types=(),
+        expected_failure_modes=(
+            "insufficient_trades",
+            "cost_fragile",
+            "parameter_fragile",
+            "asset_singleton",
             "no_baseline_edge",
         ),
         baseline_reference=None,

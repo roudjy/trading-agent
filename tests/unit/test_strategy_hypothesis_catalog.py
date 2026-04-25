@@ -86,9 +86,36 @@ def test_atr_adaptive_trend_planned_metadata_only() -> None:
     assert hyp.eligible_campaign_types == ()
 
 
-def test_volatility_compression_breakout_planned_metadata_only() -> None:
+def test_volatility_compression_breakout_active_discovery_v0() -> None:
+    """v3.15.4: volatility_compression_breakout_v0 promoted to
+    active_discovery with bounded grid + non-empty eligible types."""
     hyp = get_by_family("volatility_compression_breakout")
+    assert hyp.hypothesis_id == "volatility_compression_breakout_v0"
+    assert hyp.status == "active_discovery"
+    assert len(hyp.default_parameter_grid) == 8
+    assert len(hyp.parameter_schema) == 3
+    assert hyp.eligible_campaign_types == (
+        "daily_primary",
+        "survivor_confirmation",
+        "weekly_retest",
+    )
+
+
+def test_multi_asset_trend_sleeve_planned_metadata_only() -> None:
+    """v3.15.4: multi_asset_trend_sleeve_v0 lands as planned only — no
+    registry alias, no preset, no portfolio executor in this branch."""
+    hyp = get_by_family("multi_asset_trend_sleeve")
     assert hyp.status == "planned"
+    assert hyp.default_parameter_grid == ()
+    assert hyp.eligible_campaign_types == ()
+
+
+def test_cross_sectional_momentum_planned_metadata_only() -> None:
+    """v3.15.4: cross_sectional_momentum_v0 lands as planned only —
+    requires cross-sectional rank infrastructure (deferred)."""
+    hyp = get_by_family("cross_sectional_momentum")
+    assert hyp.status == "planned"
+    assert hyp.default_parameter_grid == ()
     assert hyp.eligible_campaign_types == ()
 
 
@@ -118,9 +145,21 @@ def test_get_by_family_unknown_raises() -> None:
 
 
 def test_list_by_status_filters_correctly() -> None:
+    """v3.15.4: planned-tier set is now 3 (atr_adaptive_trend +
+    multi_asset_trend_sleeve + cross_sectional_momentum)."""
     planned = list_by_status("planned")
     assert {h.hypothesis_id for h in planned} == {
         "atr_adaptive_trend_v0",
+        "multi_asset_trend_sleeve_v0",
+        "cross_sectional_momentum_v0",
+    }
+
+
+def test_active_discovery_set_v3_15_4() -> None:
+    """v3.15.4: trend_pullback_v1 + volatility_compression_breakout_v0."""
+    actives = {h.hypothesis_id for h in list_by_status("active_discovery")}
+    assert actives == {
+        "trend_pullback_v1",
         "volatility_compression_breakout_v0",
     }
 

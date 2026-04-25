@@ -119,6 +119,21 @@ STRATEGY_CAMPAIGN_METADATA: Final[tuple[HypothesisCampaignMetadata, ...]] = (
     ),
     HypothesisCampaignMetadata(
         hypothesis_id="volatility_compression_breakout_v0",
+        eligible_campaign_types=(
+            "daily_primary",
+            "survivor_confirmation",
+            "weekly_retest",
+        ),
+        cooldown_policy={"base_cooldown_seconds": _DEFAULT_BASE_COOLDOWN_SECONDS},
+        followup_policy={
+            "survivor_confirmation": True,
+            "paper_followup": True,
+        },
+        priority_profile={"initial_priority_tier": 2},
+        failure_mode_mapping={},
+    ),
+    HypothesisCampaignMetadata(
+        hypothesis_id="dynamic_pairs_v0",
         eligible_campaign_types=(),
         cooldown_policy={},
         followup_policy={},
@@ -126,7 +141,15 @@ STRATEGY_CAMPAIGN_METADATA: Final[tuple[HypothesisCampaignMetadata, ...]] = (
         failure_mode_mapping={},
     ),
     HypothesisCampaignMetadata(
-        hypothesis_id="dynamic_pairs_v0",
+        hypothesis_id="multi_asset_trend_sleeve_v0",
+        eligible_campaign_types=(),
+        cooldown_policy={},
+        followup_policy={},
+        priority_profile={},
+        failure_mode_mapping={},
+    ),
+    HypothesisCampaignMetadata(
+        hypothesis_id="cross_sectional_momentum_v0",
         eligible_campaign_types=(),
         cooldown_policy={},
         followup_policy={},
