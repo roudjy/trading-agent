@@ -116,6 +116,10 @@ _TREND_PULLBACK_CRYPTO_UNIVERSE: tuple[str, ...] = (
     "BTC-EUR", "ETH-EUR", "SOL-EUR",
 )
 
+_VOL_BREAKOUT_CRYPTO_UNIVERSE: tuple[str, ...] = (
+    "BTC-EUR", "ETH-EUR", "SOL-EUR",
+)
+
 
 PRESETS: tuple[ResearchPreset, ...] = (
     ResearchPreset(
@@ -319,6 +323,67 @@ PRESETS: tuple[ResearchPreset, ...] = (
             "this preset.",
             "v3.15.2 Campaign Operating Layer hourly tick is healthy "
             "(systemd-timer Active(running), pin block live_eligible=False).",
+            "Bounded parameter grid (\u22648 combos) verified each run.",
+        ),
+    ),
+    ResearchPreset(
+        name="vol_compression_breakout_crypto_1h",
+        hypothesis=(
+            "v3.15.4 controlled active_discovery: een volatility "
+            "compression breakout v0 thin strategy (max 3 parameters) "
+            "test of een long-only range-breakout uit een prior "
+            "compressed-vol regime op crypto 1h een edge oplevert. "
+            "Bridges naar de strategy_hypothesis_catalog row "
+            "volatility_compression_breakout_v0 / family "
+            "volatility_compression_breakout / status active_discovery."
+        ),
+        universe=_VOL_BREAKOUT_CRYPTO_UNIVERSE,
+        timeframe="1h",
+        bundle=("volatility_compression_breakout",),
+        hypothesis_id="volatility_compression_breakout_v0",
+        screening_mode="strict",
+        cost_mode="realistic",
+        status="stable",
+        enabled=True,
+        diagnostic_only=False,
+        excluded_from_daily_scheduler=False,
+        preset_class="experimental",
+        rationale=(
+            "Crypto 1h vertoont episodes van vol-compressie gevolgd "
+            "door range-breakouts (orchestrator_brief §4.4 trend / "
+            "breakout-momentum cluster). Compression_ratio "
+            "(atr_short/atr_long) onder 1.0 markeert het quiet regime; "
+            "een breakout boven rolling_high_previous in dezelfde bar "
+            "is het entry-trigger. Long-only (geen reversal); flat "
+            "op opposite breakdown of compression release. Bounded "
+            "grid (8 combinaties) — geen brute-force search. Promotion "
+            "gates uit v3.12 (PSR, DSR, drawdown) blijven leidend."
+        ),
+        expected_behavior=(
+            "Per fold: long entries alleen wanneer compression_ratio[t-1] "
+            "< compression_threshold EN close[t] > rolling_high_previous[t]. "
+            "Flat zodra compression release detecteert (ratio > 1.0) of "
+            "close < rolling_low_previous. Bounded grid (\u22648 combos)."
+        ),
+        falsification=(
+            "Drie achtereenvolgende daily_primary runs falen op "
+            "insufficient_trades binnen het crypto 1h universum.",
+            "Cost-sensitivity (v3.8) zet bootstrap_sharpe_ci over zero "
+            "op elk asset/parameter combo \u2014 cost_fragile bevestigd.",
+            "Parameter-neighborhood instabiel: top combos verschuiven "
+            ">50% tussen 3 walk-forward runs zonder regime-shift.",
+            "Geen baseline edge: volatility_compression_breakout "
+            "onderpresteert ema_trend_baseline op alle asset/interval "
+            "combinaties.",
+            "Overtrading: trades per maand structureel boven "
+            "rejection-taxonomy ceiling op meerdere asset/parameter "
+            "combinaties.",
+        ),
+        enablement_criteria=(
+            "Hypothesis catalog status remains 'active_discovery'; "
+            "promotion to other status flows via the catalog, not via "
+            "this preset.",
+            "v3.15.2 Campaign Operating Layer hourly tick is healthy.",
             "Bounded parameter grid (\u22648 combos) verified each run.",
         ),
     ),
