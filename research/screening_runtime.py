@@ -9,6 +9,8 @@ from typing import Any, Callable, Iterable
 from agent.backtesting.engine import EngineInterrupted, EngineResumeInvalid
 from research.candidate_resume import CandidateResumeState
 from research.candidate_pipeline import (
+    COVERAGE_WARNING_GRID_UNAVAILABLE,
+    SAMPLING_POLICY_GRID_UNAVAILABLE,
     SCREENING_PROMOTED,
     SCREENING_REJECTED,
     normalize_screening_decision,
@@ -21,6 +23,30 @@ FINAL_STATUS_REJECTED = "rejected"
 FINAL_STATUS_TIMED_OUT = "timed_out"
 FINAL_STATUS_ERRORED = "errored"
 FINAL_STATUS_SKIPPED = "skipped"
+
+
+# v3.15.8: every screening outcome dict carries a ``sampling`` block.
+# When the caller has not supplied a SamplingPlan-derived metadata
+# dict (legacy / no-engine fast-path / tests that bypass the planner)
+# this fallback shape is used so consumers never have to defensively
+# probe for missing keys.
+_UNAVAILABLE_SAMPLING_METADATA: dict[str, Any] = {
+    "grid_size": None,
+    "sampled_count": 0,
+    "coverage_pct": None,
+    "sampling_policy": SAMPLING_POLICY_GRID_UNAVAILABLE,
+    "sampled_parameter_digest": "",
+    "coverage_warning": COVERAGE_WARNING_GRID_UNAVAILABLE,
+}
+
+
+def _resolve_sampling_metadata(metadata: dict[str, Any] | None) -> dict[str, Any]:
+    """Return a defensive copy of the caller-supplied sampling
+    metadata, or a fully-populated grid_size_unavailable fallback.
+    """
+    if metadata is None:
+        return dict(_UNAVAILABLE_SAMPLING_METADATA)
+    return dict(metadata)
 
 
 class ScreeningCandidateInterrupted(RuntimeError):
@@ -181,6 +207,7 @@ def execute_screening_candidate_samples(
     on_progress: Callable[[dict[str, int]], None] | None = None,
     on_checkpoint: Callable[[list[dict[str, Any]]], None] | None = None,
     screening_phase: str | None = None,
+    sampling_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     now = now_source or _utc_now
     monotonic = monotonic_source or time.monotonic
@@ -190,6 +217,10 @@ def execute_screening_candidate_samples(
         started_at_monotonic=started_at_monotonic,
         budget_seconds=budget_seconds,
     )
+    # v3.15.8: every return path of this function MUST surface the
+    # ``sampling`` block so screening_evidence (v3.15.9) and
+    # campaign_funnel_policy (v3.15.10) can rely on it being present.
+    resolved_sampling_metadata = _resolve_sampling_metadata(sampling_metadata)
 
     def _timed_out_outcome(*, samples_completed: int) -> dict[str, Any]:
         elapsed_seconds = _elapsed_seconds(monotonic, started_at_monotonic)
@@ -209,6 +240,7 @@ def execute_screening_candidate_samples(
             "decision": SCREENING_REJECTED,
             "reason_code": "candidate_budget_exceeded",
             "reason_detail": f"candidate exceeded screening budget of {int(budget_seconds)} seconds",
+            "sampling": dict(resolved_sampling_metadata),
         }
 
     if not hasattr(engine, "run"):
@@ -228,6 +260,7 @@ def execute_screening_candidate_samples(
             "decision": SCREENING_PROMOTED,
             "reason_code": None,
             "reason_detail": None,
+            "sampling": dict(resolved_sampling_metadata),
         }
 
     sample_results = [dict(item) for item in (resume_state.completed_samples if resume_state is not None else ())]
@@ -280,6 +313,7 @@ def execute_screening_candidate_samples(
                 "decision": SCREENING_REJECTED,
                 "reason_code": "screening_candidate_error",
                 "reason_detail": str(exc),
+                "sampling": dict(resolved_sampling_metadata),
             }
 
         report = getattr(engine, "last_evaluation_report", None) or {}
@@ -359,6 +393,11 @@ def execute_screening_candidate_samples(
         "pass_kind": pass_kind,
         "screening_criteria_set": screening_criteria_set,
         "diagnostic_metrics": diagnostic_metrics,
+        # v3.15.8 additive — sampling-policy metadata for the
+        # screening evidence artifact (v3.15.9) and campaign
+        # funnel policy (v3.15.10). Always present, even on
+        # legacy/no-engine/error/timeout paths.
+        "sampling": dict(resolved_sampling_metadata),
     }
 
 
