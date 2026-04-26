@@ -71,6 +71,10 @@ def cmd_run(args: argparse.Namespace) -> int:
             "universe": list(preset.universe),
             "timeframe": preset.timeframe,
             "screening_mode": preset.screening_mode,
+            # v3.15.6: surface funnel-stage classification next to the
+            # legacy gate-strictness ``screening_mode`` so operators see
+            # both at a glance. Additive only; no API/frontend impact.
+            "screening_phase": preset.screening_phase,
             "cost_mode": preset.cost_mode,
         }
         print(json.dumps({"dry_run": True, "preset": card}, indent=2))
