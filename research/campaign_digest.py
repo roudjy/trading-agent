@@ -28,10 +28,32 @@ from research.campaign_budget import BudgetState
 from research.campaign_os_artifacts import build_pin_block
 from research.campaign_preset_policy import PresetPolicyState
 
-DIGEST_SCHEMA_VERSION: str = "1.0"
+DIGEST_SCHEMA_VERSION: str = "1.1"
 DIGEST_ARTIFACT_PATH: Path = Path(
     "research/campaign_digest_latest.v1.json"
 )
+
+
+def _aggregate_funnel_decisions(
+    events: list[dict[str, Any]],
+) -> dict[str, int]:
+    """v3.15.10 — count ``funnel_decision_emitted`` events for the
+    digest window by ``extra.decision_code``. Returns a dict
+    sorted alphabetically by decision_code so the digest payload
+    is deterministic across runs.
+    """
+    counts: dict[str, int] = {}
+    for ev in events:
+        if ev.get("event_type") != "funnel_decision_emitted":
+            continue
+        extra = ev.get("extra")
+        if not isinstance(extra, dict):
+            continue
+        code = extra.get("decision_code")
+        if not code:
+            continue
+        counts[str(code)] = counts.get(str(code), 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _parse_utc(ts: str | None) -> datetime | None:
@@ -332,6 +354,12 @@ def build_digest_payload(
         ),
         "idle_noop_count": 0,  # maintained by the launcher in ``extra``
         "skip_budget_count": 0,
+        # v3.15.10 (additive; schema 1.0 -> 1.1) — funnel decisions
+        # roll-up for the day. Empty {} when no funnel events
+        # present, so v1.0 readers (launcher.load_previous_digest
+        # uses .get(...); dashboard/api_campaigns serves the dict
+        # as-is) continue to work.
+        "funnel_decisions": _aggregate_funnel_decisions(events_today),
     }
 
 

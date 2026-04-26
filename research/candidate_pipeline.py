@@ -3,9 +3,11 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Final
 
 from research.asset_typing import normalize_asset_type
 from research.registry import count_param_combinations, expand_param_grid
@@ -16,6 +18,134 @@ FIT_BLOCKED = "blocked"
 
 SCREENING_PROMOTED = "promoted_to_validation"
 SCREENING_REJECTED = "rejected_in_screening"
+
+# v3.15.8 sampling-policy constants. The two grid-size thresholds
+# below define the two non-legacy sampling regimes; grids larger
+# than ``MAX_STRATIFIED_GRID_SIZE`` keep the pre-v3.15.8 first /
+# middle / last legacy behaviour. ``MAX_STRATIFIED_GRID_SIZE`` is
+# also the absolute per-candidate evaluation cap exposed by the
+# v3.15.8 sampling plan helpers (see ``sampling_plan_for_param_grid``).
+MAX_FULL_COVERAGE_GRID_SIZE: Final[int] = 8
+MAX_STRATIFIED_GRID_SIZE: Final[int] = 16
+MIN_STRATIFIED_COVERAGE_PCT: Final[float] = 0.80
+LEGACY_LARGE_GRID_SAMPLE_COUNT: Final[int] = 3
+
+SAMPLING_POLICY_FULL_COVERAGE: Final[str] = "full_coverage"
+SAMPLING_POLICY_STRATIFIED_SMALL: Final[str] = "stratified_small"
+SAMPLING_POLICY_LEGACY_LARGE_GRID: Final[str] = "legacy_large_grid"
+SAMPLING_POLICY_GRID_UNAVAILABLE: Final[str] = "grid_size_unavailable"
+SAMPLING_POLICY_EMPTY_GRID: Final[str] = "empty_grid"
+
+COVERAGE_WARNING_BELOW_THRESHOLD: Final[str] = "below_threshold_for_small_grid"
+COVERAGE_WARNING_GRID_UNAVAILABLE: Final[str] = "grid_size_unavailable"
+
+
+@dataclass(frozen=True)
+class SamplingPlan:
+    """Deterministic, inspectable v3.15.8 sampling plan for a
+    single strategy parameter grid.
+
+    ``samples`` is the list of parameter combinations that callers
+    must evaluate. Coverage and policy fields describe the grid
+    introspection result and feed the non-frozen screening
+    evidence surface; they NEVER mutate frozen contracts.
+
+    ``sampled_parameter_digest`` is a stable sha1 hash of the
+    canonical, JSON-safe sample list so downstream evidence and
+    policy decisions can dedupe on a single string.
+    """
+
+    samples: list[dict[str, Any]]
+    grid_size: int | None
+    sampled_count: int
+    coverage_pct: float | None
+    sampling_policy: str
+    sampled_parameter_digest: str
+    coverage_warning: str | None
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "grid_size": self.grid_size,
+            "sampled_count": self.sampled_count,
+            "coverage_pct": self.coverage_pct,
+            "sampling_policy": self.sampling_policy,
+            "sampled_parameter_digest": self.sampled_parameter_digest,
+            "coverage_warning": self.coverage_warning,
+        }
+
+
+def _json_safe_param_value(value: Any) -> Any:
+    """Coerce a single parameter value to a JSON-safe representation.
+
+    Non-finite floats become ``None`` so downstream canonical
+    hashing can rely on ``allow_nan=False``. Non-primitive values
+    are stringified deterministically.
+    """
+    if value is None or isinstance(value, (int, str, bool)):
+        return value
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+    return str(value)
+
+
+def _canonical_param_dump(samples: list[dict[str, Any]]) -> str:
+    """Canonical JSON dump used for the sampled-parameter digest.
+
+    ``allow_nan=False`` is explicit: any unsanitised NaN/inf
+    reaching this call is a programmer bug and raises immediately.
+    """
+    safe = [
+        {key: _json_safe_param_value(val) for key, val in sample.items()}
+        for sample in samples
+    ]
+    return json.dumps(
+        safe,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
+def _compute_sampled_parameter_digest(samples: list[dict[str, Any]]) -> str:
+    return hashlib.sha1(
+        _canonical_param_dump(samples).encode("utf-8")
+    ).hexdigest()
+
+
+def _stratified_indices(grid_size: int) -> list[int]:
+    """Deterministic stratified-sample indices for grids in the
+    9..MAX_STRATIFIED_GRID_SIZE range. Coverage ≥ MIN_STRATIFIED_COVERAGE_PCT
+    by construction and endpoints are always included.
+
+    For grid_size ≤ MAX_FULL_COVERAGE_GRID_SIZE this returns the
+    full range so callers can use a single helper across regimes.
+    Hash-randomness immune (assumes the input list is already in a
+    stable, deterministic order).
+    """
+    if grid_size <= 0:
+        return []
+    if grid_size <= MAX_FULL_COVERAGE_GRID_SIZE:
+        return list(range(grid_size))
+    sample_size = max(
+        MAX_FULL_COVERAGE_GRID_SIZE,
+        math.ceil(grid_size * MIN_STRATIFIED_COVERAGE_PCT),
+    )
+    sample_size = min(sample_size, grid_size)
+    raw = [
+        round(i * (grid_size - 1) / (sample_size - 1))
+        for i in range(sample_size)
+    ]
+    deduped = sorted({0, grid_size - 1, *raw})
+    while len(deduped) < sample_size:
+        for candidate in range(grid_size):
+            if candidate not in deduped:
+                deduped.append(candidate)
+                break
+    return sorted(deduped)[:sample_size]
+
 
 SUPPORTED_INITIAL_LANE = "supported"
 BLOCKED_INITIAL_LANE = "blocked"
@@ -342,16 +472,161 @@ def apply_eligibility(
     }
 
 
-def screening_param_samples(param_grid: dict[str, Any], max_samples: int = 3) -> list[dict[str, Any]]:
-    combinations = expand_param_grid(param_grid)
-    if not combinations:
-        return [{}]
-    if len(combinations) <= max_samples:
-        return combinations
+def sampling_plan_for_param_grid(
+    param_grid: dict[str, Any] | None,
+    *,
+    max_samples_for_legacy: int = LEGACY_LARGE_GRID_SAMPLE_COUNT,
+) -> SamplingPlan:
+    """Deterministic v3.15.8 sampling plan for a single parameter
+    grid.
 
-    selected_indices = {0, len(combinations) // 2, len(combinations) - 1}
-    sampled = [combinations[index] for index in sorted(selected_indices)]
-    return sampled[:max_samples]
+    Behaviour table (REV 3 §5.3):
+
+        param_grid is None / not a dict   -> grid_unavailable, [{}]
+        expansion raises (malformed)      -> grid_unavailable, [{}]
+        param_grid == {}                  -> empty_grid, [{}]
+        1..MAX_FULL_COVERAGE_GRID_SIZE    -> full_coverage, all combos
+        9..MAX_STRATIFIED_GRID_SIZE       -> stratified_small (>=80% coverage,
+                                              endpoints included)
+        > MAX_STRATIFIED_GRID_SIZE        -> legacy_large_grid: first/middle/last
+                                              capped at ``max_samples_for_legacy``
+
+    The plan is reproducible across runs and Python hash-randomness:
+    grid keys are sorted before ``itertools.product`` so the
+    combination order is fully determined by the input dict.
+    """
+    if not isinstance(param_grid, dict):
+        samples: list[dict[str, Any]] = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=None,
+            sampled_count=len(samples),
+            coverage_pct=None,
+            sampling_policy=SAMPLING_POLICY_GRID_UNAVAILABLE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=COVERAGE_WARNING_GRID_UNAVAILABLE,
+        )
+
+    sorted_grid = {key: param_grid[key] for key in sorted(param_grid)}
+
+    if not sorted_grid:
+        # Empty grid: one degenerate "default" combination, fully covered.
+        samples = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=1,
+            sampled_count=1,
+            coverage_pct=1.0,
+            sampling_policy=SAMPLING_POLICY_EMPTY_GRID,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=None,
+        )
+
+    try:
+        combinations = expand_param_grid(sorted_grid)
+    except Exception:
+        samples = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=None,
+            sampled_count=len(samples),
+            coverage_pct=None,
+            sampling_policy=SAMPLING_POLICY_GRID_UNAVAILABLE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=COVERAGE_WARNING_GRID_UNAVAILABLE,
+        )
+
+    if not combinations:
+        # All parameter axes are empty lists -> no combinations.
+        # Treat as grid_unavailable so the operator notices the
+        # config defect rather than silently degrading to one
+        # default combination.
+        samples = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=None,
+            sampled_count=1,
+            coverage_pct=None,
+            sampling_policy=SAMPLING_POLICY_GRID_UNAVAILABLE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=COVERAGE_WARNING_GRID_UNAVAILABLE,
+        )
+
+    grid_size = len(combinations)
+
+    if grid_size <= MAX_FULL_COVERAGE_GRID_SIZE:
+        samples = list(combinations)
+        return SamplingPlan(
+            samples=samples,
+            grid_size=grid_size,
+            sampled_count=grid_size,
+            coverage_pct=1.0,
+            sampling_policy=SAMPLING_POLICY_FULL_COVERAGE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=None,
+        )
+
+    if grid_size <= MAX_STRATIFIED_GRID_SIZE:
+        indices = _stratified_indices(grid_size)
+        samples = [combinations[i] for i in indices]
+        coverage_pct = len(samples) / grid_size
+        warning = (
+            None
+            if coverage_pct >= MIN_STRATIFIED_COVERAGE_PCT
+            else COVERAGE_WARNING_BELOW_THRESHOLD
+        )
+        return SamplingPlan(
+            samples=samples,
+            grid_size=grid_size,
+            sampled_count=len(samples),
+            coverage_pct=coverage_pct,
+            sampling_policy=SAMPLING_POLICY_STRATIFIED_SMALL,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=warning,
+        )
+
+    # grid_size > MAX_STRATIFIED_GRID_SIZE — preserve pre-v3.15.8
+    # first/middle/last legacy behaviour. ``max_samples_for_legacy``
+    # remains honoured here so external callers that explicitly
+    # constrain the legacy regime still get the smaller cap.
+    legacy_cap = max(1, int(max_samples_for_legacy))
+    selected_indices = sorted(
+        {0, grid_size // 2, grid_size - 1}
+    )
+    samples = [combinations[i] for i in selected_indices][:legacy_cap]
+    coverage_pct = len(samples) / grid_size
+    return SamplingPlan(
+        samples=samples,
+        grid_size=grid_size,
+        sampled_count=len(samples),
+        coverage_pct=coverage_pct,
+        sampling_policy=SAMPLING_POLICY_LEGACY_LARGE_GRID,
+        sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+        coverage_warning=None,
+    )
+
+
+def screening_param_samples(
+    param_grid: dict[str, Any] | None,
+    max_samples: int = LEGACY_LARGE_GRID_SAMPLE_COUNT,
+) -> list[dict[str, Any]]:
+    """Legacy entry point preserved for back-compat. Returns the
+    same ``list[dict[str, Any]]`` shape it always has.
+
+    INTENTIONAL BEHAVIOURAL SHIFT (v3.15.8): ``max_samples`` is
+    honoured ONLY for grids strictly larger than
+    ``MAX_STRATIFIED_GRID_SIZE``. For grid sizes in
+    [1..MAX_STRATIFIED_GRID_SIZE] the v3.15.8 sampling-policy
+    applies (full coverage <=8; deterministic stratified >=80%
+    for 9..16). This is the deliberate fix for the under-sampling
+    defect that motivated v3.15.8.
+
+    Callers that need coverage metadata should use
+    ``sampling_plan_for_param_grid`` directly.
+    """
+    return sampling_plan_for_param_grid(
+        param_grid, max_samples_for_legacy=max_samples
+    ).samples
 
 
 def normalize_screening_decision(sample_results: list[dict[str, Any]]) -> dict[str, Any]:

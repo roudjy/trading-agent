@@ -24,12 +24,17 @@ from research.candidate_resume import (
     read_candidate_resume_state,
     write_candidate_resume_state,
 )
-from research.candidate_pipeline import SCREENING_REJECTED, screening_param_samples
+from research.candidate_pipeline import (
+    SCREENING_REJECTED,
+    SamplingPlan,
+    sampling_plan_for_param_grid,
+)
 from research.screening_runtime import (
     FINAL_STATUS_ERRORED,
     FINAL_STATUS_TIMED_OUT,
     ScreeningCandidateInterrupted,
     ScreeningResumeStateInvalid,
+    _UNAVAILABLE_SAMPLING_METADATA,
     execute_screening_candidate,
     execute_screening_candidate_samples,
 )
@@ -104,10 +109,10 @@ def _resolve_reference(reference: dict[str, str]) -> Any:
 def _serialized_strategy_samples(
     *,
     strategy: dict[str, Any],
-    max_samples: int,
+    plan: SamplingPlan,
 ) -> list[dict[str, Any]]:
     samples: list[dict[str, Any]] = []
-    for params in screening_param_samples(strategy.get("params") or {}, max_samples=max_samples):
+    for params in plan.samples:
         sample = {
             "params": params,
             "strategy_callable": strategy["factory"](**params),
@@ -137,6 +142,15 @@ def _build_child_payload(
     if engine_reference is None:
         raise TypeError(f"engine class {engine_class!r} is not importable in a child process")
 
+    # v3.15.8: compute the sampling plan once at the parent-process
+    # boundary so the subprocess inherits both the deterministic
+    # samples and the coverage metadata. Both factory_ref and
+    # serialized-samples branches share the same plan.
+    plan = sampling_plan_for_param_grid(
+        strategy.get("params"),
+        max_samples_for_legacy=max_samples,
+    )
+
     payload: dict[str, Any] = {
         "candidate": dict(candidate),
         "interval_range": dict(interval_range),
@@ -145,13 +159,17 @@ def _build_child_payload(
         "budget_seconds": int(budget_seconds),
         "max_samples": int(max_samples),
         "engine_class_ref": engine_reference,
-        "samples_total": len(screening_param_samples(strategy.get("params") or {}, max_samples=max_samples)),
+        "samples_total": plan.sampled_count,
         "resume_state": resume_state,
         "resume_sidecar_path": None if resume_sidecar_path is None else str(resume_sidecar_path),
         "batch_id": None if batch_id is None else str(batch_id),
         "plan_fingerprint": None if plan_fingerprint is None else str(plan_fingerprint),
         # v3.15.7: phase carried into the subprocess for criteria dispatch.
         "screening_phase": screening_phase,
+        # v3.15.8: sampling-policy metadata for the screening
+        # outcome dict; subprocess threads this into
+        # ``execute_screening_candidate_samples``.
+        "sampling_metadata": plan.metadata(),
     }
 
     factory_reference = _object_reference(strategy.get("factory"))
@@ -161,7 +179,7 @@ def _build_child_payload(
     else:
         payload["strategy_samples"] = _serialized_strategy_samples(
             strategy=strategy,
-            max_samples=max_samples,
+            plan=plan,
         )
     return payload
 
@@ -240,6 +258,11 @@ def _run_child_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 resume_state=payload.get("resume_state"),
                 on_checkpoint=_checkpoint_resume_state,
                 screening_phase=screening_phase,
+                # v3.15.8: serialized-samples branch — forward the
+                # parent-computed sampling metadata so the outcome
+                # dict carries the same coverage signal as the
+                # in-process execute_screening_candidate path.
+                sampling_metadata=payload.get("sampling_metadata"),
             )
         _clear_resume_state()
         return {
@@ -287,6 +310,7 @@ def _failed_outcome(
     reason_detail: str,
     samples_total: int,
     samples_completed: int,
+    sampling_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "legacy_decision": {
@@ -304,6 +328,10 @@ def _failed_outcome(
         "decision": SCREENING_REJECTED,
         "reason_code": "screening_candidate_error",
         "reason_detail": reason_detail,
+        # v3.15.8: synthetic outcome dicts must carry the same
+        # sampling block as the screening_runtime success path so
+        # downstream evidence and policy never see missing keys.
+        "sampling": dict(sampling_metadata or _UNAVAILABLE_SAMPLING_METADATA),
     }
 
 
@@ -316,6 +344,7 @@ def _timed_out_outcome(
     budget_seconds: int,
     samples_total: int,
     samples_completed: int,
+    sampling_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "legacy_decision": {
@@ -333,6 +362,8 @@ def _timed_out_outcome(
         "decision": SCREENING_REJECTED,
         "reason_code": "candidate_budget_exceeded",
         "reason_detail": f"candidate exceeded screening budget of {int(budget_seconds)} seconds",
+        # v3.15.8: see _failed_outcome for rationale.
+        "sampling": dict(sampling_metadata or _UNAVAILABLE_SAMPLING_METADATA),
     }
 
 
@@ -406,10 +437,16 @@ def execute_screening_candidate_isolated(
     monotonic = monotonic_source or time.monotonic
     started_at = now().astimezone(UTC)
     started_at_monotonic = monotonic()
-    sample_params = [
-        dict(params)
-        for params in screening_param_samples(strategy.get("params") or {}, max_samples=max_samples)
-    ]
+    # v3.15.8: build the sampling plan once per candidate. The
+    # plan is deterministic so a second compute inside
+    # _build_child_payload would yield byte-identical samples;
+    # we still re-compute there because the subprocess pickled
+    # payload must own its samples + metadata independently.
+    plan = sampling_plan_for_param_grid(
+        strategy.get("params"),
+        max_samples_for_legacy=max_samples,
+    )
+    sample_params = [dict(params) for params in plan.samples]
     plan_fingerprint = build_screening_candidate_plan_fingerprint(
         candidate=candidate,
         interval_range=interval_range,
@@ -519,6 +556,7 @@ def execute_screening_candidate_isolated(
                         budget_seconds=budget_seconds,
                         samples_total=int(payload["samples_total"]),
                         samples_completed=0,
+                        sampling_metadata=payload.get("sampling_metadata"),
                     ),
                     "provenance_events": [],
                 }
@@ -538,6 +576,7 @@ def execute_screening_candidate_isolated(
                     reason_detail=reason_detail,
                     samples_total=int(payload["samples_total"]),
                     samples_completed=0,
+                    sampling_metadata=payload.get("sampling_metadata"),
                 ),
                 "provenance_events": [],
             }
@@ -580,6 +619,7 @@ def execute_screening_candidate_isolated(
                     reason_detail=str(result.get("reason_detail") or "screening child process failed"),
                     samples_total=int(payload["samples_total"]),
                     samples_completed=0,
+                    sampling_metadata=payload.get("sampling_metadata"),
                 ),
                 "provenance_events": list(result.get("provenance_events") or []),
             }

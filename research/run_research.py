@@ -36,8 +36,8 @@ from research.candidate_pipeline import (
     deduplicate_candidates,
     index_readiness,
     plan_candidates,
+    sampling_plan_for_param_grid,
     screening_candidates,
-    screening_param_samples,
     summarize_candidates,
     validation_candidates,
 )
@@ -139,6 +139,10 @@ from research.run_meta import (
     write_run_meta_sidecar,
 )
 from research.results import make_result_row, write_latest_json, write_results_to_csv
+from research.screening_evidence import (
+    SCREENING_EVIDENCE_PATH,
+    build_screening_evidence_payload,
+)
 from research.screening_process import execute_screening_candidate_isolated
 from research.screening_runtime import (
     FINAL_STATUS_ERRORED,
@@ -148,6 +152,7 @@ from research.screening_runtime import (
     build_screening_runtime_records,
     build_screening_sidecar_payload,
 )
+from research._sidecar_io import write_sidecar_atomic
 from research.run_state import RunStateStore
 from research.statistical_reporting import build_statistical_defensibility_payload, regime_count_settings
 from research.universe import (
@@ -358,6 +363,30 @@ def _read_json_if_exists(path: Path) -> dict | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+
+
+def _read_paper_blocked_index() -> dict[str, list[str]]:
+    """v3.15.9 — read paper_readiness_latest.v1.json and derive a
+    ``{candidate_id: [blocking_reasons]}`` index for the screening
+    evidence builder. Missing / malformed sidecar yields an empty
+    dict so the evidence artifact still writes.
+    """
+    path = Path("research/paper_readiness_latest.v1.json")
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: dict[str, list[str]] = {}
+    for row in data.get("candidates", []) or []:
+        if str(row.get("status")) != "blocked":
+            continue
+        cid = row.get("candidate_id")
+        if cid is None:
+            continue
+        out[str(cid)] = [str(r) for r in (row.get("blocking_reasons") or [])]
+    return out
 
 
 def _write_json_with_history(*, path: Path, payload: dict, run_id: str, history_name: str) -> None:
@@ -2349,10 +2378,17 @@ def run_research(
                 for candidate_id in batch["candidate_ids"]:
                     candidate = screening_items_by_id[str(candidate_id)]
                     strategy = strategy_by_name[candidate["strategy_name"]]
-                    sampled_params = screening_param_samples(
-                        strategy.get("params") or {},
-                        max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+                    # v3.15.8: build the SamplingPlan once per
+                    # candidate so the runtime record's samples_total
+                    # and the synthetic timeout/error outcome dicts
+                    # below carry consistent coverage metadata. The
+                    # plan also flows into the subprocess via
+                    # execute_screening_candidate_isolated → _build_child_payload.
+                    plan = sampling_plan_for_param_grid(
+                        strategy.get("params"),
+                        max_samples_for_legacy=SCREENING_PARAM_SAMPLE_LIMIT,
                     )
+                    sampling_metadata = plan.metadata()
                     runtime_record = screening_records_by_id[str(candidate["candidate_id"])]
                     runtime_record["runtime_status"] = "running"
                     runtime_record["final_status"] = None
@@ -2360,7 +2396,7 @@ def run_research(
                     runtime_record["finished_at"] = None
                     runtime_record["elapsed_seconds"] = 0
                     runtime_record["samples_completed"] = 0
-                    runtime_record["samples_total"] = len(sampled_params)
+                    runtime_record["samples_total"] = plan.sampled_count
                     runtime_record["decision"] = None
                     runtime_record["reason_code"] = None
                     runtime_record["reason_detail"] = None
@@ -2508,6 +2544,12 @@ def run_research(
                                     f"(elapsed={elapsed}s, "
                                     f"budget={screening_candidate_budget_seconds}s)"
                                 ),
+                                # v3.15.8: synthetic outcome dict —
+                                # carry the plan-derived sampling
+                                # block so screening evidence sees
+                                # the same shape on the v3.14.1
+                                # interrupt-transform path.
+                                "sampling": dict(sampling_metadata),
                             }
                             tracker.emit_event(
                                 "screening_candidate_budget_exceeded",
@@ -2538,6 +2580,9 @@ def run_research(
                             "decision": "rejected_in_screening",
                             "reason_code": "screening_candidate_error",
                             "reason_detail": str(exc),
+                            # v3.15.8: synthetic outcome dict — see
+                            # the timeout branch above for rationale.
+                            "sampling": dict(sampling_metadata),
                         }
                         isolated_result = {"provenance_events": []}
                     provenance_events.extend(isolated_result.get("provenance_events") or [])
@@ -3457,6 +3502,57 @@ def run_research(
             tracker.emit_event(
                 "v3_15_3_hypothesis_catalog_sidecars_failed",
                 error=str(v3_15_3_exc),
+            )
+        # v3.15.9: funnel evidence artifact. Adjacent non-frozen
+        # sidecar emitted AFTER paper validation so paper_blocked
+        # signals can be folded in. Builder is pure and resilient
+        # to malformed candidates (identity-fallback path); this
+        # try/except therefore only protects against I/O failures.
+        try:
+            paper_blocked_index = _read_paper_blocked_index()
+            screening_pass_kinds_by_strategy: dict[str, str | None] = {}
+            for _candidate_for_evidence in candidates:
+                screening_block = (
+                    _candidate_for_evidence.get("screening") or {}
+                )
+                _strategy_key = str(
+                    _candidate_for_evidence.get("strategy_id")
+                    or _candidate_for_evidence.get("strategy_name")
+                    or ""
+                )
+                if _strategy_key:
+                    screening_pass_kinds_by_strategy[_strategy_key] = (
+                        screening_block.get("pass_kind")
+                        if isinstance(screening_block, dict)
+                        else None
+                    )
+            evidence_payload = build_screening_evidence_payload(
+                run_id=str(state["run_id"]),
+                as_of_utc=as_of_utc,
+                git_revision=_git_revision(),
+                campaign_id=_COL_CAMPAIGN_ID,
+                col_campaign_id=_COL_CAMPAIGN_ID,
+                preset_name=preset_obj.name if preset_obj is not None else None,
+                screening_phase=(
+                    preset_obj.screening_phase if preset_obj is not None else None
+                ),
+                candidates=candidates,
+                screening_records=screening_records,
+                screening_pass_kinds=screening_pass_kinds_by_strategy,
+                paper_blocked_index=paper_blocked_index,
+            )
+            write_sidecar_atomic(SCREENING_EVIDENCE_PATH, evidence_payload)
+            tracker.emit_event(
+                "v3_15_9_screening_evidence_written",
+                path=SCREENING_EVIDENCE_PATH.as_posix(),
+                artifact_fingerprint=evidence_payload["artifact_fingerprint"],
+                identity_fallbacks=evidence_payload["summary"]["identity_fallbacks"],
+                near_passes=evidence_payload["summary"]["near_passes"],
+                coverage_warnings=evidence_payload["summary"]["coverage_warnings"],
+            )
+        except Exception as v3_15_9_exc:
+            tracker.emit_event(
+                "v3_15_9_screening_evidence_failed", error=str(v3_15_9_exc)
             )
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
