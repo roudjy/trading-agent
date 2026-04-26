@@ -580,19 +580,34 @@ def validate_active_discovery_preset_bridges(
             p for p in bound if p.status == "stable" and p.enabled
         ]
         if not stable_enabled:
+            # Surface every preset that *did* bind via hypothesis_id but
+            # failed the stable+enabled gate, so an operator can see at
+            # a glance whether the binding is missing entirely or merely
+            # disqualified by a status / enabled flip.
+            disqualified = [
+                f"{p.name!r}(status={p.status!r},enabled={p.enabled})"
+                for p in bound
+            ]
+            disqualified_part = (
+                f"; bound-but-disqualified={disqualified}"
+                if disqualified
+                else "; no presets bind via hypothesis_id at all"
+            )
             raise HypothesisCatalogError(
                 f"bridge: active_discovery hypothesis "
-                f"{hyp.hypothesis_id!r} has no stable+enabled preset "
+                f"{hyp.hypothesis_id!r} (strategy_family="
+                f"{hyp.strategy_family!r}) has no stable+enabled preset "
                 f"binding via hypothesis_id"
+                f"{disqualified_part}"
             )
         for preset in stable_enabled:
             resolved = resolve_preset_bundle(preset)
             if not resolved:
                 raise HypothesisCatalogError(
                     f"bridge: preset {preset.name!r} bound to "
-                    f"hypothesis {hyp.hypothesis_id!r} resolves to "
-                    f"zero enabled registry strategies; bundle="
-                    f"{list(preset.bundle)}"
+                    f"hypothesis {hyp.hypothesis_id!r} (strategy_family="
+                    f"{hyp.strategy_family!r}) resolves to zero enabled "
+                    f"registry strategies; bundle={list(preset.bundle)}"
                 )
 
 

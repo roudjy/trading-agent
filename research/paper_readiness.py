@@ -287,7 +287,14 @@ def build_paper_readiness_payload(
     generated_at_utc: str,
     run_id: str,
     git_revision: str,
+    col_campaign_id: str | None = None,
 ) -> dict[str, Any]:
+    # ``col_campaign_id`` is the v3.15.4 ownership stamp: when the
+    # Campaign Operating Layer launches this run as a subprocess it
+    # passes ``--campaign-id CID``; the launcher reads this field
+    # back to confirm the sidecar belongs to the current campaign and
+    # not to a previous run that crashed before overwriting it. Null
+    # for direct CLI use; legacy readers ignore unknown keys.
     return {
         "schema_version": PAPER_READINESS_SCHEMA_VERSION,
         "paper_readiness_version": PAPER_READINESS_VERSION,
@@ -296,6 +303,7 @@ def build_paper_readiness_payload(
         "live_eligible": False,
         "generated_at_utc": generated_at_utc,
         "run_id": run_id,
+        "col_campaign_id": col_campaign_id,
         "git_revision": git_revision,
         "thresholds": {
             "min_paper_oos_days": MIN_PAPER_OOS_DAYS,
