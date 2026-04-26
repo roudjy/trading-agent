@@ -59,8 +59,15 @@ CAMPAIGN_STATES: tuple[str, ...] = (
 CampaignOutcome = Literal[
     "completed_with_candidates",
     "completed_no_survivor",
+    "degenerate_no_survivors",
+    "research_rejection",
+    "technical_failure",
     "paper_blocked",
     "integrity_failed",
+    # DEPRECATED in v3.15.5 — kept only to validate historical records.
+    # Post-v3.15.5 launcher emissions never produce ``worker_crashed``;
+    # the runtime invariant in ``campaign_launcher`` enforces this. See
+    # ``docs/handoffs/v3.15.5.md`` for the migration guidance.
     "worker_crashed",
     "aborted",
     "canceled_duplicate",
@@ -70,13 +77,35 @@ CampaignOutcome = Literal[
 CAMPAIGN_OUTCOMES: tuple[str, ...] = (
     "completed_with_candidates",
     "completed_no_survivor",
+    "degenerate_no_survivors",
+    "research_rejection",
+    "technical_failure",
     "paper_blocked",
     "integrity_failed",
-    "worker_crashed",
+    "worker_crashed",  # DEPRECATED v3.15.5; historical records only.
     "aborted",
     "canceled_duplicate",
     "canceled_upstream_stale",
 )
+
+# v3.15.5 — outcomes the campaign launcher is allowed to emit on a
+# non-terminated, freshly classified run. ``worker_crashed`` is excluded
+# on purpose: post-v3.15.5 the launcher must never produce it. The
+# runtime invariant in ``campaign_launcher._apply_decision`` enforces
+# this contract; the deprecated alias remains in ``CAMPAIGN_OUTCOMES``
+# only for reading legacy records.
+LAUNCHER_EMITTABLE_OUTCOMES: frozenset[str] = frozenset({
+    "completed_with_candidates",
+    "completed_no_survivor",
+    "degenerate_no_survivors",
+    "research_rejection",
+    "technical_failure",
+    "paper_blocked",
+    "integrity_failed",
+    "aborted",
+    "canceled_duplicate",
+    "canceled_upstream_stale",
+})
 
 MeaningfulClassification = Literal[
     "meaningful_candidate_found",
