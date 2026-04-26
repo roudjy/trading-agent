@@ -365,14 +365,30 @@ def _record_digest(
 
 def _classify_outcome_from_paper(
     paper_readiness_path: Path,
+    *,
+    expected_campaign_id: str | None = None,
 ) -> tuple[str | None, str | None]:
-    """Return (outcome, blocking_reason) based on paper readiness artifact."""
+    """Return (outcome, blocking_reason) based on paper readiness artifact.
+
+    v3.15.4 ownership check: when ``expected_campaign_id`` is given the
+    sidecar's ``col_campaign_id`` field MUST equal it. A missing or
+    mismatched stamp means the file is either pre-v3.15.4 or belongs
+    to a previous campaign whose subprocess crashed before overwriting
+    it; the function returns ``(None, None)`` in that case so the
+    caller falls back to the conservative ``completed_no_survivor``
+    classification rather than crediting / blaming the current run for
+    another campaign's verdict.
+    """
     if not paper_readiness_path.exists():
         return None, None
     try:
         raw = json.loads(paper_readiness_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None, None
+    if expected_campaign_id is not None:
+        owner = raw.get("col_campaign_id")
+        if owner is None or str(owner) != str(expected_campaign_id):
+            return None, None
     status = raw.get("status")
     if status == "ready_for_paper_promotion":
         return "completed_with_candidates", None
@@ -781,8 +797,11 @@ def _apply_decision(
     meaningful = "uninformative_technical_failure"
     reason_code: str = "worker_crash"
     if rc == 0:
+        # v3.15.4: pass the spawned campaign_id so a stale sidecar from
+        # a prior campaign cannot misclassify this run.
         paper_outcome, paper_reason = _classify_outcome_from_paper(
-            Path("research/paper_readiness_latest.v1.json")
+            Path("research/paper_readiness_latest.v1.json"),
+            expected_campaign_id=cid,
         )
         if paper_outcome == "completed_with_candidates":
             outcome = "completed_with_candidates"

@@ -91,6 +91,12 @@ class PaperValidationBuildContext:
     registry_v2: dict[str, Any]
     sleeve_registry: dict[str, Any] | None
     evaluations: list[dict[str, Any]]
+    # v3.15.4: optional Campaign Operating Layer ownership stamp.
+    # Stored on the paper_readiness sidecar so the launcher can detect
+    # a stale sidecar from a previous campaign (e.g. when the current
+    # subprocess crashed before overwriting it). Null for direct CLI
+    # invocations and back-compatible with v3.15-3.15.3 readers.
+    col_campaign_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -375,6 +381,7 @@ def build_and_write_paper_validation_sidecars(
         generated_at_utc=ctx.generated_at_utc,
         run_id=ctx.run_id,
         git_revision=ctx.git_revision,
+        col_campaign_id=ctx.col_campaign_id,
     )
     write_sidecar_atomic(paper_readiness_path, readiness_payload)
     paths["paper_readiness"] = paper_readiness_path
