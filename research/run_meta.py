@@ -6,12 +6,15 @@ per-run preset metadata, completion timestamp, candidate summary, and top
 rejection reasons all live in this new sidecar at
 ``research/run_meta_latest.v1.json``.
 
-Schema v1.1 (v3.11; additive on v1.0). All v1.0 consumers keep reading —
-the new fields are null-safe; a missing v1.0 sidecar is still handled by
-``is_run_excluded_from_promotion`` with safe-default=True.
+Schema v1.2 (v3.15.6; additive on v1.1). All v1.0 / v1.1 consumers
+keep reading — every new field is null-safe and uses ``.get(...)``
+in production readers. The file path remains
+``research/run_meta_latest.v1.json``; the ``v1`` in the filename is
+the major-schema generation, while ``schema_version`` carries the
+minor revision.
 
     {
-      "schema_version": "1.1",
+      "schema_version": "1.2",
       "run_id": str,
       "preset_name": str | None,
       "preset_hypothesis": str | None,
@@ -29,6 +32,7 @@ the new fields are null-safe; a missing v1.0 sidecar is still handled by
       "diagnostic_only": bool,
       "excluded_from_candidate_promotion": bool,
       "screening_mode": str | None,
+      "screening_phase": str | None,                # v3.15.6 additive
       "cost_mode": str | None,
       "regime_filter": str | None,
       "regime_modes": [str, ...],
@@ -65,7 +69,7 @@ from typing import Any
 from research.presets import ResearchPreset
 
 RUN_META_PATH = Path("research/run_meta_latest.v1.json")
-RUN_META_SCHEMA_VERSION = "1.1"
+RUN_META_SCHEMA_VERSION = "1.2"
 
 
 def _utc_now_iso() -> str:
@@ -132,6 +136,7 @@ def build_run_meta_payload(
             "diagnostic_only": False,
             "excluded_from_candidate_promotion": True,
             "screening_mode": None,
+            "screening_phase": None,
             "cost_mode": None,
             "regime_filter": None,
             "regime_modes": [],
@@ -152,6 +157,7 @@ def build_run_meta_payload(
             "diagnostic_only": preset.diagnostic_only,
             "excluded_from_candidate_promotion": preset.excluded_from_candidate_promotion,
             "screening_mode": preset.screening_mode,
+            "screening_phase": preset.screening_phase,
             "cost_mode": preset.cost_mode,
             "regime_filter": preset.regime_filter,
             "regime_modes": list(preset.regime_modes),
