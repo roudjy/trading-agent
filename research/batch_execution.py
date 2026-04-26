@@ -201,10 +201,16 @@ def execute_screening_batch(
             runtime_record["samples_completed"] = int(runtime_record.get("samples_completed") or 0)
 
             decision = dict(outcome["legacy_decision"])
+            screening_with_pass_kind = dict(decision)
+            # v3.15.7: surface ``pass_kind`` on the candidate-update
+            # dict's ``screening`` sub-dict so run_research can build
+            # the {strategy_id -> pass_kind} index without re-reading
+            # the runtime_record. Rejected samples carry pass_kind=None.
+            screening_with_pass_kind["pass_kind"] = outcome.get("pass_kind")
             candidate_updates.append(
                 {
                     "candidate_id": candidate_id,
-                    "screening": dict(decision),
+                    "screening": screening_with_pass_kind,
                     "current_status": (
                         "promoted_to_validation"
                         if decision["status"] == SCREENING_PROMOTED

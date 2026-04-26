@@ -25,12 +25,23 @@ def build_candidate_registry_payload(
     statistical_defensibility: dict[str, Any] | None,
     promotion_config: dict[str, Any] | None,
     git_revision: str,
+    screening_pass_kinds: dict[str, str | None] | None = None,
 ) -> dict[str, Any]:
     """Build the candidate_registry_latest.v1.json payload.
 
     Raises ArtifactJoinError if a required artifact is malformed
     or the join between artifacts fails.
+
+    v3.15.7: ``screening_pass_kinds`` is an optional ``{strategy_id
+    -> pass_kind}`` index that the caller (typically
+    ``run_research``) builds from screening runtime records. The
+    index is forwarded to ``classify_candidate`` so exploratory
+    passes are downgraded to ``needs_investigation``. The
+    ``pass_kind`` value itself is NEVER added to a registry row —
+    the v1 schema is bytewise unchanged. Default ``None`` keeps
+    every existing call site byte-identical to pre-v3.15.7.
     """
+    pass_kinds_index = screening_pass_kinds or {}
     config = normalize_promotion_config(promotion_config)
     results = research_latest.get("results")
     if not isinstance(results, list):
@@ -69,8 +80,12 @@ def build_candidate_registry_payload(
             leakage_checks_ok=leakage_ok,
             defensibility=defensibility,
             config=config,
+            pass_kind=pass_kinds_index.get(strategy_id),
         )
 
+        # v3.15.7: pass_kind is INTENTIONALLY NOT added to the
+        # candidate row. The v1 registry schema is frozen — only
+        # status + reasoning carry the v3.15.7 effect downstream.
         candidates.append({
             "strategy_id": strategy_id,
             "strategy_name": strategy_name,
