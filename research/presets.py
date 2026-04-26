@@ -157,6 +157,7 @@ PRESETS: tuple[ResearchPreset, ...] = (
         bundle=("sma_crossover", "breakout_momentum"),
         optional_bundle=("trend_pullback",),
         screening_mode="strict",
+        screening_phase="promotion_grade",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -196,6 +197,7 @@ PRESETS: tuple[ResearchPreset, ...] = (
         timeframe="1d",
         bundle=("pairs_zscore",),
         screening_mode="strict",
+        screening_phase="promotion_grade",
         cost_mode="realistic",
         status="planned",
         enabled=False,
@@ -266,6 +268,7 @@ PRESETS: tuple[ResearchPreset, ...] = (
         regime_filter="bollinger_regime_derived",
         regime_modes=("trend_only", "low_vol_only"),
         screening_mode="strict",
+        screening_phase="promotion_grade",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -307,6 +310,9 @@ PRESETS: tuple[ResearchPreset, ...] = (
         bundle=("trend_pullback_v1",),
         hypothesis_id="trend_pullback_v1",
         screening_mode="strict",
+        # v3.15.6: classification change only — same screening criteria
+        # as today until v3.15.7 introduces phase-aware thresholds.
+        screening_phase="exploratory",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -364,6 +370,9 @@ PRESETS: tuple[ResearchPreset, ...] = (
         bundle=("volatility_compression_breakout",),
         hypothesis_id="volatility_compression_breakout_v0",
         screening_mode="strict",
+        # v3.15.6: classification change only — same screening criteria
+        # as today until v3.15.7 introduces phase-aware thresholds.
+        screening_phase="exploratory",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -421,6 +430,9 @@ PRESETS: tuple[ResearchPreset, ...] = (
         timeframe="1h",
         bundle=("rsi", "bollinger_mr"),
         screening_mode="diagnostic",
+        # v3.15.6: classification change only — same screening criteria
+        # as today until v3.15.7 introduces phase-aware thresholds.
+        screening_phase="exploratory",
         cost_mode="stress",
         status="diagnostic",
         enabled=True,
