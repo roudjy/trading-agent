@@ -382,8 +382,17 @@ def execute_screening_candidate_isolated(
     resume_run_id: str | None = None,
     batch_id: str | None = None,
     history_root: Path = Path("research/history"),
+    screening_phase: str | None = None,
     _allow_fresh_retry: bool = True,
 ) -> dict[str, Any]:
+    # v3.15.6: ``screening_phase`` is the funnel-stage classification
+    # propagated from run_research. In v3.15.6 this is plumbing only —
+    # no branching, no threshold change, no result-dict expansion. The
+    # kwarg's typing is intentionally ``str | None`` (not Literal) so
+    # v3.15.7 may extend the accepted vocabulary without an API change.
+    # The seam test ``test_v3_15_6_v3_15_7_compatibility_seam`` pins
+    # this contract.
+    del screening_phase  # accepted but unused in v3.15.6
     del on_progress
 
     now = now_source or _utc_now

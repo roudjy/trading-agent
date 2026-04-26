@@ -156,6 +156,12 @@ def execute_screening_batch(
             try:
                 start_datum = interval_ranges[str(candidate["interval"])]["start"]
                 eind_datum = interval_ranges[str(candidate["interval"])]["end"]
+                # v3.15.6: batch_execution has neither a preset nor a
+                # tracker in scope. We pass ``screening_phase=None``
+                # explicitly to forbid hidden inference from
+                # screening_mode / preset_class / hypothesis_id /
+                # diagnostic flags. Run-level propagation lives in
+                # run_research.py.
                 isolated_result = execute_screening_candidate_isolated(
                     strategy=strategy,
                     candidate=candidate,
@@ -165,6 +171,7 @@ def execute_screening_batch(
                     budget_seconds=screening_candidate_budget_seconds,
                     max_samples=screening_param_sample_limit,
                     engine_class=BacktestEngine,
+                    screening_phase=None,
                 )
                 outcome = dict(isolated_result["outcome"])
             except Exception as exc:
