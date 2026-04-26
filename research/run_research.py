@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 from datetime import UTC, datetime, timezone
@@ -64,6 +65,7 @@ from research.campaigns import (
     build_run_campaign_progress_payload,
 )
 from research.empty_run_reporting import (
+    EXIT_CODE_DEGENERATE_NO_SURVIVORS,
     DegenerateResearchRunError,
     build_empty_run_diagnostics_payload,
 )
@@ -698,6 +700,7 @@ def _write_empty_run_diagnostics_sidecar(
         pair_diagnostics=pair_diagnostics,
         evaluations_count=evaluations_count,
         evaluations_with_oos_daily_returns=evaluations_with_oos_daily_returns,
+        col_campaign_id=_COL_CAMPAIGN_ID,
     )
     _write_json_atomic(path, payload)
     return payload
@@ -3412,10 +3415,18 @@ def _parse_cli_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = _parse_cli_args()
-    run_research(
-        resume=bool(args.resume),
-        retry_failed_batches=bool(args.retry_failed_batches),
-        continue_latest=bool(args.continue_latest),
-        preset=args.preset,
-        col_campaign_id=args.campaign_id,
-    )
+    # v3.15.5: a controlled DegenerateResearchRunError must surface as
+    # rc=EXIT_CODE_DEGENERATE_NO_SURVIVORS so the campaign launcher can
+    # classify the run as `degenerate_no_survivors` instead of falling
+    # back to `worker_crashed`. The callable run_research() still raises
+    # the exception so existing tests (and library callers) keep working.
+    try:
+        run_research(
+            resume=bool(args.resume),
+            retry_failed_batches=bool(args.retry_failed_batches),
+            continue_latest=bool(args.continue_latest),
+            preset=args.preset,
+            col_campaign_id=args.campaign_id,
+        )
+    except DegenerateResearchRunError:
+        sys.exit(EXIT_CODE_DEGENERATE_NO_SURVIVORS)
