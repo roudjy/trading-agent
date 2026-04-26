@@ -471,16 +471,161 @@ def apply_eligibility(
     }
 
 
-def screening_param_samples(param_grid: dict[str, Any], max_samples: int = 3) -> list[dict[str, Any]]:
-    combinations = expand_param_grid(param_grid)
-    if not combinations:
-        return [{}]
-    if len(combinations) <= max_samples:
-        return combinations
+def sampling_plan_for_param_grid(
+    param_grid: dict[str, Any] | None,
+    *,
+    max_samples_for_legacy: int = LEGACY_LARGE_GRID_SAMPLE_COUNT,
+) -> SamplingPlan:
+    """Deterministic v3.15.8 sampling plan for a single parameter
+    grid.
 
-    selected_indices = {0, len(combinations) // 2, len(combinations) - 1}
-    sampled = [combinations[index] for index in sorted(selected_indices)]
-    return sampled[:max_samples]
+    Behaviour table (REV 3 §5.3):
+
+        param_grid is None / not a dict   -> grid_unavailable, [{}]
+        expansion raises (malformed)      -> grid_unavailable, [{}]
+        param_grid == {}                  -> empty_grid, [{}]
+        1..MAX_FULL_COVERAGE_GRID_SIZE    -> full_coverage, all combos
+        9..MAX_STRATIFIED_GRID_SIZE       -> stratified_small (>=80% coverage,
+                                              endpoints included)
+        > MAX_STRATIFIED_GRID_SIZE        -> legacy_large_grid: first/middle/last
+                                              capped at ``max_samples_for_legacy``
+
+    The plan is reproducible across runs and Python hash-randomness:
+    grid keys are sorted before ``itertools.product`` so the
+    combination order is fully determined by the input dict.
+    """
+    if not isinstance(param_grid, dict):
+        samples: list[dict[str, Any]] = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=None,
+            sampled_count=len(samples),
+            coverage_pct=None,
+            sampling_policy=SAMPLING_POLICY_GRID_UNAVAILABLE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=COVERAGE_WARNING_GRID_UNAVAILABLE,
+        )
+
+    sorted_grid = {key: param_grid[key] for key in sorted(param_grid)}
+
+    if not sorted_grid:
+        # Empty grid: one degenerate "default" combination, fully covered.
+        samples = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=1,
+            sampled_count=1,
+            coverage_pct=1.0,
+            sampling_policy=SAMPLING_POLICY_EMPTY_GRID,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=None,
+        )
+
+    try:
+        combinations = expand_param_grid(sorted_grid)
+    except Exception:
+        samples = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=None,
+            sampled_count=len(samples),
+            coverage_pct=None,
+            sampling_policy=SAMPLING_POLICY_GRID_UNAVAILABLE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=COVERAGE_WARNING_GRID_UNAVAILABLE,
+        )
+
+    if not combinations:
+        # All parameter axes are empty lists -> no combinations.
+        # Treat as grid_unavailable so the operator notices the
+        # config defect rather than silently degrading to one
+        # default combination.
+        samples = [{}]
+        return SamplingPlan(
+            samples=samples,
+            grid_size=None,
+            sampled_count=1,
+            coverage_pct=None,
+            sampling_policy=SAMPLING_POLICY_GRID_UNAVAILABLE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=COVERAGE_WARNING_GRID_UNAVAILABLE,
+        )
+
+    grid_size = len(combinations)
+
+    if grid_size <= MAX_FULL_COVERAGE_GRID_SIZE:
+        samples = list(combinations)
+        return SamplingPlan(
+            samples=samples,
+            grid_size=grid_size,
+            sampled_count=grid_size,
+            coverage_pct=1.0,
+            sampling_policy=SAMPLING_POLICY_FULL_COVERAGE,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=None,
+        )
+
+    if grid_size <= MAX_STRATIFIED_GRID_SIZE:
+        indices = _stratified_indices(grid_size)
+        samples = [combinations[i] for i in indices]
+        coverage_pct = len(samples) / grid_size
+        warning = (
+            None
+            if coverage_pct >= MIN_STRATIFIED_COVERAGE_PCT
+            else COVERAGE_WARNING_BELOW_THRESHOLD
+        )
+        return SamplingPlan(
+            samples=samples,
+            grid_size=grid_size,
+            sampled_count=len(samples),
+            coverage_pct=coverage_pct,
+            sampling_policy=SAMPLING_POLICY_STRATIFIED_SMALL,
+            sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+            coverage_warning=warning,
+        )
+
+    # grid_size > MAX_STRATIFIED_GRID_SIZE — preserve pre-v3.15.8
+    # first/middle/last legacy behaviour. ``max_samples_for_legacy``
+    # remains honoured here so external callers that explicitly
+    # constrain the legacy regime still get the smaller cap.
+    legacy_cap = max(1, int(max_samples_for_legacy))
+    selected_indices = sorted(
+        {0, grid_size // 2, grid_size - 1}
+    )
+    samples = [combinations[i] for i in selected_indices][:legacy_cap]
+    coverage_pct = len(samples) / grid_size
+    return SamplingPlan(
+        samples=samples,
+        grid_size=grid_size,
+        sampled_count=len(samples),
+        coverage_pct=coverage_pct,
+        sampling_policy=SAMPLING_POLICY_LEGACY_LARGE_GRID,
+        sampled_parameter_digest=_compute_sampled_parameter_digest(samples),
+        coverage_warning=None,
+    )
+
+
+def screening_param_samples(
+    param_grid: dict[str, Any] | None,
+    max_samples: int = LEGACY_LARGE_GRID_SAMPLE_COUNT,
+) -> list[dict[str, Any]]:
+    """Legacy entry point preserved for back-compat. Returns the
+    same ``list[dict[str, Any]]`` shape it always has.
+
+    INTENTIONAL BEHAVIOURAL SHIFT (v3.15.8): ``max_samples`` is
+    honoured ONLY for grids strictly larger than
+    ``MAX_STRATIFIED_GRID_SIZE``. For grid sizes in
+    [1..MAX_STRATIFIED_GRID_SIZE] the v3.15.8 sampling-policy
+    applies (full coverage <=8; deterministic stratified >=80%
+    for 9..16). This is the deliberate fix for the under-sampling
+    defect that motivated v3.15.8.
+
+    Callers that need coverage metadata should use
+    ``sampling_plan_for_param_grid`` directly.
+    """
+    return sampling_plan_for_param_grid(
+        param_grid, max_samples_for_legacy=max_samples
+    ).samples
 
 
 def normalize_screening_decision(sample_results: list[dict[str, Any]]) -> dict[str, Any]:
