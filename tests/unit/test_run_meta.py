@@ -127,8 +127,9 @@ def test_default_run_meta_path_is_adjacent_to_frozen_artifacts():
 # ---------------------------------------------------------------------------
 
 
-def test_schema_version_is_v11():
-    assert RUN_META_SCHEMA_VERSION == "1.1"
+def test_schema_version_is_v12():
+    """v3.15.6: schema bumped 1.1 → 1.2 (additive screening_phase)."""
+    assert RUN_META_SCHEMA_VERSION == "1.2"
 
 
 def test_payload_carries_v311_preset_class_and_hypothesis_metadata():
