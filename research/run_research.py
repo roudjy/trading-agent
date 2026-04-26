@@ -2421,6 +2421,9 @@ def run_research(
                             resume_run_id=resumed_from_run_id,
                             batch_id=str(batch["batch_id"]),
                             history_root=Path("research/history"),
+                            screening_phase=(
+                                preset_obj.screening_phase if preset_obj is not None else None
+                            ),
                         )
                         if isolated_result["execution_state"] == "interrupted":
                             # v3.14.1: budget exhaustion is a candidate-level
