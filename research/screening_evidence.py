@@ -476,7 +476,7 @@ def _build_candidate_record(
 def _summarise(
     candidates: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    summary = {
+    summary: dict[str, Any] = {
         "total_candidates": len(candidates),
         "passed_screening": 0,
         "rejected_screening": 0,
@@ -542,30 +542,30 @@ def build_screening_evidence_payload(
     Operators see ``summary.identity_fallbacks > 0`` as a
     diagnostic signal.
     """
-    promotion_status_index = promotion_status_index or {}
+    promotion_index: dict[str, str] = dict(promotion_status_index or {})
     screening_record_by_id: dict[str, dict[str, Any]] = {}
-    for record in screening_records:
-        cid = record.get("candidate_id")
+    for screening_row in screening_records:
+        cid = screening_row.get("candidate_id")
         if cid is not None:
-            screening_record_by_id[str(cid)] = record
+            screening_record_by_id[str(cid)] = screening_row
 
     candidate_records: list[dict[str, Any]] = []
     for candidate in candidates:
         raw_id = candidate.get("candidate_id")
-        record = (
+        candidate_record: dict[str, Any] | None = (
             screening_record_by_id.get(str(raw_id))
             if raw_id is not None
             else None
         )
-        if record is None:
-            record = {}
+        if candidate_record is None:
+            candidate_record = {}
         strategy_id = (
             candidate.get("strategy_id")
             or candidate.get("strategy_name")
             or ""
         )
         pass_kind = screening_pass_kinds.get(str(strategy_id))
-        promotion_status = promotion_status_index.get(str(strategy_id))
+        promotion_status = promotion_index.get(str(strategy_id))
         paper_blocking_reasons = list(
             paper_blocked_index.get(str(raw_id), [])
             if raw_id is not None
@@ -574,7 +574,7 @@ def build_screening_evidence_payload(
         candidate_records.append(
             _build_candidate_record(
                 candidate=candidate,
-                screening_record=record,
+                screening_record=candidate_record,
                 pass_kind=pass_kind,
                 promotion_status=promotion_status,
                 paper_blocking_reasons=paper_blocking_reasons,
