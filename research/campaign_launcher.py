@@ -84,6 +84,7 @@ from research.campaign_queue import (
     write_queue,
 )
 from research.campaign_registry import (
+    LAUNCHER_EMITTABLE_OUTCOMES,
     REGISTRY_ARTIFACT_PATH,
     CampaignRecord,
     build_campaign_id,
@@ -95,6 +96,8 @@ from research.campaign_registry import (
     upsert_record,
     write_registry,
 )
+from research.empty_run_reporting import EXIT_CODE_DEGENERATE_NO_SURVIVORS
+from research.rejection_taxonomy import SCREENING_REASON_CODES
 from research.campaign_followup import (
     derive_followups,
     derive_weekly_controls,
@@ -397,6 +400,132 @@ def _classify_outcome_from_paper(
         first = str(reasons[0]) if reasons else "unknown"
         return "paper_blocked", first
     return None, None
+
+
+# v3.15.5 — outcome dispatch helpers ------------------------------------------
+
+EMPTY_RUN_DIAGNOSTICS_PATH: Path = Path(
+    "research/empty_run_diagnostics_latest.v1.json"
+)
+CANDIDATE_REGISTRY_V1_PATH: Path = Path(
+    "research/candidate_registry_latest.v1.json"
+)
+
+
+def _classify_research_rejection(
+    paper_readiness_path: Path,
+    candidate_registry_path: Path,
+    *,
+    expected_campaign_id: str,
+) -> tuple[str | None, str | None]:
+    """Return ``("research_rejection", reason_code)`` or ``(None, None)``.
+
+    Hard-ownership rule (v3.15.5): we only credit / blame this run for
+    the candidate registry if ``paper_readiness_latest.v1.json``'s
+    ``col_campaign_id`` matches ``expected_campaign_id``. Paper readiness
+    is written by ``run_research`` in the same subprocess that writes
+    ``candidate_registry_latest.v1.json``; an ownership match on paper
+    readiness anchors the registry's identity by producer atomicity.
+    Mtime is **not** used as ownership.
+
+    Returns ``(None, None)`` whenever any of the strict conditions
+    fails. The caller falls back to ``completed_no_survivor``.
+    """
+    # Hard ownership via paper_readiness col_campaign_id stamp.
+    if not paper_readiness_path.exists():
+        return None, None
+    try:
+        paper_raw = json.loads(paper_readiness_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    owner = paper_raw.get("col_campaign_id")
+    if owner is None or str(owner) != str(expected_campaign_id):
+        return None, None
+    status = paper_raw.get("status")
+    # Stages A and B already classify these — research_rejection only
+    # fires when paper readiness did NOT classify the run.
+    if status in ("ready_for_paper_promotion", "blocked"):
+        return None, None
+    # Now inspect the v1 candidate registry. The frozen v1 schema has no
+    # run_id field, but ownership is anchored above via paper_readiness.
+    if not candidate_registry_path.exists():
+        return None, None
+    try:
+        registry_raw = json.loads(
+            candidate_registry_path.read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    candidates = registry_raw.get("candidates")
+    if not isinstance(candidates, list) or len(candidates) == 0:
+        return None, None
+    if not all(
+        isinstance(c, dict) and c.get("status") == "rejected" for c in candidates
+    ):
+        return None, None
+    # Aggregate failed reason codes across candidates.
+    failed_union: list[str] = []
+    for entry in candidates:
+        reasoning = entry.get("reasoning") or {}
+        failed = reasoning.get("failed") or []
+        for code in failed:
+            failed_union.append(str(code))
+    if not failed_union:
+        return None, None
+    failed_set = set(failed_union)
+    if not failed_set.issubset(SCREENING_REASON_CODES):
+        return None, None
+    # Pick the dominant code; tiebreak alphabetically for determinism.
+    counts: dict[str, int] = {}
+    for code in failed_union:
+        counts[code] = counts.get(code, 0) + 1
+    dominant = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+    return "research_rejection", dominant
+
+
+def _technical_failure_reason_code(rc: int) -> str:
+    """Map a non-zero, non-degenerate ``rc`` to a closed reason code.
+
+    Only reuses codes already accepted by ``_TECHNICAL_REASON_CODES``
+    in ``campaign_preset_policy``. ``timeout`` is in that set already
+    (v3.15.2), so rc=124 is allowed to use it. Other non-zero codes
+    fall back to the conservative ``worker_crash`` so policy
+    semantics stay byte-identical to pre-v3.15.5 for this branch.
+    """
+    if rc == 124:
+        return "timeout"
+    return "worker_crash"
+
+
+def _check_rc2_origin(
+    diagnostics_path: Path,
+    *,
+    expected_campaign_id: str,
+) -> str:
+    """Diagnostic-only origin check for ``rc == 2``.
+
+    Returns one of ``"rc2_origin_confirmed_degenerate"``,
+    ``"rc2_unexpected_origin"``, ``"rc2_payload_malformed"``. Outcome
+    classification is **not** affected by this check; rc=2 is itself
+    a producer-restricted signal (only ``run_research.py``'s ``__main__``
+    wrapper emits it). The status string is logged to stderr by the
+    caller for forensic visibility.
+    """
+    if not diagnostics_path.exists():
+        return "rc2_unexpected_origin"
+    try:
+        raw = json.loads(diagnostics_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "rc2_payload_malformed"
+    if not isinstance(raw, dict):
+        return "rc2_payload_malformed"
+    if "failure_stage" not in raw or "summary" not in raw:
+        return "rc2_payload_malformed"
+    # Optional ownership cross-check (does not gate outcome).
+    owner = raw.get("col_campaign_id")
+    if owner is not None and str(owner) != str(expected_campaign_id):
+        return "rc2_unexpected_origin"
+    return "rc2_origin_confirmed_degenerate"
 
 
 def _invoke_subprocess(
@@ -793,10 +922,32 @@ def _apply_decision(
         lease_ttl_seconds=int(config.lease_ttl_seconds),
     )
     finished_at = datetime.now(UTC)
-    outcome = "worker_crashed"
-    meaningful = "uninformative_technical_failure"
-    reason_code: str = "worker_crash"
-    if rc == 0:
+    # v3.15.5 — hierarchical outcome dispatch. Post-v3.15.5 launcher
+    # emissions are confined to ``LAUNCHER_EMITTABLE_OUTCOMES``; the
+    # deprecated ``worker_crashed`` alias must never appear here. The
+    # invariant assert below pins this contract at runtime.
+    outcome: str
+    meaningful: str
+    reason_code: str
+    if rc == EXIT_CODE_DEGENERATE_NO_SURVIVORS:
+        outcome = "degenerate_no_survivors"
+        meaningful = "meaningful_failure_confirmed"
+        reason_code = "degenerate_no_evaluable_pairs"
+        # Diagnostic origin check; outcome stays degenerate either way.
+        rc2_status = _check_rc2_origin(
+            EMPTY_RUN_DIAGNOSTICS_PATH,
+            expected_campaign_id=cid,
+        )
+        if rc2_status != "rc2_origin_confirmed_degenerate":
+            sys.stderr.write(
+                f"campaign_launcher: rc=2 diagnostic event "
+                f"{rc2_status} for campaign={cid}\n"
+            )
+    elif rc != 0:
+        outcome = "technical_failure"
+        meaningful = "uninformative_technical_failure"
+        reason_code = _technical_failure_reason_code(rc)
+    else:
         # v3.15.4: pass the spawned campaign_id so a stale sidecar from
         # a prior campaign cannot misclassify this run.
         paper_outcome, paper_reason = _classify_outcome_from_paper(
@@ -816,9 +967,47 @@ def _apply_decision(
             )
             reason_code = str(paper_reason or "none")
         else:
-            outcome = "completed_no_survivor"
-            meaningful = "duplicate_low_value_run"
-            reason_code = "none"
+            # v3.15.5 — try research_rejection before falling back to
+            # the residual completed_no_survivor classification.
+            rr_outcome, rr_reason = _classify_research_rejection(
+                Path("research/paper_readiness_latest.v1.json"),
+                CANDIDATE_REGISTRY_V1_PATH,
+                expected_campaign_id=cid,
+            )
+            if rr_outcome == "research_rejection":
+                outcome = "research_rejection"
+                meaningful = "meaningful_family_falsified"
+                reason_code = str(rr_reason or "none")
+            else:
+                outcome = "completed_no_survivor"
+                meaningful = "duplicate_low_value_run"
+                reason_code = "none"
+    # v3.15.5 — post-dispatch invariant. Ensures the launcher never
+    # leaks the deprecated ``worker_crashed`` alias and never emits an
+    # outcome outside the post-v3.15.5 vocabulary. This is the runtime
+    # backstop for the static AST test pinning the same contract.
+    # Bandit B101: intentional defensive assert — the static AST test
+    # in ``tests/unit/test_v3_15_5_outcome_invariant.py`` is the
+    # primary contract; this assert exists as a runtime documentation
+    # / fail-fast signal in non-optimised builds.
+    assert outcome in LAUNCHER_EMITTABLE_OUTCOMES, (  # nosec B101
+        f"v3.15.5 outcome invariant violated: {outcome!r} "
+        f"not in LAUNCHER_EMITTABLE_OUTCOMES"
+    )
+    assert outcome != "worker_crashed", (  # nosec B101
+        "v3.15.5: launcher must never emit deprecated 'worker_crashed'"
+    )
+    # v3.15.5 — degenerate / research_rejection are *structured*
+    # completions; they belong in state="completed" so the policy
+    # streak counter (which inspects ``campaign_completed`` events)
+    # observes them. Only true technical failures stay in "failed".
+    is_completed_state = (
+        rc == 0 or rc == EXIT_CODE_DEGENERATE_NO_SURVIVORS
+    )
+    terminal_state = "completed" if is_completed_state else "failed"
+    terminal_event = (
+        "campaign_completed" if is_completed_state else "campaign_failed"
+    )
     registry = record_outcome(
         registry,
         campaign_id=cid,
@@ -830,7 +1019,7 @@ def _apply_decision(
     registry = transition_state(
         registry,
         campaign_id=cid,
-        to_state="completed" if rc == 0 else "failed",
+        to_state=terminal_state,  # type: ignore[arg-type]
         at_utc=finished_at,
     )
     new_events.append(
@@ -840,16 +1029,14 @@ def _apply_decision(
             lineage_root_campaign_id=new_record.lineage_root_campaign_id,
             preset_name=preset_name,
             campaign_type=campaign_type,  # type: ignore[arg-type]
-            event_type=(
-                "campaign_completed" if rc == 0 else "campaign_failed"
-            ),
+            event_type=terminal_event,  # type: ignore[arg-type]
             at_utc=finished_at,
             reason_code=reason_code,
             outcome=outcome,
             meaningful_classification=meaningful,
         )
     )
-    queue = clear_lease(queue, campaign_id=cid, to_state="completed" if rc == 0 else "failed")
+    queue = clear_lease(queue, campaign_id=cid, to_state=terminal_state)  # type: ignore[arg-type]
 
     # Settle budget reservation.
     budget = settle_reservation(
