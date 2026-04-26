@@ -35,6 +35,23 @@ from research.registry import STRATEGIES
 
 
 ScreeningMode = Literal["strict", "lenient", "diagnostic"]
+# v3.15.6: ``ScreeningPhase`` is a NEW funnel-stage classification,
+# orthogonal to the legacy ``ScreeningMode`` (gate-strictness metadata
+# from v3.10). The two coexist intentionally:
+#
+#   - ``ScreeningMode``  → strict / lenient / diagnostic
+#                          → describes how strict the current gates are.
+#                          → unchanged in v3.15.6; runtime-inert.
+#   - ``ScreeningPhase`` → exploratory / standard / promotion_grade
+#                          → describes which funnel stage a preset
+#                            operates in.
+#                          → propagated to the screening boundary as a
+#                            no-op kwarg; v3.15.6 changes no thresholds.
+#                          → v3.15.7 may dispatch criteria on this seam.
+#
+# See docs/handoffs/v3.15.6.md for the comparison table and the
+# rationale for not reusing/renaming ``screening_mode``.
+ScreeningPhase = Literal["exploratory", "standard", "promotion_grade"]
 CostMode = Literal["realistic", "zero", "stress"]
 PresetStatus = Literal["stable", "planned", "diagnostic", "not_executable"]
 PresetClass = Literal["baseline", "diagnostic", "experimental"]
@@ -71,6 +88,11 @@ class ResearchPreset:
     timeframe: str
     bundle: tuple[str, ...]
     screening_mode: ScreeningMode = "strict"
+    # v3.15.6: funnel-stage classification. Default ``promotion_grade``
+    # is a safety net for newly-added presets that forget the field;
+    # ALL existing presets MUST set this keyword explicitly (verified
+    # by an AST test in ``tests/unit/test_v3_15_6_preset_phase_explicitness.py``).
+    screening_phase: ScreeningPhase = "promotion_grade"
     cost_mode: CostMode = "realistic"
     status: PresetStatus = "stable"
     enabled: bool = True
@@ -135,6 +157,7 @@ PRESETS: tuple[ResearchPreset, ...] = (
         bundle=("sma_crossover", "breakout_momentum"),
         optional_bundle=("trend_pullback",),
         screening_mode="strict",
+        screening_phase="promotion_grade",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -174,6 +197,7 @@ PRESETS: tuple[ResearchPreset, ...] = (
         timeframe="1d",
         bundle=("pairs_zscore",),
         screening_mode="strict",
+        screening_phase="promotion_grade",
         cost_mode="realistic",
         status="planned",
         enabled=False,
@@ -244,6 +268,7 @@ PRESETS: tuple[ResearchPreset, ...] = (
         regime_filter="bollinger_regime_derived",
         regime_modes=("trend_only", "low_vol_only"),
         screening_mode="strict",
+        screening_phase="promotion_grade",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -285,6 +310,9 @@ PRESETS: tuple[ResearchPreset, ...] = (
         bundle=("trend_pullback_v1",),
         hypothesis_id="trend_pullback_v1",
         screening_mode="strict",
+        # v3.15.6: classification change only — same screening criteria
+        # as today until v3.15.7 introduces phase-aware thresholds.
+        screening_phase="exploratory",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -342,6 +370,9 @@ PRESETS: tuple[ResearchPreset, ...] = (
         bundle=("volatility_compression_breakout",),
         hypothesis_id="volatility_compression_breakout_v0",
         screening_mode="strict",
+        # v3.15.6: classification change only — same screening criteria
+        # as today until v3.15.7 introduces phase-aware thresholds.
+        screening_phase="exploratory",
         cost_mode="realistic",
         status="stable",
         enabled=True,
@@ -399,6 +430,9 @@ PRESETS: tuple[ResearchPreset, ...] = (
         timeframe="1h",
         bundle=("rsi", "bollinger_mr"),
         screening_mode="diagnostic",
+        # v3.15.6: classification change only — same screening criteria
+        # as today until v3.15.7 introduces phase-aware thresholds.
+        screening_phase="exploratory",
         cost_mode="stress",
         status="diagnostic",
         enabled=True,
@@ -484,6 +518,18 @@ def validate_preset(preset: ResearchPreset) -> list[str]:
     ``run_research._preset_validation_is_strict``).
     """
     issues: list[str] = []
+    # v3.15.6: validate ``screening_phase`` regardless of enabled state.
+    # ``Literal`` typing only catches static usage; runtime constructs
+    # such as ``ResearchPreset(..., screening_phase="bad")`` succeed and
+    # must be rejected here. The default mode emits this as a warning
+    # via ``_enforce_preset_validation``; strict mode raises
+    # ``PresetValidationError`` (existing v3.11 pattern).
+    valid_phases = ScreeningPhase.__args__  # type: ignore[attr-defined]
+    if preset.screening_phase not in valid_phases:
+        issues.append(
+            f"screening_phase_invalid: {preset.screening_phase!r}; "
+            f"expected one of {sorted(valid_phases)}"
+        )
     if not preset.enabled:
         if preset.backlog_reason is None:
             issues.append("disabled preset must carry a backlog_reason")

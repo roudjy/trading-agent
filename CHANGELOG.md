@@ -4,6 +4,116 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.6] — Screening Mode Activation
+
+Date: 2026-04-26
+Branch: `fix/v3.15.6-screening-mode-activation`
+
+Activates the funnel-stage classification (``screening_phase``)
+end-to-end as plumbing. No threshold or screening-criteria change
+ships in v3.15.6 — the seam is laid for v3.15.7 to dispatch
+phase-aware criteria. ``screening_phase`` and the legacy
+``screening_mode`` coexist: distinct concepts, distinct
+vocabularies, no rename, no vocab replacement.
+
+### Comparison: screening_mode vs screening_phase
+
+| Concept | Values | Meaning | Runtime effect in v3.15.6 |
+|---|---|---|---|
+| `screening_mode` (legacy, v3.10) | `strict` / `lenient` / `diagnostic` | gate-strictness metadata | unchanged; runtime-inert |
+| `screening_phase` (NEW, v3.15.6) | `exploratory` / `standard` / `promotion_grade` | funnel-stage metadata | propagated to screening boundary; **no behavior change** |
+
+### Added
+
+- ``research/presets.ScreeningPhase = Literal["exploratory",
+  "standard", "promotion_grade"]`` with a docstring linking it to
+  the legacy ``ScreeningMode`` for clarity.
+- ``ResearchPreset.screening_phase`` field with default
+  ``"promotion_grade"`` (safety-net only). All 6 production
+  presets receive the field explicitly; an AST test pins the
+  explicitness contract.
+- ``research/screening_process.execute_screening_candidate_isolated``
+  accepts a new ``screening_phase: str | None = None`` keyword-
+  only parameter. The function discards the kwarg via
+  ``del screening_phase`` — no branching, no result-dict
+  expansion. The annotation is intentionally ``str | None`` (not
+  Literal) so v3.15.7 may extend the vocabulary in-place without
+  an API break.
+- ``research/run_research``: tracker events
+  ``screening_phase_active`` (run-level) and
+  ``screening_phase_observed`` (per-candidate, run_research only).
+- ``research/run_meta_latest.v1.json`` schema bump 1.1 → 1.2 with
+  additive nullable ``screening_phase`` field. File path unchanged.
+- ``researchctl run --dry-run`` listing surfaces ``screening_phase``
+  next to the legacy ``screening_mode``. Operator visibility
+  without a frontend change.
+- 14 new test files pinning the v3.15.6 contract end-to-end:
+  type, preset assignments, AST explicitness, legacy
+  ``screening_mode`` unchanged, default+strict validation paths,
+  invalid-phase end-to-end → technical_failure (no catalog
+  pollution), run_research / screening_process / batch_execution
+  propagation, v3.15.7 compatibility seam, behavior equivalence,
+  run_meta schema, ``preset_to_card`` unchanged, researchctl
+  listing.
+
+### Changed
+
+- ``research/run_research._enforce_preset_validation`` now
+  surfaces ``screening_phase_invalid`` issues alongside the v3.11
+  hypothesis-metadata path. Default mode emits a
+  ``preset_validation_warning`` tracker event without raising;
+  strict mode (``QRE_STRICT_PRESET_VALIDATION=1``) raises
+  ``PresetValidationError``.
+- Preset assignments (classification change only — same screening
+  criteria as today until v3.15.7):
+  - `trend_pullback_crypto_1h`           → `exploratory`
+  - `vol_compression_breakout_crypto_1h` → `exploratory`
+  - `crypto_diagnostic_1h`               → `exploratory`
+  - all other presets                    → `promotion_grade`
+
+### Deliberately not changed
+
+- Bestaand ``screening_mode`` field — every preset's value is
+  byte-identical pre-v3.15.6 (test pinned). The legacy Literal
+  remains exactly ``("strict", "lenient", "diagnostic")``.
+- ``preset_to_card`` (frontend / dashboard API) — byte-identical
+  pre-v3.15.6. Visibility for v3.15.6 lives in tracker events,
+  run_meta, and the CLI listing.
+- ``research/screening_runtime.py``, ``candidate_pipeline.py``,
+  ``rejection_taxonomy.py``, ``campaign_launcher.py``,
+  ``dashboard/dashboard.py``, ``frontend/`` — unchanged.
+- ``execute_screening_candidate_isolated`` returned outcome dict
+  — NOT extended. The function discards the kwarg via
+  ``del screening_phase`` to prevent stealth schema drift via
+  ``runtime_record.update(outcome)`` on
+  ``research/batch_execution.py:191``.
+- ``research/batch_execution.py`` — no preset/tracker context;
+  passes ``screening_phase=None`` literally; no inference from
+  ``screening_mode`` / ``preset_class`` / ``hypothesis_id`` /
+  diagnostic flags.
+- Frozen contracts: ``research_latest.json``,
+  ``strategy_matrix.csv``,
+  ``candidate_registry_latest.v1.json`` schema — byte-identical.
+- v3.15.5 outcome semantics — fully preserved. All `v3_15_5`
+  pattern tests remain green.
+
+### Behavioral shift (intentional)
+
+- Three production presets are now classified as ``exploratory``
+  (`trend_pullback_crypto_1h`, `vol_compression_breakout_crypto_1h`,
+  `crypto_diagnostic_1h`). This is a **classification change
+  only** — same screening criteria as today. v3.15.7 may
+  introduce phase-aware thresholds, at which point the
+  exploratory presets will see different gating from the
+  promotion_grade presets.
+- Operators who filter or aggregate on ``screening_mode`` should
+  also surface ``screening_phase`` for v3.15.6+ runs. The CLI
+  listing now exposes both.
+
+### Tests
+
+Full suite: 1755 + ~57 new tests = ~1812 expected.
+
 ## [v3.15.5] — Outcome Semantics Fix
 
 Date: 2026-04-26
