@@ -466,6 +466,7 @@ def _write_candidate_registry(
     walk_forward_reports: list[dict],
     research_config: dict,
     as_of_utc,
+    candidates_by_id: dict[str, dict] | None = None,
     path: Path = CANDIDATE_REGISTRY_PATH,
 ) -> None:
     if not walk_forward_reports:
@@ -482,12 +483,51 @@ def _write_candidate_registry(
         with SIDE_CAR_PATH.open(encoding="utf-8") as handle:
             statistical_defensibility = json.load(handle)
 
+    # v3.15.7: build a {strategy_id -> pass_kind} index from the
+    # candidate runtime records so promotion_reporting can downgrade
+    # exploratory passes to ``needs_investigation``. The index lives
+    # here in run_research; promotion_reporting receives it via the
+    # ``screening_pass_kinds`` kwarg and never serialises pass_kind
+    # into the (frozen) candidate registry rows.
+    screening_pass_kinds: dict[str, str | None] = {}
+    if candidates_by_id:
+        from research.promotion import build_strategy_id
+
+        rows_by_key: dict[tuple[str, str, str], list[dict]] = {}
+        for row in rows:
+            if not row.get("success", False):
+                continue
+            key = (
+                str(row.get("strategy_name")),
+                str(row.get("asset")),
+                str(row.get("interval")),
+            )
+            rows_by_key.setdefault(key, []).append(row)
+        for candidate in candidates_by_id.values():
+            screening = candidate.get("screening") or {}
+            pass_kind = screening.get("pass_kind") if isinstance(screening, dict) else None
+            key = (
+                str(candidate.get("strategy_name")),
+                str(candidate.get("asset")),
+                str(candidate.get("interval")),
+            )
+            for matched_row in rows_by_key.get(key, []):
+                selected_params = json.loads(matched_row.get("params_json", "{}"))
+                strategy_id = build_strategy_id(
+                    str(matched_row.get("strategy_name")),
+                    str(matched_row.get("asset")),
+                    str(matched_row.get("interval")),
+                    selected_params,
+                )
+                screening_pass_kinds[strategy_id] = pass_kind
+
     payload = build_candidate_registry_payload(
         research_latest=research_latest,
         walk_forward=walk_forward,
         statistical_defensibility=statistical_defensibility,
         promotion_config=research_config.get("promotion"),
         git_revision=_git_revision(),
+        screening_pass_kinds=screening_pass_kinds or None,
     )
     _write_json_atomic(path, payload)
 
@@ -2506,6 +2546,21 @@ def run_research(
                     runtime_record["elapsed_seconds"] = int(runtime_record.get("elapsed_seconds") or 0)
                     runtime_record["samples_total"] = int(runtime_record.get("samples_total") or 0)
                     runtime_record["samples_completed"] = int(runtime_record.get("samples_completed") or 0)
+                    # v3.15.7: emit a per-candidate tracker event when a
+                    # candidate passes the exploratory funnel. Run-level
+                    # only — never emitted from screening_runtime,
+                    # screening_process, or batch_execution. Payload metrics
+                    # come straight from outcome["diagnostic_metrics"].
+                    if outcome.get("pass_kind") == "exploratory":
+                        diag = outcome.get("diagnostic_metrics") or {}
+                        tracker.emit_event(
+                            "exploratory_screening_pass",
+                            candidate_id=str(candidate.get("candidate_id")),
+                            expectancy=float(diag.get("expectancy", 0.0)),
+                            profit_factor=float(diag.get("profit_factor", 0.0)),
+                            win_rate=float(diag.get("win_rate", 0.0)),
+                            max_drawdown=float(diag.get("max_drawdown", 0.0)),
+                        )
                     decision = dict(outcome["legacy_decision"])
                     for item in candidates:
                         if item["candidate_id"] != candidate["candidate_id"]:
@@ -3169,6 +3224,11 @@ def run_research(
             walk_forward_reports=walk_forward_reports,
             research_config=research_config,
             as_of_utc=as_of_utc,
+            # v3.15.7: provide screening pass_kind index so exploratory
+            # passes are downgraded to needs_investigation instead of
+            # auto-promoting to candidate. The registry row schema is
+            # bytewise unchanged — pass_kind is consumed but not written.
+            candidates_by_id=_candidate_index(candidates),
         )
         _write_portfolio_aggregation_sidecar(
             evaluations=evaluations,

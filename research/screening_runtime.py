@@ -14,6 +14,7 @@ from research.candidate_pipeline import (
     normalize_screening_decision,
     screening_param_samples,
 )
+from research.screening_criteria import apply_phase_aware_criteria
 
 FINAL_STATUS_PASSED = "passed"
 FINAL_STATUS_REJECTED = "rejected"
@@ -179,6 +180,7 @@ def execute_screening_candidate_samples(
     monotonic_source: Callable[[], float] | None = None,
     on_progress: Callable[[dict[str, int]], None] | None = None,
     on_checkpoint: Callable[[list[dict[str, Any]]], None] | None = None,
+    screening_phase: str | None = None,
 ) -> dict[str, Any]:
     now = now_source or _utc_now
     monotonic = monotonic_source or time.monotonic
@@ -231,6 +233,11 @@ def execute_screening_candidate_samples(
     sample_results = [dict(item) for item in (resume_state.completed_samples if resume_state is not None else ())]
     active_sample_index = resume_state.active_sample_index if resume_state is not None else None
     active_snapshot = resume_state.active_snapshot if resume_state is not None else None
+    # v3.15.7: track the most recent sample's metrics so the
+    # aggregate outcome dict can surface ``diagnostic_metrics`` for
+    # observability even when the loop terminates without a winning
+    # sample.
+    last_metrics: dict[str, Any] = {}
 
     for sample_index, (_params, strategy_callable) in enumerate(strategy_samples):
         if sample_index < len(sample_results):
@@ -246,6 +253,7 @@ def execute_screening_candidate_samples(
                 deadline_monotonic=deadline_monotonic,
                 resume_snapshot=active_snapshot if active_sample_index == sample_index else None,
             )
+            last_metrics = metrics if isinstance(metrics, dict) else {}
         except EngineInterrupted as exc:
             raise ScreeningCandidateInterrupted(
                 completed_samples=sample_results,
@@ -283,10 +291,15 @@ def execute_screening_candidate_samples(
             min_trades = int(getattr(engine, "min_trades", 10))
             if int(metrics.get("totaal_trades", 0)) < min_trades:
                 sample_results.append({"status": SCREENING_REJECTED, "reason": "insufficient_trades"})
-            elif not metrics.get("goedgekeurd", False):
-                sample_results.append({"status": SCREENING_REJECTED, "reason": "screening_criteria_not_met"})
             else:
-                sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
+                # v3.15.7: phase-aware criteria dispatch. Pre-checks
+                # above (no_oos_samples / insufficient_trades) are NOT
+                # duplicated inside ``apply_phase_aware_criteria``.
+                passed, reason = apply_phase_aware_criteria(metrics, screening_phase)
+                if passed:
+                    sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
+                else:
+                    sample_results.append({"status": SCREENING_REJECTED, "reason": reason})
         if on_checkpoint is not None:
             on_checkpoint(sample_results)
 
@@ -308,6 +321,28 @@ def execute_screening_candidate_samples(
     reason_detail = None
     if final_status == FINAL_STATUS_REJECTED and reason_code is not None:
         reason_detail = f"screening rejected after {len(sample_results)} sampled parameter combinations"
+    # v3.15.7: additive outcome fields for phase-aware visibility.
+    # ``pass_kind`` is set ONLY on screening pass (mirrors phase);
+    # rejected → None (failure semantics live in reason_code).
+    # NB: NO ``screening_phase`` key here — v3.15.6 invariant.
+    pass_kind: str | None
+    if legacy_decision["status"] == SCREENING_PROMOTED:
+        pass_kind = screening_phase
+    else:
+        pass_kind = None
+    screening_criteria_set = (
+        "exploratory" if screening_phase == "exploratory" else "legacy"
+    )
+    # JSON-safe finite floats (engine.profit_factor uses
+    # PROFIT_FACTOR_NO_LOSS_CAP; expectancy is a finite mean).
+    # ``last_metrics`` holds the most recent sample's metrics dict
+    # (or {} when no sample produced metrics yet).
+    diagnostic_metrics = {
+        "expectancy": float(last_metrics.get("expectancy", 0.0)),
+        "profit_factor": float(last_metrics.get("profit_factor", 0.0)),
+        "win_rate": float(last_metrics.get("win_rate", 0.0)),
+        "max_drawdown": float(last_metrics.get("max_drawdown", 0.0)),
+    }
     return {
         "legacy_decision": legacy_decision,
         "runtime_status": "running",
@@ -320,6 +355,10 @@ def execute_screening_candidate_samples(
         "decision": legacy_decision["status"],
         "reason_code": reason_code,
         "reason_detail": reason_detail,
+        # v3.15.7 additive — non-frozen screening sidecar surfaces only.
+        "pass_kind": pass_kind,
+        "screening_criteria_set": screening_criteria_set,
+        "diagnostic_metrics": diagnostic_metrics,
     }
 
 
@@ -335,6 +374,7 @@ def execute_screening_candidate(
     monotonic_source: Callable[[], float] | None = None,
     on_progress: Callable[[dict[str, int]], None] | None = None,
     on_checkpoint: Callable[[list[dict[str, Any]]], None] | None = None,
+    screening_phase: str | None = None,
 ) -> dict[str, Any]:
     sampled_params = screening_param_samples(strategy.get("params") or {}, max_samples=max_samples)
     return execute_screening_candidate_samples(
@@ -348,4 +388,5 @@ def execute_screening_candidate(
         monotonic_source=monotonic_source,
         on_progress=on_progress,
         on_checkpoint=on_checkpoint,
+        screening_phase=screening_phase,
     )
