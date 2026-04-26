@@ -2546,6 +2546,21 @@ def run_research(
                     runtime_record["elapsed_seconds"] = int(runtime_record.get("elapsed_seconds") or 0)
                     runtime_record["samples_total"] = int(runtime_record.get("samples_total") or 0)
                     runtime_record["samples_completed"] = int(runtime_record.get("samples_completed") or 0)
+                    # v3.15.7: emit a per-candidate tracker event when a
+                    # candidate passes the exploratory funnel. Run-level
+                    # only — never emitted from screening_runtime,
+                    # screening_process, or batch_execution. Payload metrics
+                    # come straight from outcome["diagnostic_metrics"].
+                    if outcome.get("pass_kind") == "exploratory":
+                        diag = outcome.get("diagnostic_metrics") or {}
+                        tracker.emit_event(
+                            "exploratory_screening_pass",
+                            candidate_id=str(candidate.get("candidate_id")),
+                            expectancy=float(diag.get("expectancy", 0.0)),
+                            profit_factor=float(diag.get("profit_factor", 0.0)),
+                            win_rate=float(diag.get("win_rate", 0.0)),
+                            max_drawdown=float(diag.get("max_drawdown", 0.0)),
+                        )
                     decision = dict(outcome["legacy_decision"])
                     for item in candidates:
                         if item["candidate_id"] != candidate["candidate_id"]:
