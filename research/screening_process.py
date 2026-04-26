@@ -131,6 +131,7 @@ def _build_child_payload(
     resume_sidecar_path: Path | None,
     batch_id: str | None,
     plan_fingerprint: str | None,
+    screening_phase: str | None = None,
 ) -> dict[str, Any]:
     engine_reference = _object_reference(engine_class)
     if engine_reference is None:
@@ -149,6 +150,8 @@ def _build_child_payload(
         "resume_sidecar_path": None if resume_sidecar_path is None else str(resume_sidecar_path),
         "batch_id": None if batch_id is None else str(batch_id),
         "plan_fingerprint": None if plan_fingerprint is None else str(plan_fingerprint),
+        # v3.15.7: phase carried into the subprocess for criteria dispatch.
+        "screening_phase": screening_phase,
     }
 
     factory_reference = _object_reference(strategy.get("factory"))
@@ -204,6 +207,10 @@ def _run_child_payload(payload: dict[str, Any]) -> dict[str, Any]:
             evaluation_config=dict(payload["evaluation_config"]),
             regime_config=payload["regime_config"],
         )
+        # v3.15.7: phase travels through the payload dict and into
+        # the per-sample runner so ``apply_phase_aware_criteria`` can
+        # dispatch.
+        screening_phase = payload.get("screening_phase")
         if payload.get("factory_ref") is not None:
             strategy = {
                 "factory": _resolve_reference(payload["factory_ref"]),
@@ -217,6 +224,7 @@ def _run_child_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 max_samples=int(payload["max_samples"]),
                 resume_state=payload.get("resume_state"),
                 on_checkpoint=_checkpoint_resume_state,
+                screening_phase=screening_phase,
             )
         else:
             strategy_samples = [
@@ -231,6 +239,7 @@ def _run_child_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 samples_total=int(payload["samples_total"]),
                 resume_state=payload.get("resume_state"),
                 on_checkpoint=_checkpoint_resume_state,
+                screening_phase=screening_phase,
             )
         _clear_resume_state()
         return {
@@ -385,14 +394,12 @@ def execute_screening_candidate_isolated(
     screening_phase: str | None = None,
     _allow_fresh_retry: bool = True,
 ) -> dict[str, Any]:
-    # v3.15.6: ``screening_phase`` is the funnel-stage classification
-    # propagated from run_research. In v3.15.6 this is plumbing only —
-    # no branching, no threshold change, no result-dict expansion. The
-    # kwarg's typing is intentionally ``str | None`` (not Literal) so
-    # v3.15.7 may extend the accepted vocabulary without an API change.
-    # The seam test ``test_v3_15_6_v3_15_7_compatibility_seam`` pins
-    # this contract.
-    del screening_phase  # accepted but unused in v3.15.6
+    # v3.15.7: ``screening_phase`` is now propagated to the per-sample
+    # runner so the phase-aware criteria dispatch in
+    # ``research/screening_criteria.py`` can route exploratory
+    # candidates through discovery-friendly gates while
+    # promotion_grade / standard / None retain the legacy
+    # ``goedgekeurd`` AND-gate.
     del on_progress
 
     now = now_source or _utc_now
@@ -458,6 +465,7 @@ def execute_screening_candidate_isolated(
             resume_sidecar_path=current_resume_path,
             batch_id=batch_id,
             plan_fingerprint=plan_fingerprint,
+            screening_phase=screening_phase,
         )
     except Exception as exc:
         return {

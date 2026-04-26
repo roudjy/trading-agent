@@ -50,12 +50,31 @@ def classify_candidate(
     leakage_checks_ok: bool,
     defensibility: dict[str, Any] | None,
     config: dict[str, Any],
+    pass_kind: str | None = None,
 ) -> tuple[str, dict[str, list[str]]]:
     """Classify a single strategy run.
 
     Returns (status, reasoning) where reasoning has keys
     'passed', 'failed', 'escalated'.
+
+    v3.15.7: ``pass_kind`` is the screening-layer pass_kind for the
+    candidate (None / "standard" / "promotion_grade" /
+    "exploratory"). When ``pass_kind == "exploratory"`` the
+    candidate is downgraded to ``STATUS_NEEDS_INVESTIGATION`` with
+    a single escalated reason
+    ``exploratory_pass_requires_promotion_grade_confirmation`` —
+    exploratory passes must NOT auto-promote to candidate / paper.
+    All other ``pass_kind`` values follow the byte-identical
+    pre-v3.15.7 classification path below; existing positional
+    4-arg call sites keep working thanks to the default.
     """
+    if pass_kind == "exploratory":
+        return STATUS_NEEDS_INVESTIGATION, {
+            "passed": [],
+            "failed": [],
+            "escalated": ["exploratory_pass_requires_promotion_grade_confirmation"],
+        }
+
     failed: list[str] = []
     escalated: list[str] = []
     passed: list[str] = []

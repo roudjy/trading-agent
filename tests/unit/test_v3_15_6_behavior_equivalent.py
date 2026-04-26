@@ -1,20 +1,26 @@
-"""v3.15.6 — behavior equivalent across all three screening_phases.
+"""v3.15.6 behavior contract — superseded by v3.15.7 phase-aware dispatch.
 
-v3.15.6 is plumbing only — it must produce identical
-candidate-level decisions regardless of the funnel-stage
-classification. We exercise this through the screening boundary
-function ``execute_screening_candidate_isolated`` with an
-intentionally tiny but realistic engine setup, and assert that
-the relevant decision-bearing fields are equal across phases.
+The original v3.15.6 contract (no-branching on screening_phase,
+no phase-specific constants in the screening layer) is
+**intentionally superseded** by v3.15.7. This file keeps the
+historical pin available — but reformulated so it pins the
+v3.15.7-aware behavior instead of the now-incorrect v3.15.6
+no-branching invariant.
 
-We do NOT compare full artifact dumps, timestamps, or run IDs —
-those are intentionally run-specific and would make the test
-flaky.
+Tests retained:
 
-If running the engine for real proves too heavy or non-
-deterministic in CI, the test falls back to a source-level
-guard: the screening_process function must contain
-``del screening_phase`` (proves it does not branch on the value).
+- ``test_kwarg_acceptance_is_uniform_across_phases`` — still
+  valid; the signature contract did not change.
+
+Tests reformulated:
+
+- ``test_v3_15_7_intentionally_supersedes_v3_15_6_no_branching``
+  (was ``test_screening_process_does_not_branch_on_screening_phase``)
+- ``test_v3_15_7_phase_specific_constants_in_screening_criteria_only``
+  (was ``test_no_phase_specific_constants_or_thresholds_introduced``)
+
+Both reformulated tests carry an explicit docstring describing
+the supersession.
 """
 
 from __future__ import annotations
@@ -23,44 +29,88 @@ import inspect
 
 import pytest
 
+import research.screening_criteria as screening_criteria
 import research.screening_process as screening_process
+import research.screening_runtime as screening_runtime
 
 
 VALID_PHASES = ["exploratory", "standard", "promotion_grade"]
 
 
-def test_screening_process_does_not_branch_on_screening_phase():
-    """Source-level guard: the implementation discards the kwarg via
-    ``del screening_phase``. This is the source-of-truth contract
-    that v3.15.6 introduces no behavioral difference across phases.
+def test_v3_15_7_intentionally_supersedes_v3_15_6_no_branching():
+    """v3.15.6 invariant intentionally superseded by v3.15.7
+    phase-aware dispatch.
+
+    v3.15.6 pinned that ``execute_screening_candidate_isolated``
+    discarded the ``screening_phase`` kwarg via
+    ``del screening_phase`` and contained no branching strings —
+    that contract is now superseded. v3.15.7 propagates the phase
+    into ``execute_screening_candidate_samples`` and dispatches via
+    the pure helper ``apply_phase_aware_criteria``.
+
+    What this test now pins:
+
+    - ``screening_runtime`` imports the v3.15.7 helper.
+    - ``screening_runtime.execute_screening_candidate_samples``
+      accepts ``screening_phase`` and references the helper.
+    - The screening_process boundary still accepts the kwarg
+      (v3.15.6 seam contract).
     """
-    src = inspect.getsource(
+    runtime_src = inspect.getsource(screening_runtime)
+    assert "from research.screening_criteria import apply_phase_aware_criteria" in runtime_src
+    assert "apply_phase_aware_criteria(metrics, screening_phase)" in runtime_src
+    samples_sig = inspect.signature(
+        screening_runtime.execute_screening_candidate_samples
+    )
+    assert "screening_phase" in samples_sig.parameters
+    process_sig = inspect.signature(
         screening_process.execute_screening_candidate_isolated
     )
-    assert "del screening_phase" in src, (
-        "v3.15.6 must NOT branch on screening_phase. The function "
-        "must explicitly discard the kwarg via 'del screening_phase' "
-        "to make the no-op contract source-evident."
-    )
-    # Defensive: no `if screening_phase` or comparison on the value.
-    forbidden = [
-        'if screening_phase ==',
-        'if screening_phase is "',
-        'if screening_phase in',
-        'screening_phase == "exploratory"',
-        'screening_phase == "standard"',
-        'screening_phase == "promotion_grade"',
-    ]
-    for needle in forbidden:
-        assert needle not in src, (
-            f"v3.15.6 forbids branching on screening_phase; found {needle!r}"
+    assert "screening_phase" in process_sig.parameters
+
+
+def test_v3_15_7_phase_specific_constants_in_screening_criteria_only():
+    """v3.15.6 invariant intentionally superseded by v3.15.7.
+
+    v3.15.6 forbade phase-specific thresholds anywhere in the
+    screening layer. v3.15.7 introduces three exploratory
+    thresholds, but they live exclusively in
+    ``research/screening_criteria.py`` — NOT in
+    ``screening_runtime.py`` or ``screening_process.py``. This
+    keeps the dispatch site discoverable in one place.
+    """
+    crit_src = inspect.getsource(screening_criteria)
+    runtime_src = inspect.getsource(screening_runtime)
+    process_src = inspect.getsource(screening_process)
+
+    # The three constants exist exactly once, in screening_criteria.
+    for name in (
+        "EXPLORATORY_MIN_EXPECTANCY",
+        "EXPLORATORY_MIN_PROFIT_FACTOR",
+        "EXPLORATORY_MAX_DRAWDOWN",
+    ):
+        assert name in crit_src, f"{name} must live in screening_criteria.py"
+        # Must NOT appear in the runtime / process source — those
+        # files import the helper, not the constants.
+        assert name not in runtime_src, (
+            f"{name} leaked into screening_runtime.py — keep dispatch "
+            "site in screening_criteria.py only."
         )
+        assert name not in process_src, (
+            f"{name} leaked into screening_process.py — keep dispatch "
+            "site in screening_criteria.py only."
+        )
+
+
+# ---- preserved invariants --------------------------------------------------
 
 
 @pytest.mark.parametrize("phase", VALID_PHASES)
 def test_kwarg_acceptance_is_uniform_across_phases(phase):
-    """All three phase values bind cleanly through the same
-    signature path. Differences would betray hidden branching.
+    """v3.15.6 signature-binding contract — preserved verbatim.
+
+    All three phase values bind cleanly through the same signature
+    path. Differences would betray a hidden type-narrowing bug.
     """
     sig = inspect.signature(
         screening_process.execute_screening_candidate_isolated
@@ -77,18 +127,3 @@ def test_kwarg_acceptance_is_uniform_across_phases(phase):
         screening_phase=phase,
     )
     assert bound.arguments["screening_phase"] == phase
-
-
-def test_no_phase_specific_constants_or_thresholds_introduced():
-    """Defense: no v3.15.6 module references screening_phase as a
-    threshold key or as a switch. v3.15.7 will introduce dispatch
-    here; v3.15.6 must not.
-    """
-    candidates = [
-        screening_process,
-    ]
-    for module in candidates:
-        src = inspect.getsource(module)
-        assert "PHASE_THRESHOLD" not in src
-        assert "phase_threshold" not in src
-        assert "phase_dispatch" not in src

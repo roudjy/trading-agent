@@ -78,9 +78,21 @@ TAXONOMY_CODES: frozenset[str] = frozenset({
 # introduce speculative future codes; only add a code once the screening
 # layer actually emits it.
 SCREENING_REASON_CODES: frozenset[str] = frozenset({
+    # v3.15.5
     "insufficient_trades",
     "no_oos_samples",
     "screening_criteria_not_met",
+    # v3.15.7 — exploratory phase failure reasons.
+    # Emitted by ``research/screening_criteria.py::_exploratory_criteria``
+    # via the screening dispatch in
+    # ``research/screening_runtime.py::execute_screening_candidate_samples``.
+    # Adding them here keeps v3.15.5
+    # ``campaign_launcher._classify_research_rejection`` correctly
+    # classifying exploratory-only-rejected runs as
+    # ``research_rejection``.
+    "expectancy_not_positive",
+    "profit_factor_below_floor",
+    "drawdown_above_exploratory_limit",
 })
 
 
