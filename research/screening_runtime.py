@@ -14,7 +14,7 @@ from research.candidate_pipeline import (
     SCREENING_PROMOTED,
     SCREENING_REJECTED,
     normalize_screening_decision,
-    screening_param_samples,
+    sampling_plan_for_param_grid,
 )
 from research.screening_criteria import apply_phase_aware_criteria
 
@@ -415,17 +415,23 @@ def execute_screening_candidate(
     on_checkpoint: Callable[[list[dict[str, Any]]], None] | None = None,
     screening_phase: str | None = None,
 ) -> dict[str, Any]:
-    sampled_params = screening_param_samples(strategy.get("params") or {}, max_samples=max_samples)
+    plan = sampling_plan_for_param_grid(
+        strategy.get("params"),
+        max_samples_for_legacy=max_samples,
+    )
     return execute_screening_candidate_samples(
         candidate=candidate,
         engine=engine,
         budget_seconds=budget_seconds,
-        strategy_samples=((params, strategy["factory"](**params)) for params in sampled_params),
-        samples_total=len(sampled_params),
+        strategy_samples=(
+            (params, strategy["factory"](**params)) for params in plan.samples
+        ),
+        samples_total=plan.sampled_count,
         resume_state=resume_state,
         now_source=now_source,
         monotonic_source=monotonic_source,
         on_progress=on_progress,
         on_checkpoint=on_checkpoint,
         screening_phase=screening_phase,
+        sampling_metadata=plan.metadata(),
     )

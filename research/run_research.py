@@ -36,8 +36,8 @@ from research.candidate_pipeline import (
     deduplicate_candidates,
     index_readiness,
     plan_candidates,
+    sampling_plan_for_param_grid,
     screening_candidates,
-    screening_param_samples,
     summarize_candidates,
     validation_candidates,
 )
@@ -2349,10 +2349,17 @@ def run_research(
                 for candidate_id in batch["candidate_ids"]:
                     candidate = screening_items_by_id[str(candidate_id)]
                     strategy = strategy_by_name[candidate["strategy_name"]]
-                    sampled_params = screening_param_samples(
-                        strategy.get("params") or {},
-                        max_samples=SCREENING_PARAM_SAMPLE_LIMIT,
+                    # v3.15.8: build the SamplingPlan once per
+                    # candidate so the runtime record's samples_total
+                    # and the synthetic timeout/error outcome dicts
+                    # below carry consistent coverage metadata. The
+                    # plan also flows into the subprocess via
+                    # execute_screening_candidate_isolated → _build_child_payload.
+                    plan = sampling_plan_for_param_grid(
+                        strategy.get("params"),
+                        max_samples_for_legacy=SCREENING_PARAM_SAMPLE_LIMIT,
                     )
+                    sampling_metadata = plan.metadata()
                     runtime_record = screening_records_by_id[str(candidate["candidate_id"])]
                     runtime_record["runtime_status"] = "running"
                     runtime_record["final_status"] = None
@@ -2360,7 +2367,7 @@ def run_research(
                     runtime_record["finished_at"] = None
                     runtime_record["elapsed_seconds"] = 0
                     runtime_record["samples_completed"] = 0
-                    runtime_record["samples_total"] = len(sampled_params)
+                    runtime_record["samples_total"] = plan.sampled_count
                     runtime_record["decision"] = None
                     runtime_record["reason_code"] = None
                     runtime_record["reason_detail"] = None
@@ -2508,6 +2515,12 @@ def run_research(
                                     f"(elapsed={elapsed}s, "
                                     f"budget={screening_candidate_budget_seconds}s)"
                                 ),
+                                # v3.15.8: synthetic outcome dict —
+                                # carry the plan-derived sampling
+                                # block so screening evidence sees
+                                # the same shape on the v3.14.1
+                                # interrupt-transform path.
+                                "sampling": dict(sampling_metadata),
                             }
                             tracker.emit_event(
                                 "screening_candidate_budget_exceeded",
@@ -2538,6 +2551,9 @@ def run_research(
                             "decision": "rejected_in_screening",
                             "reason_code": "screening_candidate_error",
                             "reason_detail": str(exc),
+                            # v3.15.8: synthetic outcome dict — see
+                            # the timeout branch above for rationale.
+                            "sampling": dict(sampling_metadata),
                         }
                         isolated_result = {"provenance_events": []}
                     provenance_events.extend(isolated_result.get("provenance_events") or [])
