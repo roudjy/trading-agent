@@ -146,6 +146,7 @@ def _stratified_indices(grid_size: int) -> list[int]:
                 break
     return sorted(deduped)[:sample_size]
 
+
 SUPPORTED_INITIAL_LANE = "supported"
 BLOCKED_INITIAL_LANE = "blocked"
 POSITION_OUTRIGHT = "outright"
