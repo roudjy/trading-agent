@@ -4,6 +4,228 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.10] — Funnel Completion (combined: v3.15.8 + v3.15.9 + v3.15.10)
+
+Date: 2026-04-26
+Branch: `feature/v3.15.8-15.10-funnel-completion`
+
+Single VERSION bump. No intermediate `3.15.8` / `3.15.9`
+releases were tagged; their work ships as part of this combined
+release.
+
+Closes the three remaining funnel layers after v3.15.7:
+
+  Sampling   — coverage calibration for small grids.
+  Evidence   — non-frozen ``screening_evidence_latest.v1.json``.
+  Policy     — campaign funnel policy reacts to evidence.
+
+No threshold changes, no new strategies, no taxonomy changes,
+no frozen-contract mutation. Operator guide and limitations
+documented in ``docs/handoffs/v3.15.8-15.10.md``.
+
+### v3.15.8 — Parameter Sampling Calibration
+
+#### Added
+
+- ``research/candidate_pipeline.py``: ``SamplingPlan``
+  dataclass + ``sampling_plan_for_param_grid()`` helper. New
+  constants ``MAX_FULL_COVERAGE_GRID_SIZE = 8``,
+  ``MAX_STRATIFIED_GRID_SIZE = 16``,
+  ``MIN_STRATIFIED_COVERAGE_PCT = 0.80``,
+  ``LEGACY_LARGE_GRID_SAMPLE_COUNT = 3``. New policy /
+  warning string codes. Deterministic helpers
+  ``_json_safe_param_value`` (NaN/inf -> None),
+  ``_canonical_param_dump`` (``allow_nan=False``),
+  ``_compute_sampled_parameter_digest``,
+  ``_stratified_indices``.
+- ``research/screening_runtime.py``: ``sampling_metadata``
+  kwarg on ``execute_screening_candidate_samples`` and a
+  ``"sampling"`` block on every return path (success, error,
+  timeout, no-engine fast path).
+- ``research/screening_process.py``: ``sampling_metadata`` is
+  threaded through ``_build_child_payload`` into the
+  subprocess. ``_failed_outcome`` and ``_timed_out_outcome``
+  carry the block on synthetic outcomes too.
+
+#### Changed
+
+- ``screening_param_samples()`` is preserved as a backward-
+  compatible thin shim. **Intentional behavioural shift**:
+  the shim now ignores ``max_samples`` for grid_size in
+  ``[1..MAX_STRATIFIED_GRID_SIZE]`` — this is the deliberate
+  fix for the v3.15.7 under-sampling defect. ``max_samples``
+  is still honoured for grid_size > 16 (legacy
+  first/middle/last cap).
+- All 5 internal callers (``batch_execution``,
+  ``run_research`` at line ~2352, ``screening_process`` at
+  lines 110/148, ``screening_runtime`` at line 379) migrated
+  to ``sampling_plan_for_param_grid()``.
+- ``run_research``'s v3.14.1 timeout-transform and wrapper-
+  level exception block now carry the plan-derived sampling
+  block on their synthetic outcome dicts.
+
+### v3.15.9 — Funnel Evidence Artifacts
+
+#### Added
+
+- ``research/screening_evidence.py`` (new): pure builder
+  module. Exports ``SCREENING_EVIDENCE_PATH``,
+  ``SCREENING_EVIDENCE_SCHEMA_VERSION = "1.0"``,
+  ``TOP_LEVEL_KEYS``, ``PER_CANDIDATE_KEYS``,
+  ``to_json_safe_float``, ``artifact_fingerprint``,
+  ``candidate_evidence_fingerprint``, ``is_near_pass``,
+  ``dominant_failure_reasons``, ``resolve_stage_result``,
+  ``build_screening_evidence_payload``. Near-pass band
+  constants: ``EXPLORATORY_EXPECTANCY_NEAR_BAND = 0.0005``,
+  ``EXPLORATORY_PROFIT_FACTOR_NEAR_REL_BAND = 0.05``,
+  ``EXPLORATORY_DRAWDOWN_NEAR_REL_BAND = 0.05``.
+- ``research/run_research.py``: ``_read_paper_blocked_index()``
+  helper plus an emit hook adjacent to the v3.15.3 catalog
+  block (after ``build_and_write_paper_validation_sidecars``).
+  Tracker emits ``v3_15_9_screening_evidence_written`` /
+  ``v3_15_9_screening_evidence_failed``.
+
+#### Behaviour
+
+- Top-level + per-candidate keys are closed sets pinned by
+  unit and regression tests. Per-candidate record carries
+  ``identity_fallback_used`` + ``evidence_fingerprint``.
+- **Identity-fallback resilience**: missing/empty/whitespace
+  ``candidate_id`` triggers a deterministic
+  ``fb_<sha1prefix>`` id. The builder NEVER asserts.
+  ``summary.identity_fallbacks`` counts the fallback path.
+- **Stage-result two-step resolution**: base state (pass /
+  near_pass / screening_reject / unknown) determined first
+  from screening promotion + near-pass; downstream override
+  (paper_blocked > promotion_candidate >
+  needs_investigation > screening_pass) applies ONLY to a
+  screening pass. A rejected near-pass remains ``near_pass``.
+- **NaN safety**: every metric float passes through
+  ``to_json_safe_float`` upstream of the canonical dump,
+  which uses ``allow_nan=False``. Direct unsanitised NaN
+  raises ``ValueError`` (proves the guard).
+- **Paper-blocked graceful degradation**: missing/malformed
+  ``paper_readiness_latest.v1.json`` yields ``{}``; the
+  evidence artifact still writes.
+
+### v3.15.10 — Campaign Policy Alignment
+
+#### Added
+
+- ``research/campaign_funnel_policy.py`` (new): pure module.
+  6 decision-code constants
+  (``confirmation_from_exploratory_pass``,
+  ``follow_up_from_near_pass``,
+  ``alternate_timeframe_from_insufficient_trades``,
+  ``coverage_followup_from_low_sampling_coverage``,
+  ``cooldown_from_repeat_rejection``,
+  ``no_action_technical_failure``).
+  ``DECISION_PRIORITY`` (10..60).
+  ``REPEAT_REJECTION_STREAK_THRESHOLD = 3``.
+  ``LOW_COVERAGE_TRIGGER_PCT = 0.80``.
+  ``TERMINAL_CAMPAIGN_STATES`` /
+  ``ACTIVE_CAMPAIGN_STATES`` exactly cover the real
+  ``CAMPAIGN_STATES`` tuple. ``FunnelDecision`` dataclass.
+  ``evidence_owns_campaign``, ``_dominant_reason``,
+  ``repeat_rejection_streak``,
+  ``has_alternate_timeframe_support`` (always False),
+  ``has_funnel_spawn_for``, ``derive_funnel_decisions``,
+  ``sort_funnel_decisions``.
+- ``research/campaign_launcher.py``: error-isolated
+  ``_apply_funnel_decisions(...)`` helper wired between
+  ``_apply_decision`` and ``_write_ledger`` in the per-tick
+  critical section.
+- ``research/campaign_evidence_ledger.py``: 4 additive
+  EventType Literal members
+  (``funnel_decision_emitted``,
+  ``funnel_evidence_stale_or_mismatched``,
+  ``funnel_technical_no_freeze``,
+  ``funnel_policy_error``). ``LEDGER_SCHEMA_VERSION`` stays
+  at ``"1.0"`` (on-disk JSONL row schema unchanged).
+- ``research/campaign_digest.py``:
+  ``DIGEST_SCHEMA_VERSION`` bumped from ``"1.0"`` to
+  ``"1.1"``. New top-level
+  ``funnel_decisions: dict[decision_code -> count]`` block.
+  Backward-compat verified for both readers
+  (``campaign_launcher.load_previous_digest`` and
+  ``dashboard/api_campaigns.py``).
+
+#### Behaviour
+
+- **Decision-only metadata** (MF-15):
+  ``extra.requested_screening_phase = "promotion_grade"`` is
+  recorded as forensic metadata in the
+  ``confirmation_from_exploratory_pass`` decision. There is
+  currently no executor reader of this field anywhere in the
+  ``research/`` subtree (pinned by static-grep test). The
+  spawned campaign would run at the parent preset's natural
+  ``screening_phase`` (i.e. ``exploratory``), NOT at
+  ``promotion_grade``. Vocabulary is "confirmation request /
+  queued confirmation decision", NOT "promotion-grade
+  execution". v3.15.11+ may wire the executor override.
+- **Alternate timeframe absent** (MF-18):
+  ``has_alternate_timeframe_support()`` always returns
+  ``False`` because no preset-catalog mechanism exists today.
+  ``insufficient_trades`` failures fall back to
+  ``cooldown_from_repeat_rejection`` with rationale
+  ``alternate_timeframe_unavailable=True``.
+- **Ledger events only** in v3.15.10: the launcher hook
+  records ``funnel_decision_emitted`` /
+  ``funnel_technical_no_freeze`` /
+  ``funnel_evidence_stale_or_mismatched`` /
+  ``funnel_policy_error`` events. No ``CampaignRecord``
+  upserts and no queue mutations from the funnel hook itself.
+  The ``spawn_request`` payload is carried in the event's
+  ``extra`` so v3.15.11+ executor work can act on it.
+- **Error isolation** (MF-9): the entire funnel-policy block
+  is wrapped in ``try/except``. Failures emit a single
+  ``funnel_policy_error`` event but NEVER mutate the parent
+  campaign's outcome.
+- **Repeat-rejection streak** (MF-12): walks
+  ``campaign_completed`` events for the preset; increments on
+  ``research_rejection`` with matching dominant reason;
+  ``technical_failure`` and ``degenerate_no_survivors`` are
+  NEUTRAL (skip without breaking); any other outcome BREAKS.
+  Threshold is 3.
+- **Dedupe**: ledger-based
+  ``_funnel_decision_already_in_ledger`` checks
+  ``(parent_id, decision_code, candidate_id, fingerprint)``
+  against existing ``funnel_decision_emitted`` events.
+  Registry-based ``has_funnel_spawn_for`` is exported for
+  v3.15.11+ when actual records will be spawned.
+
+### Tests
+
+- 64 v3.15.8 cases.
+- 71 v3.15.9 cases (incl. regression schema pin).
+- 43 v3.15.10 cases (incl. ledger closure pin, digest 1.1
+  pin, digest v1.0 backward load, launcher integration).
+
+Full pytest suite: 2092 passed, 1 skipped.
+
+### Deliberately not changed
+
+- Frozen contracts:
+  ``research/research_latest.json``,
+  ``research/strategy_matrix.csv``,
+  ``research/candidate_registry_latest.v1.json`` schema.
+- Campaign launcher outcome taxonomy (no new
+  ``CampaignOutcome`` values; ``worker_crashed`` invariant
+  preserved).
+- v3.15.7 exploratory thresholds.
+- Strategy logic / strategies / presets.
+- Execution-side override of
+  ``extra.requested_screening_phase`` (v3.15.11 scope).
+- Frontend (existing dashboard digest endpoint continues to
+  serve the dict via ``.get(...)`` — no schema-aware code
+  change needed).
+- ``run_meta_latest.v1.json`` schema_version stays ``"1.2"``.
+- ``CampaignType`` Literal (``daily_primary``,
+  ``daily_control``, ``survivor_confirmation``,
+  ``paper_followup``, ``weekly_retest``) — funnel
+  confirmation requests reuse ``survivor_confirmation`` with
+  funnel-specific subtype + extra metadata.
+
 ## [v3.15.7] — Exploratory Screening Criteria
 
 Date: 2026-04-26

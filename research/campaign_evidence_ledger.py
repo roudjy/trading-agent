@@ -63,6 +63,11 @@ EventType = Literal[
     "upstream_stale_detected",
     "preset_frozen",
     "preset_thawed",
+    # v3.15.10 — additive funnel-policy events.
+    "funnel_decision_emitted",
+    "funnel_evidence_stale_or_mismatched",
+    "funnel_technical_no_freeze",
+    "funnel_policy_error",
 ]
 
 EVENT_TYPES: tuple[str, ...] = (
@@ -88,6 +93,11 @@ EVENT_TYPES: tuple[str, ...] = (
     "upstream_stale_detected",
     "preset_frozen",
     "preset_thawed",
+    # v3.15.10 — additive funnel-policy events.
+    "funnel_decision_emitted",
+    "funnel_evidence_stale_or_mismatched",
+    "funnel_technical_no_freeze",
+    "funnel_policy_error",
 )
 
 # Sentinel for events that do not carry a reason (e.g. clean completion).

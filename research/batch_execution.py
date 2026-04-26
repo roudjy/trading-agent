@@ -7,7 +7,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from agent.backtesting.engine import BacktestEngine, EvaluationScheduleError, FoldLeakageError
-from research.candidate_pipeline import SCREENING_PROMOTED, screening_param_samples
+from research.candidate_pipeline import (
+    SCREENING_PROMOTED,
+    sampling_plan_for_param_grid,
+)
 from research.registry import get_enabled_strategies
 from research.results import make_result_row
 from research.screening_process import execute_screening_candidate_isolated
@@ -16,6 +19,7 @@ from research.screening_runtime import (
     FINAL_STATUS_PASSED,
     FINAL_STATUS_REJECTED,
     FINAL_STATUS_TIMED_OUT,
+    _UNAVAILABLE_SAMPLING_METADATA,
     build_screening_runtime_records,
 )
 
@@ -137,10 +141,15 @@ def execute_screening_batch(
         for candidate in batch_candidates:
             candidate_id = str(candidate["candidate_id"])
             strategy = strategies_by_name[str(candidate["strategy_name"])]
-            sampled_params = screening_param_samples(
-                strategy.get("params") or {},
-                max_samples=screening_param_sample_limit,
+            # v3.15.8: compute the sampling plan once per candidate
+            # and use plan.sampled_count for the runtime record's
+            # samples_total. The same plan flows into the subprocess
+            # via execute_screening_candidate_isolated → _build_child_payload.
+            plan = sampling_plan_for_param_grid(
+                strategy.get("params"),
+                max_samples_for_legacy=screening_param_sample_limit,
             )
+            sampling_metadata = plan.metadata()
             runtime_record = runtime_records_by_id[candidate_id]
             runtime_record["runtime_status"] = "running"
             runtime_record["final_status"] = None
@@ -148,7 +157,7 @@ def execute_screening_batch(
             runtime_record["finished_at"] = None
             runtime_record["elapsed_seconds"] = 0
             runtime_record["samples_completed"] = 0
-            runtime_record["samples_total"] = len(sampled_params)
+            runtime_record["samples_total"] = plan.sampled_count
             runtime_record["decision"] = None
             runtime_record["reason_code"] = None
             runtime_record["reason_detail"] = None
@@ -191,6 +200,11 @@ def execute_screening_batch(
                     "decision": "rejected_in_screening",
                     "reason_code": "screening_candidate_error",
                     "reason_detail": str(exc),
+                    # v3.15.8: synthetic outcome dict — carry the
+                    # plan-derived sampling block so screening
+                    # evidence (v3.15.9) sees the same shape on
+                    # the wrapper-level error path.
+                    "sampling": dict(sampling_metadata or _UNAVAILABLE_SAMPLING_METADATA),
                 }
                 isolated_result = {"provenance_events": []}
             provenance_events.extend(isolated_result.get("provenance_events") or [])

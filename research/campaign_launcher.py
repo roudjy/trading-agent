@@ -102,6 +102,12 @@ from research.campaign_followup import (
     derive_followups,
     derive_weekly_controls,
 )
+from research.campaign_funnel_policy import (
+    FUNNEL_DECISION_NO_ACTION_TECHNICAL,
+    FunnelDecision,
+    derive_funnel_decisions,
+    evidence_owns_campaign,
+)
 from research.campaign_templates import (
     CAMPAIGN_TEMPLATES,
     DEFAULT_CONFIG,
@@ -109,6 +115,7 @@ from research.campaign_templates import (
     get_template,
 )
 from research.campaign_queue import queue_entry_from_record
+from research.screening_evidence import SCREENING_EVIDENCE_PATH
 
 EVIDENCE_LEDGER_PATH: Path = Path(
     "research/campaign_evidence_ledger_latest.v1.jsonl"
@@ -699,6 +706,18 @@ def _tick(
         config=config,
         skip_subprocess=skip_subprocess,
     )
+    # v3.15.10 — funnel-policy hook. Error-isolated: failures
+    # emit funnel_policy_error events but do not alter the parent
+    # campaign's outcome (MF-9). Registry / queue not mutated by
+    # this hook in v3.15.10 — decisions are recorded as ledger
+    # events with spawn_request payloads in extra so a future
+    # v3.15.11+ executor can act on them (MF-15).
+    funnel_events = _apply_funnel_decisions(
+        registry=registry,
+        events=events + [ev.to_payload() for ev in new_events],
+        now_utc=now_utc,
+    )
+    new_events = list(new_events) + list(funnel_events)
     _write_ledger(new_events, now_utc=now_utc, git_rev=git_rev)
 
     write_registry(registry, generated_at_utc=now_utc, git_revision=git_rev)
@@ -721,6 +740,304 @@ def _tick(
         max_concurrent_campaigns=config.max_concurrent_campaigns,
     )
     return 0
+
+
+def _read_screening_evidence_if_present() -> dict[str, Any] | None:
+    """v3.15.10 — read the v3.15.9 screening evidence sidecar if it
+    exists. Returns ``None`` on missing / unreadable file so the
+    funnel-policy hook degrades gracefully (MF-9).
+    """
+    if not SCREENING_EVIDENCE_PATH.exists():
+        return None
+    try:
+        return json.loads(SCREENING_EVIDENCE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _funnel_decision_already_in_ledger(
+    events: list[dict[str, Any]],
+    *,
+    parent_campaign_id: str,
+    decision_code: str,
+    candidate_id: str | None,
+    evidence_fingerprint: str | None,
+) -> bool:
+    """Ledger-based dedupe for ``funnel_decision_emitted`` events.
+
+    A new decision is suppressed iff the same
+    (parent_campaign_id, decision_code, candidate_id,
+    evidence_fingerprint) tuple has already been recorded.
+    Other fields (timestamp, run_id) are ignored.
+    """
+    target = (
+        parent_campaign_id or "",
+        decision_code,
+        candidate_id or "",
+        evidence_fingerprint or "",
+    )
+    for ev in events:
+        if ev.get("event_type") != "funnel_decision_emitted":
+            continue
+        extra = ev.get("extra")
+        if not isinstance(extra, dict):
+            continue
+        existing = (
+            str(ev.get("parent_campaign_id") or ""),
+            str(extra.get("decision_code") or ""),
+            str(extra.get("candidate_id") or ""),
+            str(extra.get("screening_evidence_fingerprint") or ""),
+        )
+        if existing == target:
+            return True
+    return False
+
+
+def _select_evidence_owner_record(
+    *,
+    registry: dict[str, Any],
+    evidence: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Find the registry record whose campaign_id matches the
+    evidence's owner (col_campaign_id || campaign_id). Returns
+    ``None`` if evidence is absent or no record matches.
+    """
+    if not evidence:
+        return None
+    owner = str(evidence.get("col_campaign_id") or evidence.get("campaign_id") or "")
+    if not owner:
+        return None
+    campaigns = registry.get("campaigns") or {}
+    record = campaigns.get(owner)
+    if isinstance(record, dict):
+        return record
+    return None
+
+
+def _select_recent_technical_failure(
+    *,
+    registry: dict[str, Any],
+    events: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Find the most-recent registry record whose outcome ==
+    "technical_failure" and which has not yet had a
+    ``funnel_technical_no_freeze`` event emitted.
+    """
+    candidates: list[tuple[str, dict[str, Any]]] = []
+    for cid, record in (registry.get("campaigns") or {}).items():
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("outcome") or "") != "technical_failure":
+            continue
+        finished = str(record.get("finished_at_utc") or record.get("spawned_at_utc") or "")
+        candidates.append((finished, record))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0])
+    most_recent = candidates[-1][1]
+    target_id = str(most_recent.get("campaign_id") or "")
+    for ev in events:
+        if ev.get("event_type") != "funnel_technical_no_freeze":
+            continue
+        if str(ev.get("campaign_id") or "") == target_id:
+            return None
+    return most_recent
+
+
+def _funnel_decision_to_event(
+    decision: FunnelDecision,
+    *,
+    parent_record: dict[str, Any] | None,
+    evidence_run_id: str,
+    now_utc: datetime,
+):
+    """Convert a FunnelDecision to a LedgerEvent.
+
+    Uses ``funnel_technical_no_freeze`` event_type for the
+    no_action_technical_failure decision; all other decisions use
+    ``funnel_decision_emitted``. The decision payload is carried
+    in ``extra`` so the ledger Literal stays additive.
+    """
+    parent_record = parent_record or {}
+    parent_campaign_id = str(parent_record.get("campaign_id") or "")
+    extra: dict[str, Any] = {
+        "decision_code": decision.decision_code,
+        "candidate_id": decision.candidate_id,
+        "strategy_id": decision.strategy_id,
+        "rationale": dict(decision.rationale or {}),
+    }
+    if decision.spawn_request is not None:
+        extra["spawn_request_pending"] = True
+        extra["lineage_candidate_id"] = decision.spawn_request.extra.get(
+            "lineage_candidate_id"
+        )
+        extra["screening_evidence_fingerprint"] = decision.spawn_request.extra.get(
+            "screening_evidence_fingerprint"
+        )
+        extra["requested_screening_phase"] = decision.spawn_request.extra.get(
+            "requested_screening_phase"
+        )
+    event_type = (
+        "funnel_technical_no_freeze"
+        if decision.decision_code == FUNNEL_DECISION_NO_ACTION_TECHNICAL
+        else "funnel_decision_emitted"
+    )
+    return make_event(
+        campaign_id=parent_campaign_id or "funnel-no-parent",
+        parent_campaign_id=parent_campaign_id or None,
+        lineage_root_campaign_id=str(
+            parent_record.get("lineage_root_campaign_id") or parent_campaign_id or ""
+        ),
+        preset_name=str(decision.preset_name or parent_record.get("preset_name") or ""),
+        campaign_type=parent_record.get("campaign_type") or "daily_primary",
+        event_type=event_type,
+        at_utc=now_utc,
+        run_id=evidence_run_id or None,
+        extra=extra,
+    )
+
+
+def _apply_funnel_decisions(
+    *,
+    registry: dict[str, Any],
+    events: list[dict[str, Any]],
+    now_utc: datetime,
+) -> list:
+    """v3.15.10 — derive funnel decisions and append ledger events.
+
+    Error isolation (MF-9): the entire block is wrapped in a
+    try/except. A funnel-policy failure emits a single
+    ``funnel_policy_error`` event but does NOT alter the parent
+    campaign's outcome.
+
+    v3.15.10 deliberately emits LEDGER EVENTS ONLY (no new
+    CampaignRecord upserts). The FunnelDecision.spawn_request
+    payload is carried in the event's ``extra`` so a future
+    v3.15.11+ executor can act on it (MF-15 — confirmation
+    request / queued decision, NOT execution).
+    """
+    new_events: list = []
+    try:
+        evidence = _read_screening_evidence_if_present()
+        owner_record = _select_evidence_owner_record(
+            registry=registry, evidence=evidence
+        )
+        technical_record = _select_recent_technical_failure(
+            registry=registry, events=events
+        )
+
+        if evidence is None and technical_record is None:
+            return new_events
+
+        expected_campaign_id = (
+            str(owner_record.get("campaign_id") or "") if owner_record else None
+        )
+
+        if evidence is not None and not evidence_owns_campaign(
+            evidence, expected_campaign_id
+        ):
+            # Evidence present but ownership cannot be matched in
+            # the current registry: emit a single mismatch event.
+            new_events.append(
+                make_event(
+                    campaign_id="funnel-no-parent",
+                    parent_campaign_id=None,
+                    lineage_root_campaign_id="",
+                    preset_name=str(evidence.get("preset_name") or ""),
+                    campaign_type="daily_primary",
+                    event_type="funnel_evidence_stale_or_mismatched",
+                    at_utc=now_utc,
+                    run_id=str(evidence.get("run_id") or "") or None,
+                    extra={
+                        "evidence_owner": (
+                            evidence.get("col_campaign_id")
+                            or evidence.get("campaign_id")
+                        ),
+                        "expected_campaign_id": expected_campaign_id,
+                    },
+                )
+            )
+            evidence = None  # downstream: only technical-failure decision survives
+
+        decisions = derive_funnel_decisions(
+            evidence=evidence,
+            expected_campaign_id=expected_campaign_id,
+            parent_campaign_record=owner_record,
+            registry=registry,
+            ledger_events=events,
+            preset_catalog={},
+            technical_failure_record=technical_record,
+        )
+
+        evidence_run_id = str((evidence or {}).get("run_id") or "")
+        for decision in decisions:
+            try:
+                if decision.decision_code != FUNNEL_DECISION_NO_ACTION_TECHNICAL:
+                    parent_id = (
+                        str(owner_record.get("campaign_id") or "")
+                        if owner_record
+                        else ""
+                    )
+                    fp = (
+                        decision.spawn_request.extra.get(
+                            "screening_evidence_fingerprint"
+                        )
+                        if decision.spawn_request is not None
+                        else None
+                    )
+                    if _funnel_decision_already_in_ledger(
+                        events,
+                        parent_campaign_id=parent_id,
+                        decision_code=decision.decision_code,
+                        candidate_id=decision.candidate_id,
+                        evidence_fingerprint=fp,
+                    ):
+                        continue
+                # technical-failure dedupe handled by
+                # _select_recent_technical_failure above.
+                new_events.append(
+                    _funnel_decision_to_event(
+                        decision,
+                        parent_record=(
+                            technical_record
+                            if decision.decision_code
+                            == FUNNEL_DECISION_NO_ACTION_TECHNICAL
+                            else owner_record
+                        ),
+                        evidence_run_id=evidence_run_id,
+                        now_utc=now_utc,
+                    )
+                )
+            except Exception as per_decision_exc:  # pragma: no cover - defensive
+                new_events.append(
+                    make_event(
+                        campaign_id="funnel-no-parent",
+                        parent_campaign_id=None,
+                        lineage_root_campaign_id="",
+                        preset_name="",
+                        campaign_type="daily_primary",
+                        event_type="funnel_policy_error",
+                        at_utc=now_utc,
+                        extra={
+                            "error": str(per_decision_exc),
+                            "decision_code": decision.decision_code,
+                        },
+                    )
+                )
+    except Exception as funnel_exc:  # pragma: no cover - defensive
+        new_events.append(
+            make_event(
+                campaign_id="funnel-no-parent",
+                parent_campaign_id=None,
+                lineage_root_campaign_id="",
+                preset_name="",
+                campaign_type="daily_primary",
+                event_type="funnel_policy_error",
+                at_utc=now_utc,
+                extra={"error": str(funnel_exc)},
+            )
+        )
+    return new_events
 
 
 def _apply_decision(
