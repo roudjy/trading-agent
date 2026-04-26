@@ -4,6 +4,125 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.4] — Second controlled candidate + finalization patch
+
+Date: 2026-04-26
+Branch: `chore/v3.15.4-finalize` (after the v3.15.4 working set on
+`main` merged via commits `5c5f442`..`3aa559d`).
+
+Closes the v3.15.x line. Adds the second controlled
+``active_discovery`` candidate
+(``volatility_compression_breakout_v0``), tightens the
+catalog ↔ preset ↔ registry bridge into a startup gate, and applies
+a narrow finalization patch (release-integrity + campaign ownership
+auditability) before v3.16 work begins. No strategy logic, no
+campaign policy redesign, no shadow / live work, no frozen-contract
+changes.
+
+### Added (v3.15.4 working set, commits `5c5f442`..`3aa559d`)
+
+- ``volatility_compression_breakout`` strategy module + registry
+  entry (``research/registry.py``); ``compression_ratio`` /
+  rolling-high / rolling-low previous primitives in
+  ``agent/backtesting/features.py``; matching strategy in
+  ``agent/backtesting/strategies.py``.
+- Strategy hypothesis catalog: promote ``vol_breakout_v0`` to
+  ``active_discovery`` and add planned rows for sleeve and
+  cross-sectional momentum families
+  (``research/strategy_hypothesis_catalog.py``).
+- Preset ``vol_compression_breakout_crypto_1h`` bound to
+  ``hypothesis_id="volatility_compression_breakout_v0"``
+  (``research/presets.py``).
+- Canonical failure-code aliases for the new strategy
+  (``research/strategy_failure_taxonomy.py``).
+- Strict ``active_discovery`` validator + cross-module preset
+  bridge ``validate_active_discovery_preset_bridges()`` wired into
+  ``run_research`` startup before any preset / config work
+  (``research/strategy_hypothesis_catalog.py``,
+  ``research/run_research.py``).
+- Test coverage:
+  ``tests/unit/test_active_discovery_preset_bridge.py``,
+  ``tests/unit/test_v3_15_4_feature_primitives.py``,
+  ``tests/unit/test_volatility_compression_breakout_strategy.py``,
+  preset-count + bridge lazy-import follow-ups.
+
+### Added (finalization patch)
+
+- ``research/paper_readiness.py``: nullable ``col_campaign_id``
+  field on ``build_paper_readiness_payload`` and on the written
+  sidecar. Stamped by ``run_research`` from the v3.15.2 COL
+  breadcrumb. Null for direct-CLI invocations; pre-v3.15.4 readers
+  ignore unknown keys.
+- ``research/paper_validation_sidecars.py``:
+  ``PaperValidationBuildContext.col_campaign_id`` (default
+  ``None``) plumbs the breadcrumb into the readiness sidecar
+  through the existing façade.
+- ``research/campaign_launcher.py``: ``_classify_outcome_from_paper``
+  takes ``expected_campaign_id`` and rejects mismatched / missing
+  ownership stamps. Caller passes ``cid`` so a stale sidecar from a
+  prior campaign cannot misclassify the current run; mismatch falls
+  through to the conservative ``completed_no_survivor`` branch.
+- ``research/strategy_hypothesis_catalog.py``: bridge-validator
+  errors now include ``strategy_family`` and the list of
+  bound-but-disqualified presets (with their actual ``status`` /
+  ``enabled`` flags) so an on-call operator can tell at a glance
+  whether the binding is missing entirely or merely flipped to
+  ``enabled=False``.
+- ``docs/handoffs/v3.15.4.md``: documents the
+  ``max_concurrent_campaigns=1`` ↔ launcher-holds-lock-across-
+  subprocess coupling so a future operator who raises the limit
+  understands why hourly ticks would suddenly serialise.
+- Tests:
+  ``tests/unit/test_paper_readiness_col_ownership.py`` (5 tests:
+  payload + façade ownership stamp on success and default-null
+  paths); ``tests/unit/test_campaign_launcher_paper_ownership.py``
+  (7 tests: missing sidecar, owner-match, owner-mismatch (the
+  defining stale-sidecar case), missing-owner-when-expected,
+  blocked-with-owner, no-expected-id back-compat, corrupt sidecar);
+  added one assertion in
+  ``tests/unit/test_active_discovery_preset_bridge.py`` covering
+  the improved error message.
+
+### Changed
+
+- ``VERSION``: ``3.15.3.1`` → ``3.15.4``. Catches up the release
+  identity to the working set on ``main`` (gap acknowledged in the
+  v3.15.3 CHANGELOG entry).
+
+### Deliberately not changed
+
+- No strategy or feature logic was modified. The two new strategies
+  added in the v3.15.4 working set (``trend_pullback_v1`` shipped in
+  v3.15.3, ``volatility_compression_breakout`` shipped in v3.15.4)
+  were already present on ``main``; the finalization patch does not
+  touch them.
+- No campaign policy redesign. Eligibility predicate + bridge gating
+  remain as merged in v3.15.2 / v3.15.3.
+- No shadow / live work; no broker connectivity changes; no
+  ``live_eligible`` flips (still hard-pinned ``False``).
+- Frozen contracts preserved: ``research/research_latest.json`` and
+  ``research/strategy_matrix.csv`` are byte-identical to v3.15. The
+  v3.15.2 ``campaign_templates_latest.v1.json`` byte-identity for
+  the 3 baseline preset templates is preserved.
+- Paper-readiness sidecar schema version stays at
+  ``PAPER_READINESS_SCHEMA_VERSION="1.0"`` — ``col_campaign_id``
+  is an additive nullable field, not a schema-breaking change.
+
+### Tests
+
+- 12 new finalization-patch tests across two new files plus one
+  added assertion in the existing bridge-validator suite. Full
+  pytest suite runs with the v3.15.4 contract (>=1
+  ``active_discovery``, both controlled candidates active).
+
+### Known limitations
+
+- The launcher still holds the campaign queue lock across the
+  ``run_research`` subprocess. This is correct only while
+  ``max_concurrent_campaigns=1``; raising the cap requires
+  releasing the lock at the spawn boundary. See
+  ``docs/handoffs/v3.15.4.md``.
+
 ## [v3.15.3.1] — Audit-sidecar hotfix on degenerate runs
 
 Date: 2026-04-25

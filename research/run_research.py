@@ -3320,6 +3320,11 @@ def run_research(
                 registry_v2=registry_v2_payload,
                 sleeve_registry=sleeve_registry_payload,
                 evaluations=list(evaluations),
+                # v3.15.4: stamp the COL ownership breadcrumb so the
+                # campaign_launcher can verify a stale paper_readiness
+                # sidecar from a prior campaign isn't read after a
+                # subprocess crash. None when invoked directly via CLI.
+                col_campaign_id=_COL_CAMPAIGN_ID,
             )
             paper_paths = build_and_write_paper_validation_sidecars(paper_ctx)
             tracker.emit_event(

@@ -109,6 +109,39 @@ def test_bridge_validator_imports_presets_lazily() -> None:
     )
 
 
+def test_bridge_error_includes_strategy_family_for_operator_readability() -> None:
+    """v3.15.4: when the bridge fails, the error message must name
+    the offending hypothesis_id, its strategy_family, and any
+    bound-but-disqualified presets so an on-call operator can see at
+    a glance whether the binding is missing entirely or merely
+    disabled."""
+    orphan = StrategyHypothesis(
+        hypothesis_id="orphan_v0",
+        strategy_family="trend_pullback",
+        status="active_discovery",
+        description="x",
+        feature_dependencies=("ema_fast",),
+        parameter_schema={"x": {"type": "int"}},
+        default_parameter_grid=({"x": 1},),
+        eligible_campaign_types=("daily_primary",),
+        expected_failure_modes=("insufficient_trades",),
+        baseline_reference=None,
+        cost_class="low",
+    )
+    others = tuple(
+        h for h in STRATEGY_HYPOTHESIS_CATALOG
+        if h.hypothesis_id != "trend_pullback_v1"
+    )
+    synthetic = others + (orphan,)
+    with pytest.raises(HypothesisCatalogError) as exc:
+        validate_active_discovery_preset_bridges(catalog=synthetic)
+    msg = str(exc.value)
+    assert "orphan_v0" in msg
+    assert "trend_pullback" in msg  # strategy_family surfaced
+    # No presets bind via this orphan id → message must say so explicitly.
+    assert "no presets bind via hypothesis_id" in msg
+
+
 def test_bridge_skips_planned_disabled_diagnostic_rows() -> None:
     """Only active_discovery hypotheses are checked; planned/disabled/
     diagnostic without bindings are fine."""
