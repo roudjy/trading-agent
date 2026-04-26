@@ -5,6 +5,16 @@ from datetime import datetime
 from typing import Any
 
 
+EXIT_CODE_DEGENERATE_NO_SURVIVORS = 2
+"""Reserved CLI exit code for a controlled `DegenerateResearchRunError` raise.
+
+Only `research.run_research`'s ``__main__`` wrapper may produce this exit
+code, and only by translating an uncaught :class:`DegenerateResearchRunError`.
+The campaign launcher uses this code to map runs to the
+``degenerate_no_survivors`` outcome (v3.15.5).
+"""
+
+
 class DegenerateResearchRunError(RuntimeError):
     """Raised when a research run has no evaluable support."""
 
@@ -60,6 +70,7 @@ def build_empty_run_diagnostics_payload(
     pair_diagnostics: list[dict[str, Any]],
     evaluations_count: int = 0,
     evaluations_with_oos_daily_returns: int = 0,
+    col_campaign_id: str | None = None,
 ) -> dict[str, Any]:
     sorted_pairs = sorted(
         (
@@ -94,6 +105,7 @@ def build_empty_run_diagnostics_payload(
         "generated_at_utc": as_of_utc.isoformat(),
         "failure_stage": failure_stage,
         "message": message,
+        "col_campaign_id": col_campaign_id,
         "selected_assets": list(selected_assets),
         "selected_intervals": list(selected_intervals),
         "interval_ranges": {
