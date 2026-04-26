@@ -4,6 +4,146 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.7] — Exploratory Screening Criteria
+
+Date: 2026-04-26
+Branch: `fix/v3.15.7-exploratory-screening-criteria`
+
+Activates phase-aware screening criteria for the
+``exploratory`` funnel stage introduced in v3.15.6.
+``promotion_grade`` / ``standard`` / ``None`` retain the legacy
+``goedgekeurd`` AND-gate byte-identically. ``win_rate`` becomes
+diagnostic-only for ``exploratory`` so trend / momentum
+strategies with positive expectancy but low win_rate can be
+shortlisted without lowering the eventual promotion bar.
+
+Funnel discipline:
+
+  Screening zoekt.   Promotion bewijst.   Paper valideert.
+
+### Added
+
+- ``agent/backtesting/engine.py``: additive metrics
+  ``expectancy`` and ``profit_factor`` (pure derivations from
+  ``trade_pnls``; no impact on ``goedgekeurd``).
+  ``PROFIT_FACTOR_NO_LOSS_CAP = 999.0`` is the JSON-safe finite
+  proxy for "no losses observed".
+- ``research/screening_criteria.py`` (new): pure helper
+  ``apply_phase_aware_criteria(metrics, screening_phase) ->
+  (passed, reason)`` with three exploratory thresholds
+  (``EXPLORATORY_MIN_EXPECTANCY = 0.0`` strict,
+  ``EXPLORATORY_MIN_PROFIT_FACTOR = 1.05``,
+  ``EXPLORATORY_MAX_DRAWDOWN = 0.45``).
+- ``SCREENING_REASON_CODES`` extended with three exploratory
+  codes: ``expectancy_not_positive``,
+  ``profit_factor_below_floor``,
+  ``drawdown_above_exploratory_limit``. v3.15.5
+  ``_classify_research_rejection`` accepts these so a fully-
+  exploratory-rejected run still classifies as
+  ``research_rejection``.
+- Outcome dict (non-frozen screening sidecar surface) gains:
+  ``pass_kind`` (None / "standard" / "promotion_grade" /
+  "exploratory"; set ONLY on screening pass — rejections carry
+  ``None``), ``screening_criteria_set`` ("legacy" or
+  "exploratory"), ``diagnostic_metrics`` (JSON-safe finite
+  floats: expectancy, profit_factor, win_rate, max_drawdown).
+  No ``screening_phase`` key (v3.15.6 invariant preserved).
+- ``promotion.classify_candidate`` accepts ``pass_kind``
+  (default ``None``); ``"exploratory"`` short-circuits to
+  ``STATUS_NEEDS_INVESTIGATION`` with a single escalated reason
+  ``exploratory_pass_requires_promotion_grade_confirmation``.
+- ``promotion_reporting.build_candidate_registry_payload``
+  accepts ``screening_pass_kinds: dict[str, str | None] | None
+  = None``. Default is byte-identical to pre-v3.15.7;
+  ``pass_kind`` is consumed but NEVER serialised into the v1
+  candidate registry row.
+- ``research/run_research.py``: builds the
+  ``{strategy_id → pass_kind}`` index from candidate runtime
+  records and forwards it to promotion reporting. Emits
+  ``exploratory_screening_pass`` tracker event when
+  ``outcome["pass_kind"] == "exploratory"`` — emit-site lives
+  exclusively in run_research.
+
+### Changed
+
+- ``screening_runtime.execute_screening_candidate_samples`` now
+  accepts ``screening_phase`` and replaces the static
+  ``goedgekeurd`` check with the phase-aware dispatch via
+  ``apply_phase_aware_criteria``. Pre-checks
+  (``no_oos_samples`` / ``insufficient_trades``) stay upstream
+  to avoid double-gate drift.
+- ``screening_process.execute_screening_candidate_isolated``
+  no longer discards the v3.15.6 kwarg; it threads
+  ``screening_phase`` through ``_build_child_payload`` into the
+  subprocess and into both inner runners.
+- ``batch_execution`` candidate-update's ``screening`` sub-dict
+  carries ``pass_kind`` from the outcome dict (no preset / no
+  tracker — same v3.15.6 discipline; pass_kind comes straight
+  from the runtime record).
+- Two v3.15.6 tests reformulated (NOT deleted) with explicit
+  supersession docstrings — the v3.15.6 no-branching invariants
+  are intentionally superseded by v3.15.7. Signature-binding
+  test preserved verbatim.
+
+### Deliberately not changed
+
+- ``engine.CRITERIA`` and ``_goedkeuren()`` — promotion-grade
+  gates byte-identical.
+- Strategy logic (``agent/backtesting/strategies.py``, registry,
+  bundles, parameters).
+- Parameter sampling (v3.15.8 scope).
+- Campaign launcher / v3.15.5 outcome semantics —
+  ``worker_crashed`` still never emitted; the v3.15.5
+  invariant tests stay green.
+- Frozen contracts: ``research_latest.json``,
+  ``strategy_matrix.csv``,
+  ``candidate_registry_latest.v1.json`` schema — bytewise
+  unchanged.
+- ``run_meta_latest.v1.json`` schema_version stays "1.2" (no
+  v3.15.7 fields at run level).
+- ``preset_to_card`` / dashboard API / frontend.
+- v3.15.6 preset assignments.
+- ``screening_phase`` annotation remains ``str | None`` (not
+  Literal) — v3.15.6 seam contract.
+- v3.15.6 ``screening_phase`` key forbidden in outcome dict.
+- ``screening_runtime.py`` and ``screening_process.py`` do not
+  contain phase-specific threshold constants; those live
+  exclusively in ``research/screening_criteria.py``.
+
+### Behavioral shift (intentional)
+
+- ``crypto_diagnostic_1h``, ``trend_pullback_crypto_1h``, and
+  ``vol_compression_breakout_crypto_1h`` (the three v3.15.6
+  exploratory presets) can now produce screening passes on
+  positive expectancy + healthy profit_factor + bounded drawdown
+  even when the engine ``goedgekeurd`` AND-gate (which includes
+  ``win_rate > 0.50``) fails. Those passes downgrade to
+  ``needs_investigation`` in promotion — they are NOT
+  auto-promoted to candidate / paper.
+- Operators who previously expected
+  ``screening_criteria_not_met`` as the dominant exploratory
+  failure reason should also see
+  ``expectancy_not_positive`` / ``profit_factor_below_floor`` /
+  ``drawdown_above_exploratory_limit`` in the digest.
+
+### v3.15.8 sampling dependency
+
+If exploratory pass count remains zero after v3.15.7 deploy,
+**inspect sampling coverage in v3.15.8 before further loosening
+criteria**. Lowering exploratory thresholds without first
+addressing a sampling bottleneck would mask the actual problem.
+See ``docs/handoffs/v3.15.7.md`` §10 for indicators.
+
+### Tests
+
+11 new v3.15.7 test files (~85 individual cases). 3 v3.15.5 /
+v3.15.6 test files updated (not deleted) with explicit
+supersession comments. Verifies every emitted screening reason
+lives in ``SCREENING_REASON_CODES``, the registry row schema is
+unchanged, paper readiness filters ``needs_investigation``, the
+tracker event lives only in run_research, and the trend-case
+fixture passes exploratory + fails promotion_grade.
+
 ## [v3.15.6] — Screening Mode Activation
 
 Date: 2026-04-26
