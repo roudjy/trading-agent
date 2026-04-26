@@ -121,6 +121,7 @@ from research.presets import (
     get_preset,
     hypothesis_metadata_issues,
     resolve_preset_bundle,
+    validate_preset,
 )
 from research.registry import get_enabled_strategies
 from research.public_artifact_status import (
@@ -264,16 +265,26 @@ def _enforce_preset_validation(
     preset_obj: ResearchPreset,
     tracker,
 ) -> None:
-    """Surface preset hypothesis-metadata issues as warnings or failures.
+    """Surface preset validation issues as warnings or failures.
 
-    v3.11 soft-validation contract:
+    v3.11 soft-validation contract (hypothesis metadata):
     - Empty rationale / expected_behavior / falsification on enabled
       presets emit a ``preset_validation_warning`` tracker event.
-    - Under ``QRE_STRICT_PRESET_VALIDATION=1`` the runner raises
-      ``PresetValidationError`` so misconfigured presets cannot reach
-      a daily run.
+
+    v3.15.6 extension (funnel-stage validation):
+    - ``screening_phase`` outside the Literal set emits the same
+      ``preset_validation_warning`` event.
+
+    Under ``QRE_STRICT_PRESET_VALIDATION=1`` either category raises
+    ``PresetValidationError`` so misconfigured presets cannot reach
+    a daily run.
     """
-    issues = hypothesis_metadata_issues(preset_obj)
+    metadata_issues = hypothesis_metadata_issues(preset_obj)
+    phase_issues = [
+        issue for issue in validate_preset(preset_obj)
+        if issue.startswith("screening_phase_invalid:")
+    ]
+    issues = metadata_issues + phase_issues
     if not issues:
         return
     for issue in issues:
@@ -284,8 +295,7 @@ def _enforce_preset_validation(
         )
     if _preset_validation_is_strict():
         raise PresetValidationError(
-            f"preset {preset_obj.name!r} failed strict hypothesis "
-            f"metadata validation: {issues}"
+            f"preset {preset_obj.name!r} failed strict validation: {issues}"
         )
 
 
