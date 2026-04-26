@@ -1966,6 +1966,14 @@ def run_research(
             raise
         if preset_obj is not None:
             _enforce_preset_validation(preset_obj, tracker)
+            # v3.15.6: emit run-level screening_phase visibility event.
+            # Run-level only — per-candidate event lives at the
+            # screening-call site (see _run_screening_phase_observed_event).
+            tracker.emit_event(
+                "screening_phase_active",
+                preset_name=preset_obj.name,
+                screening_phase=preset_obj.screening_phase,
+            )
         research_config = load_research_config()
         execution_settings = _resolve_execution_settings(research_config)
         execution_max_workers = int(execution_settings["max_workers"])
@@ -2385,6 +2393,17 @@ def run_research(
                             samples_total=runtime_record["samples_total"],
                         )
 
+                    # v3.15.6: per-candidate visibility for screening_phase.
+                    # Lives only at run_research's call site (the screening
+                    # process boundary itself does not emit; batch_execution
+                    # has no tracker context).
+                    tracker.emit_event(
+                        "screening_phase_observed",
+                        candidate_id=str(candidate.get("candidate_id")),
+                        screening_phase=(
+                            preset_obj.screening_phase if preset_obj is not None else None
+                        ),
+                    )
                     try:
                         start_datum = interval_ranges[candidate["interval"]]["start"]
                         eind_datum = interval_ranges[candidate["interval"]]["end"]
