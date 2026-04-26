@@ -73,6 +73,12 @@ CRITERIA = {
     "consistentie": ("gt", 0.45),
 }
 
+# v3.15.7: ``profit_factor`` uses a finite cap when there are no
+# losing trades. JSON serialization with ``allow_nan=False`` would
+# reject ``float("inf")``; the cap is the deterministic JSON-safe
+# proxy. Empty trade list and all-loser cases collapse to 0.0.
+PROFIT_FACTOR_NO_LOSS_CAP = 999.0
+
 METRIC_KEYS = (
     "win_rate",
     "sharpe",
@@ -83,6 +89,10 @@ METRIC_KEYS = (
     "consistentie",
     "totaal_trades",
     "deflated_sharpe",
+    # v3.15.7 additive — pure derivations from trade_pnls; no impact
+    # on engine ``goedgekeurd`` (CRITERIA dict is unchanged).
+    "expectancy",
+    "profit_factor",
     "goedgekeurd",
     "criteria_checks",
 )
@@ -1801,6 +1811,20 @@ class BacktestEngine:
 
         consistentie = float(np.mean(np.array(maand_returns) > 0)) if maand_returns else 0.0
 
+        # v3.15.7 additive metrics — pure derivations from trade_pnls.
+        # Units match engine trade_pnls (per-trade fractional return
+        # after costs; e.g. 0.05 = +5%). JSON-safe: profit_factor is
+        # finite via PROFIT_FACTOR_NO_LOSS_CAP.
+        expectancy = float(np.mean(trade_pnls)) if trade_pnls else 0.0
+        gross_profit = float(sum(p for p in trade_pnls if p > 0))
+        gross_loss = float(abs(sum(p for p in trade_pnls if p < 0)))
+        if gross_loss > 0:
+            profit_factor = gross_profit / gross_loss
+        elif gross_profit > 0:
+            profit_factor = PROFIT_FACTOR_NO_LOSS_CAP
+        else:
+            profit_factor = 0.0
+
         return {
             "win_rate": round(win_rate, 4),
             "sharpe": round(sharpe, 3),
@@ -1811,6 +1835,8 @@ class BacktestEngine:
             "consistentie": round(consistentie, 3),
             "totaal_trades": len(trade_pnls),
             "deflated_sharpe": 0.0,
+            "expectancy": round(expectancy, 4),
+            "profit_factor": round(profit_factor, 2),
             "goedgekeurd": False,
             "criteria_checks": {},
         }
@@ -1851,6 +1877,9 @@ class BacktestEngine:
             "consistentie": 0.0,
             "deflated_sharpe": 0.0,
             "totaal_trades": 0,
+            # v3.15.7 additive metrics — finite defaults for empty path.
+            "expectancy": 0.0,
+            "profit_factor": 0.0,
             "goedgekeurd": False,
             "criteria_checks": {},
         }
