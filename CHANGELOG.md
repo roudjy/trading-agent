@@ -4,6 +4,146 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.5] — Outcome Semantics Fix
+
+Date: 2026-04-26
+Branch: `fix/v3.15.5-outcome-semantics`
+
+Closes the v3.15.3 carry-over **C1**
+(*"degenerate research run misclassified as `worker_crashed`"*) and
+makes the launcher's outcome assignment semantically correct,
+deterministic, and policy-safe ahead of the v3.15.2 Autonomous
+Campaign Operations Layer. No strategy logic, no screening threshold
+changes, no promotion logic changes, no frozen-contract mutation,
+no v3.15.2 build.
+
+### Added
+
+- ``research/empty_run_reporting.EXIT_CODE_DEGENERATE_NO_SURVIVORS``
+  (= 2). Reserved CLI exit code for a controlled
+  ``DegenerateResearchRunError`` raise. Only the ``__main__``
+  wrapper of ``research/run_research.py`` produces this code.
+- Three semantically correct outcomes added to
+  ``research/campaign_registry.CampaignOutcome`` (Literal) and
+  ``CAMPAIGN_OUTCOMES`` (tuple):
+  - ``degenerate_no_survivors``
+  - ``research_rejection``
+  - ``technical_failure``
+- ``research/campaign_registry.LAUNCHER_EMITTABLE_OUTCOMES`` —
+  frozenset enumerating the post-v3.15.5 launcher emission set.
+  ``worker_crashed`` is deliberately absent. The launcher's
+  runtime invariant asserts ``outcome ∈
+  LAUNCHER_EMITTABLE_OUTCOMES`` and ``outcome != "worker_crashed"``
+  before ``record_outcome``.
+- ``research/rejection_taxonomy.SCREENING_REASON_CODES`` —
+  frozenset of the per-candidate rejection codes that classify a
+  rejection as a screening-layer failure (vs. promotion / paper).
+  Pinned by a unit test that asserts every code appears in the
+  screening layer source.
+- ``empty_run_diagnostics_latest.v1.json`` carries an additive
+  nullable top-level ``col_campaign_id`` field. Producer:
+  ``research.run_research._raise_degenerate_run`` (mirrors the
+  v3.15.4 pattern on ``paper_readiness_latest.v1.json``). Consumer:
+  the launcher's ``_check_rc2_origin`` diagnostic helper. Schema
+  version unchanged (``"1.0"``); the field is additive and
+  nullable.
+- New tests:
+  - ``tests/unit/test_v3_15_5_outcome_classification.py`` — pure
+    helpers for paper / candidate-registry / rc=2 classification.
+  - ``tests/unit/test_v3_15_5_outcome_invariant.py`` — static AST
+    guard: launcher production path never assigns ``outcome =
+    "worker_crashed"``; the runtime invariant + the
+    ``LAUNCHER_EMITTABLE_OUTCOMES`` import are present.
+  - ``tests/unit/test_v3_15_5_run_research_exit_code.py`` —
+    ``__main__`` exits rc=2 on ``DegenerateResearchRunError``;
+    other exceptions fall through (rc=1); callable
+    ``run_research(...)`` still raises the exception so the
+    library contract is byte-identical.
+  - ``tests/unit/test_v3_15_5_screening_reason_codes.py`` —
+    frozenset shape + repo-presence pin.
+  - ``tests/unit/test_v3_15_5_policy_regression.py`` — 5×
+    consecutive ``degenerate_no_survivors`` or
+    ``research_rejection`` triggers preset freeze; 5×
+    ``technical_failure`` does **not**; mixed streaks reset
+    correctly.
+
+### Changed
+
+- ``research/campaign_launcher.py`` outcome dispatch is now strict
+  and hierarchical (rc=2 → degenerate; rc≠0 → technical; rc=0 →
+  paper-ready / paper-blocked / research_rejection /
+  completed_no_survivor — exhaustive mutually exclusive paths).
+  Ownership for ``research_rejection`` is hard-anchored on
+  ``paper_readiness.col_campaign_id`` (v3.15.4 stamp); mtime is
+  not used as ownership.
+- ``research/campaign_launcher.py`` lifecycle state for
+  ``degenerate_no_survivors`` is now ``completed`` (not
+  ``failed``). A degenerate run is a structured completion with a
+  meaningful verdict; ``failed`` is reserved for true technical
+  failures. The terminal event becomes ``campaign_completed`` so
+  the policy streak counter (which inspects only
+  ``campaign_completed``) observes the new outcome.
+- ``research/campaign_preset_policy._NON_TECHNICAL_REJECT_OUTCOMES``
+  extended with ``degenerate_no_survivors`` and
+  ``research_rejection``. ``technical_failure`` deliberately
+  excluded — technical failures must not freeze a preset.
+
+### Deprecated
+
+- ``"worker_crashed"`` in ``CampaignOutcome`` /
+  ``CAMPAIGN_OUTCOMES``. The literal stays in the tuple/Literal so
+  historical ``campaign_registry_latest.v1.json`` records still
+  validate, but post-v3.15.5 launcher emissions never produce it.
+  See *Behavioral shift* below.
+
+### Behavioral shift (intentional)
+
+- **Reading historical records.** Campaigns recorded pre-v3.15.5
+  with ``outcome == "worker_crashed"`` should be read as
+  *technical_failure* by downstream consumers. Records are not
+  rewritten in place; consumers that filter on outcome should
+  treat ``("worker_crashed", "technical_failure")`` as the union
+  for migration-spanning queries.
+- **Throughput may dip initially.** Pre-v3.15.5,
+  ``DegenerateResearchRunError`` runs were classified as technical
+  and therefore excluded from the
+  ``_non_technical_reject_streak`` counter. Post-v3.15.5 they
+  count toward freeze (5+ in a row → preset freeze). Presets with
+  repeated degenerate runs may now freeze / cooldown earlier than
+  before. This is the intended correction — repeated degenerate
+  runs are a real family-falsification signal.
+- **Digest / dashboards.** ``top_failure_reasons`` will surface
+  ``degenerate_no_evaluable_pairs`` where pre-v3.15.5 it surfaced
+  ``worker_crash``. Consumers hardcoded on ``worker_crash`` should
+  accept both during the migration window.
+
+### Deliberately not changed
+
+- ``research/research_latest.json`` — frozen. Byte-identical.
+- ``research/strategy_matrix.csv`` — frozen. Byte-identical.
+- ``research/candidate_registry_latest.v1.json`` schema — frozen.
+  Schema unchanged. Ownership is anchored via
+  ``paper_readiness.col_campaign_id``, not via a new
+  ``run_id``/``campaign_id`` field on the v1 registry.
+- Strategy logic, screening thresholds, promotion logic.
+- Campaign policy redesign (only the
+  ``_NON_TECHNICAL_REJECT_OUTCOMES`` set was extended; ladder
+  semantics for ``completed_no_survivor`` cooldown remain
+  unchanged).
+- Frontend.
+
+### Carry-over backlog (out of scope for v3.15.5)
+
+- C1 from v3.15.3: **closed** by this release.
+- C2: ``build_campaign_id`` uses local TZ but suffixes ``Z``.
+- C3: pending entries from R0 reclaim not re-picked.
+- C4: GHA ``docker-build`` workflow lag for ``:latest`` tag.
+
+### Tests
+
+Full suite: 1755 passed, 1 skipped after this release. Forty-plus
+new tests pin the v3.15.5 contract.
+
 ## [v3.15.4] — Second controlled candidate + finalization patch
 
 Date: 2026-04-26

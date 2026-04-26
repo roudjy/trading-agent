@@ -55,8 +55,16 @@ _THRESH_NON_TECHNICAL_REJECTS = 5
 _MAX_COOLDOWN_SECONDS = 7 * 86_400  # 7 days
 
 # Outcomes that count as "non-technical" rejects for the freeze rule.
+# v3.15.5: ``degenerate_no_survivors`` and ``research_rejection`` are
+# semantically meaningful failures (the run produced a structured
+# verdict — no evaluable inputs / family-falsifying screening rejects)
+# and therefore count toward the freeze counter. ``technical_failure``
+# is **not** included; technical failures stay excluded so an unstable
+# infra path cannot freeze a preset.
 _NON_TECHNICAL_REJECT_OUTCOMES: tuple[str, ...] = (
     "completed_no_survivor",
+    "degenerate_no_survivors",
+    "research_rejection",
     "paper_blocked",
     "integrity_failed",
 )

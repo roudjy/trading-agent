@@ -63,6 +63,27 @@ TAXONOMY_CODES: frozenset[str] = frozenset({
 })
 
 
+# v3.15.5 — codes that classify a per-candidate rejection as a
+# *screening-layer* rejection (vs. a promotion / paper rejection).
+#
+# When the campaign launcher inspects ``candidate_registry_latest.v1.json``
+# after rc=0 and finds every candidate carries ``status == "rejected"``
+# with ``reasoning.failed`` strictly contained in this set, the run is
+# classified as ``research_rejection`` instead of ``completed_no_survivor``.
+#
+# These codes MUST stay synchronized with the screening layer in
+# ``research/screening_runtime.py`` and ``research/candidate_pipeline.py``.
+# Adding a code here that does not appear in those modules will break
+# ``test_v3_15_5_screening_reason_codes_exist_in_screening_layer``. Do not
+# introduce speculative future codes; only add a code once the screening
+# layer actually emits it.
+SCREENING_REASON_CODES: frozenset[str] = frozenset({
+    "insufficient_trades",
+    "no_oos_samples",
+    "screening_criteria_not_met",
+})
+
+
 # Mapping from v3.11 observed reason codes (from promotion.py
 # _check_rejection_rules / _check_escalation_rules) to the
 # corresponding taxonomy code. Codes absent from this mapping are
