@@ -558,17 +558,19 @@ def test_launcher_tick_filters_templates_when_sprint_active(
     )
 
     # Filtered templates: only sprint plan presets that ALSO have a
-    # CAMPAIGN_TEMPLATES entry survive. The current catalog wires
-    # ``trend_pullback_crypto_1h`` (v3.15.3) but not yet
-    # ``vol_compression_breakout_crypto_1h`` (preset added in v3.15.4
-    # without a corresponding template entry — see v3.15.14 handoff
-    # "Known limitations"). The routing helper must drop both
-    # non-sprint presets AND any sprint-plan preset that has no
-    # template yet, leaving only what COL can actually spawn.
+    # CAMPAIGN_TEMPLATES entry survive. v3.15.15 wires three
+    # hypothesis-aware presets (trend_pullback_crypto_1h from v3.15.3,
+    # plus vol_compression_breakout_crypto_1h and
+    # vol_compression_breakout_crypto_4h from v3.15.15). The routing
+    # helper drops every non-sprint preset (equities, diagnostic
+    # crypto) and any sprint-plan preset that has no template yet
+    # (none today, post v3.15.15).
     surviving_presets = {
         t.preset_name for t in captured["templates"]
     }
     assert "trend_pullback_crypto_1h" in surviving_presets
+    assert "vol_compression_breakout_crypto_1h" in surviving_presets
+    assert "vol_compression_breakout_crypto_4h" in surviving_presets
     # Equities and non-sprint crypto presets are excluded.
     assert "trend_equities_4h_baseline" not in surviving_presets
     assert "trend_regime_filtered_equities_4h" not in surviving_presets
@@ -580,11 +582,12 @@ def test_launcher_tick_filters_templates_when_sprint_active(
     )
     assert routing["routing_active"] is True
     assert routing["sprint"]["profile_name"] == "crypto_exploratory_v1"
-    # Total templates pre-filter == full catalog (20); post-filter
-    # == only the sprint-plan templates that have CAMPAIGN_TEMPLATES
-    # entries (5 standard types × 1 wired preset = 5).
+    # Total templates pre-filter == full catalog (30 in v3.15.15);
+    # post-filter == only the sprint-plan templates that have
+    # CAMPAIGN_TEMPLATES entries (5 standard types × 3 wired sprint
+    # presets = 15 in v3.15.15).
     assert routing["counts"]["templates_total"] == len(CAMPAIGN_TEMPLATES)
-    assert routing["counts"]["templates_filtered"] == 5
+    assert routing["counts"]["templates_filtered"] == 15
 
 
 def test_launcher_tick_no_routing_sidecar_when_no_active_sprint(

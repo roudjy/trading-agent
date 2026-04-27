@@ -131,9 +131,11 @@ def test_active_discovery_hypothesis_passes_filter() -> None:
 
 
 def test_trend_pullback_crypto_1h_carries_explicit_hypothesis_id() -> None:
-    """Pin: the only v3.15.3 active_discovery preset carries the explicit
-    bridge field. Failing this test means the preset → hypothesis mapping
-    has drifted."""
+    """Pin: v3.15.3+ active_discovery presets carry the explicit
+    bridge field. v3.15.15 added two more (vol_compression_breakout
+    1h + 4h) bound to volatility_compression_breakout_v0; this test
+    keeps the original pin on trend_pullback_crypto_1h. Failing this
+    means the preset → hypothesis mapping has drifted."""
     from research.presets import get_preset
 
     p = get_preset("trend_pullback_crypto_1h")
