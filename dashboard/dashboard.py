@@ -31,6 +31,9 @@ from data.contracts import Instrument
 from data.repository import MarketRepository
 from dashboard import research_artifacts, research_runner
 from dashboard.api_campaigns import register_campaign_routes
+from dashboard.api_research_intelligence import (
+    register_research_intelligence_routes,
+)
 from reporting import audit_log
 
 app = Flask(__name__, template_folder="templates")
@@ -52,6 +55,12 @@ app.secret_key = _read_or_create_secret(SESSION_SECRET_PATH)
 
 # v3.15.2: Campaign Operating Layer read-only endpoints.
 register_campaign_routes(app)
+
+# v3.15.11: Research Intelligence Layer (advisory observability).
+# Five read-only sidecar passthroughs + one combined summary
+# endpoint. All returns carry enforcement_state="advisory_only";
+# the API never interprets the recommendations.
+register_research_intelligence_routes(app)
 
 
 @app.errorhandler(Exception)
