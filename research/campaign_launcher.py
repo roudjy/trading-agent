@@ -119,10 +119,21 @@ from research.discovery_sprint import (
     ActiveSprintConstraints,
     apply_sprint_routing,
     build_routing_decision_payload,
+    build_safeguards_decision_payload,
+    check_preset_orthogonality,
+    compute_4h_insufficient_trades_observations,
+    compute_parameter_coverage,
+    compute_throughput_snapshot,
+    derive_plan,
+    detect_throughput_regressions,
+    ensure_throughput_baseline,
+    get_profile,
     load_active_sprint_constraints,
     sprint_extra_for_record,
     write_routing_decision_artifact,
+    write_safeguards_decision_artifact,
 )
+from research.presets import PRESETS as _PRESETS_FOR_SAFEGUARDS
 from research.screening_evidence import SCREENING_EVIDENCE_PATH
 
 EVIDENCE_LEDGER_PATH: Path = Path(
@@ -579,6 +590,61 @@ def _invoke_subprocess(
         return 124, elapsed
 
 
+def _emit_safeguards_sidecar(
+    *,
+    templates_for_decide: tuple,
+    sprint_constraints: ActiveSprintConstraints | None,
+    registry: dict[str, Any],
+    now_utc: datetime,
+    git_rev: str | None,
+) -> None:
+    """Compute the four v3.15.15 observability signals and write
+    ``sprint_safeguards_decision_latest.v1.json``.
+
+    Pure observability — does NOT filter candidates, does NOT influence
+    ``decide()``, does NOT mutate any other artifact.
+    """
+    candidate_preset_names = tuple(
+        getattr(t, "preset_name", "") for t in templates_for_decide
+    )
+    insufficient_obs = compute_4h_insufficient_trades_observations(
+        candidate_preset_names=candidate_preset_names,
+        campaign_registry=registry,
+    )
+    plan = (
+        derive_plan(get_profile(sprint_constraints.profile_name))
+        if sprint_constraints is not None
+        else ()
+    )
+    coverage = compute_parameter_coverage(plan=plan) if plan else []
+    baseline = ensure_throughput_baseline(
+        campaign_registry=registry,
+        now_utc=now_utc,
+    )
+    current = compute_throughput_snapshot(
+        campaign_registry=registry,
+        now_utc=now_utc,
+    )
+    regressions = detect_throughput_regressions(
+        baseline=baseline,
+        current=current,
+    )
+    orthogonality = check_preset_orthogonality(_PRESETS_FOR_SAFEGUARDS)
+    payload = build_safeguards_decision_payload(
+        sprint_constraints=sprint_constraints,
+        plan=plan if plan else None,
+        insufficient_trades_observations=insufficient_obs,
+        parameter_coverage=coverage,
+        throughput_regressions=regressions,
+        orthogonality_warnings=orthogonality,
+        baseline=baseline,
+        current=current,
+        now_utc=now_utc,
+        git_revision=git_rev,
+    )
+    write_safeguards_decision_artifact(payload)
+
+
 def main() -> int:
     args = _cli_args()
     now_utc = _now_utc()
@@ -740,6 +806,24 @@ def _tick(
             except OSError:
                 # Sidecar is purely diagnostic — never fail the tick on it.
                 pass
+
+        # v3.15.15 — observability-only safeguards. Computes 4h
+        # insufficient_trades observations, parameter coverage,
+        # throughput baseline + regressions, and orthogonality
+        # warnings. Never filters candidates or mutates policy state.
+        try:
+            _emit_safeguards_sidecar(
+                templates_for_decide=templates_for_decide,
+                sprint_constraints=sprint_constraints,
+                registry=registry,
+                now_utc=now_utc,
+                git_rev=git_rev,
+            )
+        except Exception:  # nosec B110 - pragma: no cover
+            # Safeguards sidecar must never fail the tick. v3.15.15
+            # is observability-only by contract; any failure here is
+            # localised to the diagnostic side and must not propagate.
+            pass
 
     if dry_run:
         return 0

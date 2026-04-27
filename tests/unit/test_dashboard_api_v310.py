@@ -39,9 +39,11 @@ def test_presets_requires_auth(client):
 
 
 def test_presets_authed_returns_full_catalog(authed_client):
-    """v3.15.4 adds ``vol_compression_breakout_crypto_1h`` as the
-    executable bridge for the second active_discovery catalog row
-    (volatility_compression_breakout_v0)."""
+    """v3.15.4 adds ``vol_compression_breakout_crypto_1h``;
+    v3.15.15 adds ``vol_compression_breakout_crypto_4h`` so the
+    crypto_exploratory_v1 sprint profile can route the full
+    (1h, 4h) × (trend_pullback_v1, volatility_compression_breakout_v0)
+    matrix without any new strategy or hypothesis."""
     resp = authed_client.get("/api/presets")
     assert resp.status_code == 200
     data = resp.get_json()
@@ -52,6 +54,7 @@ def test_presets_authed_returns_full_catalog(authed_client):
         "trend_regime_filtered_equities_4h",
         "trend_pullback_crypto_1h",
         "vol_compression_breakout_crypto_1h",
+        "vol_compression_breakout_crypto_4h",
         "crypto_diagnostic_1h",
     ]
 

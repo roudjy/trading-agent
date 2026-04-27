@@ -4,6 +4,113 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15] — Vol Compression Breakout: 4h preset + template wiring + observability safeguards
+
+Date: 2026-04-27
+Branch: `feature/v3.15.15-vol-compression-templates`
+
+Closes the v3.15.14 known limitation: the
+`crypto_exploratory_v1` sprint profile's plan now contains **three**
+entries instead of one routable. Adds the 4h timeframe variant of
+`vol_compression_breakout` (no new strategy, no new hypothesis), wires
+both `vol_compression_breakout_crypto_*h` presets into
+`CAMPAIGN_TEMPLATES`, and ships four observability-only safeguards
+that run every launcher tick. None of the safeguards filter
+candidates; `campaign_policy.decide()` is unchanged.
+
+### Added
+
+- `research/presets.py`: new `ResearchPreset`
+  `vol_compression_breakout_crypto_4h`. Mirrors the 1h variant
+  field-for-field except `name`, `timeframe="4h"`, and rationale
+  pointing at the 4h sprint slot. Binds to existing
+  `volatility_compression_breakout_v0` hypothesis (no catalog or
+  registry change).
+- `research/campaign_templates.py`: extends `_HYPOTHESIS_AWARE_PRESETS`
+  from one entry to three. `CAMPAIGN_TEMPLATES` grows from 20 to 30
+  (6 presets × 5 template types). Existing v3.15.2 baseline 15 rows
+  remain byte-identical (covered by existing regression).
+- `research/discovery_sprint.py`: observability-only safeguard
+  helpers + sidecar emission surface.
+  - `compute_4h_insufficient_trades_observations(...)` — read-only
+    rate calculation per 4h candidate preset; emits tags
+    (`4h_insufficient_trades_high`, `..._ok`, `..._cold_start`).
+    **Never filters.**
+  - `compute_parameter_coverage(...)` — static
+    `parameter_sample_count / total_grid_size / coverage_ratio` per
+    plan preset. Sampling behavior unchanged.
+  - `compute_throughput_snapshot(...)` + `ensure_throughput_baseline(...)`
+    + `detect_throughput_regressions(...)` — rolling-window per-preset
+    spawn-count check with a `THROUGHPUT_MIN_BASELINE_RATE = 0.1`
+    floor that prevents divide-by-zero / false-positive warnings on
+    presets that were idle pre-deploy. Baseline auto-captured on
+    first launcher tick post-deploy and never overwritten.
+  - `check_preset_orthogonality(...)` — pure helper; warns when two
+    presets share both `hypothesis_id` AND `timeframe`. The 4h variant
+    passes (different timeframe from the 1h variant).
+  - `build_safeguards_decision_payload(...)` +
+    `write_safeguards_decision_artifact(...)` — single aggregate sidecar
+    `research/discovery_sprints/sprint_safeguards_decision_latest.v1.json`
+    carrying all four signals plus baseline + current snapshots, with
+    `observability_only: true` stamped at the top.
+  - New constants: `SAFEGUARDS_DECISION_PATH`, `THROUGHPUT_BASELINE_PATH`,
+    `SCREENING_PARAM_SAMPLE_LIMIT`, `THROUGHPUT_WINDOW_DAYS`,
+    `THROUGHPUT_DROP_THRESHOLD`, `THROUGHPUT_MIN_BASELINE_RATE`,
+    `INSUFFICIENT_TRADES_REASON_CODE`,
+    `INSUFFICIENT_TRADES_RATE_THRESHOLD`,
+    `INSUFFICIENT_TRADES_MIN_HISTORY`.
+- `research/campaign_launcher.py`: new private helper
+  `_emit_safeguards_sidecar()` invoked once per non-dry-run tick,
+  immediately after the v3.15.14 sprint-routing sidecar. Wrapped in
+  `try/except` (with `# nosec B110`) so the safeguards path can
+  never fail a tick.
+- `tests/unit/test_discovery_sprint_safeguards.py` — new file,
+  covers plan determinism, observation tags, parameter coverage
+  ratios, baseline auto-capture + idempotency, throughput-regression
+  floor (zero-baseline + non-zero-baseline cases), orthogonality on
+  the live `PRESETS` tuple + collision detection on a synthetic
+  collision, sidecar payload shape + atomic write, and frozen-contract
+  integrity across the helper surface.
+
+### Changed
+
+- `VERSION`: `3.15.14 → 3.15.15`.
+- `tests/regression/test_v3_15_2_campaign_templates_byte_identity.py`:
+  count assertion `20 → 30`; comment lineage updated to
+  `15 baseline + 5 v3.15.3 + 10 v3.15.15`.
+- `tests/unit/test_discovery_sprint_routing.py`: routing assertion
+  for `templates_filtered` shifts `5 → 15` (5 standard template types
+  × 3 wired sprint presets); comment updated to reflect v3.15.15
+  closing the v3.15.4 wiring gap.
+- `tests/unit/test_campaign_policy_hypothesis_status.py:134`: pin
+  comment softens "the only v3.15.3 active_discovery preset" to
+  "v3.15.3+ active_discovery presets".
+
+### Not changed (verified)
+
+- `research/campaign_policy.py` — `decide()` signature, body, and
+  byte-identity invariant unchanged (v3.15.11 regression pin intact).
+- `research/research_latest.json`, `research/strategy_matrix.csv` —
+  frozen contracts, untouched.
+- `research/strategy_hypothesis_catalog.py` — no new catalog rows;
+  `validate_active_discovery_preset_bridges()` already accepts
+  multiple presets per hypothesis_id.
+- `research/registry.py` — no new strategy code.
+- COL queue / lease / admission / cooldown / per-template daily cap /
+  budget enforcement — all unchanged.
+- v3.15.14 sprint-routing path — only its candidate set widens.
+
+### Migration / deploy notes
+
+- Rebuild `agent` and `dashboard` images so both pick up the new
+  preset + helpers.
+- The `campaign_templates_latest.v1.json` sidecar is regenerated on
+  the first post-deploy tick and grows by 10 rows. Not a frozen
+  contract.
+- The `throughput_baseline_v3_15_15.json` sidecar is captured exactly
+  once on the first post-deploy tick from current registry state.
+  Subsequent ticks re-use it without overwriting.
+
 ## [v3.15.14] — Sprint-aware COL Routing
 
 Date: 2026-04-27

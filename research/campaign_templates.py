@@ -261,11 +261,21 @@ _BASELINE_PRESETS: tuple[str, ...] = (
 
 # v3.15.3: presets whose templates must check the hypothesis catalog
 # status. The empty tuple on legacy baseline presets keeps the
-# campaign_templates_latest.v1.json sidecar byte-identical (see
-# EligibilityPredicate.to_payload). Trend Pullback v1 is the only
-# active_discovery hypothesis in v3.15.3.
+# campaign_templates_latest.v1.json sidecar byte-identical for the
+# baseline rows (see EligibilityPredicate.to_payload).
+#
+# v3.15.15: extended with the two volatility_compression_breakout
+# presets so the crypto_exploratory_v1 sprint profile can route the
+# full (1h, 4h) x (trend_pullback_v1, volatility_compression_breakout_v0)
+# matrix. No new hypothesis catalog rows; both new entries bind to
+# the existing volatility_compression_breakout_v0 active_discovery
+# hypothesis. The campaign_templates_latest.v1.json sidecar grows by
+# 10 rows on next launcher tick (regenerated artifact, not a frozen
+# contract).
 _HYPOTHESIS_AWARE_PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("trend_pullback_crypto_1h", ("active_discovery",)),
+    ("vol_compression_breakout_crypto_1h", ("active_discovery",)),
+    ("vol_compression_breakout_crypto_4h", ("active_discovery",)),
 )
 
 
