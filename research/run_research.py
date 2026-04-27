@@ -131,6 +131,13 @@ from research.public_artifact_status import (
     write_public_artifact_status,
 )
 from research.report_agent import generate_post_run_report
+from research.campaign_evidence_ledger import load_events as _load_campaign_events
+from research.dead_zone_detection import write_dead_zones_artifact
+from research.information_gain import (
+    InformationGainInputs,
+    write_information_gain_artifact,
+)
+from research.research_evidence_ledger import write_research_evidence_artifact
 from research.run_meta import (
     RUN_META_PATH,
     build_candidate_summary,
@@ -138,6 +145,8 @@ from research.run_meta import (
     rollup_rejection_reasons,
     write_run_meta_sidecar,
 )
+from research.stop_condition_engine import write_stop_conditions_artifact
+from research.viability_metrics import write_viability_artifact
 from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.screening_evidence import (
     SCREENING_EVIDENCE_PATH,
@@ -3508,6 +3517,7 @@ def run_research(
         # signals can be folded in. Builder is pure and resilient
         # to malformed candidates (identity-fallback path); this
         # try/except therefore only protects against I/O failures.
+        screening_evidence_payload: dict[str, Any] | None = None
         try:
             paper_blocked_index = _read_paper_blocked_index()
             screening_pass_kinds_by_strategy: dict[str, str | None] = {}
@@ -3542,6 +3552,7 @@ def run_research(
                 paper_blocked_index=paper_blocked_index,
             )
             write_sidecar_atomic(SCREENING_EVIDENCE_PATH, evidence_payload)
+            screening_evidence_payload = evidence_payload
             tracker.emit_event(
                 "v3_15_9_screening_evidence_written",
                 path=SCREENING_EVIDENCE_PATH.as_posix(),
@@ -3553,6 +3564,131 @@ def run_research(
         except Exception as v3_15_9_exc:
             tracker.emit_event(
                 "v3_15_9_screening_evidence_failed", error=str(v3_15_9_exc)
+            )
+        # v3.15.11: research intelligence layer (advisory observability).
+        # Writes 5 deterministic non-frozen sidecars under
+        # research/campaigns/evidence/. Strictly artifact-write — does
+        # NOT mutate campaign_policy.decide(), the queue, the
+        # registry, or any frozen contract. Each stage is wrapped
+        # individually so partial failure cannot mask the run's
+        # original outcome.
+        intelligence_run_id = str(state["run_id"])
+        intelligence_evidence_payload: dict[str, Any] | None = None
+        try:
+            intelligence_evidence_payload = write_research_evidence_artifact(
+                run_id=intelligence_run_id,
+                col_campaign_id=_COL_CAMPAIGN_ID,
+                as_of_utc=as_of_utc,
+                git_revision=_git_revision(),
+            )
+            tracker.emit_event(
+                "v3_15_11_research_evidence_ledger_written",
+                hypothesis_count=len(
+                    intelligence_evidence_payload.get("hypothesis_evidence") or []
+                ),
+            )
+        except Exception as ev_exc:
+            tracker.emit_event(
+                "v3_15_11_research_evidence_ledger_failed", error=str(ev_exc)
+            )
+        try:
+            evidence_summary: dict[str, Any] = (
+                screening_evidence_payload.get("summary")
+                if screening_evidence_payload is not None
+                else {}
+            ) or {}
+            sampling_block: dict[str, Any] = {}
+            if screening_evidence_payload is not None:
+                first_candidates = (
+                    screening_evidence_payload.get("candidates") or []
+                )
+                if first_candidates:
+                    candidate_sampling = first_candidates[0].get("sampling")
+                    if isinstance(candidate_sampling, dict):
+                        sampling_block = candidate_sampling
+            ig_inputs = InformationGainInputs(
+                exploratory_pass=int(evidence_summary.get("exploratory_passes") or 0) > 0,
+                near_candidate=int(evidence_summary.get("near_passes") or 0) > 0,
+                promotion_candidate=int(
+                    evidence_summary.get("promotion_grade_candidates") or 0
+                ) > 0,
+                paper_ready=False,
+                technical_failure=False,
+                parameter_coverage_pct=sampling_block.get("coverage_pct") if isinstance(sampling_block, dict) else None,
+                sampled_count=sampling_block.get("sampled_count") if isinstance(sampling_block, dict) else None,
+                grid_size=sampling_block.get("grid_size") if isinstance(sampling_block, dict) else None,
+            )
+            ig_payload = write_information_gain_artifact(
+                run_id=intelligence_run_id,
+                col_campaign_id=_COL_CAMPAIGN_ID,
+                preset_name=preset_obj.name if preset_obj is not None else None,
+                hypothesis_id=None,
+                as_of_utc=as_of_utc,
+                git_revision=_git_revision(),
+                inputs=ig_inputs,
+            )
+            tracker.emit_event(
+                "v3_15_11_information_gain_written",
+                bucket=ig_payload["information_gain"]["bucket"],
+                score=ig_payload["information_gain"]["score"],
+            )
+        except Exception as ig_exc:
+            tracker.emit_event(
+                "v3_15_11_information_gain_failed", error=str(ig_exc)
+            )
+        try:
+            ledger_for_stop = intelligence_evidence_payload or {
+                "hypothesis_evidence": []
+            }
+            stop_payload = write_stop_conditions_artifact(
+                run_id=intelligence_run_id,
+                as_of_utc=as_of_utc,
+                git_revision=_git_revision(),
+                evidence_ledger=ledger_for_stop,
+            )
+            tracker.emit_event(
+                "v3_15_11_stop_conditions_written",
+                advisory_decision_count=len(stop_payload["decisions"]),
+            )
+        except Exception as sc_exc:
+            tracker.emit_event(
+                "v3_15_11_stop_conditions_failed", error=str(sc_exc)
+            )
+        try:
+            ledger_events = _load_campaign_events(
+                Path("research/campaign_evidence_ledger.jsonl")
+            )
+            dz_payload = write_dead_zones_artifact(
+                run_id=intelligence_run_id,
+                as_of_utc=as_of_utc,
+                git_revision=_git_revision(),
+                events=ledger_events,
+            )
+            tracker.emit_event(
+                "v3_15_11_dead_zones_written",
+                zone_count=len(dz_payload["zones"]),
+            )
+        except Exception as dz_exc:
+            tracker.emit_event(
+                "v3_15_11_dead_zones_failed", error=str(dz_exc)
+            )
+        try:
+            ledger_for_viability = intelligence_evidence_payload or {
+                "hypothesis_evidence": []
+            }
+            via_payload = write_viability_artifact(
+                run_id=intelligence_run_id,
+                as_of_utc=as_of_utc,
+                git_revision=_git_revision(),
+                evidence_ledger=ledger_for_viability,
+            )
+            tracker.emit_event(
+                "v3_15_11_viability_written",
+                verdict=via_payload["verdict"]["status"],
+            )
+        except Exception as via_exc:
+            tracker.emit_event(
+                "v3_15_11_viability_failed", error=str(via_exc)
             )
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
