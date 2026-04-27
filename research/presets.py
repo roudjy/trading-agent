@@ -419,6 +419,69 @@ PRESETS: tuple[ResearchPreset, ...] = (
         ),
     ),
     ResearchPreset(
+        name="vol_compression_breakout_crypto_4h",
+        hypothesis=(
+            "v3.15.15 timeframe-orthogonal sibling van "
+            "vol_compression_breakout_crypto_1h. Bridges naar dezelfde "
+            "strategy_hypothesis_catalog row "
+            "volatility_compression_breakout_v0 / family "
+            "volatility_compression_breakout / status active_discovery, "
+            "maar dan op 4h om het 4h slot in het crypto_exploratory_v1 "
+            "sprint profiel te vullen zonder een nieuwe hypothesis of "
+            "strategy te introduceren."
+        ),
+        universe=_VOL_BREAKOUT_CRYPTO_UNIVERSE,
+        timeframe="4h",
+        bundle=("volatility_compression_breakout",),
+        hypothesis_id="volatility_compression_breakout_v0",
+        screening_mode="strict",
+        screening_phase="exploratory",
+        cost_mode="realistic",
+        status="stable",
+        enabled=True,
+        diagnostic_only=False,
+        excluded_from_daily_scheduler=False,
+        preset_class="experimental",
+        rationale=(
+            "Crypto 4h vergroot de timeframe-coverage van de "
+            "volatility_compression_breakout hypothese. Dezelfde "
+            "compression_ratio + range-breakout mechaniek; lagere "
+            "trade-frequency dan 1h, hogere kans op insufficient_trades, "
+            "expliciet bewaakt door de v3.15.15 4h "
+            "insufficient_trades observability sidecar (geen "
+            "candidate-filtering — observatie alleen)."
+        ),
+        expected_behavior=(
+            "Per fold: long entries alleen wanneer compression_ratio[t-1] "
+            "< compression_threshold EN close[t] > rolling_high_previous[t]. "
+            "Flat zodra compression release detecteert (ratio > 1.0) of "
+            "close < rolling_low_previous. Bounded grid (\u22648 combos). "
+            "Lagere trade-counts dan 1h zijn verwacht."
+        ),
+        falsification=(
+            "Drie achtereenvolgende daily_primary runs falen op "
+            "insufficient_trades binnen het crypto 4h universum.",
+            "4h timeframe levert structureel < helft van het aantal "
+            "trades op vergelijkbare 1h runs en haalt promotion gates niet.",
+            "Cost-sensitivity zet bootstrap_sharpe_ci over zero op elk "
+            "asset/parameter combo.",
+            "Parameter-neighborhood instabiel: top combos verschuiven "
+            ">50% tussen 3 walk-forward runs zonder regime-shift.",
+            "Geen baseline edge: volatility_compression_breakout op 4h "
+            "onderpresteert ema_trend_baseline op alle asset combinaties.",
+        ),
+        enablement_criteria=(
+            "Hypothesis catalog status remains 'active_discovery'; "
+            "promotion to other status flows via the catalog, not via "
+            "this preset.",
+            "v3.15.2 Campaign Operating Layer hourly tick is healthy.",
+            "Bounded parameter grid (\u22648 combos) verified each run.",
+            "v3.15.15 4h insufficient_trades observability sidecar "
+            "actief; sustained high rate triggers operator review (geen "
+            "automatische filtering).",
+        ),
+    ),
+    ResearchPreset(
         name="crypto_diagnostic_1h",
         hypothesis=(
             "Crypto 1h intraday MR is diagnostisch, niet primaire alpha-"
