@@ -99,8 +99,12 @@ def test_serialize_canonical_stable_for_legacy_templates() -> None:
 
 def test_legacy_template_count_unchanged() -> None:
     """v3.15.2 had 3 baseline presets * 5 template types = 15 templates.
-    v3.15.3 adds trend_pullback_crypto_1h * 5 = 5 more, total 20."""
-    assert len(CAMPAIGN_TEMPLATES) == 20
+    v3.15.3 adds trend_pullback_crypto_1h * 5 = 5 more, total 20.
+    v3.15.15 adds vol_compression_breakout_crypto_1h and
+    vol_compression_breakout_crypto_4h * 5 each = 10 more, total 30.
+    The legacy 15 baseline rows remain byte-identical (covered by
+    the byte-identity test above)."""
+    assert len(CAMPAIGN_TEMPLATES) == 30
     legacy_count = sum(
         1 for t in CAMPAIGN_TEMPLATES
         if t.preset_name in _LEGACY_BASELINE_PRESETS

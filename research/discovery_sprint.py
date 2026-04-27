@@ -99,6 +99,29 @@ INACTIVE_SPRINT_STATES: Final[frozenset[str]] = frozenset(
     {"completed", "expired", "canceled"}
 )
 
+# v3.15.15 — observability-only safeguards. None of these helpers
+# filter candidates or mutate policy state; they compute observations
+# the launcher writes into a single sidecar each tick.
+SAFEGUARDS_DECISION_PATH: Final[Path] = (
+    SPRINT_ARTIFACTS_DIR / "sprint_safeguards_decision_latest.v1.json"
+)
+THROUGHPUT_BASELINE_PATH: Final[Path] = (
+    SPRINT_ARTIFACTS_DIR / "throughput_baseline_v3_15_15.json"
+)
+SCREENING_PARAM_SAMPLE_LIMIT: Final[int] = 3
+THROUGHPUT_WINDOW_DAYS: Final[int] = 7
+THROUGHPUT_DROP_THRESHOLD: Final[float] = 0.5
+# Floor on the baseline rate used in the regression check. Without
+# this floor a preset that was idle pre-deploy (rate=0) would either
+# divide-by-zero or trigger a false-positive warning on any post-deploy
+# spawn. The floor is conservative: a baseline of 0.1 campaign/day means
+# we only warn when current activity is well below a minimal expected
+# heartbeat.
+THROUGHPUT_MIN_BASELINE_RATE: Final[float] = 0.1
+INSUFFICIENT_TRADES_REASON_CODE: Final[str] = "insufficient_trades"
+INSUFFICIENT_TRADES_RATE_THRESHOLD: Final[float] = 0.7
+INSUFFICIENT_TRADES_MIN_HISTORY: Final[int] = 5
+
 AssetClass = Literal["crypto", "equity"]
 ASSET_CLASSES: Final[tuple[str, ...]] = ("crypto", "equity")
 
@@ -894,6 +917,370 @@ def sprint_extra_for_record(
     }
 
 
+# ── v3.15.15 — observability-only safeguards ──────────────────────────
+
+
+@dataclass(frozen=True)
+class ThroughputSnapshot:
+    """Per-preset spawn-count snapshot over a rolling window. Pure
+    derivation; written to disk as JSON via ``write_throughput_baseline``.
+    """
+
+    captured_at_utc: datetime
+    window_days: int
+    per_preset_spawn_count: dict[str, int]
+    per_preset_spawn_rate_per_day: dict[str, float]
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "captured_at_utc": iso_utc(self.captured_at_utc),
+            "window_days": int(self.window_days),
+            "per_preset_spawn_count": dict(self.per_preset_spawn_count),
+            "per_preset_spawn_rate_per_day": {
+                k: round(float(v), 6)
+                for k, v in self.per_preset_spawn_rate_per_day.items()
+            },
+        }
+
+
+def compute_4h_insufficient_trades_observations(
+    *,
+    candidate_preset_names: tuple[str, ...],
+    campaign_registry: dict[str, Any],
+    threshold: float = INSUFFICIENT_TRADES_RATE_THRESHOLD,
+    min_history: int = INSUFFICIENT_TRADES_MIN_HISTORY,
+) -> list[dict[str, Any]]:
+    """For each candidate preset whose ``preset.timeframe == '4h'``,
+    compute the historical insufficient_trades rate over completed
+    registry records. **Observability-only — never filters.**
+
+    Returned observations carry the preset name, total completed
+    runs, insufficient-trades count, rate, and a tag string
+    (``"4h_insufficient_trades_high"`` when rate exceeds the threshold
+    AND there are at least ``min_history`` runs to judge from;
+    ``"4h_insufficient_trades_ok"`` otherwise; ``"4h_insufficient_trades_cold_start"``
+    when not enough history). Read-only over the registry; no
+    candidate is dropped on the basis of this signal in v3.15.15.
+    """
+    from research.presets import get_preset
+
+    observations: list[dict[str, Any]] = []
+    campaigns = campaign_registry.get("campaigns") or {}
+    iterable = (
+        campaigns.values() if isinstance(campaigns, dict) else campaigns
+    )
+    seen: set[str] = set()
+    for preset_name in candidate_preset_names:
+        if preset_name in seen:
+            continue
+        seen.add(preset_name)
+        try:
+            preset = get_preset(preset_name)
+        except KeyError:
+            continue
+        if preset.timeframe != "4h":
+            continue
+        completed = 0
+        insufficient = 0
+        for record in iterable:
+            if not isinstance(record, dict):
+                continue
+            if record.get("preset_name") != preset_name:
+                continue
+            if record.get("state") != "completed":
+                continue
+            completed += 1
+            if record.get("reason_code") == INSUFFICIENT_TRADES_REASON_CODE:
+                insufficient += 1
+        rate = (insufficient / completed) if completed > 0 else 0.0
+        if completed < min_history:
+            tag = "4h_insufficient_trades_cold_start"
+        elif rate > threshold:
+            tag = "4h_insufficient_trades_high"
+        else:
+            tag = "4h_insufficient_trades_ok"
+        observations.append(
+            {
+                "preset_name": preset_name,
+                "timeframe": preset.timeframe,
+                "completed_runs": completed,
+                "insufficient_trades_count": insufficient,
+                "insufficient_trades_rate": round(rate, 4),
+                "threshold": threshold,
+                "min_history": min_history,
+                "tag": tag,
+            }
+        )
+    return observations
+
+
+def compute_parameter_coverage(
+    *,
+    plan: tuple[PlanEntry, ...],
+    catalog: tuple[StrategyHypothesis, ...] = STRATEGY_HYPOTHESIS_CATALOG,
+    sample_limit: int = SCREENING_PARAM_SAMPLE_LIMIT,
+) -> list[dict[str, Any]]:
+    """Per plan preset: parameter_sample_count / total_grid_size /
+    coverage_ratio. Static derivation against the hypothesis catalog;
+    no live screening evidence consulted. Pure / read-only / no
+    sampling-behavior change. v3.15.17 will rotate sample indices
+    across campaigns; this v3.15.15 helper is the observability seam
+    that future release will populate."""
+    out: list[dict[str, Any]] = []
+    for entry in plan:
+        hyp = _hypothesis_by_id(entry.hypothesis_id, catalog=catalog)
+        grid_size = (
+            len(hyp.default_parameter_grid) if hyp is not None else 0
+        )
+        sample_count = min(int(sample_limit), grid_size) if grid_size else 0
+        coverage = (sample_count / grid_size) if grid_size > 0 else 0.0
+        out.append(
+            {
+                "preset_name": entry.preset_name,
+                "hypothesis_id": entry.hypothesis_id,
+                "timeframe": entry.timeframe,
+                "parameter_sample_count": sample_count,
+                "total_grid_size": grid_size,
+                "coverage_ratio": round(coverage, 4),
+                "sample_limit": int(sample_limit),
+            }
+        )
+    return out
+
+
+def compute_throughput_snapshot(
+    *,
+    campaign_registry: dict[str, Any],
+    now_utc: datetime,
+    window_days: int = THROUGHPUT_WINDOW_DAYS,
+) -> ThroughputSnapshot:
+    """Count campaigns spawned per preset over [now - window, now].
+    Pure / read-only over the registry."""
+    cutoff = (now_utc.astimezone(UTC) - timedelta(days=int(window_days)))
+    campaigns = campaign_registry.get("campaigns") or {}
+    iterable = (
+        campaigns.values() if isinstance(campaigns, dict) else campaigns
+    )
+    counts: dict[str, int] = {}
+    for record in iterable:
+        if not isinstance(record, dict):
+            continue
+        spawned_iso = record.get("spawned_at_utc")
+        spawned = _parse_iso(spawned_iso) if isinstance(spawned_iso, str) else None
+        if spawned is None:
+            continue
+        if spawned.astimezone(UTC) < cutoff:
+            continue
+        preset_name = str(record.get("preset_name") or "")
+        if not preset_name:
+            continue
+        counts[preset_name] = counts.get(preset_name, 0) + 1
+    rates = {
+        k: (v / window_days) if window_days > 0 else 0.0
+        for k, v in counts.items()
+    }
+    return ThroughputSnapshot(
+        captured_at_utc=now_utc.astimezone(UTC),
+        window_days=int(window_days),
+        per_preset_spawn_count=counts,
+        per_preset_spawn_rate_per_day=rates,
+    )
+
+
+def write_throughput_baseline(
+    snapshot: ThroughputSnapshot,
+    *,
+    path: Path | None = None,
+) -> None:
+    write_sidecar_atomic(
+        path if path is not None else THROUGHPUT_BASELINE_PATH,
+        snapshot.to_payload(),
+    )
+
+
+def load_throughput_baseline(
+    *,
+    path: Path | None = None,
+) -> ThroughputSnapshot | None:
+    target = path if path is not None else THROUGHPUT_BASELINE_PATH
+    raw = _read_json(target)
+    if not raw:
+        return None
+    captured = _parse_iso(raw.get("captured_at_utc"))
+    if captured is None:
+        return None
+    return ThroughputSnapshot(
+        captured_at_utc=captured.astimezone(UTC),
+        window_days=int(raw.get("window_days") or THROUGHPUT_WINDOW_DAYS),
+        per_preset_spawn_count=dict(
+            raw.get("per_preset_spawn_count") or {}
+        ),
+        per_preset_spawn_rate_per_day=dict(
+            raw.get("per_preset_spawn_rate_per_day") or {}
+        ),
+    )
+
+
+def ensure_throughput_baseline(
+    *,
+    campaign_registry: dict[str, Any],
+    now_utc: datetime,
+    path: Path | None = None,
+    window_days: int = THROUGHPUT_WINDOW_DAYS,
+) -> ThroughputSnapshot:
+    """Read existing baseline or capture one from the current registry.
+    Idempotent: if the baseline file already exists, return it without
+    overwriting (the v3.15.15 baseline is meant to be captured exactly
+    once, immediately after deploy)."""
+    existing = load_throughput_baseline(path=path)
+    if existing is not None:
+        return existing
+    snapshot = compute_throughput_snapshot(
+        campaign_registry=campaign_registry,
+        now_utc=now_utc,
+        window_days=window_days,
+    )
+    try:
+        write_throughput_baseline(snapshot, path=path)
+    except OSError:
+        # Sidecar IO is non-critical; treat baseline as in-memory only
+        # if the disk is unwriteable. Future ticks will retry.
+        pass
+    return snapshot
+
+
+def detect_throughput_regressions(
+    *,
+    baseline: ThroughputSnapshot,
+    current: ThroughputSnapshot,
+    drop_threshold: float = THROUGHPUT_DROP_THRESHOLD,
+    min_baseline_rate: float = THROUGHPUT_MIN_BASELINE_RATE,
+) -> list[dict[str, Any]]:
+    """For each preset present in the baseline, flag a regression when
+    ``current_rate < (1 - drop_threshold) * max(baseline_rate,
+    min_baseline_rate)``. The ``min_baseline_rate`` floor prevents
+    spurious warnings when a preset's pre-deploy rate was effectively
+    zero. Pure / read-only.
+    """
+    regressions: list[dict[str, Any]] = []
+    for preset, baseline_rate in (
+        baseline.per_preset_spawn_rate_per_day.items()
+    ):
+        effective_baseline = max(
+            float(baseline_rate), float(min_baseline_rate)
+        )
+        threshold_rate = effective_baseline * (1.0 - float(drop_threshold))
+        current_rate = float(
+            current.per_preset_spawn_rate_per_day.get(preset, 0.0)
+        )
+        if current_rate < threshold_rate:
+            regressions.append(
+                {
+                    "preset_name": preset,
+                    "baseline_rate_per_day": round(float(baseline_rate), 6),
+                    "effective_baseline_rate_per_day": round(
+                        effective_baseline, 6
+                    ),
+                    "current_rate_per_day": round(current_rate, 6),
+                    "threshold_rate_per_day": round(threshold_rate, 6),
+                    "drop_threshold": float(drop_threshold),
+                    "min_baseline_rate": float(min_baseline_rate),
+                    "tag": "throughput_regression",
+                }
+            )
+    return regressions
+
+
+def check_preset_orthogonality(
+    presets: tuple,
+) -> list[dict[str, Any]]:
+    """Return warning records for any pair of presets sharing both
+    ``hypothesis_id`` and ``timeframe``. Empty list ⇒ orthogonal across
+    the catalog. Presets without a ``hypothesis_id`` (legacy / baseline)
+    are skipped — orthogonality is only enforced for hypothesis-bridged
+    presets."""
+    warnings: list[dict[str, Any]] = []
+    bucket: dict[tuple[str, str], list[str]] = {}
+    for preset in presets:
+        hypothesis_id = getattr(preset, "hypothesis_id", None)
+        timeframe = getattr(preset, "timeframe", None)
+        name = getattr(preset, "name", None)
+        if not hypothesis_id or not timeframe or not name:
+            continue
+        bucket.setdefault((hypothesis_id, timeframe), []).append(name)
+    for (hyp, tf), names in bucket.items():
+        if len(names) <= 1:
+            continue
+        warnings.append(
+            {
+                "hypothesis_id": hyp,
+                "timeframe": tf,
+                "preset_names": sorted(names),
+                "tag": "no_effective_exploration_expansion",
+            }
+        )
+    return warnings
+
+
+def build_safeguards_decision_payload(
+    *,
+    sprint_constraints: ActiveSprintConstraints | None,
+    plan: tuple[PlanEntry, ...] | None,
+    insufficient_trades_observations: list[dict[str, Any]],
+    parameter_coverage: list[dict[str, Any]],
+    throughput_regressions: list[dict[str, Any]],
+    orthogonality_warnings: list[dict[str, Any]],
+    baseline: ThroughputSnapshot | None,
+    current: ThroughputSnapshot | None,
+    now_utc: datetime,
+    git_revision: str | None,
+) -> dict[str, Any]:
+    """Aggregate the four observability signals + the baseline/current
+    throughput snapshots into a single sidecar payload. Read-only;
+    never used to drive policy."""
+    pins = build_pin_block(
+        schema_version=SPRINT_SCHEMA_VERSION,
+        generated_at_utc=now_utc,
+        git_revision=git_revision,
+        run_id=None,
+        artifact_state="healthy",
+    )
+    return {
+        **pins,
+        "sprint": (
+            sprint_constraints.to_payload()
+            if sprint_constraints is not None
+            else None
+        ),
+        "plan_entry_count": (len(plan) if plan is not None else 0),
+        "insufficient_trades_observations": list(
+            insufficient_trades_observations
+        ),
+        "parameter_coverage": list(parameter_coverage),
+        "throughput": {
+            "baseline": baseline.to_payload() if baseline else None,
+            "current": current.to_payload() if current else None,
+            "regressions": list(throughput_regressions),
+            "drop_threshold": THROUGHPUT_DROP_THRESHOLD,
+            "min_baseline_rate": THROUGHPUT_MIN_BASELINE_RATE,
+            "window_days": THROUGHPUT_WINDOW_DAYS,
+        },
+        "orthogonality_warnings": list(orthogonality_warnings),
+        "observability_only": True,
+    }
+
+
+def write_safeguards_decision_artifact(
+    payload: dict[str, Any],
+    *,
+    path: Path | None = None,
+) -> None:
+    write_sidecar_atomic(
+        path if path is not None else SAFEGUARDS_DECISION_PATH,
+        payload,
+    )
+
+
 # ── command handlers ──────────────────────────────────────────────────
 
 
@@ -1190,6 +1577,15 @@ __all__ = [
     "BUILTIN_PROFILES",
     "CRYPTO_EXPLORATORY_V1",
     "INACTIVE_SPRINT_STATES",
+    "INSUFFICIENT_TRADES_MIN_HISTORY",
+    "INSUFFICIENT_TRADES_RATE_THRESHOLD",
+    "INSUFFICIENT_TRADES_REASON_CODE",
+    "SAFEGUARDS_DECISION_PATH",
+    "SCREENING_PARAM_SAMPLE_LIMIT",
+    "THROUGHPUT_BASELINE_PATH",
+    "THROUGHPUT_DROP_THRESHOLD",
+    "THROUGHPUT_MIN_BASELINE_RATE",
+    "THROUGHPUT_WINDOW_DAYS",
     "ActiveSprintConstraints",
     "ObservationCounts",
     "PlanEntry",
@@ -1203,24 +1599,35 @@ __all__ = [
     "SPRINT_SCHEMA_VERSION",
     "SPRINT_STATES",
     "SprintProfile",
+    "ThroughputSnapshot",
     "apply_sprint_routing",
     "build_progress_payload",
     "build_registry_payload",
     "build_report_payload",
     "build_routing_decision_payload",
+    "build_safeguards_decision_payload",
+    "check_preset_orthogonality",
     "cmd_plan",
     "cmd_report",
     "cmd_run",
     "cmd_status",
+    "compute_4h_insufficient_trades_observations",
+    "compute_parameter_coverage",
     "compute_sprint_id",
+    "compute_throughput_snapshot",
     "count_observations",
     "derive_plan",
+    "detect_throughput_regressions",
+    "ensure_throughput_baseline",
     "get_profile",
     "is_active_sprint",
     "load_active_sprint_constraints",
     "load_sprint_progress",
     "load_sprint_registry",
+    "load_throughput_baseline",
     "main",
     "sprint_extra_for_record",
     "write_routing_decision_artifact",
+    "write_safeguards_decision_artifact",
+    "write_throughput_baseline",
 ]
