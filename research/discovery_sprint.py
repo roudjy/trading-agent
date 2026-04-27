@@ -72,9 +72,32 @@ SPRINT_PROGRESS_PATH: Final[Path] = (
 SPRINT_REPORT_PATH: Final[Path] = (
     SPRINT_ARTIFACTS_DIR / "discovery_sprint_report_latest.v1.json"
 )
+# v3.15.14 — sprint-aware COL routing decision sidecar (read-only audit
+# trail, written by the campaign launcher each tick when a sprint is
+# active). Never consumed by the policy engine; provides operator
+# visibility into why a tick filtered candidates.
+SPRINT_ROUTING_DECISION_PATH: Final[Path] = (
+    SPRINT_ARTIFACTS_DIR / "sprint_routing_decision_latest.v1.json"
+)
 
+# v3.15.14 — extra-key conventions stamped on spawned CampaignRecord.
+# Additive nullable fields under ``record.extra`` so the registry
+# schema stays unchanged.
+SPRINT_RECORD_EXTRA_KEYS: Final[tuple[str, ...]] = (
+    "sprint_id",
+    "sprint_profile_name",
+    "sprint_routing",
+)
+
+# v3.15.14 — terminal sprint states that disengage routing. ``canceled``
+# is recognised here even though the v3.15.13 ``SprintState`` Literal
+# does not name it; downstream routing must treat any non-active state
+# as inactive (no implicit re-activation on stale registry artifacts).
 SprintState = Literal["active", "completed", "expired"]
 SPRINT_STATES: Final[tuple[str, ...]] = ("active", "completed", "expired")
+INACTIVE_SPRINT_STATES: Final[frozenset[str]] = frozenset(
+    {"completed", "expired", "canceled"}
+)
 
 AssetClass = Literal["crypto", "equity"]
 ASSET_CLASSES: Final[tuple[str, ...]] = ("crypto", "equity")
@@ -626,6 +649,251 @@ def is_active_sprint(
     return now_utc.astimezone(UTC) < expected.astimezone(UTC)
 
 
+# ── v3.15.14 — sprint-aware COL routing ───────────────────────────────
+
+
+@dataclass(frozen=True)
+class ActiveSprintConstraints:
+    """Read-only summary of an active sprint's filter surface.
+
+    Returned by :func:`load_active_sprint_constraints` only when the
+    sprint registry artifact carries ``state=="active"``, the window
+    has not expired, and (when ``campaign_registry`` is supplied) the
+    target has not yet been met. Consumed by the launcher to filter
+    its candidate set; never used to mutate state.
+    """
+
+    sprint_id: str
+    profile_name: str
+    plan_preset_names: frozenset[str]
+    plan_hypothesis_ids: frozenset[str]
+    target_campaigns: int
+    started_at_utc: datetime
+    expected_completion_at_utc: datetime
+    observed_total: int
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "sprint_id": self.sprint_id,
+            "profile_name": self.profile_name,
+            "plan_preset_names": sorted(self.plan_preset_names),
+            "plan_hypothesis_ids": sorted(self.plan_hypothesis_ids),
+            "target_campaigns": int(self.target_campaigns),
+            "started_at_utc": iso_utc(self.started_at_utc),
+            "expected_completion_at_utc": iso_utc(
+                self.expected_completion_at_utc
+            ),
+            "observed_total": int(self.observed_total),
+        }
+
+
+def load_active_sprint_constraints(
+    *,
+    campaign_registry: dict[str, Any] | None = None,
+    now_utc: datetime | None = None,
+    sprint_registry_path: Path | None = None,
+) -> ActiveSprintConstraints | None:
+    """Read the sprint registry sidecar and return constraints, or ``None``.
+
+    Returns ``None`` when:
+
+    - the sprint registry artifact is missing,
+    - the registry parses as malformed,
+    - ``state`` is anything other than ``"active"`` (so ``completed``,
+      ``expired``, ``canceled`` all disengage routing),
+    - ``now_utc`` has reached or passed ``expected_completion_at_utc``,
+    - ``campaign_registry`` is supplied AND
+      ``observed_total >= target_campaigns`` (target met).
+
+    Pure read-only. Never mutates the sprint registry, the campaign
+    registry, the queue, or any other artifact. Safe to call from any
+    process — including the launcher hot path — at every tick.
+    """
+    now = now_utc.astimezone(UTC) if now_utc is not None else _now_utc()
+    registry_payload = load_sprint_registry(path=sprint_registry_path)
+    if not registry_payload:
+        return None
+    if registry_payload.get("state") != "active":
+        return None
+    expected = _parse_iso(
+        registry_payload.get("expected_completion_at_utc")
+    )
+    started = _parse_iso(registry_payload.get("started_at_utc"))
+    if expected is None or started is None:
+        return None
+    if now >= expected.astimezone(UTC):
+        return None
+
+    profile_payload = registry_payload.get("profile") or {}
+    plan_payload = (registry_payload.get("plan") or {}).get("entries") or []
+    plan_preset_names = frozenset(
+        str(entry.get("preset_name") or "")
+        for entry in plan_payload
+        if entry.get("preset_name")
+    )
+    plan_hypothesis_ids = frozenset(
+        str(entry.get("hypothesis_id") or "")
+        for entry in plan_payload
+        if entry.get("hypothesis_id")
+    )
+    target = int(profile_payload.get("target_campaigns") or 0)
+
+    observed_total = 0
+    if campaign_registry is not None and plan_preset_names:
+        plan = _restore_plan(registry_payload)
+        counts = count_observations(
+            campaign_registry=campaign_registry,
+            plan=plan,
+            started_at_utc=started,
+            now_utc=now,
+        )
+        observed_total = counts.total
+        if target > 0 and observed_total >= target:
+            return None
+
+    sprint_id = str(registry_payload.get("sprint_id") or "")
+    profile_name = str(profile_payload.get("name") or "")
+    if not sprint_id or not profile_name or not plan_preset_names:
+        return None
+
+    return ActiveSprintConstraints(
+        sprint_id=sprint_id,
+        profile_name=profile_name,
+        plan_preset_names=plan_preset_names,
+        plan_hypothesis_ids=plan_hypothesis_ids,
+        target_campaigns=target,
+        started_at_utc=started.astimezone(UTC),
+        expected_completion_at_utc=expected.astimezone(UTC),
+        observed_total=observed_total,
+    )
+
+
+def apply_sprint_routing(
+    *,
+    templates: tuple,
+    follow_up_specs: tuple,
+    weekly_control_specs: tuple,
+    sprint_constraints: ActiveSprintConstraints | None,
+) -> tuple[tuple, tuple, tuple, dict[str, int]]:
+    """Pure: drop any template/spec whose ``preset_name`` is not in the
+    active sprint's plan.
+
+    Returns ``(filtered_templates, filtered_followups, filtered_controls,
+    counts)`` where ``counts`` carries the original and filtered sizes
+    (used for traceability).
+
+    When ``sprint_constraints is None`` the input tuples pass through
+    unchanged AND ``counts`` reflects identical values for original
+    and filtered — so callers can always read a consistent shape.
+    """
+    original = {
+        "templates_total": len(templates),
+        "follow_ups_total": len(follow_up_specs),
+        "controls_total": len(weekly_control_specs),
+    }
+    if sprint_constraints is None:
+        counts = {**original}
+        counts["templates_filtered"] = original["templates_total"]
+        counts["follow_ups_filtered"] = original["follow_ups_total"]
+        counts["controls_filtered"] = original["controls_total"]
+        return templates, follow_up_specs, weekly_control_specs, counts
+
+    plan = sprint_constraints.plan_preset_names
+    filtered_templates = tuple(
+        t for t in templates if getattr(t, "preset_name", None) in plan
+    )
+    filtered_followups = tuple(
+        s for s in follow_up_specs if getattr(s, "preset_name", None) in plan
+    )
+    filtered_controls = tuple(
+        s
+        for s in weekly_control_specs
+        if getattr(s, "preset_name", None) in plan
+    )
+    counts = {
+        **original,
+        "templates_filtered": len(filtered_templates),
+        "follow_ups_filtered": len(filtered_followups),
+        "controls_filtered": len(filtered_controls),
+    }
+    return filtered_templates, filtered_followups, filtered_controls, counts
+
+
+def build_routing_decision_payload(
+    *,
+    sprint_constraints: ActiveSprintConstraints | None,
+    counts: dict[str, int],
+    decision_action: str | None,
+    decision_preset_name: str | None,
+    decision_template_id: str | None,
+    decision_reason: str | None,
+    now_utc: datetime,
+    git_revision: str | None,
+) -> dict[str, Any]:
+    """Build the canonical sprint-routing-decision sidecar payload.
+
+    Read-only audit trail. The launcher writes this each tick when
+    a sprint is active so operators can see, per tick:
+
+    - which sprint was steering (``sprint_id``, ``profile_name``)
+    - how many templates / specs were filtered out
+    - what action the policy engine ultimately chose on the filtered set
+
+    When ``sprint_constraints is None`` the payload still records the
+    most recent tick (``routing_active=False``) so a stale sidecar
+    surfaces as ``no sprint`` rather than ghosting the operator.
+    """
+    pins = build_pin_block(
+        schema_version=SPRINT_SCHEMA_VERSION,
+        generated_at_utc=now_utc,
+        git_revision=git_revision,
+        run_id=None,
+        artifact_state="healthy",
+    )
+    return {
+        **pins,
+        "routing_active": sprint_constraints is not None,
+        "sprint": (
+            sprint_constraints.to_payload()
+            if sprint_constraints is not None
+            else None
+        ),
+        "counts": dict(counts),
+        "decision": {
+            "action": decision_action,
+            "preset_name": decision_preset_name,
+            "template_id": decision_template_id,
+            "reason": decision_reason,
+        },
+    }
+
+
+def write_routing_decision_artifact(
+    payload: dict[str, Any],
+    *,
+    path: Path | None = None,
+) -> None:
+    write_sidecar_atomic(
+        path if path is not None else SPRINT_ROUTING_DECISION_PATH,
+        payload,
+    )
+
+
+def sprint_extra_for_record(
+    sprint_constraints: ActiveSprintConstraints | None,
+) -> dict[str, Any]:
+    """Return the ``CampaignRecord.extra`` keys to stamp on a spawned
+    record. Empty dict when no sprint is active — the registry
+    keeps its prior shape verbatim."""
+    if sprint_constraints is None:
+        return {}
+    return {
+        "sprint_id": sprint_constraints.sprint_id,
+        "sprint_profile_name": sprint_constraints.profile_name,
+        "sprint_routing": "v3.15.14",
+    }
+
+
 # ── command handlers ──────────────────────────────────────────────────
 
 
@@ -921,19 +1189,25 @@ __all__ = [
     "ASSET_CLASSES",
     "BUILTIN_PROFILES",
     "CRYPTO_EXPLORATORY_V1",
+    "INACTIVE_SPRINT_STATES",
+    "ActiveSprintConstraints",
     "ObservationCounts",
     "PlanEntry",
     "ProfileError",
     "SCREENING_PHASES",
     "SPRINT_PROGRESS_PATH",
+    "SPRINT_RECORD_EXTRA_KEYS",
     "SPRINT_REGISTRY_PATH",
     "SPRINT_REPORT_PATH",
+    "SPRINT_ROUTING_DECISION_PATH",
     "SPRINT_SCHEMA_VERSION",
     "SPRINT_STATES",
     "SprintProfile",
+    "apply_sprint_routing",
     "build_progress_payload",
     "build_registry_payload",
     "build_report_payload",
+    "build_routing_decision_payload",
     "cmd_plan",
     "cmd_report",
     "cmd_run",
@@ -943,7 +1217,10 @@ __all__ = [
     "derive_plan",
     "get_profile",
     "is_active_sprint",
+    "load_active_sprint_constraints",
     "load_sprint_progress",
     "load_sprint_registry",
     "main",
+    "sprint_extra_for_record",
+    "write_routing_decision_artifact",
 ]
