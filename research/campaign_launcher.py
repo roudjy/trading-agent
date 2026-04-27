@@ -115,6 +115,14 @@ from research.campaign_templates import (
     get_template,
 )
 from research.campaign_queue import queue_entry_from_record
+from research.discovery_sprint import (
+    ActiveSprintConstraints,
+    apply_sprint_routing,
+    build_routing_decision_payload,
+    load_active_sprint_constraints,
+    sprint_extra_for_record,
+    write_routing_decision_artifact,
+)
 from research.screening_evidence import SCREENING_EVIDENCE_PATH
 
 EVIDENCE_LEDGER_PATH: Path = Path(
@@ -204,6 +212,7 @@ def _build_record(
     input_artifact_fingerprint: str,
     estimate_seconds: int,
     subtype: str | None,
+    extra: dict[str, Any] | None = None,
 ) -> CampaignRecord:
     return CampaignRecord(
         campaign_id=campaign_id,
@@ -219,6 +228,7 @@ def _build_record(
         input_artifact_fingerprint=input_artifact_fingerprint,
         estimated_runtime_seconds=int(estimate_seconds),
         subtype=subtype,
+        extra=dict(extra) if extra else {},
     )
 
 
@@ -676,22 +686,60 @@ def _tick(
         templates=templates,
     )
 
+    # v3.15.14 — sprint-aware COL routing. Read-only check against the
+    # discovery sprint registry artifact. When an active sprint exists
+    # AND the window has not expired AND the target has not been met,
+    # filter the candidate set down to sprint plan presets BEFORE
+    # ``decide()`` runs. Decide() itself is unchanged (v3.15.11
+    # regression pin intact).
+    sprint_constraints = load_active_sprint_constraints(
+        campaign_registry=registry,
+        now_utc=now_utc,
+    )
+    (
+        templates_for_decide,
+        followup_specs_for_decide,
+        control_specs_for_decide,
+        routing_counts,
+    ) = apply_sprint_routing(
+        templates=templates,
+        follow_up_specs=followup_specs,
+        weekly_control_specs=control_specs,
+        sprint_constraints=sprint_constraints,
+    )
+
     decision = decide(
         registry=registry,
         queue=queue,
         events=events,
         budget=budget,
-        templates=templates,
+        templates=templates_for_decide,
         config=config,
         preset_state_by_name=preset_states,
         family_state_by_key=family_states,
         upstream_artifact_states=upstream,
-        follow_up_candidate_specs=followup_specs,
-        weekly_control_candidate_specs=control_specs,
+        follow_up_candidate_specs=followup_specs_for_decide,
+        weekly_control_candidate_specs=control_specs_for_decide,
         now_utc=now_utc,
     )
     if not dry_run:
         write_decision(decision, generated_at_utc=now_utc, git_revision=git_rev)
+        if sprint_constraints is not None:
+            routing_payload = build_routing_decision_payload(
+                sprint_constraints=sprint_constraints,
+                counts=routing_counts,
+                decision_action=decision.decision.action,
+                decision_preset_name=decision.decision.preset_name,
+                decision_template_id=decision.decision.template_id,
+                decision_reason=decision.decision.reason,
+                now_utc=now_utc,
+                git_revision=git_rev,
+            )
+            try:
+                write_routing_decision_artifact(routing_payload)
+            except OSError:
+                # Sidecar is purely diagnostic — never fail the tick on it.
+                pass
 
     if dry_run:
         return 0
@@ -705,6 +753,7 @@ def _tick(
         now_utc=now_utc,
         config=config,
         skip_subprocess=skip_subprocess,
+        sprint_constraints=sprint_constraints,
     )
     # v3.15.10 — funnel-policy hook. Error-isolated: failures
     # emit funnel_policy_error events but do not alter the parent
@@ -1050,6 +1099,7 @@ def _apply_decision(
     now_utc: datetime,
     config,
     skip_subprocess: bool,
+    sprint_constraints: ActiveSprintConstraints | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], list]:
     action = decision.decision.action
     new_events: list = []
@@ -1140,6 +1190,7 @@ def _apply_decision(
         input_artifact_fingerprint=fingerprint,
     )
     spawned_iso = iso_utc(now_utc)
+    sprint_extra = sprint_extra_for_record(sprint_constraints)
     new_record = _build_record(
         campaign_id=cid,
         template_id=template_id,
@@ -1153,6 +1204,7 @@ def _apply_decision(
         input_artifact_fingerprint=fingerprint,
         estimate_seconds=int(decision.decision.estimate_seconds or 0),
         subtype=decision.decision.subtype,
+        extra=sprint_extra or None,
     )
     registry = upsert_record(registry, new_record)
     queue = upsert_entry(queue, queue_entry_from_record(new_record.to_payload()))
