@@ -57,6 +57,51 @@ function promisingSummary(): ResearchIntelligenceSummary {
     advisory_decision_count: 2,
     dead_zone_count: 1,
     ledger_summary: { campaign_count: 25 },
+    spawn_proposals: {
+      proposal_mode: "normal",
+      proposed_count: 4,
+      suppressed_zone_count: 1,
+      human_review_required: false,
+      top_proposals: [
+        {
+          preset_name: "trend_pullback_crypto_1h",
+          proposal_type: "confirmation_campaign",
+          spawn_reason: "confirmation_from_exploratory_pass",
+          priority_tier: "HIGH",
+        },
+      ],
+    },
+  };
+}
+
+function diagnosticSummary(): ResearchIntelligenceSummary {
+  return {
+    schema_version: "1.0",
+    enforcement_state: "advisory_only",
+    viability: {
+      status: "stop_or_pivot",
+      reason_codes: ["large_window_no_meaningful_no_candidate"],
+      human_summary: "stop_or_pivot",
+    },
+    metrics: { campaign_count: 100, candidate_count: 0 },
+    information_gain: { score: 0.0, bucket: "none" },
+    advisory_decision_count: 0,
+    dead_zone_count: 3,
+    ledger_summary: {},
+    spawn_proposals: {
+      proposal_mode: "diagnostic_only",
+      proposed_count: 2,
+      suppressed_zone_count: 3,
+      human_review_required: true,
+      top_proposals: [
+        {
+          preset_name: "explore_unknown_zone",
+          proposal_type: "exploration_reservation_unknown_zone",
+          spawn_reason: "exploration_reservation_unknown_zone",
+          priority_tier: "LOW",
+        },
+      ],
+    },
   };
 }
 
@@ -109,5 +154,30 @@ describe("ResearchIntelligenceCard", () => {
     expect(card).toHaveTextContent("high");
     expect(card).toHaveTextContent("0.90");
     expect(card).toHaveTextContent("dead zones");
+  });
+
+  it("renders v3.15.12 spawn proposal block (normal mode)", async () => {
+    vi.mocked(api.researchIntelligenceSummary).mockResolvedValue(
+      promisingSummary()
+    );
+    render(<ResearchIntelligenceCard />);
+    const card = await screen.findByTestId("research-intelligence-card");
+    expect(card).toHaveTextContent("proposal mode");
+    expect(card).toHaveTextContent("normal");
+    expect(card).toHaveTextContent("spawn proposals");
+    expect(card).toHaveTextContent("HIGH");
+    expect(card).toHaveTextContent("confirmation_campaign");
+  });
+
+  it("renders v3.15.12 diagnostic_only mode and human-review flag", async () => {
+    vi.mocked(api.researchIntelligenceSummary).mockResolvedValue(
+      diagnosticSummary()
+    );
+    render(<ResearchIntelligenceCard />);
+    const card = await screen.findByTestId("research-intelligence-card");
+    expect(card).toHaveTextContent("diagnostic_only");
+    expect(card).toHaveTextContent("review required");
+    expect(card).toHaveTextContent("stop_or_pivot");
+    expect(card).toHaveTextContent("LOW");
   });
 });
