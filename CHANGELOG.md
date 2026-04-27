@@ -4,6 +4,72 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.13] — Discovery Sprint Orchestrator (artifact-only)
+
+Date: 2026-04-27
+Branch: `feature/v3.15.13-discovery-sprint-orchestrator`
+
+Adds a **bounded observation-window controller** on top of the v3.15.2
+Campaign Operating Layer. A discovery sprint snapshots a closed
+profile, derives a deterministic plan from the existing
+`research.strategy_hypothesis_catalog` × `research.presets` binding,
+and tracks how many COL-completed campaigns matching the plan land
+inside `[started_at, started_at + max_days]`.
+
+Hard positioning:
+
+- **Artifact-only.** No queue, registry, lease, ledger, or frozen
+  contract is ever mutated. The orchestrator exposes no spawn surface
+  and cannot bypass COL.
+- **Idempotent `run`.** Refuses to start a second sprint while another
+  is `state="active"` and within its window.
+- **Deterministic `plan`.** Same inputs → byte-identical plan output.
+- **One built-in profile this release:** `crypto_exploratory_v1`
+  (target 50 campaigns / 5 days, asset_class=crypto, timeframes=1h/4h,
+  screening_phase=exploratory, hypotheses=trend_pullback_v1 +
+  volatility_compression_breakout_v0, exclude equities, exclude
+  promotion_grade).
+
+### Added
+
+- `research/discovery_sprint.py` — pure profile/plan/payload builders
+  + thin IO wrappers + CLI dispatcher.
+  - `BUILTIN_PROFILES` closed dict (only `crypto_exploratory_v1`).
+  - `derive_plan()` filters on hypothesis_id / timeframe /
+    screening_phase / preset.enabled / preset.status / inferred
+    asset_class.
+  - `count_observations()` over `campaign_registry_latest.v1.json`
+    (read-only).
+  - `compute_sprint_id()` — deterministic
+    `sprt-<utc_compact>-<sha256[:10]>`.
+  - CLI subcommands: `plan`, `run`, `status`, `report`.
+- `research/discovery_sprints/` artifact directory:
+  - `sprint_registry_latest.v1.json`
+  - `discovery_sprint_progress_latest.v1.json`
+  - `discovery_sprint_report_latest.v1.json`
+- `tests/unit/test_discovery_sprint.py` — 27 tests covering profile
+  validation, plan determinism, equities/promotion_grade exclusion,
+  hypothesis allowlist, sprint id determinism, active-sprint guard,
+  artifact writes, status transitions to `completed` (target met) and
+  `expired` (window passed), report gating, frozen-contract integrity,
+  and source-level guard against COL mutator imports.
+
+### Changed
+
+- `VERSION`: bump `3.15.12` → `3.15.13`.
+
+### Not changed (verified)
+
+- `research/research_latest.json` — frozen contract, untouched.
+- `research/strategy_matrix.csv` — frozen contract, untouched.
+- `research/campaign_registry_latest.v1.json`,
+  `research/campaign_queue_latest.v1.json`,
+  `research/campaign_evidence_ledger_latest.v1.jsonl` — read-only by
+  the orchestrator.
+- `research.campaign_policy.decide()` — still pinned by v3.15.11
+  regression.
+- No new strategies, presets, or campaign templates.
+
 ## [v3.15.12] — Funnel Spawn Proposer (advisory shadow mode)
 
 Date: 2026-04-27
