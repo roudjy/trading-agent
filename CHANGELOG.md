@@ -4,6 +4,91 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.11] — Research Intelligence Layer (advisory observability)
+
+Date: 2026-04-27
+Branch: `feature/v3.15.x-research-intelligence-layer`
+
+Adds five deterministic, advisory-only sidecars under
+`research/campaigns/evidence/` plus six read-only `/api/research/*`
+endpoints and a render-only `ResearchIntelligenceCard`. The layer
+turns the v3.15.5–v3.15.10 funnel evidence into operator-facing
+signal — what was learned, where compute is being burned, whether
+the project remains viable within the current hypothesis space.
+
+Hard positioning: advisory observability, NOT autonomous control.
+
+- Stop-condition output uses `recommended_decision` (not `decision`)
+  and carries `enforcement_state="advisory_only"` at top level and on
+  every record.
+- `campaign_policy.decide()` is unchanged. A regression test pins
+  the policy boundary so a future autonomous-consumption release must
+  update that test alongside it.
+- No queue / registry / frozen-contract mutations.
+- No new strategies, no ML, no black-box scoring.
+
+Operator guide: `docs/research_intelligence_layer.md`.
+Handoff: `docs/handoffs/v3.15.11.md`.
+
+### Added
+
+- `research/research_evidence_ledger.py` — pure builder + thin IO
+  wrapper for `research/campaigns/evidence/evidence_ledger_latest.v1.json`.
+  Aggregates `campaign_evidence_ledger.jsonl` joined with
+  `screening_evidence_latest.v1.json` and
+  `candidate_registry_latest.v1.json`. Degenerate outcomes route to
+  `degenerate_count`, never `technical_failure_count`.
+- `research/information_gain.py` — deterministic per-campaign score
+  in `[0.0, 1.0]` with named buckets (`none`/`low`/`medium`/`high`).
+  Constants: `IG_TECHNICAL_FAILURE`, `IG_DUPLICATE_REJECTION`,
+  `IG_NEW_FAILURE_MODE`, `IG_NEAR_CANDIDATE`, `IG_EXPLORATORY_PASS`,
+  `IG_PROMOTION_CANDIDATE`, `IG_PAPER_READY`, `IG_COVERAGE_BONUS_MAX`,
+  `IG_COVERAGE_BONUS_FLOOR`. Coverage bonus is additive and capped
+  so coverage alone cannot push a duplicate-rejection campaign past
+  the medium floor.
+- `research/stop_condition_engine.py` — advisory recommender. Constants:
+  `STOP_INSUFFICIENT_TRADES_COOLDOWN=3`, `STOP_REPEAT_REJECTION_FREEZE=5`,
+  `STOP_REPEAT_REJECTION_RETIRE=10`, `STOP_TECHNICAL_FAILURE_REVIEW=3`,
+  `STOP_NO_INFO_REVIEW=10`. Technical failures route to
+  `REVIEW_REQUIRED`, never `RETIRE_*`. Existing candidate evidence
+  protects scopes from `FREEZE_PRESET` and `RETIRE_*`.
+- `research/dead_zone_detection.py` — `(asset × timeframe × family)`
+  zone classifier with status `insufficient_data`/`unknown`/`alive`/
+  `weak`/`dead`. Conservative thresholds. Timeframe is currently
+  `"unknown"` until v4 ledger-event enrichment fills it in.
+- `research/viability_metrics.py` — verdict `insufficient_data`/
+  `promising`/`weak`/`commercially_questionable`/`stop_or_pivot` plus
+  cost-per-X metrics with `_safe_div` (zero denominators → null).
+- `dashboard/api_research_intelligence.py` — five `/api/research/*`
+  passthrough endpoints + `/api/research/intelligence-summary`
+  combined view.
+- `frontend/src/components/ResearchIntelligenceCard.tsx` — render-only
+  dashboard card.
+- `docs/research_intelligence_layer.md` — operator guide.
+- `docs/handoffs/v3.15.11.md` — handoff.
+
+### Changed
+
+- `research/run_research.py` — finalisation block now writes the
+  five v3.15.11 sidecars in deterministic order
+  (`evidence_ledger → information_gain → stop_conditions →
+  dead_zones → viability`) after the v3.15.9 `screening_evidence`
+  write. Each is wrapped in its own try/except + `tracker_event`.
+  `screening_evidence_payload` is captured into a defaulted local
+  in the v3.15.9 block so the v3.15.11 block can read it safely or
+  degrade to empty inputs when v3.15.9 itself failed.
+- `frontend/src/api/client.ts` — adds `ResearchIntelligenceSummary`
+  type and `api.researchIntelligenceSummary()` fetcher.
+- `dashboard/dashboard.py` — registers the new API blueprint via
+  `register_research_intelligence_routes(app)`.
+
+### Tests
+
+89 new tests across 7 unit + 1 integration + 1 frontend file. All
+v3.15.5–v3.15.11 regression tests remain green. The
+`test_campaign_policy_decide_signature_unchanged` regression pins
+that this release does not consume advisory output in policy.
+
 ## [v3.15.10] — Funnel Completion (combined: v3.15.8 + v3.15.9 + v3.15.10)
 
 Date: 2026-04-26
