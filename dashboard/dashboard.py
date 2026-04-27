@@ -34,6 +34,7 @@ from dashboard.api_campaigns import register_campaign_routes
 from dashboard.api_research_intelligence import (
     register_research_intelligence_routes,
 )
+from dashboard.api_system_meta import register_system_meta_routes
 from reporting import audit_log
 
 app = Flask(__name__, template_folder="templates")
@@ -61,6 +62,11 @@ register_campaign_routes(app)
 # endpoint. All returns carry enforcement_state="advisory_only";
 # the API never interprets the recommendations.
 register_research_intelligence_routes(app)
+
+# QRE Control Room redesign: read-only system metadata used by the
+# Version/Deploy, Artifacts, and Discovery Sprint pages. Filesystem
+# inspection + git rev-parse only; no orchestration imports.
+register_system_meta_routes(app)
 
 
 @app.errorhandler(Exception)
