@@ -90,6 +90,31 @@ export interface ReportPayload {
   [key: string]: unknown;
 }
 
+export interface ResearchIntelligenceSummary {
+  schema_version: string;
+  enforcement_state: "advisory_only";
+  viability: {
+    status?:
+      | "insufficient_data"
+      | "promising"
+      | "weak"
+      | "commercially_questionable"
+      | "stop_or_pivot";
+    reason_codes?: string[];
+    human_summary?: string;
+  };
+  metrics: Record<string, number | null>;
+  information_gain: {
+    score?: number;
+    bucket?: "none" | "low" | "medium" | "high";
+    is_meaningful_campaign?: boolean;
+    reasons?: { code: string; weight: number; explanation: string }[];
+  };
+  advisory_decision_count: number;
+  dead_zone_count: number;
+  ledger_summary: Record<string, number>;
+}
+
 export interface RunStatus {
   run_state: Record<string, unknown>;
   run_progress: Record<string, unknown>;
@@ -156,6 +181,8 @@ export const api = {
   campaignQueue: () => request<Record<string, unknown>>("/api/campaigns/queue"),
   campaignRegistry: () => request<Record<string, unknown>>("/api/campaigns/registry"),
   campaignPresetState: () => request<Record<string, unknown>>("/api/campaigns/preset-state"),
+  researchIntelligenceSummary: () =>
+    request<ResearchIntelligenceSummary>("/api/research/intelligence-summary"),
   login: (username: string, password: string) =>
     request<{ ok: boolean; actor?: string; error?: string }>("/api/session/login", {
       method: "POST",
