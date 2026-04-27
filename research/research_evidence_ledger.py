@@ -26,10 +26,10 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Final, Iterable
+from typing import Any, Final
 
 from research._sidecar_io import write_sidecar_atomic
 
@@ -187,10 +187,7 @@ def _aggregate_hypothesis_evidence(
         degenerate_count: int = 0
         last_outcome: str = UNKNOWN
         last_seen_at_utc: str | None = None
-        reason_counter: Counter[str] | None = None
-
-        def __post_init__(self) -> None:
-            self.reason_counter = Counter()
+        reason_counter: Counter[str] = field(default_factory=Counter)
 
     bucket: dict[tuple[str, str, str], _Roll] = {}
 
@@ -229,7 +226,6 @@ def _aggregate_hypothesis_evidence(
             roll.paper_ready_count += 1
         reason = ev.get("reason_code")
         if reason and reason != "none":
-            assert roll.reason_counter is not None
             roll.reason_counter[str(reason)] += 1
         at_utc = ev.get("at_utc")
         if isinstance(at_utc, str) and (
@@ -241,7 +237,6 @@ def _aggregate_hypothesis_evidence(
     rows: list[dict[str, Any]] = []
     for key in sorted(bucket.keys()):
         roll = bucket[key]
-        assert roll.reason_counter is not None
         if roll.reason_counter:
             dominant = sorted(
                 roll.reason_counter.items(), key=lambda kv: (-kv[1], kv[0])
