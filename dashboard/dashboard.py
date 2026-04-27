@@ -312,13 +312,22 @@ def robots_txt():
     )
 
 
-# React client-side routing: authed deep-links (Dashboard, Presets, History,
-# Reports, Candidates) serve the SPA entrypoint after auth, so hard-reloads
-# on e.g. /presets keep working.
+# React client-side routing: authed deep-links serve the SPA entrypoint
+# after auth, so hard-reloads on e.g. /presets keep working. Added in
+# the QRE Control Room redesign: /sprint, /campaigns, /failures,
+# /artifacts, /health, /version. These handlers contain NO decision
+# logic — they only return the static SPA index so React Router can
+# take over on the client.
 @app.route("/presets")
 @app.route("/history")
 @app.route("/reports")
 @app.route("/candidates")
+@app.route("/sprint")
+@app.route("/campaigns")
+@app.route("/failures")
+@app.route("/artifacts")
+@app.route("/health")
+@app.route("/version")
 @requires_auth
 def spa_fallback_authed():
     return index()
