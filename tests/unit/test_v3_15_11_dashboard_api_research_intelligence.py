@@ -14,6 +14,7 @@ from dashboard.api_research_intelligence import (
 )
 from research import (
     dead_zone_detection,
+    funnel_spawn_proposer,
     information_gain,
     research_evidence_ledger,
     stop_condition_engine,
@@ -31,6 +32,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
         "stop": base / "stop_conditions_latest.v1.json",
         "dz": base / "dead_zones_latest.v1.json",
         "via": base / "viability_latest.v1.json",
+        "spawn": base / "spawn_proposals_latest.v1.json",
     }
     monkeypatch.setattr(
         research_evidence_ledger, "EVIDENCE_LEDGER_PATH", paths["evidence"]
@@ -43,6 +45,9 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
     )
     monkeypatch.setattr(dead_zone_detection, "DEAD_ZONES_PATH", paths["dz"])
     monkeypatch.setattr(viability_metrics, "VIABILITY_PATH", paths["via"])
+    monkeypatch.setattr(
+        funnel_spawn_proposer, "SPAWN_PROPOSALS_PATH", paths["spawn"]
+    )
 
     # Re-import the API module so it picks up patched paths.
     import importlib
@@ -223,3 +228,97 @@ def test_intelligence_summary_endpoint_graceful_when_all_missing(
     assert body["viability"]["status"] == "insufficient_data"
     assert body["dead_zone_count"] == 0
     assert body["advisory_decision_count"] == 0
+    # v3.15.12 — spawn block must be present even when artifact missing.
+    assert body["spawn_proposals"]["proposed_count"] == 0
+    assert body["spawn_proposals"]["proposal_mode"] == "normal"
+    assert body["spawn_proposals"]["human_review_required"] is False
+
+
+def test_spawn_proposals_endpoint_graceful_when_artifact_missing(
+    client: Any,
+) -> None:
+    """v3.15.12 — endpoint returns empty-but-valid envelope when sidecar absent."""
+    resp = client.get("/api/research/spawn-proposals")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["enforcement_state"] == "advisory_only"
+    assert body["mode"] == "shadow"
+    assert body["proposal_mode"] == "normal"
+    assert body["proposed_campaigns"] == []
+    assert body["suppressed_zones"] == []
+
+
+def test_spawn_proposals_endpoint_returns_artifact(client: Any) -> None:
+    """v3.15.12 — endpoint passes through the sidecar JSON verbatim."""
+    paths = client._patched_paths
+    _write(
+        paths["spawn"],
+        {
+            "schema_version": "1.0",
+            "enforcement_state": "advisory_only",
+            "mode": "shadow",
+            "proposal_mode": "normal",
+            "summary": {
+                "proposed_count": 1,
+                "suppressed_zone_count": 0,
+                "human_review_required": False,
+                "exploration_coverage": {},
+                "fingerprint_cooldown_blocks": 0,
+            },
+            "proposed_campaigns": [
+                {
+                    "preset_name": "trend_pullback_crypto_1h",
+                    "proposal_type": "confirmation_campaign",
+                    "spawn_reason": "confirmation_from_exploratory_pass",
+                    "priority_tier": "HIGH",
+                }
+            ],
+            "suppressed_zones": [],
+            "exploration_reservation": {"pct_target": 0.20, "candidate_zones": []},
+            "human_review_required": {"active": False, "reason_codes": []},
+        },
+    )
+    resp = client.get("/api/research/spawn-proposals")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["proposal_mode"] == "normal"
+    assert len(body["proposed_campaigns"]) == 1
+    assert body["proposed_campaigns"][0]["priority_tier"] == "HIGH"
+
+
+def test_intelligence_summary_includes_spawn_block(client: Any) -> None:
+    """v3.15.12 — combined summary surfaces top-3 proposals + counts."""
+    paths = client._patched_paths
+    _write(
+        paths["spawn"],
+        {
+            "schema_version": "1.0",
+            "enforcement_state": "advisory_only",
+            "mode": "shadow",
+            "proposal_mode": "diagnostic_only",
+            "summary": {"proposed_count": 5},
+            "proposed_campaigns": [
+                {
+                    "preset_name": f"p{i}",
+                    "proposal_type": "exploration_reservation_unknown_zone",
+                    "spawn_reason": "exploration_reservation_unknown_zone",
+                    "priority_tier": "LOW",
+                }
+                for i in range(5)
+            ],
+            "suppressed_zones": [
+                {"asset": "crypto", "strategy_family": "momentum"}
+            ],
+            "exploration_reservation": {},
+            "human_review_required": {"active": True, "reason_codes": ["x"]},
+        },
+    )
+    resp = client.get("/api/research/intelligence-summary")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    spawn = body["spawn_proposals"]
+    assert spawn["proposal_mode"] == "diagnostic_only"
+    assert spawn["proposed_count"] == 5
+    assert len(spawn["top_proposals"]) == 3
+    assert spawn["suppressed_zone_count"] == 1
+    assert spawn["human_review_required"] is True

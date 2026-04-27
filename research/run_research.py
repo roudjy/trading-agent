@@ -133,6 +133,7 @@ from research.public_artifact_status import (
 from research.report_agent import generate_post_run_report
 from research.campaign_evidence_ledger import load_events as _load_campaign_events
 from research.dead_zone_detection import write_dead_zones_artifact
+from research.funnel_spawn_proposer import write_spawn_proposals_artifact
 from research.information_gain import (
     InformationGainInputs,
     write_information_gain_artifact,
@@ -3574,6 +3575,10 @@ def run_research(
         # original outcome.
         intelligence_run_id = str(state["run_id"])
         intelligence_evidence_payload: dict[str, Any] | None = None
+        ig_payload: dict[str, Any] | None = None
+        stop_payload: dict[str, Any] | None = None
+        dz_payload: dict[str, Any] | None = None
+        via_payload: dict[str, Any] | None = None
         try:
             intelligence_evidence_payload = write_research_evidence_artifact(
                 run_id=intelligence_run_id,
@@ -3689,6 +3694,40 @@ def run_research(
         except Exception as via_exc:
             tracker.emit_event(
                 "v3_15_11_viability_failed", error=str(via_exc)
+            )
+        # v3.15.12: funnel spawn proposer (advisory shadow mode).
+        # Forward-looking complement to the v3.15.11 backward-looking
+        # intelligence layer. Writes:
+        #   - research/campaigns/evidence/spawn_proposals_latest.v1.json
+        #   - research/campaigns/evidence/spawn_proposal_history.jsonl
+        # Strictly artifact-write. Does NOT mutate campaign_policy,
+        # the queue, the registry, or any frozen contract. Top-level
+        # enforcement_state="advisory_only" + mode="shadow".
+        try:
+            registry_payload_for_proposer = _read_json_if_exists(
+                Path("research/campaign_registry_latest.v1.json")
+            )
+            spawn_payload = write_spawn_proposals_artifact(
+                run_id=intelligence_run_id,
+                as_of_utc=as_of_utc,
+                git_revision=_git_revision(),
+                screening_evidence=screening_evidence_payload,
+                evidence_ledger=intelligence_evidence_payload,
+                information_gain=ig_payload,
+                stop_conditions=stop_payload,
+                dead_zones=dz_payload,
+                viability=via_payload,
+                campaign_registry=registry_payload_for_proposer,
+            )
+            tracker.emit_event(
+                "v3_15_12_spawn_proposals_written",
+                proposed_count=spawn_payload["summary"]["proposed_count"],
+                proposal_mode=spawn_payload["proposal_mode"],
+                suppressed_zone_count=spawn_payload["summary"]["suppressed_zone_count"],
+            )
+        except Exception as spawn_exc:
+            tracker.emit_event(
+                "v3_15_12_spawn_proposals_failed", error=str(spawn_exc)
             )
         try:
             generate_post_run_report(run_id=str(state["run_id"]))
