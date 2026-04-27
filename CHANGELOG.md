@@ -4,6 +4,90 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.14] — Sprint-aware COL Routing
+
+Date: 2026-04-27
+Branch: `feature/v3.15.14-sprint-aware-col-routing`
+
+Closes the v3.15.13 observer/router split: when a discovery sprint is
+active, the v3.15.2 Campaign Operating Layer (COL) now filters its
+candidate set to the sprint's plan presets BEFORE
+`campaign_policy.decide()` runs. `decide()` itself is unchanged
+(v3.15.11 regression pin intact); the routing happens by shrinking
+the launcher's input.
+
+When no sprint is active — including when state is `completed`,
+`expired`, or `canceled` — COL behavior is identical to v3.15.13
+(passthrough).
+
+### Added
+
+- `research/discovery_sprint.py`:
+  - `ActiveSprintConstraints` (frozen dataclass) — read-only summary of
+    plan_preset_names / plan_hypothesis_ids / target / window.
+  - `load_active_sprint_constraints()` — reads sprint registry, returns
+    `None` when state ≠ active OR window expired OR (registry given AND
+    target met). Recognises `canceled` as a non-active terminal state
+    (`INACTIVE_SPRINT_STATES`).
+  - `apply_sprint_routing()` — pure filter over `(templates,
+    follow_up_specs, weekly_control_specs)` to plan preset names.
+  - `build_routing_decision_payload()` + `write_routing_decision_artifact()`
+    — read-only audit sidecar at
+    `research/discovery_sprints/sprint_routing_decision_latest.v1.json`
+    capturing `(routing_active, sprint_id, profile_name, counts,
+    decision)` per launcher tick.
+  - `sprint_extra_for_record()` — returns the extra-keys to stamp on
+    spawned campaigns: `sprint_id`, `sprint_profile_name`,
+    `sprint_routing="v3.15.14"`.
+- `research/campaign_launcher.py`:
+  - `_tick()` now calls `load_active_sprint_constraints()` and
+    `apply_sprint_routing()` between `_build_*_specs` and `decide()`,
+    then writes the routing sidecar when a sprint is active.
+  - `_apply_decision()` accepts `sprint_constraints` and stamps the
+    new `CampaignRecord.extra` with sprint metadata at spawn time
+    (additive nullable fields under existing `extra: dict[str, Any]`).
+- `tests/unit/test_discovery_sprint_routing.py` — 23 tests covering
+  loader matrix (no-registry / canceled / completed / expired /
+  target-met / happy-path), routing-helper behavior (passthrough /
+  templates filter / equities exclusion / promotion_grade exclusion /
+  followup+control filter), routing-decision payload + atomic write,
+  sprint extra stamping, launcher tick integration (passthrough
+  vs filtering vs sidecar absence vs disengagement-on-cancel),
+  v3.15.13 status regression, and frozen-contract integrity.
+- `docker-compose.yml`: added `./research:/app/research` bind mount to
+  the `agent` service. Required so the campaign launcher (running in
+  the agent container) can read the sprint registry written by the
+  dashboard container — without this, sprint routing silently
+  remains inactive on the VPS.
+
+### Changed
+
+- `VERSION`: `3.15.13` → `3.15.14`.
+
+### Not changed (verified)
+
+- `research/campaign_policy.decide()` — signature, body, and
+  byte-identity invariant (I6) all preserved. v3.15.11 regression pin
+  intact.
+- `research/research_latest.json`, `research/strategy_matrix.csv` —
+  frozen contracts, untouched.
+- No new strategies, presets, or hypothesis catalog rows.
+- COL queue / lease / admission control / cooldown / per-template
+  daily cap / budget enforcement — unchanged. v3.15.14 routes by
+  shrinking the candidate set; every other gate fires verbatim.
+
+### Known limitations (not blocking the release)
+
+- The crypto sprint plan includes `vol_compression_breakout_crypto_1h`,
+  but `research/campaign_templates.py` currently wires the standard
+  five-template set only for `trend_pullback_crypto_1h` (v3.15.3
+  hypothesis-aware presets). Until the second preset is wired into
+  CAMPAIGN_TEMPLATES (a separate v3.15.4-style mechanical fix),
+  sprint routing will only spawn `trend_pullback_crypto_1h`
+  campaigns. The launcher correctly filters by plan ∩ catalog, so
+  no spurious campaigns fire — the sprint just makes partial
+  progress against its target.
+
 ## [v3.15.13] — Discovery Sprint Orchestrator (artifact-only)
 
 Date: 2026-04-27
