@@ -4,6 +4,87 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.12] — Funnel Spawn Proposer (advisory shadow mode)
+
+Date: 2026-04-27
+Branch: `feature/v3.15.12-funnel-spawn-proposer`
+
+Adds the first **forward-looking** module in the research intelligence
+layer. Reads v3.15.9 screening_evidence + v3.15.11 advisory artifacts +
+v3.15.2 campaign_registry, emits proposed-but-not-spawned campaigns at
+`research/campaigns/evidence/spawn_proposals_latest.v1.json` plus an
+append-only `spawn_proposal_history.jsonl` for fingerprint cooldown.
+
+Hard positioning: advisory shadow mode only. Top-level
+`enforcement_state="advisory_only"` + `mode="shadow"`. Per-build
+`proposal_mode in {"normal", "diagnostic_only"}` switches behavior
+based on viability verdict. `campaign_policy.decide()` remains
+unchanged — pinned by extended regression test that re-asserts the
+boundary now that another advisory sidecar exists.
+
+Six operator-review hardenings vs the original sketch:
+
+1. proposal_fingerprint covers 6 fields (hypothesis, preset,
+   parameter_grid_signature from v3.15.8, timeframe, asset,
+   proposal_type).
+2. Per-fingerprint cooldown (`FINGERPRINT_COOLDOWN_DAYS = 7`) via
+   append-only `spawn_proposal_history.jsonl`.
+3. Exploration coverage enforced over BOTH percentage AND scope spread
+   (≥3 families, ≥3 assets, ≥2 timeframes; shortfalls reported in
+   `summary.exploration_coverage.shortfall_reason_codes`).
+4. Dead-zone suppression decays after `DEAD_ZONE_DECAY_DAYS = 14` —
+   never permanent on low data.
+5. `viability == "stop_or_pivot"` toggles `proposal_mode =
+   "diagnostic_only"`, drops HIGH-tier proposals, caps total at
+   `MAX_PROPOSALS_PER_RUN_DIAGNOSTIC = 3`.
+6. Deterministic `priority_tier` enum (HIGH/MEDIUM/LOW/SUPPRESSED)
+   plus `reason_trace[]` on every proposal AND every suppressed zone.
+
+### Added
+
+- `research/funnel_spawn_proposer.py` — pure builder + thin IO wrapper
+  with eleven deterministic rules (R1–R11), per-fingerprint cooldown
+  via append-only history JSONL, and constants
+  `EXPLORATION_RESERVATION_PCT = 0.20`,
+  `EXPLORATION_MIN_DISTINCT_FAMILIES = 3`,
+  `EXPLORATION_MIN_DISTINCT_ASSETS = 3`,
+  `EXPLORATION_MIN_DISTINCT_TIMEFRAMES = 2`,
+  `MAX_PROPOSALS_PER_RUN_NORMAL = 10`,
+  `MAX_PROPOSALS_PER_RUN_DIAGNOSTIC = 3`,
+  `FINGERPRINT_COOLDOWN_DAYS = 7`,
+  `DEAD_ZONE_DECAY_DAYS = 14`.
+- `dashboard/api_research_intelligence.py` — new endpoint
+  `GET /api/research/spawn-proposals` (passthrough) and a new
+  `spawn_proposals` block in `/api/research/intelligence-summary`
+  (combined card-friendly view).
+- `frontend/src/components/ResearchIntelligenceCard.tsx` — extended
+  with proposal mode row (warn-tinted in diagnostic_only),
+  spawn proposal count, suppressed zone count, optional review-required
+  row, and top-3 proposals.
+- `docs/funnel_spawn_proposer_design.md` — design doc with all six
+  hardenings and the 10-item MUST HAVE checklist.
+- `docs/handoffs/v3.15.12.md` — handoff.
+
+### Changed
+
+- `research/run_research.py` — finalisation block now calls
+  `write_spawn_proposals_artifact(...)` after `write_viability_artifact`.
+  Wrapped in its own try/except + `tracker_event`. Promoted four
+  payload variables (`ig_payload`, `stop_payload`, `dz_payload`,
+  `via_payload`) to defaulted Optional locals so the proposer can
+  read them safely or degrade to `None` when their owning try block
+  failed.
+- `frontend/src/api/client.ts` — `ResearchIntelligenceSummary` type
+  extended with optional `spawn_proposals` field.
+
+### Tests
+
+53 new tests across 1 unit + 1 integration + 3 endpoint + 2 frontend.
+All v3.15.5–v3.15.12 regression tests remain green. The regression
+test `test_campaign_policy_decide_signature_still_pinned_after_v3_15_12`
+re-pins the policy boundary now that another consumable advisory
+sidecar exists.
+
 ## [v3.15.11] — Research Intelligence Layer (advisory observability)
 
 Date: 2026-04-27
