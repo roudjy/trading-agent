@@ -3,6 +3,12 @@
 // Session cookie is set by the Flask /api/session/login endpoint; this
 // client always sends credentials so the cookie rides along.
 
+import type {
+  SystemArtifactIndex,
+  SystemMetaVersion,
+  SystemSprintStatus,
+} from "./system";
+
 export interface Health {
   status: string;
   version: string;
@@ -193,8 +199,17 @@ export const api = {
   campaignQueue: () => request<Record<string, unknown>>("/api/campaigns/queue"),
   campaignRegistry: () => request<Record<string, unknown>>("/api/campaigns/registry"),
   campaignPresetState: () => request<Record<string, unknown>>("/api/campaigns/preset-state"),
+  campaignTemplates: () => request<Record<string, unknown>>("/api/campaigns/templates"),
+  campaignPolicyLatest: () => request<Record<string, unknown>>("/api/campaigns/policy/latest"),
+  campaignBudget: () => request<Record<string, unknown>>("/api/campaigns/budget"),
+  campaignFamilyState: () => request<Record<string, unknown>>("/api/campaigns/family-state"),
+  campaignEvidence: () => request<Record<string, unknown>>("/api/campaigns/evidence"),
   researchIntelligenceSummary: () =>
     request<ResearchIntelligenceSummary>("/api/research/intelligence-summary"),
+  systemVersion: () => request<SystemMetaVersion>("/api/system/version"),
+  systemArtifactIndex: () =>
+    request<SystemArtifactIndex>("/api/research/artifact-index"),
+  sprintStatus: () => request<SystemSprintStatus>("/api/research/sprint-status"),
   login: (username: string, password: string) =>
     request<{ ok: boolean; actor?: string; error?: string }>("/api/session/login", {
       method: "POST",
@@ -205,3 +220,13 @@ export const api = {
 };
 
 export { ApiError };
+export type {
+  SystemArtifactIndex,
+  SystemArtifactDirectory,
+  SystemFileMeta,
+  SystemMetaVersion,
+  SystemSprintStatus,
+  SprintRegistry,
+  SprintProgress,
+  SprintReport,
+} from "./system";

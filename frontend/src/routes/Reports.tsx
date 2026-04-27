@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, ReportPayload } from "../api/client";
 import { StaleArtifactBanner } from "../components/StaleArtifactBanner";
+import { Star, Warn } from "../components/pixel/Glyphs";
+import { PixelCard } from "../components/pixel/PixelCard";
+import { PixelSectionHeader } from "../components/pixel/PixelSectionHeader";
+import { PixelBadge } from "../components/pixel/PixelBadge";
+import { EmptyStatePanel } from "../components/pixel/EmptyStatePanel";
 
 export function Reports() {
   const [markdown, setMarkdown] = useState<string | null>(null);
@@ -14,68 +19,89 @@ export function Reports() {
         setMarkdown(res.markdown);
         setPayload(res.payload);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "onbekende fout");
+        setError(e instanceof Error ? e.message : "unknown error");
       }
     })();
   }, []);
 
+  if (error) {
+    return (
+      <EmptyStatePanel
+        title="Report unavailable"
+        message={`Failed to load latest report: ${error}`}
+        icon={<Warn size={36} />}
+      />
+    );
+  }
+
   return (
-    <>
-      <h2 style={{ marginTop: 0 }}>Reports</h2>
+    <div>
+      <PixelSectionHeader title="Reports" icon={<Star size={20} />} />
       <StaleArtifactBanner />
-      {error && <div className="card danger">Fout: {error}</div>}
       {payload && (
-        <section className="card">
-          <h2>Samenvatting</h2>
-          <dl style={{ margin: 0 }}>
-            <dt className="muted">Verdict</dt>
-            <dd><strong>{payload.verdict}</strong></dd>
-            <dt className="muted">Preset</dt>
-            <dd><code>{payload.preset ?? "—"}</code></dd>
-            <dt className="muted">Run ID</dt>
-            <dd><code>{payload.run_id ?? "—"}</code></dd>
-            <dt className="muted">Samenvatting</dt>
-            <dd>
-              <ul>
-                {/* v3.11: summary may carry nested dicts (screening,
-                    promotion). Only render primitive values here; the
-                    nested v3.11 blocks ship in the markdown below. */}
-                {Object.entries(payload.summary ?? {})
-                  .filter(([, v]) => typeof v === "number" || typeof v === "string")
-                  .map(([k, v]) => (
-                    <li key={k}>
-                      {k}: <strong>{String(v)}</strong>
+        <PixelCard style={{ marginBottom: 18 }}>
+          <div className="pixel-stat-label" style={{ marginBottom: 10 }}>
+            SUMMARY
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="mono" style={{ fontSize: 14 }}>
+              <span style={{ color: "var(--ink-muted)" }}>verdict ·</span>{" "}
+              <PixelBadge kind="info">{payload.verdict}</PixelBadge>
+            </div>
+            <div className="mono" style={{ fontSize: 14 }}>
+              <span style={{ color: "var(--ink-muted)" }}>preset ·</span>{" "}
+              <code>{payload.preset ?? "—"}</code>
+            </div>
+            <div className="mono" style={{ fontSize: 14 }}>
+              <span style={{ color: "var(--ink-muted)" }}>run id ·</span>{" "}
+              <code>{payload.run_id ?? "—"}</code>
+            </div>
+            <div className="mono" style={{ fontSize: 14 }}>
+              <span style={{ color: "var(--ink-muted)" }}>next experiment ·</span>{" "}
+              {payload.next_experiment}
+            </div>
+            {payload.top_rejection_reasons?.length > 0 && (
+              <div>
+                <div className="pixel-stat-label" style={{ marginTop: 12, marginBottom: 6 }}>
+                  TOP REJECTION REASONS
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {payload.top_rejection_reasons.map((r) => (
+                    <li key={r.reason} className="mono" style={{ fontSize: 13 }}>
+                      {r.reason} ({r.count})
                     </li>
                   ))}
-              </ul>
-            </dd>
-            <dt className="muted">Volgende experiment</dt>
-            <dd>{payload.next_experiment}</dd>
-            {payload.top_rejection_reasons?.length ? (
-              <>
-                <dt className="muted">Top rejection reasons</dt>
-                <dd>
-                  <ul>
-                    {payload.top_rejection_reasons.map((r) => (
-                      <li key={r.reason}>
-                        {r.reason} ({r.count})
-                      </li>
-                    ))}
-                  </ul>
-                </dd>
-              </>
-            ) : null}
-          </dl>
-        </section>
+                </ul>
+              </div>
+            )}
+          </div>
+        </PixelCard>
       )}
-      <section className="card">
-        <h2>Markdown</h2>
+      <PixelCard>
+        <div className="pixel-stat-label" style={{ marginBottom: 10 }}>
+          MARKDOWN
+        </div>
         {markdown ? (
-          <pre className="markdown">{markdown}</pre>
+          <pre
+            className="mono"
+            style={{
+              background: "var(--panel-2)",
+              padding: 12,
+              fontSize: 12,
+              maxHeight: "60vh",
+              overflow: "auto",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {markdown}
+          </pre>
         ) : (
-          <div className="muted">Geen report_latest.md beschikbaar.</div>
+          <div className="mono" style={{ color: "var(--ink-muted)" }}>
+            no report_latest.md available
+          </div>
         )}
-      </section>
-    </>
+      </PixelCard>
+    </div>
   );
 }
