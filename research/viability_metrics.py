@@ -68,7 +68,7 @@ def _aggregate_from_ledger(evidence_ledger: dict[str, Any]) -> dict[str, int]:
         "candidate_count": 0,
         "near_candidate_count": 0,
         "paper_ready_count": 0,
-        "exploratory_pass_count": 0,
+        "exploratory_pass_count": 0,  # nosec B105 — counter key, not a credential
         "rejection_count": 0,
         "technical_failure_count": 0,
     }
@@ -193,10 +193,20 @@ def build_viability_payload(
         _safe_div(technical_failure_count, campaign_count) or 0.0
     )
 
-    cost_per_meaningful = _safe_div(estimated_compute_cost or 0.0, meaningful) if estimated_compute_cost else None
-    cost_per_candidate = _safe_div(estimated_compute_cost or 0.0, candidate_count) if estimated_compute_cost else None
-    cost_per_near = _safe_div(estimated_compute_cost or 0.0, totals["near_candidate_count"]) if estimated_compute_cost else None
-    cost_per_paper_ready = _safe_div(estimated_compute_cost or 0.0, paper_ready_count) if estimated_compute_cost else None
+    if estimated_compute_cost is not None:
+        cost_per_meaningful = _safe_div(estimated_compute_cost, meaningful)
+        cost_per_candidate = _safe_div(estimated_compute_cost, candidate_count)
+        cost_per_near = _safe_div(
+            estimated_compute_cost, totals["near_candidate_count"]
+        )
+        cost_per_paper_ready = _safe_div(
+            estimated_compute_cost, paper_ready_count
+        )
+    else:
+        cost_per_meaningful = None
+        cost_per_candidate = None
+        cost_per_near = None
+        cost_per_paper_ready = None
 
     verdict, reasons, summary = _classify_verdict(
         campaign_count=campaign_count,
