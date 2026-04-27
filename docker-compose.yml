@@ -32,6 +32,7 @@ services:
       - ./reports:/app/reports     # Rapporten bewaren
       - ./config:/app/config       # Config aanpasbaar zonder rebuild
       - ./state:/app/state         # v3.10: session/operator secrets bewaren
+      - ./research:/app/research   # v3.15.14: campaign launcher must read sprint registry + write registry/queue/ledger artifacts to the same persistent volume the dashboard reads
     environment:
       - TZ=Europe/Amsterdam        # Nederlandse tijdzone
       - PYTHONPATH=/app            # absolute imports (data.contracts, reporting.*) werken als script
