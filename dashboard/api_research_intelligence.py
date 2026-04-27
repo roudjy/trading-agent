@@ -1,10 +1,10 @@
-"""Dashboard API blueprint for the v3.15.11 Research Intelligence Layer.
+"""Dashboard API blueprint for the v3.15.11+ Research Intelligence Layer.
 
-Five read-only endpoints plus one combined summary, each returning the
-corresponding advisory observability sidecar as JSON. Zero business
-logic in the API layer — every artifact already carries its full
-deterministic content (schema_version, advisory enforcement_state on
-stop-conditions, conservative verdict on viability), so the API is a
+Six read-only sidecar passthroughs plus one combined summary. v3.15.12
+adds /api/research/spawn-proposals (forward-looking advisory) and
+extends the summary with proposal_mode + top-3 proposals + suppressed
+zone count. Zero business logic in the API layer — every artifact
+already carries its full deterministic content, so the API is a
 straight passthrough that does not interpret advisory recommendations.
 
 Wire-up:
@@ -28,6 +28,11 @@ from typing import Any
 from flask import Flask, jsonify
 
 from research.dead_zone_detection import DEAD_ZONES_PATH
+from research.funnel_spawn_proposer import (
+    MODE_SHADOW,
+    PROPOSAL_MODE_NORMAL,
+    SPAWN_PROPOSALS_PATH,
+)
 from research.information_gain import INFORMATION_GAIN_PATH
 from research.research_evidence_ledger import EVIDENCE_LEDGER_PATH
 from research.stop_condition_engine import (
@@ -98,6 +103,29 @@ def _empty_viability() -> dict[str, Any]:
     }
 
 
+def _empty_spawn_proposals() -> dict[str, Any]:
+    return {
+        "schema_version": "1.0",
+        "enforcement_state": ENFORCEMENT_STATE_ADVISORY,
+        "mode": MODE_SHADOW,
+        "proposal_mode": PROPOSAL_MODE_NORMAL,
+        "summary": {
+            "proposed_count": 0,
+            "suppressed_zone_count": 0,
+            "human_review_required": False,
+            "exploration_coverage": {},
+            "fingerprint_cooldown_blocks": 0,
+        },
+        "proposed_campaigns": [],
+        "suppressed_zones": [],
+        "exploration_reservation": {
+            "pct_target": 0.20,
+            "candidate_zones": [],
+        },
+        "human_review_required": {"active": False, "reason_codes": []},
+    }
+
+
 def register_research_intelligence_routes(app: Flask) -> None:
     @app.route("/api/research/evidence-ledger")
     def _api_research_evidence_ledger():
@@ -123,22 +151,41 @@ def register_research_intelligence_routes(app: Flask) -> None:
     def _api_research_viability():
         return jsonify(_read_json(VIABILITY_PATH, _empty_viability()))
 
+    @app.route("/api/research/spawn-proposals")
+    def _api_research_spawn_proposals():
+        return jsonify(
+            _read_json(SPAWN_PROPOSALS_PATH, _empty_spawn_proposals())
+        )
+
     @app.route("/api/research/intelligence-summary")
     def _api_research_intelligence_summary():
         """Convenience endpoint: top-level metrics for the dashboard card.
 
-        Pure JSON-merge over the five sidecars — no derived logic.
-        Frontend can hit this single endpoint instead of five for the
+        Pure JSON-merge over the six sidecars — no derived logic. The
+        frontend hits this single endpoint instead of six for the
         summary card (still receives advisory enforcement_state).
+        v3.15.12 adds proposal_mode + top-3 proposals + suppressed
+        zone count + human-review flag.
         """
         viability = _read_json(VIABILITY_PATH, _empty_viability())
         ig = _read_json(INFORMATION_GAIN_PATH, _empty_information_gain())
         stop = _read_json(STOP_CONDITIONS_PATH, _empty_stop_conditions())
         zones = _read_json(DEAD_ZONES_PATH, _empty_dead_zones())
         ledger = _read_json(EVIDENCE_LEDGER_PATH, _empty_evidence_ledger())
+        spawn = _read_json(SPAWN_PROPOSALS_PATH, _empty_spawn_proposals())
         dead_zone_count = sum(
             1 for z in (zones.get("zones") or []) if z.get("zone_status") == "dead"
         )
+        proposed = spawn.get("proposed_campaigns") or []
+        top_proposals = [
+            {
+                "preset_name": p.get("preset_name"),
+                "proposal_type": p.get("proposal_type"),
+                "spawn_reason": p.get("spawn_reason"),
+                "priority_tier": p.get("priority_tier"),
+            }
+            for p in proposed[:3]
+        ]
         return jsonify(
             {
                 "schema_version": "1.0",
@@ -149,6 +196,17 @@ def register_research_intelligence_routes(app: Flask) -> None:
                 "advisory_decision_count": len(stop.get("decisions") or []),
                 "dead_zone_count": dead_zone_count,
                 "ledger_summary": ledger.get("summary") or {},
+                "spawn_proposals": {
+                    "proposal_mode": spawn.get("proposal_mode"),
+                    "proposed_count": len(proposed),
+                    "suppressed_zone_count": len(
+                        spawn.get("suppressed_zones") or []
+                    ),
+                    "human_review_required": (
+                        spawn.get("human_review_required") or {}
+                    ).get("active", False),
+                    "top_proposals": top_proposals,
+                },
             }
         )
 

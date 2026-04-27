@@ -120,6 +120,50 @@ export function ResearchIntelligenceCard(): JSX.Element | null {
           <span>dead zones</span>
           <strong>{summary.dead_zone_count}</strong>
         </div>
+        {summary.spawn_proposals ? (
+          <>
+            <div
+              className={`row ${
+                summary.spawn_proposals.proposal_mode === "diagnostic_only"
+                  ? "warn"
+                  : ""
+              }`}
+            >
+              <span>proposal mode</span>
+              <strong>{summary.spawn_proposals.proposal_mode ?? "-"}</strong>
+            </div>
+            <div className="row">
+              <span>spawn proposals</span>
+              <strong>{summary.spawn_proposals.proposed_count ?? 0}</strong>
+            </div>
+            <div className="row">
+              <span>suppressed zones</span>
+              <strong>
+                {summary.spawn_proposals.suppressed_zone_count ?? 0}
+              </strong>
+            </div>
+            {summary.spawn_proposals.human_review_required ? (
+              <div className="row warn">
+                <span>review required</span>
+                <strong>yes — viability stop_or_pivot</strong>
+              </div>
+            ) : null}
+            {(summary.spawn_proposals.top_proposals ?? []).slice(0, 3).map(
+              (p, idx) => (
+                <div
+                  className="row muted"
+                  key={`${p.preset_name ?? "unknown"}-${idx}`}
+                >
+                  <span>{p.priority_tier ?? "?"}</span>
+                  <strong>
+                    {p.proposal_type ?? "?"}{" "}
+                    <span className="muted">{p.preset_name ?? ""}</span>
+                  </strong>
+                </div>
+              )
+            )}
+          </>
+        ) : null}
       </div>
     </div>
   );

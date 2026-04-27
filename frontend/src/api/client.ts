@@ -113,6 +113,18 @@ export interface ResearchIntelligenceSummary {
   advisory_decision_count: number;
   dead_zone_count: number;
   ledger_summary: Record<string, number>;
+  spawn_proposals?: {
+    proposal_mode?: "normal" | "diagnostic_only";
+    proposed_count?: number;
+    suppressed_zone_count?: number;
+    human_review_required?: boolean;
+    top_proposals?: {
+      preset_name?: string;
+      proposal_type?: string;
+      spawn_reason?: string;
+      priority_tier?: "HIGH" | "MEDIUM" | "LOW" | "SUPPRESSED";
+    }[];
+  };
 }
 
 export interface RunStatus {
