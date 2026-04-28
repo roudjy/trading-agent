@@ -4,6 +4,105 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.4] — Diagnostics Taxonomy Patch (additive, behavior-pure)
+
+Date: 2026-04-28
+Branch: `feat/diagnostics-taxonomy-v3-15-15-4`
+
+Aligns the observability classifier with the launcher's actual emitted
+outcome vocabulary. The launcher (research/campaign_launcher.py
+v3.15.5+) writes literals like ``technical_failure``,
+``degenerate_no_survivors``, ``completed_with_candidates``,
+``paper_blocked``, ``research_rejection``, ``completed_no_survivor``
+that the diagnostics layer used to classify as ``unknown``. Existing
+mappings are preserved byte-for-byte; the patch is additive only.
+
+### Changed
+
+- `research/diagnostics/failure_modes.py`:
+  - ``OUTCOME_CLASSES`` extended from 8 to 9 entries — adds
+    ``"paper_blocked"`` as a dedicated class. Folding paper_blocked
+    into ``completed_no_survivor`` would have been misleading because
+    a candidate was found (paper-readiness blocked promotion, not the
+    research stage).
+  - ``_OUTCOME_TO_CLASS`` extended with the launcher's v3.15.5+ outcome
+    literals: ``completed_with_candidates``,
+    ``completed_no_survivor``, ``degenerate_no_survivors``,
+    ``technical_failure``, ``research_rejection``, ``paper_blocked``,
+    ``integrity_failed``, ``aborted``, ``canceled_duplicate``,
+    ``canceled_upstream_stale``, plus pre-v3.15.5 backward-compat
+    ``worker_crashed``.
+  - All pre-existing entries preserved verbatim — pinned by a new
+    parametrised regression test
+    ``test_pre_patch_classification_unchanged``.
+- `research/diagnostics/throughput.py`:
+  - ``_is_meaningful`` extended to recognise launcher-literal outcomes.
+    ``completed_with_candidates``, ``completed_no_survivor``,
+    ``research_rejection``, ``degenerate_no_survivors``, and
+    ``paper_blocked`` are meaningful. ``technical_failure``,
+    ``worker_crashed``, ``integrity_failed`` and the four cancellation
+    literals are not. Pre-existing semantics for ``no_signal`` /
+    ``near_pass`` / ``completed`` / ``failed`` are unchanged — pinned
+    by ``test_pre_patch_meaningful_unchanged``.
+
+### Added (tests only)
+
+- `tests/unit/test_observability_failure_modes.py`:
+  - ``test_pre_patch_classification_unchanged`` — pins every
+    historical (outcome, failure_reason) pair (14 cases).
+  - ``test_launcher_literal_outcome_classifies_correctly`` — verifies
+    each launcher literal lands in its dedicated class (13 cases).
+  - ``test_paper_blocked_is_a_dedicated_outcome_class`` — verifies the
+    ``paper_blocked`` literal does NOT collapse into
+    ``completed_no_survivor``.
+  - ``test_known_launcher_outcomes_never_land_in_unknown`` —
+    comprehensive guarantee that every recognised literal classifies
+    cleanly.
+  - ``test_unknown_outcome_still_lands_in_unknown`` — pins the
+    catch-all behavior for genuinely unrecognised values.
+  - ``test_outcome_classes_taxonomy_includes_paper_blocked_v3_15_15_4`` —
+    pins the new taxonomy size (9 entries) and ``paper_blocked``
+    membership.
+- `tests/unit/test_observability_throughput.py`:
+  - ``test_pre_patch_meaningful_unchanged`` — pins every historical
+    meaningful classification (13 cases).
+  - ``test_launcher_literal_meaningful_classification`` — covers each
+    launcher literal (11 cases).
+  - ``test_meaningful_per_day_counts_launcher_literals`` — end-to-end
+    via ``compute_throughput_metrics``.
+  - ``test_paper_blocked_is_meaningful`` — pins the meaningful
+    classification of paper_blocked.
+
+### Not changed
+
+- `research/campaign_launcher.py` — launcher emits the same outcome
+  literals as before; this patch only teaches the diagnostics layer
+  to read them.
+- `research/diagnostics/aggregator.py` — taxonomy-agnostic; operates
+  over component status, not outcome strings.
+- `research/diagnostics/artifact_health.py` — does not classify
+  outcomes.
+- `research/diagnostics/paths.py`, `system_integrity.py`, `cli.py` —
+  unaffected.
+- All frozen contracts (`research_latest.json`,
+  `strategy_matrix.csv`).
+- Frontend, dashboard, and any module outside `research/diagnostics/`.
+
+### Validation
+
+- 74/74 tests pass in
+  ``test_observability_failure_modes.py`` + ``test_observability_throughput.py``
+  (was ~17 before; +57 new cases).
+- 192/192 tests pass across the full diagnostics + dashboard
+  observability suite.
+- Frozen contracts md5 unchanged.
+
+### Rollback
+
+``git revert -m 1 <merge-commit>`` removes the taxonomy entries and
+the new tests. Existing v3.15.15.2/3 unit tests continue to pass on
+the reverted code (the taxonomy patch is purely additive).
+
 ## [v3.15.15.3] — Observability Frontend Integration (thin surface)
 
 Date: 2026-04-28
