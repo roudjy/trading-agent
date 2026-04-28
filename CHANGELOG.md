@@ -4,6 +4,93 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.2] — Discovery Observability & Instrumentation (MVP)
+
+Date: 2026-04-28
+Branch: `feat/observability-v3-15-15-2`
+
+Read-only observability layer. Generates five sidecar artifacts under
+``research/observability/`` describing artifact health, failure-mode
+distribution, throughput metrics, system integrity, and an aggregator
+summary. Zero behavior change: no campaign, sprint, policy, queue,
+sampling, screening, or strategy code is modified or imported.
+
+### Added
+
+- ``research/diagnostics/`` package (Python module path) with five
+  active modules (artifact_health, failure_modes, throughput,
+  system_integrity, aggregator), one centralized ``paths.py``
+  (single source of truth for artifact paths), a passive ``io.py``
+  (read_json_safe + bounded read_jsonl_tail_safe), an injectable
+  ``clock.py``, a ``cli.py`` exposing ``python -m research.diagnostics
+  {build, status}``, and ``__main__.py`` delegating to the CLI. The
+  Python module name diverges from the v3.15.15.2 brief (which
+  proposed ``research.observability``) because that name is already
+  taken by a runtime module exposing ``ProgressTracker`` to
+  ``research.run_research``. Output artifact paths are unchanged
+  and still land under ``research/observability/`` (a pure data
+  directory, no ``__init__.py``) per the brief.
+- New observability artifacts (every output is byte-deterministic
+  given fixed inputs + ``now_utc``):
+  - ``research/observability/artifact_health_latest.v1.json``
+  - ``research/observability/failure_modes_latest.v1.json``
+  - ``research/observability/throughput_metrics_latest.v1.json``
+  - ``research/observability/system_integrity_latest.v1.json``
+  - ``research/observability/observability_summary_latest.v1.json``
+- ``ops/systemd/trading-agent-observability.service`` +
+  ``.timer`` (15-min cadence). **Shipped but NOT auto-installed**;
+  operator decides when to enable per ``ops/systemd/README.md``.
+- ``docs/qre_observability_runbook.md`` — install / disable /
+  rollback procedure.
+- ``tests/unit/test_observability_*`` — 38 unit tests covering the
+  modules, CLI, path drift, static import surface, and the end-to-end
+  "no other artifacts mutated" guarantee.
+
+### Hard guarantees verified by tests
+
+- ``test_observability_static_import_surface.py`` — every module under
+  ``research/diagnostics/`` is parsed AS TEXT (no import) and
+  rejected if it imports any campaign / sprint / strategy / runtime
+  module. Allowed project imports are limited to
+  ``research._sidecar_io`` (verified pure). Forbidden list
+  explicitly includes the legacy ``research.observability`` runtime
+  module so we cannot accidentally pull in its
+  ``research.run_state`` dependency.
+- ``test_observability_no_other_artifacts_mutated.py`` — snapshots
+  mtime+size of every file under a synthetic ``research/`` tree
+  before/after a CLI build, asserts that ONLY files under
+  ``research/observability/`` were created or modified.
+- ``test_observability_paths.py`` — drift test parses writer modules
+  AS TEXT and verifies they still produce the filenames the
+  observability layer reads.
+- Determinism: every aggregation module accepts ``now_utc=`` for
+  injection; tests assert byte-identical output across two runs with
+  the same inputs.
+
+### Not changed (explicit no-ops)
+
+- frozen contracts (``research_latest.json``, ``strategy_matrix.csv``)
+- campaign launcher, policy, queue, lease, registry, digest,
+  templates, budget, family / preset policy
+- sprint orchestrator, screening runtime, screening evidence,
+  candidate pipeline, strategy code
+- existing dashboard endpoints + auth surface
+- VERSION schema (the bump from ``3.15.15`` → ``3.15.15.2`` follows
+  PEP 440 sub-patch ordering)
+
+### Bounded reads
+
+- ``MAX_LEDGER_LINES = 10_000`` and ``MAX_LEDGER_TAIL_BYTES = 25 MB``
+  cap ledger ingestion. Partial trailing JSONL line is dropped to
+  defend against in-flight appender writes; reported via
+  ``source.ledger_partial_trailing_dropped``.
+
+### Rollback
+
+``git revert -m 1 <merge-commit>`` removes every observability file
+plus the systemd unit files. The systemd unit being absent does not
+break anything because v3.15.15.2 does not auto-install it.
+
 ## [v3.15.15] — Vol Compression Breakout: 4h preset + template wiring + observability safeguards
 
 Date: 2026-04-27
