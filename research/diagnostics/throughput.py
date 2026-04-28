@@ -124,20 +124,42 @@ def _is_meaningful(record: dict[str, Any]) -> bool:
       * malformed campaign records
       * missing-artifact failures
 
-    We use a conservative shape: outcome in a known meaningful set OR
-    outcome is "failed" with a non-empty failure_reason that is NOT a
-    technical-crash reason.
+    v3.15.15.4 extends the recognised vocabulary to include the
+    launcher's actual outcome literals (research/campaign_launcher.py
+    ~lines 1378-1453, v3.15.5+). Existing semantics for ``completed``
+    / ``no_signal`` / ``near_pass`` / ``failed`` are unchanged — a
+    regression test pins those mappings.
     """
     outcome = record.get("outcome")
-    if outcome in ("no_signal", "near_pass"):
+    # Always meaningful — campaign produced research evidence we can learn from.
+    if outcome in (
+        "no_signal",
+        "near_pass",
+        "completed",
+        "completed_with_candidates",
+        "completed_no_survivor",
+        "research_rejection",
+        "degenerate_no_survivors",
+        "paper_blocked",
+    ):
         return True
-    if outcome == "completed":
-        return True
+    # Failed-class with explainable, non-crash reason → meaningful.
     if outcome == "failed":
         reason = record.get("failure_reason")
         if isinstance(reason, str) and reason:
             crash_reasons = {"worker_crash", "lease_lost", "missing_artifact"}
             return reason not in crash_reasons
+    # Launcher-literal technical / integrity / worker_crashed: NOT meaningful.
+    if outcome in ("technical_failure", "worker_crashed", "integrity_failed"):
+        return False
+    # Cancellations: not meaningful.
+    if outcome in (
+        "canceled",
+        "aborted",
+        "canceled_duplicate",
+        "canceled_upstream_stale",
+    ):
+        return False
     return False
 
 

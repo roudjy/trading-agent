@@ -177,3 +177,114 @@ def test_deterministic_output(fixed_now: datetime):
     a = compute_throughput_metrics(registry_payload=payload, now_utc=fixed_now)
     b = compute_throughput_metrics(registry_payload=payload, now_utc=fixed_now)
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+# ---------------------------------------------------------------------------
+# v3.15.15.4 — meaningful-campaign taxonomy patch tests
+#
+# Existing meaningful semantics for ``no_signal`` / ``near_pass`` /
+# ``completed`` / ``failed`` are unchanged (covered by the regression
+# below). The patch adds recognition of launcher-literal outcomes so
+# they are correctly counted (or correctly excluded).
+# ---------------------------------------------------------------------------
+
+
+from research.diagnostics.throughput import _is_meaningful  # private API for testing
+
+
+# Pre-v3.15.15.4 semantics — pinned by this regression.
+_PRE_PATCH_MEANINGFUL = [
+    # (record, expected_meaningful)
+    ({"outcome": "no_signal"}, True),
+    ({"outcome": "near_pass"}, True),
+    ({"outcome": "completed"}, True),
+    ({"outcome": "completed", "failure_reason": "no_survivor"}, True),
+    ({"outcome": "failed", "failure_reason": "screening_no_survivors"}, True),
+    ({"outcome": "failed", "failure_reason": "worker_crash"}, False),
+    ({"outcome": "failed", "failure_reason": "lease_lost"}, False),
+    ({"outcome": "failed", "failure_reason": "missing_artifact"}, False),
+    ({"outcome": "failed"}, False),  # no failure_reason → not meaningful
+    ({"outcome": "canceled"}, False),
+    ({"outcome": "running"}, False),
+    ({"outcome": "weird_unknown"}, False),
+    ({}, False),
+]
+
+
+@pytest.mark.parametrize("record, expected", _PRE_PATCH_MEANINGFUL)
+def test_pre_patch_meaningful_unchanged(record: dict, expected: bool):
+    """Backward-compat: no pre-existing meaningful classification changes."""
+    assert _is_meaningful(record) is expected
+
+
+# v3.15.15.4 — launcher-literal records and their meaningful classification.
+_LAUNCHER_LITERAL_MEANINGFUL = [
+    # (record, expected_meaningful, comment)
+    ({"outcome": "completed_with_candidates"}, True, "candidate found"),
+    ({"outcome": "completed_no_survivor"}, True, "informative no-survivor"),
+    ({"outcome": "research_rejection"}, True, "explainable research-side rejection"),
+    ({"outcome": "degenerate_no_survivors"}, True, "informative failure"),
+    ({"outcome": "paper_blocked"}, True, "candidate found, downstream gate blocked"),
+    ({"outcome": "technical_failure"}, False, "no usable evidence"),
+    ({"outcome": "worker_crashed"}, False, "legacy crash literal"),
+    ({"outcome": "integrity_failed"}, False, "data integrity violation"),
+    ({"outcome": "aborted"}, False, "operator-initiated cancel"),
+    ({"outcome": "canceled_duplicate"}, False, "duplicate-detection cancel"),
+    ({"outcome": "canceled_upstream_stale"}, False, "stale-upstream cancel"),
+]
+
+
+@pytest.mark.parametrize(
+    "record, expected, _",
+    _LAUNCHER_LITERAL_MEANINGFUL,
+    ids=[r[0]["outcome"] for r in _LAUNCHER_LITERAL_MEANINGFUL],
+)
+def test_launcher_literal_meaningful_classification(
+    record: dict, expected: bool, _: str
+):
+    """Launcher v3.15.5+ outcomes classify correctly. Technical failures
+    and cancellations are NOT counted as meaningful; everything else is."""
+    assert _is_meaningful(record) is expected
+
+
+def test_meaningful_per_day_counts_launcher_literals(fixed_now: datetime):
+    """End-to-end via compute_throughput_metrics: a registry containing
+    one ``technical_failure`` + one ``completed_with_candidates`` yields
+    ``meaningful_campaigns_per_day == 1.0``."""
+    out = compute_throughput_metrics(
+        registry_payload={
+            "campaigns": [
+                _campaign(
+                    campaign_id="c-tech",
+                    outcome="technical_failure",
+                    finished="2026-04-28T05:00:00Z",
+                ),
+                _campaign(
+                    campaign_id="c-good",
+                    outcome="completed_with_candidates",
+                    finished="2026-04-28T05:01:00Z",
+                ),
+            ]
+        },
+        now_utc=fixed_now,
+    )
+    assert out["meaningful_campaigns_per_day"] == 1.0
+
+
+def test_paper_blocked_is_meaningful(fixed_now: datetime):
+    """``paper_blocked`` campaigns are meaningful — a candidate was found,
+    paper-readiness blocked promotion, the failure reason is explainable."""
+    out = compute_throughput_metrics(
+        registry_payload={
+            "campaigns": [
+                _campaign(
+                    campaign_id="c-paper",
+                    outcome="paper_blocked",
+                    failure_reason="insufficient_oos_days",
+                    finished="2026-04-28T05:00:00Z",
+                )
+            ]
+        },
+        now_utc=fixed_now,
+    )
+    assert out["meaningful_campaigns_per_day"] == 1.0

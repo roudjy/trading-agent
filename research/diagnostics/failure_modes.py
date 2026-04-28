@@ -27,12 +27,21 @@ from .paths import (
 )
 
 # Outcome class taxonomy. Stable list; order is the rendering order.
+#
+# v3.15.15.4 adds ``"paper_blocked"`` as a dedicated class. Frontend and
+# downstream consumers iterate over ``campaigns_by_outcome_class`` keys
+# dynamically, so the addition is non-breaking. The class captures
+# campaigns where a candidate was found but paper-readiness blocked
+# promotion (e.g. ``insufficient_oos_days``, ``excessive_divergence``);
+# folding this into ``completed_no_survivor`` would have been
+# misleading because a survivor existed.
 OUTCOME_CLASSES: tuple[str, ...] = (
     "technical_failure",
     "research_rejection",
     "degenerate_no_survivors",
     "completed_no_survivor",
     "completed_with_survivor",
+    "paper_blocked",
     "running",
     "canceled",
     "unknown",
@@ -41,14 +50,33 @@ OUTCOME_CLASSES: tuple[str, ...] = (
 # Mapping from raw ``outcome`` / ``state`` strings to outcome_class.
 # Any value not in this table is reported as ``unknown`` — never
 # silently dropped.
+#
+# v3.15.15.4: extends the table with the launcher's actual emitted
+# outcome literals (see ``research/campaign_launcher.py`` lines
+# ~1378-1453, v3.15.5+ outcome vocabulary). Existing entries are
+# unchanged — a regression test guarantees identical classification
+# of every previously-recognised (outcome, failure_reason) pair.
 _OUTCOME_TO_CLASS: dict[str, str] = {
-    # Generic outcomes.
+    # --- Existing (semantics unchanged) ---
     "completed": "completed_no_survivor",  # default; refined via failure_reason
     "no_signal": "research_rejection",
     "near_pass": "research_rejection",
     "failed": "technical_failure",  # default; refined via failure_reason
     "canceled": "canceled",
     "running": "running",
+    # --- v3.15.15.4: launcher-literal outcomes (additive only) ---
+    "completed_with_candidates": "completed_with_survivor",
+    "completed_no_survivor": "completed_no_survivor",
+    "degenerate_no_survivors": "degenerate_no_survivors",
+    "technical_failure": "technical_failure",
+    "research_rejection": "research_rejection",
+    "paper_blocked": "paper_blocked",
+    "integrity_failed": "technical_failure",
+    "aborted": "canceled",
+    "canceled_duplicate": "canceled",
+    "canceled_upstream_stale": "canceled",
+    # --- Backward-compat: pre-v3.15.5 ledgers may still contain this. ---
+    "worker_crashed": "technical_failure",
 }
 
 # Failure-reason hints that flip outcome_class to a more specific
