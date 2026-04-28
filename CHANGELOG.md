@@ -4,6 +4,114 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.5] — Synthetic Artifact Contract Harness (functional, opt-in)
+
+Date: 2026-04-28
+Branch: `feat/synthetic-artifact-contract-harness`
+
+A read-only functional test suite that produces launcher-shaped
+synthetic JSON/JSONL on disk under a sandboxed ``research/`` tree,
+runs the v3.15.15.2 diagnostics layer over those artifacts, and
+asserts the v3.15.15.4 classifier output. **Zero xfails** because
+Release A (v3.15.15.4) shipped first.
+
+### Added
+
+- ``tests/functional/`` — new test suite, opt-in via
+  ``--run-functional``. Default ``pytest -q`` invocations
+  collect-and-skip the suite (23 tests skipped instantly) so VPS
+  smoke / CI default behavior is unaffected.
+- ``tests/functional/conftest.py``:
+  - ``--run-functional`` flag + `pytest_collection_modifyitems`
+    skip-by-default mechanism.
+  - Package-scope autouse ``frozen_contract_sentinel`` that
+    md5-checks ``research/research_latest.json`` and
+    ``research/strategy_matrix.csv`` at session boundaries.
+  - ``sandbox`` fixture that builds a synthetic ``research/`` tree
+    under ``workspace_tmp_path`` and re-binds every diagnostics
+    PATH constant — mirrors the canonical pattern from
+    ``tests/unit/test_observability_no_other_artifacts_mutated.py``.
+  - ``run_diagnostics_build`` helper: orchestrates the diagnostics
+    artifact build via the pure ``compute_*`` / ``inspect_*`` /
+    ``build_*_snapshot`` APIs with explicit sandbox paths. cmd_build
+    itself is unit-tested separately.
+- ``tests/functional/_funnel_artifact_builders.py`` — pure
+  synthetic-shape builders for launcher-emitted artifacts:
+  - ``make_campaign_record(...)``, ``make_ledger_event(...)``,
+    ``write_registry(...)``, ``write_ledger_jsonl(...)``,
+    ``write_frozen_contracts(...)``.
+  - Schema fields are inlined as documented constants. The builders
+    do NOT import any funnel/runtime module; they reproduce the
+    launcher's on-disk shape from the v3.15.5+ schema documentation.
+- Scenarios:
+  - ``test_a_degenerate_no_survivor.py`` — Scenario A
+    (``outcome="degenerate_no_survivors"``, 2 cases).
+  - ``test_b_technical_failure.py`` — Scenarios B + B2
+    (``outcome="technical_failure"`` with reason worker_crash and
+    timeout, plus the legacy ``outcome="worker_crashed"`` literal —
+    3 cases total).
+  - ``test_f_observability_lite.py`` — Scenario F-lite
+    (parametrised diagnostics build over the three scenarios + the
+    aggregator healthy→degraded transition under deliberate
+    artifact corruption + the paper_blocked taxonomy presence
+    check — 5 cases).
+- ``tests/functional/test_static_import_surface.py`` — mandatory
+  contractual guard: parses every ``.py`` file under
+  ``tests/functional/`` AS TEXT (no import) and rejects any
+  forbidden import (campaign / sprint / strategy / runtime / agent
+  / execution / orchestration / automation / state / dashboard, plus
+  ``yfinance``, ``ccxt``, ``requests``, ``urllib*``, ``httpx``).
+  Allowlist: stdlib + pytest + ``research._sidecar_io`` +
+  ``research.diagnostics.*`` + relative imports inside the package.
+
+### Changed
+
+- ``pytest.ini``: registered ``functional`` marker so a follow-up
+  release can mark individual tests with ``@pytest.mark.functional``
+  if needed (the directory-based skip is the primary opt-in
+  mechanism today).
+
+### Hard guarantees verified
+
+- **Zero xfails** — all 23 functional tests pass cleanly with
+  ``--run-functional`` because the v3.15.15.4 taxonomy patch shipped
+  first.
+- **Default pytest skips** — `pytest tests/functional -q` (no flag)
+  reports `23 skipped in 0.06s`. The flag is the sole opt-in.
+- **Frozen contracts unchanged** — md5 sentinel verifies
+  ``research_latest.json`` and ``strategy_matrix.csv`` are
+  byte-identical at session start and end.
+- **Static import surface clean** — 13/13 cases pass; no forbidden
+  imports anywhere in the harness.
+- **No edits to research/, agent/, strategies/, orchestration/,
+  execution/, automation/, state/, dashboard/, frontend/**.
+
+### Not changed
+
+- All runtime / funnel / dashboard / frontend code. The harness is
+  pure additive: a new ``tests/functional/`` directory plus a
+  pytest.ini marker registration plus VERSION + CHANGELOG.
+- The v3.15.15.4 ``research/diagnostics/`` modules are
+  unchanged. Two pre-existing implementation details surfaced
+  during development and are documented inline in the tests as
+  scope-deferred enhancements:
+  1. ``failure_modes._ledger_failure_events`` filters ledger events
+     on ``outcome=="failed"`` or event_type containing "fail" — it
+     does not yet recognise launcher-literal outcome literals
+     (``technical_failure``, ``degenerate_no_survivors``, etc.) as
+     failure events. The harness asserts current behavior; the
+     widening is a future research/diagnostics enhancement.
+  2. ``failure_modes._repeated_failure_clusters`` only feeds off
+     records that classify as ``technical_failure`` or have
+     ``outcome=="failed"``. Same future enhancement scope.
+
+### Rollback
+
+``git revert -m 1 <merge-commit>`` removes the entire
+``tests/functional/`` directory plus the pytest.ini marker entry,
+the VERSION bump, and the CHANGELOG entry. No other module is
+touched.
+
 ## [v3.15.15.4] — Diagnostics Taxonomy Patch (additive, behavior-pure)
 
 Date: 2026-04-28
