@@ -34,6 +34,7 @@ from dashboard.api_campaigns import register_campaign_routes
 from dashboard.api_research_intelligence import (
     register_research_intelligence_routes,
 )
+from dashboard.api_observability import register_observability_routes
 from dashboard.api_system_meta import register_system_meta_routes
 from reporting import audit_log
 
@@ -67,6 +68,13 @@ register_research_intelligence_routes(app)
 # Version/Deploy, Artifacts, and Discovery Sprint pages. Filesystem
 # inspection + git rev-parse only; no orchestration imports.
 register_system_meta_routes(app)
+
+# v3.15.15.3: read-only observability artifact passthrough used by the
+# Observability page. Reads JSON files under research/observability/
+# only; imports only research.diagnostics.paths (a stdlib-only path
+# constants module) — verified by
+# tests/unit/test_dashboard_api_observability.py.
+register_observability_routes(app)
 
 
 @app.errorhandler(Exception)
@@ -328,6 +336,7 @@ def robots_txt():
 @app.route("/artifacts")
 @app.route("/health")
 @app.route("/version")
+@app.route("/observability")
 @requires_auth
 def spa_fallback_authed():
     return index()
