@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
+import { api } from "../api/client";
 import { loadHealthModel } from "../api/adapters/health";
 import type { HealthModel } from "../api/adapters/types";
+import type {
+  ObservabilityComponentEnvelope,
+  SystemIntegrityPayload,
+} from "../api/client";
 import { Chip, Coin, Heart, Star, Warn } from "../components/pixel/Glyphs";
 import { PixelBadge } from "../components/pixel/PixelBadge";
 import { PixelCard } from "../components/pixel/PixelCard";
@@ -13,6 +18,9 @@ import { fmtAge } from "../lib/time";
 export function Health() {
   const [model, setModel] = useState<HealthModel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [integrityEnvelope, setIntegrityEnvelope] = useState<
+    ObservabilityComponentEnvelope<SystemIntegrityPayload> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,6 +30,14 @@ export function Health() {
         if (!cancelled) setModel(m);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    void (async () => {
+      try {
+        const i = await api.observabilitySystemIntegrity();
+        if (!cancelled) setIntegrityEnvelope(i);
+      } catch {
+        if (!cancelled) setIntegrityEnvelope(null);
       }
     })();
     return () => {
@@ -183,6 +199,93 @@ export function Health() {
           </div>
         </PixelCard>
       )}
+
+      <SystemIntegrityCard envelope={integrityEnvelope} />
     </div>
+  );
+}
+
+function SystemIntegrityCard({
+  envelope,
+}: {
+  envelope: ObservabilityComponentEnvelope<SystemIntegrityPayload> | null;
+}) {
+  if (!envelope) return null;
+  if (!envelope.available || !envelope.payload) {
+    return (
+      <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+        <div
+          className="pixel-stat-label"
+          style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}
+        >
+          <Chip size={12} /> OBSERVABILITY · system_integrity artifact
+        </div>
+        <div className="mono" style={{ fontSize: 13 }}>
+          The observability ``system_integrity`` artifact is{" "}
+          <code>{envelope.state}</code>. Build it with{" "}
+          <code>python -m research.diagnostics build</code> to enrich this page.
+        </div>
+      </PixelCard>
+    );
+  }
+  const p = envelope.payload;
+  return (
+    <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+      <div
+        className="pixel-stat-label"
+        style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}
+      >
+        <Chip size={12} /> OBSERVABILITY · system integrity
+      </div>
+      <table className="pixel-table">
+        <tbody>
+          <tr>
+            <td>VERSION file</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.version_file ?? "—"}
+            </td>
+          </tr>
+          <tr>
+            <td>git head / branch</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.git.head ?? "—"} / {p.git.branch ?? "—"}{" "}
+              {p.git.dirty === true ? (
+                <PixelBadge kind="warn">DIRTY</PixelBadge>
+              ) : null}
+            </td>
+          </tr>
+          <tr>
+            <td>process / container uptime</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.uptime_seconds.process != null
+                ? `${Math.round(p.uptime_seconds.process / 60)}m`
+                : "—"}{" "}
+              /{" "}
+              {p.uptime_seconds.container != null
+                ? `${Math.round(p.uptime_seconds.container / 60)}m`
+                : "—"}
+            </td>
+          </tr>
+          <tr>
+            <td>disk free</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.disk_free_bytes != null
+                ? `${(p.disk_free_bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`
+                : "—"}
+            </td>
+          </tr>
+          <tr>
+            <td>artifact dir writable</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.artifact_directory_writable ? (
+                <PixelBadge kind="ok">YES</PixelBadge>
+              ) : (
+                <PixelBadge kind="err">NO</PixelBadge>
+              )}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </PixelCard>
   );
 }

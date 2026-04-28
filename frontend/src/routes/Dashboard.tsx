@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../api/client";
 import { loadOverview } from "../api/adapters";
 import type { OverviewModel } from "../api/adapters/types";
+import type {
+  ObservabilityComponentEnvelope,
+  ObservabilitySummaryPayload,
+} from "../api/client";
 import {
   Block,
   Check,
@@ -17,7 +23,7 @@ import { PixelCard } from "../components/pixel/PixelCard";
 import { PixelSectionHeader } from "../components/pixel/PixelSectionHeader";
 import { StatTile } from "../components/pixel/PixelStat";
 import { EmptyStatePanel } from "../components/pixel/EmptyStatePanel";
-import { fmtAge } from "../lib/time";
+import { fmtAge, fmtAgo } from "../lib/time";
 
 const TONE: Record<string, string> = {
   HEALTHY: "var(--grass)",
@@ -29,6 +35,9 @@ const TONE: Record<string, string> = {
 export function Dashboard() {
   const [model, setModel] = useState<OverviewModel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [obsSummary, setObsSummary] = useState<
+    ObservabilityComponentEnvelope<ObservabilitySummaryPayload> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +47,14 @@ export function Dashboard() {
         if (!cancelled) setModel(m);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    void (async () => {
+      try {
+        const s = await api.observabilitySummary();
+        if (!cancelled) setObsSummary(s);
+      } catch {
+        if (!cancelled) setObsSummary(null);
       }
     })();
     return () => {
@@ -227,6 +244,77 @@ export function Dashboard() {
           </div>
         </PixelCard>
       )}
+
+      <ObservabilitySummaryCard envelope={obsSummary} />
     </div>
+  );
+}
+
+function ObservabilitySummaryCard({
+  envelope,
+}: {
+  envelope: ObservabilityComponentEnvelope<ObservabilitySummaryPayload> | null;
+}) {
+  if (!envelope || !envelope.available || !envelope.payload) {
+    return (
+      <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+        <div
+          className="pixel-stat-label"
+          style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}
+        >
+          <Coin size={12} /> OBSERVABILITY
+        </div>
+        <div className="mono" style={{ fontSize: 13 }}>
+          Aggregator summary not yet available. Run{" "}
+          <code>python -m research.diagnostics build</code> in the dashboard
+          container to produce one. Browse{" "}
+          <Link to="/observability">Observability</Link> for details.
+        </div>
+      </PixelCard>
+    );
+  }
+  const summary = envelope.payload;
+  const tone =
+    summary.overall_status === "healthy"
+      ? "ok"
+      : summary.overall_status === "degraded"
+      ? "warn"
+      : "mute";
+  return (
+    <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 8,
+        }}
+      >
+        <div
+          className="pixel-stat-label"
+          style={{ display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <Coin size={12} /> OBSERVABILITY · {summary.active_component_count}{" "}
+          active · {summary.deferred_component_count} deferred
+        </div>
+        <PixelBadge kind={tone}>
+          {summary.overall_status.replace(/_/g, " ").toUpperCase()}
+        </PixelBadge>
+      </div>
+      <div
+        className="mono"
+        style={{ fontSize: 13, color: "var(--ink-muted)", marginBottom: 6 }}
+      >
+        generated {fmtAgo(summary.generated_at_utc)} · critical findings ·{" "}
+        <strong>{summary.critical_findings.length}</strong>
+      </div>
+      <div className="mono" style={{ fontSize: 13 }}>
+        next human action ·{" "}
+        <code>{summary.recommended_next_human_action}</code> ·{" "}
+        <Link to="/observability">open Observability →</Link>
+      </div>
+    </PixelCard>
   );
 }

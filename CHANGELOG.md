@@ -4,6 +4,108 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.3] — Observability Frontend Integration (thin surface)
+
+Date: 2026-04-28
+Branch: `feat/observability-frontend-v3-15-15-3`
+
+UI-only release: surface the v3.15.15.2 observability artifacts in
+the QRE Control Room without changing any runtime behavior.
+
+### Added
+
+- ``dashboard/api_observability.py`` (NEW, isolated read-only module).
+  Twelve GET-only endpoints exposing the observability artifact set:
+  - ``/api/observability/summary``
+  - ``/api/observability/artifact-health``
+  - ``/api/observability/failure-modes``
+  - ``/api/observability/throughput``
+  - ``/api/observability/system-integrity``
+  - ``/api/observability/funnel`` (deferred, returns ``available=false``)
+  - ``/api/observability/campaign-timeline`` (deferred)
+  - ``/api/observability/parameter-coverage`` (deferred)
+  - ``/api/observability/data-freshness`` (deferred)
+  - ``/api/observability/policy-trace`` (deferred)
+  - ``/api/observability/no-touch-health`` (deferred)
+  - ``/api/observability/index`` (component listing)
+  Each endpoint returns the same envelope ``{available, component,
+  artifact_name, artifact_path, state, modified_at_unix, size_bytes,
+  payload, error}``. Imports only stdlib + flask +
+  ``research.diagnostics.paths`` (the stdlib-only path constants
+  module). Verified by ``test_dashboard_api_observability.py`` static
+  import-surface check.
+- ``frontend/src/api/observability.ts`` (NEW): typed shapes for every
+  observability artifact payload + the shared envelope.
+- ``frontend/src/api/client.ts``: 11 typed observability GET methods
+  + 1 index method. Zero new mutators.
+- ``frontend/src/routes/Observability.tsx`` (NEW route at
+  ``/observability``): single read-only overview with the aggregator
+  summary card up top + a component table sourced from the index
+  endpoint. Renders gracefully when the aggregator artifact is
+  missing (falls back to the index listing).
+- ``frontend/src/components/pixel/ComponentStatusPill.tsx`` (NEW):
+  small pixel-art badge for component status taxonomy.
+- Sidebar: one new nav item "Observability" between Artifacts and
+  System Health. Read-only legend preserved.
+- Light enhancements (single card or column each):
+  - Overview gets an observability summary card (overall_status,
+    last update, critical-findings count, link to /observability).
+  - Artifacts gains a "Contract" column sourced from
+    ``artifact_health`` when present.
+  - Failures appends a single observability summary card from
+    ``failure_modes`` (technical / research / degenerate / unknown
+    counts) — does NOT replace the existing evidence-derived table.
+  - Health appends a single ``system_integrity`` card.
+  - Version appends a single ``system_integrity`` sidecar card.
+- ``frontend/src/test/Observability.test.tsx`` (NEW, 5 tests):
+  page renders summary, falls back to index when summary absent,
+  graceful corrupt handling, network error handling, mutation-surface
+  guard.
+- SPA fallback ``/observability`` registered in ``dashboard.py``
+  alongside the existing v3.15.15.1 routes.
+
+### Hard guarantees verified by tests
+
+- ``test_dashboard_api_observability.py`` (37 tests):
+  - 200 + ``available=true`` for valid artifact (per active endpoint).
+  - 200 + ``available=false`` for missing/corrupt artifact (per active
+    endpoint).
+  - All deferred endpoints return ``available=false, deferred=true``.
+  - All GET-only (POST/PUT/DELETE/PATCH rejected per endpoint).
+  - Read-only across passes (snapshot mtime+size of artifact dir
+    unchanged after multiple GETs).
+  - Static import-surface check rejects any
+    campaign/sprint/strategy/runtime import. Allowed project imports
+    limited to ``research.diagnostics.paths``.
+  - ``research.diagnostics.paths`` itself stdlib-only check.
+- Frontend tests (``Observability.test.tsx``): page renders summary,
+  falls back to index, handles absent/corrupt/network-error, asserts
+  mutation surface still contains only ``login``, ``logout``,
+  ``runPreset``.
+
+### Not changed (explicit no-ops)
+
+- frozen contracts (``research_latest.json``, ``strategy_matrix.csv``)
+- campaign launcher, policy, queue, lease, registry, digest,
+  templates, budget, family / preset policy
+- sprint orchestrator, screening runtime, screening evidence,
+  candidate pipeline, strategy code, agent / orchestration / execution
+  / automation / state subsystems
+- existing dashboard auth surface; ``/api/presets/{name}/run`` is
+  still the only mutating preset endpoint
+- existing read-only endpoints (``/api/system/version``,
+  ``/api/research/artifact-index``, ``/api/research/sprint-status``)
+  are unchanged
+
+### Rollback
+
+``git revert -m 1 <merge-commit>`` removes the API blueprint, the
+``/observability`` route, the sidebar item, all ``Observability*``
+React code, all card additions to existing pages, the tests, the
+SPA fallback, the VERSION bump, and the CHANGELOG entry. The
+v3.15.15.2 observability artifacts under ``research/observability/``
+are untouched and continue to be produced by manual CLI runs.
+
 ## [v3.15.15.2] — Discovery Observability & Instrumentation (MVP)
 
 Date: 2026-04-28
