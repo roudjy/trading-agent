@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Arrow, Block, Chip, Dot, Flag, Heart, Pipe, Skull, Star } from "../pixel/Glyphs";
+import { Arrow, Block, Chip, Coin, Dot, Flag, Heart, Pipe, Skull, Star } from "../pixel/Glyphs";
 
 const NAV_ITEMS = [
   { path: "/", label: "Overview", Icon: Block, end: true },
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { path: "/campaigns", label: "Campaigns", Icon: Pipe, end: false },
   { path: "/failures", label: "Failure Modes", Icon: Skull, end: false },
   { path: "/artifacts", label: "Artifacts", Icon: Chip, end: false },
+  { path: "/observability", label: "Observability", Icon: Coin, end: false },
   { path: "/health", label: "System Health", Icon: Heart, end: false },
   { path: "/version", label: "Version / Deploy", Icon: Star, end: false },
 ];

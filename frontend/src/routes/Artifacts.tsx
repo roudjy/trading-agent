@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../api/client";
 import { loadArtifactsModel } from "../api/adapters/artifacts";
 import type { ArtifactsModel } from "../api/adapters/types";
+import type {
+  ArtifactHealthPayload,
+  ObservabilityComponentEnvelope,
+} from "../api/client";
 import { Check, Chip, Star, Warn, XMark } from "../components/pixel/Glyphs";
 import { PixelBadge } from "../components/pixel/PixelBadge";
 import { PixelCard } from "../components/pixel/PixelCard";
@@ -13,6 +18,9 @@ import { fmtAge } from "../lib/time";
 export function Artifacts() {
   const [model, setModel] = useState<ArtifactsModel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [healthEnvelope, setHealthEnvelope] = useState<
+    ObservabilityComponentEnvelope<ArtifactHealthPayload> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,10 +32,37 @@ export function Artifacts() {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
     })();
+    void (async () => {
+      try {
+        const h = await api.observabilityArtifactHealth();
+        if (!cancelled) setHealthEnvelope(h);
+      } catch {
+        if (!cancelled) setHealthEnvelope(null);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Build a map from artifact_path → contract_class so we can enrich
+  // the existing artifact-index table with the contract class column
+  // sourced from artifact_health when available.
+  const contractClassByPath = new Map<string, string>();
+  if (
+    healthEnvelope?.available &&
+    healthEnvelope.payload &&
+    Array.isArray(healthEnvelope.payload.artifacts)
+  ) {
+    for (const row of healthEnvelope.payload.artifacts) {
+      if (row.path && row.contract_class) {
+        contractClassByPath.set(row.path, row.contract_class);
+      }
+      if (row.artifact_name && row.contract_class) {
+        contractClassByPath.set(row.artifact_name, row.contract_class);
+      }
+    }
+  }
 
   if (error) {
     return (
@@ -79,6 +114,7 @@ export function Artifacts() {
           <thead>
             <tr>
               <th>Artifact</th>
+              <th>Contract</th>
               <th>Exists</th>
               <th>Age</th>
               <th>Size</th>
@@ -91,6 +127,9 @@ export function Artifacts() {
               <tr key={a.name}>
                 <td className="mono" style={{ fontSize: 14, fontWeight: 600 }}>
                   {a.name}
+                </td>
+                <td className="mono" style={{ fontSize: 12, color: "var(--ink-muted)" }}>
+                  {contractClassByPath.get(a.name) ?? "—"}
                 </td>
                 <td>
                   {a.exists ? (
