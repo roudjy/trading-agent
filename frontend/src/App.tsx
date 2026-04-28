@@ -8,6 +8,7 @@ import { Sprint } from "./routes/Sprint";
 import { Campaigns } from "./routes/Campaigns";
 import { Failures } from "./routes/Failures";
 import { Artifacts } from "./routes/Artifacts";
+import { Observability } from "./routes/Observability";
 import { Health } from "./routes/Health";
 import { Version } from "./routes/Version";
 import { Presets } from "./routes/Presets";
@@ -31,6 +32,7 @@ export function App() {
                   <Route path="/campaigns" element={<Campaigns />} />
                   <Route path="/failures" element={<Failures />} />
                   <Route path="/artifacts" element={<Artifacts />} />
+                  <Route path="/observability" element={<Observability />} />
                   <Route path="/health" element={<Health />} />
                   <Route path="/version" element={<Version />} />
                   <Route path="/presets" element={<Presets />} />

@@ -8,6 +8,15 @@ import type {
   SystemMetaVersion,
   SystemSprintStatus,
 } from "./system";
+import type {
+  ArtifactHealthPayload,
+  FailureModesPayload,
+  ObservabilityComponentEnvelope,
+  ObservabilityIndexPayload,
+  ObservabilitySummaryPayload,
+  SystemIntegrityPayload,
+  ThroughputPayload,
+} from "./observability";
 
 export interface Health {
   status: string;
@@ -210,6 +219,53 @@ export const api = {
   systemArtifactIndex: () =>
     request<SystemArtifactIndex>("/api/research/artifact-index"),
   sprintStatus: () => request<SystemSprintStatus>("/api/research/sprint-status"),
+  // v3.15.15.3 — read-only observability endpoints. All GETs.
+  observabilitySummary: () =>
+    request<ObservabilityComponentEnvelope<ObservabilitySummaryPayload>>(
+      "/api/observability/summary"
+    ),
+  observabilityArtifactHealth: () =>
+    request<ObservabilityComponentEnvelope<ArtifactHealthPayload>>(
+      "/api/observability/artifact-health"
+    ),
+  observabilityFailureModes: () =>
+    request<ObservabilityComponentEnvelope<FailureModesPayload>>(
+      "/api/observability/failure-modes"
+    ),
+  observabilityThroughput: () =>
+    request<ObservabilityComponentEnvelope<ThroughputPayload>>(
+      "/api/observability/throughput"
+    ),
+  observabilitySystemIntegrity: () =>
+    request<ObservabilityComponentEnvelope<SystemIntegrityPayload>>(
+      "/api/observability/system-integrity"
+    ),
+  observabilityFunnel: () =>
+    request<ObservabilityComponentEnvelope<unknown>>(
+      "/api/observability/funnel"
+    ),
+  observabilityCampaignTimeline: () =>
+    request<ObservabilityComponentEnvelope<unknown>>(
+      "/api/observability/campaign-timeline"
+    ),
+  observabilityParameterCoverage: () =>
+    request<ObservabilityComponentEnvelope<unknown>>(
+      "/api/observability/parameter-coverage"
+    ),
+  observabilityDataFreshness: () =>
+    request<ObservabilityComponentEnvelope<unknown>>(
+      "/api/observability/data-freshness"
+    ),
+  observabilityPolicyTrace: () =>
+    request<ObservabilityComponentEnvelope<unknown>>(
+      "/api/observability/policy-trace"
+    ),
+  observabilityNoTouchHealth: () =>
+    request<ObservabilityComponentEnvelope<unknown>>(
+      "/api/observability/no-touch-health"
+    ),
+  observabilityIndex: () =>
+    request<ObservabilityIndexPayload>("/api/observability/index"),
   login: (username: string, password: string) =>
     request<{ ok: boolean; actor?: string; error?: string }>("/api/session/login", {
       method: "POST",
@@ -230,3 +286,20 @@ export type {
   SprintProgress,
   SprintReport,
 } from "./system";
+export type {
+  ArtifactHealthPayload,
+  ArtifactHealthRow,
+  ArtifactHealthSummary,
+  FailureCount,
+  FailureModesPayload,
+  ObservabilityComponentEnvelope,
+  ObservabilityComponentStatus,
+  ObservabilityIndexComponent,
+  ObservabilityIndexPayload,
+  ObservabilityOverallStatus,
+  ObservabilityReadState,
+  ObservabilitySummaryComponentRow,
+  ObservabilitySummaryPayload,
+  SystemIntegrityPayload,
+  ThroughputPayload,
+} from "./observability";

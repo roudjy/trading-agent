@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { api } from "../api/client";
 import { loadFailuresModel } from "../api/adapters/failures";
 import type { FailuresModel } from "../api/adapters/types";
+import type {
+  FailureModesPayload,
+  ObservabilityComponentEnvelope,
+} from "../api/client";
 import { Check, Chip, Pipe, Skull, Warn } from "../components/pixel/Glyphs";
+import { PixelBadge } from "../components/pixel/PixelBadge";
 import { PixelCard } from "../components/pixel/PixelCard";
 import { PixelSectionHeader } from "../components/pixel/PixelSectionHeader";
 import { StatTile } from "../components/pixel/PixelStat";
 import { HBar } from "../components/pixel/HBar";
 import { EmptyStatePanel } from "../components/pixel/EmptyStatePanel";
+import { fmtAgo } from "../lib/time";
 
 interface SectionProps {
   title: string;
@@ -37,6 +44,9 @@ export function Failures() {
   const [model, setModel] = useState<FailuresModel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"count" | "name">("count");
+  const [obsEnvelope, setObsEnvelope] = useState<
+    ObservabilityComponentEnvelope<FailureModesPayload> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +56,14 @@ export function Failures() {
         if (!cancelled) setModel(m);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    void (async () => {
+      try {
+        const e = await api.observabilityFailureModes();
+        if (!cancelled) setObsEnvelope(e);
+      } catch {
+        if (!cancelled) setObsEnvelope(null);
       }
     })();
     return () => {
@@ -186,6 +204,79 @@ export function Failures() {
         <Section title="BY TIMEFRAME" items={model.byTimeframe} color="info" sortBy={sortBy} />
         <Section title="BY SCREENING PHASE" items={model.byScreeningPhase} color="" sortBy={sortBy} />
       </div>
+
+      <FailuresObservabilityCard envelope={obsEnvelope} />
     </div>
+  );
+}
+
+function FailuresObservabilityCard({
+  envelope,
+}: {
+  envelope: ObservabilityComponentEnvelope<FailureModesPayload> | null;
+}) {
+  if (!envelope) return null;
+  if (!envelope.available || !envelope.payload) {
+    return (
+      <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+        <div
+          className="pixel-stat-label"
+          style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}
+        >
+          <Chip size={12} /> OBSERVABILITY · failure_modes artifact
+        </div>
+        <div className="mono" style={{ fontSize: 13 }}>
+          The observability ``failure_modes`` artifact is{" "}
+          <code>{envelope.state}</code>. Build it with{" "}
+          <code>python -m research.diagnostics build</code> to enrich this page.
+        </div>
+      </PixelCard>
+    );
+  }
+  const p = envelope.payload;
+  const tvr = p.technical_vs_research_failure_counts;
+  return (
+    <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 8,
+        }}
+      >
+        <div
+          className="pixel-stat-label"
+          style={{ display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <Chip size={12} /> OBSERVABILITY · failure_modes
+        </div>
+        <span className="mono" style={{ fontSize: 12, color: "var(--ink-muted)" }}>
+          generated {fmtAgo(p.generated_at_utc)} · ledger lines{" "}
+          {p.source.ledger_lines_consumed ?? 0}/{p.source.max_ledger_lines}
+          {p.source.ledger_truncated ? " (truncated)" : ""}
+        </span>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+        <PixelBadge kind="err">
+          technical · {tvr.technical_failure ?? 0}
+        </PixelBadge>
+        <PixelBadge kind="warn">
+          research · {tvr.research_rejection ?? 0}
+        </PixelBadge>
+        <PixelBadge kind="info">
+          degenerate · {tvr.degenerate_no_survivors ?? 0}
+        </PixelBadge>
+        <PixelBadge kind="mute">
+          unknown · {tvr.unknown ?? 0}
+        </PixelBadge>
+      </div>
+      <div className="mono" style={{ fontSize: 13 }}>
+        Total campaigns observed · {p.total_campaigns_observed} · failure
+        events · {p.total_failure_events_observed}
+      </div>
+    </PixelCard>
   );
 }

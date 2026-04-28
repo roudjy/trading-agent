@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
+import { api } from "../api/client";
 import { loadVersionModel } from "../api/adapters/version";
 import type { VersionModel } from "../api/adapters/types";
-import { Check, Star, Warn, XMark } from "../components/pixel/Glyphs";
+import type {
+  ObservabilityComponentEnvelope,
+  SystemIntegrityPayload,
+} from "../api/client";
+import { Check, Chip, Star, Warn, XMark } from "../components/pixel/Glyphs";
 import { PixelBadge } from "../components/pixel/PixelBadge";
 import { PixelCard } from "../components/pixel/PixelCard";
 import { PixelSectionHeader } from "../components/pixel/PixelSectionHeader";
@@ -11,6 +16,9 @@ import { fmtAgo } from "../lib/time";
 export function Version() {
   const [model, setModel] = useState<VersionModel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [integrityEnvelope, setIntegrityEnvelope] = useState<
+    ObservabilityComponentEnvelope<SystemIntegrityPayload> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,6 +28,14 @@ export function Version() {
         if (!cancelled) setModel(m);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    void (async () => {
+      try {
+        const i = await api.observabilitySystemIntegrity();
+        if (!cancelled) setIntegrityEnvelope(i);
+      } catch {
+        if (!cancelled) setIntegrityEnvelope(null);
       }
     })();
     return () => {
@@ -161,6 +177,97 @@ export function Version() {
           </div>
         </PixelCard>
       </div>
+
+      <SystemIntegrityIntegrityCard envelope={integrityEnvelope} />
     </div>
+  );
+}
+
+function SystemIntegrityIntegrityCard({
+  envelope,
+}: {
+  envelope: ObservabilityComponentEnvelope<SystemIntegrityPayload> | null;
+}) {
+  if (!envelope) return null;
+  if (!envelope.available || !envelope.payload) {
+    return (
+      <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+        <div
+          className="pixel-stat-label"
+          style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}
+        >
+          <Chip size={12} /> OBSERVABILITY · system_integrity artifact
+        </div>
+        <div className="mono" style={{ fontSize: 13 }}>
+          The observability ``system_integrity`` artifact is{" "}
+          <code>{envelope.state}</code>. Build it with{" "}
+          <code>python -m research.diagnostics build</code> to see the
+          observability-side integrity card here.
+        </div>
+      </PixelCard>
+    );
+  }
+  const p = envelope.payload;
+  return (
+    <PixelCard variant="panel2" style={{ marginTop: 18 }}>
+      <div
+        className="pixel-stat-label"
+        style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}
+      >
+        <Chip size={12} /> OBSERVABILITY · system integrity (sidecar)
+      </div>
+      <table className="pixel-table">
+        <tbody>
+          <tr>
+            <td>VERSION (observed)</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.version_file ?? "—"}
+            </td>
+          </tr>
+          <tr>
+            <td>git head</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.git.head ?? "—"}
+            </td>
+          </tr>
+          <tr>
+            <td>git branch</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.git.branch ?? "—"}
+            </td>
+          </tr>
+          <tr>
+            <td>git dirty</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.git.dirty == null ? (
+                "—"
+              ) : p.git.dirty ? (
+                <PixelBadge kind="warn">DIRTY</PixelBadge>
+              ) : (
+                <PixelBadge kind="ok">CLEAN</PixelBadge>
+              )}
+            </td>
+          </tr>
+          <tr>
+            <td>timezone</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.timezone ?? "—"}
+            </td>
+          </tr>
+          <tr>
+            <td>last observability artifact write</td>
+            <td className="mono" style={{ fontSize: 13 }}>
+              {p.last_observability_artifact_update_unix
+                ? fmtAgo(
+                    new Date(
+                      p.last_observability_artifact_update_unix * 1000
+                    ).toISOString()
+                  )
+                : "—"}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </PixelCard>
   );
 }
