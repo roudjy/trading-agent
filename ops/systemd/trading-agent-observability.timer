@@ -1,0 +1,16 @@
+[Unit]
+Description=JvR Trading Agent — observability snapshot timer (v3.15.15.2)
+Documentation=docs/qre_observability_runbook.md
+
+[Timer]
+# Every 15 minutes, on the quarter (00:00, 00:15, 00:30, 00:45 ...).
+# The observability CLI is a passive snapshotter — typical run takes
+# well under a second on the current artifact set, so a 15-min cadence
+# is conservative.
+OnCalendar=*-*-* *:00,15,30,45:00 UTC
+# Fire once after boot if the timer was missed during downtime.
+Persistent=true
+Unit=trading-agent-observability.service
+
+[Install]
+WantedBy=timers.target
