@@ -1,0 +1,27 @@
+[Unit]
+Description=JvR Trading Agent — observability snapshot (v3.15.15.2)
+Documentation=docs/qre_observability_runbook.md
+# Run only after docker is up; the snapshot CLI runs inside the
+# existing jvr_dashboard container so it reuses the same Python
+# environment + bind-mounted research/ volume.
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+# v3.15.15.2: read-only observability artifact snapshotter. The CLI:
+#   * reads existing artifacts under research/ via passive Path/json IO
+#     (no imports of campaign launcher / policy / sprint orchestrator
+#     / strategy code — verified by tests/unit/test_observability_static_import_surface.py (parses research/diagnostics))
+#   * writes ONLY to research/observability/*.v1.json via
+#     write_sidecar_atomic (atomic temp + rename)
+#   * never starts, stops, mutates, classifies, or decides anything
+#
+# Concurrency: if a campaign launcher tick is mid-write, atomic rename
+# guarantees we either see the previous file or the new one — never a
+# half-written file. The CLI also drops trailing partial JSONL lines.
+ExecStart=/usr/bin/docker exec jvr_dashboard python -m research.diagnostics build
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
