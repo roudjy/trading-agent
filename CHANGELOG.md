@@ -4,6 +4,144 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.7] — Evidence Path Hotfix + Diagnostics Re-read
+
+Date: 2026-04-29
+Branch: `feat/diagnostics-path-hotfix-v3-15-15-7`
+
+Single-file diagnostics path fix. Read-only. Zero behavior change.
+**No edits to runtime / launcher / registry / sprint / writer / dashboard /
+frontend / agent / strategies / orchestration / execution / automation / state
+code.**
+
+### Bug
+
+Pre-v3.15.15.7 ``research/diagnostics/paths.py`` declared:
+
+    CAMPAIGN_EVIDENCE_LEDGER_PATH = RESEARCH_DIR / "campaign_evidence_ledger.jsonl"
+
+But the campaign launcher writes the canonical event ledger to:
+
+    research/campaign_evidence_ledger_latest.v1.jsonl
+
+(see ``research/campaign_launcher.py:139``: ``EVIDENCE_LEDGER_PATH = "research/campaign_evidence_ledger_latest.v1.jsonl"``).
+The path mismatch caused ``read_jsonl_tail_safe`` to silently return
+``state="absent"`` on every read, even though the launcher had been
+appending events to disk on every tick since the project's start.
+
+Live VPS at the time of fix: 80 events on disk in
+``campaign_evidence_ledger_latest.v1.jsonl``, all invisible to diagnostics.
+
+The v3.15.15.6 ``diagnostic_context.limitations`` entry
+``campaign_evidence_ledger_absent`` was therefore a **false negative**
+caused by the diagnostics constant, not by a missing writer.
+
+### Fix
+
+One-line constant value change in ``research/diagnostics/paths.py``:
+``CAMPAIGN_EVIDENCE_LEDGER_PATH`` now points at
+``campaign_evidence_ledger_latest.v1.jsonl`` (with the ``_latest.v1``
+snapshot-current suffix used by every other artifact in the project).
+
+A second matching update in the ``INPUT_ARTIFACTS`` table inside the same
+file ensures ``artifact_health`` reads the same canonical filename.
+
+### Tests
+
+- ``tests/unit/test_observability_paths.py``:
+  - extended ``DRIFT_CHECKS`` with
+    ``("campaign_evidence_ledger_latest.v1.jsonl", "campaign_launcher.py")`` —
+    a text-only drift assertion that pins both ``paths.py`` and the writer
+    constant in the launcher (no module imports of the launcher; the test
+    parses it as plain text).
+  - new ``test_no_pre_v3_15_15_7_wrong_ledger_path_anywhere_in_diagnostics``:
+    scans every ``.py`` file under ``research/diagnostics/`` AS TEXT and
+    fails if the OLD wrong filename ``"campaign_evidence_ledger.jsonl"``
+    (no ``_latest.v1`` suffix) reappears as a string literal.
+  - new ``test_campaign_evidence_ledger_path_constant_uses_latest_v1_suffix``:
+    pins the imported runtime ``Path`` object's filename so a future
+    refactor cannot silently regress.
+- ``tests/unit/test_observability_failure_modes.py``:
+  - new ``test_ledger_available_true_when_file_exists_at_real_writer_path``:
+    builds a synthetic ledger at the real writer-path filename, runs
+    ``build_failure_modes_artifact``, asserts ``diagnostic_mode = ledger_enriched``
+    and ``ledger_available = True`` and the ``campaign_evidence_ledger_absent``
+    limitation is dropped.
+  - new ``test_ledger_unavailable_when_only_old_wrong_path_exists``:
+    plants a file at the OLD wrong filename and verifies diagnostics does
+    NOT silently fall back to it. Hard regression guard against a
+    well-intentioned future "make it forgive both paths" change that would
+    mask the drift test.
+  - new ``test_campaign_evidence_ledger_path_constant_has_latest_v1_suffix``:
+    belt-and-braces companion to the drift test.
+
+### Validation
+
+```
+$ pytest tests/unit/test_observability_paths.py -q
+                       17 passed in 0.07s        (gate 1)
+
+$ pytest tests/unit/test_observability_failure_modes.py -q
+                       58 passed in 0.21s        (gate 2)
+
+$ pytest tests/unit/test_observability_*.py tests/unit/test_dashboard_api_observability.py -q
+                       211 passed in 6.33s       (gate 3)
+
+$ pytest tests/functional --run-functional -q
+                       23 passed in 3.62s        (gate 4)
+
+$ pytest tests/unit/ -q
+                       2250 passed, 3 skipped    (gate 5; was 2244 pre-patch; +6 from this release)
+
+$ pytest tests/unit/test_observability_static_import_surface.py -q
+                       23 passed in 0.21s        (gate 7 — static import surface still green)
+```
+
+Frozen contract md5s unchanged (gate 6):
+- ``research/research_latest.json``: 5250ffa10e226b5b52424fb14c86814b
+- ``research/strategy_matrix.csv``: fb879837f358792cfc00a0b821df7279
+
+### Expected live impact post-deploy
+
+| Field on ``/api/observability/failure-modes`` | Pre-deploy | Post-deploy |
+|---|---|---|
+| ``diagnostic_context.ledger_available`` | ``false`` | ``true`` |
+| ``diagnostic_context.diagnostic_mode`` | ``registry_plus_digest_enriched`` | ``ledger_enriched`` |
+| ``diagnostic_context.limitations`` includes ``campaign_evidence_ledger_absent`` | yes | no |
+| ``top_failure_reasons`` populated | yes (registry-derived) | at least as populated, ledger may add |
+| ``repeated_failure_clusters`` populated | yes (5 entries, partial-quality) | at least as populated |
+| ``by_worker_id`` populated | yes (19 entries) | at least as populated; ledger lease events may add |
+
+### Not changed (intentional)
+
+- ``research/campaign_launcher.py`` — read as text only by the path-drift test, never imported, never modified
+- ``research/campaign_registry.py``, ``research/discovery_sprint.py``, ``research/run_research.py``, ``research/screening_evidence.py``, ``research/presets.py``, ``research/strategy_hypothesis_catalog.py`` — entirely untouched
+- ``dashboard/``, ``frontend/`` — entirely untouched
+- ``ops/systemd/`` — no timer install/enable/start
+- All other diagnostics modules (``aggregator.py``, ``failure_modes.py``,
+  ``throughput.py``, ``system_integrity.py``, ``artifact_health.py``,
+  ``cli.py``, ``clock.py``, ``io.py``) — entirely untouched
+- All frozen contracts
+
+### Deferred
+
+The wider Phase 1 audit findings remain open and are slated for separate releases:
+
+- **v3.15.15.8** — Registry metadata enrichment (``hypothesis_id`` field;
+  populate ``strategy_family``, ``asset_class``; add ``universe`` only after
+  backward-compat proven). Requires its own audit + migration plan.
+- **v3.15.15.9** — Sprint-progress freshness fix (refactor ``cmd_status``
+  body into a callable; invoke from launcher post-tick). Requires its own
+  launcher-tick safety analysis.
+- **v3.15.16+** — Dormant evidence cluster activation (screening_evidence
+  degenerate skeleton, rolled-up evidence ledger, spawn proposals, dead
+  zones, information gain, stop conditions).
+
+### Rollback
+
+``git revert -m 1`` of the merge commit reverts the constant value plus the
+test additions. Single-line code change; revert is trivial.
+
 ## [v3.15.15.6] — Diagnostics Evidence Completeness & Failure-Modes Enrichment
 
 Date: 2026-04-29

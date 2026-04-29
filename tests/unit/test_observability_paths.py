@@ -31,6 +31,13 @@ DRIFT_CHECKS = [
     ("public_artifact_status_latest.v1.json", "public_artifact_status.py"),
     ("discovery_sprint_progress_latest.v1.json", "discovery_sprint.py"),
     ("sprint_registry_latest.v1.json", "discovery_sprint.py"),
+    # v3.15.15.7 — pin the campaign event ledger filename. The launcher
+    # writes ``campaign_evidence_ledger_latest.v1.jsonl`` (the project's
+    # universal ``_latest.v1`` snapshot-current convention). Pre-v3.15.15.7
+    # the diagnostics constant was missing the suffix, causing a silent
+    # ``ledger_available=false`` on every read. This row prevents the
+    # regression from recurring on either side of the drift.
+    ("campaign_evidence_ledger_latest.v1.jsonl", "campaign_launcher.py"),
 ]
 
 
@@ -78,4 +85,59 @@ def test_observability_dir_constant_is_fixed():
     assert (
         str(OBSERVABILITY_DIR).replace("\\", "/")
         == "research/observability"
+    )
+
+
+def test_no_pre_v3_15_15_7_wrong_ledger_path_anywhere_in_diagnostics():
+    """Regression guard for the v3.15.15.7 path-bug fix.
+
+    Pre-v3.15.15.7 ``research/diagnostics/paths.py`` carried
+    ``CAMPAIGN_EVIDENCE_LEDGER_PATH = RESEARCH_DIR / "campaign_evidence_ledger.jsonl"``
+    (no ``_latest.v1`` suffix). The launcher actually writes
+    ``campaign_evidence_ledger_latest.v1.jsonl`` — the universal
+    snapshot-current convention. The mismatch caused a silent
+    ``ledger_available=false`` and ``diagnostic_mode=registry_plus_digest_enriched``
+    even though the artifact existed on disk and contained 80+ events.
+
+    This test scans every ``.py`` file under ``research/diagnostics/`` AS TEXT
+    (no import) and fails if the OLD wrong filename ever reappears as a string
+    literal alongside ``campaign_evidence_ledger`` (the prefix). Allowed: the
+    correct full filename ``campaign_evidence_ledger_latest.v1.jsonl``.
+    """
+    diagnostics_dir = PROJECT_ROOT / "research" / "diagnostics"
+    bad_literal = '"campaign_evidence_ledger.jsonl"'
+    offenders: list[str] = []
+    for py_path in sorted(diagnostics_dir.glob("*.py")):
+        text = py_path.read_text(encoding="utf-8")
+        if bad_literal in text:
+            offenders.append(py_path.name)
+    assert not offenders, (
+        f"v3.15.15.7 regression: the pre-fix filename "
+        f"'campaign_evidence_ledger.jsonl' (no '_latest.v1' suffix) "
+        f"reappeared in: {offenders}. The correct constant is "
+        f"'campaign_evidence_ledger_latest.v1.jsonl' — see "
+        f"research/campaign_launcher.py:139 for the writer side."
+    )
+
+
+def test_campaign_evidence_ledger_path_constant_uses_latest_v1_suffix():
+    """Pin the runtime value of ``CAMPAIGN_EVIDENCE_LEDGER_PATH``.
+
+    The drift test above asserts the literal string is in ``paths.py``;
+    this test additionally asserts the imported Path object resolves to
+    the right filename, so a future refactor that splits the constant
+    across multiple lines or adds path joining cannot silently regress.
+    """
+    from research.diagnostics.paths import CAMPAIGN_EVIDENCE_LEDGER_PATH
+
+    assert (
+        CAMPAIGN_EVIDENCE_LEDGER_PATH.name
+        == "campaign_evidence_ledger_latest.v1.jsonl"
+    ), (
+        f"expected filename 'campaign_evidence_ledger_latest.v1.jsonl', "
+        f"got {CAMPAIGN_EVIDENCE_LEDGER_PATH.name!r}"
+    )
+    assert (
+        str(CAMPAIGN_EVIDENCE_LEDGER_PATH).replace("\\", "/")
+        == "research/campaign_evidence_ledger_latest.v1.jsonl"
     )

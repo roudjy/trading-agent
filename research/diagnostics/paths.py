@@ -116,10 +116,12 @@ INPUT_ARTIFACTS: tuple[tuple[str, str, Path], ...] = (
         RESEARCH_DIR / "screening_evidence_latest.v1.json",
     ),
     # Campaign evidence ledger (JSONL — append-only event stream).
+    # v3.15.15.7 — fixed canonical filename to match the launcher's writer
+    # constant in ``research/campaign_launcher.py:139``.
     (
-        "campaign_evidence_ledger.jsonl",
+        "campaign_evidence_ledger_latest.v1.jsonl",
         "evidence_artifact",
-        RESEARCH_DIR / "campaign_evidence_ledger.jsonl",
+        RESEARCH_DIR / "campaign_evidence_ledger_latest.v1.jsonl",
     ),
     # Rolled-up evidence snapshot (v3.15.11).
     (
@@ -154,7 +156,17 @@ INPUT_ARTIFACTS: tuple[tuple[str, str, Path], ...] = (
 # Path used by failure_modes for the bounded JSONL ledger read. Kept
 # separate from INPUT_ARTIFACTS so failure_modes does not depend on
 # the entire input map.
-CAMPAIGN_EVIDENCE_LEDGER_PATH: Path = RESEARCH_DIR / "campaign_evidence_ledger.jsonl"
+# v3.15.15.7 — bug fix: the launcher writes the campaign event ledger to
+# ``research/campaign_evidence_ledger_latest.v1.jsonl`` (the project-wide
+# ``_latest.v1`` snapshot-current convention). Pre-v3.15.15.7 this constant
+# was missing the ``_latest.v1`` suffix, causing ``read_jsonl_tail_safe``
+# to find no file and report ``ledger_available=false`` even though the
+# launcher had been writing the artifact since the project's start. The
+# corresponding writer constant is ``EVIDENCE_LEDGER_PATH`` defined in
+# ``research/campaign_launcher.py:139``; the path-drift test in
+# ``tests/unit/test_observability_paths.py`` pins both sides as text so a
+# future rename on either side fails loudly.
+CAMPAIGN_EVIDENCE_LEDGER_PATH: Path = RESEARCH_DIR / "campaign_evidence_ledger_latest.v1.jsonl"
 CAMPAIGN_REGISTRY_PATH: Path = RESEARCH_DIR / "campaign_registry_latest.v1.json"
 
 # --- Bounded read constants ------------------------------------------------
