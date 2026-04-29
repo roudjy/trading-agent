@@ -128,13 +128,18 @@ from research.discovery_sprint import (
     detect_throughput_regressions,
     ensure_throughput_baseline,
     get_profile,
+    infer_asset_class,
     load_active_sprint_constraints,
     sprint_extra_for_record,
     write_routing_decision_artifact,
     write_safeguards_decision_artifact,
 )
-from research.presets import PRESETS as _PRESETS_FOR_SAFEGUARDS
+from research.presets import PRESETS as _PRESETS_FOR_SAFEGUARDS, get_preset
 from research.screening_evidence import SCREENING_EVIDENCE_PATH
+from research.strategy_hypothesis_catalog import (
+    STRATEGY_HYPOTHESIS_CATALOG,
+    get_by_id as _hypothesis_get_by_id_from_catalog,
+)
 
 EVIDENCE_LEDGER_PATH: Path = Path(
     "research/campaign_evidence_ledger_latest.v1.jsonl"
@@ -209,6 +214,45 @@ def _cli_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _resolve_metadata_for_preset(
+    preset_name: str,
+) -> tuple[str | None, str | None, str | None, tuple[str, ...]]:
+    """Resolve registry metadata for ``preset_name`` (v3.15.15.8).
+
+    Returns ``(hypothesis_id, strategy_family, asset_class, universe)``
+    derived from the preset catalog + the strategy hypothesis catalog.
+    Pure read; never raises. Unknown / mis-shaped presets, presets
+    without a ``hypothesis_id``, and hypothesis-ids the catalog doesn't
+    know about are all tolerated and produce ``None`` for the
+    corresponding field. ``universe`` is always a tuple — empty when
+    the preset is not resolvable.
+
+    Boundary rule (per the v3.15.15.8 audit): each return value is
+    (a) known at spawn time, (b) stable for the campaign's lifetime,
+    and (c) needed for failure clustering. Per-run detail does NOT
+    flow through this helper.
+    """
+    try:
+        preset = get_preset(preset_name)
+    except KeyError:
+        return None, None, None, ()
+    hypothesis_id = preset.hypothesis_id
+    strategy_family: str | None = None
+    if hypothesis_id is not None:
+        try:
+            hypothesis = _hypothesis_get_by_id_from_catalog(
+                hypothesis_id,
+                catalog=STRATEGY_HYPOTHESIS_CATALOG,
+            )
+        except KeyError:
+            hypothesis = None
+        if hypothesis is not None:
+            strategy_family = hypothesis.strategy_family
+    asset_class = infer_asset_class(tuple(preset.universe))
+    universe = tuple(preset.universe)
+    return hypothesis_id, strategy_family, asset_class, universe
+
+
 def _build_record(
     *,
     campaign_id: str,
@@ -225,6 +269,9 @@ def _build_record(
     subtype: str | None,
     extra: dict[str, Any] | None = None,
 ) -> CampaignRecord:
+    hypothesis_id, strategy_family, asset_class, universe = (
+        _resolve_metadata_for_preset(preset_name)
+    )
     return CampaignRecord(
         campaign_id=campaign_id,
         template_id=template_id,
@@ -239,6 +286,10 @@ def _build_record(
         input_artifact_fingerprint=input_artifact_fingerprint,
         estimated_runtime_seconds=int(estimate_seconds),
         subtype=subtype,
+        hypothesis_id=hypothesis_id,
+        strategy_family=strategy_family,
+        asset_class=asset_class,
+        universe=universe,
         extra=dict(extra) if extra else {},
     )
 

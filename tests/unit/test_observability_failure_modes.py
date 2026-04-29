@@ -651,6 +651,85 @@ def test_diagnostic_context_registry_only_mode(fixed_now: datetime):
     assert "campaign_record.hypothesis_id" in ctx["future_writer_enrichment_required"]
 
 
+def test_v3_15_15_8_diagnostic_limitations_clear_when_metadata_populated(
+    fixed_now: datetime,
+):
+    """v3.15.15.8 — once the launcher emits ``hypothesis_id``,
+    ``strategy_family``, and ``asset_class`` on a registry record, the
+    three corresponding limitation codes must drop from the
+    ``diagnostic_context.limitations`` list. Mixed-registry coexistence
+    is preserved: the limitation drops as soon as ``has_any_*`` is true
+    for at least one record.
+    """
+    base = _vps_shape_record(
+        campaign_id="c1",
+        outcome="degenerate_no_survivors",
+        reason_code="degenerate_no_evaluable_pairs",
+        preset_name="trend_pullback_crypto_1h",
+    )
+    enriched = {
+        **base,
+        "hypothesis_id": "trend_pullback_v1",
+        "strategy_family": "trend_pullback",
+        "asset_class": "crypto",
+        "universe": ["BTC-EUR", "ETH-EUR", "SOL-EUR"],
+    }
+    out = compute_failure_mode_distribution(
+        registry_payload={"campaigns": [enriched]},
+        registry_state="valid",
+        ledger_state="absent",
+        digest_state="absent",
+        screening_evidence_state="absent",
+        rolled_up_ledger_state="absent",
+        spawn_proposals_state="absent",
+        now_utc=fixed_now,
+    )
+    ctx = out["diagnostic_context"]
+    limitations = set(ctx["limitations"])
+    assert "hypothesis_id_missing_from_source_artifact" not in limitations
+    assert (
+        "strategy_family_field_present_but_unpopulated_by_writer"
+        not in limitations
+    )
+    assert (
+        "asset_class_field_present_but_unpopulated_by_writer"
+        not in limitations
+    )
+
+
+def test_v3_15_15_8_diagnostic_limitations_persist_for_legacy_only_registry(
+    fixed_now: datetime,
+):
+    """Mixed-registry safety: a registry containing ONLY legacy records
+    (no hypothesis_id, null strategy_family/asset_class) must keep the
+    three transitional limitations. The diagnostic narrative remains
+    correct until the live ledger ages out the legacy entries.
+    """
+    legacy = _vps_shape_record(
+        campaign_id="legacy-c1",
+        outcome="degenerate_no_survivors",
+        reason_code="degenerate_no_evaluable_pairs",
+        preset_name="trend_equities_4h_baseline",
+    )
+    out = compute_failure_mode_distribution(
+        registry_payload={"campaigns": [legacy]},
+        registry_state="valid",
+        ledger_state="absent",
+        digest_state="absent",
+        now_utc=fixed_now,
+    )
+    limitations = set(out["diagnostic_context"]["limitations"])
+    assert "hypothesis_id_missing_from_source_artifact" in limitations
+    assert (
+        "strategy_family_field_present_but_unpopulated_by_writer"
+        in limitations
+    )
+    assert (
+        "asset_class_field_present_but_unpopulated_by_writer"
+        in limitations
+    )
+
+
 def test_diagnostic_context_registry_plus_digest_enriched(fixed_now: datetime):
     out = compute_failure_mode_distribution(
         registry_payload={"campaigns": [_vps_shape_record(
