@@ -103,6 +103,16 @@ from research.strategy_hypothesis_catalog import (
     validate_active_discovery_preset_bridges,
     write_catalog_sidecar,
 )
+# v3.15.15.11 — opt-in authority transition trace (ADR-014). Default no-op
+# when ``RESEARCH_AUTHORITY_TRACE_PATH`` is unset; no file is created and
+# no behavior changes. Imported only at this orchestrator boundary so the
+# pure decision modules (promotion, campaign_policy, falsification, etc.)
+# stay pure.
+from research.authority_trace import (
+    AuthorityTraceSink,
+    build_event as _build_authority_trace_event,
+    trace_path_from_env as _authority_trace_path_from_env,
+)
 from research.portfolio_reporting import build_portfolio_aggregation_payload
 from research.promotion_reporting import build_candidate_registry_payload
 from research.recovery import (
@@ -258,6 +268,55 @@ def _git_revision() -> str:
 
 def _run_id(as_of_utc) -> str:
     return as_of_utc.strftime("%Y%m%dT%H%M%S%fZ")
+
+
+def _authority_trace_sink() -> AuthorityTraceSink:
+    """v3.15.15.11 — opt-in authority trace sink (ADR-014).
+
+    Returns a disabled sink (no-op ``emit``, creates no file) when the
+    env var ``RESEARCH_AUTHORITY_TRACE_PATH`` is unset or empty. Existing
+    behavior of every call site is preserved bit-for-bit in that case.
+    """
+    return AuthorityTraceSink(
+        path=_authority_trace_path_from_env(),
+        git_revision=_git_revision() or None,
+    )
+
+
+def _emit_authority_trace_safe(
+    *,
+    transition_kind: str,
+    source_authority: str,
+    target_authority: str,
+    ts_utc: datetime,
+    run_id: str | None,
+    hypothesis_id: str | None = None,
+    candidate_id: str | None = None,
+    evidence: dict[str, Any] | None = None,
+) -> None:
+    """Best-effort trace emission. Swallows any error so the trace
+    sidecar can never fail an authoritative write that already
+    succeeded (ADR-014 §B emission ordering rule).
+    """
+    try:
+        sink = _authority_trace_sink()
+        if not sink.enabled:
+            return
+        sink.emit(
+            _build_authority_trace_event(
+                transition_kind=transition_kind,
+                source_authority=source_authority,
+                target_authority=target_authority,
+                ts_utc=ts_utc,
+                run_id=run_id,
+                hypothesis_id=hypothesis_id,
+                candidate_id=candidate_id,
+                evidence=evidence,
+            )
+        )
+    except Exception:
+        # Trace is purely diagnostic — never fail the run on it.
+        pass
 
 
 def _preset_validation_is_strict() -> bool:
@@ -569,6 +628,21 @@ def _write_candidate_registry(
         screening_pass_kinds=screening_pass_kinds or None,
     )
     _write_json_atomic(path, payload)
+    # ADR-014 §A — emit AFTER the authoritative write returns. No-op when
+    # the trace sink is disabled (no env var → no file created).
+    _emit_authority_trace_safe(
+        transition_kind="candidate_registry_written",
+        source_authority="promotion",
+        target_authority="candidate_registry",
+        ts_utc=as_of_utc,
+        run_id=_run_id(as_of_utc),
+        evidence={
+            "candidate_count": len(payload.get("candidates", []))
+            if isinstance(payload, dict)
+            else 0,
+            "path": str(path),
+        },
+    )
 
 
 def _write_portfolio_aggregation_sidecar(
@@ -676,6 +750,20 @@ def _write_falsification_gates_sidecar(
         payload=payload,
         run_id=run_id,
         history_name="falsification_gates.v1.json",
+    )
+    # ADR-014 §A — falsification is post-hoc diagnostic evidence; trace
+    # records that the authoritative falsification sidecar landed.
+    _emit_authority_trace_safe(
+        transition_kind="falsification_payload_emitted",
+        source_authority="falsification",
+        target_authority="candidate_registry",
+        ts_utc=as_of_utc,
+        run_id=run_id,
+        evidence={
+            "candidate_count": int(payload.get("summary", {}).get("candidate_count", 0)),
+            "failed_gate_count": int(payload.get("summary", {}).get("failed_gate_count", 0)),
+            "path": str(path),
+        },
     )
     return payload
 
@@ -1912,6 +2000,17 @@ def _raise_degenerate_run(
             generated_at_utc=as_of_utc,
             git_revision=_git_revision(),
             run_id=run_id,
+        )
+        # ADR-014 §A — emit AFTER the catalog sidecar lands. Even on a
+        # degenerate run the catalog snapshot is authoritative, so the
+        # transition is recorded.
+        _emit_authority_trace_safe(
+            transition_kind="catalog_persisted",
+            source_authority="catalog",
+            target_authority="catalog",
+            ts_utc=as_of_utc,
+            run_id=run_id,
+            evidence={"site": "degenerate_hotfix", "outcome": "degenerate"},
         )
     except Exception as v3_15_3_exc:
         if tracker is not None:
@@ -3507,6 +3606,22 @@ def run_research(
             tracker.emit_event(
                 "v3_15_3_hypothesis_catalog_sidecars_written",
                 paths={name: path.as_posix() for name, path in v3_15_3_paths.items()},
+            )
+            # ADR-014 §A — emit AFTER the catalog sidecar successfully
+            # lands on the success path.
+            _emit_authority_trace_safe(
+                transition_kind="catalog_persisted",
+                source_authority="catalog",
+                target_authority="catalog",
+                ts_utc=as_of_utc,
+                run_id=str(state["run_id"]),
+                evidence={
+                    "site": "post_run",
+                    "paths": {
+                        name: path.as_posix()
+                        for name, path in v3_15_3_paths.items()
+                    },
+                },
             )
         except Exception as v3_15_3_exc:
             tracker.emit_event(
