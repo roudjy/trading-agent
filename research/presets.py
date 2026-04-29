@@ -24,6 +24,13 @@ Layer boundaries:
   promotion layer and the scheduler unit. The safe default on
   missing metadata is "excluded" — a diagnostic run must never be
   silently promoted (see ADR-011 §9).
+
+ADR-014 §A / §E: a strategy is ``enabled=True`` in the registry iff
+it is *registerable*, not iff it is *currently being investigated*.
+Bundle activity is a derived view —
+``research.authority_views.bundle_active`` consumes ``PRESETS`` to
+answer "is this strategy referenced by an enabled preset bundle?".
+Registry presence does not imply preset participation.
 """
 
 from __future__ import annotations

@@ -78,6 +78,10 @@ FORBIDDEN_PREFIXES: tuple[str, ...] = (
     "research.strategy_hypothesis_catalog",
     "research.integrity",
     "research.integrity_reporting",
+    # v3.15.15.11 — opt-in trace sink (ADR-014). Functional tests must
+    # not import it; production wiring lives in run_research.py.
+    "research.authority_trace",
+    "research.authority_views",
     # Forbidden subsystems.
     "agent",
     "execution",

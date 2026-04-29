@@ -87,6 +87,9 @@ COST_CLASSES: Final[tuple[str, ...]] = ("low", "medium", "high")
 # ``volatility_compression_breakout`` (now executable / active_discovery);
 # added ``multi_asset_trend_sleeve`` and ``cross_sectional_momentum``
 # (planned-tier, executable wiring deferred to follow-up branches).
+# ADR-014 §C: this set is a transitional reconciliation seam between
+# catalog and registry — it shrinks as planned families become
+# executable and is expected to be empty at v3.17+.
 _METADATA_ONLY_FAMILIES: Final[frozenset[str]] = frozenset({
     "regime_diagnostics",
     "atr_adaptive_trend",

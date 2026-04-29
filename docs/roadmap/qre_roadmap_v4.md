@@ -35,6 +35,10 @@ These MUST NEVER change:
 - strategy_matrix.csv
 - ROW_SCHEMA (results.py)
 
+## Authority Doctrine
+
+- ADR-014 (`docs/adr/ADR-014-truth-authority-settlement.md`, v3.15.15.10) — canonical authority map across registry, presets, hypothesis catalog, candidate lifecycle, campaign registry, paper readiness, and live governance. Required reading for any change touching authority surfaces. Defines `executable | enabled | bundle_active | active_discovery | live_eligible` as formally distinct concepts.
+
 ---
 
 # 2. CORE ARCHITECTURE RULES

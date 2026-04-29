@@ -6,6 +6,13 @@ centrale bron voor alle strategieen, param-grids en metadata.
 # AGENTS.md rules violation - scheduled for Phase 2 replacement.
 # This file currently performs a brute-force Cartesian parameter sweep.
 # Phase 1 adds a size guard; Phase 2 will replace it with a hypothesis-driven envelope.
+# Phase 2 brute-force replacement is scheduled per audit §19.3.
+#
+# ADR-014 §A: this registry is the canonical authority for "this strategy
+# exists as code", NOT for "this strategy is currently being investigated".
+# A strategy may carry ``enabled=True`` here while being bundle-inert in
+# every preset. Use ``research.authority_views.bundle_active`` to derive
+# whether any enabled preset references the strategy.
 
 from itertools import product
 
