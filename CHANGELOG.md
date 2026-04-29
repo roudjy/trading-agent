@@ -4,6 +4,141 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.9] — Sprint Progress Freshness Repair
+
+Date: 2026-04-29
+Branch: `feat/sprint-progress-launcher-hook-v3-15-15-9`
+
+Fixes the long-standing "sprint progress sidecar is hours stale"
+finding that v3.15.15.6 surfaced as the warning
+``sprint_progress_stale_relative_to_registry``. Pre-v3.15.15.9 the
+``discovery_sprint_progress_latest.v1.json`` artifact was only refreshed
+when an operator manually invoked ``python -m research.discovery_sprint
+status``; the systemd timer fires
+``research.campaign_launcher`` (not the sprint CLI), so live progress
+naturally drifted by tens of hours during normal operation.
+
+### What changed
+
+Refactored the side-effect body of ``cmd_status`` into a non-CLI
+callable ``research.discovery_sprint.update_sprint_progress(now_utc=None)``
+and invoked it from the campaign launcher tick AFTER ``assert_invariants``
+succeeds. The hook is wrapped in a defensive try/except so it can never
+block the launcher tick.
+
+| File | Change | Lines |
+|---|---|---|
+| `research/discovery_sprint.py` | extracted `update_sprint_progress()` from `cmd_status`; `cmd_status` becomes a thin shim | +112 / -55 |
+| `research/campaign_launcher.py` | imported `update_sprint_progress`; added the post-tick hook | +18 |
+| `tests/unit/test_sprint_progress_launcher_hook.py` | new file — 9 unit tests for the contract | +220 |
+| `VERSION` | `3.15.15.8` → `3.15.15.9` | 1 |
+| `CHANGELOG.md` | this entry | ~115 |
+
+### Files explicitly NOT touched
+
+- `research/campaign_registry.py`, `research/campaign_queue.py`
+- `research/diagnostics/*` — unchanged. The aggregator's existing
+  `sprint_progress_stale_relative_to_registry` warning is now expected
+  to clear naturally on the next tick after deploy.
+- `dashboard/`, `frontend/`, `agent/`, `strategies/`, `orchestration/`
+- `ops/systemd/*` — no timer install/enable/start
+- All frozen contracts
+
+### Contract: `update_sprint_progress(now_utc=None) -> dict | None`
+
+Pure side-effect callable. **Never raises.** Returns the just-written
+progress payload as a dict, or `None` for any of:
+
+- no sprint registry artifact (normal "no active sprint" state)
+- corrupt sprint registry payload (warning emitted to stderr)
+- missing `started_at_utc` / `expected_completion_at_utc` (warning)
+- IO failure writing the progress sidecar (warning)
+- write failure during state transition (progress sidecar still landed;
+  warning surfaces, function returns the partially-completed summary)
+
+Side effects, in order:
+
+1. Always writes a fresh `SPRINT_PROGRESS_PATH` when a sprint exists
+   and timestamps parse.
+2. Writes `SPRINT_REGISTRY_PATH` only when crossing `target_met` or
+   `expired` thresholds (state transition).
+
+The returned dict, when non-`None`, carries every key the legacy
+`cmd_status` JSON output emitted — so the CLI shim is byte-equivalent
+to the v3.15.15.8 surface.
+
+### Launcher-tick safety analysis
+
+| Concern | Mitigation |
+|---|---|
+| Sprint sidecar corruption blocks the tick | hook is wrapped in try/except + the function itself never raises |
+| Disk-full during sprint write blocks campaign artifact persistence | hook fires AFTER `assert_invariants`, so registry / queue / ledger / digest are ALREADY persisted; sprint write failure is contained |
+| Stale registry → confusing observed counts | sprint progress is descriptive, not prescriptive — a stale count just under-reports observations until the next tick |
+| Sprint registry transition writes after a tick crash | a tick that crashes mid-state-transition leaves the progress sidecar fresh and the registry unchanged; on the NEXT tick the hook re-evaluates the same transition and (idempotently) re-issues it |
+| Hook becomes a hidden coupling between launcher and sprint module | already present from v3.15.14: `load_active_sprint_constraints`, `apply_sprint_routing`, `sprint_extra_for_record`. This release adds **one more** callable from the same module — no new module dependency |
+
+### Cleanup / canonicalization (v3.15.15.9)
+
+| Item | Location | Classification | Action |
+|---|---|---|---|
+| `cmd_status` body duplicated logic with `cmd_run` | `discovery_sprint.py:1336-1383` and `:1402-1485` | dead-code-ish (acceptable) | KEEP — `cmd_run` is sprint-creation, not sprint-progress; merging would tangle two concerns. The shared `build_progress_payload` already factors out the inner write. |
+| `_write_ledger`, `_record_digest` patterns in launcher | `campaign_launcher.py:407-424` | canonical | KEEP — same try/except safety pattern applied to the new sprint hook |
+| `sprint_progress_stale_relative_to_registry` warning | `aggregator.py + paths.py` | canonical, transitional | KEEP — still useful as a diagnostic during the soak window; once the hook is proven on live VPS, a future release may drop the warning entirely |
+| CLI vs launcher invocation paths | `cmd_status` and `update_sprint_progress` | canonical now | the legacy CLI invocation `python -m research.discovery_sprint status` continues to work; AGENTS / docs keep both paths |
+
+No destructive cleanup performed.
+
+### Tests
+
+- `tests/unit/test_sprint_progress_launcher_hook.py` (+9):
+  - `test_update_sprint_progress_returns_none_when_no_sprint`
+  - `test_update_sprint_progress_returns_none_on_corrupt_registry`
+  - `test_update_sprint_progress_writes_progress_sidecar_on_happy_path`
+  - `test_update_sprint_progress_returns_full_summary_dict`
+  - `test_update_sprint_progress_does_not_raise_on_io_failure`
+  - `test_cmd_status_is_thin_shim_over_update_sprint_progress`
+  - `test_cmd_status_emits_full_summary_when_active`
+  - `test_update_sprint_progress_state_transition_to_completed_writes_registry`
+  - `test_update_sprint_progress_never_raises_on_unparseable_timestamps`
+- All 68 pre-existing `test_discovery_sprint*.py` tests remain green
+  (no behavior change to `cmd_status` JSON output).
+
+### Validation
+
+```
+$ pytest tests/unit/test_sprint_progress_launcher_hook.py -q
+                          9 passed in 1.13s            (gate 1)
+
+$ pytest tests/unit/test_discovery_sprint*.py tests/unit/test_sprint_progress_launcher_hook.py -q
+                       77 passed                       (gate 2)
+
+$ pytest tests/unit/ -q
+                       2276 passed, 3 skipped          (gate 3; +9 from v3.15.15.8)
+
+$ pytest tests/functional --run-functional -q
+                       23 passed                       (gate 4 — harness untouched)
+```
+
+Frozen contract md5s unchanged (canonical LF):
+- `research/research_latest.json`: 1b4bf00b4e58b1f810fd9d2c3914b9f8
+- `research/strategy_matrix.csv`: fb879837f358792cfc00a0b821df7279
+
+### Expected live impact post-deploy
+
+| `/api/observability/summary` field | Pre-deploy | Post-first-tick |
+|---|---|---|
+| `summary.warnings` includes `sprint_progress_stale_relative_to_registry` | yes | **no** (mtime gap drops below 1 hour after first tick) |
+| `discovery_sprint_progress_latest.v1.json` mtime | 19h+ stale | within minutes of registry mtime |
+| `update_sprint_progress` invocations per tick | 0 | 1 |
+| Tick wall-clock duration | unchanged | unchanged (sprint update completes in <100 ms) |
+
+### Roll-back
+
+`git revert -m 1 <merge-commit>` fully reverses. The new sprint
+progress sidecar shape is identical to the legacy shape (the same
+`build_progress_payload` produces it), so revert leaves on-disk
+artifacts intact.
+
 ## [v3.15.15.8] — Registry Metadata Enrichment
 
 Date: 2026-04-29
