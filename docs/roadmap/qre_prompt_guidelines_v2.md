@@ -21,6 +21,7 @@ Gebruik dit document altijd samen met:
 - `CLAUDE.md`
 - `orchestrator_brief.md`
 - de actuele roadmap (`qre_roadmap_v3_post_v3_15.md`)
+- `docs/adr/ADR-014-truth-authority-settlement.md` (canonical authority map; required reading before any change touching registry / presets / hypothesis catalog / candidate lifecycle)
 - eventuele handoff- of statusdocumenten van de direct voorgaande fase
 
 ---

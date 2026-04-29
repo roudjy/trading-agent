@@ -33,6 +33,7 @@ The system must enforce a clear and modular structure aligned with the defined l
 - `registry.py` is the single source of truth for strategy registration
 - Strategy implementations live in `agent/backtesting/strategies.py`
 - Research orchestration lives in `research/run_research.py`
+- See `docs/adr/ADR-014-truth-authority-settlement.md` for the canonical authority map across registry, presets, hypothesis catalog, candidate lifecycle, campaign registry, and paper readiness — and for the formal definitions of `enabled`, `bundle_active`, `active_discovery`, and `live_eligible`.
 
 ### Output Contracts
 

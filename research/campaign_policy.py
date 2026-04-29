@@ -1,5 +1,11 @@
 """Campaign policy engine — the pure ``decide(...)`` function.
 
+ADR-014 §C — transitional architecture: this is the older policy
+module. v3.15.10 introduced ``research.campaign_funnel_policy`` as
+the pure replacement. Both coexist during the migration; new policy
+logic should target ``campaign_funnel_policy``. Retirement of this
+module is conditional on Phase-2 trace evidence (audit §19.3 step 2).
+
 Executes the 5-phase, 8-step flow from plan §R3.2. Consumes only its
 explicit inputs; produces a single ``CampaignDecision`` and an artifact
 trace. Same inputs → byte-identical artifact (invariant I6).

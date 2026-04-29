@@ -40,7 +40,7 @@ Inputs: price or spread * Parameters: lookback window, entry/exit thresholds * O
 reversion signal 3. **Pairs Trading (Statistical Arbitrage)** * Inputs: two asset price series 
 * Parameters: hedge ratio, z-score thresholds * Output: long/short pair positions ### 
 Constraints * each strategy must be independently testable * all parameters must be externally 
-configurable * no hardcoded constants --- ## 5. Orchestrator Responsibilities & Rules The 
+configurable * no hardcoded constants ### Authority note (ADR-014 §A / §E) Tier-1 baselines (§4.1 SMA Crossover, §4.2 Z-Score Mean Reversion, §4.3 Pairs Trading) are *registered* baselines. Operational exercise is governed by the preset catalog (`research/presets.py`), not by their presence in the registry. `zscore_mean_reversion` is currently registered without a preset bundle — that is a documented gap (ADR-014 §E), not a code defect. Use `research.authority_views.bundle_active(name)` to derive whether any enabled preset references a strategy. --- ## 5. Orchestrator Responsibilities & Rules The 
 orchestrator agent is responsible for enforcing system integrity and automation. ### 
 Responsibilities * Execute full pipeline: * data → features → strategy → execution → 
 evaluation * Schedule: * backtests * parameter sweeps * research experiments * Manage 
