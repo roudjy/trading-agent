@@ -797,3 +797,144 @@ def test_no_over_inference_of_timeframe_from_preset_name(fixed_now: datetime):
         "timeframe_derivable_from_preset_only"
         in out["diagnostic_context"]["limitations"]
     )
+
+
+# ---------------------------------------------------------------------------
+# v3.15.15.7 — Evidence ledger path hotfix
+#
+# Pre-v3.15.15.7: ``CAMPAIGN_EVIDENCE_LEDGER_PATH`` pointed at
+# ``research/campaign_evidence_ledger.jsonl`` (no ``_latest.v1`` suffix).
+# The launcher writes to ``research/campaign_evidence_ledger_latest.v1.jsonl``
+# — the project-wide snapshot-current convention. Result: diagnostics
+# silently reported ``ledger_available=false`` and stayed in
+# ``diagnostic_mode=registry_plus_digest_enriched`` even though the
+# launcher had been writing 80+ events to disk since project start.
+#
+# These tests pin the fix end-to-end:
+# 1. when the ledger exists at the real writer path and diagnostics is
+#    pointed there, ``ledger_available=true`` and ``diagnostic_mode
+#    =ledger_enriched``.
+# 2. when only the OLD wrong filename exists on disk, diagnostics does
+#    NOT silently fall back to it.
+# 3. the imported runtime value of ``CAMPAIGN_EVIDENCE_LEDGER_PATH``
+#    ends with the ``_latest.v1.jsonl`` suffix.
+# ---------------------------------------------------------------------------
+
+
+def test_ledger_available_true_when_file_exists_at_real_writer_path(
+    tmp_path: Path, fixed_now: datetime, monkeypatch: pytest.MonkeyPatch
+):
+    """Real-path read: writer path = diagnostics path → ledger_enriched mode."""
+    research_dir = tmp_path / "research"
+    research_dir.mkdir()
+    real_ledger = research_dir / "campaign_evidence_ledger_latest.v1.jsonl"
+    # Write three launcher-shaped events at the real writer path.
+    events_lines = [
+        json.dumps(
+            {
+                "campaign_id": "c-degen-1",
+                "event_type": "campaign_completed",
+                "outcome": "degenerate_no_survivors",
+                "reason_code": "degenerate_no_evaluable_pairs",
+                "preset_name": "vol_compression_breakout_crypto_1h",
+                "campaign_type": "daily_primary",
+                "at_utc": "2026-04-28T11:05:00Z",
+            }
+        ),
+        json.dumps(
+            {
+                "campaign_id": "c-tech-1",
+                "event_type": "campaign_failed",
+                "outcome": "worker_crashed",
+                "reason_code": "worker_crash",
+                "preset_name": "crypto_diagnostic_1h",
+                "campaign_type": "daily_primary",
+                "at_utc": "2026-04-28T11:00:30Z",
+            }
+        ),
+        json.dumps(
+            {
+                "campaign_id": "c-spawn-1",
+                "event_type": "campaign_spawned",
+                "outcome": None,
+                "reason_code": "none",
+                "preset_name": "trend_pullback_crypto_1h",
+                "campaign_type": "daily_primary",
+                "at_utc": "2026-04-28T10:00:00Z",
+            }
+        ),
+    ]
+    real_ledger.write_text("\n".join(events_lines) + "\n", encoding="utf-8")
+
+    # Build the artifact via the high-level entry point with the ledger
+    # path overridden — same shape that the CLI uses post-fix.
+    payload = build_failure_modes_artifact(
+        now_utc=fixed_now,
+        registry_path=research_dir / "campaign_registry_latest.v1.json",  # absent
+        ledger_path=real_ledger,
+    )
+    ctx = payload["diagnostic_context"]
+    assert ctx["ledger_available"] is True, (
+        "ledger at the real writer path must resolve as available; "
+        "post-v3.15.15.7 behaviour"
+    )
+    assert ctx["diagnostic_mode"] == "ledger_enriched", (
+        f"expected ledger_enriched mode, got {ctx['diagnostic_mode']!r}"
+    )
+    assert "campaign_evidence_ledger_absent" not in ctx["limitations"]
+
+
+def test_ledger_unavailable_when_only_old_wrong_path_exists(
+    tmp_path: Path, fixed_now: datetime
+):
+    """Old-path regression guard: diagnostics does NOT silently fall back to
+    the pre-v3.15.15.7 wrong filename if it happens to exist on disk."""
+    research_dir = tmp_path / "research"
+    research_dir.mkdir()
+    # Plant a file at the OLD wrong filename only.
+    wrong_path = research_dir / "campaign_evidence_ledger.jsonl"
+    wrong_path.write_text(
+        json.dumps(
+            {
+                "campaign_id": "c-1",
+                "event_type": "campaign_completed",
+                "outcome": "degenerate_no_survivors",
+                "reason_code": "degenerate_no_evaluable_pairs",
+                "preset_name": "p1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    # Real writer path is INTENTIONALLY absent.
+    real_ledger = research_dir / "campaign_evidence_ledger_latest.v1.jsonl"
+    assert not real_ledger.exists()
+
+    payload = build_failure_modes_artifact(
+        now_utc=fixed_now,
+        registry_path=research_dir / "campaign_registry_latest.v1.json",  # absent
+        ledger_path=real_ledger,
+    )
+    ctx = payload["diagnostic_context"]
+    assert ctx["ledger_available"] is False, (
+        "diagnostics must NOT silently use the pre-v3.15.15.7 wrong filename "
+        "as a fallback — that would mask the regression test in paths.py"
+    )
+    assert "campaign_evidence_ledger_absent" in ctx["limitations"]
+
+
+def test_campaign_evidence_ledger_path_constant_has_latest_v1_suffix():
+    """Imported runtime value of the constant ends with the canonical suffix.
+
+    Belt-and-braces companion to the text-only drift test in
+    ``test_observability_paths.py`` — pins the actual ``Path`` object's
+    filename so a future refactor (e.g. splitting the constant onto
+    multiple lines, computing it at import time, adding path joining)
+    cannot silently regress.
+    """
+    from research.diagnostics.paths import CAMPAIGN_EVIDENCE_LEDGER_PATH
+
+    assert (
+        CAMPAIGN_EVIDENCE_LEDGER_PATH.name
+        == "campaign_evidence_ledger_latest.v1.jsonl"
+    )
