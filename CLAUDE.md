@@ -7,6 +7,8 @@ Startkapitaal: €1.000 | Max drawdown: 50%
 Financieel resultaat is een GEVOLG — nooit een sturing
 De agent mag NOOIT risico verhogen om een doel te halen
 
+Authority doctrine: `docs/adr/ADR-014-truth-authority-settlement.md` — canonical mapping of which subsystem owns truth for each domain (registry / presets / catalog / candidate lifecycle / paper readiness / live governance).
+
 ## Server
 VPS: Hetzner CX22 | IP: 23.88.110.92
 OS: Ubuntu 24.04 | Project: /root/trading-agent/
