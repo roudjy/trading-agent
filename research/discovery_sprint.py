@@ -1399,9 +1399,143 @@ def cmd_run(profile_name: str, *, out=sys.stdout) -> int:
     return 0
 
 
-def cmd_status(*, out=sys.stdout) -> int:
-    registry_payload = load_sprint_registry()
+def update_sprint_progress(
+    *,
+    now_utc: datetime | None = None,
+) -> dict | None:
+    """Refresh ``discovery_sprint_progress_latest.v1.json`` (v3.15.15.9).
+
+    Pure side-effect callable suitable for invocation from the campaign
+    launcher's post-tick hook. Returns the combined sprint+progress
+    summary dict on success, or ``None`` if no active sprint exists or
+    the sprint registry artifact is corrupt / unreadable.
+
+    Never raises: every failure mode is converted to a stderr warning
+    and a ``None`` return so the launcher tick is not blocked. The set
+    of recoverable failures includes:
+
+    * absent sprint registry — normal "no active sprint" condition
+    * corrupt sprint registry payload — one warning, return None
+    * missing / unparseable started_at_utc / expected_completion_at_utc
+    * IO errors writing the progress sidecar
+
+    Side effects:
+
+    * Always writes a fresh ``SPRINT_PROGRESS_PATH`` when a sprint
+      exists and timestamps parse.
+    * Writes ``SPRINT_REGISTRY_PATH`` only when the active sprint
+      crosses target_met or expired thresholds (state transition).
+
+    On the happy path the return shape is identical to the dict
+    that ``cmd_status`` previously emitted to stdout, so the CLI
+    shim can format it without behaviour change.
+    """
+    try:
+        registry_payload = load_sprint_registry()
+    except Exception as exc:  # pragma: no cover - extremely rare
+        print(
+            f"WARN: sprint registry unreadable: {exc!r}",
+            file=sys.stderr,
+        )
+        return None
     if not registry_payload:
+        return None
+    try:
+        profile = _restore_profile(registry_payload["profile"])
+        plan = _restore_plan(registry_payload)
+    except Exception as exc:
+        print(
+            f"WARN: sprint registry corrupt — cannot restore "
+            f"profile/plan: {exc!r}",
+            file=sys.stderr,
+        )
+        return None
+    started_at = _parse_iso(registry_payload.get("started_at_utc"))
+    expected_completion = _parse_iso(
+        registry_payload.get("expected_completion_at_utc")
+    )
+    if started_at is None or expected_completion is None:
+        print(
+            "WARN: sprint registry missing started_at_utc or "
+            "expected_completion_at_utc — skipping progress refresh",
+            file=sys.stderr,
+        )
+        return None
+    now = now_utc if now_utc is not None else _now_utc()
+    try:
+        campaign_registry = load_registry(REGISTRY_ARTIFACT_PATH)
+        counts = count_observations(
+            campaign_registry=campaign_registry,
+            plan=plan,
+            started_at_utc=started_at,
+            now_utc=now,
+        )
+        git_rev = _git_revision()
+        progress_payload = build_progress_payload(
+            sprint_id=registry_payload["sprint_id"],
+            profile=profile,
+            plan=plan,
+            observed=counts.to_dict(),
+            started_at_utc=started_at,
+            expected_completion_at_utc=expected_completion,
+            now_utc=now,
+            git_revision=git_rev,
+        )
+        write_sidecar_atomic(SPRINT_PROGRESS_PATH, progress_payload)
+    except Exception as exc:
+        print(
+            f"WARN: sprint progress refresh failed: {exc!r}",
+            file=sys.stderr,
+        )
+        return None
+    target_met = bool(progress_payload["target_met"])
+    expired = bool(progress_payload["expired"])
+    if registry_payload.get("state") == "active" and (target_met or expired):
+        new_state: SprintState = "completed" if target_met else "expired"
+        try:
+            registry_payload = build_registry_payload(
+                sprint_id=registry_payload["sprint_id"],
+                profile=profile,
+                plan=plan,
+                started_at_utc=started_at,
+                expected_completion_at_utc=expected_completion,
+                state=new_state,
+                completed_at_utc=now,
+                git_revision=git_rev,
+                generated_at_utc=now,
+            )
+            write_sidecar_atomic(SPRINT_REGISTRY_PATH, registry_payload)
+        except Exception as exc:
+            # The progress sidecar already landed; surface the
+            # registry-write failure without rolling back.
+            print(
+                f"WARN: sprint registry transition write failed "
+                f"(progress sidecar still landed): {exc!r}",
+                file=sys.stderr,
+            )
+    return {
+        "sprint_id": registry_payload["sprint_id"],
+        "state": registry_payload.get("state"),
+        "started_at_utc": registry_payload.get("started_at_utc"),
+        "expected_completion_at_utc": registry_payload.get(
+            "expected_completion_at_utc"
+        ),
+        "completed_at_utc": registry_payload.get("completed_at_utc"),
+        "target_campaigns": progress_payload["target_campaigns"],
+        "observed_total": progress_payload["observed_total"],
+        "pct_complete": progress_payload["pct_complete"],
+        "days_remaining": progress_payload["days_remaining"],
+        "target_met": progress_payload["target_met"],
+        "expired": progress_payload["expired"],
+        "by_hypothesis": progress_payload["by_hypothesis"],
+        "by_preset": progress_payload["by_preset"],
+        "by_outcome": progress_payload["by_outcome"],
+    }
+
+
+def cmd_status(*, out=sys.stdout) -> int:
+    summary = update_sprint_progress()
+    if summary is None:
         out.write(
             json.dumps(
                 {"state": "no_sprint", "sprint_id": None},
@@ -1411,75 +1545,8 @@ def cmd_status(*, out=sys.stdout) -> int:
         )
         out.write("\n")
         return 0
-    profile = _restore_profile(registry_payload["profile"])
-    plan = _restore_plan(registry_payload)
-    started_at = _parse_iso(registry_payload.get("started_at_utc"))
-    expected_completion = _parse_iso(
-        registry_payload.get("expected_completion_at_utc")
-    )
-    if started_at is None or expected_completion is None:
-        print("ERROR: registry artifact missing timestamps", file=sys.stderr)
-        return 2
-    now = _now_utc()
-    campaign_registry = load_registry(REGISTRY_ARTIFACT_PATH)
-    counts = count_observations(
-        campaign_registry=campaign_registry,
-        plan=plan,
-        started_at_utc=started_at,
-        now_utc=now,
-    )
-    git_rev = _git_revision()
-    progress_payload = build_progress_payload(
-        sprint_id=registry_payload["sprint_id"],
-        profile=profile,
-        plan=plan,
-        observed=counts.to_dict(),
-        started_at_utc=started_at,
-        expected_completion_at_utc=expected_completion,
-        now_utc=now,
-        git_revision=git_rev,
-    )
-    write_sidecar_atomic(SPRINT_PROGRESS_PATH, progress_payload)
-    target_met = bool(progress_payload["target_met"])
-    expired = bool(progress_payload["expired"])
-    if registry_payload.get("state") == "active" and (target_met or expired):
-        new_state: SprintState = "completed" if target_met else "expired"
-        registry_payload = build_registry_payload(
-            sprint_id=registry_payload["sprint_id"],
-            profile=profile,
-            plan=plan,
-            started_at_utc=started_at,
-            expected_completion_at_utc=expected_completion,
-            state=new_state,
-            completed_at_utc=now,
-            git_revision=git_rev,
-            generated_at_utc=now,
-        )
-        write_sidecar_atomic(SPRINT_REGISTRY_PATH, registry_payload)
     out.write(
-        json.dumps(
-            {
-                "sprint_id": registry_payload["sprint_id"],
-                "state": registry_payload.get("state"),
-                "started_at_utc": registry_payload.get("started_at_utc"),
-                "expected_completion_at_utc": registry_payload.get(
-                    "expected_completion_at_utc"
-                ),
-                "completed_at_utc": registry_payload.get("completed_at_utc"),
-                "target_campaigns": progress_payload["target_campaigns"],
-                "observed_total": progress_payload["observed_total"],
-                "pct_complete": progress_payload["pct_complete"],
-                "days_remaining": progress_payload["days_remaining"],
-                "target_met": progress_payload["target_met"],
-                "expired": progress_payload["expired"],
-                "by_hypothesis": progress_payload["by_hypothesis"],
-                "by_preset": progress_payload["by_preset"],
-                "by_outcome": progress_payload["by_outcome"],
-            },
-            sort_keys=True,
-            ensure_ascii=False,
-            indent=2,
-        )
+        json.dumps(summary, sort_keys=True, ensure_ascii=False, indent=2)
     )
     out.write("\n")
     return 0
