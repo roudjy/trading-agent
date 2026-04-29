@@ -131,6 +131,7 @@ from research.discovery_sprint import (
     infer_asset_class,
     load_active_sprint_constraints,
     sprint_extra_for_record,
+    update_sprint_progress,
     write_routing_decision_artifact,
     write_safeguards_decision_artifact,
 )
@@ -923,6 +924,24 @@ def _tick(
         events=refreshed_events,
         max_concurrent_campaigns=config.max_concurrent_campaigns,
     )
+
+    # v3.15.15.9 — sprint progress freshness hook. Side-effect-isolated:
+    # ``update_sprint_progress`` never raises; on failure it emits a
+    # stderr warning and returns ``None``. This guarantees the launcher
+    # tick remains the single source of truth for the registry / queue /
+    # ledger / digest invariants asserted above. The hook fires
+    # AFTER ``assert_invariants`` so a malformed sprint sidecar can never
+    # delay or short-circuit the canonical campaign-orchestration path.
+    try:
+        update_sprint_progress(now_utc=now_utc)
+    except Exception as exc:  # pragma: no cover - defensive belt
+        # ``update_sprint_progress`` is documented to never raise; if a
+        # future refactor regresses this contract, surface it loudly but
+        # do NOT block the tick.
+        print(
+            f"WARN: sprint progress hook raised unexpectedly: {exc!r}",
+            file=sys.stderr,
+        )
     return 0
 
 
