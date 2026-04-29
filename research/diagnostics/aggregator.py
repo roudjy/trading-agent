@@ -30,9 +30,12 @@ from .clock import default_now_utc, to_iso_z
 from .io import read_json_safe
 from .paths import (
     ACTIVE_COMPONENTS,
+    CAMPAIGN_REGISTRY_PATH,
     DEFERRED_COMPONENTS,
     OBSERVABILITY_SCHEMA_VERSION,
     OBSERVABILITY_SUMMARY_PATH,
+    RESEARCH_DIR,
+    SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS,
 )
 
 
@@ -48,6 +51,30 @@ OVERALL_HEALTHY = "healthy"
 OVERALL_DEGRADED = "degraded"
 OVERALL_INSUFFICIENT_EVIDENCE = "insufficient_evidence"
 OVERALL_UNKNOWN = "unknown"
+
+# v3.15.15.6: split status fields. ``infrastructure_status`` describes
+# whether the OBSERVABILITY artifacts themselves are healthy. The
+# pre-existing ``overall_status`` is kept backward-compatible (same
+# values, same semantics) — consumers that read it never break.
+# ``diagnostic_evidence_status`` is a NEW field describing whether the
+# upstream evidence (registry / ledger / screening) is rich enough to
+# explain failures.
+INFRA_HEALTHY = "healthy"
+INFRA_DEGRADED = "degraded"
+INFRA_INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+INFRA_UNKNOWN = "unknown"
+
+EVIDENCE_SUFFICIENT = "sufficient"
+EVIDENCE_PARTIAL = "partial"
+EVIDENCE_INSUFFICIENT = "insufficient"
+EVIDENCE_UNAVAILABLE = "unavailable"
+
+# Path to the sprint-progress sidecar — read for the freshness
+# warning ONLY. Never mutated; never imported from
+# research.discovery_sprint.
+SPRINT_PROGRESS_PATH: Path = (
+    RESEARCH_DIR / "discovery_sprints" / "discovery_sprint_progress_latest.v1.json"
+)
 
 # Recommended next action taxonomy.
 ACTION_NONE = "none"
@@ -135,15 +162,107 @@ def _recommended_action(overall_status: str, corrupt_count: int) -> str:
     return ACTION_ROADMAP_DECISION_REQUIRED
 
 
+def _sprint_progress_freshness(
+    *,
+    sprint_progress_path: Path,
+    registry_path: Path,
+    threshold_seconds: int,
+) -> dict[str, Any]:
+    """Compare sprint-progress mtime against campaign-registry mtime.
+
+    Returns a dict that always has a stable shape so consumers can
+    rely on the keys. The only side effect is reading file mtimes.
+
+    A stale sprint progress is **only ever a warning** (never sets
+    ``infrastructure_status`` to degraded) per the v3.15.15.6 brief —
+    sprint progress is a sidecar, not infrastructure.
+    """
+    out: dict[str, Any] = {
+        "available": False,
+        "stale_relative_to_campaign_registry": False,
+        "sprint_progress_generated_at_utc": None,
+        "campaign_registry_generated_at_utc": None,
+        "sprint_progress_modified_at_unix": None,
+        "campaign_registry_modified_at_unix": None,
+        "age_delta_seconds": None,
+        "threshold_seconds": int(threshold_seconds),
+    }
+    sp_result = read_json_safe(sprint_progress_path)
+    rg_result = read_json_safe(registry_path)
+    if sp_result.state != "valid" or rg_result.state != "valid":
+        return out
+
+    out["available"] = True
+    sp_mtime = sp_result.modified_at_unix
+    rg_mtime = rg_result.modified_at_unix
+    out["sprint_progress_modified_at_unix"] = sp_mtime
+    out["campaign_registry_modified_at_unix"] = rg_mtime
+    if isinstance(sp_result.payload, dict):
+        gen = sp_result.payload.get("generated_at_utc")
+        if isinstance(gen, str):
+            out["sprint_progress_generated_at_utc"] = gen
+    if isinstance(rg_result.payload, dict):
+        gen = rg_result.payload.get("generated_at_utc")
+        if isinstance(gen, str):
+            out["campaign_registry_generated_at_utc"] = gen
+    if (
+        isinstance(sp_mtime, (int, float))
+        and isinstance(rg_mtime, (int, float))
+    ):
+        delta = max(0.0, float(rg_mtime) - float(sp_mtime))
+        out["age_delta_seconds"] = int(delta)
+        if delta > float(threshold_seconds):
+            out["stale_relative_to_campaign_registry"] = True
+    return out
+
+
 def build_observability_summary(
     *,
     now_utc: datetime | None = None,
     active_components: tuple[tuple[str, str, Path], ...] | None = None,
     deferred_components: tuple[tuple[str, str], ...] | None = None,
+    sprint_progress_path: Path | None = None,
+    campaign_registry_path: Path | None = None,
+    sprint_stale_threshold_seconds: int | None = None,
 ) -> dict[str, Any]:
+    """v3.15.15.6 enrichments (additive):
+
+    * ``infrastructure_status`` — same semantics as the legacy
+      ``overall_status`` (kept for backward-compat). Describes
+      whether the OBSERVABILITY artifact set itself is healthy.
+    * ``diagnostic_evidence_status`` — derived from the
+      failure_modes payload's ``diagnostic_context.diagnostic_evidence_status``.
+      Reports whether upstream evidence is rich enough to explain
+      failures, independent of whether the diagnostics artifacts
+      themselves loaded cleanly.
+    * ``overall_status`` — kept identical to the legacy field for
+      backward compatibility.
+    * Limitation strings from
+      ``failure_modes.diagnostic_context.limitations`` are propagated
+      into ``warnings`` so an operator sees them on
+      ``/observability``.
+    * Sprint-progress mtime vs campaign-registry mtime is checked;
+      a stale sprint progress emits a warning ONLY (never flips
+      ``infrastructure_status`` to degraded).
+    """
     when = now_utc or default_now_utc()
     actives = active_components or ACTIVE_COMPONENTS
     deferreds = deferred_components or DEFERRED_COMPONENTS
+    sp_path = (
+        sprint_progress_path
+        if sprint_progress_path is not None
+        else SPRINT_PROGRESS_PATH
+    )
+    rg_path = (
+        campaign_registry_path
+        if campaign_registry_path is not None
+        else CAMPAIGN_REGISTRY_PATH
+    )
+    threshold = (
+        sprint_stale_threshold_seconds
+        if sprint_stale_threshold_seconds is not None
+        else SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS
+    )
 
     component_rows: list[dict[str, Any]] = []
     component_status_counts: dict[str, int] = {}
@@ -152,6 +271,7 @@ def build_observability_summary(
     informational: list[str] = []
     earliest_generated: str | None = None
     latest_generated: str | None = None
+    failure_modes_payload: dict[str, Any] | None = None
 
     for name, slug, path in actives:
         result = read_json_safe(path)
@@ -169,6 +289,11 @@ def build_observability_summary(
                 **meta,
             }
         )
+
+        # Stash the failure_modes payload for evidence-warning
+        # propagation below.
+        if name == "failure_modes" and isinstance(payload, dict):
+            failure_modes_payload = payload
 
         if status == STATUS_CORRUPT:
             critical_findings.append(
@@ -209,6 +334,57 @@ def build_observability_summary(
         corrupt_count=component_status_counts.get(STATUS_CORRUPT, 0),
     )
 
+    # v3.15.15.6 — infrastructure_status mirrors overall_status semantics
+    # (same enum values), and diagnostic_evidence_status is sourced from
+    # the failure_modes payload when available.
+    infrastructure_status = overall
+    diagnostic_evidence_status: str = EVIDENCE_UNAVAILABLE
+    diagnostic_mode: str | None = None
+    failure_modes_limitations: list[str] = []
+    if failure_modes_payload is not None:
+        ctx = failure_modes_payload.get("diagnostic_context")
+        if isinstance(ctx, dict):
+            evs = ctx.get("diagnostic_evidence_status")
+            if isinstance(evs, str) and evs:
+                diagnostic_evidence_status = evs
+            dm = ctx.get("diagnostic_mode")
+            if isinstance(dm, str) and dm:
+                diagnostic_mode = dm
+            lims = ctx.get("limitations")
+            if isinstance(lims, list):
+                failure_modes_limitations = [
+                    str(x) for x in lims if isinstance(x, str)
+                ]
+
+    # Propagate failure_modes limitations into the summary's warnings
+    # so an operator on /observability sees them.
+    for code in failure_modes_limitations:
+        warnings.append(f"diagnostic_evidence_limitation: {code}")
+
+    # Aggregate-level "diagnostic evidence partial" warning when
+    # infrastructure is healthy but evidence is partial/insufficient.
+    if (
+        infrastructure_status == INFRA_HEALTHY
+        and diagnostic_evidence_status in (EVIDENCE_PARTIAL, EVIDENCE_INSUFFICIENT)
+    ):
+        warnings.append(
+            f"diagnostic_evidence_{diagnostic_evidence_status}: "
+            f"infrastructure healthy, evidence {diagnostic_evidence_status}"
+        )
+
+    # Sprint-progress staleness check — warning only, never degraded.
+    sprint_freshness = _sprint_progress_freshness(
+        sprint_progress_path=sp_path,
+        registry_path=rg_path,
+        threshold_seconds=threshold,
+    )
+    if sprint_freshness.get("stale_relative_to_campaign_registry"):
+        delta = sprint_freshness.get("age_delta_seconds")
+        warnings.append(
+            "sprint_progress_stale_relative_to_registry: "
+            f"delta_seconds={delta}, threshold_seconds={threshold}"
+        )
+
     return {
         "schema_version": OBSERVABILITY_SCHEMA_VERSION,
         "generated_at_utc": to_iso_z(when),
@@ -217,12 +393,19 @@ def build_observability_summary(
             "latest_component_generated_at_utc": latest_generated,
             "inferred_from": "active_component_generated_at_utc",
         },
+        # Backward-compat: overall_status retains its legacy semantics
+        # (== infrastructure_status). New consumers should prefer
+        # ``infrastructure_status`` + ``diagnostic_evidence_status``.
         "overall_status": overall,
+        "infrastructure_status": infrastructure_status,
+        "diagnostic_evidence_status": diagnostic_evidence_status,
+        "diagnostic_mode": diagnostic_mode,
         "component_status_counts": dict(sorted(component_status_counts.items())),
         "components": component_rows,
         "critical_findings": sorted(critical_findings),
         "warnings": sorted(warnings),
         "informational_findings": sorted(informational),
+        "sprint_progress_freshness": sprint_freshness,
         "recommended_next_human_action": action,
         "active_component_count": len(actives),
         "deferred_component_count": len(deferreds),
@@ -247,6 +430,14 @@ __all__ = [
     "ACTION_INVESTIGATION_REQUIRED",
     "ACTION_NONE",
     "ACTION_ROADMAP_DECISION_REQUIRED",
+    "EVIDENCE_INSUFFICIENT",
+    "EVIDENCE_PARTIAL",
+    "EVIDENCE_SUFFICIENT",
+    "EVIDENCE_UNAVAILABLE",
+    "INFRA_DEGRADED",
+    "INFRA_HEALTHY",
+    "INFRA_INSUFFICIENT_EVIDENCE",
+    "INFRA_UNKNOWN",
     "OVERALL_DEGRADED",
     "OVERALL_HEALTHY",
     "OVERALL_INSUFFICIENT_EVIDENCE",
