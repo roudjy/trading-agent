@@ -85,20 +85,42 @@ def test_technical_failure_classified_correctly(sandbox):
     )
     # Known outcome must never land in unknown.
     assert counts["unknown"] == 0
-    # Failure mode aggregator picked up the failure_reason from the registry
-    # record. Note: ``_ledger_failure_events`` (in failure_modes.py) currently
-    # filters ledger events on outcome=="failed" or event_type containing
-    # "fail" — it does NOT yet recognise the launcher literal
-    # ``outcome="technical_failure"`` as a failure event. So the ledger
-    # contribution to top_failure_reasons is 0; only the registry record
-    # contributes. Extending that filter is a future research/diagnostics
-    # enhancement (out of scope for v3.15.15.5).
+    # v3.15.15.6: ``_ledger_failure_events`` was widened to recognise
+    # launcher-literal outcomes (``technical_failure``, ``worker_crashed``,
+    # ``degenerate_no_survivors``, etc.). The ledger event with
+    # ``outcome="technical_failure"`` is now counted alongside the
+    # registry record.
     reasons = {r["name"]: r["count"] for r in fm["top_failure_reasons"]}
-    assert reasons.get("worker_crash") == 1
+    assert reasons.get("worker_crash") == 2  # registry + ledger
+
+    # v3.15.15.6: technical_vs_research_failure_counts ranges over ALL
+    # campaigns; degenerate / paper_blocked are first-class buckets.
+    tvr = fm["technical_vs_research_failure_counts"]
+    assert tvr["technical_failure"] == 1
+    assert tvr["research_rejection"] == 0
+    assert tvr["degenerate_no_survivors"] == 0
+    assert tvr["paper_blocked"] == 0
+
+    # v3.15.15.6: by_worker_id populated from lease.worker_id
+    # (synthetic builder sets top-level worker_id; the alias path also
+    # works for production records where worker_id lives in lease).
+    workers = {w["name"]: w["count"] for w in fm["by_worker_id"]}
+    assert workers.get("w-1") == 2  # one from registry + one from ledger
+
+    # v3.15.15.6: diagnostic_context block reports ledger_enriched mode
+    # (the harness writes a synthetic ledger so the path is exercised).
+    ctx = fm["diagnostic_context"]
+    assert ctx["diagnostic_mode"] == "ledger_enriched"
+    assert ctx["ledger_available"] is True
+    assert ctx["screening_evidence_available"] is False
+    assert "screening_evidence_absent" in ctx["limitations"]
 
     tp = json.loads(sandbox.throughput_metrics_path.read_text(encoding="utf-8"))
     # Technical failures are NOT meaningful — no usable evidence.
     assert tp["meaningful_campaigns_per_day"] == 0.0
+    # v3.15.15.6: digest passthroughs are None when no digest is present.
+    assert tp["meaningful_by_classification_from_digest"] is None
+    assert tp["campaigns_by_type_from_digest"] is None
 
 
 def test_technical_failure_reason_timeout_classified_correctly(sandbox):

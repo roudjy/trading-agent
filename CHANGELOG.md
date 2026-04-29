@@ -4,6 +4,177 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.6] — Diagnostics Evidence Completeness & Failure-Modes Enrichment
+
+Date: 2026-04-29
+Branch: `feat/diagnostics-evidence-completeness-v3-15-15-6`
+
+Diagnostics-only patch. Read-only. Zero behavior change. Aligns the
+diagnostics layer with the launcher's actual emitted shape, making
+failure analysis honest in registry-only mode and reporting evidence
+limitations explicitly. **No edits to runtime / launcher / policy /
+sprint / strategy / dashboard / frontend code.**
+
+### Phase 1 — Audit findings
+
+Snapshotted the live VPS artifact set on 2026-04-29T08:54Z and
+compared against the diagnostics parser:
+
+* The launcher emits ``reason_code`` (not ``failure_reason``);
+  diagnostics looked for ``failure_reason`` only → ``top_failure_reasons``
+  was empty for every campaign.
+* ``worker_id`` lives nested in ``lease.worker_id`` only;
+  diagnostics looked at the top level → ``by_worker_id`` was empty.
+* ``campaign_type`` was extracted only from the narrow failed-records
+  filter (which excluded degenerate runs) → ``by_campaign_type`` was
+  empty.
+* ``hypothesis_id``, ``timeframe``, ``asset``, ``universe`` are not
+  emitted by the writer at all today → diagnostics had no way to
+  populate those breakdowns. Reported as
+  ``future_writer_enrichment_required`` rather than guessed.
+* ``strategy_family`` and ``asset_class`` keys are present in the
+  record but always null in production → reported as
+  ``field_present_but_unpopulated_by_writer``.
+* The campaign digest exposes ``top_failure_reasons``,
+  ``meaningful_by_classification``, and ``campaigns_by_type`` — none
+  consumed by diagnostics → became fallback inputs in this release.
+* Sprint progress sidecar runs ~18 hours stale relative to the
+  registry on the live VPS — never surfaced as a warning.
+
+### Phase 2 — Patch (additive, behavior-pure)
+
+Files modified:
+
+* ``research/diagnostics/paths.py``: new constants
+  ``SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS`` (default 1 hour),
+  ``DIAGNOSTIC_MODES``, ``DIAGNOSTIC_EVIDENCE_STATUSES``,
+  ``DIAGNOSTIC_LIMITATION_CODES`` — single source of truth for the
+  vocabulary used by failure_modes / aggregator / tests.
+* ``research/diagnostics/failure_modes.py``:
+  - ``_enrich_record(...)`` extracts ``reason_code → failure_reason``
+    alias, ``preset_name → preset`` alias, ``lease.worker_id →
+    worker_id`` alias, ``strategy_family → family`` alias. Original
+    record is not mutated.
+  - ``_effective_failure_reason(...)`` resolves the effective
+    failure-reason and reports a conflict when ``failure_reason`` and
+    ``reason_code`` are both present and disagree (``failure_reason``
+    wins; ``conflicting_failure_reason_fields`` limitation emitted).
+  - ``_ledger_failure_events`` widened to recognise launcher-literal
+    outcomes (``degenerate_no_survivors``, ``technical_failure``,
+    ``worker_crashed``, ``research_rejection``, ``no_signal``,
+    ``near_pass``, ``integrity_failed``, ``paper_blocked``).
+  - ``_repeated_failure_clusters`` rewritten with full / partial / weak
+    fallback-key strategy + ``cluster_key_quality`` reporting +
+    threshold lowered to ``count >= 2``. Cluster row shape:
+    ``{count, outcome_class, preset_name, hypothesis_id,
+    strategy_family, timeframe, asset, cluster_key_quality, source}``.
+  - ``by_campaign_type`` and ``by_meaningful_classification`` now
+    aggregate across ALL campaigns (not the narrow failed-records
+    subset) — populated in registry-only mode.
+  - ``technical_vs_research_failure_counts`` ranges over ALL campaigns
+    and adds ``degenerate_no_survivors`` + ``paper_blocked`` as
+    first-class buckets.
+  - ``top_failure_reasons`` falls back to digest's pre-computed
+    counts when registry-derived reasons are empty (rows tagged
+    ``source="digest"``).
+  - New ``diagnostic_context`` block reports diagnostic_mode,
+    evidence_available booleans, missing_evidence_artifacts,
+    limitations (10 documented codes), and
+    ``future_writer_enrichment_required`` (10 entries).
+  - ``build_failure_modes_artifact`` now also reads digest +
+    screening + rolled-up ledger + spawn-proposals to drive the
+    diagnostic_context flags. Path defaults resolve at call time
+    (monkeypatch-friendly).
+* ``research/diagnostics/throughput.py``: added
+  ``meaningful_by_classification_from_digest`` and
+  ``campaigns_by_type_from_digest`` passthroughs (None when digest
+  absent). Names explicitly tagged ``_from_digest`` so they cannot be
+  confused with recomputed truth.
+* ``research/diagnostics/aggregator.py``:
+  - New ``infrastructure_status`` field — same enum semantics as
+    ``overall_status`` (legacy field kept identical for backward-compat).
+  - New ``diagnostic_evidence_status`` field — sourced from
+    ``failure_modes.diagnostic_context.diagnostic_evidence_status``.
+  - New ``diagnostic_mode`` field — sourced likewise.
+  - Limitation strings from failure_modes propagated into
+    ``warnings`` so an operator on ``/observability`` sees them.
+  - Aggregate-level "diagnostic evidence partial/insufficient"
+    warning fires when infrastructure is healthy but evidence is
+    incomplete.
+  - New ``sprint_progress_freshness`` block compares sprint-progress
+    mtime against campaign-registry mtime; emits a WARNING ONLY
+    when the delta exceeds
+    ``SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS`` (default 1h) —
+    NEVER flips ``infrastructure_status`` to degraded.
+* ``research/diagnostics/artifact_health.py``: minimal — added
+  ``failure_stage`` to ``LINKED_ID_KEYS`` so
+  ``public_artifact_status_latest.v1.json``'s
+  ``last_attempted_run.failure_stage`` ("screening_no_survivors") is
+  surfaced. No broader artifact_health redesign.
+
+Tests added (107 new cases, 168 total in observability suites):
+
+* 14 new failure_modes cases covering reason_code alias,
+  lease.worker_id, by_campaign_type for ALL, by_meaningful_classification,
+  conflicting fields, digest fallback, fallback-key cluster qualities,
+  diagnostic_context shape per mode, no-over-inference of timeframe.
+* 4 new throughput cases covering the digest passthroughs.
+* 6 new aggregator cases covering split status fields, evidence-warning
+  propagation, sprint-progress freshness (warning only).
+* Functional harness extended: scenario A and scenario B now assert
+  the new ``top_failure_reasons``, ``repeated_failure_clusters``,
+  ``by_worker_id``, ``by_meaningful_classification``,
+  ``diagnostic_context`` shape, ``technical_vs_research_failure_counts``
+  with degenerate + paper_blocked first-class buckets, and the split
+  status fields. **Zero xfails**.
+
+### Live before/after on production VPS-shape data (20 campaigns)
+
+| Field | Pre-v3.15.15.6 | Post-v3.15.15.6 |
+|---|---|---|
+| ``top_failure_reasons`` | ``[]`` | ``[degenerate_no_evaluable_pairs: 15, worker_crash: 4]`` |
+| ``repeated_failure_clusters`` | ``[]`` | 5 entries (all partial-quality), e.g. ``trend_pullback_crypto_1h × 4 degenerate`` |
+| ``by_worker_id`` | ``[]`` | 19 entries (extracted from ``lease.worker_id``) |
+| ``by_campaign_type`` | ``[]`` | ``[daily_primary: 15, daily_control: 5]`` |
+| ``by_meaningful_classification`` | not present | ``[meaningful_failure_confirmed: 15, uninformative_technical_failure: 4]`` |
+| ``diagnostic_context`` | not present | mode=``registry_plus_digest_enriched``, evidence=``partial``, 10 limitations |
+| ``technical_vs_research_failure_counts`` (degenerate / paper_blocked) | absent / absent | ``15`` / ``0`` |
+| ``summary.infrastructure_status`` | not present | ``healthy`` |
+| ``summary.diagnostic_evidence_status`` | not present | ``partial`` |
+| ``summary.warnings`` (evidence) | not present | 10 ``diagnostic_evidence_limitation: …`` warnings + sprint-stale warning |
+| ``summary.sprint_progress_freshness`` | not present | block populated, ``stale_relative_to_campaign_registry=true``, ``age_delta_seconds≈66752`` |
+
+### Hard guarantees verified
+
+* **Frozen contracts unchanged** — md5 ``5250ffa1…`` /
+  ``fb879837…`` identical pre/post.
+* **No edits to runtime files** — ``git status`` filter covers
+  ``research/`` (other than ``research/diagnostics/``),
+  ``agent/``, ``strategies/``, ``orchestration/``, ``execution/``,
+  ``automation/``, ``state/``, ``dashboard/``, ``frontend/``: all
+  untouched.
+* **Backward compat** — ``overall_status`` retains legacy enum values
+  + semantics; pre-v3.15.15.6 consumers continue to work without change.
+* **All existing tests pass** — 2244 unit + 23 functional all green.
+
+### Not done in this release (intentional)
+
+* **No frontend / dashboard changes.** The new fields appear in the
+  existing ``/api/observability/failure-modes`` and
+  ``/api/observability/summary`` JSON automatically. Whether to
+  surface them visually is a separate UX decision.
+* **No writer / launcher changes.** Fields the writer doesn't emit
+  today (``hypothesis_id``, ``timeframe``, ``asset``, ``universe``)
+  are reported as ``future_writer_enrichment_required`` but not
+  inferred or back-filled.
+* **No systemd timer install** — unit files remain shipped-but-not-installed.
+
+### Rollback
+
+``git revert -m 1 <merge-commit>`` removes the patch. The patch is
+purely additive — pre-v3.15.15.6 consumers don't depend on the new
+fields, so the revert is clean.
+
 ## [v3.15.15.5] — Synthetic Artifact Contract Harness (functional, opt-in)
 
 Date: 2026-04-28
