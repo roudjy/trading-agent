@@ -194,6 +194,63 @@ def stale_threshold_for(contract_class: str) -> int:
     return STALE_THRESHOLD_SECONDS.get(contract_class, DEFAULT_STALE_THRESHOLD_SECONDS)
 
 
+# v3.15.15.6 — Sprint-progress vs campaign-registry staleness threshold.
+#
+# When ``discovery_sprint_progress_latest.v1.json`` is older than
+# ``campaign_registry_latest.v1.json`` by more than this many seconds,
+# the aggregator emits a warning ``sprint_progress_stale_relative_to_registry``
+# with the actual delta. This is a **warning ONLY** — it never sets
+# ``infrastructure_status`` to degraded (sprint progress is a sidecar,
+# not infrastructure). Default: 1 hour. Active sprints update progress
+# at least hourly via the launcher tick.
+SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS: int = 60 * 60
+
+
+# v3.15.15.6 — diagnostic_context vocabulary.
+#
+# Listed here as the single source of truth so unit tests, the
+# aggregator's warning propagation, and the future-writer-enrichment
+# tracker can refer to the same string keys.
+
+DIAGNOSTIC_MODES: tuple[str, ...] = (
+    "registry_only",
+    "registry_plus_queue",
+    "registry_plus_digest_enriched",
+    "ledger_enriched",
+    "screening_evidence_enriched",
+    "full_funnel_evidence",
+)
+
+DIAGNOSTIC_EVIDENCE_STATUSES: tuple[str, ...] = (
+    "sufficient",
+    "partial",
+    "insufficient",
+    "unavailable",
+)
+
+# Documented limitation codes the diagnostics layer may emit. Any
+# string in ``diagnostic_context.limitations`` should appear here so
+# consumers (frontend, alerting) can render stable text for each.
+DIAGNOSTIC_LIMITATION_CODES: tuple[str, ...] = (
+    "registry_only_mode",
+    "registry_plus_digest_only_mode",
+    "campaign_evidence_ledger_absent",
+    "screening_evidence_absent",
+    "spawn_proposals_absent",
+    "rolled_up_evidence_ledger_absent",
+    "failure_reason_detail_unavailable",
+    "asset_timeframe_fields_absent",
+    "hypothesis_id_missing_from_source_artifact",
+    "strategy_family_field_present_but_unpopulated_by_writer",
+    "asset_class_field_present_but_unpopulated_by_writer",
+    "timeframe_derivable_from_preset_only",
+    "sprint_progress_stale_relative_to_registry",
+    "conflicting_failure_reason_fields",
+    "registry_absent",
+    "registry_corrupt",
+)
+
+
 __all__ = [
     "ACTIVE_COMPONENTS",
     "ARTIFACT_HEALTH_PATH",
@@ -201,6 +258,9 @@ __all__ = [
     "CAMPAIGN_REGISTRY_PATH",
     "DEFAULT_STALE_THRESHOLD_SECONDS",
     "DEFERRED_COMPONENTS",
+    "DIAGNOSTIC_EVIDENCE_STATUSES",
+    "DIAGNOSTIC_LIMITATION_CODES",
+    "DIAGNOSTIC_MODES",
     "FAILURE_MODES_PATH",
     "INPUT_ARTIFACTS",
     "MAX_LEDGER_LINES",
@@ -209,6 +269,7 @@ __all__ = [
     "OBSERVABILITY_SCHEMA_VERSION",
     "OBSERVABILITY_SUMMARY_PATH",
     "RESEARCH_DIR",
+    "SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS",
     "STALE_THRESHOLD_SECONDS",
     "SYSTEM_INTEGRITY_PATH",
     "THROUGHPUT_METRICS_PATH",

@@ -288,3 +288,65 @@ def test_paper_blocked_is_meaningful(fixed_now: datetime):
         now_utc=fixed_now,
     )
     assert out["meaningful_campaigns_per_day"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# v3.15.15.6 — digest passthroughs
+# ---------------------------------------------------------------------------
+
+
+def test_meaningful_by_classification_from_digest_passthrough(fixed_now: datetime):
+    out = compute_throughput_metrics(
+        digest_payload={
+            "meaningful_by_classification": {
+                "meaningful_failure_confirmed": 12,
+                "uninformative_technical_failure": 4,
+                "meaningful_candidate_found": 0,
+            }
+        },
+        now_utc=fixed_now,
+    )
+    mbc = out["meaningful_by_classification_from_digest"]
+    assert mbc == {
+        "meaningful_failure_confirmed": 12,
+        "uninformative_technical_failure": 4,
+        "meaningful_candidate_found": 0,
+    }
+
+
+def test_campaigns_by_type_from_digest_passthrough(fixed_now: datetime):
+    out = compute_throughput_metrics(
+        digest_payload={
+            "campaigns_by_type": {
+                "daily_primary": 15,
+                "daily_control": 5,
+                "weekly_retest": 0,
+            }
+        },
+        now_utc=fixed_now,
+    )
+    cbt = out["campaigns_by_type_from_digest"]
+    assert cbt == {"daily_primary": 15, "daily_control": 5, "weekly_retest": 0}
+
+
+def test_digest_passthroughs_none_when_digest_absent(fixed_now: datetime):
+    out = compute_throughput_metrics(now_utc=fixed_now)
+    assert out["meaningful_by_classification_from_digest"] is None
+    assert out["campaigns_by_type_from_digest"] is None
+
+
+def test_digest_passthroughs_labelled_distinct_from_recomputed(fixed_now: datetime):
+    """Digest passthroughs are explicitly named ``_from_digest`` so
+    consumers cannot confuse them with recomputed truth from this module."""
+    out = compute_throughput_metrics(
+        digest_payload={
+            "meaningful_by_classification": {"x": 1},
+            "campaigns_by_type": {"y": 1},
+        },
+        now_utc=fixed_now,
+    )
+    assert "meaningful_by_classification_from_digest" in out
+    assert "campaigns_by_type_from_digest" in out
+    # The un-suffixed names must NOT exist (would imply recompute).
+    assert "meaningful_by_classification" not in out
+    assert "campaigns_by_type" not in out

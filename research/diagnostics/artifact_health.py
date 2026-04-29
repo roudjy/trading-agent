@@ -32,6 +32,12 @@ from .paths import (
 # Linked-id field aliases we look for in artifact payloads. Kept
 # deterministic and explicit — no reflection, no heuristics beyond
 # this list.
+#
+# v3.15.15.6 adds ``failure_stage`` so the
+# ``public_artifact_status_latest.v1.json`` row carries the launcher's
+# emitted stage (e.g. ``screening_no_survivors``) alongside the rest of
+# the linked-id block. Strictly an additive linked-id extension —
+# artifact_health output schema is otherwise unchanged.
 LINKED_ID_KEYS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("run_id", ("run_id",)),
     ("campaign_id", ("campaign_id",)),
@@ -39,6 +45,7 @@ LINKED_ID_KEYS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("worker_id", ("worker_id",)),
     ("preset_id", ("preset_id", "preset", "preset_name")),
     ("hypothesis_id", ("hypothesis_id",)),
+    ("failure_stage", ("failure_stage",)),
 )
 
 

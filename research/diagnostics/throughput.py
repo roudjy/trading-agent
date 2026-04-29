@@ -324,6 +324,27 @@ def compute_throughput_metrics(
         round(1.0 - busy_rate, 4) if busy_rate is not None else None
     )
 
+    # v3.15.15.6 — digest passthroughs. Tagged ``_from_digest`` so
+    # consumers know these counts came from the launcher's per-tick
+    # digest aggregation, not from this module's own recompute.
+    meaningful_by_classification_from_digest: dict[str, int] | None = None
+    campaigns_by_type_from_digest: dict[str, int] | None = None
+    if isinstance(digest_payload, dict):
+        mbc = digest_payload.get("meaningful_by_classification")
+        if isinstance(mbc, dict):
+            meaningful_by_classification_from_digest = {
+                str(k): int(v)
+                for k, v in mbc.items()
+                if isinstance(v, (int, float))
+            }
+        cbt = digest_payload.get("campaigns_by_type")
+        if isinstance(cbt, dict):
+            campaigns_by_type_from_digest = {
+                str(k): int(v)
+                for k, v in cbt.items()
+                if isinstance(v, (int, float))
+            }
+
     return {
         "schema_version": OBSERVABILITY_SCHEMA_VERSION,
         "generated_at_utc": to_iso_z(when),
@@ -375,6 +396,9 @@ def compute_throughput_metrics(
         "running_count": running,
         "canceled_count": canceled,
         "running_canceled_excluded_from_meaningful": True,
+        # v3.15.15.6 digest passthroughs (None when digest is absent).
+        "meaningful_by_classification_from_digest": meaningful_by_classification_from_digest,
+        "campaigns_by_type_from_digest": campaigns_by_type_from_digest,
     }
 
 
