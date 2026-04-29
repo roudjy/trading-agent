@@ -239,3 +239,125 @@ def test_meaningful_classifications_vocabulary_is_closed() -> None:
     assert "uninformative_technical_failure" in MEANINGFUL_CLASSIFICATIONS
     assert "duplicate_low_value_run" in MEANINGFUL_CLASSIFICATIONS
     assert "meaningful_failure_confirmed" in MEANINGFUL_CLASSIFICATIONS
+
+
+# ---------------------------------------------------------------------------
+# v3.15.15.8 — registry metadata enrichment
+# ---------------------------------------------------------------------------
+
+
+def test_v3_15_15_8_record_defaults_for_new_metadata_fields() -> None:
+    """Old call sites that don't pass the new fields must still build."""
+    record = _record()
+    payload = record.to_payload()
+    assert payload["hypothesis_id"] is None
+    assert payload["strategy_family"] is None
+    assert payload["asset_class"] is None
+    assert payload["universe"] == ()
+
+
+def test_v3_15_15_8_record_round_trips_with_metadata_populated() -> None:
+    record = _record(
+        hypothesis_id="trend_pullback_v1",
+        strategy_family="trend_pullback",
+        asset_class="crypto",
+        universe=("BTC-EUR", "ETH-EUR"),
+    )
+    payload = record.to_payload()
+    assert payload["hypothesis_id"] == "trend_pullback_v1"
+    assert payload["strategy_family"] == "trend_pullback"
+    assert payload["asset_class"] == "crypto"
+    # asdict converts inner mutable types but leaves top-level tuple
+    # untouched. JSON serialization downstream renders it as a list.
+    assert tuple(payload["universe"]) == ("BTC-EUR", "ETH-EUR")
+
+
+def test_v3_15_15_8_legacy_record_without_new_keys_loads_via_dict_get() -> None:
+    """Mixed-registry coexistence: old records lack the new keys.
+
+    Consumers must read via ``record.get("...")`` which yields ``None``
+    for missing keys; the new fields must NOT be required positional
+    keys for any consumer.
+    """
+    legacy = {
+        "campaign_id": "col-legacy",
+        "template_id": "tpl",
+        "preset_name": "trend_equities_4h_baseline",
+        "campaign_type": "daily_primary",
+        "state": "completed",
+        "priority_tier": 2,
+        "spawned_at_utc": "2026-04-29T00:00:00Z",
+        # NB: no hypothesis_id, no strategy_family, no asset_class,
+        # no universe — this is the live-VPS legacy shape.
+    }
+    assert legacy.get("hypothesis_id") is None
+    assert legacy.get("strategy_family") is None
+    assert legacy.get("asset_class") is None
+    assert legacy.get("universe") is None  # i.e. no ``KeyError``
+
+
+def test_v3_15_15_8_write_registry_byte_reproducible_with_metadata(
+    tmp_path: Path, now_utc: datetime,
+) -> None:
+    registry: dict = {"campaigns": {}}
+    record = _record(
+        hypothesis_id="trend_pullback_v1",
+        strategy_family="trend_pullback",
+        asset_class="crypto",
+        universe=("BTC-EUR", "ETH-EUR"),
+    )
+    registry = upsert_record(registry, record)
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    write_registry(registry, generated_at_utc=now_utc, path=a)
+    write_registry(registry, generated_at_utc=now_utc, path=b)
+    assert a.read_bytes() == b.read_bytes()
+
+
+def test_v3_15_15_8_transition_state_preserves_metadata(
+    now_utc: datetime,
+) -> None:
+    """A leased→running transition must NOT drop the metadata keys."""
+    registry: dict = {"campaigns": {}}
+    record = _record(
+        state="leased",
+        hypothesis_id="trend_pullback_v1",
+        strategy_family="trend_pullback",
+        asset_class="crypto",
+        universe=("BTC-EUR",),
+    )
+    registry = upsert_record(registry, record)
+    registry = transition_state(
+        registry,
+        campaign_id=record.campaign_id,
+        to_state="running",
+        at_utc=now_utc,
+    )
+    persisted = registry["campaigns"][record.campaign_id]
+    assert persisted["hypothesis_id"] == "trend_pullback_v1"
+    assert persisted["strategy_family"] == "trend_pullback"
+    assert persisted["asset_class"] == "crypto"
+    assert tuple(persisted["universe"]) == ("BTC-EUR",)
+
+
+def test_v3_15_15_8_record_outcome_preserves_metadata(now_utc: datetime) -> None:
+    registry: dict = {"campaigns": {}}
+    record = _record(
+        state="running",
+        hypothesis_id="volatility_compression_breakout_v0",
+        strategy_family="volatility_compression_breakout",
+        asset_class="crypto",
+        universe=("BTC-EUR",),
+    )
+    registry = upsert_record(registry, record)
+    registry = record_outcome(
+        registry,
+        campaign_id=record.campaign_id,
+        outcome="degenerate_no_survivors",
+        meaningful="meaningful_failure_confirmed",
+        actual_runtime_seconds=42,
+    )
+    persisted = registry["campaigns"][record.campaign_id]
+    assert persisted["hypothesis_id"] == "volatility_compression_breakout_v0"
+    assert persisted["strategy_family"] == "volatility_compression_breakout"
+    assert persisted["asset_class"] == "crypto"
