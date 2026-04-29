@@ -292,6 +292,13 @@ def _infer_asset_class(universe: tuple[str, ...]) -> AssetClass | None:
     return None  # mixed → require explicit treatment elsewhere
 
 
+# v3.15.15.8 — public alias of ``_infer_asset_class`` so the campaign
+# launcher's metadata resolver can reach the canonical inference
+# without depending on a private helper. Pure alias; both names refer
+# to the same function object.
+infer_asset_class = _infer_asset_class
+
+
 def _hypothesis_by_id(
     hypothesis_id: str,
     *,

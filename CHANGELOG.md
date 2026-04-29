@@ -4,6 +4,183 @@ All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
+## [v3.15.15.8] — Registry Metadata Enrichment
+
+Date: 2026-04-29
+Branch: `feat/registry-metadata-enrichment-v3-15-15-8`
+
+Closes the writer-side gap that v3.15.15.6 surfaced as
+``hypothesis_id_missing_from_source_artifact``,
+``strategy_family_field_present_but_unpopulated_by_writer``, and
+``asset_class_field_present_but_unpopulated_by_writer``. Now that the
+diagnostics read path is fully wired (v3.15.15.7), the next bottleneck
+is metadata at the registry: the launcher already knew the preset name
+at spawn time but never resolved it back to its hypothesis catalog row.
+
+### Schema additions on `CampaignRecord`
+
+| Field | Was | Now | Source at spawn time |
+|---|---|---|---|
+| `hypothesis_id` | absent | `str \| None = None` | `preset.hypothesis_id` |
+| `strategy_family` | `str \| None = None`, always null | populated when hypothesis_id resolves | `STRATEGY_HYPOTHESIS_CATALOG[hypothesis_id].strategy_family` |
+| `asset_class` | `str \| None = None`, always null | populated for every preset | `infer_asset_class(preset.universe)` |
+| `universe` | absent | `tuple[str, ...] = ()` | `tuple(preset.universe)` |
+
+Boundary rule per the v3.15.15.8 audit: each addition is (a) known at
+spawn time, (b) stable for the campaign's lifetime, (c) needed for
+failure clustering / dead-zone detection. Per-run / per-candidate /
+per-screening detail does NOT live on the registry record — it lives
+in evidence sidecars.
+
+Explicit non-additions (deferred to later releases or never):
+`timeframe`, `market_regime`, `failure_subreason`, `proposal_fingerprint`,
+`causal_chain`, candidate counts, screening reason histograms, policy
+decision blobs.
+
+### Files modified
+
+| File | Change | Lines |
+|---|---|---|
+| `research/campaign_registry.py` | added `hypothesis_id` and `universe` fields with backward-compatible defaults | +13 |
+| `research/discovery_sprint.py` | added public alias `infer_asset_class = _infer_asset_class` (canonicalization, non-destructive) | +5 |
+| `research/campaign_launcher.py` | new `_resolve_metadata_for_preset()` resolver; `_build_record` populates the four new keys | +44 |
+| `tests/unit/test_campaign_registry.py` | six v3.15.15.8 unit tests (defaults, populated, mixed-registry, byte-reproducible writes, transition+outcome preservation) | +95 |
+| `tests/unit/test_campaign_launcher_metadata_resolver.py` | new file — nine resolver-purity tests | +95 |
+| `tests/unit/test_observability_failure_modes.py` | two v3.15.15.8 diagnostics tests (limitations clear when populated; persist for legacy-only registries) | +75 |
+| `VERSION` | `3.15.15.7` → `3.15.15.8` | 1 |
+| `CHANGELOG.md` | this entry | ~125 |
+
+### Files explicitly NOT touched
+
+- `research/screening_evidence.py`, `research/run_research.py`
+- `research/diagnostics/*` — diagnostics read surface unchanged; the
+  same code now sees populated values for new records
+- `dashboard/`, `frontend/`, `agent/`, `strategies/`, `orchestration/`,
+  `execution/`, `automation/`, `state/`
+- `ops/systemd/*` — no timer install/enable/start
+- All frozen contracts (`research_latest.json`, `strategy_matrix.csv`)
+
+### Backward compatibility
+
+The 20 live VPS registry records lack `hypothesis_id` and `universe`
+entirely and carry `strategy_family=null` / `asset_class=null`. All
+consumers of these fields use `dict.get()` with null-tolerance:
+
+- `campaign_digest._compute_by_candidate_family` — `if not family or not asset: continue`
+- `campaign_launcher` family-state derivation — `if family and asset: families.append(...)`
+- `campaign_policy._guess_family_key` — falls through to `"unknown|unknown"`
+- `campaign_queue.queue_entry_from_record` — does NOT pass through the new keys at all
+- `dead_zone_detection` — reads ledger events, not the registry
+- `research/diagnostics/failure_modes.py` — already reports limitations
+  when these are missing; will simply stop reporting them once
+  populated records exist
+
+Mixed-registry coexistence is permanent: legacy and new records share
+the same registry artifact indefinitely. The two diagnostic limitation
+codes survive until every record in the registry carries the new keys.
+A new test in `test_observability_failure_modes.py` pins both halves of
+this contract (limitations clear with populated record; limitations
+persist with legacy-only record).
+
+Deterministic serialization is preserved: `write_sidecar_atomic` uses
+`json.dumps(..., sort_keys=True)`, so dataclass field order does not
+affect the on-disk output. Adding fields with defaults does not
+perturb the serialization of records that don't set them.
+
+### Cleanup / canonicalization (v3.15.15.8 first pass)
+
+Per the AUTO MODE stabilize+canonicalize mandate, audited the affected
+surface for stale/dead/duplicate constructs:
+
+| Item | Location | Classification | Action |
+|---|---|---|---|
+| `_infer_asset_class` private helper | `research/discovery_sprint.py:275` | canonical, but private | added public alias `infer_asset_class` (non-destructive — both names reference the same function object); avoids cross-module dependency on a private symbol |
+| `worker_crashed` outcome literal | `research/campaign_registry.py:71-72,85` | compat-shim (DEPRECATED v3.15.5; historical records only) | KEEP — actively documented as backward-compat for legacy ledger entries; removal would invalidate the live ledger |
+| `hypothesis_id_missing_from_source_artifact` limitation | `research/diagnostics/paths.py:255` + `failure_modes.py:570` | canonical, transitional | KEEP — drops naturally from emission once populated records exist; mixed-registry safety preserved |
+| `strategy_family_field_present_but_unpopulated_by_writer` | `paths.py:256` | canonical, transitional | KEEP — same rationale |
+| `asset_class_field_present_but_unpopulated_by_writer` | `paths.py:257` | canonical, transitional | KEEP — same rationale |
+| `FUTURE_WRITER_FIELDS` list | `failure_modes.py:70-81` | canonical | KEEP unchanged this release — entries pin diagnostic intent; once the live registry has only post-v3.15.15.8 records, a future release can shrink the list |
+
+No destructive cleanup performed. No file deleted. No constant renamed.
+No frozen-contract impact.
+
+### Tests
+
+- `tests/unit/test_campaign_registry.py` (+6 new):
+  - `test_v3_15_15_8_record_defaults_for_new_metadata_fields`
+  - `test_v3_15_15_8_record_round_trips_with_metadata_populated`
+  - `test_v3_15_15_8_legacy_record_without_new_keys_loads_via_dict_get`
+  - `test_v3_15_15_8_write_registry_byte_reproducible_with_metadata`
+  - `test_v3_15_15_8_transition_state_preserves_metadata`
+  - `test_v3_15_15_8_record_outcome_preserves_metadata`
+- `tests/unit/test_campaign_launcher_metadata_resolver.py` (+9 new):
+  pins resolver behaviour for active-discovery presets (trend_pullback,
+  vol_compression_breakout 1h+4h), preset-without-hypothesis_id
+  (crypto_diagnostic_1h), equity universe presets, unknown preset
+  fallback, empty-tuple invariant, purity.
+- `tests/unit/test_observability_failure_modes.py` (+2 new):
+  - `test_v3_15_15_8_diagnostic_limitations_clear_when_metadata_populated`
+  - `test_v3_15_15_8_diagnostic_limitations_persist_for_legacy_only_registry`
+
+### Validation
+
+```
+$ pytest tests/unit/test_campaign_registry.py tests/unit/test_campaign_launcher_metadata_resolver.py -q
+                       30 passed in 1.20s          (gate 1)
+
+$ pytest tests/unit/test_observability_*.py tests/unit/test_dashboard_api_observability.py tests/unit/test_campaign_registry.py tests/unit/test_campaign_launcher_metadata_resolver.py -q
+                       243 passed in 6.99s         (gate 2)
+
+$ pytest tests/unit/ -q
+                       2267 passed, 3 skipped      (gate 3; +17 from v3.15.15.7)
+
+$ pytest tests/functional --run-functional -q
+                       23 passed in 4.04s          (gate 4 — harness untouched)
+
+$ pytest tests/unit/test_observability_static_import_surface.py tests/unit/test_observability_no_other_artifacts_mutated.py -q
+                       24 passed                    (gate 5 — diagnostics import surface still isolated)
+```
+
+Frozen contract md5s unchanged:
+- `research/research_latest.json`: 5250ffa10e226b5b52424fb14c86814b
+- `research/strategy_matrix.csv`: fb879837f358792cfc00a0b821df7279
+
+### Expected live impact post-deploy
+
+The launcher tick spawns at most a handful of campaigns per cycle.
+After the first new spawn:
+
+| `/api/observability/failure-modes` field | Pre-deploy | Post-first-new-spawn |
+|---|---|---|
+| `diagnostic_context.limitations` includes `hypothesis_id_missing_from_source_artifact` | yes | **no** (mixed registry, but `has_any_*` flips True) |
+| `diagnostic_context.limitations` includes `strategy_family_field_present_but_unpopulated_by_writer` | yes | **no** |
+| `diagnostic_context.limitations` includes `asset_class_field_present_but_unpopulated_by_writer` | yes | **no** |
+| `by_hypothesis_id` | empty | populated for new records |
+| `by_strategy_family` | empty | populated for new records |
+| `repeated_failure_clusters[*].cluster_key_quality` | mostly `partial`/`weak` | new records can score `full` |
+
+Note: the `hypothesis_id`/`strategy_family`/`asset_class` keys are
+populated for new spawns only. The 20 legacy records on the live VPS
+remain in their pre-v3.15.15.8 shape (no destructive migration).
+
+### Not changed (intentional, deferred)
+
+- v3.15.15.9 — sprint-progress writer hook (separate audit + release)
+- v3.15.16+ — dormant evidence cluster activation (separate audit)
+- `timeframe` field on registry — requires preset-side schema work
+- `market_regime` field — requires runtime emission
+- candidate counts / screening reason histograms / policy decision
+  blobs on the registry — wrong layer; belong in evidence sidecars
+- per-spawn `proposal_fingerprint`, `causal_chain` — out of scope
+
+### Roll-back
+
+Single commit, additive only. `git revert -m 1 <merge-commit>` fully
+reverses with no migration cost. Mixed-registry records survive a
+revert because consumers tolerate both shapes; new records carry the
+extra keys but those keys decay gracefully when `_build_record`
+returns to its pre-v3.15.15.8 signature.
+
 ## [v3.15.15.7] — Evidence Path Hotfix + Diagnostics Re-read
 
 Date: 2026-04-29
