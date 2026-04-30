@@ -1,0 +1,2 @@
+# Release-gate reports go here, one new file per invocation.
+# Path: docs/governance/release_gates/<version>/<UTC-timestamp>.md
