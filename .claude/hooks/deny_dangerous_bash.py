@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""PreToolUse Bash — deny destructive / deploy / SSH / config-read commands.
+"""PreToolUse Bash - deny destructive / deploy / SSH / config-read commands.
 
-Patterns are intentionally conservative; over-blocking is acceptable in
-auto mode because the cost of a wrong pass is much higher than the cost
-of a wrong block.
+Revision 5 hardening:
+  - python -c is denied outright (use scripts/ files or python -m).
+  - Process substitution and command substitution to secret paths denied.
+  - Find -exec on secret paths denied.
+  - Conservative regex set; over-blocking is acceptable since legitimate
+    operator work runs from the operator's own shell, not via Claude.
 """
 
 from __future__ import annotations
@@ -25,13 +28,18 @@ DENY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bgit\s+commit\b.*--no-verify\b"), "git_commit_no_verify"),
     (re.compile(r"\bgit\s+push\b.*--no-verify\b"), "git_push_no_verify"),
     (re.compile(r"\bgit\s+(?:branch|tag)\b.*-D\b"), "git_force_delete_ref"),
+    # R5.3: git rebase -i would let the agent rewrite history interactively.
+    (re.compile(r"\bgit\s+rebase\s+(?:-i|--interactive)\b"), "git_rebase_interactive"),
+    # R5.3: git config alterations could disable hooks.
+    (re.compile(r"\bgit\s+config\b[^|;]*\bcore\.hooksPath\b"), "git_config_hooks_path"),
 
     # Destructive shell --------------------------------------------------
-    # Note: `\b` after `/` would not match end-of-string (slash is non-word
-    # and EOL is non-word, no boundary). Use an explicit alternation that
-    # accepts a slash, end-of-string, or a word/path boundary.
+    # Note: \b after / would not match end-of-string (slash and EOL are
+    # both non-word). Use explicit alternation.
     (re.compile(r"\brm\s+-rf?\s+(?:state|logs|research|config|/|\$|~)(?:\b|$|/)"), "rm_rf_protected"),
     (re.compile(r"\b:\(\)\{.*\};:"), "fork_bomb"),
+    # R5.3: chmod / chown that could undo permissions on hooks.
+    (re.compile(r"\bchmod\s+(?:[ugoa]*\+x|\d+)\s+\.claude/hooks"), "chmod_hooks"),
 
     # Deploy / production ------------------------------------------------
     (re.compile(r"docker\s+compose\s+-f\s+docker-compose\.prod\.yml\b"), "docker_compose_prod"),
@@ -46,10 +54,20 @@ DENY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\brsync\s+.*\s+[A-Za-z0-9._-]+@\S+"), "rsync_remote"),
 
     # Read of secrets via shell -----------------------------------------
-    (re.compile(r"\b(?:cat|head|tail|less|more|nl|view|bat)\s+(?:[^|;]*)config/config\.yaml\b"), "read_config_yaml"),
-    (re.compile(r"python\S*\s+.*open\s*\(\s*[\"']config/config\.yaml"), "py_open_config"),
+    # The deny_config_read hook is the canonical layer; these are kept
+    # for defense in depth and to give a clear message at the bash layer.
+    (re.compile(r"\b(?:cat|head|tail|less|more|nl|view|bat)\s+(?:[^|;]*)config/conf[^|;\s]*\.ya?ml"), "read_config_yaml"),
     (re.compile(r"\b(?:cat|head|tail|less|more)\s+(?:[^|;]*)\.env(?:\.\S+)?\b"), "read_env"),
     (re.compile(r"\b(?:cat|head|tail|less|more)\s+(?:[^|;]*)state/[^/\s]*\.secret\b"), "read_state_secret"),
+
+    # R5.3: python -c outright (chr/base64 obfuscation impossible to regex).
+    (re.compile(r"\bpython[0-9.]*\s+-c\b"), "python_dash_c"),
+    (re.compile(r"\bpython[0-9.]*\s+--command\b"), "python_command"),
+    # python -m is fine (module run) - keep allowed.
+
+    # R5.3: eval / base64 -d obfuscation is denied at the bash layer.
+    (re.compile(r"\beval\b"), "eval_command"),
+    (re.compile(r"\bbase64\s+(?:--decode|-d|-D)\b"), "base64_decode"),
 
     # Outbound network with payloads ------------------------------------
     # First-version: deny non-localhost curl/wget. Refine if legitimate need.
@@ -67,8 +85,6 @@ def check(payload: dict[str, Any]) -> tuple[bool, str | None]:
     cmd = (payload.get("tool_input") or {}).get("command")
     if not isinstance(cmd, str) or not cmd.strip():
         return (True, None)
-    # Strip leading "powershell -c '...'" wrappers — the dangerous pattern
-    # is what runs, not the wrapper.
     for pat, label in DENY_PATTERNS:
         if pat.search(cmd):
             return (

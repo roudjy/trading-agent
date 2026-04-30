@@ -58,7 +58,6 @@
       "Read(./automation/*.secret)",
       "Read(./.env)",
       "Read(./.env.*)",
-
       "Edit(./config/config.yaml)",
       "Write(./config/config.yaml)",
       "Edit(./automation/live_gate.py)",
@@ -67,7 +66,6 @@
       "Write(./state/**)",
       "Edit(./automation/*.secret)",
       "Write(./automation/*.secret)",
-
       "Edit(./research/authority_views.py)",
       "Write(./research/authority_views.py)",
       "Edit(./research/authority_trace.py)",
@@ -96,14 +94,12 @@
       "Write(./research/paper_ledger.py)",
       "Edit(./research/screening_evidence.py)",
       "Write(./research/screening_evidence.py)",
-
       "Edit(./orchestration/orchestrator.py)",
       "Write(./orchestration/orchestrator.py)",
       "Edit(./agent/backtesting/engine.py)",
       "Write(./agent/backtesting/engine.py)",
       "Edit(./agent/backtesting/fitted_features.py)",
       "Write(./agent/backtesting/fitted_features.py)",
-
       "Edit(./docker-compose.prod.yml)",
       "Write(./docker-compose.prod.yml)",
       "Edit(./scripts/deploy.sh)",
@@ -112,7 +108,6 @@
       "Write(./ops/**)",
       "Edit(./Dockerfile)",
       "Write(./Dockerfile)",
-
       "Edit(./tests/regression/test_v3_*pin*.py)",
       "Write(./tests/regression/test_v3_*pin*.py)",
       "Edit(./tests/regression/test_v3_15_artifacts_deterministic.py)",
@@ -121,18 +116,14 @@
       "Write(./tests/regression/test_authority_invariants.py)",
       "Edit(./tests/regression/test_v3_15_8_canonical_dump_and_digest.py)",
       "Write(./tests/regression/test_v3_15_8_canonical_dump_and_digest.py)",
-
       "Edit(./.claude/settings.local.json)",
       "Write(./.claude/settings.local.json)",
-
       "Edit(./.github/CODEOWNERS)",
       "Write(./.github/CODEOWNERS)",
       "Edit(./VERSION)",
       "Write(./VERSION)",
-
       "Edit(./docs/adr/ADR-*.md)",
       "Write(./docs/adr/ADR-*.md)",
-
       "Bash(git push --force *)",
       "Bash(git push --force-with-lease *)",
       "Bash(git push -f *)",
@@ -171,22 +162,44 @@
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
-          {"type": "command", "command": "python .claude/hooks/deny_no_touch.py"},
-          {"type": "command", "command": "python .claude/hooks/deny_test_weakening.py"},
-          {"type": "command", "command": "python .claude/hooks/deny_live_connector.py"}
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_no_touch.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_test_weakening.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_live_connector.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_outside_agent_allowlist.py"
+          }
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
-          {"type": "command", "command": "python .claude/hooks/deny_dangerous_bash.py"},
-          {"type": "command", "command": "python .claude/hooks/deny_config_read.py"}
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_dangerous_bash.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_config_read.py"
+          }
         ]
       },
       {
         "matcher": "Read|Grep|Glob",
         "hooks": [
-          {"type": "command", "command": "python .claude/hooks/deny_config_read.py"}
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_config_read.py"
+          }
         ]
       }
     ],
@@ -194,7 +207,10 @@
       {
         "matcher": "Edit|Write|Bash|MultiEdit|NotebookEdit",
         "hooks": [
-          {"type": "command", "command": "python .claude/hooks/audit_emit.py"}
+          {
+            "type": "command",
+            "command": "python .claude/hooks/audit_emit.py"
+          }
         ]
       }
     ],
@@ -202,7 +218,10 @@
       {
         "matcher": "*",
         "hooks": [
-          {"type": "command", "command": "python .claude/hooks/audit_emit.py"}
+          {
+            "type": "command",
+            "command": "python .claude/hooks/audit_emit.py"
+          }
         ]
       }
     ],
@@ -210,7 +229,10 @@
       {
         "matcher": "*",
         "hooks": [
-          {"type": "command", "command": "python .claude/hooks/precompact_preserve.py"}
+          {
+            "type": "command",
+            "command": "python .claude/hooks/precompact_preserve.py"
+          }
         ]
       }
     ]
