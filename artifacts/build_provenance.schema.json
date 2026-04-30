@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/roudjy/trading-agent/artifacts/build_provenance.schema.json",
+  "title": "Build Provenance",
+  "description": "Per-image immutable provenance record. Emitted by .github/workflows/docker-build.yml. Verifies that an image digest corresponds to a specific commit and workflow run.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "commit",
+    "image_digest",
+    "workflow_run_id",
+    "workflow_run_attempt",
+    "version",
+    "built_at_utc",
+    "actor",
+    "actions_pinned"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Full Git commit SHA the image was built from."
+    },
+    "image_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest of the agent image."
+    },
+    "image_digest_dashboard": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest of the dashboard image, if pushed in the same run."
+    },
+    "workflow_run_id": {
+      "type": "string"
+    },
+    "workflow_run_attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "version": {
+      "type": "string",
+      "description": "Contents of the VERSION file at build time."
+    },
+    "built_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "type": "string",
+      "description": "GitHub actor that triggered the build."
+    },
+    "actions_pinned": {
+      "type": "boolean",
+      "description": "Whether all third-party Actions in the workflow were pinned by 40-char commit SHA at the time of build."
+    }
+  }
+}
