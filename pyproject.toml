@@ -1,0 +1,127 @@
+# =============================================================================
+# pyproject.toml — v3.15.15.12.1
+# =============================================================================
+# Scope decisions (per Revision 4 plan):
+#   - This file configures lint, type-check, and coverage tooling only.
+#   - pytest config is intentionally NOT migrated here. pytest.ini stays as
+#     the source of truth for test config to avoid surprise behavior changes.
+#   - mypy is configured narrowly first; expansion is a follow-up task.
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# -----------------------------------------------------------------------------
+# Ruff — lint + import-sort. Check-only by default; autofix is opt-in per call.
+# -----------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    ".tmp",
+    ".cache",
+    "tests_tmp",
+    "codex_pytest_tmp",
+    "frontend/node_modules",
+    "frontend/dist",
+    "data/cache",
+    "research/history",
+    "research/provenance",
+    "logs",
+    "reports",
+    "state",
+    "artifacts",
+    "__pycache__",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "UP",    # pyupgrade
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific
+]
+ignore = [
+    "E501",  # line-length is enforced via formatter, not lint
+    "B008",  # function calls in default args are common in this codebase
+    "SIM108",# ternary preference is opinionated
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]  # asserts in tests are fine
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# -----------------------------------------------------------------------------
+# mypy — narrow scope first. Expansion is a deliberate follow-up task,
+# not an automatic agent-driven change.
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+files = [
+    "automation/",
+    "execution/",
+    "research/authority_views.py",
+    "research/authority_trace.py",
+    "reporting/agent_audit.py",
+]
+exclude = [
+    "^build/",
+    "^dist/",
+    "^\\.tmp/",
+    "^codex_pytest_tmp/",
+    "^tests_tmp/",
+]
+
+[[tool.mypy.overrides]]
+module = ["ccxt.*", "ta.*", "yfinance.*", "praw.*", "newspaper.*", "py_clob_client.*"]
+ignore_missing_imports = true
+
+# -----------------------------------------------------------------------------
+# Coverage — minimal config; opt-in via `pytest --cov`.
+# -----------------------------------------------------------------------------
+[tool.coverage.run]
+branch = true
+source = [
+    "agent",
+    "automation",
+    "dashboard",
+    "execution",
+    "orchestration",
+    "reporting",
+    "research",
+    "strategies",
+]
+omit = [
+    "*/tests/*",
+    "*/tests_tmp/*",
+    "*/__init__.py",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+skip_empty = true
