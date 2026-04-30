@@ -40,8 +40,9 @@ import signal
 import subprocess
 import sys
 import traceback
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 # Make ``reporting`` importable regardless of where the hook script lives.
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -51,7 +52,7 @@ if str(_REPO_ROOT) not in sys.path:
 # Lazy import — failure is fail-closed for deny hooks but best-effort for
 # audit_emit (see _try_emit).
 try:
-    from reporting import agent_audit as _audit  # noqa: E402
+    from reporting import agent_audit as _audit
 except Exception:  # pragma: no cover - fallback
     _audit = None  # type: ignore[assignment]
 
@@ -71,7 +72,7 @@ TIMEOUTS: dict[str, int] = {
 # ---------------------------------------------------------------------------
 
 
-def _git_head_sha() -> Optional[str]:
+def _git_head_sha() -> str | None:
     try:
         out = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -87,7 +88,7 @@ def _git_head_sha() -> Optional[str]:
     return None
 
 
-def _git_branch() -> Optional[str]:
+def _git_branch() -> str | None:
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -139,7 +140,7 @@ class _TimeoutError(Exception):
 def _run_with_timeout(fn: Callable[[], Any], seconds: int) -> Any:
     """Run ``fn()`` with a wall-clock timeout. Raises ``_TimeoutError``."""
     if os.name != "nt" and hasattr(signal, "SIGALRM"):
-        def _handler(signum, frame):  # noqa: ANN001
+        def _handler(signum, frame):
             raise _TimeoutError(f"hook exceeded {seconds}s budget")
 
         prev = signal.signal(signal.SIGALRM, _handler)
@@ -187,7 +188,7 @@ def run_pre_hook(
     *,
     name: str,
     event_phase: str,
-    check: Callable[[dict[str, Any]], tuple[bool, Optional[str]]],
+    check: Callable[[dict[str, Any]], tuple[bool, str | None]],
 ) -> int:
     """Run a PreToolUse/PostToolUse/Stop/PreCompact deny-style hook.
 
@@ -211,7 +212,7 @@ def run_pre_hook(
                     "event": "blocked",
                     "tool": "_hook_runtime",
                     "outcome": "blocked_by_hook",
-                    "block_reason": f"hook_runtime_malformed_stdin",
+                    "block_reason": "hook_runtime_malformed_stdin",
                     "command_summary": msg[:80],
                 },
                 {},
@@ -280,7 +281,7 @@ def run_pre_hook(
     return 2
 
 
-def _safe_path(payload: dict[str, Any]) -> Optional[str]:
+def _safe_path(payload: dict[str, Any]) -> str | None:
     ti = payload.get("tool_input") or {}
     for key in ("file_path", "path", "notebook_path"):
         val = ti.get(key)
@@ -289,7 +290,7 @@ def _safe_path(payload: dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _safe_command_summary(payload: dict[str, Any]) -> Optional[str]:
+def _safe_command_summary(payload: dict[str, Any]) -> str | None:
     ti = payload.get("tool_input") or {}
     cmd = ti.get("command")
     if isinstance(cmd, str):

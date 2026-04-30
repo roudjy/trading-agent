@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _hook_runtime import run_pre_hook  # noqa: E402
+from _hook_runtime import run_pre_hook
 
 # Patterns that introduce skipped or excused failing tests.
 WEAKENING_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (

@@ -18,6 +18,19 @@ build-backend = "setuptools.build_meta"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Narrow ruff scope to the v3.15.15.12 governance/agent code introduced
+# by this PR, mirroring the mypy-narrow doctrine documented for [tool.mypy]
+# below. The pre-existing main-branch code (~752 ruff issues across
+# agent/, research/, dashboard/, data/, ...) is NOT in scope for this PR.
+# Whole-repo ruff cleanup is deferred and tracked in
+# docs/backlog/agent_backlog.md as item AB-0012.
+include = [
+    ".claude/hooks/**/*.py",
+    "scripts/**/*.py",
+    "reporting/agent_audit.py",
+    "tests/unit/test_hook*.py",
+    "tests/unit/test_agent_audit*.py",
+]
 extend-exclude = [
     ".tmp",
     ".cache",

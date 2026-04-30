@@ -10,8 +10,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 HOOKS_DIR = REPO_ROOT / ".claude" / "hooks"
 AUDIT_EMIT = HOOKS_DIR / "audit_emit.py"

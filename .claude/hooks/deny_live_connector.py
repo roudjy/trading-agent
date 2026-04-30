@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _hook_runtime import run_pre_hook  # noqa: E402
+from _hook_runtime import run_pre_hook
 
 PATH_DENY_GLOBS: tuple[str, ...] = (
     "execution/live/*",
@@ -112,7 +112,7 @@ def _path_matches(rel_path: str) -> str | None:
     for pat in PATH_DENY_GLOBS:
         if fnmatch.fnmatchcase(n, pat):
             return pat
-    if _LIVE_STAR_PATTERN.search(n) and not _is_test_path(n):
+    if _LIVE_STAR_PATTERN.search(n) and not _is_test_path(n):  # noqa: SIM102 (preserves explanatory comment between the two ifs)
         # Allow the existing live_gate.py path to slip through here; it is
         # already covered by deny_no_touch and we don't want a double-message.
         if not n.endswith("automation/live_gate.py"):

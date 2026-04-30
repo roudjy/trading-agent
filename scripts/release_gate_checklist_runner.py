@@ -10,18 +10,20 @@ Usage: python scripts/release_gate_checklist_runner.py [--base origin/main]
 Stdlib-only.
 """
 from __future__ import annotations
+
 import argparse
 import json
 import re
 import subprocess
 import sys
+from datetime import UTC
 from pathlib import Path
-from typing import Any, List, Dict
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def diff_files(base: str) -> List[str]:
+def diff_files(base: str) -> list[str]:
     try:
         out = subprocess.run(
             ["git", "diff", "--name-only", base + "...HEAD"],
@@ -39,8 +41,8 @@ def added_lines(base: str, glob: str) -> str:
     except subprocess.CalledProcessError:
         return ""
     return "\n".join(
-        l for l in out.stdout.splitlines()
-        if l.startswith("+") and not l.startswith("+++"))
+        line for line in out.stdout.splitlines()
+        if line.startswith("+") and not line.startswith("+++"))
 
 
 def main() -> int:
@@ -50,7 +52,7 @@ def main() -> int:
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
     files = diff_files(a.base)
-    R: List[Dict[str, Any]] = []
+    R: list[dict[str, Any]] = []
 
     def add(_id, name, status, ev):
         R.append({"id": _id, "name": name, "status": status, "evidence": ev})
@@ -79,7 +81,7 @@ def main() -> int:
         "fail" if fx else "pass", fx or "no fixtures/golden touched")
 
     ts_re = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
-    bad_ts: List[str] = []
+    bad_ts: list[str] = []
     for blob in (added_lines(a.base, "*.json"),
                  added_lines(a.base, "*.jsonl")):
         for ln in blob.splitlines():
@@ -101,8 +103,8 @@ def main() -> int:
 
     ledger = a.ledger
     if ledger is None:
-        from datetime import datetime, timezone
-        d = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        from datetime import datetime
+        d = datetime.now(UTC).strftime("%Y-%m-%d")
         ledger = str(ROOT / "logs" / ("agent_audit." + d + ".jsonl"))
     if Path(ledger).exists():
         try:

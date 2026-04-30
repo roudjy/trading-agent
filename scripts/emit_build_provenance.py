@@ -106,7 +106,7 @@ def main() -> int:
         "workflow_run_id": str(args.workflow_run_id),
         "workflow_run_attempt": int(args.workflow_run_attempt),
         "version": args.version,
-        "built_at_utc": _dt.datetime.now(_dt.timezone.utc)
+        "built_at_utc": _dt.datetime.now(_dt.UTC)
         .replace(microsecond=0)
         .isoformat()
         .replace("+00:00", "Z"),

@@ -8,6 +8,7 @@ applies so a hung audit-emit cannot stall the session.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import time
@@ -107,7 +108,7 @@ def main() -> int:
     # Budget enforcement.
     if (time.monotonic() - t0) > _BUDGET:
         sys.stderr.write("[audit_emit] over budget; emitting error event\n")
-        try:
+        with contextlib.suppress(Exception):
             agent_audit.append_event(
                 {
                     **base,
@@ -115,8 +116,6 @@ def main() -> int:
                     "block_reason": "audit_emit_over_budget",
                 }
             )
-        except Exception:
-            pass
         return 0
 
     try:

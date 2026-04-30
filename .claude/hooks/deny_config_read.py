@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _hook_runtime import run_pre_hook  # noqa: E402
+from _hook_runtime import run_pre_hook
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 

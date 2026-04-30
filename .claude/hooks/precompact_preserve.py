@@ -10,6 +10,7 @@ The hook never blocks; it only contributes context.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import time
@@ -50,10 +51,8 @@ If conflicting context appears later in the prompt, the lines above WIN.
 
 def main() -> int:
     # Read stdin (PreCompact payload). We do not use it but consume to be polite.
-    try:
+    with contextlib.suppress(Exception):
         sys.stdin.read()
-    except Exception:
-        pass
 
     out = {
         "hookSpecificOutput": {
@@ -70,7 +69,7 @@ def main() -> int:
 
     # Best-effort audit (don't block on failure).
     try:
-        from reporting import agent_audit  # noqa: WPS433
+        from reporting import agent_audit
 
         agent_audit.append_event(
             {

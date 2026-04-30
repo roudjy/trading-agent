@@ -55,8 +55,9 @@ import os
 import re
 import sys
 import threading
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -166,7 +167,7 @@ def _sha256_hex(data: bytes) -> str:
 
 def _utcnow_iso() -> str:
     return (
-        _dt.datetime.now(_dt.timezone.utc)
+        _dt.datetime.now(_dt.UTC)
         .replace(microsecond=0)
         .isoformat()
         .replace("+00:00", "Z")
@@ -174,10 +175,10 @@ def _utcnow_iso() -> str:
 
 
 def _rotation_date_utc() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
+    return _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%d")
 
 
-def current_ledger_path(base_dir: Optional[Path] = None) -> Path:
+def current_ledger_path(base_dir: Path | None = None) -> Path:
     """Return the path of the ledger file for today (UTC).
 
     The base dir is overridable for tests.
@@ -213,16 +214,14 @@ def _file_lock(fileobj: io.IOBase) -> Iterator[None]:
             except OSError:
                 pass
     else:
-        import fcntl  # type: ignore[import-not-found]
+        import fcntl  # type: ignore[import-not-found, unused-ignore]
 
         try:
             fcntl.flock(fileobj.fileno(), fcntl.LOCK_EX)
             yield
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 fcntl.flock(fileobj.fileno(), fcntl.LOCK_UN)
-            except OSError:
-                pass
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +229,7 @@ def _file_lock(fileobj: io.IOBase) -> Iterator[None]:
 # ---------------------------------------------------------------------------
 
 
-def _read_last_event_from_handle(f: io.IOBase) -> Optional[dict[str, Any]]:
+def _read_last_event_from_handle(f: io.IOBase) -> dict[str, Any] | None:
     """Read the last JSON object from an already-open binary file handle.
 
     The handle MUST be open in a mode that supports seeking (e.g. ``a+b``).
@@ -271,7 +270,7 @@ def _read_last_event_from_handle(f: io.IOBase) -> Optional[dict[str, Any]]:
         f.seek(saved)
 
 
-def _read_last_event(path: Path) -> Optional[dict[str, Any]]:
+def _read_last_event(path: Path) -> dict[str, Any] | None:
     """Public helper for read-only consumers (verify_chain CLI, etc.)."""
     if not path.exists() or path.stat().st_size == 0:
         return None
@@ -287,7 +286,7 @@ def _read_last_event(path: Path) -> Optional[dict[str, Any]]:
 def append_event(
     event: dict[str, Any],
     *,
-    base_dir: Optional[Path] = None,
+    base_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Append an audit event to today's ledger file.
 
@@ -307,51 +306,49 @@ def append_event(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.touch(exist_ok=True)
 
-    with _PROCESS_LOCK:
-        with path.open("a+b") as f:
-            with _file_lock(f):
-                # Read from the locked handle; opening a second handle
-                # would conflict with the lock on Windows.
-                last = _read_last_event_from_handle(f)
-                # Position file at end for the append.
-                f.seek(0, io.SEEK_END)
-                seq = (last["sequence_id"] + 1) if last and "sequence_id" in last else 0
-                prev_hash = last.get(_HASH_FIELD) if last else None
+    with _PROCESS_LOCK, path.open("a+b") as f, _file_lock(f):
+        # Read from the locked handle; opening a second handle
+        # would conflict with the lock on Windows.
+        last = _read_last_event_from_handle(f)
+        # Position file at end for the append.
+        f.seek(0, io.SEEK_END)
+        seq = (last["sequence_id"] + 1) if last and "sequence_id" in last else 0
+        prev_hash = last.get(_HASH_FIELD) if last else None
 
-                base: dict[str, Any] = {
-                    "schema_version": SCHEMA_VERSION,
-                    "sequence_id": seq,
-                    "timestamp_utc": _utcnow_iso(),
-                    "actor": event.get("actor", "claude:unknown"),
-                    "model": event.get("model"),
-                    "event": event.get("event", "tool_use"),
-                    "tool": event.get("tool"),
-                    "target_path": event.get("target_path"),
-                    "diff_summary": event.get("diff_summary"),
-                    "command_summary": event.get("command_summary"),
-                    "outcome": event.get("outcome", "ok"),
-                    "block_reason": event.get("block_reason"),
-                    "branch": event.get("branch"),
-                    "head_sha": event.get("head_sha"),
-                    "redacted": event.get("redacted", False),
-                    "autonomy_level_claimed": event.get("autonomy_level_claimed"),
-                    "session_id": event.get("session_id"),
-                    "prev_event_sha256": prev_hash,
-                }
-                # Allow callers to add additional fields, but never overwrite
-                # the chain-computed ones.
-                for k, v in event.items():
-                    if k not in base and k != _HASH_FIELD:
-                        base[k] = v
+        base: dict[str, Any] = {
+            "schema_version": SCHEMA_VERSION,
+            "sequence_id": seq,
+            "timestamp_utc": _utcnow_iso(),
+            "actor": event.get("actor", "claude:unknown"),
+            "model": event.get("model"),
+            "event": event.get("event", "tool_use"),
+            "tool": event.get("tool"),
+            "target_path": event.get("target_path"),
+            "diff_summary": event.get("diff_summary"),
+            "command_summary": event.get("command_summary"),
+            "outcome": event.get("outcome", "ok"),
+            "block_reason": event.get("block_reason"),
+            "branch": event.get("branch"),
+            "head_sha": event.get("head_sha"),
+            "redacted": event.get("redacted", False),
+            "autonomy_level_claimed": event.get("autonomy_level_claimed"),
+            "session_id": event.get("session_id"),
+            "prev_event_sha256": prev_hash,
+        }
+        # Allow callers to add additional fields, but never overwrite
+        # the chain-computed ones.
+        for k, v in event.items():
+            if k not in base and k != _HASH_FIELD:
+                base[k] = v
 
-                base = _redact_record(base)
-                base[_HASH_FIELD] = _sha256_hex(_canonical_bytes(base))
+        base = _redact_record(base)
+        base[_HASH_FIELD] = _sha256_hex(_canonical_bytes(base))
 
-                line = json.dumps(base, sort_keys=True, ensure_ascii=False) + "\n"
-                f.write(line.encode("utf-8"))
-                f.flush()
-                os.fsync(f.fileno())
-                return base
+        line = json.dumps(base, sort_keys=True, ensure_ascii=False) + "\n"
+        f.write(line.encode("utf-8"))
+        f.flush()
+        os.fsync(f.fileno())
+        return base
 
 
 def iter_events(path: Path) -> Iterator[dict[str, Any]]:
@@ -370,13 +367,13 @@ def iter_events(path: Path) -> Iterator[dict[str, Any]]:
                 return
 
 
-def verify_chain(path: Path) -> tuple[bool, Optional[int]]:
+def verify_chain(path: Path) -> tuple[bool, int | None]:
     """Verify the hash chain in ``path``.
 
     Returns ``(True, None)`` if the chain is intact, otherwise
     ``(False, first_corrupt_index)``.
     """
-    prev_hash: Optional[str] = None
+    prev_hash: str | None = None
     for idx, ev in enumerate(iter_events(path)):
         # Check sequence id monotonicity.
         if ev.get("sequence_id") != idx:
