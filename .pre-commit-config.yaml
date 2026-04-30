@@ -1,0 +1,67 @@
+# =============================================================================
+# Pre-commit hooks — v3.15.15.12.1 Repository Hygiene & Secret Scanning
+# =============================================================================
+# Install:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Run on demand:
+#   pre-commit run --all-files
+#
+# Notes:
+#   - All hook revisions below are pinned by tag for human readability; CI
+#     uses these same tools but the action-level pins live in
+#     .github/workflows/tests.yml as 40-char commit SHAs.
+#   - "ruff" runs in check-only mode here. Auto-fix is intentionally NOT
+#     enabled in pre-commit because surprise edits during commit make agent
+#     audit reasoning harder.
+#   - "detect-secrets" uses a baseline file (.secrets.baseline). To accept
+#     a new finding as a known false positive, run:
+#         detect-secrets scan --baseline .secrets.baseline --update
+#     and review the diff before committing.
+# =============================================================================
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        name: gitleaks (primary secret detector)
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets (baselined)
+        args:
+          - "--baseline"
+          - ".secrets.baseline"
+        # Exclude generated and high-entropy-but-safe paths. Keep this list
+        # minimal — every entry is a potential blind spot.
+        exclude: |
+          (?x)^(
+            \.secrets\.baseline|
+            tests/fixtures/.*|
+            frontend/package-lock\.json|
+            docs/governance/agent_run_summaries/.*\.md
+          )$
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+        args: ["--unsafe"]  # tolerate GitHub Actions ${{ }} templating
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      - id: ruff
+        name: ruff (check only, no autofix in pre-commit)
+        args: ["check", "--no-fix"]
