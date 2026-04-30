@@ -19,6 +19,7 @@ decides what gets done.
 | AB-0011 | 2026-04-30 | P3 | governance | Tighten `deny_dangerous_bash` to also block `find -name 'config.yaml'` (basename without path prefix) once a project-wide audit confirms no legitimate `config.yaml` exists outside `config/` | open | bootstrap |
 | AB-0012 | 2026-04-30 | P2 | governance | Whole-repo ruff cleanup: ~752 pre-existing violations in `agent/`, `research/`, `dashboard/`, `data/` etc. Currently scoped out via `[tool.ruff].include` in `pyproject.toml`. Track each module as its own PR. | open | ci-fix-pass |
 | AB-0013 | 2026-04-30 | P2 | governance | Remove the single-commit allowlist in `.gitleaks.toml` (`cf83a838`) once the deferred credential rotation AND git history rewrite are both complete. Re-evaluate before any v3.16+ live-trading work. | open | ci-fix-pass |
+| AB-0014 | 2026-04-30 | P3 | ci | Re-enable npm cache in the `frontend / vitest` CI job once `actions/setup-node` is bumped to a version where `cache-dependency-path` resolves cleanly for `frontend/package-lock.json`. Currently disabled because v4.0.3 fails with "Some specified paths were not resolved." | open | ci-fix-pass |
 
 ---
 

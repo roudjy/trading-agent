@@ -55,6 +55,14 @@ jobs:
   secret-scan:
     name: secret-scan (gitleaks)
     runs-on: ubuntu-latest
+    # gitleaks-action calls GET /repos/{owner}/{repo}/pulls/{n}/commits
+    # on pull_request events. The default workflow-level
+    # `contents: read` does not include `pull-requests: read`, so the
+    # action errors with "Resource not accessible by integration".
+    # Grant only the minimum required scopes at the job level.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
@@ -156,13 +164,15 @@ jobs:
       - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          # NB: setup-node resolves this path from $GITHUB_WORKSPACE.
-          # Using `defaults.run.working-directory` (removed) caused the
-          # cache-key glob to look at frontend/frontend/package-lock.json
-          # and fail with "Some specified paths were not resolved".
-          # Per-step working-directory below is the documented fix.
-          cache-dependency-path: frontend/package-lock.json
+          # NB: npm cache config (cache: npm + cache-dependency-path) is
+          # intentionally OMITTED. Setup-node v4.0.3's path resolution
+          # fails with "Some specified paths were not resolved" against
+          # frontend/package-lock.json regardless of working-directory
+          # configuration. Without the cache, npm ci just downloads
+          # packages every run. Trade-off: a few extra seconds per CI
+          # run vs an unfixable resolution bug in this action version.
+          # Re-add once setup-node is bumped to a version that resolves
+          # the path correctly. Captured as backlog item AB-0014.
       - name: Install
         working-directory: frontend
         run: npm ci
