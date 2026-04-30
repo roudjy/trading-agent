@@ -59,6 +59,12 @@ DENY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\b(?:cat|head|tail|less|more|nl|view|bat)\s+(?:[^|;]*)config/conf[^|;\s]*\.ya?ml"), "read_config_yaml"),
     (re.compile(r"\b(?:cat|head|tail|less|more)\s+(?:[^|;]*)\.env(?:\.\S+)?\b"), "read_env"),
     (re.compile(r"\b(?:cat|head|tail|less|more)\s+(?:[^|;]*)state/[^/\s]*\.secret\b"), "read_state_secret"),
+    # R5.1: secret-path reads via file-text tools (verb + secret).
+    (re.compile(r"\b(?:awk|sed|gawk|tac|od|xxd|hexdump|strings|cut|nl)\b[^|;]*(?:config/conf[^|;\s>]*\.ya?ml|\.env(?:\.[^|;\s]+)?|state/[^/\s|;>]*\.secret|automation/[^/\s|;>]*\.secret)"), "file_tool_read_secret"),
+    # R5.1: bash redirect-read of a secret path.
+    (re.compile(r"(?<!<)<\s*(?:config/conf[^|;\s>]*\.ya?ml|\.env(?:\.[^|;\s]+)?|state/[^/\s|;>]*\.secret|automation/[^/\s|;>]*\.secret)"), "redirect_read_secret"),
+    # R5.1: find command whose argument list contains a secret token.
+    (re.compile(r"\bfind\b[^|;]*(?:config/conf[^|;\s>]*\.ya?ml|\.env(?:\.[^|;\s]+)?|state/[^/\s|;>]*\.secret|automation/[^/\s|;>]*\.secret)"), "find_with_secret"),
 
     # R5.3: python -c outright (chr/base64 obfuscation impossible to regex).
     (re.compile(r"\bpython[0-9.]*\s+-c\b"), "python_dash_c"),
