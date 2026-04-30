@@ -1,0 +1,69 @@
+# =============================================================================
+# .dockerignore — v3.15.15.12.0 Emergency Containment
+# =============================================================================
+# Purpose: prevent secrets and runtime state from entering the Docker build
+# context. Anything excluded here is invisible to the Dockerfile COPY steps
+# and therefore cannot be baked into the image.
+#
+# Note on artifacts/:
+#   This file excludes the entire `artifacts/` directory from the BUILD CONTEXT,
+#   but `artifacts/build_provenance.schema.json` is still tracked in Git.
+#   That is intentional — provenance artifacts are emitted by the workflow
+#   and never need to live inside the image.
+# =============================================================================
+
+# Secrets — NEVER bake into image
+config/config.yaml
+.env
+.env.*
+state/
+state/*.secret
+
+# Runtime / logs — re-created at container start
+logs/
+reports/
+*.db
+*.log
+
+# Build artifacts (schema is tracked in Git, runtime artifacts gitignored)
+artifacts/
+
+# Tooling, caches, temp
+.git/
+.github/
+.claude/
+.codex/
+.tmp/
+.cache/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+codex_pytest_tmp/
+pytest-cache-files-*/
+__pycache__/
+*.py[cod]
+*.tmp
+*.bak
+*.swp
+
+# Tests are not needed at runtime
+tests/
+tests_tmp/
+
+# Frontend dev artifacts (Docker rebuilds the bundle in stage 1)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Codex / audit logs from prior phases
+.codex_*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Plan / scratch files at repo root
+PR_BODY_*.md

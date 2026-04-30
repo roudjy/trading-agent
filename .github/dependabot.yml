@@ -1,0 +1,96 @@
+# =============================================================================
+# Dependabot — v3.15.15.12.2
+# =============================================================================
+# Policy:
+#   - Weekly cadence.
+#   - Major-version updates for high-blast-radius libraries are IGNORED here;
+#     they require a deliberate human-driven upgrade (with ADR if API changes).
+#   - **Dependabot PRs are NEVER auto-merged.** This is enforced socially
+#     (no `automerge:` field, no GitHub auto-merge action) and by branch
+#     protection (CODEOWNERS review required).
+# =============================================================================
+
+version: 2
+updates:
+
+  # ---------------------------------------------------------------------------
+  # Python dependencies (requirements.txt)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    ignore:
+      # High-blast-radius numerical / ML / financial libs — major bumps are
+      # never auto-proposed because they imply API or behavior changes.
+      - dependency-name: "pandas"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "numpy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ccxt"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "web3"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "anthropic"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "py-clob-client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pyarrow"
+        update-types: ["version-update:semver-major"]
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions — pinned by SHA. Dependabot proposes SHA bumps weekly.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+
+  # ---------------------------------------------------------------------------
+  # Frontend dependencies (frontend/package.json)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps-fe)"
+      include: "scope"
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]

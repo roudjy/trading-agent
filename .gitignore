@@ -15,6 +15,7 @@ ENV/
 # Existing project ignores (KEEP)
 # -------------------------
 .env
+.env.*
 .tmp/
 tests_tmp/
 
@@ -22,6 +23,18 @@ logs/
 reports/
 research/provenance/
 state/
+
+# -------------------------
+# Secrets / runtime config (v3.15.15.12.0 — Emergency Containment)
+# -------------------------
+config/config.yaml
+# config/config.template.yaml IS tracked (schema-of-record)
+
+# -------------------------
+# Build provenance (runtime; schema is tracked)
+# -------------------------
+artifacts/build_provenance-*.json
+# artifacts/build_provenance.schema.json IS tracked
 
 # -------------------------
 # Data layer (CRITICAL WHITELISTING)
@@ -96,7 +109,11 @@ pytest-cache-files-*/
 # -------------------------
 # Local tooling (IMPORTANT)
 # -------------------------
-.claude/
+# v3.15.15.12.3 — Claude policy is tracked at .claude/{settings.json,agents/,hooks/,commands/}
+# Personal/runtime Claude data stays gitignored:
+.claude/settings.local.json
+.claude/projects/
+.claude/cache/
 .codex/
 
 # -------------------------

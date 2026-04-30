@@ -1,0 +1,151 @@
+# =============================================================================
+# pyproject.toml — v3.15.15.12.1
+# =============================================================================
+# Scope decisions (per Revision 4 plan):
+#   - This file configures lint, type-check, and coverage tooling only.
+#   - pytest config is intentionally NOT migrated here. pytest.ini stays as
+#     the source of truth for test config to avoid surprise behavior changes.
+#   - mypy is configured narrowly first; expansion is a follow-up task.
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# -----------------------------------------------------------------------------
+# Ruff — lint + import-sort. Check-only by default; autofix is opt-in per call.
+# -----------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Narrow ruff scope to the v3.15.15.12 governance/agent code introduced
+# by this PR, mirroring the mypy-narrow doctrine documented for [tool.mypy]
+# below. The pre-existing main-branch code (~752 ruff issues across
+# agent/, research/, dashboard/, data/, ...) is NOT in scope for this PR.
+# Whole-repo ruff cleanup is deferred and tracked in
+# docs/backlog/agent_backlog.md as item AB-0012.
+include = [
+    ".claude/hooks/**/*.py",
+    "scripts/**/*.py",
+    "reporting/agent_audit.py",
+    "tests/unit/test_hook*.py",
+    "tests/unit/test_agent_audit*.py",
+]
+extend-exclude = [
+    ".tmp",
+    ".cache",
+    "tests_tmp",
+    "codex_pytest_tmp",
+    "frontend/node_modules",
+    "frontend/dist",
+    "data/cache",
+    "research/history",
+    "research/provenance",
+    "logs",
+    "reports",
+    "state",
+    "artifacts",
+    "__pycache__",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "UP",    # pyupgrade
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific
+]
+ignore = [
+    "E501",  # line-length is enforced via formatter, not lint
+    "B008",  # function calls in default args are common in this codebase
+    "SIM108",# ternary preference is opinionated
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]  # asserts in tests are fine
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# -----------------------------------------------------------------------------
+# mypy — narrow scope first. Expansion is a deliberate follow-up task,
+# not an automatic agent-driven change.
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+# follow_imports = "silent" keeps transitive-import type resolution
+# functional (so types from research/registry.py etc. still flow into
+# the narrow targets) without surfacing pre-existing typing debt in
+# those modules as failures of THIS gate. Pre-existing typing debt
+# across agent/, research/, dashboard/, data/ is tracked as backlog
+# items AB-0010 (mypy expansion) and AB-0012 (whole-repo cleanup).
+follow_imports = "silent"
+files = [
+    "automation/",
+    "execution/protocols.py",
+    "research/authority_views.py",
+    "research/authority_trace.py",
+    "reporting/agent_audit.py",
+]
+# execution/paper/polymarket_sim.py has a pre-existing typing issue
+# (return value Literal narrowing) tracked separately. Scoping mypy to
+# the protocol module keeps the live-gate enforcement under type-check
+# without bundling unrelated pre-existing debt.
+exclude = [
+    "^build/",
+    "^dist/",
+    "^\\.tmp/",
+    "^codex_pytest_tmp/",
+    "^tests_tmp/",
+]
+
+[[tool.mypy.overrides]]
+module = ["ccxt.*", "ta.*", "yfinance.*", "praw.*", "newspaper.*", "py_clob_client.*"]
+ignore_missing_imports = true
+
+# -----------------------------------------------------------------------------
+# Coverage — minimal config; opt-in via `pytest --cov`.
+# -----------------------------------------------------------------------------
+[tool.coverage.run]
+branch = true
+source = [
+    "agent",
+    "automation",
+    "dashboard",
+    "execution",
+    "orchestration",
+    "reporting",
+    "research",
+    "strategies",
+]
+omit = [
+    "*/tests/*",
+    "*/tests_tmp/*",
+    "*/__init__.py",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+skip_empty = true

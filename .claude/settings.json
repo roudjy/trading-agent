@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "Project-tracked Claude Code policy (v3.15.15.12.3). Self-protected: see .claude/hooks/README.md. Personal overrides go in .claude/settings.local.json (gitignored). Governance core docs under docs/governance/ are protected by .claude/hooks/deny_no_touch.py (the canonical enforcement); the permissions layer below intentionally does NOT duplicate that, so a governance-bootstrap PR can seed those docs without an extra layer to relax.",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "TodoWrite",
+      "ToolSearch",
+      "Bash(pytest *)",
+      "Bash(python -m pytest *)",
+      "Bash(python3 -m pytest *)",
+      "Bash(ruff check *)",
+      "Bash(ruff format --check *)",
+      "Bash(mypy *)",
+      "Bash(pre-commit run *)",
+      "Bash(npm ci)",
+      "Bash(npm install --no-save)",
+      "Bash(npm test --run)",
+      "Bash(npm run test --run)",
+      "Bash(git status)",
+      "Bash(git status -uno)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git ls-files *)",
+      "Bash(git branch *)",
+      "Bash(git rev-parse *)"
+    ],
+    "ask": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout -b *)",
+      "Bash(git checkout *)",
+      "Bash(git rm --cached *)",
+      "Bash(gh pr create *)",
+      "Edit(.github/workflows/**)",
+      "Write(.github/workflows/**)",
+      "Edit(pyproject.toml)",
+      "Write(pyproject.toml)",
+      "Edit(.gitignore)",
+      "Write(.gitignore)",
+      "Edit(.dockerignore)",
+      "Write(.dockerignore)",
+      "Edit(tests/regression/**)",
+      "Write(tests/regression/**)",
+      "Edit(CHANGELOG.md)",
+      "Write(CHANGELOG.md)",
+      "Edit(docs/adr/_drafts/**)",
+      "Write(docs/adr/_drafts/**)"
+    ],
+    "deny": [
+      "Read(./config/config.yaml)",
+      "Read(./state/*.secret)",
+      "Read(./automation/*.secret)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Edit(./config/config.yaml)",
+      "Write(./config/config.yaml)",
+      "Edit(./automation/live_gate.py)",
+      "Write(./automation/live_gate.py)",
+      "Edit(./state/**)",
+      "Write(./state/**)",
+      "Edit(./automation/*.secret)",
+      "Write(./automation/*.secret)",
+      "Edit(./research/authority_views.py)",
+      "Write(./research/authority_views.py)",
+      "Edit(./research/authority_trace.py)",
+      "Write(./research/authority_trace.py)",
+      "Edit(./research/candidate_lifecycle.py)",
+      "Write(./research/candidate_lifecycle.py)",
+      "Edit(./research/candidate_pipeline.py)",
+      "Write(./research/candidate_pipeline.py)",
+      "Edit(./research/candidate_registry_v2.py)",
+      "Write(./research/candidate_registry_v2.py)",
+      "Edit(./research/campaign_funnel_policy.py)",
+      "Write(./research/campaign_funnel_policy.py)",
+      "Edit(./research/campaign_preset_policy.py)",
+      "Write(./research/campaign_preset_policy.py)",
+      "Edit(./research/campaign_family_policy.py)",
+      "Write(./research/campaign_family_policy.py)",
+      "Edit(./research/promotion.py)",
+      "Write(./research/promotion.py)",
+      "Edit(./research/strategy_hypothesis_catalog.py)",
+      "Write(./research/strategy_hypothesis_catalog.py)",
+      "Edit(./research/campaign_evidence_ledger.py)",
+      "Write(./research/campaign_evidence_ledger.py)",
+      "Edit(./research/research_evidence_ledger.py)",
+      "Write(./research/research_evidence_ledger.py)",
+      "Edit(./research/paper_ledger.py)",
+      "Write(./research/paper_ledger.py)",
+      "Edit(./research/screening_evidence.py)",
+      "Write(./research/screening_evidence.py)",
+      "Edit(./orchestration/orchestrator.py)",
+      "Write(./orchestration/orchestrator.py)",
+      "Edit(./agent/backtesting/engine.py)",
+      "Write(./agent/backtesting/engine.py)",
+      "Edit(./agent/backtesting/fitted_features.py)",
+      "Write(./agent/backtesting/fitted_features.py)",
+      "Edit(./docker-compose.prod.yml)",
+      "Write(./docker-compose.prod.yml)",
+      "Edit(./scripts/deploy.sh)",
+      "Write(./scripts/deploy.sh)",
+      "Edit(./ops/**)",
+      "Write(./ops/**)",
+      "Edit(./Dockerfile)",
+      "Write(./Dockerfile)",
+      "Edit(./tests/regression/test_v3_*pin*.py)",
+      "Write(./tests/regression/test_v3_*pin*.py)",
+      "Edit(./tests/regression/test_v3_15_artifacts_deterministic.py)",
+      "Write(./tests/regression/test_v3_15_artifacts_deterministic.py)",
+      "Edit(./tests/regression/test_authority_invariants.py)",
+      "Write(./tests/regression/test_authority_invariants.py)",
+      "Edit(./tests/regression/test_v3_15_8_canonical_dump_and_digest.py)",
+      "Write(./tests/regression/test_v3_15_8_canonical_dump_and_digest.py)",
+      "Edit(./.claude/settings.local.json)",
+      "Write(./.claude/settings.local.json)",
+      "Edit(./.github/CODEOWNERS)",
+      "Write(./.github/CODEOWNERS)",
+      "Edit(./VERSION)",
+      "Write(./VERSION)",
+      "Edit(./docs/adr/ADR-*.md)",
+      "Write(./docs/adr/ADR-*.md)",
+      "Bash(git push --force *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(git filter-repo *)",
+      "Bash(git filter-branch *)",
+      "Bash(git clean -f *)",
+      "Bash(git clean -fd *)",
+      "Bash(git clean -ffd *)",
+      "Bash(git commit --no-verify *)",
+      "Bash(git push --no-verify *)",
+      "Bash(rm -rf state*)",
+      "Bash(rm -rf logs*)",
+      "Bash(rm -rf research*)",
+      "Bash(rm -rf config*)",
+      "Bash(rm -rf /*)",
+      "Bash(docker compose -f docker-compose.prod.yml *)",
+      "Bash(bash scripts/deploy.sh *)",
+      "Bash(./scripts/deploy.sh *)",
+      "Bash(sh scripts/deploy.sh *)",
+      "Bash(ssh root@*)",
+      "Bash(ssh *@23.88.110.92*)",
+      "Bash(scp * root@*)",
+      "Bash(rsync * root@*)",
+      "Bash(cat config/config.yaml*)",
+      "Bash(head config/config.yaml*)",
+      "Bash(tail config/config.yaml*)",
+      "Bash(less config/config.yaml*)",
+      "Bash(more config/config.yaml*)",
+      "Bash(cat .env*)",
+      "Bash(cat state/*.secret*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_no_touch.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_test_weakening.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_live_connector.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_outside_agent_allowlist.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_dangerous_bash.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_config_read.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny_config_read.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Bash|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/audit_emit.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/audit_emit.py"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/precompact_preserve.py"
+          }
+        ]
+      }
+    ]
+  }
+}

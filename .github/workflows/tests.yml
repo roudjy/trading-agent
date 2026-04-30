@@ -1,23 +1,203 @@
-name: Run Tests
+# =============================================================================
+# tests.yml — fast pre-merge gate (v3.15.15.12.2)
+# =============================================================================
+# Triggers on every push and PR. Each job is independently required by branch
+# protection (see docs/governance/branch_protection_checklist.md).
+#
+# All third-party actions are pinned by 40-char commit SHA. The version tag
+# in the trailing comment is informational only — branch protection trusts
+# the SHA. Updates flow through dependabot (chore(ci): ...), reviewed monthly
+# per docs/governance/sha_pin_review.md.
+#
+# Nightly-only suites (regression-full, integration, resilience, functional)
+# live in nightly.yml and DO NOT block merge.
+# =============================================================================
 
-on: [push, pull_request]
+name: Fast pre-merge gate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
 
 jobs:
-  test:
+  # ---------------------------------------------------------------------------
+  # lint — ruff, fast (<30s)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: lint (ruff)
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install ruff
+        run: pip install "ruff==0.7.4"
+      - name: Run ruff
+        run: ruff check .
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+  # ---------------------------------------------------------------------------
+  # secret-scan — gitleaks (primary detector). Detect-secrets baseline runs
+  # in pre-commit; CI uses gitleaks for diff-based scanning.
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: secret-scan (gitleaks)
+    runs-on: ubuntu-latest
+    # gitleaks-action calls GET /repos/{owner}/{repo}/pulls/{n}/commits
+    # on pull_request events. The default workflow-level
+    # `contents: read` does not include `pull-requests: read`, so the
+    # action errors with "Resource not accessible by integration".
+    # Grant only the minimum required scopes at the job level.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 0  # gitleaks needs full history for diff mode
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@83373cf2f8c4db6e24b41c1a9b086bb9619e9cd3  # v2.3.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install pytest
+  # ---------------------------------------------------------------------------
+  # typecheck — mypy on the narrow scope defined in pyproject.toml.
+  # Expansion is a deliberate human task, not an automatic agent change.
+  # ---------------------------------------------------------------------------
+  typecheck:
+    name: typecheck (mypy narrow)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install "mypy==1.13.0"
+      - name: Run mypy
+        run: mypy --config-file pyproject.toml --explicit-package-bases
 
-    - name: Run tests
-      run: pytest -q
+  # ---------------------------------------------------------------------------
+  # unit — smoke + unit tests (<90s)
+  # ---------------------------------------------------------------------------
+  unit:
+    name: unit (smoke + unit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run smoke + unit
+        run: pytest tests/smoke tests/unit -q
+
+  # ---------------------------------------------------------------------------
+  # regression-fast — determinism pins only.
+  # The -k filter is the source of truth for which tests are pin-bound.
+  # If a new pin test is added, it MUST match this filter so it is gated
+  # on every commit.
+  # ---------------------------------------------------------------------------
+  regression-fast:
+    name: regression-fast (determinism pins)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run regression-fast (pin/deterministic/digest/invariant)
+        run: pytest tests/regression -q -k "pin or deterministic or digest or invariant"
+
+  # ---------------------------------------------------------------------------
+  # hook-tests — required gate for the governance hook layer (v3.15.15.12.3).
+  # If hooks are bypassed or weakened, this job fails and merge is blocked.
+  # ---------------------------------------------------------------------------
+  hook-tests:
+    name: hook-tests (governance hooks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run hook + audit-chain tests
+        run: pytest tests/unit/test_hook_runtime.py tests/unit/test_hooks_*.py tests/unit/test_agent_audit.py -q
+
+  # ---------------------------------------------------------------------------
+  # frontend — Vitest unit tests for the dashboard SPA
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: frontend (vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # NB: npm cache config (cache: npm + cache-dependency-path) is
+          # intentionally OMITTED. Setup-node v4.0.3's path resolution
+          # fails with "Some specified paths were not resolved" against
+          # frontend/package-lock.json regardless of working-directory
+          # configuration. Without the cache, npm ci just downloads
+          # packages every run. Trade-off: a few extra seconds per CI
+          # run vs an unfixable resolution bug in this action version.
+          # Re-add once setup-node is bumped to a version that resolves
+          # the path correctly. Captured as backlog item AB-0014.
+      - name: Install
+        working-directory: frontend
+        # NB: `npm install` (not `npm ci`) because frontend/package-lock.json
+        # is not currently tracked in git, so CI's clean checkout has no
+        # lockfile and `npm ci` errors out. Restore `npm ci` once the
+        # lockfile is committed (backlog item AB-0015).
+        run: npm install
+      - name: Run tests
+        working-directory: frontend
+        run: npm test -- --run
+
+  # ---------------------------------------------------------------------------
+  # governance-lint - Revision 5: enforces ADR-015 invariants in CI:
+  #   - no agent declares max_autonomy_level > 3
+  #   - no file mentions Level 6 as enabled (only as permanently disabled)
+  #   - no GitHub Action uses a floating tag (must be 40-char SHA)
+  #   - no_touch_paths.md and deny_no_touch.NO_TOUCH_GLOBS stay in sync
+  # ---------------------------------------------------------------------------
+  governance-lint:
+    name: governance-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Run governance lint
+        run: python scripts/governance_lint.py

@@ -1,0 +1,131 @@
+# =============================================================================
+# nightly.yml — non-blocking slow suites (v3.15.15.12.2)
+# =============================================================================
+# Policy:
+#   - Nightly failures DO NOT block merge.
+#   - Release Gate Agent MUST reference active nightly failures in its report.
+#     A PR that lands on a red nightly is acceptable only if the report
+#     explicitly justifies why.
+#   - On failure, an issue is auto-opened so the operator notices without
+#     opening Actions tab.
+# =============================================================================
+
+name: Nightly slow suites (non-blocking)
+
+on:
+  schedule:
+    - cron: "17 2 * * *"  # 02:17 UTC daily — off-peak
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  regression-full:
+    name: regression-full
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+      - name: Run full regression
+        run: pytest tests/regression -q --cov=. --cov-report=xml --cov-report=term-missing
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808  # v4.3.3
+        with:
+          name: coverage-regression-${{ github.run_id }}
+          path: coverage.xml
+          retention-days: 14
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run integration
+        run: pytest tests/integration -q
+
+  resilience:
+    name: resilience
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run resilience
+        run: pytest tests/resilience -q
+
+  functional:
+    name: functional
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run functional (--run-functional)
+        run: pytest --run-functional -q
+
+  # ---------------------------------------------------------------------------
+  # Auto-open an issue on any failure so the operator notices.
+  # ---------------------------------------------------------------------------
+  notify-failure:
+    name: open-issue-on-failure
+    if: failure()
+    needs: [regression-full, integration, resilience, functional]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - name: Compose issue body
+        run: |
+          cat > /tmp/issue.md <<EOF
+          Nightly run **${{ github.run_id }}** failed at ${{ github.event.repository.updated_at }}.
+
+          - Workflow: ${{ github.workflow }}
+          - Triggered by: ${{ github.event_name }}
+          - Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Per governance policy nightly failures do not block merge, but Release Gate Agent
+          MUST reference this failure in its next report.
+
+          Close this issue once the underlying failure is resolved (a green nightly run will
+          NOT auto-close it — that is intentional, the operator tags the resolution).
+          EOF
+      - uses: peter-evans/create-issue-from-file@e8ef132d6df98ed982188e460ebb3b5d4ef3a9cd  # v5.0.0
+        with:
+          title: "Nightly failure — run ${{ github.run_id }}"
+          content-filepath: /tmp/issue.md
+          labels: |
+            ci
+            nightly
+            needs-triage

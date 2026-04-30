@@ -1,0 +1,41 @@
+# .gitleaks.toml - trading-agent gitleaks configuration
+#
+# This config exists to allowlist a single, known, deferred-rotation
+# credential leak: the deletion of the credentials file in commit
+# cf83a838bcfbee60290890eb85d67ba993fc4959 (v3.15.15.12.0 emergency
+# secret containment).
+#
+# Per SECURITY.md and docs/governance/manual_blockers.md:
+#   - External credential rotation is deferred while live trading is
+#     disabled and the Polymarket wallet has no funds.
+#   - Git history rewrite (filter-repo against the same path with
+#     --invert-paths) is documented as a separate operator-supervised
+#     step, not executed in this PR.
+#
+# This allowlist is scoped to the SINGLE commit + path. Forward
+# scanning of all other commits and paths remains active.
+#
+# Backlog item AB-0013 tracks the removal of this allowlist after the
+# rotation + history-rewrite pair is complete. Do not extend this
+# allowlist for any other secret without an ADR amendment.
+
+# Inherit gitleaks default detection rules.
+[extend]
+useDefault = true
+
+[allowlist]
+description = """\
+Pre-containment credentials in cf83a838 (the now-untracked credentials \
+file deletion). Rotation deferred per SECURITY.md; history rewrite \
+deferred per manual_blockers.md. Re-evaluate before v3.16+ live work. \
+Tracked in backlog as AB-0013."""
+
+# Path-level allowlist: only the now-untracked credentials file.
+paths = [
+  '''^config/config\.yaml$''',
+]
+
+# Commit-level allowlist: only the single deletion commit.
+commits = [
+  "cf83a838bcfbee60290890eb85d67ba993fc4959",
+]
