@@ -1,0 +1,94 @@
+# =============================================================================
+# CODEOWNERS — v3.15.15.12.2
+# =============================================================================
+# Owner of record for all paths is @roudjy (the repo owner). Explicit lines
+# below for no-touch / governance-critical paths exist so that future
+# collaborators see the doctrine in one place.
+#
+# CODEOWNERS is enforced by branch protection only when "Require review from
+# Code Owners" is enabled in the GitHub UI. See
+# docs/governance/branch_protection_checklist.md.
+# =============================================================================
+
+# Default owner
+*                                               @roudjy
+
+# -----------------------------------------------------------------------------
+# Live trading / capital / secrets — sacred, human-only
+# -----------------------------------------------------------------------------
+/automation/live_gate.py                        @roudjy
+/automation/                                    @roudjy
+/config/                                        @roudjy
+/state/                                         @roudjy
+
+# -----------------------------------------------------------------------------
+# Authority surface (ADR-014) — research-domain integrity
+# -----------------------------------------------------------------------------
+/research/authority_views.py                    @roudjy
+/research/authority_trace.py                    @roudjy
+/research/candidate_lifecycle.py                @roudjy
+/research/candidate_pipeline.py                 @roudjy
+/research/candidate_registry_v2.py              @roudjy
+/research/campaign_funnel_policy.py             @roudjy
+/research/campaign_preset_policy.py             @roudjy
+/research/campaign_family_policy.py             @roudjy
+/research/promotion.py                          @roudjy
+/research/strategy_hypothesis_catalog.py        @roudjy
+/research/campaign_evidence_ledger.py           @roudjy
+/research/research_evidence_ledger.py           @roudjy
+/research/paper_ledger.py                       @roudjy
+/research/screening_evidence.py                 @roudjy
+
+# -----------------------------------------------------------------------------
+# Orchestration core (ADR-009) and backtest core (ADR-007/008)
+# -----------------------------------------------------------------------------
+/orchestration/orchestrator.py                  @roudjy
+/agent/backtesting/engine.py                    @roudjy
+/agent/backtesting/fitted_features.py           @roudjy
+
+# -----------------------------------------------------------------------------
+# Production posture
+# -----------------------------------------------------------------------------
+/docker-compose.prod.yml                        @roudjy
+/scripts/deploy.sh                              @roudjy
+/ops/                                           @roudjy
+/Dockerfile                                     @roudjy
+
+# -----------------------------------------------------------------------------
+# Architecture authority (ADRs)
+# -----------------------------------------------------------------------------
+/docs/adr/                                      @roudjy
+
+# -----------------------------------------------------------------------------
+# Governance layer (ADR-015) — self-protected after seed
+# -----------------------------------------------------------------------------
+/.claude/settings.json                          @roudjy
+/.claude/agents/                                @roudjy
+/.claude/hooks/                                 @roudjy
+/.claude/commands/                              @roudjy
+/docs/governance/                               @roudjy
+/.github/CODEOWNERS                             @roudjy
+/.github/workflows/                             @roudjy
+/.github/PULL_REQUEST_TEMPLATE.md               @roudjy
+/.github/dependabot.yml                         @roudjy
+
+# -----------------------------------------------------------------------------
+# Determinism pins — never auto-repinned
+# -----------------------------------------------------------------------------
+/tests/regression/test_v3_*pin*.py              @roudjy
+/tests/regression/test_v3_15_artifacts_deterministic.py  @roudjy
+/tests/regression/test_authority_invariants.py  @roudjy
+/tests/regression/test_v3_15_8_canonical_dump_and_digest.py  @roudjy
+
+# -----------------------------------------------------------------------------
+# Frozen v1 schemas
+# -----------------------------------------------------------------------------
+*_latest.v1.json                                @roudjy
+*_latest.v1.jsonl                               @roudjy
+
+# -----------------------------------------------------------------------------
+# Version & release
+# -----------------------------------------------------------------------------
+/VERSION                                        @roudjy
+/CHANGELOG.md                                   @roudjy
+/SECURITY.md                                    @roudjy

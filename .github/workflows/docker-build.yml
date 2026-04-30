@@ -1,64 +1,178 @@
+# =============================================================================
+# docker-build.yml — image build, SBOM, scan, provenance (v3.15.15.12.2/.5)
+# =============================================================================
+# Policy changes vs. previous version:
+#   - Build only runs after the fast-gate workflow passes (workflow_run trigger).
+#   - :latest tag is no longer auto-pushed. Push :${VERSION} only; promote to
+#     :latest is a manual workflow_dispatch with an explicit input.
+#   - SBOM (anchore/sbom-action) is uploaded as artifact.
+#   - Trivy scan is alert-only (does NOT fail the workflow). The scan output
+#     is uploaded as an artifact and surfaced to a future image-policy review.
+#   - Build provenance JSON is generated and uploaded as artifact, schema-
+#     validated against artifacts/build_provenance.schema.json.
+# =============================================================================
+
 name: Build & Push Docker Image
 
 on:
-  push:
-    branches: [ main ]
+  workflow_run:
+    workflows: ["Fast pre-merge gate"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      promote_to_latest:
+        description: "Push :latest in addition to :${VERSION}? (rare; default no)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build:
+  guard:
+    name: guard (fast-gate must be green)
     runs-on: ubuntu-latest
-
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - run: echo "Fast gate passed; proceeding to build."
 
-      - name: Read version
+  build-and-push:
+    name: build-and-push
+    needs: [guard]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      digest_dashboard: ${{ steps.push_dashboard.outputs.digest }}
+      digest_agent: ${{ steps.push_agent.outputs.digest }}
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Read VERSION
         id: version
         shell: bash
         run: |
-          VERSION_VALUE="$(tr -d '\r\n' < VERSION)"
-          echo "version=$VERSION_VALUE" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: $VERSION_VALUE"
+          v="$(tr -d '\r\n' < VERSION)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$v"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - uses: docker/setup-buildx-action@4fd812986e6c8c2a69e18311145f9371337f27d4  # v3.4.0
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run tests
-        run: pytest -q
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567  # v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # -----------------------------------------------------------------
+      # Tag computation. :latest is opt-in via workflow_dispatch input.
+      # -----------------------------------------------------------------
+      - name: Compute tags (dashboard)
+        id: tags_dashboard
+        shell: bash
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          tags="ghcr.io/roudjy/trading-agent-dashboard:${v}"
+          if [[ "${{ inputs.promote_to_latest }}" == "true" ]]; then
+            tags="${tags},ghcr.io/roudjy/trading-agent-dashboard:latest"
+          fi
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute tags (agent)
+        id: tags_agent
+        shell: bash
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          tags="ghcr.io/roudjy/trading-agent-agent:${v}"
+          if [[ "${{ inputs.promote_to_latest }}" == "true" ]]; then
+            tags="${tags},ghcr.io/roudjy/trading-agent-agent:latest"
+          fi
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------
+      # Builds. The Dockerfile is the same; both images are built from
+      # the same context but logically named separately downstream.
+      # -----------------------------------------------------------------
       - name: Build & push dashboard image
-        uses: docker/build-push-action@v5
+        id: push_dashboard
+        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85  # v6.7.0
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/roudjy/trading-agent-dashboard:latest
-            ghcr.io/roudjy/trading-agent-dashboard:${{ steps.version.outputs.version }}
+          tags: ${{ steps.tags_dashboard.outputs.tags }}
+          provenance: false  # we emit our own per-build provenance below
 
       - name: Build & push agent image
-        uses: docker/build-push-action@v5
+        id: push_agent
+        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85  # v6.7.0
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/roudjy/trading-agent-agent:latest
-            ghcr.io/roudjy/trading-agent-agent:${{ steps.version.outputs.version }}
+          tags: ${{ steps.tags_agent.outputs.tags }}
+          provenance: false
+
+  sbom:
+    name: sbom
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: anchore/sbom-action@d94f46e13c6c62f59525ac9a1e147a99dc0b9bf5  # v0.17.0
+        with:
+          image: "ghcr.io/roudjy/trading-agent-agent:${{ needs.build-and-push.outputs.version }}"
+          artifact-name: "sbom-agent-${{ needs.build-and-push.outputs.version }}.spdx.json"
+          format: spdx-json
+
+  scan:
+    name: scan (trivy alert-only)
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    continue-on-error: true  # alert-only per policy
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.24.0
+        with:
+          image-ref: "ghcr.io/roudjy/trading-agent-agent:${{ needs.build-and-push.outputs.version }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808  # v4.3.3
+        with:
+          name: trivy-${{ needs.build-and-push.outputs.version }}
+          path: trivy-results.sarif
+          retention-days: 30
+
+  provenance:
+    name: provenance (build_provenance.json)
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.0
+        with:
+          python-version: "3.11"
+      - name: Emit build provenance
+        run: |
+          mkdir -p artifacts
+          python scripts/emit_build_provenance.py \
+            --commit "${{ github.sha }}" \
+            --image-digest "${{ needs.build-and-push.outputs.digest_agent }}" \
+            --image-digest-dashboard "${{ needs.build-and-push.outputs.digest_dashboard }}" \
+            --workflow-run-id "${{ github.run_id }}" \
+            --workflow-run-attempt "${{ github.run_attempt }}" \
+            --version "${{ needs.build-and-push.outputs.version }}" \
+            --actor "${{ github.actor }}" \
+            --actions-pinned true \
+            --output "artifacts/build_provenance-${{ needs.build-and-push.outputs.version }}.json"
+      - name: Upload provenance artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808  # v4.3.3
+        with:
+          name: build-provenance-${{ needs.build-and-push.outputs.version }}
+          path: artifacts/build_provenance-*.json
+          retention-days: 365
