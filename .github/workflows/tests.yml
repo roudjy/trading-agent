@@ -175,7 +175,11 @@ jobs:
           # the path correctly. Captured as backlog item AB-0014.
       - name: Install
         working-directory: frontend
-        run: npm ci
+        # NB: `npm install` (not `npm ci`) because frontend/package-lock.json
+        # is not currently tracked in git, so CI's clean checkout has no
+        # lockfile and `npm ci` errors out. Restore `npm ci` once the
+        # lockfile is committed (backlog item AB-0015).
+        run: npm install
       - name: Run tests
         working-directory: frontend
         run: npm test -- --run
