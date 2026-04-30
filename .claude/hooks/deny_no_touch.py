@@ -5,6 +5,13 @@ Single source of patterns is ``docs/governance/no_touch_paths.md``.
 This module reads the patterns from a sibling Python list (kept in sync
 with the doc and verified by ``tests/unit/test_hooks_no_touch.py``) so
 the hook runs without parsing markdown.
+
+Revision 5 hardening:
+  - NO_TOUCH expanded to cover agent/{brain,execution,learning,agents,
+    risk,monitoring}/**, dashboard/dashboard.py, plus full automation/,
+    execution/, orchestration/, research/, strategies/ directories.
+  - _normalize() now resolves symlinks (so a symlink to a no-touch path
+    is detected) and is case-insensitive on Windows.
 """
 
 from __future__ import annotations
@@ -17,11 +24,13 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _hook_runtime import run_pre_hook  # noqa: E402
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
 # ---------------------------------------------------------------------------
 # No-touch glob patterns. Each pattern is matched with ``fnmatch.fnmatchcase``
-# against the *normalized* relative path (forward slashes). Add new entries
-# here AND in docs/governance/no_touch_paths.md (the test suite checks they
-# stay in sync).
+# against the *normalized* relative path (forward slashes, lowercased on
+# Windows). Add new entries here AND in docs/governance/no_touch_paths.md
+# (the test suite checks they stay in sync).
 # ---------------------------------------------------------------------------
 
 NO_TOUCH_GLOBS: tuple[str, ...] = (
@@ -35,7 +44,8 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
     ".env",
     ".env.*",
 
-    # Authority surface (ADR-014)
+    # Authority surface (ADR-014) — explicit list kept for documentation;
+    # the broader research/** pattern below covers all of them too.
     "research/authority_views.py",
     "research/authority_trace.py",
     "research/candidate_lifecycle.py",
@@ -51,7 +61,38 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
     "research/paper_ledger.py",
     "research/screening_evidence.py",
 
-    # Orchestration core (ADR-009) and backtest core
+    # R5.2 - full backend code surface (no agent should be writing here):
+    "agent/brain/*",
+    "agent/brain/**",
+    "agent/execution/*",
+    "agent/execution/**",
+    "agent/learning/*",
+    "agent/learning/**",
+    "agent/agents/*",
+    "agent/agents/**",
+    "agent/risk/*",
+    "agent/risk/**",
+    "agent/monitoring/*",
+    "agent/monitoring/**",
+
+    # R5.2 - dashboard core (api_observability.py is allowed via
+    # observability-guardian; main dashboard.py reads operator secrets).
+    "dashboard/dashboard.py",
+
+    # R5.2 - full directories that contain trading logic / authority
+    # surface. Specific files are listed above for documentation parity.
+    "automation/*",
+    "automation/**",
+    "execution/*",
+    "execution/**",
+    "orchestration/*",
+    "orchestration/**",
+    "research/*",
+    "research/**",
+    "strategies/*",
+    "strategies/**",
+
+    # Orchestration core (ADR-009) and backtest core (kept explicit too)
     "orchestration/orchestrator.py",
     "agent/backtesting/engine.py",
     "agent/backtesting/fitted_features.py",
@@ -62,6 +103,7 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
     "ops/systemd/*",
     "ops/systemd/**",
     "ops/nginx/*",
+    "Dockerfile",
 
     # Frozen v1 schemas (anywhere)
     "*_latest.v1.json",
@@ -69,7 +111,7 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
     "**/*_latest.v1.json",
     "**/*_latest.v1.jsonl",
 
-    # ADRs (existing — drafts go to docs/adr/_drafts/ via ask)
+    # ADRs (existing - drafts go to docs/adr/_drafts/ via ask)
     "docs/adr/ADR-*.md",
 
     # Determinism pin tests
@@ -78,7 +120,7 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
     "tests/regression/test_authority_invariants.py",
     "tests/regression/test_v3_15_8_canonical_dump_and_digest.py",
 
-    # Governance layer — self-protected after seed
+    # Governance layer - self-protected after seed
     ".claude/settings.json",
     ".claude/hooks/*",
     ".claude/hooks/**",
@@ -86,7 +128,7 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
     ".claude/agents/**",
     ".github/CODEOWNERS",
 
-    # VERSION — bump only via Release Gate-recommended human-approved PR
+    # VERSION - bump only via Release Gate-recommended human-approved PR
     "VERSION",
 
     # Governance core docs (writable only by planner / PO / release-gate-agent)
@@ -108,20 +150,31 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
 def _normalize(p: str) -> str:
     """Normalize a path for pattern matching.
 
-    Forward slashes only. Strip a literal leading ``./`` (NOT individual
-    dots and slashes — that previous bug made ``.claude/...`` become
-    ``claude/...`` and broke self-protection).
+    Revision 5: resolve symlinks (so ``ln -s automation/live_gate.py
+    safe.py`` is detected as a no-touch write), strip the repo-root
+    prefix from absolute paths, lowercase on Windows for
+    case-insensitive matching.
     """
-    p = p.replace("\\", "/")
-    while p.startswith("./"):
-        p = p[2:]
-    return p
+    raw = p.replace("\\", "/")
+    while raw.startswith("./"):
+        raw = raw[2:]
+    try:
+        resolved = Path(raw).resolve(strict=False).as_posix()
+        repo_prefix = _REPO_ROOT.resolve().as_posix()
+        if resolved.startswith(repo_prefix + "/"):
+            resolved = resolved[len(repo_prefix) + 1:]
+        elif resolved == repo_prefix:
+            resolved = ""
+    except (OSError, ValueError):
+        resolved = raw
+    return resolved.lower() if sys.platform == "win32" else resolved
 
 
 def _match_no_touch(rel_path: str) -> str | None:
     n = _normalize(rel_path)
     for pat in NO_TOUCH_GLOBS:
-        if fnmatch.fnmatchcase(n, pat):
+        glob = pat.lower() if sys.platform == "win32" else pat
+        if fnmatch.fnmatchcase(n, glob):
             return pat
     return None
 

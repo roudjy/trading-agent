@@ -76,11 +76,23 @@ CONTENT_DENY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 
 
 def _normalize(p: str) -> str:
-    """Forward slashes only; strip literal leading ``./``."""
-    p = p.replace("\\", "/")
-    while p.startswith("./"):
-        p = p[2:]
-    return p
+    """R5.4: forward slashes only; strip literal leading ``./``;
+    resolve symlinks; lowercase on Windows for case-insensitive match."""
+    raw = p.replace("\\", "/")
+    while raw.startswith("./"):
+        raw = raw[2:]
+    try:
+        from pathlib import Path as _P
+        repo_root = _P(__file__).resolve().parent.parent.parent
+        resolved = _P(raw).resolve(strict=False).as_posix()
+        repo_prefix = repo_root.resolve().as_posix()
+        if resolved.startswith(repo_prefix + "/"):
+            resolved = resolved[len(repo_prefix) + 1:]
+        elif resolved == repo_prefix:
+            resolved = ""
+    except (OSError, ValueError):
+        resolved = raw
+    return resolved.lower() if sys.platform == "win32" else resolved
 
 
 def _is_test_path(p: str) -> bool:

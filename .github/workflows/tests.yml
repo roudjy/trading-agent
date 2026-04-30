@@ -165,3 +165,21 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm test -- --run
+
+  # ---------------------------------------------------------------------------
+  # governance-lint - Revision 5: enforces ADR-015 invariants in CI:
+  #   - no agent declares max_autonomy_level > 3
+  #   - no file mentions Level 6 as enabled (only as permanently disabled)
+  #   - no GitHub Action uses a floating tag (must be 40-char SHA)
+  #   - no_touch_paths.md and deny_no_touch.NO_TOUCH_GLOBS stay in sync
+  # ---------------------------------------------------------------------------
+  governance-lint:
+    name: governance-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Run governance lint
+        run: python scripts/governance_lint.py

@@ -7,16 +7,24 @@ constant stay in sync.
 
 Three enforcement layers protect every entry below:
 
-1. **Hook layer** (`deny_no_touch.py`) — fail-closed deny at the
+1. **Hook layer** (`deny_no_touch.py`) - fail-closed deny at the
    `PreToolUse Edit|Write` boundary.
-2. **CODEOWNERS** — each path requires the repo owner's review for any PR
+2. **CODEOWNERS** - each path requires the repo owner's review for any PR
    that touches it.
 3. **Branch protection** (configured in GitHub UI per
-   [`branch_protection_checklist.md`](branch_protection_checklist.md)) — the
+   [`branch_protection_checklist.md`](branch_protection_checklist.md)) - the
    `main` branch refuses force-push and requires Code Owners to approve.
 
 A bypass requires **all three** to be relaxed in concert, which only happens
 through a human-authored, CODEOWNERS-reviewed `governance-bootstrap` PR.
+
+Revision 5 hardening: the no-touch list now covers full backend code
+directories (`agent/{brain,execution,learning,agents,risk,monitoring}/**`,
+`automation/**`, `execution/**`, `orchestration/**`, `research/**`,
+`strategies/**`) and `dashboard/dashboard.py`. A second hook
+(`deny_outside_agent_allowlist.py`) additionally enforces that any write
+must be under at least one agent's frontmatter `allowed_roots`, with
+default-deny when context is unknown.
 
 ---
 
@@ -27,17 +35,29 @@ in diffs by any agent. This is enforced by `deny_config_read.py`.
 
 | Pattern | Why |
 |---|---|
-| `config/config.yaml` | Live credentials (Anthropic, Bitvavo, Alchemy, Polymarket private key, IBKR). |
+| `config/config.yaml` | Live credentials. |
 | `state/*.secret` | Runtime secrets (live-gate HMAC seed, dashboard session secret). |
-| `automation/*.secret` | Defense in depth — no automation secrets, ever. |
+| `automation/*.secret` | Defense in depth. |
 | `.env`, `.env.*` | Conventional secret stores. |
+
+Indirect-read denials (Revision 5):
+
+- `python -c` and `python --command` outright (chr() / base64 obfuscation).
+- `eval`, `base64 -d` / `--decode`.
+- Redirect reads (`< config/config.yaml`, `< .env`, `< state/*.secret`).
+- Process substitution (`<(cat config/config.yaml)`).
+- Command substitution (`$(cat config/...)`, `$(<config/...)`, backticks).
+- Find with `-exec` on secret paths.
+- `awk`, `sed`, `tac`, `od`, `xxd`, `hexdump`, `strings`, `cut`, `nl`,
+  `dd if=`, `grep`, `rg` against secret paths.
 
 ---
 
 ## Write deny (read allowed for context)
 
 ### Live trading / capital
-- `automation/live_gate.py` — the only barrier between paper and live.
+- `automation/live_gate.py` - the only barrier between paper and live.
+- `automation/**` - full directory after R5.
 
 ### Authority surface (ADR-014)
 - `research/authority_views.py`, `research/authority_trace.py`
@@ -48,21 +68,33 @@ in diffs by any agent. This is enforced by `deny_config_read.py`.
 - `research/promotion.py`, `research/strategy_hypothesis_catalog.py`
 - `research/campaign_evidence_ledger.py`, `research/research_evidence_ledger.py`
 - `research/paper_ledger.py`, `research/screening_evidence.py`
+- `research/**` - full directory after R5.
+
+### Backend non-core (R5.2 - never agent-writable)
+- `agent/brain/**` - signal aggregator, regime detection.
+- `agent/execution/**` - order executor.
+- `agent/learning/**` - reporter, self_improver, memory.
+- `agent/agents/**` - the strategy agents themselves.
+- `agent/risk/**`, `agent/monitoring/**` - capped risk and monitoring.
+- `dashboard/dashboard.py` - reads operator session and token secrets.
+- `execution/**`, `strategies/**` - trading-flow code.
 
 ### Orchestration core (ADR-009) and backtest core (ADR-007/008)
 - `orchestration/orchestrator.py`
+- `orchestration/**` - full directory after R5.
 - `agent/backtesting/engine.py`, `agent/backtesting/fitted_features.py`
 
 ### Production posture
 - `docker-compose.prod.yml`
 - `scripts/deploy.sh`
 - `ops/systemd/**`, `ops/nginx/**`
+- `Dockerfile`
 
 ### Frozen v1 schemas
 - `**/*_latest.v1.json`, `**/*_latest.v1.jsonl`
 
 ### ADRs
-- `docs/adr/ADR-*.md` — existing ADRs are immutable; drafts go into
+- `docs/adr/ADR-*.md` - existing ADRs are immutable; drafts go into
   `docs/adr/_drafts/` via the `ask` flow.
 
 ### Determinism pin tests
@@ -78,11 +110,11 @@ in diffs by any agent. This is enforced by `deny_config_read.py`.
 - `.github/CODEOWNERS`
 
 ### Version & release
-- `VERSION` — bump only via Release-Gate-recommended human-approved PR.
+- `VERSION` - bump only via Release-Gate-recommended human-approved PR.
 
 ### Governance core docs
 Writable only by `planner`, `product-owner`, or `release-gate-agent` via the
-allowlists in their agent frontmatter — implementation-agent is denied:
+allowlists in their agent frontmatter:
 
 - `docs/governance/agent_governance.md`
 - `docs/governance/autonomy_ladder.md`
@@ -105,15 +137,26 @@ Independent of the path/edit deny rules above, `deny_live_connector.py`
 **blocks creation** of new files that match live-connector patterns:
 
 - `execution/live/**`, `automation/live/**`, `agent/execution/live/**`
-- `**/live_*broker*.py`, `**/*live_executor*.py`
+- `**/live_*broker*.py`, `**/*live*broker*.py`
+- `**/*live_executor*.py`, `**/*live*executor*.py`
 - `**/*_live.py`
 - Any Python source file (anywhere) whose new content imports the
   Ethereum-account signing surface, calls a raw transaction sender,
   instantiates the Polymarket clob client with a private key, or calls a
   CCXT exchange's `create_order` without a paper-mode flag.
 
-This is a **create-deny**: existing on-disk files are governed by the path
-list above (e.g. `automation/live_gate.py`).
+---
+
+## Allowlist enforcement (Revision 5 - new layer)
+
+Beyond no-touch, a second hook (`deny_outside_agent_allowlist.py`) requires
+that any write target falls under at least one agent's frontmatter
+`allowed_roots`. If the target is outside the union of all agents'
+allowed_roots, the write is denied even when no NO_TOUCH glob matches.
+
+The union is computed at hook load by parsing `.claude/agents/*.md`
+frontmatter. If `.claude/agents/` is unreadable or empty, the hook
+default-denies (fail-closed).
 
 ---
 
@@ -122,7 +165,7 @@ list above (e.g. `automation/live_gate.py`).
 These are not no-touch but require operator approval via the `ask` flow in
 `.claude/settings.json`:
 
-- `.github/workflows/**` — only the `ci-guardian` agent should propose changes,
+- `.github/workflows/**` - only the `ci-guardian` agent should propose changes,
   and only inside a dedicated `ci-hardening` task.
 - `pyproject.toml`
 - `.gitignore`, `.dockerignore`
@@ -138,3 +181,7 @@ The CI job `hook-tests` runs `tests/unit/test_hooks_no_touch.py`, which
 verifies that every glob in `NO_TOUCH_GLOBS` (in `deny_no_touch.py`) is also
 documented in this file and vice-versa. If you change the hook constant
 without updating this doc (or vice-versa), CI fails.
+
+A complementary `governance-lint` CI job verifies that no agent declares
+`max_autonomy_level > 3`, no GitHub Action uses a floating tag, and no
+file mentions Level 6 as enabled.

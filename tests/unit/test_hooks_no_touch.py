@@ -67,6 +67,22 @@ def hook():
         "docs/governance/agent_governance.md",
         "docs/governance/no_touch_paths.md",
         "docs/governance/release_gate.md",
+        # R5.2: backend non-core directories
+        "agent/brain/agent.py",
+        "agent/brain/signal_aggregator.py",
+        "agent/execution/order_executor.py",
+        "agent/learning/reporter.py",
+        "agent/learning/self_improver.py",
+        "agent/agents/rsi_agent.py",
+        "agent/risk/manager.py",
+        "agent/monitoring/health.py",
+        "dashboard/dashboard.py",
+        # R5.2: full directory expansions
+        "automation/some_new_file.py",
+        "execution/protocols.py",
+        "research/some_new_module.py",
+        "strategies/momentum.py",
+        "Dockerfile",
     ],
 )
 def test_no_touch_paths_match(hook, path):
