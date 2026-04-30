@@ -88,6 +88,13 @@ no_implicit_optional = true
 check_untyped_defs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
+# follow_imports = "silent" keeps transitive-import type resolution
+# functional (so types from research/registry.py etc. still flow into
+# the narrow targets) without surfacing pre-existing typing debt in
+# those modules as failures of THIS gate. Pre-existing typing debt
+# across agent/, research/, dashboard/, data/ is tracked as backlog
+# items AB-0010 (mypy expansion) and AB-0012 (whole-repo cleanup).
+follow_imports = "silent"
 files = [
     "automation/",
     "execution/protocols.py",

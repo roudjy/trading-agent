@@ -60,7 +60,7 @@ jobs:
         with:
           fetch-depth: 0  # gitleaks needs full history for diff mode
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@7c5da34dc35a213c3d35f9b41b0050aaae4bbcdf  # v2.3.7
+        uses: gitleaks/gitleaks-action@83373cf2f8c4db6e24b41c1a9b086bb9619e9cd3  # v2.3.7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -151,19 +151,23 @@ jobs:
   frontend:
     name: frontend (vitest)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
       - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          # NB: setup-node resolves this path from $GITHUB_WORKSPACE.
+          # Using `defaults.run.working-directory` (removed) caused the
+          # cache-key glob to look at frontend/frontend/package-lock.json
+          # and fail with "Some specified paths were not resolved".
+          # Per-step working-directory below is the documented fix.
           cache-dependency-path: frontend/package-lock.json
       - name: Install
+        working-directory: frontend
         run: npm ci
       - name: Run tests
+        working-directory: frontend
         run: npm test -- --run
 
   # ---------------------------------------------------------------------------
