@@ -72,7 +72,7 @@ jobs:
 
       # R5.5: build LOCALLY first so we can grep the image before any push.
       - name: Build agent image (local, no push) for grep
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: .
           push: false
@@ -82,7 +82,7 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
       - name: Build dashboard image (local, no push) for grep
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: .
           push: false
@@ -125,7 +125,7 @@ jobs:
 
       - name: Build and push dashboard image
         id: push_dashboard
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: .
           push: true
@@ -134,7 +134,7 @@ jobs:
           provenance: false
       - name: Build and push agent image
         id: push_agent
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: .
           push: true
