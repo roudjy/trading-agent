@@ -27,7 +27,10 @@ DENY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bgit\s+(?:branch|tag)\b.*-D\b"), "git_force_delete_ref"),
 
     # Destructive shell --------------------------------------------------
-    (re.compile(r"\brm\s+-rf?\s+(?:state|logs|research|config|/|\$|~)\b"), "rm_rf_protected"),
+    # Note: `\b` after `/` would not match end-of-string (slash is non-word
+    # and EOL is non-word, no boundary). Use an explicit alternation that
+    # accepts a slash, end-of-string, or a word/path boundary.
+    (re.compile(r"\brm\s+-rf?\s+(?:state|logs|research|config|/|\$|~)(?:\b|$|/)"), "rm_rf_protected"),
     (re.compile(r"\b:\(\)\{.*\};:"), "fork_bomb"),
 
     # Deploy / production ------------------------------------------------

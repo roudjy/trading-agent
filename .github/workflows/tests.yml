@@ -82,7 +82,7 @@ jobs:
           pip install -r requirements.txt
           pip install "mypy==1.13.0"
       - name: Run mypy
-        run: mypy --config-file pyproject.toml
+        run: mypy --config-file pyproject.toml --explicit-package-bases
 
   # ---------------------------------------------------------------------------
   # unit — smoke + unit tests (<90s)

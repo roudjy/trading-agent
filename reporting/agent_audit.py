@@ -194,22 +194,26 @@ def current_ledger_path(base_dir: Optional[Path] = None) -> Path:
 
 @contextlib.contextmanager
 def _file_lock(fileobj: io.IOBase) -> Iterator[None]:
-    """File-level exclusive lock that works on POSIX and Windows."""
-    if os.name == "nt":  # Windows
+    """File-level exclusive lock that works on POSIX and Windows.
+
+    ``sys.platform`` is mypy-narrowed: on Windows mypy ignores the
+    ``else`` branch (and its fcntl import) and vice-versa.
+    """
+    if sys.platform == "win32":
         import msvcrt
 
         try:
             # Lock first byte of the file. Wait up to ~10s.
-            msvcrt.locking(fileobj.fileno(), msvcrt.LK_LOCK, 1)  # type: ignore[arg-type]
+            msvcrt.locking(fileobj.fileno(), msvcrt.LK_LOCK, 1)
             yield
         finally:
             try:
                 fileobj.seek(0)
-                msvcrt.locking(fileobj.fileno(), msvcrt.LK_UNLCK, 1)  # type: ignore[arg-type]
+                msvcrt.locking(fileobj.fileno(), msvcrt.LK_UNLCK, 1)
             except OSError:
                 pass
     else:
-        import fcntl
+        import fcntl  # type: ignore[import-not-found]
 
         try:
             fcntl.flock(fileobj.fileno(), fcntl.LOCK_EX)

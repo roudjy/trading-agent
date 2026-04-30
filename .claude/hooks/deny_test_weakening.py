@@ -40,8 +40,13 @@ SUSPICIOUS_COMMENT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 
 
 def _is_test_target(path: str) -> bool:
+    """True if ``path`` lives under a ``tests`` or ``tests_tmp`` directory.
+
+    Tolerant of absolute paths and trailing components.
+    """
     p = path.replace("\\", "/")
-    return p.startswith("tests/") or "/tests/" in p
+    parts = set(p.split("/"))
+    return "tests" in parts or "tests_tmp" in parts
 
 
 def _new_content(payload: dict[str, Any]) -> str:

@@ -34,7 +34,11 @@ READ_DENY_GLOBS: tuple[str, ...] = (
 
 
 def _normalize(p: str) -> str:
-    return p.replace("\\", "/").lstrip("./")
+    """Forward slashes only; strip literal leading ``./``."""
+    p = p.replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
 
 
 def _matches(rel_path: str) -> str | None:
