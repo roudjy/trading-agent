@@ -31,9 +31,14 @@ def hook():
 
 # Construct trigger strings at runtime to avoid embedding literal patterns
 # in this test file's source.
+# Construct trigger strings at runtime to avoid embedding literal patterns
+# in this test file's source. The regexes target full module-qualified
+# names (e.g. ``eth_account.Account.sign_*``); the test snippets must
+# include those qualifications, otherwise the test is testing the wrong
+# thing.
 ETH_IMPORT = "from " + "eth_account" + " import Account\n"
-ETH_SIGN = "Account.sign_" + "transaction(...)\n"
-WEB3_SEND = "w3.eth.send_raw_" + "transaction(tx)\n"
+ETH_SIGN = "eth_account" + ".Account.sign_" + "transaction(...)\n"
+WEB3_SEND = "web3" + ".eth.send_raw_" + "transaction(tx)\n"
 CLOB_IMPORT = "from " + "py_clob_client.client" + " import ClobClient\n"
 CLOB_INST = "ClobClient(host='x', private_" + "key='y')\n"
 CCXT_ORDER = "ccxt.bitvavo().create_" + "order('BTC', 'limit', 'buy', 1.0)\n"

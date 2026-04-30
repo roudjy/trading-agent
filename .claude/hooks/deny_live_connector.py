@@ -52,7 +52,9 @@ PATH_DENY_GLOBS: tuple[str, ...] = (
     "agent/execution/live/*",
     "agent/execution/live/**",
     "**/live_*broker*.py",
+    "**/*live*broker*.py",
     "**/*live_executor*.py",
+    "**/*live*executor*.py",
     "**/*_live.py",
 )
 
@@ -74,12 +76,23 @@ CONTENT_DENY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 
 
 def _normalize(p: str) -> str:
-    return p.replace("\\", "/").lstrip("./")
+    """Forward slashes only; strip literal leading ``./``."""
+    p = p.replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
 
 
 def _is_test_path(p: str) -> bool:
+    """Match any path whose components include ``tests`` or ``tests_tmp``.
+
+    Tolerant of absolute paths (e.g. ``C:/Users/.../tests/unit/...``) and
+    relative paths (e.g. ``tests/unit/...``). The hook payload may contain
+    either form depending on the caller.
+    """
     n = _normalize(p)
-    return any(n.startswith(prefix) for prefix in _TEST_PATH_PREFIXES)
+    parts = set(n.split("/"))
+    return "tests" in parts or "tests_tmp" in parts
 
 
 def _path_matches(rel_path: str) -> str | None:

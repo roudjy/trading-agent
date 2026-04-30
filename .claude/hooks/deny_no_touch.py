@@ -106,7 +106,16 @@ NO_TOUCH_GLOBS: tuple[str, ...] = (
 
 
 def _normalize(p: str) -> str:
-    return p.replace("\\", "/").lstrip("./")
+    """Normalize a path for pattern matching.
+
+    Forward slashes only. Strip a literal leading ``./`` (NOT individual
+    dots and slashes — that previous bug made ``.claude/...`` become
+    ``claude/...`` and broke self-protection).
+    """
+    p = p.replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
 
 
 def _match_no_touch(rel_path: str) -> str | None:
