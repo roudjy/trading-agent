@@ -45,15 +45,22 @@ That command prints two views as JSON:
   surfaced as `"unknown"`.
 * **`groups`** — counts by actor, outcome, tool, branch, session, plus
   the earliest and latest timestamps and chain status.
+<<<<<<< fix/v3.15.15.15-agent-audit-subagent-attribution
 * **`attribution`** *(v3.15.15.15)* — inferred subagent attribution
   per session, derived from committed run summaries. **Convenience-
   only, not source-of-truth.** See "Inferred attribution" below for
   what `confidence: high` means and what is unknown today.
+=======
+>>>>>>> main
 
 Useful flags:
 
 * `--limit N` — show last N timeline rows (default 50).
+<<<<<<< fix/v3.15.15.15-agent-audit-subagent-attribution
 * `--view timeline` / `--view groups` / `--view attribution` / `--view both` (default).
+=======
+* `--view timeline` / `--view groups` / `--view both` (default).
+>>>>>>> main
 * `--format table` — render the timeline as a fixed-width table.
 * `--actor claude:hook` — filter timeline by actor.
 * `--outcome blocked_by_hook` — filter timeline by outcome.
@@ -151,6 +158,7 @@ it:
   feature branch**: cross-reference with `git log --oneline` for that
   range; the writer captures the branch active at event time.
 
+<<<<<<< fix/v3.15.15.15-agent-audit-subagent-attribution
 ## Inferred attribution (`--view attribution`, v3.15.15.15)
 
 The `attribution` view runs
@@ -201,6 +209,8 @@ evidence.
 file cannot be safely read. **Treat unknown as needs-human, never
 as `ok`.**
 
+=======
+>>>>>>> main
 ## Where it fits
 
 * **ADR-015 §Doctrine 5 — Audit-chain doctrine**: this runbook is the
