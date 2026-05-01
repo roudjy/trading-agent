@@ -468,9 +468,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--view",
-        choices=["timeline", "groups", "both"],
+        choices=["timeline", "groups", "attribution", "both"],
         default="both",
-        help="Which view to render (default: both).",
+        help=(
+            "Which view to render. 'attribution' is the inferred "
+            "subagent view from reporting.subagent_attribution; "
+            "convenience-only, never source-of-truth (see ADR-016 "
+            "proposal). Default: both (timeline + groups)."
+        ),
     )
     p.add_argument(
         "--format",
@@ -517,6 +522,12 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.view in ("groups", "both"):
         out["groups"] = collect_groups(path)
+    if args.view == "attribution":
+        # Lazy import to keep the no-attribution code paths free of the
+        # extra dependency on subagent_attribution module state.
+        from reporting import subagent_attribution
+
+        out["attribution"] = subagent_attribution.collect_attribution(path)
 
     assert_no_secrets(out)
 
