@@ -215,7 +215,27 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # aquasecurity/trivy-action runs trivy inside a container that mounts
+      # the host /var/run/docker.sock. Trivy's "docker" backend asks the host
+      # daemon for the image — if it's not in the local cache, trivy falls
+      # back to "remote" mode using its OWN credential context (inside the
+      # trivy container) which does NOT see the host ~/.docker/config.json
+      # we just populated. Result: UNAUTHORIZED + "No such image", trivy
+      # exits before writing trivy-results.sarif, the upload step finds no
+      # file, and "alert-only" produces no actual alert.
+      #
+      # Pre-pulling on the host populates the daemon cache so trivy's
+      # docker backend resolves the image without falling back to remote.
+      # The host already has the GHCR creds from the login step above.
+      - name: Pull image to local daemon so trivy can scan it
+        run: docker pull "ghcr.io/roudjy/trading-agent-agent:${{ needs.build-grep-push.outputs.version }}"
       - name: Trivy scan
+        # Defense in depth: even though job-level continue-on-error already
+        # makes this job non-blocking, step-level continue-on-error keeps
+        # the SARIF upload step running on any future trivy non-zero exit
+        # (e.g. if an exit-code policy is ever added) without relying
+        # solely on `if: always()` on the upload step.
+        continue-on-error: true
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
         with:
           image-ref: "ghcr.io/roudjy/trading-agent-agent:${{ needs.build-grep-push.outputs.version }}"
@@ -229,6 +249,7 @@ jobs:
           name: trivy-${{ needs.build-grep-push.outputs.version }}
           path: trivy-results.sarif
           retention-days: 30
+          if-no-files-found: warn
 
   provenance:
     name: provenance (build_provenance.json)
