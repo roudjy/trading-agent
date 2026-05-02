@@ -119,6 +119,59 @@ def _pr_envelope(prs: list[dict]) -> dict:
     )
 
 
+def _empty_runtime() -> dict:
+    return _ok_envelope(
+        {
+            "schema_version": 1,
+            "report_kind": "workloop_runtime_digest",
+            "loop_health": {
+                "consecutive_failures": 0,
+                "iterations_completed": 1,
+                "iterations_failed": 0,
+            },
+            "sources": [],
+        }
+    )
+
+
+def _runtime_with_consecutive_failures(n: int) -> dict:
+    return _ok_envelope(
+        {
+            "schema_version": 1,
+            "report_kind": "workloop_runtime_digest",
+            "loop_health": {
+                "consecutive_failures": n,
+                "iterations_completed": n,
+                "iterations_failed": n,
+            },
+            "sources": [],
+            "final_recommendation": (
+                f"runtime_halt_after_{n}_consecutive_failures"
+            ),
+        }
+    )
+
+
+def _runtime_with_failed_source(name: str, state: str) -> dict:
+    return _ok_envelope(
+        {
+            "schema_version": 1,
+            "report_kind": "workloop_runtime_digest",
+            "loop_health": {"consecutive_failures": 0, "iterations_completed": 1, "iterations_failed": 0},
+            "sources": [
+                {
+                    "source": name,
+                    "module": f"reporting.{name}",
+                    "state": state,
+                    "summary": "synthetic",
+                    "duration_ms": 100,
+                    "error_class": "RuntimeError" if state == "failed" else None,
+                }
+            ],
+        }
+    )
+
+
 def _empty_workloop() -> dict:
     return _ok_envelope(
         {
@@ -519,6 +572,95 @@ def test_workloop_trading_risk_row_becomes_live_paper_shadow_risk_change() -> No
 # ---------------------------------------------------------------------------
 # Governance projection
 # ---------------------------------------------------------------------------
+
+
+def test_runtime_consecutive_failures_emit_runtime_halt() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _runtime_with_consecutive_failures(3),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    cats = _categories(snap)
+    assert "runtime_halt" in cats
+    item = next(it for it in snap["items"] if it["category"] == "runtime_halt")
+    assert item["severity"] == "critical"
+    assert item["status"] == ai.STATUS_BLOCKED
+
+
+def test_runtime_failed_source_emits_failed_automation() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _runtime_with_failed_source("github_pr_lifecycle", "failed"),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    failed_items = [
+        it
+        for it in snap["items"]
+        if it["category"] == "failed_automation"
+        and (it["source"] or "").startswith("workloop_runtime:")
+    ]
+    assert len(failed_items) == 1
+    assert "github_pr_lifecycle" in (failed_items[0]["title"] or "")
+
+
+def test_runtime_timeout_source_emits_failed_automation() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _runtime_with_failed_source("autonomous_workloop", "timeout"),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    failed_items = [
+        it
+        for it in snap["items"]
+        if it["category"] == "failed_automation"
+        and (it["source"] or "").startswith("workloop_runtime:")
+    ]
+    assert len(failed_items) == 1
+    assert "timeout" in (failed_items[0]["title"] or "").lower()
+
+
+def test_runtime_unknown_source_emits_unknown_state() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _runtime_with_failed_source("approval_inbox", "unknown"),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    runtime_unknown = [
+        it
+        for it in snap["items"]
+        if it["category"] == "unknown_state"
+        and (it["source"] or "").startswith("workloop_runtime:")
+    ]
+    assert len(runtime_unknown) == 1
+
+
+def test_runtime_clean_artifact_yields_no_runtime_inbox_items() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    runtime_items = [
+        it
+        for it in snap["items"]
+        if (it["source"] or "").startswith("workloop_runtime:")
+    ]
+    assert runtime_items == []
 
 
 def test_broken_audit_chain_becomes_security_alert() -> None:

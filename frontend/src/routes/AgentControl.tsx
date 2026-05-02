@@ -79,13 +79,13 @@ function pillFor(status: string | undefined): "ok" | "warn" | "danger" | "unknow
   return "unknown";
 }
 
-// --- Card: governance status + frozen hashes ---
+// --- Card: governance status + frozen hashes + workloop runtime ---
 function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
   if (!payload) {
     return (
       <Card
         title="Status"
-        subtitle="governance + frozen contracts"
+        subtitle="governance + frozen + runtime"
       >
         <p className="agent-control-card__empty" data-testid="status-loading">
           Laden…
@@ -96,8 +96,28 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
   const govStatus = payload.governance_status?.status ?? "not_available";
   const fhStatus = payload.frozen_hashes?.status ?? "not_available";
   const fh = payload.frozen_hashes?.data ?? {};
+  const runtime = payload.workloop_runtime;
+  const runtimeStatus = runtime?.status ?? "not_available";
+  const runtimeData = runtime?.status === "ok" ? runtime.data : undefined;
+  const runtimeRecommendation = String(
+    runtimeData?.final_recommendation ?? "n/a",
+  );
+  const runtimeConsecutiveFailures = Number(
+    runtimeData?.loop_health?.consecutive_failures ?? 0,
+  );
+  // Tone: critical if loop has halted, warn if any failures, ok otherwise.
+  const runtimePill: "ok" | "warn" | "danger" | "unknown" =
+    runtimeStatus !== "ok"
+      ? "unknown"
+      : runtimeConsecutiveFailures >= 3
+        ? "danger"
+        : runtimeRecommendation.startsWith("degraded")
+          ? "warn"
+          : runtimeRecommendation === "all_sources_ok"
+            ? "ok"
+            : "unknown";
   return (
-    <Card title="Status" subtitle="governance + frozen contracts">
+    <Card title="Status" subtitle="governance + frozen + runtime">
       <div className="agent-control-card__row">
         <dt>governance</dt>
         <dd>
@@ -110,6 +130,21 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
           <StatusPill state={pillFor(fhStatus)} />
         </dd>
       </div>
+      <div className="agent-control-card__row" data-testid="status-runtime-row">
+        <dt>workloop runtime</dt>
+        <dd>
+          <StatusPill state={runtimePill} />
+        </dd>
+      </div>
+      {runtimeStatus === "ok" && runtimeData ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="status-runtime-recommendation"
+        >
+          <dt>runtime rec.</dt>
+          <dd>{runtimeRecommendation}</dd>
+        </div>
+      ) : null}
       {Object.keys(fh).length === 0 ? (
         <p
           className="agent-control-card__empty"

@@ -76,6 +76,9 @@ SOURCE_PR_LIFECYCLE: Path = (
     REPO_ROOT / "logs" / "github_pr_lifecycle" / "latest.json"
 )
 SOURCE_WORKLOOP: Path = REPO_ROOT / "logs" / "autonomous_workloop" / "latest.json"
+SOURCE_WORKLOOP_RUNTIME: Path = (
+    REPO_ROOT / "logs" / "workloop_runtime" / "latest.json"
+)
 
 # Canonical inbox categories (18 per the v3.15.15.20 brief).
 CATEGORIES: tuple[str, ...] = (
@@ -604,6 +607,93 @@ def _dashboard_py_text() -> str:
         return ""
 
 
+def _build_from_workloop_runtime(envelope: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project a v3.15.15.22 workloop runtime artifact into inbox items.
+
+    Mapping:
+      * ``loop_health.consecutive_failures >= 3`` → ``runtime_halt``
+        (severity: critical) — the loop has degraded enough to warrant
+        human attention.
+      * Each source with ``state in {failed, timeout}`` →
+        ``failed_automation`` (severity: high) so the operator sees
+        which exact source died.
+      * Each source with ``state == unknown`` → ``unknown_state``.
+
+    A clean runtime artifact (every source ok or only ``not_available``)
+    produces zero inbox items.
+    """
+    if envelope["status"] != "ok" or not envelope.get("data"):
+        return []
+    data = envelope["data"]
+    items: list[dict[str, Any]] = []
+
+    health = data.get("loop_health") or {}
+    consecutive = (
+        int(health.get("consecutive_failures") or 0)
+        if isinstance(health, dict)
+        else 0
+    )
+    if consecutive >= 3:
+        items.append(
+            _build_item(
+                source="workloop_runtime:loop_health",
+                source_type="manual",
+                title=(
+                    f"Workloop runtime: {consecutive} consecutive failed "
+                    "iterations — runtime_halt"
+                ),
+                summary=str(data.get("final_recommendation") or "runtime_halt"),
+                category="runtime_halt",
+                risk_class="HIGH",
+                status=STATUS_BLOCKED,
+                affected_files=[],
+                evidence={"loop_health": health},
+            )
+        )
+
+    for src in data.get("sources") or []:
+        if not isinstance(src, dict):
+            continue
+        state = src.get("state")
+        name = src.get("source") or "unknown_source"
+        module = src.get("module") or ""
+        summary = src.get("summary") or ""
+        if state in ("failed", "timeout"):
+            items.append(
+                _build_item(
+                    source=f"workloop_runtime:{name}",
+                    source_type="manual",
+                    title=f"Workloop runtime: {name} {state}",
+                    summary=summary,
+                    category="failed_automation",
+                    risk_class="HIGH",
+                    status=STATUS_BLOCKED,
+                    affected_files=[],
+                    evidence={
+                        "module": module,
+                        "duration_ms": src.get("duration_ms"),
+                        "error_class": src.get("error_class"),
+                    },
+                )
+            )
+        elif state == "unknown":
+            items.append(
+                _build_item(
+                    source=f"workloop_runtime:{name}",
+                    source_type="manual",
+                    title=f"Workloop runtime: {name} unknown state",
+                    summary=summary,
+                    category="unknown_state",
+                    risk_class="MEDIUM",
+                    status=STATUS_BLOCKED,
+                    affected_files=[],
+                    evidence={"module": module},
+                )
+            )
+
+    return items
+
+
 def _build_manual_route_wiring_items() -> list[dict[str, Any]]:
     """Per the v3.15.15.18 / .19 / .20 release notes,
     ``dashboard/dashboard.py`` is no-touch except via an
@@ -738,6 +828,7 @@ def collect_snapshot(
             "proposal_queue": _read_json_artifact(SOURCE_PROPOSAL_QUEUE),
             "pr_lifecycle": _read_json_artifact(SOURCE_PR_LIFECYCLE),
             "workloop": _read_json_artifact(SOURCE_WORKLOOP),
+            "workloop_runtime": _read_json_artifact(SOURCE_WORKLOOP_RUNTIME),
             "governance_status": _governance_status_safe(),
         }
 
@@ -745,6 +836,11 @@ def collect_snapshot(
     items.extend(_build_from_proposal_queue(sources.get("proposal_queue", {"status": "not_available"})))
     items.extend(_build_from_pr_lifecycle(sources.get("pr_lifecycle", {"status": "not_available"})))
     items.extend(_build_from_workloop(sources.get("workloop", {"status": "not_available"})))
+    items.extend(
+        _build_from_workloop_runtime(
+            sources.get("workloop_runtime", {"status": "not_available"})
+        )
+    )
     items.extend(
         _build_from_governance_status(
             sources.get("governance_status", {"status": "not_available"})

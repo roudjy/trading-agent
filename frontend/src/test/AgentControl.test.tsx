@@ -36,6 +36,28 @@ const okStatusBody = {
   schema_version: 1,
   governance_status: { status: "ok", data: {} },
   frozen_hashes: okFrozenHashes,
+  workloop_runtime: {
+    status: "ok",
+    data: {
+      runtime_version: "v3.15.15.22",
+      generated_at_utc: "2026-05-02T20:00:00Z",
+      mode: "once",
+      iteration: 0,
+      duration_ms: 200,
+      safe_to_execute: false,
+      loop_health: {
+        consecutive_failures: 0,
+        iterations_completed: 1,
+        iterations_failed: 0,
+      },
+      counts: { total: 7, by_state: { ok: 7 } },
+      final_recommendation: "all_sources_ok",
+      source_states: [
+        { source: "governance_status", state: "ok" },
+        { source: "approval_inbox", state: "ok" },
+      ],
+    },
+  },
 };
 
 const okActivityBody = {

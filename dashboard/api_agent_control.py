@@ -150,12 +150,15 @@ def _safe_jsonify(payload: dict[str, Any]):
 
 
 def _status_payload() -> dict[str, Any]:
-    """Aggregate health: governance status + frozen-contract hashes.
+    """Aggregate health: governance status + frozen-contract hashes
+    + workloop runtime summary.
 
     The PWA Status card consumes this. No CLI subprocess; the
     governance status reporter is imported lazily and called as a
     pure function so the read remains synchronous and side-effect
-    free.
+    free. The workloop runtime block is a thin projection of
+    ``logs/workloop_runtime/latest.json`` — see
+    ``reporting.workloop_runtime`` (v3.15.15.22).
     """
     try:
         # Late import: keeps the module light when the surface is not
@@ -178,7 +181,60 @@ def _status_payload() -> dict[str, Any]:
         "schema_version": 1,
         "governance_status": gov,
         "frozen_hashes": _frozen_hashes_payload(),
+        "workloop_runtime": _workloop_runtime_summary(),
     }
+
+
+def _workloop_runtime_summary() -> dict[str, Any]:
+    """Project the latest workloop-runtime artifact into a compact
+    summary suited for the Status card. Returns ``not_available`` on
+    a missing or malformed artifact.
+
+    The summary deliberately strips the per-source ``summary`` field
+    detail (it can contain long path strings) and surfaces only the
+    counts + loop_health + final_recommendation. The full artifact
+    is still readable at ``logs/workloop_runtime/latest.json``.
+    """
+    try:
+        from reporting.workloop_runtime import read_latest_snapshot
+
+        snap = read_latest_snapshot()
+        if snap is None:
+            return {
+                "status": "not_available",
+                "reason": "missing",
+            }
+        return {
+            "status": "ok",
+            "data": {
+                "runtime_version": snap.get("runtime_version"),
+                "generated_at_utc": snap.get("generated_at_utc"),
+                "run_id": snap.get("run_id"),
+                "mode": snap.get("mode"),
+                "iteration": snap.get("iteration"),
+                "max_iterations": snap.get("max_iterations"),
+                "interval_seconds": snap.get("interval_seconds"),
+                "next_run_after_utc": snap.get("next_run_after_utc"),
+                "duration_ms": snap.get("duration_ms"),
+                "safe_to_execute": snap.get("safe_to_execute", False),
+                "loop_health": snap.get("loop_health") or {},
+                "counts": snap.get("counts") or {},
+                "final_recommendation": snap.get("final_recommendation"),
+                "source_states": [
+                    {
+                        "source": s.get("source"),
+                        "state": s.get("state"),
+                    }
+                    for s in (snap.get("sources") or [])
+                    if isinstance(s, dict)
+                ],
+            },
+        }
+    except Exception as e:  # noqa: BLE001
+        return {
+            "status": "not_available",
+            "reason": f"workloop_runtime_error: {type(e).__name__}",
+        }
 
 
 def _activity_payload() -> dict[str, Any]:
