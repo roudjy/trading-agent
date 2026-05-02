@@ -121,12 +121,12 @@ The controller embeds these verbatim in every digest's
 | v3.15.15.15 | inferred subagent attribution + ADR-016 proposal |
 | **v3.15.15.16** | **local workloop planner (this runbook)** |
 | **v3.15.15.17** | **GitHub-backed PR lifecycle + Dependabot cleanup playbook (`reporting.github_pr_lifecycle`)** — pulled forward from the original v3.15.15.19 slot after a 10/10 pilot. Read-only by default; `execute-safe` mode comments `@dependabot rebase` and squash-merges LOW/MEDIUM Dependabot PRs only. HIGH stays inspect-only. |
-| v3.15.15.18 | roadmap queue + agent proposal intake |
-| v3.15.15.19 | (vacated — moved into v3.15.15.17) |
+| **v3.15.15.18** | **Mobile-first read-only Agent Control PWA** (`dashboard.api_agent_control` + `frontend/src/routes/AgentControl.tsx`). Five cards backed by existing reporters / artifacts; installable; service-worker offline-capable; no execute / approve / merge buttons in the rendered DOM. See [`mobile_agent_control_pwa.md`](mobile_agent_control_pwa.md). |
+| v3.15.15.19 | roadmap queue + agent proposal intake (was vacated; reclaimed) |
 | v3.15.15.20 | operator approval & exception inbox |
 | v3.15.15.21 | dashboard execute-safe controls |
 | v3.15.15.22 | long-running runtime |
-| v3.15.15.23 | safe PR automerge (HIGH unlocks behind formalized rules) |
+| v3.15.15.23 | safe PR automerge (HIGH unlocks behind formalized rules) + browser push notifications for needs-human events only |
 
 See the canonical roadmap at
 [`frontend_agent_control_layer_roadmap.md`](frontend_agent_control_layer_roadmap.md).

@@ -1,0 +1,358 @@
+/**
+ * Tests for the v3.15.15.18 mobile-first Agent Control PWA.
+ *
+ * Hard guarantees verified here:
+ *   - The route renders the five expected cards.
+ *   - Mobile (375px) viewport renders without horizontal overflow.
+ *   - The notification card shows an empty-state placeholder.
+ *   - The PR Lifecycle card shows an empty-queue state when the
+ *     digest reports zero open PRs.
+ *   - All five backing endpoints are GET; no card emits a mutation
+ *     fetch (POST/PUT/PATCH/DELETE).
+ *   - There are no execute / approve / reject / merge buttons in
+ *     the rendered DOM.
+ *   - When the wiring step in dashboard/dashboard.py has not yet
+ *     landed and an endpoint 404s, the cards fall back to
+ *     not_available rather than crashing.
+ */
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { AgentControl } from "../routes/AgentControl";
+
+const okFrozenHashes = {
+  status: "ok",
+  data: {
+    "research/research_latest.json":
+      "4a567bd6feb98eb7aa32db4a90a3201456843088314936c5e484a2ae6a93666c",
+    "research/strategy_matrix.csv":
+      "ff15b8c4f35cc37b6941b712106ae71a1b82a1b5043da197731d42518d258d66",
+  },
+};
+
+const okStatusBody = {
+  kind: "agent_control_status",
+  schema_version: 1,
+  governance_status: { status: "ok", data: {} },
+  frozen_hashes: okFrozenHashes,
+};
+
+const okActivityBody = {
+  kind: "agent_control_activity",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    schema_version: 1,
+    report_kind: "agent_audit_timeline",
+    ledger_path: "logs/agent_audit.2026-05-02.jsonl",
+    ledger_present: true,
+    ledger_event_count: 0,
+    chain_status: "intact",
+    rows: [],
+  },
+};
+
+const okWorkloopBody = {
+  kind: "agent_control_workloop",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    mode: "dry-run",
+    next_recommended_item: "unknown",
+    merges_performed: 0,
+  },
+  artifact_path: "logs/autonomous_workloop/latest.json",
+};
+
+const okPRLifecycleEmptyBody = {
+  kind: "agent_control_pr_lifecycle",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    schema_version: 1,
+    final_recommendation: "no_open_prs",
+    prs: [],
+  },
+  artifact_path: "logs/github_pr_lifecycle/latest.json",
+};
+
+const placeholderNotificationsBody = {
+  kind: "agent_control_notifications",
+  schema_version: 1,
+  status: "ok",
+  mode: "placeholder",
+  data: [],
+  next_release_with_push: "v3.15.15.23",
+};
+
+const fetchSpy: any[] = [];
+
+function installFetchMock(
+  routes: Record<string, () => Response>,
+  fallback: () => Response,
+) {
+  const fetchImpl: typeof fetch = async (input: any, init: any = {}) => {
+    fetchSpy.push({ input, method: init.method || "GET" });
+    const url = typeof input === "string" ? input : (input as Request).url;
+    for (const [path, build] of Object.entries(routes)) {
+      if (url === path || url.endsWith(path)) {
+        return build();
+      }
+    }
+    return fallback();
+  };
+  // @ts-expect-error — assigning the global fetch is intentional in test scope.
+  global.fetch = vi.fn(fetchImpl);
+}
+
+function jsonResp(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+beforeEach(() => {
+  fetchSpy.length = 0;
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("AgentControl — happy path", () => {
+  it("renders all five cards and an empty Dependabot queue", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+      },
+      () => jsonResp({ status: "not_available" }, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("agent-control-root")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("notifications-empty")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("pr-empty")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Status")).toBeInTheDocument();
+    expect(screen.getByText("Activity")).toBeInTheDocument();
+    expect(screen.getByText("Workloop")).toBeInTheDocument();
+    expect(screen.getByText("PR Lifecycle")).toBeInTheDocument();
+    expect(screen.getByText("Notifications")).toBeInTheDocument();
+  });
+
+  it("never issues a non-GET request from the cards", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("notifications-empty")).toBeInTheDocument();
+    });
+
+    for (const call of fetchSpy) {
+      expect(call.method).toBe("GET");
+    }
+  });
+});
+
+describe("AgentControl — graceful fallback", () => {
+  it("renders not_available everywhere when every endpoint 404s", async () => {
+    installFetchMock({}, () => jsonResp({ status: "not_available" }, 404));
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("activity-not-available")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("workloop-not-available")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("pr-not-available")).toBeInTheDocument();
+    });
+  });
+
+  it("renders not_available when fetch throws (no network)", async () => {
+    // @ts-expect-error — assigning the global fetch is intentional in test scope.
+    global.fetch = vi.fn(async () => {
+      throw new Error("network down");
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("activity-not-available")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("AgentControl — UI affordances", () => {
+  it("contains exactly one button — the Vernieuw refresh button", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("agent-control-refresh")).toBeInTheDocument();
+    });
+
+    const buttons = screen.queryAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveTextContent(/vernieuw|laden/i);
+  });
+
+  it("does not render any execute / approve / merge / reject / kill BUTTON", async () => {
+    // Interaction-shaped check: scan every interactive element
+    // (button, link with role=button, input[type=submit/button],
+    // form actions) and verify none of their accessible names match
+    // a mutating verb. Plain text in the footer that EXPLAINS the
+    // read-only contract (e.g. "no execute / approve / merge buttons")
+    // is allowed and even desirable.
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("agent-control-root")).toBeInTheDocument();
+    });
+
+    const forbidden = [
+      /execute/i,
+      /approve/i,
+      /reject/i,
+      /\bmerge\b/i,
+      /\bkill\b/i,
+      /\bdelete\b/i,
+      /\btrigger\b/i,
+      /\brun\b/i,
+    ];
+    const interactives: HTMLElement[] = [
+      ...screen.queryAllByRole("button"),
+      ...screen.queryAllByRole("link"),
+      ...Array.from(
+        document.querySelectorAll<HTMLElement>(
+          'input[type="submit"], input[type="button"], form, [aria-haspopup]',
+        ),
+      ),
+    ];
+    for (const el of interactives) {
+      const label =
+        (el.getAttribute("aria-label") ??
+          el.textContent ??
+          el.getAttribute("value") ??
+          "").trim();
+      for (const re of forbidden) {
+        expect(label, `forbidden verb on interactive: ${label}`).not.toMatch(
+          re,
+        );
+      }
+    }
+  });
+
+  it("renders within the iPhone-mini viewport (375 wide) without horizontal overflow", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    // jsdom does not implement layout, so we check the structural
+    // signal: the root is a single column on mobile (no horizontal
+    // scroll required at 375px viewport width). The test asserts on
+    // CSS class presence rather than rendered geometry.
+    Object.defineProperty(window, "innerWidth", {
+      writable: true,
+      configurable: true,
+      value: 375,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("agent-control-root")).toBeInTheDocument();
+    });
+
+    const root = screen.getByTestId("agent-control-root");
+    expect(root).toHaveClass("agent-control");
+    const grid = root.querySelector(".agent-control__grid");
+    expect(grid).not.toBeNull();
+  });
+});

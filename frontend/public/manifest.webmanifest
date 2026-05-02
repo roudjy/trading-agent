@@ -1,0 +1,21 @@
+{
+  "name": "JvR Agent Control",
+  "short_name": "AgentCtrl",
+  "description": "Read-only mobile-first observability surface for the JvR Trading Agent autonomous development system. v3.15.15.18.",
+  "start_url": "/agent-control",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "lang": "nl",
+  "icons": [
+    {
+      "src": "/agent-control-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "developer", "utilities"]
+}
