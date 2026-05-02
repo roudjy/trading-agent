@@ -151,27 +151,38 @@ There is exactly **one button** on the entire AgentControl page:
 the Vernieuw (refresh) button. The Execute-safe card adds zero
 buttons.
 
-## Wiring step (was approved by the operator)
+## Wiring step (approved by the operator)
 
-`dashboard/dashboard.py` is on the no-touch list. v3.15.15.21
-required the operator to add four `register_*_routes(app)` calls:
+`dashboard/dashboard.py` is on the no-touch list. The v3.15.15.21
+release brief explicitly approved wiring **three** read-only route
+modules (the v3.15.15.18 / .19 / .20 surfaces). The operator
+landed exactly that block in the governance-bootstrap commit on
+this release:
 
 ```python
-# v3.15.15.21 — read-only Agent Control PWA + execute-safe surface.
+# v3.15.15.21 — read-only Agent Control PWA surface (operator approved).
 from dashboard.api_agent_control import register_agent_control_routes
 from dashboard.api_proposal_queue import register_proposal_queue_routes
 from dashboard.api_approval_inbox import register_approval_inbox_routes
-from dashboard.api_execute_safe_controls import register_execute_safe_routes
 
 register_agent_control_routes(app)
 register_proposal_queue_routes(app)
 register_approval_inbox_routes(app)
-register_execute_safe_routes(app)
 ```
 
-Until that lands, the PWA renders `not_available` for each surface
-the operator hasn't yet wired, and the approval inbox emits
-`manual_route_wiring_required` items for each pending route module.
+The fourth route module (`dashboard.api_execute_safe_controls`)
+ships in this release but is **intentionally not wired in
+production** — its PWA card renders `not_available` until a
+v3.15.15.22+ release wires it after the auth surface lands. This
+is the correct posture: the execute-safe catalog endpoint is a
+read-only diagnostic, but the gated POST endpoint that actually
+runs an action is the v3.15.15.22 milestone, and the two should
+land together.
+
+The approval inbox auto-clears `manual_route_wiring_required`
+items as soon as `dashboard.py` contains both the import and the
+register call for a known module — verified by
+`tests/unit/test_approval_inbox.py::test_manual_route_wiring_items_clear_when_dashboard_wires_them`.
 The inbox's wiring detection is automatic — the items disappear as
 soon as `dashboard.py` contains both the `from … import` and the
 `register_…(app)` call.
