@@ -21,6 +21,26 @@ export interface AgentControlStatus {
   schema_version: number;
   governance_status: AgentControlStatusEnvelope;
   frozen_hashes: FrozenHashesPayload;
+  workloop_runtime?: {
+    status: "ok" | "not_available";
+    reason?: string;
+    data?: {
+      runtime_version?: string;
+      generated_at_utc?: string;
+      mode?: string;
+      iteration?: number;
+      duration_ms?: number;
+      safe_to_execute?: boolean;
+      loop_health?: {
+        consecutive_failures?: number;
+        iterations_completed?: number;
+        iterations_failed?: number;
+      };
+      counts?: { total?: number; by_state?: Record<string, number> };
+      final_recommendation?: string;
+      source_states?: Array<{ source: string; state: string }>;
+    };
+  };
 }
 
 export interface AgentControlActivity {

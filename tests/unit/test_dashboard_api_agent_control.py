@@ -195,6 +195,18 @@ def test_notifications_is_placeholder(client) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_status_payload_includes_workloop_runtime_block(client) -> None:
+    """v3.15.15.22: status payload now carries a workloop_runtime
+    summary. When the artifact is missing the block reports
+    not_available — the surface never silently OKs."""
+    body = client.get("/api/agent-control/status").get_json()
+    assert "workloop_runtime" in body
+    rt = body["workloop_runtime"]
+    assert rt["status"] in ("ok", "not_available")
+    if rt["status"] == "not_available":
+        assert "reason" in rt
+
+
 def test_status_payload_includes_frozen_hashes(client) -> None:
     resp = client.get("/api/agent-control/status")
     body = resp.get_json()

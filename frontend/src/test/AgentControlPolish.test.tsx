@@ -42,6 +42,23 @@ const okStatusBody = {
   schema_version: 1,
   governance_status: { status: "ok", data: {} },
   frozen_hashes: okFrozenHashes,
+  workloop_runtime: {
+    status: "ok",
+    data: {
+      runtime_version: "v3.15.15.22",
+      mode: "once",
+      iteration: 0,
+      safe_to_execute: false,
+      loop_health: {
+        consecutive_failures: 0,
+        iterations_completed: 1,
+        iterations_failed: 0,
+      },
+      counts: { total: 7, by_state: { ok: 7 } },
+      final_recommendation: "all_sources_ok",
+      source_states: [],
+    },
+  },
 };
 
 const okActivityBody = {
@@ -328,6 +345,45 @@ describe("AgentControl polish — non-GET fetch is forbidden everywhere", () => 
     for (const c of fetchSpy) {
       expect(c.method).toBe("GET");
     }
+  });
+});
+
+describe("AgentControl polish — Status card runtime row (v3.15.15.22)", () => {
+  it("renders the workloop_runtime row when the artifact is available", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-runtime-row");
+    expect(row).toBeInTheDocument();
+    const rec = await screen.findByTestId("status-runtime-recommendation");
+    expect(rec).toHaveTextContent("all_sources_ok");
+  });
+
+  it("renders runtime row as unknown when status payload omits workloop_runtime", async () => {
+    const statusBodyNoRuntime = {
+      kind: "agent_control_status",
+      schema_version: 1,
+      governance_status: { status: "ok", data: {} },
+      frozen_hashes: okFrozenHashes,
+    };
+    installFetchMock({
+      ..._allOk(),
+      "/api/agent-control/status": () => jsonResp(statusBodyNoRuntime),
+    });
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-runtime-row");
+    expect(row).toBeInTheDocument();
+    // No recommendation row when runtime is not available.
+    expect(
+      screen.queryByTestId("status-runtime-recommendation"),
+    ).not.toBeInTheDocument();
   });
 });
 
