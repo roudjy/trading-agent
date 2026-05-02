@@ -45,11 +45,22 @@ That command prints two views as JSON:
   surfaced as `"unknown"`.
 * **`groups`** — counts by actor, outcome, tool, branch, session, plus
   the earliest and latest timestamps and chain status.
+<<<<<<< fix/v3.15.15.15-agent-audit-subagent-attribution
+* **`attribution`** *(v3.15.15.15)* — inferred subagent attribution
+  per session, derived from committed run summaries. **Convenience-
+  only, not source-of-truth.** See "Inferred attribution" below for
+  what `confidence: high` means and what is unknown today.
+=======
+>>>>>>> main
 
 Useful flags:
 
 * `--limit N` — show last N timeline rows (default 50).
+<<<<<<< fix/v3.15.15.15-agent-audit-subagent-attribution
+* `--view timeline` / `--view groups` / `--view attribution` / `--view both` (default).
+=======
 * `--view timeline` / `--view groups` / `--view both` (default).
+>>>>>>> main
 * `--format table` — render the timeline as a fixed-width table.
 * `--actor claude:hook` — filter timeline by actor.
 * `--outcome blocked_by_hook` — filter timeline by outcome.
@@ -147,6 +158,59 @@ it:
   feature branch**: cross-reference with `git log --oneline` for that
   range; the writer captures the branch active at event time.
 
+<<<<<<< fix/v3.15.15.15-agent-audit-subagent-attribution
+## Inferred attribution (`--view attribution`, v3.15.15.15)
+
+The `attribution` view runs
+[`reporting.subagent_attribution`](../../reporting/subagent_attribution.py)
+and projects per-event subagent attribution **inferred** from already-
+captured signals: the audit ledger plus committed run summaries at
+`docs/governance/agent_run_summaries/<session_id>.md`.
+
+This view is **convenience-only, not source-of-truth.** Per-event
+subagent attribution at the writer level is gated by ADR-016 (see
+[`docs/governance/proposals/ADR-016-subagent-attribution-writer.md`](proposals/ADR-016-subagent-attribution-writer.md));
+it requires a writer change to `.claude/hooks/audit_emit.py` that no
+agent can apply.
+
+Each row carries four fields. **Never read just the first one** —
+always check confidence, source, and warning together:
+
+| field | meaning |
+|---|---|
+| `inferred_subagent` | `claude:<role>` or `unknown`. |
+| `subagent_confidence` | `high` / `low` / `unknown`. Default is `unknown`; promotion is conservative. |
+| `attribution_source` | `run_summary` / `transcript_path` / `session_cluster` / `unavailable`. |
+| `attribution_warning` | Required when `confidence != high`. Tells the operator why the inference is weak. |
+
+`confidence: high` requires *explicit source evidence* — exactly one
+of:
+
+1. The run summary contains an explicit per-event
+   timestamp/window/tool/sequence-id mapping AND the tool-count
+   matches the ledger event count for the session within ±1.
+2. Transcript metadata at `transcript_path` contains an explicit
+   subagent identifier keyed to this event's `sequence_id`.
+3. The run summary lists exactly **one** subagent for the entire
+   session AND there is no competing or conflicting evidence (no
+   second name in the summary, no contradiction in the ledger, no
+   malformed sections, no orphan tool counts).
+
+Tool-count agreement is *supporting* evidence only. It is never
+sufficient on its own.
+
+`confidence: low` is the default for partial / ambiguous evidence:
+multiple subagents in the same session without per-event mapping,
+pure timing or clustering, solo-subagent contradicted by other
+evidence.
+
+`confidence: unknown` is reported when no run summary exists, no
+`session_id`, the summary is malformed, evidence conflicts, or the
+file cannot be safely read. **Treat unknown as needs-human, never
+as `ok`.**
+
+=======
+>>>>>>> main
 ## Where it fits
 
 * **ADR-015 §Doctrine 5 — Audit-chain doctrine**: this runbook is the
