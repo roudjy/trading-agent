@@ -95,6 +95,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Precision policy (v3.15.15.17 image-grep hygiene):
+          #   The original threat model (SECURITY.md "Pre-rotation image suspect
+          #   notice") is `config/config.yaml` (real credentials) leaking into
+          #   the build context. The previous check used `find -name "*.yaml"`
+          #   which also flagged dev-only templates (`.pre-commit-config.yaml`,
+          #   `config/config.template.yaml`) and `grep -l <keyword>` which
+          #   flagged source files that merely reference dict keys
+          #   (`config['ai']['anthropic_api_key']`).
+          #
+          #   This replacement keeps the same true-positive coverage:
+          #     1. Hard fail if the actual `app/config/config.yaml` artifact
+          #        (or any `*.secret` file) is baked into the image.
+          #     2. Flag credential-key keywords ONLY in file types that
+          #        actually store secret values (yaml/yml/json/env/secret/
+          #        toml/ini/conf), and ONLY when the keyword is followed by
+          #        a `:` / `=` assignment with a non-placeholder value.
+          #   Real bake-ins like `anthropic_api_key: "sk-ant-..."` still fail.
+          #   Source-code dict-key references and template "INVULLEN"
+          #   placeholders no longer trip a false positive.
           fail=0
           for image in trading-agent-agent:r5-grep trading-agent-dashboard:r5-grep; do
             echo
@@ -105,8 +124,22 @@ jobs:
             mkdir -p .tmp_layer && tar -xf .tmp_export.tar -C .tmp_layer 2>/dev/null || true
             found=""
             if [ -d .tmp_layer/app ]; then
-              found=$(find .tmp_layer/app -name "*.yaml" -o -name "*.secret" 2>/dev/null | xargs -I{} echo {} | head -50)
-              extra=$(grep -RIlE "anthropic_api_key|bitvavo_api_key|polymarket_priv" .tmp_layer/app 2>/dev/null | head -10 || true)
+              # (1) Precise check: the actual leak vector is config/config.yaml.
+              if [ -f .tmp_layer/app/config/config.yaml ]; then
+                found="$found"$'\n'".tmp_layer/app/config/config.yaml"
+              fi
+              # (1b) Any *.secret file inside the image is a hard fail.
+              sec=$(find .tmp_layer/app -name "*.secret" 2>/dev/null | head -50 || true)
+              if [ -n "$sec" ]; then found="$found"$'\n'"$sec"; fi
+              # (2) Credential-key keywords with value assignments in config-shaped
+              #     files only, excluding placeholder values.
+              extra=$(grep -RInE "(anthropic_api_key|bitvavo_api_key|polymarket_priv[a-z_]*)[ \t]*[:=][ \t]*['\"]?[^'\" \t#]" .tmp_layer/app \
+                      --include='*.yaml' --include='*.yml' --include='*.json' \
+                      --include='*.env' --include='*.env.*' --include='*.secret' \
+                      --include='*.toml' --include='*.ini' --include='*.conf' \
+                      2>/dev/null \
+                      | grep -vE "[:=][ \t]*['\"]?(INVULLEN|CHANGEME|CHANGE_ME|TODO|YOUR[_-]?KEY|FILL[_-]?ME|REPLACE[_-]?ME|<[^>]*>|\\\$\\{[^}]*\\}|\"\"|'')" \
+                      | head -10 || true)
               if [ -n "$extra" ]; then found="$found"$'\n'"$extra"; fi
             fi
             rm -rf .tmp_layer .tmp_export.tar
