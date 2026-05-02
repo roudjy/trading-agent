@@ -123,6 +123,50 @@ const okProposalsBody = {
   artifact_path: "logs/proposal_queue/latest.json",
 };
 
+const okInboxEmptyBody = {
+  kind: "agent_control_approval_inbox",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    schema_version: 1,
+    final_recommendation: "no_items",
+    items: [],
+    counts: { total: 0, by_severity: {}, by_category: {}, by_status: {} },
+  },
+  artifact_path: "logs/approval_inbox/latest.json",
+};
+
+const okInboxBody = {
+  kind: "agent_control_approval_inbox",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    schema_version: 1,
+    final_recommendation: "critical_on_1_items",
+    items: [
+      {
+        item_id: "i_abc12345",
+        category: "frozen_contract_risk",
+        severity: "critical",
+        status: "blocked",
+      },
+      {
+        item_id: "i_abc12346",
+        category: "manual_route_wiring_required",
+        severity: "low",
+        status: "open",
+      },
+    ],
+    counts: {
+      total: 2,
+      by_severity: { critical: 1, low: 1 },
+      by_category: { frozen_contract_risk: 1, manual_route_wiring_required: 1 },
+      by_status: { blocked: 1, open: 1 },
+    },
+  },
+  artifact_path: "logs/approval_inbox/latest.json",
+};
+
 const fetchSpy: any[] = [];
 
 function installFetchMock(
@@ -158,6 +202,100 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("AgentControl — approval inbox card", () => {
+  it("renders an empty-state when the inbox is empty", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("inbox-empty")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("inbox-recommendation")).toHaveTextContent(
+      "no_items",
+    );
+  });
+
+  it("renders not_available when the inbox endpoint 404s", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("inbox-not-available")).toBeInTheDocument();
+    });
+  });
+
+  it("renders inbox rows with severity pills and never an action button", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("inbox-total")).toHaveTextContent("2");
+    });
+    expect(screen.getByTestId("inbox-recommendation")).toHaveTextContent(
+      "critical_on_1_items",
+    );
+    // Both inbox rows render their category label.
+    expect(
+      screen.getAllByText(/frozen_contract_risk|manual_route_wiring_required/),
+    ).not.toHaveLength(0);
+    // Still exactly one button on the page (the refresh).
+    expect(screen.queryAllByRole("button")).toHaveLength(1);
+  });
+});
+
 describe("AgentControl — proposals card", () => {
   it("renders an empty-state when the proposal queue is empty", async () => {
     installFetchMock(
@@ -170,6 +308,7 @@ describe("AgentControl — proposals card", () => {
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -224,6 +363,7 @@ describe("AgentControl — proposals card", () => {
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -256,6 +396,7 @@ describe("AgentControl — happy path", () => {
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
       },
       () => jsonResp({ status: "not_available" }, 404),
     );
@@ -293,6 +434,7 @@ describe("AgentControl — happy path", () => {
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -363,6 +505,7 @@ describe("AgentControl — UI affordances", () => {
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -398,6 +541,7 @@ describe("AgentControl — UI affordances", () => {
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -455,6 +599,7 @@ describe("AgentControl — UI affordances", () => {
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
       },
       () => jsonResp({}, 404),
     );

@@ -84,6 +84,25 @@ export interface AgentControlProposals {
   artifact_path: string;
 }
 
+export interface AgentControlApprovalInbox {
+  kind: "agent_control_approval_inbox";
+  schema_version: number;
+  status: "ok" | "not_available";
+  reason?: string;
+  data?: {
+    final_recommendation: string;
+    items: Array<Record<string, unknown>>;
+    counts?: {
+      total?: number;
+      by_severity?: Record<string, number>;
+      by_category?: Record<string, number>;
+      by_status?: Record<string, number>;
+    };
+    [k: string]: unknown;
+  };
+  artifact_path: string;
+}
+
 const BASE = "/api/agent-control";
 
 async function getJson<T>(path: string): Promise<T> {
@@ -121,4 +140,6 @@ export const agentControlApi = {
   notifications: () =>
     getJson<AgentControlNotifications>(`${BASE}/notifications`),
   proposals: () => getJson<AgentControlProposals>(`${BASE}/proposals`),
+  approvalInbox: () =>
+    getJson<AgentControlApprovalInbox>(`${BASE}/approval-inbox`),
 };

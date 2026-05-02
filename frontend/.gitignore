@@ -3,3 +3,11 @@ dist/
 .vite/
 *.tsbuildinfo
 package-lock.json
+
+# tsc-emit artifacts. The project is .ts/.tsx-source-only; tsconfig
+# now sets "noEmit": true so future builds will not produce these,
+# but pre-existing checkouts may still have them on disk. Vite's
+# resolve.extensions also orders .ts/.tsx ahead of .js so any
+# straggler is never resolved by the bundler. This rule keeps git
+# status clean of the leftover artifacts.
+src/**/*.js

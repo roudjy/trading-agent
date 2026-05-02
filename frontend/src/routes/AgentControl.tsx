@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   agentControlApi,
   type AgentControlActivity,
+  type AgentControlApprovalInbox,
   type AgentControlNotifications,
   type AgentControlPRLifecycle,
   type AgentControlProposals,
@@ -401,6 +402,93 @@ function ProposalsCard({
   );
 }
 
+// --- Card: approval / exception inbox (v3.15.15.20) ---
+function InboxCard({
+  payload,
+}: {
+  payload: AgentControlApprovalInbox | null;
+}) {
+  if (!payload) {
+    return (
+      <Card title="Inbox" subtitle="approval / exception inbox">
+        <p className="agent-control-card__empty">Laden…</p>
+      </Card>
+    );
+  }
+  if (payload.status !== "ok" || !payload.data) {
+    return (
+      <Card title="Inbox" subtitle="approval / exception inbox">
+        <p
+          className="agent-control-card__empty"
+          data-testid="inbox-not-available"
+        >
+          {payload.reason ?? "not_available"} —{" "}
+          <code>{payload.artifact_path}</code>
+        </p>
+      </Card>
+    );
+  }
+  const data = payload.data;
+  const items = data.items ?? [];
+  const recommendation = String(data.final_recommendation ?? "unknown");
+  const counts = data.counts ?? {};
+  const total = Number(counts.total ?? 0);
+  const bySeverity = (counts.by_severity ?? {}) as Record<string, number>;
+  return (
+    <Card title="Inbox" subtitle="approval / exception inbox">
+      <div className="agent-control-card__row">
+        <dt>recommendation</dt>
+        <dd data-testid="inbox-recommendation">{recommendation}</dd>
+      </div>
+      <div className="agent-control-card__row">
+        <dt>total</dt>
+        <dd data-testid="inbox-total">{total}</dd>
+      </div>
+      {(Object.keys(bySeverity).length === 0 ? [] : Object.entries(bySeverity)).map(
+        ([sev, n]) => (
+          <div className="agent-control-card__row" key={`sev-${sev}`}>
+            <dt>severity {sev}</dt>
+            <dd>{n}</dd>
+          </div>
+        ),
+      )}
+      {items.length === 0 ? (
+        <p
+          className="agent-control-card__empty"
+          data-testid="inbox-empty"
+        >
+          Geen items in de inbox.
+        </p>
+      ) : (
+        items.slice(0, 5).map((it, idx) => {
+          const id = String(it.item_id ?? "?");
+          const severity = String(it.severity ?? "unknown");
+          const category = String(it.category ?? "unknown");
+          const pillState =
+            severity === "critical" || severity === "high"
+              ? "danger"
+              : severity === "medium"
+                ? "warn"
+                : severity === "low" || severity === "info"
+                  ? "ok"
+                  : "unknown";
+          return (
+            <div className="agent-control-card__row" key={`${id}-${idx}`}>
+              <dt>
+                {id}{" "}
+                <span style={{ color: "var(--fg-muted)" }}>{category}</span>
+              </dt>
+              <dd>
+                <StatusPill state={pillState} />
+              </dd>
+            </div>
+          );
+        })
+      )}
+    </Card>
+  );
+}
+
 // --- Card: notification center placeholder ---
 function NotificationsCard({
   payload,
@@ -444,18 +532,20 @@ export function AgentControl() {
   const [proposals, setProposals] = useState<AgentControlProposals | null>(
     null,
   );
+  const [inbox, setInbox] = useState<AgentControlApprovalInbox | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshedAt, setRefreshedAt] = useState<string>("");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [s, a, w, p, n, q] = await Promise.all([
+    const [s, a, w, p, n, q, i] = await Promise.all([
       agentControlApi.status(),
       agentControlApi.activity(),
       agentControlApi.workloop(),
       agentControlApi.prLifecycle(),
       agentControlApi.notifications(),
       agentControlApi.proposals(),
+      agentControlApi.approvalInbox(),
     ]);
     setStatus(s);
     setActivity(a);
@@ -463,6 +553,7 @@ export function AgentControl() {
     setPrLifecycle(p);
     setNotifications(n);
     setProposals(q);
+    setInbox(i);
     setRefreshedAt(new Date().toISOString().replace("T", " ").slice(0, 19));
     setLoading(false);
   }, []);
@@ -506,6 +597,7 @@ export function AgentControl() {
         <WorkloopCard payload={workloop} />
         <PRLifecycleCard payload={prLifecycle} />
         <ProposalsCard payload={proposals} />
+        <InboxCard payload={inbox} />
         <NotificationsCard payload={notifications} />
       </div>
 
