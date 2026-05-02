@@ -1,50 +1,174 @@
 /*
- * Mobile-first Agent Control PWA — v3.15.15.18.
+ * Mobile-first Agent Control PWA — v3.15.15.21.1.
  *
  * Phone-portrait is the primary viewport. Cards stack vertically.
  * Touch targets are >= 44x44 px (Apple HIG / WCAG 2.5.5 minimum).
- * Layout scales up at >= 720px to a two-column grid.
+ * Layout scales up at >= 720px to a two-column grid and >= 1080px
+ * to a three-column grid.
  *
  * Status colors are semantic: ok = teal, warn = amber, danger = red,
- * not_available = gray.
+ * not_available = gray. All combinations meet WCAG AA contrast at
+ * the body text size against the elevated card background.
  */
 
 .agent-control {
   /* Phone-first padding; use safe-area insets for the notch. */
-  padding: max(env(safe-area-inset-top, 0px), 12px) 12px
-    max(env(safe-area-inset-bottom, 0px), 12px) 12px;
+  padding: max(env(safe-area-inset-top, 0px), 16px) 16px
+    max(env(safe-area-inset-bottom, 0px), 16px) 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 1200px;
+  gap: 16px;
+  max-width: 1280px;
   margin: 0 auto;
 }
+
+/* ------------------------------------------------------------------ */
+/* Header                                                              */
+/* ------------------------------------------------------------------ */
 
 .agent-control__header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 4px 4px;
+  gap: 8px;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-control__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .agent-control__header h1 {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
-.agent-control__header p {
+.agent-control__subtitle {
   margin: 0;
   font-size: 13px;
   color: var(--fg-muted);
 }
 
-/* Card grid — stacked on phone, two columns from 720px. */
+.agent-control__refresh {
+  /* Touch target >= 44x44, large hit area on phone. */
+  min-height: 44px;
+  min-width: 96px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--accent-weak);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.05s ease;
+}
+
+.agent-control__refresh:hover:not(:disabled) {
+  background: rgba(79, 180, 255, 0.22);
+}
+
+.agent-control__refresh:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.agent-control__refresh:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.agent-control__refresh:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Page-level summary banner — gives operators an at-a-glance read
+ * before they scan individual cards. */
+.agent-control__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--bg-elev);
+  min-height: 44px;
+}
+
+.agent-control__summary-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  background: rgba(136, 147, 167, 0.18);
+  color: var(--fg);
+}
+
+.agent-control__summary-text {
+  flex: 1 1 auto;
+  word-break: break-word;
+}
+
+.agent-control__summary--ok {
+  border-color: rgba(61, 220, 151, 0.45);
+  background: rgba(61, 220, 151, 0.08);
+}
+.agent-control__summary--ok .agent-control__summary-glyph {
+  background: rgba(61, 220, 151, 0.22);
+  color: var(--ok);
+}
+
+.agent-control__summary--warn {
+  border-color: rgba(255, 181, 69, 0.45);
+  background: rgba(255, 181, 69, 0.08);
+}
+.agent-control__summary--warn .agent-control__summary-glyph {
+  background: rgba(255, 181, 69, 0.22);
+  color: var(--warn);
+}
+
+.agent-control__summary--danger {
+  border-color: rgba(255, 91, 107, 0.5);
+  background: rgba(255, 91, 107, 0.08);
+}
+.agent-control__summary--danger .agent-control__summary-glyph {
+  background: rgba(255, 91, 107, 0.22);
+  color: var(--danger);
+}
+
+.agent-control__summary--loading {
+  border-style: dashed;
+  color: var(--fg-muted);
+}
+
+.agent-control__refreshed-at {
+  margin: 0;
+  font-size: 11px;
+  color: var(--fg-muted);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+/* ------------------------------------------------------------------ */
+/* Card grid                                                           */
+/* ------------------------------------------------------------------ */
+
 .agent-control__grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 @media (min-width: 720px) {
@@ -53,41 +177,62 @@
   }
 }
 
+@media (min-width: 1080px) {
+  .agent-control__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Card                                                                */
+/* ------------------------------------------------------------------ */
+
 .agent-control-card {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   /* Touch-friendly minimum height for primary cards. */
-  min-height: 96px;
+  min-height: 120px;
+  transition: border-color 0.15s ease;
+}
+
+.agent-control-card:hover {
+  border-color: rgba(79, 180, 255, 0.3);
 }
 
 .agent-control-card__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
 }
 
 .agent-control-card__title {
   font-size: 15px;
   font-weight: 600;
   margin: 0;
+  letter-spacing: -0.005em;
 }
 
 .agent-control-card__subtitle {
   font-size: 12px;
   color: var(--fg-muted);
-  margin: 0;
+  margin: 4px 0 0 0;
+  line-height: 1.4;
 }
 
 .agent-control-card__body {
   font-size: 13px;
   color: var(--fg);
   word-break: break-word;
+  display: flex;
+  flex-direction: column;
 }
 
 .agent-control-card__row {
@@ -95,12 +240,13 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  padding: 6px 0;
-  border-top: 1px dashed var(--border);
+  padding: 8px 0;
+  border-top: 1px dashed rgba(36, 43, 56, 0.6);
 }
 
 .agent-control-card__row:first-child {
   border-top: none;
+  padding-top: 4px;
 }
 
 .agent-control-card__row dt {
@@ -108,6 +254,8 @@
   color: var(--fg-muted);
   font-size: 12px;
   flex: 0 0 auto;
+  /* Allow the label to wrap on narrow screens but stay short. */
+  max-width: 60%;
 }
 
 .agent-control-card__row dd {
@@ -117,81 +265,107 @@
   text-align: right;
   word-break: break-all;
   color: var(--fg);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
+/* Empty / not_available state — distinct from a normal data row.
+ * Faint dashed border + small leading glyph make the operator
+ * read it as "no data, nothing's wrong" rather than "broken". */
 .agent-control-card__empty {
   font-size: 13px;
   color: var(--fg-muted);
   font-style: italic;
   text-align: center;
-  padding: 18px 0;
+  padding: 18px 12px;
+  margin: 4px 0;
+  background: rgba(36, 43, 56, 0.4);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  line-height: 1.5;
 }
 
-/* Status pill colors — semantic only. */
+.agent-control-card__empty code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--fg);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ */
+/* Severity / status pills                                             */
+/* ------------------------------------------------------------------ */
+
 .agent-control-pill {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  line-height: 1.6;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .agent-control-pill--ok {
-  background: rgba(61, 220, 151, 0.14);
+  background: rgba(61, 220, 151, 0.16);
   color: var(--ok);
-  border: 1px solid rgba(61, 220, 151, 0.4);
+  border: 1px solid rgba(61, 220, 151, 0.5);
 }
 
 .agent-control-pill--warn {
-  background: rgba(255, 181, 69, 0.14);
+  background: rgba(255, 181, 69, 0.16);
   color: var(--warn);
-  border: 1px solid rgba(255, 181, 69, 0.4);
+  border: 1px solid rgba(255, 181, 69, 0.5);
 }
 
 .agent-control-pill--danger {
-  background: rgba(255, 91, 107, 0.14);
+  background: rgba(255, 91, 107, 0.18);
   color: var(--danger);
-  border: 1px solid rgba(255, 91, 107, 0.4);
+  border: 1px solid rgba(255, 91, 107, 0.55);
 }
 
 .agent-control-pill--unknown {
-  background: rgba(136, 147, 167, 0.14);
+  background: rgba(136, 147, 167, 0.16);
   color: var(--fg-muted);
-  border: 1px solid rgba(136, 147, 167, 0.4);
+  border: 1px solid rgba(136, 147, 167, 0.5);
 }
 
-.agent-control__refresh {
-  /* Touch target >= 44x44, large hit area on phone. */
-  min-height: 44px;
-  min-width: 44px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  background: var(--accent-weak);
-  color: var(--fg);
-  border: 1px solid var(--accent);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.agent-control__refresh:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
+/* ------------------------------------------------------------------ */
+/* Footer                                                              */
+/* ------------------------------------------------------------------ */
 
 .agent-control__footer {
-  margin-top: 4px;
-  padding: 12px 4px;
+  margin-top: 8px;
+  padding: 14px 4px;
+  border-top: 1px solid var(--border);
   text-align: center;
   font-size: 11px;
   color: var(--fg-muted);
+  line-height: 1.6;
 }
 
 .agent-control__footer code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 11px;
   color: var(--fg);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced-motion users                                                */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-control-card,
+  .agent-control__refresh {
+    transition: none;
+  }
 }

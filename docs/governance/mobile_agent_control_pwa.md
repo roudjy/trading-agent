@@ -80,25 +80,37 @@ existing `AppShell`.
 | No execute / approve / merge button labels | `test_does_not_render_any_execute_approve_merge_button` |
 | Cards fall back gracefully | `test_renders_not_available_everywhere_when_every_endpoint_404s` |
 
-## Wiring step (manual, one line)
+## Wiring status (as of v3.15.15.21)
 
 `dashboard/dashboard.py` is on the no-touch list (it reads operator
 session and token secrets, see
-`docs/governance/no_touch_paths.md`). The agent-control routes are
-not auto-registered by this release; activating them requires one
-line in `dashboard/dashboard.py` next to the other
-`register_*_routes(app)` calls:
+`docs/governance/no_touch_paths.md`). The agent-control routes
+were not auto-registered by v3.15.15.18 and required an explicit
+operator-led `governance-bootstrap` PR.
 
-```python
-# v3.15.15.18: read-only Agent Control PWA routes.
-from dashboard.api_agent_control import register_agent_control_routes
-register_agent_control_routes(app)
-```
+**That PR landed in v3.15.15.21**: the operator-authored commit
+`41a9566` on the v3.15.15.21 release branch added the import and
+register lines for the three approved read-only modules
+(`api_agent_control`, `api_proposal_queue`, `api_approval_inbox`)
+plus the `/agent-control` SPA-fallback route so the PWA deep-link
+survives a hard reload. As of v3.15.15.21 main, the PWA cards
+backed by those three modules resolve to real data.
 
-That edit is intentionally not shipped here. Until the operator
-performs it, the PWA frontend treats every endpoint as
-`not_available` and renders empty / placeholder states — by design,
-not as an error.
+The fourth route module — `api_execute_safe_controls` — ships in
+v3.15.15.21 but is **intentionally not wired** in production. Its
+gated POST endpoint is the v3.15.15.22 milestone (after the auth
+surface lands), and the read-only catalog endpoint will be wired
+together with the POST endpoint so they ship as a single coherent
+release. Until then, the Execute-safe card on the PWA renders
+`not_available` for the catalog and the runbook
+[`execute_safe_controls.md`](execute_safe_controls.md) documents
+how to drive the catalog from the CLI.
+
+The approval inbox auto-clears `manual_route_wiring_required`
+items as soon as `dashboard.py` contains both the `from ... import`
+and the `register_...(app)` call for a known module — so an
+operator who lands future wiring (e.g. for execute-safe in
+v3.15.15.22) does not need to touch the inbox builder.
 
 ## Installing the PWA on a phone
 
