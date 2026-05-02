@@ -86,6 +86,43 @@ const placeholderNotificationsBody = {
   next_release_with_push: "v3.15.15.23",
 };
 
+const okProposalsEmptyBody = {
+  kind: "agent_control_proposals",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    schema_version: 1,
+    final_recommendation: "no_proposals",
+    proposals: [],
+  },
+  artifact_path: "logs/proposal_queue/latest.json",
+};
+
+const okProposalsBody = {
+  kind: "agent_control_proposals",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    schema_version: 1,
+    final_recommendation: "needs_human_on_1_items",
+    proposals: [
+      {
+        proposal_id: "p_abcdef01",
+        proposal_type: "roadmap_adoption",
+        risk_class: "HIGH",
+        status: "needs_human",
+      },
+      {
+        proposal_id: "p_abcdef02",
+        proposal_type: "tooling_intake",
+        risk_class: "LOW",
+        status: "proposed",
+      },
+    ],
+  },
+  artifact_path: "logs/proposal_queue/latest.json",
+};
+
 const fetchSpy: any[] = [];
 
 function installFetchMock(
@@ -121,6 +158,92 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("AgentControl — proposals card", () => {
+  it("renders an empty-state when the proposal queue is empty", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("proposals-empty")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("proposals-recommendation")).toHaveTextContent(
+      "no_proposals",
+    );
+  });
+
+  it("renders not_available when the proposals endpoint 404s", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("proposals-not-available")).toBeInTheDocument();
+    });
+  });
+
+  it("renders proposal rows with risk pills and never an action button", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("proposals-recommendation")).toBeInTheDocument();
+    });
+    // Both proposal rows render their proposal_type label.
+    expect(screen.getAllByText(/roadmap_adoption|tooling_intake/)).not.toHaveLength(0);
+    // Still exactly one button on the page (the refresh).
+    expect(screen.queryAllByRole("button")).toHaveLength(1);
+  });
+});
+
 describe("AgentControl — happy path", () => {
   it("renders all five cards and an empty Dependabot queue", async () => {
     installFetchMock(
@@ -132,6 +255,7 @@ describe("AgentControl — happy path", () => {
           jsonResp(okPRLifecycleEmptyBody),
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
       },
       () => jsonResp({ status: "not_available" }, 404),
     );
@@ -168,6 +292,7 @@ describe("AgentControl — happy path", () => {
           jsonResp(okPRLifecycleEmptyBody),
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -237,6 +362,7 @@ describe("AgentControl — UI affordances", () => {
           jsonResp(okPRLifecycleEmptyBody),
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -271,6 +397,7 @@ describe("AgentControl — UI affordances", () => {
           jsonResp(okPRLifecycleEmptyBody),
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
       },
       () => jsonResp({}, 404),
     );
@@ -327,6 +454,7 @@ describe("AgentControl — UI affordances", () => {
           jsonResp(okPRLifecycleEmptyBody),
         "/api/agent-control/notifications": () =>
           jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
       },
       () => jsonResp({}, 404),
     );
