@@ -590,20 +590,49 @@ def _build_from_governance_status(envelope: dict[str, Any]) -> list[dict[str, An
     return items
 
 
+def _dashboard_py_text() -> str:
+    """Read ``dashboard/dashboard.py`` once to detect which
+    ``register_*_routes(app)`` lines are already wired. Returns ""
+    on any error (so wiring detection fails closed → items stay
+    open until proven wired)."""
+    p = REPO_ROOT / "dashboard" / "dashboard.py"
+    if not p.exists():
+        return ""
+    try:
+        return p.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
 def _build_manual_route_wiring_items() -> list[dict[str, Any]]:
     """Per the v3.15.15.18 / .19 / .20 release notes,
-    ``dashboard/dashboard.py`` is no-touch, so each new
-    ``register_*_routes(app)`` line is an operator-led one-line PR.
-    This emits one ``manual_route_wiring_required`` item per known
-    pending route module so the operator can see them all in one
-    place."""
+    ``dashboard/dashboard.py`` is no-touch except via an
+    operator-led, CODEOWNERS-reviewed PR. This emits one
+    ``manual_route_wiring_required`` item per pending route module —
+    and **clears items automatically** once the corresponding
+    ``register_*_routes(app)`` call appears in the file.
+
+    Detection is a pure substring check. False negatives (a
+    commented-out line still passes) are intentionally accepted —
+    the Inbox surface is informational and the upstream route tests
+    are the canonical "is it wired?" gate.
+    """
     pending = (
         ("dashboard.api_agent_control", "register_agent_control_routes", "v3.15.15.18"),
         ("dashboard.api_proposal_queue", "register_proposal_queue_routes", "v3.15.15.19"),
         ("dashboard.api_approval_inbox", "register_approval_inbox_routes", "v3.15.15.20"),
     )
+    dashboard_text = _dashboard_py_text()
     items: list[dict[str, Any]] = []
     for module, fn, release in pending:
+        # Already wired? The detection is intentionally narrow: the
+        # file must contain BOTH the import line AND the call.
+        wired = (
+            f"from {module} import {fn}" in dashboard_text
+            and f"{fn}(app)" in dashboard_text
+        )
+        if wired:
+            continue
         items.append(
             _build_item(
                 source=f"manual:{module}",

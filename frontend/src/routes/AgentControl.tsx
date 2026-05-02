@@ -18,6 +18,7 @@ import {
   agentControlApi,
   type AgentControlActivity,
   type AgentControlApprovalInbox,
+  type AgentControlExecuteSafe,
   type AgentControlNotifications,
   type AgentControlPRLifecycle,
   type AgentControlProposals,
@@ -489,6 +490,93 @@ function InboxCard({
   );
 }
 
+// --- Card: execute-safe controls (v3.15.15.21, READ-ONLY) ---
+function ExecuteSafeCard({
+  payload,
+}: {
+  payload: AgentControlExecuteSafe | null;
+}) {
+  if (!payload) {
+    return (
+      <Card title="Execute-safe" subtitle="control catalog (read-only)">
+        <p className="agent-control-card__empty">Laden…</p>
+      </Card>
+    );
+  }
+  if (payload.status !== "ok" || !payload.data) {
+    return (
+      <Card title="Execute-safe" subtitle="control catalog (read-only)">
+        <p
+          className="agent-control-card__empty"
+          data-testid="execute-safe-not-available"
+        >
+          {payload.reason ?? "not_available"}
+        </p>
+      </Card>
+    );
+  }
+  const data = payload.data;
+  const actions = data.actions ?? [];
+  const ghStatus = String(data.gh_provider?.status ?? "unknown");
+  const gitClean = Boolean(data.git_clean);
+  return (
+    <Card title="Execute-safe" subtitle="control catalog (read-only)">
+      <div className="agent-control-card__row">
+        <dt>git tree</dt>
+        <dd>
+          <StatusPill state={gitClean ? "ok" : "warn"} />
+        </dd>
+      </div>
+      <div className="agent-control-card__row">
+        <dt>gh provider</dt>
+        <dd>
+          <StatusPill state={ghStatus === "available" ? "ok" : "warn"} />
+        </dd>
+      </div>
+      {actions.length === 0 ? (
+        <p
+          className="agent-control-card__empty"
+          data-testid="execute-safe-empty"
+        >
+          Geen acties in de catalogus.
+        </p>
+      ) : (
+        actions.slice(0, 6).map((a, idx) => {
+          const id = String(a.action_type ?? "?");
+          const eligibility = String(a.eligibility ?? "unknown");
+          const pillState =
+            eligibility === "eligible"
+              ? "ok"
+              : eligibility === "blocked"
+                ? "warn"
+                : eligibility === "ineligible"
+                  ? "danger"
+                  : "unknown";
+          return (
+            <div className="agent-control-card__row" key={`${id}-${idx}`}>
+              <dt>
+                {id}{" "}
+                <span style={{ color: "var(--fg-muted)" }}>
+                  {String(a.risk_class ?? "?")}
+                </span>
+              </dt>
+              <dd>
+                <StatusPill state={pillState} />
+              </dd>
+            </div>
+          );
+        })
+      )}
+      <p
+        className="agent-control-card__subtitle"
+        data-testid="execute-safe-cli-only"
+      >
+        execution remains CLI-only — no buttons in v3.15.15.21
+      </p>
+    </Card>
+  );
+}
+
 // --- Card: notification center placeholder ---
 function NotificationsCard({
   payload,
@@ -533,12 +621,14 @@ export function AgentControl() {
     null,
   );
   const [inbox, setInbox] = useState<AgentControlApprovalInbox | null>(null);
+  const [executeSafe, setExecuteSafe] =
+    useState<AgentControlExecuteSafe | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshedAt, setRefreshedAt] = useState<string>("");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [s, a, w, p, n, q, i] = await Promise.all([
+    const [s, a, w, p, n, q, i, e] = await Promise.all([
       agentControlApi.status(),
       agentControlApi.activity(),
       agentControlApi.workloop(),
@@ -546,6 +636,7 @@ export function AgentControl() {
       agentControlApi.notifications(),
       agentControlApi.proposals(),
       agentControlApi.approvalInbox(),
+      agentControlApi.executeSafe(),
     ]);
     setStatus(s);
     setActivity(a);
@@ -554,6 +645,7 @@ export function AgentControl() {
     setNotifications(n);
     setProposals(q);
     setInbox(i);
+    setExecuteSafe(e);
     setRefreshedAt(new Date().toISOString().replace("T", " ").slice(0, 19));
     setLoading(false);
   }, []);
@@ -598,6 +690,7 @@ export function AgentControl() {
         <PRLifecycleCard payload={prLifecycle} />
         <ProposalsCard payload={proposals} />
         <InboxCard payload={inbox} />
+        <ExecuteSafeCard payload={executeSafe} />
         <NotificationsCard payload={notifications} />
       </div>
 
