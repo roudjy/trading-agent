@@ -19,6 +19,7 @@ import {
   type AgentControlActivity,
   type AgentControlNotifications,
   type AgentControlPRLifecycle,
+  type AgentControlProposals,
   type AgentControlStatus,
   type AgentControlWorkloop,
 } from "../api/agent_control";
@@ -327,6 +328,79 @@ function PRLifecycleCard({
   );
 }
 
+// --- Card: proposal queue (v3.15.15.19) ---
+function ProposalsCard({
+  payload,
+}: {
+  payload: AgentControlProposals | null;
+}) {
+  if (!payload) {
+    return (
+      <Card title="Proposals" subtitle="roadmap intake queue">
+        <p className="agent-control-card__empty">Laden…</p>
+      </Card>
+    );
+  }
+  if (payload.status !== "ok" || !payload.data) {
+    return (
+      <Card title="Proposals" subtitle="roadmap intake queue">
+        <p
+          className="agent-control-card__empty"
+          data-testid="proposals-not-available"
+        >
+          {payload.reason ?? "not_available"} —{" "}
+          <code>{payload.artifact_path}</code>
+        </p>
+      </Card>
+    );
+  }
+  const data = payload.data;
+  const proposals = data.proposals ?? [];
+  const recommendation = String(data.final_recommendation ?? "unknown");
+  return (
+    <Card title="Proposals" subtitle="roadmap intake queue">
+      <div className="agent-control-card__row">
+        <dt>recommendation</dt>
+        <dd data-testid="proposals-recommendation">{recommendation}</dd>
+      </div>
+      {proposals.length === 0 ? (
+        <p
+          className="agent-control-card__empty"
+          data-testid="proposals-empty"
+        >
+          Geen proposals — geen roadmap intake op dit moment.
+        </p>
+      ) : (
+        proposals.slice(0, 5).map((p, idx) => {
+          const id = String(p.proposal_id ?? "?");
+          const risk = String(p.risk_class ?? "UNKNOWN");
+          const status = String(p.status ?? "unknown");
+          const ptype = String(p.proposal_type ?? "unknown");
+          const pillState =
+            risk === "HIGH"
+              ? status === "blocked"
+                ? "danger"
+                : "warn"
+              : risk === "LOW"
+                ? "ok"
+                : "unknown";
+          return (
+            <div className="agent-control-card__row" key={`${id}-${idx}`}>
+              <dt>
+                {id}{" "}
+                <span style={{ color: "var(--fg-muted)" }}>{ptype}</span>
+              </dt>
+              <dd>
+                <StatusPill state={pillState} />
+              </dd>
+            </div>
+          );
+        })
+      )}
+    </Card>
+  );
+}
+
 // --- Card: notification center placeholder ---
 function NotificationsCard({
   payload,
@@ -367,23 +441,28 @@ export function AgentControl() {
     useState<AgentControlPRLifecycle | null>(null);
   const [notifications, setNotifications] =
     useState<AgentControlNotifications | null>(null);
+  const [proposals, setProposals] = useState<AgentControlProposals | null>(
+    null,
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshedAt, setRefreshedAt] = useState<string>("");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [s, a, w, p, n] = await Promise.all([
+    const [s, a, w, p, n, q] = await Promise.all([
       agentControlApi.status(),
       agentControlApi.activity(),
       agentControlApi.workloop(),
       agentControlApi.prLifecycle(),
       agentControlApi.notifications(),
+      agentControlApi.proposals(),
     ]);
     setStatus(s);
     setActivity(a);
     setWorkloop(w);
     setPrLifecycle(p);
     setNotifications(n);
+    setProposals(q);
     setRefreshedAt(new Date().toISOString().replace("T", " ").slice(0, 19));
     setLoading(false);
   }, []);
@@ -426,6 +505,7 @@ export function AgentControl() {
         <ActivityCard payload={activity} />
         <WorkloopCard payload={workloop} />
         <PRLifecycleCard payload={prLifecycle} />
+        <ProposalsCard payload={proposals} />
         <NotificationsCard payload={notifications} />
       </div>
 

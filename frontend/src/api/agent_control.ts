@@ -70,6 +70,20 @@ export interface AgentControlNotifications {
   next_release_with_push?: string;
 }
 
+export interface AgentControlProposals {
+  kind: "agent_control_proposals";
+  schema_version: number;
+  status: "ok" | "not_available";
+  reason?: string;
+  data?: {
+    final_recommendation: string;
+    proposals: Array<Record<string, unknown>>;
+    counts?: Record<string, unknown>;
+    [k: string]: unknown;
+  };
+  artifact_path: string;
+}
+
 const BASE = "/api/agent-control";
 
 async function getJson<T>(path: string): Promise<T> {
@@ -106,4 +120,5 @@ export const agentControlApi = {
     getJson<AgentControlPRLifecycle>(`${BASE}/pr-lifecycle`),
   notifications: () =>
     getJson<AgentControlNotifications>(`${BASE}/notifications`),
+  proposals: () => getJson<AgentControlProposals>(`${BASE}/proposals`),
 };
