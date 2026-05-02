@@ -585,7 +585,7 @@ function NotificationsCard({
 }) {
   if (!payload) {
     return (
-      <Card title="Notifications" subtitle="placeholder (v3.15.15.18)">
+      <Card title="Notifications" subtitle="placeholder">
         <p className="agent-control-card__empty">Laden…</p>
       </Card>
     );
@@ -654,53 +654,149 @@ export function AgentControl() {
     void loadAll();
   }, [loadAll]);
 
+  const summary = summarize({ inbox, executeSafe, prLifecycle, status });
+
   return (
     <main
       className="agent-control"
       data-testid="agent-control-root"
       role="main"
+      aria-labelledby="agent-control-title"
     >
-      <div className="agent-control__header">
-        <h1>Agent Control</h1>
-        <p>Read-only observability surface — v3.15.15.18.</p>
-        <button
-          type="button"
-          className="agent-control__refresh"
-          onClick={() => void loadAll()}
-          disabled={loading}
-          data-testid="agent-control-refresh"
-          aria-label="Vernieuw alle kaarten"
+      <header className="agent-control__header" role="banner">
+        <div className="agent-control__title-row">
+          <h1 id="agent-control-title">Agent Control</h1>
+          <button
+            type="button"
+            className="agent-control__refresh"
+            onClick={() => void loadAll()}
+            disabled={loading}
+            data-testid="agent-control-refresh"
+            aria-label={loading ? "Bezig met vernieuwen" : "Vernieuw alle kaarten"}
+            aria-busy={loading}
+          >
+            {loading ? "Laden…" : "Vernieuw"}
+          </button>
+        </div>
+        <p className="agent-control__subtitle">
+          Read-only observability surface — v3.15.15.21.1.
+        </p>
+        <div
+          className={`agent-control__summary agent-control__summary--${summary.tone}`}
+          data-testid="agent-control-summary"
+          role="status"
+          aria-live="polite"
         >
-          {loading ? "Laden…" : "Vernieuw"}
-        </button>
+          <span aria-hidden="true" className="agent-control__summary-glyph">
+            {summary.glyph}
+          </span>
+          <span className="agent-control__summary-text">{summary.text}</span>
+        </div>
         {refreshedAt ? (
           <p
-            className="agent-control-card__subtitle"
+            className="agent-control__refreshed-at"
             data-testid="agent-control-refreshed-at"
           >
             laatste update: {refreshedAt} UTC
           </p>
         ) : null}
-      </div>
+      </header>
 
-      <div className="agent-control__grid">
+      <section
+        className="agent-control__grid"
+        data-testid="agent-control-grid"
+        aria-label="Agent control kaarten"
+      >
         <StatusCard payload={status} />
-        <ActivityCard payload={activity} />
-        <WorkloopCard payload={workloop} />
-        <PRLifecycleCard payload={prLifecycle} />
-        <ProposalsCard payload={proposals} />
         <InboxCard payload={inbox} />
+        <ProposalsCard payload={proposals} />
+        <PRLifecycleCard payload={prLifecycle} />
+        <WorkloopCard payload={workloop} />
+        <ActivityCard payload={activity} />
         <ExecuteSafeCard payload={executeSafe} />
         <NotificationsCard payload={notifications} />
-      </div>
+      </section>
 
       <footer className="agent-control__footer">
         <p>
-          v3.15.15.18 — read-only. Geen execute / approve / merge knoppen.
+          v3.15.15.21.1 — read-only. Geen execute / approve / merge knoppen.
           Schema:{" "}
           <code>docs/governance/github_pr_lifecycle/schema.v1.md</code>
         </p>
       </footer>
     </main>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Summary-banner derivation (pure)
+// ---------------------------------------------------------------------------
+
+interface PageSummary {
+  tone: "ok" | "warn" | "danger" | "loading";
+  glyph: string;
+  text: string;
+}
+
+function summarize(args: {
+  inbox: AgentControlApprovalInbox | null;
+  executeSafe: AgentControlExecuteSafe | null;
+  prLifecycle: AgentControlPRLifecycle | null;
+  status: AgentControlStatus | null;
+}): PageSummary {
+  const { inbox, executeSafe, prLifecycle, status } = args;
+
+  // Loading state: we have no signals yet at all.
+  if (!inbox && !executeSafe && !prLifecycle && !status) {
+    return { tone: "loading", glyph: "•", text: "Bezig met laden…" };
+  }
+
+  // Highest-severity signal wins. Inbox is the canonical
+  // "everything that needs attention" surface.
+  if (inbox?.status === "ok" && inbox.data) {
+    const counts =
+      (inbox.data.counts as { by_severity?: Record<string, number> }) ?? {};
+    const sev = counts.by_severity ?? {};
+    const critical = Number(sev.critical ?? 0);
+    const high = Number(sev.high ?? 0);
+    if (critical > 0) {
+      return {
+        tone: "danger",
+        glyph: "!",
+        text: `${critical} kritiek${critical === 1 ? "" : "e"} item${
+          critical === 1 ? "" : "s"
+        } in de inbox`,
+      };
+    }
+    if (high > 0) {
+      return {
+        tone: "warn",
+        glyph: "!",
+        text: `${high} high-severity item${high === 1 ? "" : "s"} in de inbox`,
+      };
+    }
+  }
+
+  // PR lifecycle blocked items?
+  if (prLifecycle?.status === "ok" && prLifecycle.data) {
+    const recommendation = String(prLifecycle.data.final_recommendation ?? "");
+    if (recommendation.startsWith("merge_")) {
+      return {
+        tone: "warn",
+        glyph: "→",
+        text: `PR-queue: ${recommendation.replaceAll("_", " ")}`,
+      };
+    }
+  }
+
+  // Governance lint / frozen contracts not OK?
+  if (status?.governance_status?.status && status.governance_status.status !== "ok") {
+    return {
+      tone: "warn",
+      glyph: "!",
+      text: "governance status niet OK",
+    };
+  }
+
+  return { tone: "ok", glyph: "✓", text: "Alle systemen rustig." };
 }
