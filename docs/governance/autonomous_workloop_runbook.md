@@ -120,13 +120,30 @@ The controller embeds these verbatim in every digest's
 | v3.15.15.14 | operator-friendly audit summary |
 | v3.15.15.15 | inferred subagent attribution + ADR-016 proposal |
 | **v3.15.15.16** | **local workloop planner (this runbook)** |
-| v3.15.15.17 | read-only dashboard agent-control panels |
+| **v3.15.15.17** | **GitHub-backed PR lifecycle + Dependabot cleanup playbook (`reporting.github_pr_lifecycle`)** — pulled forward from the original v3.15.15.19 slot after a 10/10 pilot. Read-only by default; `execute-safe` mode comments `@dependabot rebase` and squash-merges LOW/MEDIUM Dependabot PRs only. HIGH stays inspect-only. |
 | v3.15.15.18 | roadmap queue + agent proposal intake |
-| v3.15.15.19 | GitHub-backed PR/check integration |
+| v3.15.15.19 | (vacated — moved into v3.15.15.17) |
 | v3.15.15.20 | operator approval & exception inbox |
 | v3.15.15.21 | dashboard execute-safe controls |
 | v3.15.15.22 | long-running runtime |
-| v3.15.15.23 | safe PR automerge |
+| v3.15.15.23 | safe PR automerge (HIGH unlocks behind formalized rules) |
 
 See the canonical roadmap at
 [`frontend_agent_control_layer_roadmap.md`](frontend_agent_control_layer_roadmap.md).
+
+## Sibling: GitHub PR Lifecycle (v3.15.15.17)
+
+`reporting.autonomous_workloop` (this module) is read-only and does
+not call GitHub. Its sibling `reporting.github_pr_lifecycle` is the
+GitHub-backed module that codifies the v3.15.15.17 Dependabot
+cleanup pilot. Use the autonomous workloop for local-state planning
+and the lifecycle module for any cycle that touches GitHub.
+
+* Architecture: [`github_pr_lifecycle_integration.md`](github_pr_lifecycle_integration.md)
+* Operator runbook: [`dependabot_cleanup_playbook.md`](dependabot_cleanup_playbook.md)
+* JSON schema: [`github_pr_lifecycle/schema.v1.md`](github_pr_lifecycle/schema.v1.md)
+
+Both modules share governance constants (frozen contracts, no-touch
+globs, live-trading globs) but do not import each other. JSON
+artifacts are independent and can be consumed side-by-side by a
+future dashboard.
