@@ -36,6 +36,9 @@ from dashboard.api_research_intelligence import (
 )
 from dashboard.api_observability import register_observability_routes
 from dashboard.api_system_meta import register_system_meta_routes
+from dashboard.api_agent_control import register_agent_control_routes
+from dashboard.api_proposal_queue import register_proposal_queue_routes
+from dashboard.api_approval_inbox import register_approval_inbox_routes
 from reporting import audit_log
 
 app = Flask(__name__, template_folder="templates")
@@ -75,6 +78,14 @@ register_system_meta_routes(app)
 # constants module) — verified by
 # tests/unit/test_dashboard_api_observability.py.
 register_observability_routes(app)
+
+# v3.15.15.21: explicitly approved governance-bootstrap wiring for the
+# mobile-first Agent Control PWA. These route modules are GET-only and
+# read-only; they expose existing status/proposal/inbox artifacts and
+# intentionally do not register execute/approve/mutation endpoints.
+register_agent_control_routes(app)
+register_proposal_queue_routes(app)
+register_approval_inbox_routes(app)
 
 
 @app.errorhandler(Exception)
@@ -337,6 +348,7 @@ def robots_txt():
 @app.route("/health")
 @app.route("/version")
 @app.route("/observability")
+@app.route("/agent-control")
 @requires_auth
 def spa_fallback_authed():
     return index()
