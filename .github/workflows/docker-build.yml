@@ -179,7 +179,19 @@ jobs:
     name: sbom
     needs: [build-grep-push]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
+      # GHCR images are private by default. syft pulls via the local Docker
+      # daemon and the OCI registry; both require auth. Authenticate before
+      # invoking the SBOM action so it can resolve the image.
+      - name: Log in to GHCR (read-only) so syft can pull the image
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: anchore/sbom-action@d94f46e13c6c62f59525ac9a1e147a99dc0b9bf5
         with:
           image: "ghcr.io/roudjy/trading-agent-agent:${{ needs.build-grep-push.outputs.version }}"
@@ -191,8 +203,18 @@ jobs:
     needs: [build-grep-push]
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      # Same auth requirement as sbom: trivy pulls a private GHCR image.
+      - name: Log in to GHCR (read-only) so trivy can pull the image
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Trivy scan
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
         with:
