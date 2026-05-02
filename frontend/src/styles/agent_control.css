@@ -1,0 +1,197 @@
+/*
+ * Mobile-first Agent Control PWA — v3.15.15.18.
+ *
+ * Phone-portrait is the primary viewport. Cards stack vertically.
+ * Touch targets are >= 44x44 px (Apple HIG / WCAG 2.5.5 minimum).
+ * Layout scales up at >= 720px to a two-column grid.
+ *
+ * Status colors are semantic: ok = teal, warn = amber, danger = red,
+ * not_available = gray.
+ */
+
+.agent-control {
+  /* Phone-first padding; use safe-area insets for the notch. */
+  padding: max(env(safe-area-inset-top, 0px), 12px) 12px
+    max(env(safe-area-inset-bottom, 0px), 12px) 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.agent-control__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px 4px;
+}
+
+.agent-control__header h1 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.agent-control__header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+/* Card grid — stacked on phone, two columns from 720px. */
+.agent-control__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .agent-control__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.agent-control-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Touch-friendly minimum height for primary cards. */
+  min-height: 96px;
+}
+
+.agent-control-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-control-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.agent-control-card__subtitle {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin: 0;
+}
+
+.agent-control-card__body {
+  font-size: 13px;
+  color: var(--fg);
+  word-break: break-word;
+}
+
+.agent-control-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.agent-control-card__row:first-child {
+  border-top: none;
+}
+
+.agent-control-card__row dt {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.agent-control-card__row dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  text-align: right;
+  word-break: break-all;
+  color: var(--fg);
+}
+
+.agent-control-card__empty {
+  font-size: 13px;
+  color: var(--fg-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 18px 0;
+}
+
+/* Status pill colors — semantic only. */
+.agent-control-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+
+.agent-control-pill--ok {
+  background: rgba(61, 220, 151, 0.14);
+  color: var(--ok);
+  border: 1px solid rgba(61, 220, 151, 0.4);
+}
+
+.agent-control-pill--warn {
+  background: rgba(255, 181, 69, 0.14);
+  color: var(--warn);
+  border: 1px solid rgba(255, 181, 69, 0.4);
+}
+
+.agent-control-pill--danger {
+  background: rgba(255, 91, 107, 0.14);
+  color: var(--danger);
+  border: 1px solid rgba(255, 91, 107, 0.4);
+}
+
+.agent-control-pill--unknown {
+  background: rgba(136, 147, 167, 0.14);
+  color: var(--fg-muted);
+  border: 1px solid rgba(136, 147, 167, 0.4);
+}
+
+.agent-control__refresh {
+  /* Touch target >= 44x44, large hit area on phone. */
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent-weak);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.agent-control__refresh:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.agent-control__footer {
+  margin-top: 4px;
+  padding: 12px 4px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.agent-control__footer code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--fg);
+}

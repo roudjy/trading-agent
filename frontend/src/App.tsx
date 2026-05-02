@@ -15,6 +15,7 @@ import { Presets } from "./routes/Presets";
 import { History } from "./routes/History";
 import { Reports } from "./routes/Reports";
 import { Candidates } from "./routes/Candidates";
+import { AgentControl } from "./routes/AgentControl";
 
 export function App() {
   return (
@@ -39,6 +40,7 @@ export function App() {
                   <Route path="/history" element={<History />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/candidates" element={<Candidates />} />
+                  <Route path="/agent-control" element={<AgentControl />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AppShell>
