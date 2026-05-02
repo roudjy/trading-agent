@@ -574,7 +574,13 @@ def test_all_sources_missing_yields_only_unknown_state_items() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_manual_route_wiring_items_default_on() -> None:
+def test_manual_route_wiring_items_default_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When ``dashboard.py`` is empty / does not yet contain the
+    ``register_*_routes`` calls, the inbox emits all three pending
+    items."""
+    monkeypatch.setattr(ai, "_dashboard_py_text", lambda: "")
     sources = {
         "proposal_queue": _proposal_envelope([]),
         "pr_lifecycle": _pr_envelope([]),
@@ -583,9 +589,64 @@ def test_manual_route_wiring_items_default_on() -> None:
     }
     snap = ai.collect_snapshot(mode="dry-run", sources_override=sources)
     cats = _categories(snap)
-    # Three known pending route modules per the v3.15.15.18/.19/.20
-    # release notes.
     assert cats.count("manual_route_wiring_required") == 3
+
+
+def test_manual_route_wiring_items_clear_when_dashboard_wires_them(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When ``dashboard.py`` actually contains the
+    ``register_*_routes(app)`` call AND the matching import, the
+    inbox emits NO ``manual_route_wiring_required`` item for that
+    module. Detection is a pure substring check on the file text."""
+    fake_dashboard = """
+# v3.15.15.21 — read-only Agent Control PWA wiring (operator approved).
+from dashboard.api_agent_control import register_agent_control_routes
+from dashboard.api_proposal_queue import register_proposal_queue_routes
+from dashboard.api_approval_inbox import register_approval_inbox_routes
+
+register_agent_control_routes(app)
+register_proposal_queue_routes(app)
+register_approval_inbox_routes(app)
+"""
+    monkeypatch.setattr(ai, "_dashboard_py_text", lambda: fake_dashboard)
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "governance_status": _empty_governance(),
+    }
+    snap = ai.collect_snapshot(mode="dry-run", sources_override=sources)
+    cats = _categories(snap)
+    assert "manual_route_wiring_required" not in cats
+
+
+def test_manual_route_wiring_partially_wired_yields_remainder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the module whose register call AND import are both
+    present is cleared; others remain in the inbox."""
+    fake_dashboard = """
+from dashboard.api_agent_control import register_agent_control_routes
+register_agent_control_routes(app)
+"""
+    monkeypatch.setattr(ai, "_dashboard_py_text", lambda: fake_dashboard)
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "governance_status": _empty_governance(),
+    }
+    snap = ai.collect_snapshot(mode="dry-run", sources_override=sources)
+    items = [
+        it for it in snap["items"] if it["category"] == "manual_route_wiring_required"
+    ]
+    # Two pending: api_proposal_queue, api_approval_inbox.
+    assert len(items) == 2
+    titles = " ".join(it["title"] for it in items)
+    assert "register_proposal_queue_routes" in titles
+    assert "register_approval_inbox_routes" in titles
+    assert "register_agent_control_routes" not in titles
 
 
 # ---------------------------------------------------------------------------

@@ -103,6 +103,30 @@ export interface AgentControlApprovalInbox {
   artifact_path: string;
 }
 
+export interface AgentControlExecuteSafe {
+  kind: "agent_control_execute_safe";
+  schema_version: number;
+  status: "ok" | "not_available";
+  reason?: string;
+  data?: {
+    report_kind: string;
+    git_clean: boolean;
+    git_dirty_count: number;
+    gh_provider?: { status?: string };
+    actions: Array<{
+      action_id: string;
+      action_type: string;
+      title: string;
+      summary: string;
+      risk_class: string;
+      eligibility: string;
+      blocked_reason: string | null;
+      [k: string]: unknown;
+    }>;
+    counts?: Record<string, unknown>;
+  };
+}
+
 const BASE = "/api/agent-control";
 
 async function getJson<T>(path: string): Promise<T> {
@@ -142,4 +166,6 @@ export const agentControlApi = {
   proposals: () => getJson<AgentControlProposals>(`${BASE}/proposals`),
   approvalInbox: () =>
     getJson<AgentControlApprovalInbox>(`${BASE}/approval-inbox`),
+  executeSafe: () =>
+    getJson<AgentControlExecuteSafe>(`${BASE}/execute-safe`),
 };

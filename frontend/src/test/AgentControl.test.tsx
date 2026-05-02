@@ -136,6 +136,45 @@ const okInboxEmptyBody = {
   artifact_path: "logs/approval_inbox/latest.json",
 };
 
+const okExecuteSafeBody = {
+  kind: "agent_control_execute_safe",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    schema_version: 1,
+    report_kind: "execute_safe_controls_catalog",
+    module_version: "v3.15.15.21",
+    git_clean: true,
+    git_dirty_count: 0,
+    gh_provider: { status: "available" },
+    actions: [
+      {
+        action_id: "a_aaaaaaaa",
+        action_type: "refresh_proposal_queue_dry_run",
+        title: "Refresh proposal queue",
+        summary: "...",
+        risk_class: "LOW",
+        eligibility: "eligible",
+        blocked_reason: null,
+      },
+      {
+        action_id: "a_bbbbbbbb",
+        action_type: "run_dependabot_execute_safe_low_medium",
+        title: "Dependabot execute-safe",
+        summary: "...",
+        risk_class: "MEDIUM",
+        eligibility: "eligible",
+        blocked_reason: null,
+      },
+    ],
+    counts: {
+      total: 2,
+      by_eligibility: { eligible: 2 },
+      by_risk_class: { LOW: 1, MEDIUM: 1 },
+    },
+  },
+};
+
 const okInboxBody = {
   kind: "agent_control_approval_inbox",
   schema_version: 1,
@@ -202,6 +241,77 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("AgentControl — execute-safe card", () => {
+  it("renders the catalog and never adds a button", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("execute-safe-cli-only")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("execute-safe-cli-only")).toHaveTextContent(
+      /CLI-only/,
+    );
+    // Card surfaces both action types.
+    expect(
+      screen.getAllByText(/refresh_proposal_queue_dry_run/i),
+    ).not.toHaveLength(0);
+    expect(
+      screen.getAllByText(/run_dependabot_execute_safe_low_medium/i),
+    ).not.toHaveLength(0);
+    // Still exactly one button on the page (the refresh).
+    expect(screen.queryAllByRole("button")).toHaveLength(1);
+  });
+
+  it("renders not_available when the execute-safe endpoint 404s", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("execute-safe-not-available"),
+      ).toBeInTheDocument();
+    });
+  });
+});
+
 describe("AgentControl — approval inbox card", () => {
   it("renders an empty-state when the inbox is empty", async () => {
     installFetchMock(
@@ -215,6 +325,7 @@ describe("AgentControl — approval inbox card", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
@@ -271,6 +382,7 @@ describe("AgentControl — approval inbox card", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
@@ -309,6 +421,7 @@ describe("AgentControl — proposals card", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
@@ -364,6 +477,7 @@ describe("AgentControl — proposals card", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
@@ -397,6 +511,7 @@ describe("AgentControl — happy path", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({ status: "not_available" }, 404),
     );
@@ -435,6 +550,7 @@ describe("AgentControl — happy path", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
@@ -506,6 +622,7 @@ describe("AgentControl — UI affordances", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
@@ -542,6 +659,7 @@ describe("AgentControl — UI affordances", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
@@ -600,6 +718,7 @@ describe("AgentControl — UI affordances", () => {
           jsonResp(placeholderNotificationsBody),
         "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
         "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
       },
       () => jsonResp({}, 404),
     );
