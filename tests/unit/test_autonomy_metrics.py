@@ -255,8 +255,10 @@ def _write_all_ok(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_module_version_is_v3_15_15_25() -> None:
-    assert am.MODULE_VERSION == "v3.15.15.25"
+def test_module_version_is_at_least_v3_15_15_25() -> None:
+    """Stays >= v3.15.15.25 (initial release). v3.15.15.27 added
+    stale-artifact detection on top of the same metrics_version."""
+    assert am.MODULE_VERSION >= "v3.15.15.25"
 
 
 def test_metrics_version_is_v1() -> None:
@@ -715,3 +717,116 @@ def test_collect_does_not_mutate_frozen_contract_paths(isolated_dirs) -> None:
     paths = am.write_outputs(snap)
     for label, rel in paths.items():
         assert rel.startswith("logs/autonomy_metrics/"), f"{label} -> {rel}"
+
+
+# ---------------------------------------------------------------------------
+# v3.15.15.27 — stale-artifact detection
+# ---------------------------------------------------------------------------
+
+
+def test_stale_threshold_default_is_24_hours() -> None:
+    assert am.STALE_THRESHOLD_SECONDS_DEFAULT == 24 * 3600
+
+
+def test_fresh_artifact_is_not_stale(isolated_dirs) -> None:
+    """An ok-parsing artifact whose generated_at_utc is the same
+    as the digest's frozen_utc has age 0 and is not stale."""
+    _write_all_ok(isolated_dirs)
+    snap = am.collect_snapshot(frozen_utc="2026-05-03T07:00:00Z")
+    rt_row = next(r for r in snap["source_statuses"] if r["source"] == "workloop_runtime")
+    assert rt_row["state"] == "ok"
+    assert rt_row["age_seconds"] == 0
+    assert rt_row["is_stale"] is False
+    assert snap["reliability"]["stale_artifact_count"] == 0
+
+
+def test_old_artifact_is_classified_stale_and_counted(isolated_dirs) -> None:
+    """An ok-parsing artifact whose generated_at_utc is older than
+    the threshold is annotated is_stale=True and bumps
+    reliability.stale_artifact_count."""
+    _write_all_ok(isolated_dirs)
+    # The fixture writes generated_at_utc=2026-05-03T07:00:00Z;
+    # pin frozen_utc to 25 hours later -> age 90000s > default 86400s.
+    snap = am.collect_snapshot(frozen_utc="2026-05-04T08:00:00Z")
+    rt_row = next(r for r in snap["source_statuses"] if r["source"] == "workloop_runtime")
+    assert rt_row["state"] == "ok"
+    assert rt_row["age_seconds"] >= 24 * 3600
+    assert rt_row["is_stale"] is True
+    assert snap["reliability"]["stale_artifact_count"] >= 1
+
+
+def test_stale_threshold_seconds_override_via_argument(isolated_dirs) -> None:
+    """Operator override: a tighter threshold makes any artifact
+    older than ~5 minutes stale."""
+    _write_all_ok(isolated_dirs)
+    # Fixture generated_at_utc=2026-05-03T07:00:00Z; frozen at +10
+    # minutes; 5-minute threshold => stale.
+    snap = am.collect_snapshot(
+        frozen_utc="2026-05-03T07:10:00Z",
+        stale_threshold_seconds=300,
+    )
+    rt_row = next(r for r in snap["source_statuses"] if r["source"] == "workloop_runtime")
+    assert rt_row["age_seconds"] == 10 * 60
+    assert rt_row["is_stale"] is True
+    assert snap["reliability"]["stale_artifact_count"] >= 1
+
+
+def test_missing_generated_at_does_not_assert_staleness(isolated_dirs) -> None:
+    """An artifact that parses but lacks ``generated_at_utc`` reports
+    age_seconds=None and is_stale=False — we never invent a clock."""
+    rt = _ok_workloop_runtime()
+    rt.pop("generated_at_utc", None)
+    _write(isolated_dirs / "logs" / "workloop_runtime" / "latest.json", rt)
+    snap = am.collect_snapshot(frozen_utc="2026-05-03T08:00:00Z")
+    rt_row = next(r for r in snap["source_statuses"] if r["source"] == "workloop_runtime")
+    assert rt_row["state"] == "ok"
+    assert rt_row["age_seconds"] is None
+    assert rt_row["is_stale"] is False
+
+
+def test_missing_artifact_is_not_classified_stale(isolated_dirs) -> None:
+    """Missing artifacts are counted as missing (not stale) — the
+    distinction matters because missing means "collector didn't
+    run", stale means "collector ran but its output is too old"."""
+    snap = am.collect_snapshot(frozen_utc="2026-05-03T08:00:00Z")
+    # Every source is missing -> no stale entries.
+    for row in snap["source_statuses"]:
+        assert row["state"] == "missing"
+        # Missing rows do not carry age_seconds / is_stale.
+        assert "age_seconds" not in row or row.get("age_seconds") is None
+    assert snap["reliability"]["stale_artifact_count"] == 0
+
+
+def test_env_var_threshold_is_honoured(isolated_dirs, monkeypatch) -> None:
+    """``AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS`` env var overrides
+    the default when set to a positive integer."""
+    monkeypatch.setenv("AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS", "60")
+    _write_all_ok(isolated_dirs)
+    snap = am.collect_snapshot(frozen_utc="2026-05-03T07:05:00Z")
+    rt_row = next(r for r in snap["source_statuses"] if r["source"] == "workloop_runtime")
+    assert rt_row["age_seconds"] == 5 * 60
+    assert rt_row["is_stale"] is True
+
+
+def test_env_var_invalid_falls_back_to_default(monkeypatch) -> None:
+    monkeypatch.setenv("AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS", "not-a-number")
+    assert am._stale_threshold_from_env() == am.STALE_THRESHOLD_SECONDS_DEFAULT
+    monkeypatch.setenv("AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS", "-1")
+    assert am._stale_threshold_from_env() == am.STALE_THRESHOLD_SECONDS_DEFAULT
+    monkeypatch.setenv("AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS", "0")
+    assert am._stale_threshold_from_env() == am.STALE_THRESHOLD_SECONDS_DEFAULT
+
+
+def test_cli_collect_with_stale_threshold_flag(isolated_dirs) -> None:
+    _write_all_ok(isolated_dirs)
+    rc = am.main(
+        [
+            "--collect",
+            "--no-write",
+            "--frozen-utc",
+            "2026-05-03T07:10:00Z",
+            "--stale-threshold-seconds",
+            "300",
+        ]
+    )
+    assert rc == 0
