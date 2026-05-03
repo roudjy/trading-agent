@@ -283,17 +283,22 @@ def test_payload_with_credential_string_is_refused(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """If a future regression slips a credential-shaped string into a
+    """If a future regression slips a credential-shaped VALUE into a
     surfaced artifact, ``assert_no_secrets`` should raise inside
     ``_safe_jsonify`` — the surface refuses to leak rather than
-    soften the rule."""
+    soften the rule.
+
+    v3.15.15.25.1: switched from the path-shaped string
+    ``config/config.yaml`` (which is now a legitimate path
+    reference) to an Anthropic-key-shaped credential value. Path
+    references are no longer rejected; only credential VALUES are.
+    """
     p = tmp_path / "logs" / "github_pr_lifecycle" / "latest.json"
     p.parent.mkdir(parents=True, exist_ok=True)
-    # Include a sensitive-path fragment in a string field.
     payload = {
         "schema_version": 1,
         "report_kind": "github_pr_lifecycle_digest",
-        "evil_field": "config/config.yaml",
+        "evil_field": "sk-ant-AAAAAAAA1234",
     }
     p.write_text(json.dumps(payload), encoding="utf-8")
     monkeypatch.setattr(ac, "PR_LIFECYCLE_LATEST", p)

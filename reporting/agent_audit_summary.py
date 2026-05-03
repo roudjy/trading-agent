@@ -342,7 +342,18 @@ def _walk_strings(obj: Any) -> Iterator[str]:
             yield from _walk_strings(v)
 
 
-_SENSITIVE_FRAGMENTS: tuple[str, ...] = (
+# v3.15.15.25.1 — these path strings are NO-TOUCH paths whose
+# CONTENTS must never be surfaced, but whose names are legitimate
+# evidence in inbox / proposal-queue / governance metadata. The
+# guard intentionally does NOT trip on substring matches against
+# these fragments — that produced a false positive on every
+# proposal that listed ``config/config.yaml`` as an
+# ``affected_files`` entry, halting the autonomous workloop.
+#
+# This list is preserved for documentation only — downstream
+# modules import it as ``KNOWN_NO_TOUCH_PATH_REFERENCES`` to
+# explicitly mark "this path mention is expected".
+KNOWN_NO_TOUCH_PATH_REFERENCES: tuple[str, ...] = (
     "config/config.yaml",
     "live_gate.secret",
     "fred.secret",
@@ -352,19 +363,37 @@ _SENSITIVE_FRAGMENTS: tuple[str, ...] = (
 
 
 def assert_no_secrets(snapshot: dict[str, Any]) -> None:
-    """Raise ``AssertionError`` if any string in the snapshot matches a
-    forbidden credential pattern or sensitive-path fragment."""
+    """Raise ``AssertionError`` if any string in the snapshot looks
+    like a credential VALUE.
+
+    Credential values match one of the narrow regex patterns in
+    ``_FORBIDDEN_PATTERNS`` (Anthropic ``sk-ant-`` keys, GitHub
+    ``ghp_`` / ``github_pat_`` tokens, AWS ``AKIA`` keys, PEM
+    private-key blocks). These never have a legitimate reason to
+    appear in any reporting projection — the writer redacts them and
+    this guard is the defense-in-depth safety net.
+
+    Path-shaped strings (e.g. ``config/config.yaml``,
+    ``automation/live_gate.py``, ``research/research_latest.json``)
+    are explicitly ALLOWED. The autonomous-development surface
+    legitimately surfaces these names as ``affected_files`` /
+    ``forbidden_actions`` / ``protected_paths_touched`` evidence;
+    the operator needs to see *what* the proposal touches in order
+    to decide.
+
+    The previous broader substring check on ``config/config.yaml``
+    et al. produced false positives on every legitimate proposal
+    that referenced a no-touch path, which halted the approval
+    inbox runtime in v3.15.15.25 (see release notes).
+
+    Mirror of the v3.15.15.22 narrowing in
+    ``reporting.workloop_runtime._assert_no_credential_values``.
+    """
     for s in _walk_strings(snapshot):
         for pat in _FORBIDDEN_PATTERNS:
             if pat.search(s):
                 raise AssertionError(
                     f"agent_audit_summary leaked credential-like string: pattern={pat.pattern!r}"
-                )
-        lowered = s.lower()
-        for frag in _SENSITIVE_FRAGMENTS:
-            if frag in lowered:
-                raise AssertionError(
-                    f"agent_audit_summary leaked sensitive path fragment: {frag!r}"
                 )
 
 

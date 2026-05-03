@@ -1120,3 +1120,143 @@ def test_no_subprocess_or_gh_or_git_in_module() -> None:
     forbidden = ('"gh"', "'gh'", '"git"', "'git'", "Popen")
     for token in forbidden:
         assert token not in src, f"forbidden token in approval_inbox.py: {token!r}"
+
+
+# ---------------------------------------------------------------------------
+# v3.15.15.25.1 — redaction false-positive regression
+# ---------------------------------------------------------------------------
+
+
+def test_proposal_with_no_touch_path_in_affected_files_is_not_blocked_by_secret_guard(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Regression for v3.15.15.25 -> v3.15.15.25.1.
+
+    The approval_inbox builds a snap that legitimately surfaces the
+    no-touch path ``config/config.yaml`` as ``affected_files`` /
+    proposal evidence. The pre-fix ``assert_no_secrets`` rejected
+    this with ``AssertionError: agent_audit_summary leaked sensitive
+    path fragment: 'config/config.yaml'``, halting the autonomous
+    workloop. The fix narrows the guard to credential VALUES only;
+    path-shaped strings flow through.
+    """
+    # Build a minimal proposal_queue digest containing the no-touch
+    # path as legitimate evidence — this is the exact shape that
+    # tripped the original failure.
+    pq_path = tmp_path / "logs" / "proposal_queue" / "latest.json"
+    pq_path.parent.mkdir(parents=True, exist_ok=True)
+    pq_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "report_kind": "proposal_queue_digest",
+                "proposals": [
+                    _proposal(
+                        proposal_id="p_path_evidence",
+                        title="No-touch path mention",
+                        summary="Touches a protected path",
+                        proposal_type="governance_change",
+                        risk_class="HIGH",
+                        status="needs_human",
+                        affected_files=["config/config.yaml", "SECURITY.md"],
+                    )
+                ],
+                "counts": {
+                    "total": 1,
+                    "by_status": {"needs_human": 1},
+                    "by_risk": {"HIGH": 1},
+                    "by_type": {"governance_change": 1},
+                },
+                "final_recommendation": "needs_human_on_1_items",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(ai, "SOURCE_PROPOSAL_QUEUE", pq_path)
+    # Redirect the other sources to non-existent paths so the test
+    # is hermetic.
+    monkeypatch.setattr(
+        ai, "SOURCE_PR_LIFECYCLE", tmp_path / "_missing_pr_lifecycle.json"
+    )
+    monkeypatch.setattr(
+        ai, "SOURCE_WORKLOOP", tmp_path / "_missing_workloop.json"
+    )
+    monkeypatch.setattr(
+        ai,
+        "SOURCE_WORKLOOP_RUNTIME",
+        tmp_path / "_missing_workloop_runtime.json",
+    )
+    monkeypatch.setattr(
+        ai,
+        "SOURCE_RECURRING_MAINTENANCE",
+        tmp_path / "_missing_recurring_maintenance.json",
+    )
+
+    # Must not raise: the path-shaped string is legitimate evidence.
+    snap = ai.collect_snapshot(mode="dry-run")
+    assert snap["report_kind"] == "approval_inbox_digest"
+    flat = json.dumps(snap)
+    assert "config/config.yaml" in flat, (
+        "the path-evidence string must survive the secret guard"
+    )
+    # Sanity check: the digest identifies the proposal as a
+    # protected_path_change (its path matches PROTECTED_GLOBS).
+    items = snap.get("items") or []
+    assert any(
+        i.get("category") == "protected_path_change" for i in items
+    ), items
+
+
+def test_credential_value_in_proposal_still_blocked(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The narrowed guard must still block actual credential VALUES."""
+    pq_path = tmp_path / "logs" / "proposal_queue" / "latest.json"
+    pq_path.parent.mkdir(parents=True, exist_ok=True)
+    pq_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "report_kind": "proposal_queue_digest",
+                "proposals": [
+                    _proposal(
+                        proposal_id="p_leak",
+                        title="Leaky proposal",
+                        summary="contains a leaked sk-ant-AAAAAAAA12345 fragment",
+                        proposal_type="approval_required",
+                        risk_class="HIGH",
+                        status="needs_human",
+                        affected_files=[],
+                    )
+                ],
+                "counts": {
+                    "total": 1,
+                    "by_status": {"needs_human": 1},
+                    "by_risk": {"HIGH": 1},
+                    "by_type": {"approval_required": 1},
+                },
+                "final_recommendation": "needs_human_on_1_items",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ai, "SOURCE_PROPOSAL_QUEUE", pq_path)
+    monkeypatch.setattr(
+        ai, "SOURCE_PR_LIFECYCLE", tmp_path / "_missing_pr_lifecycle.json"
+    )
+    monkeypatch.setattr(
+        ai, "SOURCE_WORKLOOP", tmp_path / "_missing_workloop.json"
+    )
+    monkeypatch.setattr(
+        ai,
+        "SOURCE_WORKLOOP_RUNTIME",
+        tmp_path / "_missing_workloop_runtime.json",
+    )
+    monkeypatch.setattr(
+        ai,
+        "SOURCE_RECURRING_MAINTENANCE",
+        tmp_path / "_missing_recurring_maintenance.json",
+    )
+    with pytest.raises(AssertionError, match="credential-like"):
+        ai.collect_snapshot(mode="dry-run")

@@ -343,9 +343,26 @@ def test_assert_no_secrets_catches_credential_pattern() -> None:
         governance_status.assert_no_secrets(leaky)
 
 
-def test_assert_no_secrets_catches_sensitive_path_fragment() -> None:
-    leaky = {"path": "config/config.yaml"}
-    with pytest.raises(AssertionError, match="sensitive path"):
+def test_assert_no_secrets_allows_no_touch_path_references() -> None:
+    """v3.15.15.25.1: path-shaped strings are legitimate metadata.
+    The previous broader substring check produced false positives
+    that halted the autonomous workloop."""
+    for path_ref in governance_status.KNOWN_NO_TOUCH_PATH_REFERENCES:
+        governance_status.assert_no_secrets({"path": path_ref})  # must not raise
+    governance_status.assert_no_secrets(
+        {"summary": "edits to config/config.yaml are forbidden"}
+    )
+
+
+def test_assert_no_secrets_still_catches_aws_key() -> None:
+    leaky = {"x": "AKIAEXAMPLE12345"}
+    with pytest.raises(AssertionError, match="credential-like"):
+        governance_status.assert_no_secrets(leaky)
+
+
+def test_assert_no_secrets_still_catches_pem_block() -> None:
+    leaky = {"x": "-----BEGIN PRIVATE KEY-----"}
+    with pytest.raises(AssertionError, match="credential-like"):
         governance_status.assert_no_secrets(leaky)
 
 
