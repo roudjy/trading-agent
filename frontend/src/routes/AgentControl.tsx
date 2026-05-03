@@ -147,6 +147,31 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
           policyData?.execute_safe_requires_two_layer_opt_in === true
         ? "ok"
         : "warn";
+
+  const metrics = payload.autonomy_metrics;
+  const metricsStatus = metrics?.status ?? "not_available";
+  const metricsData =
+    metrics?.status === "ok" ? metrics.data : undefined;
+  const metricsRecommendation = String(
+    metricsData?.final_recommendation ?? "n/a",
+  );
+  const metricsPill: "ok" | "warn" | "danger" | "unknown" =
+    metricsStatus !== "ok"
+      ? "unknown"
+      : metricsRecommendation === "unsafe_state_detected"
+        ? "danger"
+        : metricsRecommendation === "healthy"
+          ? "ok"
+          : metricsRecommendation === "action_required"
+            ? "warn"
+            : metricsRecommendation.startsWith("degraded")
+              ? "warn"
+              : metricsRecommendation === "not_available"
+                ? "unknown"
+                : "unknown";
+  const operatorActions = String(
+    metricsData?.operator_burden_summary?.estimated_operator_actions_total ?? 0,
+  );
   return (
     <Card title="Status" subtitle="governance + frozen + runtime">
       <div className="agent-control-card__row">
@@ -211,6 +236,33 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
           <dt>policy version</dt>
           <dd>{policyVersion}</dd>
         </div>
+      ) : null}
+      <div
+        className="agent-control-card__row"
+        data-testid="status-metrics-row"
+      >
+        <dt>autonomy metrics</dt>
+        <dd>
+          <StatusPill state={metricsPill} />
+        </dd>
+      </div>
+      {metricsStatus === "ok" && metricsData ? (
+        <>
+          <div
+            className="agent-control-card__row"
+            data-testid="status-metrics-recommendation"
+          >
+            <dt>metrics rec.</dt>
+            <dd>{metricsRecommendation}</dd>
+          </div>
+          <div
+            className="agent-control-card__row"
+            data-testid="status-metrics-operator-actions"
+          >
+            <dt>operator actions</dt>
+            <dd>{operatorActions}</dd>
+          </div>
+        </>
       ) : null}
       {Object.keys(fh).length === 0 ? (
         <p

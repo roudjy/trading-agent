@@ -184,7 +184,82 @@ def _status_payload() -> dict[str, Any]:
         "workloop_runtime": _workloop_runtime_summary(),
         "recurring_maintenance": _recurring_maintenance_summary(),
         "approval_policy": _approval_policy_summary(),
+        "autonomy_metrics": _autonomy_metrics_summary(),
     }
+
+
+def _autonomy_metrics_summary() -> dict[str, Any]:
+    """Project the v3.15.15.25 autonomy metrics digest into a
+    compact, read-only summary for the Status card. Returns
+    ``not_available`` on a missing / malformed artifact — never
+    raises.
+
+    The summary surfaces top-level totals + final_recommendation +
+    safety summary. The full artifact is at
+    ``logs/autonomy_metrics/latest.json``.
+    """
+    try:
+        from reporting.autonomy_metrics import read_latest_snapshot
+
+        snap = read_latest_snapshot()
+        if snap is None:
+            return {"status": "not_available", "reason": "missing"}
+        throughput = snap.get("throughput") or {}
+        burden = snap.get("operator_burden") or {}
+        reliability = snap.get("reliability") or {}
+        safety = snap.get("safety") or {}
+        return {
+            "status": "ok",
+            "data": {
+                "module_version": snap.get("module_version"),
+                "metrics_version": snap.get("metrics_version"),
+                "generated_at_utc": snap.get("generated_at_utc"),
+                "final_recommendation": snap.get("final_recommendation"),
+                "safe_to_execute": snap.get("safe_to_execute", False),
+                "throughput_summary": {
+                    "proposals_total": throughput.get("proposals_total", 0),
+                    "inbox_items_total": throughput.get("inbox_items_total", 0),
+                    "pr_lifecycle_prs_seen": throughput.get(
+                        "pr_lifecycle_prs_seen", 0
+                    ),
+                    "recurring_jobs_total": throughput.get(
+                        "recurring_jobs_total", 0
+                    ),
+                    "runtime_sources_total": throughput.get(
+                        "runtime_sources_total", 0
+                    ),
+                },
+                "operator_burden_summary": {
+                    "needs_human_total": burden.get("needs_human_total", 0),
+                    "blocked_total": burden.get("blocked_total", 0),
+                    "estimated_operator_actions_total": burden.get(
+                        "estimated_operator_actions_total", 0
+                    ),
+                },
+                "reliability_summary": {
+                    "runtime_consecutive_failures": reliability.get(
+                        "runtime_consecutive_failures", 0
+                    ),
+                    "missing_artifact_count": reliability.get(
+                        "missing_artifact_count", 0
+                    ),
+                    "malformed_artifact_count": reliability.get(
+                        "malformed_artifact_count", 0
+                    ),
+                },
+                "safety_summary": {
+                    "high_or_unknown_executable_count": safety.get(
+                        "high_or_unknown_executable_count", 0
+                    ),
+                    "summary": safety.get("summary", "unknown"),
+                },
+            },
+        }
+    except Exception as e:  # noqa: BLE001
+        return {
+            "status": "not_available",
+            "reason": f"autonomy_metrics_error: {type(e).__name__}",
+        }
 
 
 def _approval_policy_summary() -> dict[str, Any]:

@@ -227,6 +227,27 @@ def test_status_payload_includes_approval_policy_block(client) -> None:
         assert "reason" in ap_block
 
 
+def test_status_payload_includes_autonomy_metrics_block(client) -> None:
+    """v3.15.15.25: status payload now also carries a read-only
+    autonomy_metrics summary. The block must not be silently OK on
+    error — it either reports ``ok`` with a populated ``data`` dict
+    or ``not_available`` with a reason."""
+    body = client.get("/api/agent-control/status").get_json()
+    assert "autonomy_metrics" in body
+    am_block = body["autonomy_metrics"]
+    assert am_block["status"] in ("ok", "not_available")
+    if am_block["status"] == "ok":
+        data = am_block["data"]
+        assert data["safe_to_execute"] is False
+        assert "final_recommendation" in data
+        assert "throughput_summary" in data
+        assert "operator_burden_summary" in data
+        assert "reliability_summary" in data
+        assert "safety_summary" in data
+    else:
+        assert "reason" in am_block
+
+
 def test_status_payload_includes_workloop_runtime_block(client) -> None:
     """v3.15.15.22: status payload now carries a workloop_runtime
     summary. When the artifact is missing the block reports
