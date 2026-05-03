@@ -55,6 +55,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from reporting import approval_policy as _approval_policy
+
 # Credential-value patterns checked at the OUTER snapshot boundary.
 # We deliberately do not check sensitive-path fragments at the outer
 # layer — the snapshot legitimately includes path-shaped strings
@@ -601,6 +603,11 @@ def collect_snapshot(
         "sources": list(results),
         "counts": {"by_state": counts, "total": len(results)},
         "final_recommendation": _final_recommendation(counts, health),
+        "policy": {
+            "module_version": _approval_policy.MODULE_VERSION,
+            "schema_version": _approval_policy.SCHEMA_VERSION,
+            "high_or_unknown_is_executable": False,
+        },
     }
     # Outer defense-in-depth credential-value guard. The strict
     # path-fragment check already ran per source via _supervise; this

@@ -61,6 +61,7 @@ from pathlib import Path
 from typing import Any
 
 from reporting.agent_audit_summary import assert_no_secrets
+from reporting import approval_policy as _ap
 
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 MODULE_VERSION: str = "v3.15.15.20"
@@ -83,27 +84,11 @@ SOURCE_RECURRING_MAINTENANCE: Path = (
     REPO_ROOT / "logs" / "recurring_maintenance" / "latest.json"
 )
 
-# Canonical inbox categories (18 per the v3.15.15.20 brief).
-CATEGORIES: tuple[str, ...] = (
-    "roadmap_adoption_required",
-    "high_risk_pr",
-    "protected_path_change",
-    "governance_change",
-    "tooling_requires_approval",
-    "external_account_or_secret_required",
-    "telemetry_or_data_egress_required",
-    "paid_tool_required",
-    "frozen_contract_risk",
-    "live_paper_shadow_risk_change",
-    "ci_or_test_weakening_risk",
-    "unknown_state",
-    "failed_automation",
-    "blocked_rebase",
-    "blocked_checks",
-    "runtime_halt",
-    "security_alert",
-    "manual_route_wiring_required",
-)
+# Canonical inbox categories — v3.15.15.24: imported from the
+# shared approval policy so the inbox cannot drift from the
+# canonical set. Must remain a ``tuple[str, ...]`` for
+# backwards-compatibility with ``test_approval_inbox.py``.
+CATEGORIES: tuple[str, ...] = tuple(_ap.APPROVAL_CATEGORIES)
 
 # Severity scale.
 SEVERITIES: tuple[str, ...] = ("info", "low", "medium", "high", "critical")

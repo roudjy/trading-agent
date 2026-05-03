@@ -183,7 +183,49 @@ def _status_payload() -> dict[str, Any]:
         "frozen_hashes": _frozen_hashes_payload(),
         "workloop_runtime": _workloop_runtime_summary(),
         "recurring_maintenance": _recurring_maintenance_summary(),
+        "approval_policy": _approval_policy_summary(),
     }
+
+
+def _approval_policy_summary() -> dict[str, Any]:
+    """Project the v3.15.15.24 high-risk approval policy into a
+    compact, read-only summary for the Status card. Returns
+    ``not_available`` on any import / runtime error — never raises.
+
+    The summary surfaces only static facts about the policy
+    (module version, decision count, executable invariants); it does
+    not call ``decide()`` so there is no per-row evaluation cost on
+    the status surface.
+    """
+    try:
+        from reporting.approval_policy import policy_summary
+
+        s = policy_summary()
+        return {
+            "status": "ok",
+            "data": {
+                "module_version": s.get("module_version"),
+                "schema_version": s.get("schema_version"),
+                "decision_count": len(s.get("decisions") or []),
+                "approval_category_count": len(
+                    s.get("approval_categories") or []
+                ),
+                "high_or_unknown_is_executable": s.get(
+                    "high_or_unknown_is_executable", False
+                ),
+                "execute_safe_requires_dependabot_low_or_medium": s.get(
+                    "execute_safe_requires_dependabot_low_or_medium", True
+                ),
+                "execute_safe_requires_two_layer_opt_in": s.get(
+                    "execute_safe_requires_two_layer_opt_in", True
+                ),
+            },
+        }
+    except Exception as e:  # noqa: BLE001
+        return {
+            "status": "not_available",
+            "reason": f"approval_policy_error: {type(e).__name__}",
+        }
 
 
 def _recurring_maintenance_summary() -> dict[str, Any]:

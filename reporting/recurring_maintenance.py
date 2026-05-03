@@ -55,6 +55,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from reporting import approval_policy as _approval_policy
+
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 MODULE_VERSION: str = "v3.15.15.23"
 SCHEMA_VERSION: int = 1
@@ -623,6 +625,12 @@ def collect_snapshot(
         "actions_taken": list(actions_taken or []),
         "counts": {"by_status": counts, "total": len(job_rows)},
         "final_recommendation": _final_recommendation(job_rows),
+        "policy": {
+            "module_version": _approval_policy.MODULE_VERSION,
+            "schema_version": _approval_policy.SCHEMA_VERSION,
+            "high_or_unknown_is_executable": False,
+            "execute_safe_requires_two_layer_opt_in": True,
+        },
     }
     _assert_no_credential_values(snap)
     return snap

@@ -68,6 +68,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from reporting import approval_policy as _approval_policy
+
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 MODULE_VERSION: str = "v3.15.15.19"
 SCHEMA_VERSION: int = 1
@@ -842,6 +844,11 @@ def collect_snapshot(
             "missing_sources": [],
             "proposals": [],
             "final_recommendation": "needs_human",
+            "policy": {
+                "module_version": _approval_policy.MODULE_VERSION,
+                "schema_version": _approval_policy.SCHEMA_VERSION,
+                "high_or_unknown_is_executable": False,
+            },
         }
 
     if proposals_override is not None:
@@ -865,6 +872,11 @@ def collect_snapshot(
         "proposals": proposals,
         "counts": counts,
         "final_recommendation": _final_recommendation(counts, proposals),
+        "policy": {
+            "module_version": _approval_policy.MODULE_VERSION,
+            "schema_version": _approval_policy.SCHEMA_VERSION,
+            "high_or_unknown_is_executable": False,
+        },
     }
 
 

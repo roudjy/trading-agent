@@ -70,6 +70,18 @@ const okStatusBody = {
       jobs: [],
     },
   },
+  approval_policy: {
+    status: "ok",
+    data: {
+      module_version: "v3.15.15.24",
+      schema_version: 1,
+      decision_count: 14,
+      approval_category_count: 18,
+      high_or_unknown_is_executable: false,
+      execute_safe_requires_dependabot_low_or_medium: true,
+      execute_safe_requires_two_layer_opt_in: true,
+    },
+  },
 };
 
 const okActivityBody = {
@@ -432,6 +444,44 @@ describe("AgentControl polish — Status card maintenance row (v3.15.15.23)", ()
     expect(row).toBeInTheDocument();
     expect(
       screen.queryByTestId("status-maintenance-recommendation"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("AgentControl polish — Status card approval-policy row (v3.15.15.24)", () => {
+  it("renders the approval_policy row when the status payload provides it", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-policy-row");
+    expect(row).toBeInTheDocument();
+    const ver = await screen.findByTestId("status-policy-version");
+    expect(ver).toHaveTextContent("v3.15.15.24");
+  });
+
+  it("renders policy row as unknown when status payload omits approval_policy", async () => {
+    const statusBodyNoPolicy = {
+      kind: "agent_control_status",
+      schema_version: 1,
+      governance_status: { status: "ok", data: {} },
+      frozen_hashes: okFrozenHashes,
+    };
+    installFetchMock({
+      ..._allOk(),
+      "/api/agent-control/status": () => jsonResp(statusBodyNoPolicy),
+    });
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-policy-row");
+    expect(row).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("status-policy-version"),
     ).not.toBeInTheDocument();
   });
 });

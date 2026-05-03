@@ -60,6 +60,19 @@ export interface AgentControlStatus {
       }>;
     };
   };
+  approval_policy?: {
+    status: "ok" | "not_available";
+    reason?: string;
+    data?: {
+      module_version?: string;
+      schema_version?: number;
+      decision_count?: number;
+      approval_category_count?: number;
+      high_or_unknown_is_executable?: boolean;
+      execute_safe_requires_dependabot_low_or_medium?: boolean;
+      execute_safe_requires_two_layer_opt_in?: boolean;
+    };
+  };
 }
 
 export interface AgentControlActivity {
