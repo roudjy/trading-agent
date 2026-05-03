@@ -1,7 +1,8 @@
 # Autonomy metrics — operator runbook
 
 Module: `reporting.autonomy_metrics`
-Version: v3.15.15.25
+Version: v3.15.15.27 (introduced in v3.15.15.25; stale-artifact
+detection added in v3.15.15.27)
 Schema: `docs/governance/autonomy_metrics/schema.v1.md`
 
 ## TL;DR

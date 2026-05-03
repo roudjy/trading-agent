@@ -118,6 +118,27 @@ last_success_at_utc: str | null
 last_failure_at_utc: str | null
 ```
 
+### Stale-artifact detection (v3.15.15.27)
+
+Each `source_statuses` row whose `state == "ok"` carries:
+
+* `age_seconds: int | null` — the difference between the digest's
+  `generated_at_utc` and the source artifact's
+  `generated_at_utc`. `null` when the source artifact has no
+  `generated_at_utc` field.
+* `is_stale: bool` — true when `age_seconds` exceeds the
+  staleness threshold.
+
+Staleness threshold:
+
+* default `STALE_THRESHOLD_SECONDS_DEFAULT = 86400` (24 hours);
+* env var override:
+  `AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS=<positive int>`;
+* CLI override:
+  `--stale-threshold-seconds <positive int>`.
+
+A stale row bumps `reliability.stale_artifact_count` by 1.
+
 ## safety
 
 ```

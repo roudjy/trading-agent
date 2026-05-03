@@ -59,11 +59,20 @@ from typing import Any
 from reporting import approval_policy as _approval_policy
 
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
-MODULE_VERSION: str = "v3.15.15.25"
+MODULE_VERSION: str = "v3.15.15.27"
 METRICS_VERSION: str = "v1"
 SCHEMA_VERSION: int = 1
 
 DIGEST_DIR_JSON: Path = REPO_ROOT / "logs" / "autonomy_metrics"
+
+# v3.15.15.27 — stale-artifact threshold. A source whose
+# ``generated_at_utc`` is older than this is counted as stale even
+# though it parsed cleanly. Default 24 hours; the operator can
+# override via the AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS env var
+# at collection time. The threshold is conservative on purpose —
+# we want operators to notice when the workloop has stopped
+# producing fresh artifacts, not to swamp them with churn.
+STALE_THRESHOLD_SECONDS_DEFAULT: int = 24 * 3600
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +165,21 @@ def _utcnow() -> str:
 
 def _utcnow_dt() -> _dt.datetime:
     return _dt.datetime.now(_dt.UTC).replace(microsecond=0)
+
+
+def _stale_threshold_from_env() -> int:
+    """Return the staleness threshold in seconds, honouring the
+    ``AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS`` env var when set
+    to a positive integer. Falls back to
+    ``STALE_THRESHOLD_SECONDS_DEFAULT`` otherwise."""
+    raw = os.environ.get("AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS", "")
+    try:
+        v = int(raw)
+        if v > 0:
+            return v
+    except (TypeError, ValueError):
+        pass
+    return STALE_THRESHOLD_SECONDS_DEFAULT
 
 
 def _rel(path: Path) -> str:
@@ -571,6 +595,11 @@ def _reliability(
             missing += 1
         elif st == STATE_UNREADABLE:
             stale += 1
+        elif st == STATE_OK and bool(s.get("is_stale", False)):
+            # v3.15.15.27 — an ok-parsing artifact whose
+            # generated_at_utc is older than the staleness threshold
+            # is still counted as a reliability concern.
+            stale += 1
     return {
         "runtime_consecutive_failures": int(runtime.get("consecutive_failures", 0) or 0),
         "recurring_consecutive_failures_max": int(
@@ -785,10 +814,18 @@ def _final_recommendation(
 # ---------------------------------------------------------------------------
 
 
-def collect_snapshot(*, frozen_utc: str | None = None) -> dict[str, Any]:
+def collect_snapshot(
+    *,
+    frozen_utc: str | None = None,
+    stale_threshold_seconds: int | None = None,
+) -> dict[str, Any]:
     """Build the full metrics digest. Pure with respect to the
     filesystem state at call time. ``frozen_utc`` pins the
-    generated_at_utc field for deterministic tests."""
+    generated_at_utc field for deterministic tests.
+    ``stale_threshold_seconds`` overrides the default
+    ``STALE_THRESHOLD_SECONDS_DEFAULT``; pass an explicit value in
+    tests to make staleness deterministic without depending on the
+    real clock relative to the artifact mtime."""
     src_envelopes: dict[str, dict[str, Any]] = {
         "workloop_runtime": _read_json_artifact(SOURCE_WORKLOOP_RUNTIME),
         "recurring_maintenance": _read_json_artifact(SOURCE_RECURRING_MAINTENANCE),
@@ -798,17 +835,41 @@ def collect_snapshot(*, frozen_utc: str | None = None) -> dict[str, Any]:
         "execute_safe_controls": _read_json_artifact(SOURCE_EXECUTE_SAFE_CONTROLS),
     }
 
+    threshold = (
+        stale_threshold_seconds
+        if stale_threshold_seconds is not None
+        else _stale_threshold_from_env()
+    )
+    # Anchor "now" to the pinned frozen_utc when provided so stale
+    # detection is deterministic for a given input set.
+    now_dt = _parse_iso(frozen_utc) if frozen_utc else _utcnow_dt()
+    if now_dt is None:
+        now_dt = _utcnow_dt()
+
     src_statuses: list[dict[str, Any]] = []
     for name, rel in SOURCE_ORDER:
         env = src_envelopes[name]
-        src_statuses.append(
-            {
-                "source": name,
-                "artifact_path": rel,
-                "state": env["state"],
-                "reason": env["reason"],
-            }
-        )
+        row: dict[str, Any] = {
+            "source": name,
+            "artifact_path": rel,
+            "state": env["state"],
+            "reason": env["reason"],
+        }
+        # v3.15.15.27 — annotate ok rows with age + staleness so
+        # the operator can distinguish "fresh" from "ancient" at
+        # a glance. Inputs without a generated_at_utc field are
+        # left without an age (no false certainty).
+        if env["state"] == STATE_OK and isinstance(env.get("data"), dict):
+            gen = env["data"].get("generated_at_utc")
+            gen_dt = _parse_iso(gen) if isinstance(gen, str) else None
+            if gen_dt is not None:
+                age_seconds = max(0, int((now_dt - gen_dt).total_seconds()))
+                row["age_seconds"] = age_seconds
+                row["is_stale"] = age_seconds > threshold
+            else:
+                row["age_seconds"] = None
+                row["is_stale"] = False
+        src_statuses.append(row)
 
     proposals = _count_proposals(src_envelopes["proposal_queue"])
     inbox = _count_inbox(src_envelopes["approval_inbox"])
@@ -960,6 +1021,17 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Pin generated_at_utc for deterministic tests.",
     )
+    parser.add_argument(
+        "--stale-threshold-seconds",
+        type=int,
+        default=None,
+        help=(
+            "Override the staleness threshold (default: "
+            f"{STALE_THRESHOLD_SECONDS_DEFAULT}s = 24h). "
+            "Sources whose generated_at_utc is older than this "
+            "are counted under reliability.stale_artifact_count."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.status:
@@ -971,7 +1043,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.collect:
-        snap = collect_snapshot(frozen_utc=args.frozen_utc)
+        snap = collect_snapshot(
+            frozen_utc=args.frozen_utc,
+            stale_threshold_seconds=args.stale_threshold_seconds,
+        )
         if not args.no_write:
             paths = write_outputs(snap)
             print(json.dumps({"status": "ok", "paths": paths}, indent=2))
