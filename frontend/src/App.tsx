@@ -22,6 +22,24 @@ export function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/*
+         * v3.15.15.26.2 — /agent-control is rendered as a STANDALONE
+         * mobile-first PWA surface, not inside the legacy <AppShell>
+         * (which carries the dashboard sidebar / topbar / ticker).
+         * The route is lifted to the top level so the only chrome
+         * around it is the auth guard.
+         *
+         * Legacy dashboard routes continue to render inside
+         * <AppShell> via the wildcard route below.
+         */}
+        <Route
+          path="/agent-control"
+          element={
+            <RequireAuth>
+              <AgentControl />
+            </RequireAuth>
+          }
+        />
         <Route
           path="*"
           element={
@@ -40,7 +58,6 @@ export function App() {
                   <Route path="/history" element={<History />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/candidates" element={<Candidates />} />
-                  <Route path="/agent-control" element={<AgentControl />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AppShell>

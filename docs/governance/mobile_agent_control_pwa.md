@@ -14,6 +14,78 @@ It explains what the app shows, what it does NOT do, how it is
 laid out for thumb-first mobile use, and the wiring step required
 to move it from "ships in the build" to "served on production".
 
+## v3.15.15.26.2 — Standalone PWA shell
+
+The v3.15.15.26 mobile-first IA was visible in the live PWA after
+the v3.15.15.26.1 cache fix shipped, but it was rendered INSIDE
+the legacy dashboard shell — the operator saw the new five-tab
+layout wrapped by the old sidebar / topbar / ticker. That hybrid
+is not what a standalone mobile PWA should look like.
+
+**Fix in v3.15.15.26.2**:
+
+* `frontend/src/App.tsx` lifts `/agent-control` out of the
+  wildcard route that wraps `<AppShell>`. `/agent-control` is
+  now a parallel top-level route, wrapped only by
+  `<RequireAuth>`.
+* The legacy dashboard routes (`/`, `/sprint`, `/campaigns`,
+  `/observability`, etc.) continue to render inside `<AppShell>`
+  via the wildcard route — nothing about the legacy desktop
+  experience changed.
+* `SW_VERSION` bumped to `v3.15.15.26.2` so an installed PWA
+  invalidates the cached embedded-shell HTML and picks up the
+  new standalone shell on the next refresh.
+
+**Architecture (after .26.2)**:
+
+```
+<App>
+  <Routes>
+    <Route path="/login" element={<Login />} />
+
+    {/* Standalone — no AppShell chrome. */}
+    <Route path="/agent-control" element={
+      <RequireAuth>
+        <AgentControl />
+      </RequireAuth>
+    } />
+
+    {/* Legacy desktop routes — wrapped in <AppShell>. */}
+    <Route path="*" element={
+      <RequireAuth>
+        <AppShell>
+          <Routes>
+            <Route index element={<Dashboard />} />
+            <Route path="/sprint" .../>
+            ...
+          </Routes>
+        </AppShell>
+      </RequireAuth>
+    } />
+  </Routes>
+</App>
+```
+
+**Operator reinstall steps**:
+
+1. Confirm the deployed Flask container has been rebuilt /
+   restarted from the latest main SHA. The `frontend/dist/`
+   bundle inside the running container must be the v3.15.15.26.2
+   build.
+2. On the phone: pull-to-refresh `/agent-control`. The new
+   `SW_VERSION=v3.15.15.26.2` SW activates during this load and
+   purges the v3.15.15.26.1 caches. The next refresh paints the
+   standalone shell — no Sidebar / TopBar / Ticker around the
+   five-tab nav.
+3. If the home-screen icon was installed against the old shell:
+   uninstall and reinstall via the browser's "Add to Home
+   Screen" prompt. The `manifest.webmanifest` `start_url` is
+   `/agent-control`, so the freshly installed PWA opens directly
+   to the standalone surface.
+4. If still stale: clear site data for the dashboard host, or
+   (desktop Chrome) DevTools -> Application -> Service Workers
+   -> Unregister, then hard reload.
+
 ## v3.15.15.26.1 — Service worker cache-versioning fix
 
 After v3.15.15.26 was merged, the operator reported **no visible

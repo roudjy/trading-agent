@@ -90,6 +90,17 @@ describe("PWA: service worker cache versioning (v3.15.15.26.1)", () => {
     expect(swRaw).toMatch(/SW_VERSION\s*=\s*["']v3\.15\.15\./);
   });
 
+  it("SW_VERSION has been bumped to >= v3.15.15.26.2 for the standalone-shell release", () => {
+    // v3.15.15.26.2 lifted /agent-control out of the legacy
+    // <AppShell>; an installed PWA needs the new shell HTML, so
+    // SW_VERSION must be bumped past .26.1 to invalidate the
+    // existing cached shell/asset combo.
+    const m = swRaw.match(/SW_VERSION\s*=\s*["']([^"']+)["']/);
+    expect(m).not.toBeNull();
+    const ver = m![1];
+    expect(ver >= "v3.15.15.26.2").toBe(true);
+  });
+
   it("uses version-stamped cache names for shell + runtime", () => {
     expect(swRaw).toMatch(/agent-control-shell-\$\{SW_VERSION\}/);
     expect(swRaw).toMatch(/agent-control-runtime-\$\{SW_VERSION\}/);

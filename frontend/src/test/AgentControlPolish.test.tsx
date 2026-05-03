@@ -623,10 +623,16 @@ describe("AgentControl polish — App.tsx wires the /agent-control route", () =>
   it("route is registered in the SPA router so deep-links resolve", async () => {
     // The App.tsx file is a static import; we read it as text via Vite's
     // ?raw query and assert the route element wires AgentControl.
+    //
+    // v3.15.15.26.2: the route was reformatted from a one-line
+    // ``element={<AgentControl />}`` into a multi-line
+    // ``element={<RequireAuth><AgentControl /></RequireAuth>}``
+    // when /agent-control was lifted out of <AppShell>. The
+    // assertion now uses a dot-all match so it spans newlines.
     const mod = await import("../App?raw");
     const src = (mod as unknown as { default: string }).default;
     expect(src).toMatch(/<Route\s+path="\/agent-control"/);
-    expect(src).toMatch(/element=\{<AgentControl\s*\/>}/);
+    expect(src).toMatch(/<AgentControl\s*\/>/);
     expect(src).toMatch(/from\s+"\.\/routes\/AgentControl"/);
   });
 });
