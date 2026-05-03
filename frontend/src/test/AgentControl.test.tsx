@@ -58,6 +58,17 @@ const okStatusBody = {
       ],
     },
   },
+  recurring_maintenance: {
+    status: "ok",
+    data: {
+      module_version: "v3.15.15.23",
+      mode: "list",
+      safe_to_execute: false,
+      counts: { total: 5, by_status: { not_run: 5 } },
+      final_recommendation: "all_jobs_ok",
+      jobs: [],
+    },
+  },
 };
 
 const okActivityBody = {

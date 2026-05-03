@@ -195,6 +195,17 @@ def test_notifications_is_placeholder(client) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_status_payload_includes_recurring_maintenance_block(client) -> None:
+    """v3.15.15.23: status payload now also carries a
+    recurring_maintenance summary."""
+    body = client.get("/api/agent-control/status").get_json()
+    assert "recurring_maintenance" in body
+    rm_block = body["recurring_maintenance"]
+    assert rm_block["status"] in ("ok", "not_available")
+    if rm_block["status"] == "not_available":
+        assert "reason" in rm_block
+
+
 def test_status_payload_includes_workloop_runtime_block(client) -> None:
     """v3.15.15.22: status payload now carries a workloop_runtime
     summary. When the artifact is missing the block reports

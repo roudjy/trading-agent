@@ -172,6 +172,66 @@ def _runtime_with_failed_source(name: str, state: str) -> dict:
     )
 
 
+def _empty_recurring_maintenance() -> dict:
+    return _ok_envelope(
+        {
+            "schema_version": 1,
+            "report_kind": "recurring_maintenance_digest",
+            "module_version": "v3.15.15.23",
+            "jobs": [
+                {
+                    "job_type": "refresh_workloop_runtime_once",
+                    "last_status": "succeeded",
+                    "consecutive_failures": 0,
+                    "last_result_summary": "ok",
+                    "blocked_reason": None,
+                }
+            ],
+            "final_recommendation": "all_jobs_ok",
+        }
+    )
+
+
+def _maintenance_with_consecutive_failures(n: int) -> dict:
+    return _ok_envelope(
+        {
+            "schema_version": 1,
+            "report_kind": "recurring_maintenance_digest",
+            "jobs": [
+                {
+                    "job_type": "refresh_approval_inbox",
+                    "last_status": "failed",
+                    "consecutive_failures": n,
+                    "last_result_summary": "synthetic",
+                    "blocked_reason": None,
+                }
+            ],
+        }
+    )
+
+
+def _maintenance_with_failed_job(status: str) -> dict:
+    return _ok_envelope(
+        {
+            "schema_version": 1,
+            "report_kind": "recurring_maintenance_digest",
+            "jobs": [
+                {
+                    "job_type": "refresh_approval_inbox",
+                    "last_status": status,
+                    "consecutive_failures": 1,
+                    "last_result_summary": "synthetic",
+                    "blocked_reason": (
+                        "missing_dependabot_cli_opt_in"
+                        if status == "blocked"
+                        else None
+                    ),
+                }
+            ],
+        }
+    )
+
+
 def _empty_workloop() -> dict:
     return _ok_envelope(
         {
@@ -663,6 +723,101 @@ def test_runtime_clean_artifact_yields_no_runtime_inbox_items() -> None:
     assert runtime_items == []
 
 
+def test_recurring_maintenance_consecutive_failures_emit_runtime_halt() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _maintenance_with_consecutive_failures(3),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    runtime_halt = [
+        it
+        for it in snap["items"]
+        if it["category"] == "runtime_halt"
+        and (it["source"] or "").startswith("recurring_maintenance:")
+    ]
+    assert len(runtime_halt) == 1
+    assert runtime_halt[0]["severity"] == "critical"
+
+
+def test_recurring_maintenance_failed_job_emits_failed_automation() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _maintenance_with_failed_job("failed"),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    failed_items = [
+        it
+        for it in snap["items"]
+        if it["category"] == "failed_automation"
+        and (it["source"] or "").startswith("recurring_maintenance:")
+    ]
+    assert len(failed_items) == 1
+
+
+def test_recurring_maintenance_timeout_job_emits_failed_automation() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _maintenance_with_failed_job("timeout"),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    failed_items = [
+        it
+        for it in snap["items"]
+        if it["category"] == "failed_automation"
+        and (it["source"] or "").startswith("recurring_maintenance:")
+    ]
+    assert len(failed_items) == 1
+
+
+def test_recurring_maintenance_blocked_job_emits_unknown_state() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _maintenance_with_failed_job("blocked"),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    unknown_items = [
+        it
+        for it in snap["items"]
+        if it["category"] == "unknown_state"
+        and (it["source"] or "").startswith("recurring_maintenance:")
+    ]
+    assert len(unknown_items) == 1
+
+
+def test_recurring_maintenance_clean_artifact_yields_no_inbox_items() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _empty_recurring_maintenance(),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    rm_items = [
+        it
+        for it in snap["items"]
+        if (it["source"] or "").startswith("recurring_maintenance:")
+    ]
+    assert rm_items == []
+
+
 def test_broken_audit_chain_becomes_security_alert() -> None:
     sources = {
         "proposal_queue": _proposal_envelope([]),
@@ -912,6 +1067,15 @@ def test_cli_dry_run_default(
     monkeypatch.setattr(ai, "SOURCE_PROPOSAL_QUEUE", tmp_path / "missing-1.json")
     monkeypatch.setattr(ai, "SOURCE_PR_LIFECYCLE", tmp_path / "missing-2.json")
     monkeypatch.setattr(ai, "SOURCE_WORKLOOP", tmp_path / "missing-3.json")
+    # v3.15.15.22 / .23 added two more upstream artifacts. Redirect
+    # them to non-existent paths so the CLI smoke is deterministic
+    # regardless of any stale local artifacts under logs/.
+    monkeypatch.setattr(
+        ai, "SOURCE_WORKLOOP_RUNTIME", tmp_path / "missing-4.json"
+    )
+    monkeypatch.setattr(
+        ai, "SOURCE_RECURRING_MAINTENANCE", tmp_path / "missing-5.json"
+    )
     rc = ai.main(["--mode", "dry-run", "--no-write"])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
