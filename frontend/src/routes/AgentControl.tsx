@@ -188,6 +188,22 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
   const operatorActions = String(
     metricsData?.operator_burden_summary?.estimated_operator_actions_total ?? 0,
   );
+
+  const roadmap = payload.roadmap_protocol;
+  const roadmapStatus = roadmap?.status ?? "not_available";
+  const roadmapData =
+    roadmap?.status === "ok" ? roadmap.data : undefined;
+  const roadmapField = String(roadmapData?.status_field ?? "n/a");
+  const roadmapPill: "ok" | "warn" | "danger" | "unknown" =
+    roadmapStatus !== "ok"
+      ? "unknown"
+      : roadmapField === "blocked" || roadmapField === "unknown_state"
+        ? "danger"
+        : roadmapField === "needs_human"
+          ? "warn"
+          : roadmapField === "proposed"
+            ? "ok"
+            : "unknown";
   return (
     <Card title="Status" subtitle="governance + frozen + runtime">
       <div className="agent-control-card__row">
@@ -279,6 +295,24 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
             <dd>{operatorActions}</dd>
           </div>
         </>
+      ) : null}
+      <div
+        className="agent-control-card__row"
+        data-testid="status-roadmap-row"
+      >
+        <dt>roadmap protocol</dt>
+        <dd>
+          <StatusPill state={roadmapPill} />
+        </dd>
+      </div>
+      {roadmapStatus === "ok" && roadmapData ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="status-roadmap-state"
+        >
+          <dt>roadmap state</dt>
+          <dd>{roadmapField}</dd>
+        </div>
       ) : null}
       {Object.keys(fh).length === 0 ? (
         <p
