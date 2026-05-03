@@ -271,9 +271,49 @@ def test_assert_no_secrets_catches_credential_pattern() -> None:
         agent_audit_summary.assert_no_secrets(leaky)
 
 
-def test_assert_no_secrets_catches_sensitive_path_fragment() -> None:
-    leaky = {"x": "config/config.yaml"}
-    with pytest.raises(AssertionError, match="sensitive path"):
+def test_assert_no_secrets_allows_no_touch_path_references() -> None:
+    """v3.15.15.25.1: ``config/config.yaml`` (and the other entries in
+    ``KNOWN_NO_TOUCH_PATH_REFERENCES``) are NO-TOUCH paths whose
+    *contents* must never be surfaced, but whose *names* are
+    legitimate evidence in ``affected_files`` / ``forbidden_actions``
+    metadata. The guard must not trip on path-shaped strings — the
+    previous broader substring check halted the approval inbox
+    runtime on every proposal that referenced a no-touch path.
+    """
+    for path_ref in agent_audit_summary.KNOWN_NO_TOUCH_PATH_REFERENCES:
+        agent_audit_summary.assert_no_secrets({"x": path_ref})  # must not raise
+
+    # Also accept paths embedded in larger strings — proposals
+    # commonly inline these in summaries.
+    agent_audit_summary.assert_no_secrets(
+        {"summary": "edits config/config.yaml are forbidden"}
+    )
+    agent_audit_summary.assert_no_secrets(
+        {"affected_files": ["config/config.yaml", "SECURITY.md"]}
+    )
+
+
+def test_assert_no_secrets_still_catches_anthropic_key() -> None:
+    leaky = {"x": "leak: sk-ant-AAAAAAAA1234"}
+    with pytest.raises(AssertionError, match="credential-like"):
+        agent_audit_summary.assert_no_secrets(leaky)
+
+
+def test_assert_no_secrets_still_catches_aws_key() -> None:
+    leaky = {"x": "AKIAEXAMPLE12345"}
+    with pytest.raises(AssertionError, match="credential-like"):
+        agent_audit_summary.assert_no_secrets(leaky)
+
+
+def test_assert_no_secrets_still_catches_pem_block() -> None:
+    leaky = {"x": "-----BEGIN PRIVATE KEY-----"}
+    with pytest.raises(AssertionError, match="credential-like"):
+        agent_audit_summary.assert_no_secrets(leaky)
+
+
+def test_assert_no_secrets_still_catches_github_pat() -> None:
+    leaky = {"x": "github_pat_AAAAAAAAAAAA"}
+    with pytest.raises(AssertionError, match="credential-like"):
         agent_audit_summary.assert_no_secrets(leaky)
 
 

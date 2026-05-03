@@ -402,7 +402,12 @@ _FORBIDDEN_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
 )
 
-_FORBIDDEN_VALUE_FRAGMENTS: tuple[str, ...] = (
+# v3.15.15.25.1 — these are NO-TOUCH paths whose contents must
+# never be surfaced, but whose names are legitimate evidence.
+# Preserved here for documentation only — the guard intentionally
+# does NOT trip on substring matches against these fragments. See
+# docstring on ``assert_no_secrets`` for the rationale.
+KNOWN_NO_TOUCH_PATH_REFERENCES: tuple[str, ...] = (
     "config/config.yaml",
     "live_gate.secret",
     "fred.secret",
@@ -425,25 +430,30 @@ def _walk_strings(obj: Any) -> Iterable[str]:
 
 
 def assert_no_secrets(snapshot: dict[str, Any]) -> None:
-    """Raise ``AssertionError`` if the snapshot contains a forbidden
-    string. The check is conservative: any high-entropy credential
-    pattern OR any literal sensitive-path fragment counts.
+    """Raise ``AssertionError`` if the snapshot contains a credential
+    VALUE.
 
-    The snapshot is supposed to be entirely path/state metadata — there
-    is no legitimate reason for a credential or secret-path string to
-    appear in it.
+    Credential values match one of the narrow regex patterns in
+    ``_FORBIDDEN_VALUE_PATTERNS`` (Anthropic ``sk-ant-`` keys,
+    GitHub ``ghp_`` / ``github_pat_`` tokens, AWS ``AKIA`` keys,
+    PEM private-key blocks). These never have a legitimate reason
+    to appear in any reporting projection.
+
+    Path-shaped strings (e.g. ``config/config.yaml``,
+    ``automation/live_gate.py``, ``research/research_latest.json``)
+    are explicitly ALLOWED. They are legitimate path-reference
+    evidence in metadata; they are not credentials.
+
+    Mirror of the v3.15.15.22 narrowing in
+    ``reporting.workloop_runtime._assert_no_credential_values`` and
+    the v3.15.15.25.1 narrowing in
+    ``reporting.agent_audit_summary.assert_no_secrets``.
     """
     for s in _walk_strings(snapshot):
         for pat in _FORBIDDEN_VALUE_PATTERNS:
             if pat.search(s):
                 raise AssertionError(
                     f"governance_status leaked credential-like string: pattern={pat.pattern!r}"
-                )
-        lowered = s.lower()
-        for frag in _FORBIDDEN_VALUE_FRAGMENTS:
-            if frag in lowered:
-                raise AssertionError(
-                    f"governance_status leaked sensitive path fragment: {frag!r}"
                 )
 
 

@@ -119,12 +119,16 @@ def test_valid_artifact_passes_through(
 def test_credential_string_in_artifact_is_refused(
     client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """v3.15.15.25.1: the secret guard rejects credential VALUES;
+    path-shaped strings are legitimate evidence and flow through.
+    Use an Anthropic-key-shaped value to verify the value-rejection
+    behavior."""
     p = tmp_path / "logs" / "proposal_queue" / "latest.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": 1,
         "report_kind": "proposal_queue_digest",
-        "evil_field": "config/config.yaml",
+        "evil_field": "sk-ant-AAAAAAAA1234",
     }
     p.write_text(json.dumps(payload), encoding="utf-8")
     monkeypatch.setattr(ac, "PROPOSAL_QUEUE_LATEST", p)
