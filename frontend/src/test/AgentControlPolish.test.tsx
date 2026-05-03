@@ -19,7 +19,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AgentControl } from "../routes/AgentControl";
 
@@ -374,15 +374,21 @@ describe("AgentControl polish — accessibility & semantic landmarks", () => {
     expect(btn).toHaveAttribute("aria-label");
   });
 
-  it("grid is announced as a region with a label", async () => {
+  it("nav and at least one section are announced as a region", async () => {
+    // v3.15.15.26: the legacy ``agent-control-grid`` was replaced
+    // with a 5-tab bottom nav + per-section ``tabpanel`` regions.
+    // The nav itself carries an aria-label; each section carries
+    // its own aria-label via ``role="tabpanel"``.
     installFetchMock(_allOk());
     render(
       <MemoryRouter initialEntries={["/agent-control"]}>
         <AgentControl />
       </MemoryRouter>,
     );
-    const grid = await screen.findByTestId("agent-control-grid");
-    expect(grid).toHaveAttribute("aria-label");
+    const nav = await screen.findByTestId("agent-control-nav");
+    expect(nav).toHaveAttribute("aria-label");
+    const overview = await screen.findByTestId("section-overview");
+    expect(overview).toHaveAttribute("aria-label");
   });
 });
 
@@ -566,5 +572,146 @@ describe("AgentControl polish — App.tsx wires the /agent-control route", () =>
     expect(src).toMatch(/<Route\s+path="\/agent-control"/);
     expect(src).toMatch(/element=\{<AgentControl\s*\/>}/);
     expect(src).toMatch(/from\s+"\.\/routes\/AgentControl"/);
+  });
+});
+
+describe("AgentControl polish — mobile-first IA (v3.15.15.26)", () => {
+  it("renders five bottom-nav tabs with aria-selected reflecting the active section", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const nav = await screen.findByTestId("agent-control-nav");
+    expect(nav).toHaveAttribute("role", "tablist");
+    for (const id of ["overview", "inbox", "runtime", "prs", "about"]) {
+      const tab = await screen.findByTestId(`nav-tab-${id}`);
+      expect(tab).toHaveAttribute("role", "tab");
+      expect(tab).toHaveAttribute("aria-controls", `section-${id}`);
+    }
+    // Default active section is overview.
+    const overviewTab = await screen.findByTestId("nav-tab-overview");
+    expect(overviewTab).toHaveAttribute("aria-selected", "true");
+    const inboxTab = await screen.findByTestId("nav-tab-inbox");
+    expect(inboxTab).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("clicking a nav tab activates the corresponding section and hides the others", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const inboxTab = await screen.findByTestId("nav-tab-inbox");
+    fireEvent.click(inboxTab);
+    await waitFor(() => {
+      expect(inboxTab).toHaveAttribute("aria-selected", "true");
+    });
+    // Overview becomes inactive: data-section-active flips and the
+    // ``hidden`` attribute is applied.
+    const overview = await screen.findByTestId("section-overview");
+    expect(overview).toHaveAttribute("data-section-active", "false");
+    expect(overview).toHaveAttribute("hidden");
+    const inbox = await screen.findByTestId("section-inbox");
+    expect(inbox).toHaveAttribute("data-section-active", "true");
+    expect(inbox).not.toHaveAttribute("hidden");
+  });
+
+  it("each section is a tabpanel with a non-empty aria-label", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    for (const id of ["overview", "inbox", "runtime", "prs", "about"]) {
+      const section = await screen.findByTestId(`section-${id}`);
+      expect(section).toHaveAttribute("role", "tabpanel");
+      expect(section).toHaveAttribute("aria-labelledby", `tab-${id}`);
+      const label = section.getAttribute("aria-label") ?? "";
+      expect(label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("renders a read-only safety badge in the header", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const badge = await screen.findByTestId("agent-control-safety-badge");
+    expect(badge).toHaveAttribute("aria-label");
+    expect(badge.textContent ?? "").toMatch(/read-only/i);
+  });
+
+  it("preserves the canonical card hooks across all sections", async () => {
+    // The mobile-first IA reorganized cards into 5 sections, but
+    // the data-testid hooks the existing test suite + downstream
+    // consumers rely on must still resolve regardless of which
+    // tab is currently active.
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    // Overview section.
+    expect(await screen.findByTestId("status-runtime-row")).toBeInTheDocument();
+    expect(await screen.findByTestId("status-policy-row")).toBeInTheDocument();
+    expect(await screen.findByTestId("status-metrics-row")).toBeInTheDocument();
+    // Inbox section.
+    expect(await screen.findByTestId("inbox-recommendation")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("proposals-recommendation"),
+    ).toBeInTheDocument();
+    // PRs section.
+    expect(await screen.findByTestId("pr-recommendation")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("execute-safe-cli-only"),
+    ).toBeInTheDocument();
+    // About section.
+    expect(await screen.findByTestId("notifications-empty")).toBeInTheDocument();
+  });
+
+  it("nav tabs are keyboard-navigable and have a min height >= 44px touch target", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const overviewTab = await screen.findByTestId("nav-tab-overview");
+    // The active tab is keyboard-reachable; inactive tabs use
+    // tabIndex=-1 so the tab order doesn't include all five at
+    // once, which matches APG tablist semantics.
+    expect(overviewTab).toHaveAttribute("tabindex", "0");
+    const inboxTab = await screen.findByTestId("nav-tab-inbox");
+    expect(inboxTab).toHaveAttribute("tabindex", "-1");
+    // Touch-target invariant: the button class carries the >= 44px
+    // min-height rule. We verify the class is present rather than
+    // computed style (jsdom does not implement it reliably).
+    expect(overviewTab.className).toMatch(/agent-control__nav-tab/);
+  });
+
+  it("does not render any execute / approve / merge buttons anywhere in the tree", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    // Wait for the tree to settle.
+    await screen.findByTestId("agent-control-root");
+    const buttons = Array.from(document.querySelectorAll("button"));
+    for (const b of buttons) {
+      const label = (b.textContent ?? "").toLowerCase();
+      const aria = (b.getAttribute("aria-label") ?? "").toLowerCase();
+      const haystack = `${label} ${aria}`;
+      // Forbidden mutation verbs:
+      expect(haystack).not.toMatch(/execute|approve|reject|merge|squash|ack|resolve/);
+    }
   });
 });

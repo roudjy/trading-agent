@@ -820,7 +820,13 @@ describe("AgentControl — UI affordances", () => {
 
     const root = screen.getByTestId("agent-control-root");
     expect(root).toHaveClass("agent-control");
-    const grid = root.querySelector(".agent-control__grid");
-    expect(grid).not.toBeNull();
+    // v3.15.15.26: ``__grid`` was replaced with bottom-nav +
+    // per-section ``__sections``. The phone-first layout is
+    // verified by the presence of both the nav and the
+    // overview tabpanel.
+    const sections = root.querySelector(".agent-control__sections");
+    expect(sections).not.toBeNull();
+    const nav = root.querySelector(".agent-control__nav");
+    expect(nav).not.toBeNull();
   });
 });
