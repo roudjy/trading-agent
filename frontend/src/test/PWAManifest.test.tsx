@@ -80,3 +80,76 @@ describe("PWA: registration", () => {
     expect(mainRaw).toMatch(/\.catch\(/);
   });
 });
+
+describe("PWA: service worker cache versioning (v3.15.15.26.1)", () => {
+  it("declares a versioned SW_VERSION constant tied to the release", () => {
+    // The fix is anchored on a single SW_VERSION constant so future
+    // releases bump exactly one place. The constant must be a real
+    // version string (not the legacy "v1") so it visibly differs
+    // from any installed pre-26 SW.
+    expect(swRaw).toMatch(/SW_VERSION\s*=\s*["']v3\.15\.15\./);
+  });
+
+  it("uses version-stamped cache names for shell + runtime", () => {
+    expect(swRaw).toMatch(/agent-control-shell-\$\{SW_VERSION\}/);
+    expect(swRaw).toMatch(/agent-control-runtime-\$\{SW_VERSION\}/);
+  });
+
+  it("activate handler purges any cache name not matching the current SW_VERSION", () => {
+    // The fix: instead of allowing only legacy v1 cache names, the
+    // activate handler now uses a SET of known names and deletes
+    // every cache whose name is NOT in that set. That is what
+    // forces stale pre-26 caches to actually go away.
+    expect(swRaw).toMatch(/KNOWN_CACHE_NAMES/);
+    expect(swRaw).toMatch(/!KNOWN_CACHE_NAMES\.has\(k\)/);
+    expect(swRaw).toMatch(/caches\.delete\(k\)/);
+  });
+
+  it("install calls skipWaiting and activate calls clients.claim for prompt update", () => {
+    expect(swRaw).toMatch(/self\.skipWaiting\(\)/);
+    expect(swRaw).toMatch(/self\.clients\.claim\(\)/);
+  });
+
+  it("shell HTML uses stale-while-revalidate, not permanent cache-first", () => {
+    // The pre-fix bug: ``/agent-control`` was served cache-first,
+    // so a new build never reached the user. The fix routes shell
+    // navigation through staleWhileRevalidate.
+    expect(swRaw).toMatch(/staleWhileRevalidate\s*\(/);
+    // The shell-route block routes / and /agent-control through
+    // stale-while-revalidate.
+    expect(swRaw).toMatch(/url\.pathname === ["']\/agent-control["']/);
+  });
+
+  it("API routes are network-first, not stale-while-revalidate", () => {
+    // /api/* must keep network-first semantics so the operator
+    // never sees stale agent-control data.
+    expect(swRaw).toMatch(/url\.pathname\.startsWith\(["']\/api\/agent-control\/["']\)/);
+    expect(swRaw).toMatch(/networkFirst\s*\(\s*req\s*\)/);
+  });
+
+  it("hashed assets remain cache-first", () => {
+    // Vite emits content-addressed bundles under /assets/. They
+    // are immutable per build, so cache-first is safe and the
+    // fastest path. A new build naturally produces a new filename
+    // which the SW fetches as a cache miss.
+    expect(swRaw).toMatch(/url\.pathname\.startsWith\(["']\/assets\/["']\)/);
+    expect(swRaw).toMatch(/cacheFirst\s*\(\s*req\s*\)/);
+  });
+
+  it("does not introduce any mutation verb in the new SW", () => {
+    // Hardening regression guard: the cache-fix release must not
+    // smuggle a POST/PUT/PATCH/DELETE into the SW.
+    expect(swRaw).toMatch(/req\.method !== ["']GET["']/);
+    for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
+      expect(swRaw).not.toContain(`method: "${verb}"`);
+      expect(swRaw).not.toContain(`method:'${verb}'`);
+    }
+  });
+
+  it("does not reach external services in the new SW either", () => {
+    expect(swRaw).not.toMatch(
+      /google-analytics|googletagmanager|sentry|datadog|segment\.io/i,
+    );
+    expect(swRaw).not.toMatch(/https?:\/\//);
+  });
+});

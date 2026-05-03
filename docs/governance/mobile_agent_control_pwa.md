@@ -14,6 +14,73 @@ It explains what the app shows, what it does NOT do, how it is
 laid out for thumb-first mobile use, and the wiring step required
 to move it from "ships in the build" to "served on production".
 
+## v3.15.15.26.1 — Service worker cache-versioning fix
+
+After v3.15.15.26 was merged, the operator reported **no visible
+UX change** in the live PWA. Root cause analysis identified the
+service worker:
+
+* `frontend/public/sw.js` hard-coded the cache name to
+  `agent-control-shell-v1` and never bumped it between releases.
+* The `activate` handler only deleted caches NOT named `v1`, so a
+  new SW with the same cache name purged nothing.
+* `/agent-control` was served cache-first, so an already-installed
+  PWA kept replaying the cached pre-26 HTML — which still
+  referenced the OLD content-hashed asset bundle filenames.
+* Net effect: even after the dashboard served the fresh bundle,
+  the user's browser kept rendering the v3.15.15.21.1 UI until
+  they manually cleared site data.
+
+**Fix in v3.15.15.26.1**:
+
+* Added a single `SW_VERSION` constant pinned to the release
+  (e.g. `v3.15.15.26.1`). All cache names embed it
+  (`agent-control-shell-${SW_VERSION}`).
+* `activate` now uses an inclusive set of known cache names and
+  deletes any cache whose name does not match — including the
+  legacy `v1` caches from a pre-26 install.
+* SPA shell (`/`, `/agent-control`, `/manifest.webmanifest`,
+  `/agent-control-icon.svg`) is now served via
+  **stale-while-revalidate**. The user gets the cached UI
+  immediately *and* the SW fetches the latest in the background;
+  the next refresh shows the new UI.
+* Hashed assets under `/assets/` remain cache-first (safe — they
+  are content-addressed; a new build produces a new filename
+  which is fetched as a cache miss).
+* `/api/agent-control/*` remains **network-first** so the
+  operator never sees stale data.
+* `install` keeps `self.skipWaiting()` and `activate` keeps
+  `self.clients.claim()` so a freshly installed SW takes over on
+  the very next page load.
+
+**Operator instructions to verify v3.15.15.26 UX**:
+
+1. Confirm the deployed Flask container has been rebuilt /
+   restarted from the latest main SHA. The `frontend/dist/`
+   bundle inside the running container must contain the
+   v3.15.15.26 IA. Locally:
+   `npm --prefix frontend run build` produces fresh
+   `dist/assets/index-<hash>.{js,css}`.
+2. Open `/agent-control` on the phone. If the UI still looks
+   like the old grid layout:
+   * Pull-to-refresh once (the new SW will activate during this
+     load and the next refresh will paint the new UI).
+   * If still stale: Settings → site data → clear cache for the
+     dashboard host, then re-open. As a more thorough reset on
+     desktop Chrome: DevTools → Application → Service Workers →
+     Unregister, then hard reload.
+3. The new mobile-first UX must show:
+   * a 5-tab bottom navigation (`Overview / Inbox / Runtime /
+     PRs / About`) on phone-portrait;
+   * a `read-only` safety badge under the title;
+   * the new section grouping (one section visible per tab);
+   * a footer reading `v3.15.15.26 — read-only`.
+
+If all three are visible, v3.15.15.26.1 has propagated. If not,
+the deployment has not yet pushed the latest bundle to the
+serving container — `git pull && docker compose up -d --build` on
+the VPS, then refresh.
+
 ## v3.15.15.26 — Mobile-first IA rebuild
 
 The PWA now uses a **5-tab bottom navigation** on mobile (top
