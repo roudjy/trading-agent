@@ -36,7 +36,12 @@
 
 // v3.15.15.26.1 — version-stamped cache names. Bump SW_VERSION on
 // every release that materially changes the PWA shell or assets.
-const SW_VERSION = "v3.15.15.26.1";
+// v3.15.15.26.2 — bumped because /agent-control was lifted out of
+// the legacy <AppShell> wrapper. The new shell HTML references a
+// new asset bundle and embeds none of the dashboard sidebar /
+// topbar / ticker chrome. Without this bump, an installed PWA
+// would keep replaying the embedded-shell HTML.
+const SW_VERSION = "v3.15.15.26.2";
 const SHELL_CACHE = `agent-control-shell-${SW_VERSION}`;
 const RUNTIME_CACHE = `agent-control-runtime-${SW_VERSION}`;
 const KNOWN_CACHE_NAMES = new Set([SHELL_CACHE, RUNTIME_CACHE]);
