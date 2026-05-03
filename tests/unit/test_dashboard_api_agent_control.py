@@ -206,6 +206,27 @@ def test_status_payload_includes_recurring_maintenance_block(client) -> None:
         assert "reason" in rm_block
 
 
+def test_status_payload_includes_approval_policy_block(client) -> None:
+    """v3.15.15.24: status payload now also carries a read-only
+    approval_policy summary. The block must not be silently OK on
+    error — it either reports ``ok`` with a populated ``data`` dict
+    or ``not_available`` with a reason."""
+    body = client.get("/api/agent-control/status").get_json()
+    assert "approval_policy" in body
+    ap_block = body["approval_policy"]
+    assert ap_block["status"] in ("ok", "not_available")
+    if ap_block["status"] == "ok":
+        data = ap_block["data"]
+        assert data["high_or_unknown_is_executable"] is False
+        assert data["execute_safe_requires_dependabot_low_or_medium"] is True
+        assert data["execute_safe_requires_two_layer_opt_in"] is True
+        assert isinstance(data["module_version"], str)
+        assert isinstance(data["decision_count"], int)
+        assert data["decision_count"] >= 14
+    else:
+        assert "reason" in ap_block
+
+
 def test_status_payload_includes_workloop_runtime_block(client) -> None:
     """v3.15.15.22: status payload now carries a workloop_runtime
     summary. When the artifact is missing the block reports

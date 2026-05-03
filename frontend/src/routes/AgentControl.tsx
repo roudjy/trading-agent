@@ -134,6 +134,19 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
           : maintenanceRecommendation === "all_jobs_ok"
             ? "ok"
             : "unknown";
+
+  const policy = payload.approval_policy;
+  const policyStatus = policy?.status ?? "not_available";
+  const policyData =
+    policy?.status === "ok" ? policy.data : undefined;
+  const policyVersion = String(policyData?.module_version ?? "n/a");
+  const policyPill: "ok" | "warn" | "danger" | "unknown" =
+    policyStatus !== "ok"
+      ? "unknown"
+      : policyData?.high_or_unknown_is_executable === false &&
+          policyData?.execute_safe_requires_two_layer_opt_in === true
+        ? "ok"
+        : "warn";
   return (
     <Card title="Status" subtitle="governance + frozen + runtime">
       <div className="agent-control-card__row">
@@ -179,6 +192,24 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
         >
           <dt>maintenance rec.</dt>
           <dd>{maintenanceRecommendation}</dd>
+        </div>
+      ) : null}
+      <div
+        className="agent-control-card__row"
+        data-testid="status-policy-row"
+      >
+        <dt>approval policy</dt>
+        <dd>
+          <StatusPill state={policyPill} />
+        </dd>
+      </div>
+      {policyStatus === "ok" && policyData ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="status-policy-version"
+        >
+          <dt>policy version</dt>
+          <dd>{policyVersion}</dd>
         </div>
       ) : null}
       {Object.keys(fh).length === 0 ? (

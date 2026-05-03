@@ -69,6 +69,18 @@ const okStatusBody = {
       jobs: [],
     },
   },
+  approval_policy: {
+    status: "ok",
+    data: {
+      module_version: "v3.15.15.24",
+      schema_version: 1,
+      decision_count: 14,
+      approval_category_count: 18,
+      high_or_unknown_is_executable: false,
+      execute_safe_requires_dependabot_low_or_medium: true,
+      execute_safe_requires_two_layer_opt_in: true,
+    },
+  },
 };
 
 const okActivityBody = {
