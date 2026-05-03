@@ -116,6 +116,24 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
           : runtimeRecommendation === "all_sources_ok"
             ? "ok"
             : "unknown";
+
+  const maintenance = payload.recurring_maintenance;
+  const maintenanceStatus = maintenance?.status ?? "not_available";
+  const maintenanceData =
+    maintenance?.status === "ok" ? maintenance.data : undefined;
+  const maintenanceRecommendation = String(
+    maintenanceData?.final_recommendation ?? "n/a",
+  );
+  const maintenancePill: "ok" | "warn" | "danger" | "unknown" =
+    maintenanceStatus !== "ok"
+      ? "unknown"
+      : maintenanceRecommendation.startsWith("runtime_halt")
+        ? "danger"
+        : maintenanceRecommendation.startsWith("degraded")
+          ? "warn"
+          : maintenanceRecommendation === "all_jobs_ok"
+            ? "ok"
+            : "unknown";
   return (
     <Card title="Status" subtitle="governance + frozen + runtime">
       <div className="agent-control-card__row">
@@ -143,6 +161,24 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
         >
           <dt>runtime rec.</dt>
           <dd>{runtimeRecommendation}</dd>
+        </div>
+      ) : null}
+      <div
+        className="agent-control-card__row"
+        data-testid="status-maintenance-row"
+      >
+        <dt>recurring maintenance</dt>
+        <dd>
+          <StatusPill state={maintenancePill} />
+        </dd>
+      </div>
+      {maintenanceStatus === "ok" && maintenanceData ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="status-maintenance-recommendation"
+        >
+          <dt>maintenance rec.</dt>
+          <dd>{maintenanceRecommendation}</dd>
         </div>
       ) : null}
       {Object.keys(fh).length === 0 ? (

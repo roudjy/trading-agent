@@ -79,6 +79,9 @@ SOURCE_WORKLOOP: Path = REPO_ROOT / "logs" / "autonomous_workloop" / "latest.jso
 SOURCE_WORKLOOP_RUNTIME: Path = (
     REPO_ROOT / "logs" / "workloop_runtime" / "latest.json"
 )
+SOURCE_RECURRING_MAINTENANCE: Path = (
+    REPO_ROOT / "logs" / "recurring_maintenance" / "latest.json"
+)
 
 # Canonical inbox categories (18 per the v3.15.15.20 brief).
 CATEGORIES: tuple[str, ...] = (
@@ -694,6 +697,91 @@ def _build_from_workloop_runtime(envelope: dict[str, Any]) -> list[dict[str, Any
     return items
 
 
+def _build_from_recurring_maintenance(envelope: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project a v3.15.15.23 recurring-maintenance digest into inbox
+    items.
+
+    Mapping:
+      * any job with ``consecutive_failures >= 3`` →
+        ``runtime_halt`` (severity: critical)
+      * each job with ``last_status in {failed, timeout}`` →
+        ``failed_automation`` (severity: high)
+      * each job with ``last_status == blocked`` →
+        ``unknown_state`` (severity: medium)
+
+    A clean digest (every job ``succeeded`` / ``not_run`` / ``skipped``)
+    produces zero inbox items.
+    """
+    if envelope["status"] != "ok" or not envelope.get("data"):
+        return []
+    data = envelope["data"]
+    items: list[dict[str, Any]] = []
+
+    jobs = data.get("jobs") or []
+    for job in jobs:
+        if not isinstance(job, dict):
+            continue
+        consecutive = int(job.get("consecutive_failures") or 0)
+        last_status = job.get("last_status") or ""
+        job_type = job.get("job_type") or "unknown_job"
+        summary = job.get("last_result_summary") or ""
+        if consecutive >= 3:
+            items.append(
+                _build_item(
+                    source=f"recurring_maintenance:{job_type}",
+                    source_type="manual",
+                    title=(
+                        f"Recurring maintenance: {job_type} has {consecutive} "
+                        "consecutive failures — runtime_halt"
+                    ),
+                    summary=summary,
+                    category="runtime_halt",
+                    risk_class="HIGH",
+                    status=STATUS_BLOCKED,
+                    affected_files=[],
+                    evidence={
+                        "consecutive_failures": consecutive,
+                        "last_status": last_status,
+                    },
+                )
+            )
+            # The runtime_halt item subsumes the failed_automation
+            # item for this same job; do not double-emit.
+            continue
+        if last_status in ("failed", "timeout"):
+            items.append(
+                _build_item(
+                    source=f"recurring_maintenance:{job_type}",
+                    source_type="manual",
+                    title=f"Recurring maintenance: {job_type} {last_status}",
+                    summary=summary,
+                    category="failed_automation",
+                    risk_class="HIGH",
+                    status=STATUS_BLOCKED,
+                    affected_files=[],
+                    evidence={"last_status": last_status},
+                )
+            )
+        elif last_status == "blocked":
+            items.append(
+                _build_item(
+                    source=f"recurring_maintenance:{job_type}",
+                    source_type="manual",
+                    title=f"Recurring maintenance: {job_type} blocked",
+                    summary=summary,
+                    category="unknown_state",
+                    risk_class="MEDIUM",
+                    status=STATUS_BLOCKED,
+                    affected_files=[],
+                    evidence={
+                        "blocked_reason": job.get("blocked_reason"),
+                    },
+                )
+            )
+
+    return items
+
+
 def _build_manual_route_wiring_items() -> list[dict[str, Any]]:
     """Per the v3.15.15.18 / .19 / .20 release notes,
     ``dashboard/dashboard.py`` is no-touch except via an
@@ -829,6 +917,9 @@ def collect_snapshot(
             "pr_lifecycle": _read_json_artifact(SOURCE_PR_LIFECYCLE),
             "workloop": _read_json_artifact(SOURCE_WORKLOOP),
             "workloop_runtime": _read_json_artifact(SOURCE_WORKLOOP_RUNTIME),
+            "recurring_maintenance": _read_json_artifact(
+                SOURCE_RECURRING_MAINTENANCE
+            ),
             "governance_status": _governance_status_safe(),
         }
 
@@ -839,6 +930,11 @@ def collect_snapshot(
     items.extend(
         _build_from_workloop_runtime(
             sources.get("workloop_runtime", {"status": "not_available"})
+        )
+    )
+    items.extend(
+        _build_from_recurring_maintenance(
+            sources.get("recurring_maintenance", {"status": "not_available"})
         )
     )
     items.extend(

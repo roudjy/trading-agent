@@ -41,6 +41,25 @@ export interface AgentControlStatus {
       source_states?: Array<{ source: string; state: string }>;
     };
   };
+  recurring_maintenance?: {
+    status: "ok" | "not_available";
+    reason?: string;
+    data?: {
+      module_version?: string;
+      generated_at_utc?: string;
+      mode?: string;
+      safe_to_execute?: boolean;
+      counts?: { total?: number; by_status?: Record<string, number> };
+      final_recommendation?: string;
+      jobs?: Array<{
+        job_type: string;
+        last_status: string;
+        enabled?: boolean;
+        consecutive_failures?: number;
+        next_run_after_utc?: string | null;
+      }>;
+    };
+  };
 }
 
 export interface AgentControlActivity {

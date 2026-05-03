@@ -182,7 +182,56 @@ def _status_payload() -> dict[str, Any]:
         "governance_status": gov,
         "frozen_hashes": _frozen_hashes_payload(),
         "workloop_runtime": _workloop_runtime_summary(),
+        "recurring_maintenance": _recurring_maintenance_summary(),
     }
+
+
+def _recurring_maintenance_summary() -> dict[str, Any]:
+    """Project the latest recurring-maintenance digest into a compact
+    summary suited for the Status card. Returns ``not_available`` on
+    a missing or malformed artifact.
+
+    The summary surfaces only the per-job last_status + counts +
+    final_recommendation (no executor evidence detail). The full
+    artifact is still readable at
+    ``logs/recurring_maintenance/latest.json``.
+    """
+    try:
+        from reporting.recurring_maintenance import read_latest_snapshot
+
+        snap = read_latest_snapshot()
+        if snap is None:
+            return {"status": "not_available", "reason": "missing"}
+        jobs = []
+        for j in snap.get("jobs") or []:
+            if not isinstance(j, dict):
+                continue
+            jobs.append(
+                {
+                    "job_type": j.get("job_type"),
+                    "last_status": j.get("last_status"),
+                    "enabled": j.get("enabled"),
+                    "consecutive_failures": j.get("consecutive_failures"),
+                    "next_run_after_utc": j.get("next_run_after_utc"),
+                }
+            )
+        return {
+            "status": "ok",
+            "data": {
+                "module_version": snap.get("module_version"),
+                "generated_at_utc": snap.get("generated_at_utc"),
+                "mode": snap.get("mode"),
+                "safe_to_execute": snap.get("safe_to_execute", False),
+                "counts": snap.get("counts") or {},
+                "final_recommendation": snap.get("final_recommendation"),
+                "jobs": jobs,
+            },
+        }
+    except Exception as e:  # noqa: BLE001
+        return {
+            "status": "not_available",
+            "reason": f"recurring_maintenance_error: {type(e).__name__}",
+        }
 
 
 def _workloop_runtime_summary() -> dict[str, Any]:
