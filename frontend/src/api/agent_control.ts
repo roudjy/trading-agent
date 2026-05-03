@@ -73,6 +73,38 @@ export interface AgentControlStatus {
       execute_safe_requires_two_layer_opt_in?: boolean;
     };
   };
+  autonomy_metrics?: {
+    status: "ok" | "not_available";
+    reason?: string;
+    data?: {
+      module_version?: string;
+      metrics_version?: string;
+      generated_at_utc?: string;
+      final_recommendation?: string;
+      safe_to_execute?: boolean;
+      throughput_summary?: {
+        proposals_total?: number;
+        inbox_items_total?: number;
+        pr_lifecycle_prs_seen?: number;
+        recurring_jobs_total?: number;
+        runtime_sources_total?: number;
+      };
+      operator_burden_summary?: {
+        needs_human_total?: number;
+        blocked_total?: number;
+        estimated_operator_actions_total?: number;
+      };
+      reliability_summary?: {
+        runtime_consecutive_failures?: number;
+        missing_artifact_count?: number;
+        malformed_artifact_count?: number;
+      };
+      safety_summary?: {
+        high_or_unknown_executable_count?: number;
+        summary?: string;
+      };
+    };
+  };
 }
 
 export interface AgentControlActivity {

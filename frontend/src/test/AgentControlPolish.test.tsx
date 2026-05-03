@@ -82,6 +82,37 @@ const okStatusBody = {
       execute_safe_requires_two_layer_opt_in: true,
     },
   },
+  autonomy_metrics: {
+    status: "ok",
+    data: {
+      module_version: "v3.15.15.25",
+      metrics_version: "v1",
+      generated_at_utc: "2026-05-03T08:00:00Z",
+      final_recommendation: "healthy",
+      safe_to_execute: false,
+      throughput_summary: {
+        proposals_total: 0,
+        inbox_items_total: 0,
+        pr_lifecycle_prs_seen: 0,
+        recurring_jobs_total: 0,
+        runtime_sources_total: 0,
+      },
+      operator_burden_summary: {
+        needs_human_total: 0,
+        blocked_total: 0,
+        estimated_operator_actions_total: 0,
+      },
+      reliability_summary: {
+        runtime_consecutive_failures: 0,
+        missing_artifact_count: 0,
+        malformed_artifact_count: 0,
+      },
+      safety_summary: {
+        high_or_unknown_executable_count: 0,
+        summary: "ok",
+      },
+    },
+  },
 };
 
 const okActivityBody = {
@@ -482,6 +513,46 @@ describe("AgentControl polish — Status card approval-policy row (v3.15.15.24)"
     expect(row).toBeInTheDocument();
     expect(
       screen.queryByTestId("status-policy-version"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("AgentControl polish — Status card autonomy-metrics row (v3.15.15.25)", () => {
+  it("renders the autonomy_metrics row when the status payload provides it", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-metrics-row");
+    expect(row).toBeInTheDocument();
+    const rec = await screen.findByTestId("status-metrics-recommendation");
+    expect(rec).toHaveTextContent("healthy");
+    const ops = await screen.findByTestId("status-metrics-operator-actions");
+    expect(ops).toHaveTextContent("0");
+  });
+
+  it("renders metrics row as unknown when status payload omits autonomy_metrics", async () => {
+    const statusBodyNoMetrics = {
+      kind: "agent_control_status",
+      schema_version: 1,
+      governance_status: { status: "ok", data: {} },
+      frozen_hashes: okFrozenHashes,
+    };
+    installFetchMock({
+      ..._allOk(),
+      "/api/agent-control/status": () => jsonResp(statusBodyNoMetrics),
+    });
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-metrics-row");
+    expect(row).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("status-metrics-recommendation"),
     ).not.toBeInTheDocument();
   });
 });

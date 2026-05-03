@@ -81,6 +81,37 @@ const okStatusBody = {
       execute_safe_requires_two_layer_opt_in: true,
     },
   },
+  autonomy_metrics: {
+    status: "ok",
+    data: {
+      module_version: "v3.15.15.25",
+      metrics_version: "v1",
+      generated_at_utc: "2026-05-03T08:00:00Z",
+      final_recommendation: "healthy",
+      safe_to_execute: false,
+      throughput_summary: {
+        proposals_total: 0,
+        inbox_items_total: 0,
+        pr_lifecycle_prs_seen: 0,
+        recurring_jobs_total: 0,
+        runtime_sources_total: 0,
+      },
+      operator_burden_summary: {
+        needs_human_total: 0,
+        blocked_total: 0,
+        estimated_operator_actions_total: 0,
+      },
+      reliability_summary: {
+        runtime_consecutive_failures: 0,
+        missing_artifact_count: 0,
+        malformed_artifact_count: 0,
+      },
+      safety_summary: {
+        high_or_unknown_executable_count: 0,
+        summary: "ok",
+      },
+    },
+  },
 };
 
 const okActivityBody = {
