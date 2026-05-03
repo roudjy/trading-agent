@@ -105,6 +105,27 @@ export interface AgentControlStatus {
       };
     };
   };
+  roadmap_protocol?: {
+    status: "ok" | "not_available";
+    reason?: string;
+    data?: {
+      module_version?: string;
+      schema_version?: number;
+      generated_at_utc?: string;
+      item_id?: string;
+      title?: string;
+      item_type?: string;
+      risk_class?: string;
+      decision?: string;
+      status_field?: string;
+      implementation_allowed?: boolean;
+      executable?: boolean;
+      safe_to_execute?: boolean;
+      blocked_reason?: string | null;
+      proposed_release_id?: string;
+      proposed_branch?: string;
+    };
+  };
 }
 
 export interface AgentControlActivity {

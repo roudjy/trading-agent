@@ -248,6 +248,27 @@ def test_status_payload_includes_autonomy_metrics_block(client) -> None:
         assert "reason" in am_block
 
 
+def test_status_payload_includes_roadmap_protocol_block(client) -> None:
+    """v3.15.15.28: status payload now also carries a read-only
+    roadmap_protocol summary. The block is ``not_available`` until
+    the operator runs ``--plan-item ... --dry-run`` for the first
+    time; ``ok`` once a plan exists. The protocol surface itself
+    never executes."""
+    body = client.get("/api/agent-control/status").get_json()
+    assert "roadmap_protocol" in body
+    rp_block = body["roadmap_protocol"]
+    assert rp_block["status"] in ("ok", "not_available")
+    if rp_block["status"] == "ok":
+        data = rp_block["data"]
+        assert data["safe_to_execute"] is False
+        assert data["executable"] is False
+        assert "decision" in data
+        assert "item_type" in data
+        assert "implementation_allowed" in data
+    else:
+        assert "reason" in rp_block
+
+
 def test_status_payload_includes_workloop_runtime_block(client) -> None:
     """v3.15.15.22: status payload now carries a workloop_runtime
     summary. When the artifact is missing the block reports

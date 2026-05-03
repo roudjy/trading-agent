@@ -113,6 +113,26 @@ const okStatusBody = {
       },
     },
   },
+  roadmap_protocol: {
+    status: "ok",
+    data: {
+      module_version: "v3.15.15.28",
+      schema_version: 1,
+      generated_at_utc: "2026-05-03T08:00:00Z",
+      item_id: "r_test1234",
+      title: "Sample roadmap item",
+      item_type: "docs_only",
+      risk_class: "LOW",
+      decision: "allowed_read_only",
+      status_field: "proposed",
+      implementation_allowed: true,
+      executable: false,
+      safe_to_execute: false,
+      blocked_reason: null,
+      proposed_release_id: "v3.15.16.0",
+      proposed_branch: "fix/v3-15-16-0-r-test1234-sample-roadmap-item",
+    },
+  },
 };
 
 const okActivityBody = {
@@ -560,6 +580,42 @@ describe("AgentControl polish — Status card autonomy-metrics row (v3.15.15.25)
     expect(
       screen.queryByTestId("status-metrics-recommendation"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("AgentControl polish — roadmap protocol row (v3.15.15.28)", () => {
+  it("renders roadmap protocol row with state when status payload provides it", async () => {
+    installFetchMock(_allOk());
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-roadmap-row");
+    expect(row).toBeInTheDocument();
+    const state = await screen.findByTestId("status-roadmap-state");
+    expect(state).toHaveTextContent("proposed");
+  });
+
+  it("renders roadmap row as unknown when payload omits roadmap_protocol", async () => {
+    const statusBodyNoRoadmap = {
+      kind: "agent_control_status",
+      schema_version: 1,
+      governance_status: { status: "ok", data: {} },
+      frozen_hashes: okFrozenHashes,
+    };
+    installFetchMock({
+      ..._allOk(),
+      "/api/agent-control/status": () => jsonResp(statusBodyNoRoadmap),
+    });
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId("status-roadmap-row");
+    expect(row).toBeInTheDocument();
+    expect(screen.queryByTestId("status-roadmap-state")).not.toBeInTheDocument();
   });
 });
 

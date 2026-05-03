@@ -185,7 +185,50 @@ def _status_payload() -> dict[str, Any]:
         "recurring_maintenance": _recurring_maintenance_summary(),
         "approval_policy": _approval_policy_summary(),
         "autonomy_metrics": _autonomy_metrics_summary(),
+        "roadmap_protocol": _roadmap_protocol_summary(),
     }
+
+
+def _roadmap_protocol_summary() -> dict[str, Any]:
+    """Project the v3.15.15.28 roadmap-execution protocol's latest
+    plan into a compact summary for the Status card. Returns
+    ``not_available`` if no plan has been written yet (the protocol
+    is opt-in; the operator runs ``--plan-item ... --dry-run`` and
+    that produces ``logs/roadmap_execution_protocol/latest.json``).
+    """
+    try:
+        from reporting.roadmap_execution_protocol import read_latest_snapshot
+
+        snap = read_latest_snapshot()
+        if snap is None:
+            return {"status": "not_available", "reason": "missing"}
+        return {
+            "status": "ok",
+            "data": {
+                "module_version": snap.get("module_version"),
+                "schema_version": snap.get("schema_version"),
+                "generated_at_utc": snap.get("generated_at_utc"),
+                "item_id": snap.get("item_id"),
+                "title": snap.get("title"),
+                "item_type": snap.get("item_type"),
+                "risk_class": snap.get("risk_class"),
+                "decision": snap.get("decision"),
+                "status_field": snap.get("status"),
+                "implementation_allowed": snap.get(
+                    "implementation_allowed", False
+                ),
+                "executable": snap.get("executable", False),
+                "safe_to_execute": snap.get("safe_to_execute", False),
+                "blocked_reason": snap.get("blocked_reason"),
+                "proposed_release_id": snap.get("proposed_release_id"),
+                "proposed_branch": snap.get("proposed_branch"),
+            },
+        }
+    except Exception as e:  # noqa: BLE001
+        return {
+            "status": "not_available",
+            "reason": f"roadmap_execution_protocol_error: {type(e).__name__}",
+        }
 
 
 def _autonomy_metrics_summary() -> dict[str, Any]:

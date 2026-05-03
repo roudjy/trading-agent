@@ -112,6 +112,26 @@ const okStatusBody = {
       },
     },
   },
+  roadmap_protocol: {
+    status: "ok",
+    data: {
+      module_version: "v3.15.15.28",
+      schema_version: 1,
+      generated_at_utc: "2026-05-03T08:00:00Z",
+      item_id: "r_test1234",
+      title: "Sample roadmap item",
+      item_type: "docs_only",
+      risk_class: "LOW",
+      decision: "allowed_read_only",
+      status_field: "proposed",
+      implementation_allowed: true,
+      executable: false,
+      safe_to_execute: false,
+      blocked_reason: null,
+      proposed_release_id: "v3.15.16.0",
+      proposed_branch: "fix/v3-15-16-0-r-test1234-sample-roadmap-item",
+    },
+  },
 };
 
 const okActivityBody = {
