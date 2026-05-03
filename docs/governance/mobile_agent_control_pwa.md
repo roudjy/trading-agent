@@ -1,14 +1,51 @@
 # Mobile-first Agent Control PWA — Operator Runbook
 
 > Module: `dashboard.api_agent_control` (backend) + `frontend/src/routes/AgentControl.tsx` (frontend)
-> Release: v3.15.15.18
+> Release: v3.15.15.26 (mobile-first IA rebuild on top of v3.15.15.18)
 > Sibling lifecycle modules: `reporting.autonomous_workloop`,
-> `reporting.github_pr_lifecycle`
+> `reporting.github_pr_lifecycle`,
+> `reporting.workloop_runtime`,
+> `reporting.recurring_maintenance`,
+> `reporting.approval_policy`,
+> `reporting.autonomy_metrics`
 
-This is the operator-facing runbook for the v3.15.15.18 mobile-first
-Agent Control PWA. It explains what the app shows, what it does NOT
-do, how to install it on a phone, and the wiring step required to
-move it from "ships in the build" to "served on production".
+This is the operator-facing runbook for the Agent Control PWA.
+It explains what the app shows, what it does NOT do, how it is
+laid out for thumb-first mobile use, and the wiring step required
+to move it from "ships in the build" to "served on production".
+
+## v3.15.15.26 — Mobile-first IA rebuild
+
+The PWA now uses a **5-tab bottom navigation** on mobile (top
+sticky tabs ≥ 720px) and groups its existing read-only cards
+into operator-meaningful sections instead of a single long grid.
+
+| Tab | Purpose | Cards |
+|---|---|---|
+| **Overview** | Is the system healthy? | Status (governance + frozen + workloop runtime + recurring maintenance + approval policy + autonomy metrics, all as compact rows) |
+| **Inbox** | What needs Joery? | Approval Inbox + Proposal Queue |
+| **Runtime** | Background telemetry | Autonomous Workloop digest + Activity (audit timeline) |
+| **PRs** | Code lifecycle (read-only) | GitHub PR Lifecycle + Execute-safe Catalog |
+| **About** | Meta | Notifications placeholder |
+
+The header carries a small **read-only badge** below the title
+to re-affirm the safety posture; the page summary banner remains
+the primary at-a-glance signal.
+
+Hard guarantees preserved:
+
+* Touch targets ≥ 44 px (Apple HIG / WCAG 2.5.5).
+* No horizontal scroll on phone-portrait.
+* Inactive sections are `hidden` (excluded from the AT tree but
+  still queryable from React Testing Library so the existing
+  card test suite continues to work).
+* No new external dependencies. No new network egress. No new
+  service-worker scope. No browser push.
+* No execute / approve / reject / merge buttons anywhere in the
+  rendered DOM (verified by a regression test that scans every
+  `<button>` for those verbs).
+* PWA manifest, service worker, install behavior, and the
+  `/agent-control` deep link are unchanged.
 
 ## What this is
 

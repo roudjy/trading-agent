@@ -1,13 +1,29 @@
-// Mobile-first read-only Agent Control PWA — v3.15.15.18.
+// Mobile-first read-only Agent Control PWA — v3.15.15.26.
 //
 // Hard guarantees enforced by structure:
 //   - No execute / approve / reject / merge buttons. The only
-//     interactive control is a single "Vernieuw" (refresh) button
-//     that re-fetches the same five GET endpoints.
+//     interactive controls are the bottom-nav tabs (which only
+//     change the active section) and a single "Vernieuw" refresh
+//     button that re-fetches the same GET endpoints. Tabs and
+//     refresh are local state changes; nothing mutates server
+//     state.
 //   - Cards render an empty / not_available state when their backing
 //     artifact is missing or malformed; nothing is silently OK.
-//   - Notification center is a placeholder; v3.15.15.18 does not ship
-//     browser push.
+//   - Notification center is a placeholder; browser push is not
+//     wired and is intentionally out of scope.
+//
+// v3.15.15.26 — IA rebuild for genuinely mobile-first UX:
+//   - 5-tab bottom navigation (Overview / Inbox / Runtime / PRs /
+//     About). Thumb-reachable; sticky bottom on mobile, top tabs
+//     on desktop ≥ 720px. No external dependencies.
+//   - Operator mental model: Overview answers "is the system
+//     healthy?", Inbox answers "what needs Joery?", Runtime shows
+//     background telemetry, PRs covers code lifecycle, About
+//     surfaces policy + meta.
+//   - Cards retain their data-testid hooks so the existing
+//     read-only tests still pass; inactive sections use the
+//     ``hidden`` attribute (still queryable from RTL but excluded
+//     from the AT tree).
 //
 // The full feature roadmap (proposal queue → approval inbox →
 // execute-safe controls → browser push → metrics) is documented in
@@ -762,6 +778,123 @@ function NotificationsCard({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Section model — operator mental model, mobile-first
+// ---------------------------------------------------------------------------
+
+type SectionId = "overview" | "inbox" | "runtime" | "prs" | "about";
+
+interface SectionMeta {
+  id: SectionId;
+  label: string;
+  glyph: string;
+  description: string;
+}
+
+const SECTIONS: readonly SectionMeta[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    glyph: "◉",
+    description: "system health summary",
+  },
+  {
+    id: "inbox",
+    label: "Inbox",
+    glyph: "✉",
+    description: "what needs Joery",
+  },
+  {
+    id: "runtime",
+    label: "Runtime",
+    glyph: "▶",
+    description: "background workloop / activity",
+  },
+  {
+    id: "prs",
+    label: "PRs",
+    glyph: "⤴",
+    description: "code lifecycle (read-only)",
+  },
+  {
+    id: "about",
+    label: "About",
+    glyph: "ⓘ",
+    description: "policy + notifications",
+  },
+] as const;
+
+// --- BottomNav: thumb-reachable section switcher ---
+function BottomNav({
+  active,
+  onChange,
+}: {
+  active: SectionId;
+  onChange: (id: SectionId) => void;
+}) {
+  return (
+    <nav
+      className="agent-control__nav"
+      data-testid="agent-control-nav"
+      role="tablist"
+      aria-label="Agent control sections"
+    >
+      {SECTIONS.map((s) => {
+        const isActive = s.id === active;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`section-${s.id}`}
+            id={`tab-${s.id}`}
+            className={`agent-control__nav-tab ${
+              isActive ? "agent-control__nav-tab--active" : ""
+            }`}
+            data-testid={`nav-tab-${s.id}`}
+            onClick={() => onChange(s.id)}
+            tabIndex={isActive ? 0 : -1}
+          >
+            <span aria-hidden="true" className="agent-control__nav-glyph">
+              {s.glyph}
+            </span>
+            <span className="agent-control__nav-label">{s.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+// --- Section: visibility wrapper that keeps hidden sections in the DOM ---
+function Section({
+  id,
+  active,
+  ariaLabel,
+  children,
+}: {
+  id: SectionId;
+  active: boolean;
+  ariaLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      id={`section-${id}`}
+      role="tabpanel"
+      aria-labelledby={`tab-${id}`}
+      aria-label={ariaLabel}
+      data-testid={`section-${id}`}
+      data-section-active={active ? "true" : "false"}
+      hidden={!active}
+      className="agent-control__section"
+    >
+      {children}
+    </section>
+  );
+}
+
 // --- Route ---
 export function AgentControl() {
   const [status, setStatus] = useState<AgentControlStatus | null>(null);
@@ -779,6 +912,7 @@ export function AgentControl() {
     useState<AgentControlExecuteSafe | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshedAt, setRefreshedAt] = useState<string>("");
+  const [activeSection, setActiveSection] = useState<SectionId>("overview");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -819,7 +953,16 @@ export function AgentControl() {
     >
       <header className="agent-control__header" role="banner">
         <div className="agent-control__title-row">
-          <h1 id="agent-control-title">Agent Control</h1>
+          <div>
+            <h1 id="agent-control-title">Agent Control</h1>
+            <p
+              className="agent-control__safety-badge"
+              data-testid="agent-control-safety-badge"
+              aria-label="Read-only surface"
+            >
+              <span aria-hidden="true">🔒</span> read-only
+            </p>
+          </div>
           <button
             type="button"
             className="agent-control__refresh"
@@ -833,7 +976,7 @@ export function AgentControl() {
           </button>
         </div>
         <p className="agent-control__subtitle">
-          Read-only observability surface — v3.15.15.21.1.
+          Read-only observability surface — v3.15.15.26.
         </p>
         <div
           className={`agent-control__summary agent-control__summary--${summary.tone}`}
@@ -856,24 +999,59 @@ export function AgentControl() {
         ) : null}
       </header>
 
-      <section
-        className="agent-control__grid"
-        data-testid="agent-control-grid"
-        aria-label="Agent control kaarten"
+      <BottomNav active={activeSection} onChange={setActiveSection} />
+
+      <div
+        className="agent-control__sections"
+        data-testid="agent-control-sections"
       >
-        <StatusCard payload={status} />
-        <InboxCard payload={inbox} />
-        <ProposalsCard payload={proposals} />
-        <PRLifecycleCard payload={prLifecycle} />
-        <WorkloopCard payload={workloop} />
-        <ActivityCard payload={activity} />
-        <ExecuteSafeCard payload={executeSafe} />
-        <NotificationsCard payload={notifications} />
-      </section>
+        <Section
+          id="overview"
+          active={activeSection === "overview"}
+          ariaLabel="System health overview"
+        >
+          <StatusCard payload={status} />
+        </Section>
+
+        <Section
+          id="inbox"
+          active={activeSection === "inbox"}
+          ariaLabel="Operator inbox and proposal queue"
+        >
+          <InboxCard payload={inbox} />
+          <ProposalsCard payload={proposals} />
+        </Section>
+
+        <Section
+          id="runtime"
+          active={activeSection === "runtime"}
+          ariaLabel="Background runtime and activity"
+        >
+          <WorkloopCard payload={workloop} />
+          <ActivityCard payload={activity} />
+        </Section>
+
+        <Section
+          id="prs"
+          active={activeSection === "prs"}
+          ariaLabel="PR lifecycle and execute-safe catalog"
+        >
+          <PRLifecycleCard payload={prLifecycle} />
+          <ExecuteSafeCard payload={executeSafe} />
+        </Section>
+
+        <Section
+          id="about"
+          active={activeSection === "about"}
+          ariaLabel="About this surface"
+        >
+          <NotificationsCard payload={notifications} />
+        </Section>
+      </div>
 
       <footer className="agent-control__footer">
         <p>
-          v3.15.15.21.1 — read-only. Geen execute / approve / merge knoppen.
+          v3.15.15.26 — read-only. Geen execute / approve / merge knoppen.
           Schema:{" "}
           <code>docs/governance/github_pr_lifecycle/schema.v1.md</code>
         </p>
