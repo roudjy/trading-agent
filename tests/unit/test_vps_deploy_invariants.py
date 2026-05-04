@@ -244,8 +244,13 @@ def test_workflow_does_not_embed_secrets_or_hosts(workflow_text: str) -> None:
     ]
     for tok in forbidden_substrings:
         assert tok not in workflow_text, f"workflow contains forbidden token: {tok!r}"
-    # No hard-coded IP literal.
-    ip_re = re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
+    # No hard-coded IP literal. Same boundary tightening as the
+    # script-level test: lookbehind+lookahead reject 4-octet
+    # subsequences inside longer dotted strings like a release
+    # tag (``v3.15.15.29.1`` contains ``15.15.29.1``).
+    ip_re = re.compile(
+        r"(?<![\w.])\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?![.\d])"
+    )
     matches = ip_re.findall(workflow_text)
     assert matches == [], (
         f"workflow contains an IP literal (must come from secrets): {matches!r}"
@@ -256,6 +261,40 @@ def test_workflow_invokes_safe_deploy_script(workflow_text: str) -> None:
     """The deploy work must run via the audited script, not
     inline."""
     assert "scripts/deploy_vps_dashboard.sh" in workflow_text
+
+
+def test_workflow_bootstraps_repo_on_vps_before_running_script(
+    workflow_text: str,
+) -> None:
+    """v3.15.15.29.1 first-run fix: the workflow's SSH command
+    must perform ``git fetch origin main`` and
+    ``git reset --hard origin/main`` BEFORE invoking
+    ``bash scripts/deploy_vps_dashboard.sh``. Otherwise on a
+    stale VPS checkout the script file does not exist yet and
+    the deploy fails with exit code 127."""
+    assert "git fetch origin main" in workflow_text
+    assert "git reset --hard origin/main" in workflow_text
+
+
+def test_workflow_bootstrap_runs_before_script_invocation(
+    workflow_text: str,
+) -> None:
+    """The bootstrap commands must precede the script call in
+    the workflow text. We allow them to live on the same SSH
+    line (chained with ``&&``) or in separate prior steps; the
+    invariant is just ordering."""
+    fetch_idx = workflow_text.find("git fetch origin main")
+    reset_idx = workflow_text.find("git reset --hard origin/main")
+    script_idx = workflow_text.find("bash scripts/deploy_vps_dashboard.sh")
+    assert fetch_idx >= 0, "workflow does not run git fetch origin main"
+    assert reset_idx >= 0, "workflow does not run git reset --hard origin/main"
+    assert script_idx >= 0, "workflow does not invoke bash scripts/deploy_vps_dashboard.sh"
+    assert fetch_idx < script_idx, (
+        "git fetch origin main must precede the script invocation"
+    )
+    assert reset_idx < script_idx, (
+        "git reset --hard origin/main must precede the script invocation"
+    )
 
 
 def test_workflow_does_not_use_forbidden_compose_pattern(
