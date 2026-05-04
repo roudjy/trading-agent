@@ -106,18 +106,50 @@ log "verifying dashboard responds on ${DASHBOARD_HEALTH_URL}"
 # A short retry loop covers the seconds while nginx / Flask warm
 # up. We hit /agent-control because the standalone PWA route is
 # the operator-facing surface and is guaranteed to be wired.
+#
+# v3.15.15.29.2: the healthcheck is auth-aware. /agent-control
+# is wrapped in <RequireAuth> on the SPA side and the Flask
+# layer requires a session cookie. An anonymous request from
+# the deploy job therefore receives one of:
+#
+#   200  — fully served (only happens if the host's session
+#          cookies are present, e.g. during a manual run from
+#          a logged-in shell)
+#   302  — redirected (auth redirect, or trailing-slash redirect)
+#   401  — authenticated endpoint rejects the anonymous request
+#
+# All three prove the Flask app is alive AND the auth layer is
+# active. Anything else (no response, 5xx, 404, unexpected
+# status) is a real failure. We capture the status code with
+# %{http_code} instead of using curl --fail so a 401 does not
+# trip the script. We never embed credentials and never bypass
+# auth.
 http_ok=0
+last_status=""
 for attempt in 1 2 3 4 5; do
-    if curl -sSf -o /dev/null --max-time 5 "${DASHBOARD_HEALTH_URL}"; then
-        http_ok=1
-        break
-    fi
-    log "attempt ${attempt}/5: dashboard not responding yet, sleeping 3s"
-    sleep 3
+    # ``|| true`` so a transport-level failure (no response at
+    # all) just yields an empty status; the if-block below
+    # treats that as "not yet alive" and retries.
+    last_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+        --max-time 5 "${DASHBOARD_HEALTH_URL}" || true)"
+    case "${last_status}" in
+        200|302|401)
+            http_ok=1
+            log "dashboard responded with HTTP ${last_status}; treating as alive (\
+/agent-control is auth-protected)"
+            break
+            ;;
+        *)
+            log "attempt ${attempt}/5: dashboard not alive yet (status=\
+${last_status:-no_response}), sleeping 3s"
+            sleep 3
+            ;;
+    esac
 done
 
 if [[ "${http_ok}" -ne 1 ]]; then
-    log "fatal: dashboard did not respond on ${DASHBOARD_HEALTH_URL}"
+    log "fatal: dashboard did not respond on ${DASHBOARD_HEALTH_URL} \
+(last status=${last_status:-no_response})"
     ${COMPOSE} logs --tail=120 dashboard || true
     exit 6
 fi

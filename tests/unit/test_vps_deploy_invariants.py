@@ -131,6 +131,65 @@ def test_script_verifies_dashboard_running(script_text: str) -> None:
     assert "grep -qx dashboard" in script_text
 
 
+def test_script_healthcheck_captures_http_status_code(
+    script_text: str,
+) -> None:
+    """v3.15.15.29.2: the dashboard healthcheck captures the HTTP
+    status with ``%{http_code}`` instead of using ``curl --fail``.
+    The previous form treated 401 as failure, but 401 is the
+    expected response from /agent-control (auth-protected) and
+    proves the Flask app + auth layer are alive."""
+    assert "%{http_code}" in script_text
+
+
+def test_script_healthcheck_does_not_use_curl_fail(
+    script_text: str,
+) -> None:
+    """``curl --fail`` (or ``-f``) collapses 4xx/5xx into exit
+    code 22, which prevents the script from distinguishing 401
+    (auth-alive) from 5xx (server down). The auth-aware version
+    must NOT use ``--fail``/``-f`` against /agent-control."""
+    # The forbidden flags. We allow ``-sS`` (silent + show errors
+    # on transport failure), ``-o``, ``-w``, and ``--max-time``.
+    executable_lines = [
+        ln for ln in script_text.splitlines() if not ln.lstrip().startswith("#")
+    ]
+    executable = "\n".join(executable_lines)
+    forbidden = [
+        "curl -sSf",
+        "curl -fsS",
+        "curl -f",
+        "curl --fail",
+    ]
+    for f in forbidden:
+        assert f not in executable, (
+            f"deploy script (executable lines) uses forbidden curl flag: {f!r}"
+        )
+
+
+def test_script_healthcheck_accepts_200_302_401(script_text: str) -> None:
+    """The auth-aware healthcheck must accept 200, 302, and 401
+    as alive. Each must appear as an accepted status in the
+    case statement that gates the retry loop."""
+    # A robust check: each accepted status must appear, and they
+    # must appear together as a case-pattern alternation
+    # (``200|302|401)`` — no scattered references that may not be
+    # in the case-arm.
+    assert re.search(r"200\s*\|\s*302\s*\|\s*401\b", script_text), (
+        "script does not declare 200|302|401 as the accepted "
+        "alive case for /agent-control"
+    )
+
+
+def test_script_healthcheck_logs_accepted_status(script_text: str) -> None:
+    """When the healthcheck accepts a status, the script must log
+    which status it accepted so the operator can see (in the
+    workflow log) that 401 was the expected response, not a
+    silent skip."""
+    # The script logs ``dashboard responded with HTTP <status>``.
+    assert "dashboard responded with HTTP" in script_text
+
+
 def test_script_verifies_agent_not_running(script_text: str) -> None:
     """The script must fail loudly if agent is still running."""
     assert "grep -qx agent" in script_text
