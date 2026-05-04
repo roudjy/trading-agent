@@ -169,4 +169,60 @@ if [[ "${http_ok}" -ne 1 ]]; then
 fi
 
 log "deploy ok: dashboard + nginx running, agent stopped"
+
+# v3.15.16.1 — post-deploy github_pr_lifecycle artifact refresh.
+#
+# Why this lives AFTER "deploy ok":
+#   * The deploy itself is "successful" the moment the dashboard is
+#     verified alive and the agent is verified stopped. The PR
+#     lifecycle artifact is observability data, not deploy
+#     infrastructure. It MUST NOT be allowed to fail the deploy.
+#   * Placing the refresh here makes the failure path explicit:
+#     "deploy ok" prints unconditionally, then the refresh runs as a
+#     bounded, non-fatal best-effort step. Either log line surfaces
+#     in the deploy workflow output for the operator.
+#
+# What it does:
+#   * Runs ``python3 -m reporting.github_pr_lifecycle --mode dry-run
+#     --no-smoke`` on the VPS host. ``--mode dry-run`` is read-only
+#     (never comments, never merges); ``--no-smoke`` skips the local
+#     smoke gate so a transient test slowness can't stall the deploy.
+#   * The reporter writes ``logs/github_pr_lifecycle/latest.json``
+#     (atomic tmp + os.replace) and a timestamped copy under
+#     ``logs/github_pr_lifecycle/``. The dashboard container's
+#     ``./logs:/app/logs`` bind-mount makes the new artifact
+#     immediately visible to ``/api/agent-control/pr-lifecycle``.
+#
+# Why host-side and not container-side:
+#   * The reporter shells out to ``gh`` for repo / PR data. ``gh`` is
+#     authenticated on the VPS host (already used for other operator
+#     work) but is not necessarily installed in the dashboard image.
+#     Running on the host is the simpler, more reliable path and
+#     keeps the dashboard image surface unchanged.
+#
+# Failure handling:
+#   * The whole step is wrapped in ``if ...; then ... else ... fi``.
+#     ``set -e`` does not trip on commands inside ``if`` conditions,
+#     so a non-zero exit here cannot fail the deploy. The else
+#     branch logs a single human-readable line so the operator can
+#     spot a recurring failure in the workflow log.
+#   * ``command -v python3`` short-circuits on hosts that don't have
+#     a system ``python3`` available; the step degrades to a logged
+#     skip instead of an error.
+#
+# Hard guarantees re-asserted:
+#   * No mutation of GitHub state (--mode dry-run).
+#   * No new free-form command surface (literal argv only).
+#   * No new secret read or printed.
+#   * No agent service started or restarted.
+#   * No api_execute_safe_controls wiring.
+log "post-deploy: refresh github_pr_lifecycle artifact (best-effort)"
+if command -v python3 >/dev/null 2>&1 \
+        && python3 -m reporting.github_pr_lifecycle \
+            --mode dry-run --no-smoke >/dev/null 2>&1; then
+    log "post-deploy: pr_lifecycle refresh ok"
+else
+    log "post-deploy: pr_lifecycle refresh failed or unavailable (non-fatal)"
+fi
+
 exit 0

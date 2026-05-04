@@ -184,6 +184,26 @@ endpoint — no new dashboard.py wiring.
 | v3.15.15.25 | metrics dashboards on top of `history.jsonl` |
 | later | systemd service / cron wrapper around the loop driver |
 
+## VPS-side automation (v3.15.16.1)
+
+`reporting.github_pr_lifecycle --mode dry-run --no-smoke` is now
+**also** invoked as a best-effort post-deploy step at the end of
+`scripts/deploy_vps_dashboard.sh`. This refreshes
+`logs/github_pr_lifecycle/latest.json` on the VPS after every
+merge to `main`, so `/api/agent-control/pr-lifecycle` and the
+Agent Control PWA's PRs tab always have data without any manual
+SSH step.
+
+The post-deploy refresh is **non-fatal** — a failure logs a
+single line and the deploy still exits 0. The recurring
+maintenance scheduler in this module continues to be the
+canonical, scheduled refresh path; the deploy hook is an
+additive freshness guarantee that pins "fresh on every merge"
+specifically.
+
+See `docs/governance/vps_deploy.md` §"Post-deploy PR lifecycle
+artifact refresh (v3.15.16.1)" for the detailed contract.
+
 ## Files added by v3.15.15.23
 
 ```
