@@ -89,6 +89,83 @@ dashboard.
 verification both still run after this step. The forbidden
 `up -d --build` pattern remains banned.
 
+## Post-deploy PR lifecycle artifact refresh (v3.15.16.1)
+
+After `deploy ok`, the script runs a **best-effort, non-fatal**
+post-deploy step that refreshes
+`logs/github_pr_lifecycle/latest.json` on the VPS:
+
+```
+python3 -m reporting.github_pr_lifecycle --mode dry-run --no-smoke
+```
+
+This is the artifact `/api/agent-control/pr-lifecycle` reads, and
+the Agent Control PWA's PRs tab depends on. Before v3.15.16.1 the
+artifact was only generated wherever the operator ran the reporter
+by hand; `logs/` is gitignored, so a fresh checkout on the VPS
+never had it.
+
+### Hard guarantees re-asserted
+
+| guarantee | how it is enforced |
+| --- | --- |
+| Cannot fail the deploy | the step is wrapped in `if ...; then ... else ... fi`. `set -e` does not trip on commands inside `if` conditions; a non-zero exit logs a single non-fatal line and the script proceeds to `exit 0`. |
+| Read-only, no GitHub mutation | `--mode dry-run` is the read-only path of `reporting.github_pr_lifecycle`. The execute-safe path is never invoked from the deploy script. |
+| No new free-form surface | the argv is literal: `python3 -m reporting.github_pr_lifecycle --mode dry-run --no-smoke`. The script accepts no positional argument forwarding. |
+| No new secret | the reporter shells out to `gh`, which is already authenticated on the VPS host (used by other operator work). No additional credential is read or written by the deploy step. |
+| No agent restart | the step does not touch any compose service. `docker compose stop agent` already ran in step 5/6. |
+| Atomic write | the reporter writes via tmp + `os.replace`; readers (the dashboard) never see a half-written file. |
+
+### Why host-side, not container-side
+
+`gh` is authenticated on the VPS host but is not necessarily in
+the dashboard container image. Running the reporter on the host
+keeps the dashboard image surface unchanged and uses the
+authenticated `gh` that already exists. The artifact lands at
+`/root/trading-agent/logs/github_pr_lifecycle/latest.json` on the
+host; the dashboard container's `./logs:/app/logs` bind-mount
+makes it immediately readable as `/app/logs/github_pr_lifecycle/latest.json`
+inside the container — the path the Flask route reads.
+
+### Why after `deploy ok`, not before
+
+The deploy is "successful" the moment the dashboard is verified
+alive and the agent is verified stopped. The PR lifecycle artifact
+is observability data, not deploy infrastructure. Placing the
+refresh after the success log line makes the contract explicit:
+the deploy succeeded; whatever happens to the artifact refresh
+afterwards cannot retroactively turn the deploy into a failure.
+
+### Operator log lines
+
+Successful refresh:
+
+```
+[deploy_vps_dashboard] post-deploy: refresh github_pr_lifecycle artifact (best-effort)
+[deploy_vps_dashboard] post-deploy: pr_lifecycle refresh ok
+```
+
+Failed refresh (non-fatal — the deploy still exits 0):
+
+```
+[deploy_vps_dashboard] post-deploy: refresh github_pr_lifecycle artifact (best-effort)
+[deploy_vps_dashboard] post-deploy: pr_lifecycle refresh failed or unavailable (non-fatal)
+```
+
+If the failure line appears repeatedly, the operator can run the
+reporter manually from the VPS shell:
+
+```
+ssh root@<VPS_HOST>
+cd /root/trading-agent
+python3 -m reporting.github_pr_lifecycle --mode dry-run --no-smoke
+```
+
+`--mode dry-run` is read-only; it never posts comments, never
+merges, never force-pushes. See
+`docs/governance/recurring_maintenance.md` for the full surface
+of read-only refresh jobs.
+
 ## Auth-aware healthcheck (v3.15.15.29.2)
 
 The deploy script's final step verifies that the dashboard is
