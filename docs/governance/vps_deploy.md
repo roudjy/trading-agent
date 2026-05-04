@@ -55,6 +55,33 @@ recreated / started via compose's `depends_on` resolution. The
 deploy script and the workflow are explicit about NOT using this
 pattern, and a static test in `tests/unit/` enforces it.
 
+## Auth-aware healthcheck (v3.15.15.29.2)
+
+The deploy script's final step verifies that the dashboard is
+responding on `http://127.0.0.1:8050/agent-control`. That route
+is **auth-protected** (wrapped in `<RequireAuth>` on the SPA
+side; Flask requires a session cookie), so an anonymous request
+from the deploy job receives one of:
+
+| status | meaning | accepted? |
+| :---: | --- | :---: |
+| 200 | fully served (only when host cookies are present, e.g. manual run from a logged-in shell) | ✅ |
+| 302 | auth redirect or trailing-slash redirect | ✅ |
+| 401 | authenticated endpoint rejects the anonymous request | ✅ |
+| 000 / no response | dashboard not listening / connection refused | ❌ retry |
+| 4xx (other) | misrouted | ❌ retry |
+| 5xx | dashboard crashed | ❌ retry |
+| anything else | unexpected | ❌ retry |
+
+All three accepted statuses prove the Flask app is alive AND the
+auth layer is active. The script captures the status code with
+`curl ... -w '%{http_code}'` (NOT `curl --fail`) so a 401 does
+not collapse to exit 22 and trip the script. The accepted status
+is logged so the operator sees in the workflow log that, e.g.,
+`HTTP 401` was treated as alive and not as a silent skip.
+
+The script never embeds credentials and never bypasses auth.
+
 ## First-run bootstrap (v3.15.15.29.1)
 
 The workflow's SSH command runs:
