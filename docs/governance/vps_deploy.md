@@ -55,6 +55,40 @@ recreated / started via compose's `depends_on` resolution. The
 deploy script and the workflow are explicit about NOT using this
 pattern, and a static test in `tests/unit/` enforces it.
 
+## nginx upstream refresh (v3.15.15.29.3)
+
+After v3.15.15.29.2, the deploy got past the auth-aware
+healthcheck but still failed because every probe of
+`/agent-control` came back **502**. Sequence of events on the VPS:
+
+1. `dashboard` rebuilt + recreated → new container, new
+   internal IP on the docker bridge network (the exact value
+   varies; the operator can read it off `docker compose ps` if
+   curious).
+2. `nginx` was already in the running set, so `up -d --no-deps
+   dashboard nginx` left it alone (compose only touches
+   services that aren't already up, unless told otherwise).
+3. nginx kept its old upstream resolution from the previous
+   dashboard container, which no longer existed → 502 on every
+   request.
+
+**Fix in v3.15.15.29.3**: the deploy now passes
+`--force-recreate` so both `dashboard` AND `nginx` are
+recreated even when compose thinks they're already up:
+
+```
+docker compose up -d --no-deps --force-recreate dashboard nginx
+```
+
+`--no-deps` is unchanged (still prevents compose from touching
+the agent via `depends_on`). Adding `--force-recreate` makes
+nginx restart, re-resolve the upstream, and serve the fresh
+dashboard.
+
+`docker compose stop agent || true` and the agent-not-running
+verification both still run after this step. The forbidden
+`up -d --build` pattern remains banned.
+
 ## Auth-aware healthcheck (v3.15.15.29.2)
 
 The deploy script's final step verifies that the dashboard is
