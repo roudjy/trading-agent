@@ -71,10 +71,63 @@ def test_script_uses_compose_build_dashboard_only(script_text: str) -> None:
 def test_script_uses_compose_up_no_deps_dashboard_nginx(script_text: str) -> None:
     """``--no-deps`` is the critical flag that prevents compose
     from touching the agent service via ``depends_on``
-    resolution."""
-    assert (
-        "docker compose up -d --no-deps dashboard nginx" in script_text
-        or "${COMPOSE} up -d --no-deps dashboard nginx" in script_text
+    resolution.
+
+    v3.15.15.29.3: the canonical form is now
+    ``up -d --no-deps --force-recreate dashboard nginx`` so
+    nginx is rebuilt and re-resolves the dashboard upstream.
+    The legacy form (no force-recreate) is still accepted by
+    this test so the invariant remains "uses --no-deps for the
+    up command, with both dashboard and nginx in the same
+    invocation".
+    """
+    accepted = [
+        "docker compose up -d --no-deps --force-recreate dashboard nginx",
+        "${COMPOSE} up -d --no-deps --force-recreate dashboard nginx",
+        "docker compose up -d --no-deps dashboard nginx",
+        "${COMPOSE} up -d --no-deps dashboard nginx",
+    ]
+    assert any(p in script_text for p in accepted), (
+        "script does not use any accepted '--no-deps dashboard nginx' "
+        "compose-up form"
+    )
+
+
+def test_script_force_recreates_nginx_after_dashboard_rebuild(
+    script_text: str,
+) -> None:
+    """v3.15.15.29.3 fix: when dashboard is rebuilt, the new
+    container gets a new internal IP. nginx (already Running)
+    is left alone by ``up -d --no-deps`` and keeps its stale
+    upstream → every /agent-control request 502s.
+
+    The deploy must explicitly refresh nginx. Three accepted
+    patterns:
+
+      A) ``up -d --no-deps --force-recreate dashboard nginx``
+         (single command, recreates both — preferred)
+      B) ``up -d --no-deps --force-recreate nginx`` after the
+         dashboard up
+      C) ``restart nginx`` after the dashboard up
+
+    Anything else is a regression that lets the 502 mode return.
+    """
+    pattern_a = (
+        "--no-deps --force-recreate dashboard nginx" in script_text
+        or "--force-recreate --no-deps dashboard nginx" in script_text
+    )
+    pattern_b = (
+        "--no-deps --force-recreate nginx" in script_text
+        or "--force-recreate --no-deps nginx" in script_text
+    )
+    pattern_c = (
+        "compose restart nginx" in script_text
+        or "${COMPOSE} restart nginx" in script_text
+    )
+    assert pattern_a or pattern_b or pattern_c, (
+        "deploy script does not explicitly refresh nginx after the "
+        "dashboard rebuild; the v3.15.15.29.3 502 regression mode "
+        "would re-emerge"
     )
 
 

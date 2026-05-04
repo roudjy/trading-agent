@@ -70,12 +70,26 @@ git reset --hard origin/main
 log "step 3/6: build dashboard image (only)"
 ${COMPOSE} build dashboard
 
-log "step 4/6: bring dashboard + nginx up with --no-deps"
-# --no-deps is the critical flag. It tells compose to NOT touch
-# any service the named services depend on. Combined with the
-# explicit list (dashboard nginx), this means agent stays as it
-# was — typically stopped.
-${COMPOSE} up -d --no-deps dashboard nginx
+log "step 4/6: recreate dashboard + nginx with --no-deps + --force-recreate"
+# Two critical flags here:
+#
+# * ``--no-deps`` — tells compose to NOT touch any service the
+#   named services depend on. Combined with the explicit list
+#   (dashboard nginx), this means agent stays as it was —
+#   typically stopped.
+#
+# * ``--force-recreate`` — recreates BOTH containers even when
+#   compose thinks they're already up. This is the v3.15.15.29.3
+#   fix: without it, nginx is "Running" so compose leaves it
+#   alone, but dashboard was recreated with a new container IP.
+#   nginx then keeps its old upstream resolution and returns 502
+#   for every /agent-control request. Forcing recreate makes
+#   nginx restart, re-resolve the dashboard upstream, and serve
+#   the fresh container.
+#
+# We do NOT use ``up -d --build`` here — see the safety comment
+# at the top of this script for why that pattern is forbidden.
+${COMPOSE} up -d --no-deps --force-recreate dashboard nginx
 
 log "step 5/6: explicit defense-in-depth stop of agent"
 # This is intentional. We do NOT want the agent to be running on
