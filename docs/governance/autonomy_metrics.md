@@ -132,6 +132,7 @@ expected to be small but non-zero is normal.
 python -m reporting.autonomy_metrics --collect
 python -m reporting.autonomy_metrics --collect --no-write
 python -m reporting.autonomy_metrics --collect --frozen-utc 2026-05-03T12:00:00Z
+python -m reporting.autonomy_metrics --collect --stale-threshold-seconds 300
 python -m reporting.autonomy_metrics --status
 ```
 
@@ -142,6 +143,115 @@ python -m reporting.autonomy_metrics --status
 `--no-write` is for dry-run / CI.
 
 `--frozen-utc` pins `generated_at_utc` for deterministic tests.
+
+`--stale-threshold-seconds` overrides the staleness threshold for
+this collection (see "Stale-artifact detection" below).
+
+## Stale-artifact detection (operator runbook)
+
+This section documents the v3.15.15.27 stale-artifact detection
+surface from the operator's point of view. The mechanics are
+already covered in
+`docs/governance/observability_security_hardening.md` §1; this
+section answers the operator-facing questions: *which knobs do I
+have, when do I turn them, and what do I look at afterwards*.
+
+### Why a staleness signal exists
+
+Until v3.15.15.27 a source artifact that parsed cleanly was
+treated as "ok" forever. If the workloop stopped writing fresh
+output the digest kept reporting the same numbers indefinitely
+and the operator only noticed when something else broke. The
+staleness signal closes that gap without expanding execution
+authority — it adds a per-source freshness annotation and one
+counter, nothing else.
+
+### Knobs
+
+The threshold is set, in order of precedence:
+
+1. `--stale-threshold-seconds <int>` on the
+   `python -m reporting.autonomy_metrics --collect` CLI
+   invocation. Wins over the env var. Must be a positive integer.
+2. `AUTONOMY_METRICS_STALE_THRESHOLD_SECONDS` environment variable
+   at collect time. Read once per `--collect`. Must parse to a
+   positive integer; otherwise the default applies.
+3. Compiled-in default
+   `reporting.autonomy_metrics.STALE_THRESHOLD_SECONDS_DEFAULT =
+   24 * 3600` (24 hours).
+
+The threshold is in **seconds**. There is no unit suffix; passing
+`--stale-threshold-seconds 24h` is rejected by argparse.
+
+### Choosing a threshold
+
+The default of 24 hours is deliberately conservative. It is the
+right answer for a workloop that is *expected* to run at least
+once per calendar day. Operators who run the loop on a tighter
+cadence should tighten the threshold so a stuck loop surfaces
+sooner; operators running a deliberately slow cadence (for
+example a research-only operator who only collects evidence on
+weekdays) should loosen it so weekend gaps do not flap.
+
+| Operator cadence              | Suggested threshold | Why |
+| ----------------------------- | ------------------- | --- |
+| Continuous workloop_runtime   | `300` (5 min)       | A 5-minute gap is already meaningful; tighter than this is noisy. |
+| Hourly recurring_maintenance  | `3600` (1 h)        | One missed run is the smallest signal worth surfacing. |
+| Daily operator review         | `86400` (default)   | Matches the compiled-in default; do not override. |
+| Weekend-paused workloop       | `259200` (3 days)   | Avoid flapping on Saturday/Sunday gaps; revisit Monday. |
+
+The threshold is **not** a kill-switch. A row tagged
+`is_stale=true` continues to surface its real metric values; the
+single side effect is that `reliability.stale_artifact_count` is
+bumped and `final_recommendation` may flip to
+`degraded_failures`.
+
+### What the operator sees
+
+After a `--collect`, every source row that parsed cleanly carries
+two new fields:
+
+* `age_seconds: int | null` — `digest.generated_at_utc -
+  source.generated_at_utc`. `null` when the source did not parse,
+  was missing, or did not expose a `generated_at_utc`.
+* `is_stale: bool` — `true` when `age_seconds` is non-null and
+  exceeds the threshold for this `--collect`.
+
+Aggregate signal:
+
+* `reliability.stale_artifact_count` — number of source rows
+  where `is_stale` is true. Expected to be `0` on a healthy
+  system. A non-zero count feeds `final_recommendation`
+  (`degraded_failures` if the loop is otherwise running).
+
+### Operator playbook
+
+When `reliability.stale_artifact_count > 0`:
+
+1. Run `python -m reporting.autonomy_metrics --status` and read
+   the per-row `age_seconds` / `is_stale` fields to identify
+   *which* sources are stale.
+2. Cross-check the freshest `last_success_at_utc` /
+   `last_failure_at_utc` on the workloop runtime artifact. If
+   `consecutive_failures >= 3` the loop is in a soft halt; treat
+   the staleness as a downstream symptom of the soft halt, not as
+   a separate incident.
+3. If the workloop is healthy but a single source is stale, the
+   upstream module that writes that source has stopped — go look
+   at it (for example `recurring_maintenance` if the recurring
+   row is the stale one).
+4. Do not "fix" staleness by widening the threshold. Widen the
+   threshold only when the operator-cadence row above explicitly
+   recommends a different value for the current operating mode.
+
+### Determinism note
+
+The threshold is read once per `--collect`. Subsequent reads via
+`--status` print the digest as-written and do not re-evaluate
+staleness. If the operator wants a fresh staleness verdict, they
+must run `--collect` again — `--status` is a viewer, not a
+re-evaluator. This matches the rest of the digest's freshness
+guarantees and keeps the schema deterministic for tests.
 
 ## Known limitations
 
