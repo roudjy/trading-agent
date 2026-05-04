@@ -39,6 +39,13 @@ This makes "the workloop ran an hour ago" visibly different from
 "the workloop hasn't run today" without changing the digest's
 top-level shape.
 
+> **Operator runbook:** see
+> [`autonomy_metrics.md` §"Stale-artifact detection (operator
+> runbook)"](autonomy_metrics.md#stale-artifact-detection-operator-runbook)
+> for the threshold-precedence rules, the per-cadence
+> threshold-selection table, and the playbook for triaging
+> `reliability.stale_artifact_count > 0`.
+
 ### 2. Boundary exception-handler invariant
 
 Every dashboard route module that surfaces JSON to the operator
