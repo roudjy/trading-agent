@@ -891,7 +891,15 @@ def collect_snapshot(
 
     runtime_history = _read_jsonl_history(SOURCE_WORKLOOP_RUNTIME_HISTORY)
     recurring_history = _read_jsonl_history(SOURCE_RECURRING_MAINTENANCE_HISTORY)
-    trends = _trends(runtime_history, recurring_history, now=_utcnow_dt())
+    # v3.15.15.29: when ``frozen_utc`` is pinned (deterministic
+    # tests), use it as the trend-window "now" too. Without this
+    # the trend window kept drifting against real-UTC and made
+    # the test_trends_* cases time-of-day flaky. In production
+    # (no frozen_utc) the behaviour is unchanged.
+    now_for_trends = _parse_iso(frozen_utc) if frozen_utc else None
+    if now_for_trends is None:
+        now_for_trends = _utcnow_dt()
+    trends = _trends(runtime_history, recurring_history, now=now_for_trends)
 
     final_rec = _final_recommendation(
         src_statuses=src_statuses,

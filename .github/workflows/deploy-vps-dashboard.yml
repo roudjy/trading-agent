@@ -1,0 +1,114 @@
+name: Deploy VPS Dashboard
+
+# v3.15.15.29 — automatic deploy of the dashboard + nginx surface
+# to the VPS on every push to main. The agent service is NOT
+# started or restarted by this workflow; it stays operator-gated.
+#
+# Trigger surface is intentionally narrow:
+#   * push to main only. No pull_request trigger (we never deploy
+#     unmerged code).
+#   * No workflow_dispatch (one less manual escape hatch).
+#   * No schedule (no implicit re-deploys).
+#
+# Concurrency policy:
+#   * group "deploy-vps-dashboard" so two deploys cannot race.
+#   * cancel-in-progress: false — let the in-flight deploy
+#     complete; the next one queues. We never want to interrupt
+#     a deploy mid-flight.
+#
+# Time + secret hygiene:
+#   * timeout-minutes: 20 — well above an expected deploy
+#     (~2-3 minutes) but bounded enough that a hung SSH cannot
+#     burn an entire runner hour.
+#   * secrets are referenced via ``${{ secrets.* }}`` only; never
+#     echoed; never printed.
+#   * the SSH private key file is created with chmod 600,
+#     consumed once, and the runner is GitHub-ephemeral so it
+#     is destroyed at end-of-job.
+#
+# Implementation note:
+#   We use the openssh-client already present on
+#   ``ubuntu-latest`` runners (no third-party SSH action). This
+#   keeps the third-party-action footprint at exactly one
+#   (actions/checkout, SHA-pinned per the existing repo-wide
+#   policy). The deploy work itself runs ON THE VPS via
+#   ``scripts/deploy_vps_dashboard.sh``; this workflow only
+#   triggers it.
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-vps-dashboard
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy dashboard + nginx
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo (for runner-side context only)
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          # Shallow checkout is fine — the deploy script runs on
+          # the VPS, not in this checkout.
+          fetch-depth: 1
+
+      - name: Configure SSH client
+        env:
+          # We pull these in via env so the value never appears in
+          # the workflow's shell trace.
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_SSH_KEY}" ]; then
+            echo "missing one or more required secrets: VPS_HOST / VPS_USER / VPS_SSH_KEY"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          # Write the private key. The redirect avoids placing the
+          # value on a command line where another process could
+          # observe it via /proc/<pid>/cmdline.
+          umask 077
+          printf '%s\n' "${VPS_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pin the host key. ssh-keyscan is silent on stderr to
+          # avoid leaking VPS_HOST to logs.
+          ssh-keyscan -H -T 10 "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+          echo "ssh client configured (key + known_hosts)"
+
+      - name: Run deploy script on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          # The deploy work happens entirely on the VPS via the
+          # audited scripts/deploy_vps_dashboard.sh. We do NOT
+          # pass any arguments — the script refuses arguments by
+          # design.
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${VPS_USER}@${VPS_HOST}" \
+            'cd /root/trading-agent && bash scripts/deploy_vps_dashboard.sh'
+
+      - name: Wipe SSH artifacts
+        if: always()
+        run: |
+          set -euo pipefail
+          # Defense in depth even though the runner is ephemeral.
+          rm -f ~/.ssh/deploy_key ~/.ssh/known_hosts || true
