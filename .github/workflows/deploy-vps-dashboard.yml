@@ -98,13 +98,23 @@ jobs:
           # audited scripts/deploy_vps_dashboard.sh. We do NOT
           # pass any arguments — the script refuses arguments by
           # design.
+          #
+          # v3.15.15.29.1 — first-run bootstrap. The script lives
+          # in main, but on the VERY first deploy the VPS checkout
+          # may still be on an older main commit that doesn't
+          # contain the script yet. We therefore prepend an
+          # explicit ``git fetch + reset`` so the script file is
+          # guaranteed to be on disk before we invoke it. This is
+          # idempotent: the script itself ALSO does fetch + reset
+          # as its first two steps, so subsequent runs do the same
+          # work twice (cheap) rather than skipping the bootstrap.
           ssh \
             -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=yes \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "${VPS_USER}@${VPS_HOST}" \
-            'cd /root/trading-agent && bash scripts/deploy_vps_dashboard.sh'
+            'cd /root/trading-agent && git fetch origin main && git reset --hard origin/main && bash scripts/deploy_vps_dashboard.sh'
 
       - name: Wipe SSH artifacts
         if: always()

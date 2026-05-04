@@ -55,6 +55,31 @@ recreated / started via compose's `depends_on` resolution. The
 deploy script and the workflow are explicit about NOT using this
 pattern, and a static test in `tests/unit/` enforces it.
 
+## First-run bootstrap (v3.15.15.29.1)
+
+The workflow's SSH command runs:
+
+```
+cd /root/trading-agent
+git fetch origin main
+git reset --hard origin/main
+bash scripts/deploy_vps_dashboard.sh
+```
+
+The explicit `git fetch` + `git reset --hard` BEFORE the script
+invocation is intentional. On the very first deploy the VPS
+checkout may be on an older `main` commit that does not yet
+contain `scripts/deploy_vps_dashboard.sh`. Without the bootstrap
+the SSH command fails with `bash: scripts/deploy_vps_dashboard.sh:
+No such file or directory` and exit code 127 (this is exactly
+what happened the first time the workflow ran after v3.15.15.29
+merged).
+
+The bootstrap is idempotent: the script itself ALSO does
+`git fetch` + `git reset --hard origin/main` as its first two
+steps. Subsequent deploys do the same work twice (cheap)
+rather than skipping the bootstrap.
+
 ## Required GitHub secrets
 
 The workflow consumes exactly three repository secrets:
