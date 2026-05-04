@@ -36,7 +36,7 @@ jobs:
       digest_dashboard: ${{ steps.push_dashboard.outputs.digest }}
       digest_agent: ${{ steps.push_agent.outputs.digest }}
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Read VERSION
         id: version
         shell: bash
@@ -207,7 +207,7 @@ jobs:
       contents: read
       packages: read
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       # Same auth requirement as sbom: trivy pulls a private GHCR image.
       - name: Log in to GHCR (read-only) so trivy can pull the image
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
@@ -256,7 +256,7 @@ jobs:
     needs: [build-grep-push]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
