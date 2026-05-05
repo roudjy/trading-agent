@@ -86,6 +86,15 @@ def isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setitem(
         rm._JOB_REGISTRY, rm.JOB_REFRESH_AGENT_FLOW, af_spec
     )
+    # v3.15.16.8 — same isolation rationale: the human_needed
+    # executor scans dashboard/api_*.py + dashboard/dashboard.py
+    # source text and writes logs/human_needed/. Stub it for tests
+    # using the ``isolated`` fixture.
+    hn_spec = dict(rm._JOB_REGISTRY[rm.JOB_REFRESH_HUMAN_NEEDED])
+    hn_spec["executor"] = lambda: {"summary": "ok (test stub)"}
+    monkeypatch.setitem(
+        rm._JOB_REGISTRY, rm.JOB_REFRESH_HUMAN_NEEDED, hn_spec
+    )
     return tmp_path
 
 
@@ -127,10 +136,12 @@ def test_job_registry_contains_only_approved_types() -> None:
         "refresh_task_board",
         # v3.15.16.7 — read-only agent-flow handoff projection.
         "refresh_agent_flow",
+        # v3.15.16.8 — read-only human_needed event detection.
+        "refresh_human_needed",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 8
+    assert len(rm.JOB_TYPES) == 9
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
@@ -161,6 +172,17 @@ def test_agent_flow_job_is_low_risk_no_gh_enabled_by_default() -> None:
     must not need ``gh``, and must be enabled by default (it is a
     pure read-only orchestration projection)."""
     spec = rm._JOB_REGISTRY[rm.JOB_REFRESH_AGENT_FLOW]
+    assert spec["risk_class"] == rm.RISK_LOW
+    assert spec["needs_gh"] is False
+    assert spec["default_enabled"] is True
+    assert spec["default_interval_seconds"] == 30 * 60
+
+
+def test_human_needed_job_is_low_risk_no_gh_enabled_by_default() -> None:
+    """v3.15.16.8: the human_needed refresh job must be LOW risk,
+    must not need ``gh``, and must be enabled by default (it is a
+    pure read-only blocker-detection projection)."""
+    spec = rm._JOB_REGISTRY[rm.JOB_REFRESH_HUMAN_NEEDED]
     assert spec["risk_class"] == rm.RISK_LOW
     assert spec["needs_gh"] is False
     assert spec["default_enabled"] is True

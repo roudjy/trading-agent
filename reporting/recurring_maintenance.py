@@ -99,6 +99,11 @@ JOB_REFRESH_TASK_BOARD: str = "refresh_task_board"
 # responsible_agent, next_agent, next_action_proposed (closed enum)
 # so the v3.15.16.11 actuator can consume handoffs deterministically.
 JOB_REFRESH_AGENT_FLOW: str = "refresh_agent_flow"
+# v3.15.16.8 — read-only human_needed event detection. Auto-detects
+# wiring gaps and other operator-blockers; emits structured events
+# with proposed_patch text. Future push notifications trigger only
+# from these events.
+JOB_REFRESH_HUMAN_NEEDED: str = "refresh_human_needed"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -109,6 +114,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_ROADMAP_PRIORITY,
     JOB_REFRESH_TASK_BOARD,
     JOB_REFRESH_AGENT_FLOW,
+    JOB_REFRESH_HUMAN_NEEDED,
 )
 
 
@@ -355,6 +361,30 @@ def _exec_refresh_agent_flow() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_human_needed() -> dict[str, Any]:
+    """Run the v3.15.16.8 human_needed event-detection projection
+    (read-only). Reads logs/task_board/latest.json (v3.15.16.6) and
+    statically analyses dashboard/api_*.py + dashboard/dashboard.py
+    for wiring gaps. Writes logs/human_needed/latest.json. Never
+    starts a branch, never opens a PR, never invokes ``gh``."""
+    from reporting.human_needed import collect_snapshot, write_outputs
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    counts = snap.get("counts") or {}
+    return {
+        "summary": (
+            f"human_needed "
+            f"{snap.get('final_recommendation') or 'no recommendation'}"
+        ),
+        "evidence": {
+            "events_total": counts.get("events_total"),
+            "by_reason": counts.get("by_reason"),
+            "by_priority": counts.get("by_priority"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -469,6 +499,18 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
         "description": (
             "Refresh agent-flow handoff digest "
             "(read-only orchestration projection over the task_board)."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_HUMAN_NEEDED: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_human_needed,
+        "description": (
+            "Refresh human_needed event-detection digest "
+            "(read-only blocker detection with proposed_patch synthesis)."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,

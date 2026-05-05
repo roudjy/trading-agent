@@ -83,6 +83,11 @@ SOURCE_WORKLOOP_RUNTIME: Path = (
 SOURCE_RECURRING_MAINTENANCE: Path = (
     REPO_ROOT / "logs" / "recurring_maintenance" / "latest.json"
 )
+# v3.15.16.8 — read-only human_needed digest. Each open event
+# becomes a high-severity inbox row.
+SOURCE_HUMAN_NEEDED: Path = (
+    REPO_ROOT / "logs" / "human_needed" / "latest.json"
+)
 
 # Canonical inbox categories — v3.15.15.24: imported from the
 # shared approval policy so the inbox cannot drift from the
@@ -767,6 +772,82 @@ def _build_from_recurring_maintenance(envelope: dict[str, Any]) -> list[dict[str
     return items
 
 
+def _build_from_human_needed(envelope: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project a v3.15.16.8 human_needed digest into inbox items.
+
+    Mapping:
+      * each event with reason == 'governance_bootstrap_required'
+        OR 'no_touch_path_blocks_wiring' OR
+        'release_gate_blocks_progression' OR
+        'system_cannot_proceed_safely' -> failed_automation
+        (severity: high)
+      * each event with reason == 'allowlist_blocks_completion'
+        -> manual_route_wiring_required (severity: low / medium)
+      * each event with reason == 'decision_cannot_be_inferred'
+        -> unknown_state (severity: medium)
+
+    A clean digest (zero events) produces zero inbox items.
+    """
+    if envelope["status"] != "ok" or not envelope.get("data"):
+        return []
+    data = envelope["data"]
+    events = data.get("events") or []
+    if not isinstance(events, list):
+        return []
+    items: list[dict[str, Any]] = []
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        reason = str(ev.get("reason") or "")
+        priority = str(ev.get("priority") or "MEDIUM")
+        impact = str(ev.get("impact") or "MEDIUM")
+        component = str(ev.get("blocking_component") or "")
+        required = str(ev.get("required_action") or "")
+        proposed = ev.get("proposed_patch")
+        related = ev.get("related_item")
+        if reason in (
+            "governance_bootstrap_required",
+            "no_touch_path_blocks_wiring",
+            "release_gate_blocks_progression",
+            "system_cannot_proceed_safely",
+        ):
+            category = "failed_automation"
+            risk = "HIGH" if priority in ("HIGH", "CRITICAL") else "MEDIUM"
+        elif reason == "allowlist_blocks_completion":
+            category = "manual_route_wiring_required"
+            risk = "MEDIUM"
+        elif reason == "decision_cannot_be_inferred":
+            category = "unknown_state"
+            risk = "MEDIUM"
+        else:
+            category = "unknown_state"
+            risk = "MEDIUM"
+        items.append(
+            _build_item(
+                source=f"human_needed:{ev.get('event_id', '')}",
+                source_type="manual",
+                title=f"human_needed: {reason} — {component[:120]}",
+                summary=required[:480] if required else "",
+                category=category,
+                risk_class=risk,
+                status=STATUS_OPEN,
+                affected_files=[],
+                evidence={
+                    "reason": reason,
+                    "priority": priority,
+                    "impact": impact,
+                    "proposed_patch_present": isinstance(proposed, str)
+                    and bool(proposed),
+                    "blocking_component": component,
+                },
+                related_proposal_id=(
+                    str(related) if isinstance(related, str) and related else None
+                ),
+            )
+        )
+    return items
+
+
 def _build_manual_route_wiring_items() -> list[dict[str, Any]]:
     """Per the v3.15.15.18 / .19 / .20 release notes,
     ``dashboard/dashboard.py`` is no-touch except via an
@@ -905,6 +986,7 @@ def collect_snapshot(
             "recurring_maintenance": _read_json_artifact(
                 SOURCE_RECURRING_MAINTENANCE
             ),
+            "human_needed": _read_json_artifact(SOURCE_HUMAN_NEEDED),
             "governance_status": _governance_status_safe(),
         }
 
@@ -920,6 +1002,11 @@ def collect_snapshot(
     items.extend(
         _build_from_recurring_maintenance(
             sources.get("recurring_maintenance", {"status": "not_available"})
+        )
+    )
+    items.extend(
+        _build_from_human_needed(
+            sources.get("human_needed", {"status": "not_available"})
         )
     )
     items.extend(

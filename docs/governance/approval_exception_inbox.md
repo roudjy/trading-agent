@@ -3,14 +3,15 @@
 > Module: `reporting.approval_inbox`
 > + `dashboard.api_approval_inbox` (read-only GET route)
 > + `frontend/src/routes/AgentControl.tsx` (Inbox card)
-> Release: v3.15.15.20
+> Release: v3.15.15.20 (v3.15.16.8 added human_needed projection)
 > Schema: [`approval_inbox/schema.v1.md`](approval_inbox/schema.v1.md)
 
 This is the operator-facing runbook. The approval inbox is the
 **single read-only surface** that aggregates every needs_human /
 blocked / high-risk / unknown item from the upstream governance
 reporters (proposal queue, GitHub PR lifecycle, autonomous
-workloop, governance status). It does not approve, reject, or
+workloop, governance status, recurring_maintenance, **human_needed
+events from v3.15.16.8**). It does not approve, reject, or
 mutate anything.
 
 ## Core design principle
