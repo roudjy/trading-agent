@@ -202,6 +202,41 @@ mutation surface.
   `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
+* `status`: done
+
+### v3.15.16.8 — human_needed event detection with proposed_patch synthesis
+
+Ship `reporting/human_needed.py` — pure read-only blocker detector.
+Auto-detects every wiring gap (statically comparing
+`register_*_routes` definitions in `dashboard/api_*.py` to call
+sites in `dashboard/dashboard.py`, including multi-line imports)
+and emits structured events with literal `proposed_patch` text.
+Closed six-element reason vocabulary
+(governance_bootstrap_required, no_touch_path_blocks_wiring,
+allowlist_blocks_completion, release_gate_blocks_progression,
+system_cannot_proceed_safely, decision_cannot_be_inferred). Closed
+four-element impact / priority vocabulary (LOW / MEDIUM / HIGH /
+CRITICAL). The v3.15.16.5 dashboard.py wiring gap is the canonical
+first-detection case (pinned by unit test). Adds
+`_build_from_human_needed` projection to
+`reporting/approval_inbox.py` so each event surfaces in the
+existing PWA Inbox card. JOB_REFRESH_HUMAN_NEEDED added to
+`recurring_maintenance`. Pure observability; `proposed_patch` is
+text only — never auto-applied. Future push notifications trigger
+only on these events.
+
+* `affected_files`: `reporting/human_needed.py`,
+  `reporting/approval_inbox.py`,
+  `reporting/recurring_maintenance.py`,
+  `tests/unit/test_human_needed.py`,
+  `tests/unit/test_approval_inbox.py`,
+  `tests/unit/test_recurring_maintenance.py`,
+  `docs/governance/human_needed.md`,
+  `docs/governance/approval_exception_inbox.md`,
+  `docs/governance/recurring_maintenance.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
+* `risk_class`: LOW
+* `proposal_type`: observability_addition
 * `status`: proposed
 
 ---

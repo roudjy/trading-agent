@@ -818,6 +818,116 @@ def test_recurring_maintenance_clean_artifact_yields_no_inbox_items() -> None:
     assert rm_items == []
 
 
+# ---------------------------------------------------------------------------
+# v3.15.16.8 — human_needed projection
+# ---------------------------------------------------------------------------
+
+
+def _human_needed_envelope_with_events(events: list[dict]) -> dict:
+    return {
+        "status": "ok",
+        "path": "logs/human_needed/latest.json",
+        "reason": None,
+        "data": {
+            "schema_version": 1,
+            "report_kind": "human_needed_digest",
+            "module_version": "v3.15.16.8",
+            "events": events,
+        },
+    }
+
+
+def test_human_needed_governance_bootstrap_emits_failed_automation() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _empty_recurring_maintenance(),
+        "human_needed": _human_needed_envelope_with_events(
+            [
+                {
+                    "event_id": "h_aaaaaaaa",
+                    "reason": "governance_bootstrap_required",
+                    "blocking_component": "dashboard/dashboard.py:register_roadmap_priority_routes",
+                    "required_action": "Open one-shot bootstrap PR.",
+                    "proposed_patch": "from x import y\ny(app)\n",
+                    "impact": "MEDIUM",
+                    "priority": "HIGH",
+                    "related_item": None,
+                    "evidence": {},
+                },
+            ]
+        ),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    hn_items = [
+        it
+        for it in snap["items"]
+        if (it["source"] or "").startswith("human_needed:")
+    ]
+    assert len(hn_items) == 1
+    item = hn_items[0]
+    assert item["category"] == "failed_automation"
+    assert item["risk_class"] == "HIGH"
+    assert item["evidence"]["reason"] == "governance_bootstrap_required"
+    assert item["evidence"]["proposed_patch_present"] is True
+
+
+def test_human_needed_decision_unclear_emits_unknown_state() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _empty_recurring_maintenance(),
+        "human_needed": _human_needed_envelope_with_events(
+            [
+                {
+                    "event_id": "h_bbbbbbbb",
+                    "reason": "decision_cannot_be_inferred",
+                    "blocking_component": "task_board:p_xxxxxxxx",
+                    "required_action": "Inspect task.",
+                    "proposed_patch": None,
+                    "impact": "MEDIUM",
+                    "priority": "HIGH",
+                    "related_item": "p_xxxxxxxx",
+                    "evidence": {},
+                },
+            ]
+        ),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    hn_items = [
+        it
+        for it in snap["items"]
+        if (it["source"] or "").startswith("human_needed:")
+    ]
+    assert len(hn_items) == 1
+    assert hn_items[0]["category"] == "unknown_state"
+
+
+def test_human_needed_clean_digest_yields_no_inbox_items() -> None:
+    sources = {
+        "proposal_queue": _proposal_envelope([]),
+        "pr_lifecycle": _pr_envelope([]),
+        "workloop": _empty_workloop(),
+        "workloop_runtime": _empty_runtime(),
+        "recurring_maintenance": _empty_recurring_maintenance(),
+        "human_needed": _human_needed_envelope_with_events([]),
+        "governance_status": _empty_governance(),
+    }
+    snap = _build(sources)
+    hn_items = [
+        it
+        for it in snap["items"]
+        if (it["source"] or "").startswith("human_needed:")
+    ]
+    assert hn_items == []
+
+
 def test_broken_audit_chain_becomes_security_alert() -> None:
     sources = {
         "proposal_queue": _proposal_envelope([]),

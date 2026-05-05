@@ -79,6 +79,7 @@ python -m reporting.recurring_maintenance --run-due-once \
 | `refresh_roadmap_priority` | LOW | no | 30 min | ✓ | refreshes `roadmap_priority` read-only digest (v3.15.16.2) |
 | `refresh_task_board` | LOW | no | 30 min | ✓ | refreshes `task_board` state-machine digest (v3.15.16.6) |
 | `refresh_agent_flow` | LOW | no | 30 min | ✓ | refreshes `agent_flow` orchestration digest (v3.15.16.7) |
+| `refresh_human_needed` | LOW | no | 30 min | ✓ | refreshes `human_needed` blocker-detection digest (v3.15.16.8) |
 
 ## Dependabot execute-safe — two-layer opt-in
 
@@ -229,6 +230,26 @@ Hard guarantees re-asserted at this layer:
   never invokes `gh`. It is observability only.
 * See `docs/governance/agent_flow.md` for the closed action /
   next_agent mappings.
+
+## human_needed blocker detection (v3.15.16.8)
+
+A new closed job entry — `refresh_human_needed` — runs the
+read-only blocker-detection projection
+(`reporting.human_needed.collect_snapshot` + `write_outputs`)
+every 30 minutes by default. Reads
+`logs/task_board/latest.json` and statically analyses
+`dashboard/api_*.py` + `dashboard/dashboard.py` for wiring gaps.
+Each open event surfaces in the existing approval-inbox PWA card
+via the `_build_from_human_needed` projection.
+
+Hard guarantees re-asserted at this layer:
+
+* LOW risk; `needs_gh = False`; default-enabled.
+* `safe_to_execute` is hard-coded `false` in the digest schema.
+* `proposed_patch` is text only; the module contains no
+  patch-application call (pinned).
+* The job never starts a branch, never opens a PR, never merges,
+  never invokes `gh`.
 
 ## Deploy-hook integration (v3.15.16.3)
 
