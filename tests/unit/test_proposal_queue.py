@@ -286,7 +286,8 @@ def test_strategic_roadmap_doc_yields_high_needs_human(
 ) -> None:
     src = isolated_pq / "roadmap_v4.md"
     src.write_text(
-        "# Adopt canonical roadmap v4\n\n"
+        "# Roadmap test fixture\n\n"
+        "## Adopt canonical roadmap v4\n\n"
         "Replace the existing roadmap with this new canonical roadmap.\n",
         encoding="utf-8",
     )
@@ -302,7 +303,8 @@ def test_release_candidate_with_protected_path_is_blocked(
 ) -> None:
     src = isolated_pq / "rc.md"
     src.write_text(
-        "# v3.15.15.20 — touch live gate\n\n"
+        "# Release candidate test fixture\n\n"
+        "## v3.15.15.20 — touch live gate\n\n"
         "Modify `automation/live_gate.py` to wire the broker.\n",
         encoding="utf-8",
     )
@@ -318,7 +320,8 @@ def test_release_candidate_with_protected_path_is_blocked(
 def test_tooling_intake_marked_secrets_is_high(isolated_pq: Path) -> None:
     src = isolated_pq / "tooling.md"
     src.write_text(
-        "# Add Datadog\n\nWire Datadog APM. Requires an API key.\n",
+        "# Tooling test fixture\n\n"
+        "## Add Datadog\n\nWire Datadog APM. Requires an API key.\n",
         encoding="utf-8",
     )
     snap = pq.collect_snapshot(mode="dry-run", source=str(src))
@@ -331,7 +334,8 @@ def test_tooling_intake_marked_secrets_is_high(isolated_pq: Path) -> None:
 def test_tooling_intake_marked_free_is_low(isolated_pq: Path) -> None:
     src = isolated_pq / "free_tool.md"
     src.write_text(
-        "# Add ruff\n\nMIT license, dev-only, no telemetry.\n",
+        "# Tooling test fixture\n\n"
+        "## Add ruff\n\nMIT license, dev-only, no telemetry.\n",
         encoding="utf-8",
     )
     snap = pq.collect_snapshot(mode="dry-run", source=str(src))
@@ -372,7 +376,8 @@ def test_malformed_input_does_not_crash(isolated_pq: Path) -> None:
 def test_proposal_id_is_deterministic(isolated_pq: Path) -> None:
     src = isolated_pq / "x.md"
     src.write_text(
-        "# v3.15.15.42 — repeatable\n\nThis is a release candidate.\n",
+        "# Repeatable test fixture\n\n"
+        "## v3.15.15.42 — repeatable\n\nThis is a release candidate.\n",
         encoding="utf-8",
     )
     snap1 = pq.collect_snapshot(mode="dry-run", source=str(src))
@@ -386,9 +391,10 @@ def test_counts_aggregate_correctly(isolated_pq: Path) -> None:
     src = isolated_pq / "mix.md"
     src.write_text(
         (
-            "# Adopt canonical roadmap v4\n\nNew roadmap.\n\n"
-            "# Add ruff\n\nMIT license, dev-only, no telemetry.\n\n"
-            "# CI hygiene\n\nGitHub Actions SHA pin sweep.\n"
+            "# Mixed test fixture\n\n"
+            "## Adopt canonical roadmap v4\n\nNew roadmap.\n\n"
+            "## Add ruff\n\nMIT license, dev-only, no telemetry.\n\n"
+            "## CI hygiene\n\nGitHub Actions SHA pin sweep.\n"
         ),
         encoding="utf-8",
     )
@@ -398,6 +404,112 @@ def test_counts_aggregate_correctly(isolated_pq: Path) -> None:
     # Adoption is HIGH; ruff (free) is LOW; CI hygiene is MEDIUM.
     assert counts["by_risk"].get("HIGH", 0) >= 1
     assert counts["by_risk"].get("LOW", 0) >= 1
+
+
+# ---------------------------------------------------------------------------
+# H1 ingestion bugfix — H1 is the document title, never a shippable item.
+# ---------------------------------------------------------------------------
+#
+# By the documented authoring convention used by every intake doc under
+# DEFAULT_SOURCE_ROOTS (docs/roadmap, docs/backlog, docs/spillovers),
+# H1 = document title; shippable items are at H2 / H3. An H1 with a
+# non-empty preamble body otherwise self-classifies as a fresh
+# roadmap_adoption / governance_change proposal via trigger tokens
+# in the rationale text — false positive.
+
+
+def test_h1_with_empty_body_is_skipped(isolated_pq: Path) -> None:
+    """Regression guard: H1 with empty body remains skipped (existing
+    behavior before the bugfix)."""
+    src = isolated_pq / "empty_body.md"
+    src.write_text("# Document title\n", encoding="utf-8")
+    snap = pq.collect_snapshot(mode="dry-run", source=str(src))
+    assert snap["proposals"] == []
+
+
+def test_h1_with_non_empty_body_is_skipped(isolated_pq: Path) -> None:
+    """The bugfix: H1 with a preamble body is ALSO skipped. Previously
+    this body would be classified through the type/risk/status pipeline
+    and emit a proposal record. Now: skipped."""
+    src = isolated_pq / "h1_with_preamble.md"
+    src.write_text(
+        "# Document title\n\n"
+        "This is a self-describing preamble. It explains the doc and may "
+        "mention canonical post-v3.15 phases. It is not a shippable item.\n",
+        encoding="utf-8",
+    )
+    snap = pq.collect_snapshot(mode="dry-run", source=str(src))
+    assert snap["proposals"] == [], snap["proposals"]
+
+
+def test_h2_after_h1_with_preamble_still_produces_proposal(
+    isolated_pq: Path,
+) -> None:
+    """H2 after a non-empty-body H1 is still ingested. The H1 body
+    being skipped must NOT mute H2/H3 ingestion."""
+    src = isolated_pq / "h1_then_h2.md"
+    src.write_text(
+        "# Document title\n\n"
+        "Doc-level preamble describing the file purpose.\n\n"
+        "## Add ruff\n\nMIT license, dev-only, no telemetry.\n",
+        encoding="utf-8",
+    )
+    snap = pq.collect_snapshot(mode="dry-run", source=str(src))
+    titles = [p["title"] for p in snap["proposals"]]
+    assert "Document title" not in titles
+    assert "Add ruff" in titles
+
+
+def test_h3_still_produces_proposal(isolated_pq: Path) -> None:
+    """H3 ingestion is unchanged — these are the canonical shippable
+    items in the v6.1 roadmap convention."""
+    src = isolated_pq / "h3_item.md"
+    src.write_text(
+        "# Document title\n\n"
+        "## Release group\n\n"
+        "### v3.15.15.50 — observability addition\n\n"
+        "Add a read-only digest. risk_class: LOW.\n",
+        encoding="utf-8",
+    )
+    snap = pq.collect_snapshot(mode="dry-run", source=str(src))
+    titles = [p["title"] for p in snap["proposals"]]
+    assert "Document title" not in titles
+    assert "v3.15.15.50 — observability addition" in titles
+
+
+def test_h1_skipped_even_when_body_contains_strategic_roadmap_token(
+    isolated_pq: Path,
+) -> None:
+    """Specifically pin the canonical case that motivated this fix:
+    an H1 whose body contains the substring "post-v3.15" (which is in
+    STRATEGIC_ROADMAP_TOKENS and otherwise triggers
+    roadmap_adoption / HIGH / needs_human classification) must be
+    skipped rather than emitted as a proposal."""
+    src = isolated_pq / "qre_roadmap_v6_1_like.md"
+    src.write_text(
+        "# Roadmap v6.1 — Quant Research Engine\n\n"
+        "> Canonical, structured roadmap for the post-v3.15.16.0 phase of the\n"
+        "> Quant Research Engine. This document is parsed by the ingester.\n",
+        encoding="utf-8",
+    )
+    snap = pq.collect_snapshot(mode="dry-run", source=str(src))
+    assert snap["proposals"] == [], snap["proposals"]
+
+
+def test_h1_skipped_even_when_body_contains_governance_token(
+    isolated_pq: Path,
+) -> None:
+    """Cousin pin: an H1 whose body contains a governance token (e.g.
+    "release gate") must also be skipped — the fix is unconditional."""
+    src = isolated_pq / "governance_doc.md"
+    src.write_text(
+        "# Agent governance retrospective\n\n"
+        "Build the safety perimeter required before agents are given any "
+        "autonomy. Ordering: secrets first, then CI, then release gate.\n",
+        encoding="utf-8",
+    )
+    snap = pq.collect_snapshot(mode="dry-run", source=str(src))
+    assert snap["proposals"] == [], snap["proposals"]
 
 
 # ---------------------------------------------------------------------------
