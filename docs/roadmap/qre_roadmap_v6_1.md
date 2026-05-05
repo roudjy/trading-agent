@@ -264,6 +264,48 @@ operator.
   `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
+* `status`: done
+
+### v3.15.16.9c — Canonical bootstrap event surfacing on Loop closure
+
+Extend the v3.15.16.9b `loop_closure` envelope with one bounded
+sibling field — `loop_closure.roadmap_priority_wiring` — that
+filters to a single, *specific* canonical bootstrap event by
+exact `(reason, blocking_component)` match. Closed state
+vocabulary `{open, resolved, not_available}` plus closed reason
+vocabulary on `not_available`. The new field is **independent of
+the aggregate `loop_state`** so the operator can validate one
+specific bootstrap PR's effect without being drowned out by 200+
+unrelated `human_needed` events.
+
+* Match priorities pinned by tests:
+  * `human_needed` event by exact `reason == "governance_bootstrap_required"`
+    AND `blocking_component == "dashboard/dashboard.py:register_roadmap_priority_routes"`
+  * `governance_bootstrap` template by PRIMARY
+    `source_event_id == matching_event.event_id` AND
+    `source_reason == REASON`; FALLBACK
+    `evidence.blocking_component == COMPONENT` for the resolved
+    consistency check
+  * `approval_inbox` row by EXACT
+    `source == f"human_needed:{event_id}"` (no substring)
+* Resolved requires the *full canonical triple* cleared
+  (no matching event, no matching template, no matching inbox row).
+* Read-only; no new endpoint; no `dashboard/dashboard.py` change;
+  no mutation; no `.claude` change. Bounded payload — never
+  carries `proposed_patch`, `pr_body`, `file_diff`,
+  `commit_message`. The two canonical literals are pinned by a
+  source-text invariant test; the governance_bootstrap template
+  schema is also pinned (`source_event_id`, `source_reason`,
+  `branch_name`, `evidence.blocking_component`).
+* `affected_files`: `dashboard/api_agent_control.py`,
+  `frontend/src/api/agent_control.ts`,
+  `frontend/src/routes/AgentControl.tsx`,
+  `tests/unit/test_dashboard_api_agent_control.py`,
+  `frontend/src/test/AgentControl.test.tsx`,
+  `docs/governance/mobile_agent_control_pwa.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
+* `risk_class`: LOW
+* `proposal_type`: observability_addition
 * `status`: proposed
 
 ### v3.15.16.9 — Governance-bootstrap PR-template synthesizer

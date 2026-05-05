@@ -717,3 +717,562 @@ def test_loop_closure_not_available_on_missing_generated_at_utc(
     lc = body["loop_closure"]
     assert lc["status"] == "not_available"
     assert "generated_at_utc" in lc["reason"]
+
+
+# ---------------------------------------------------------------------------
+# v3.15.16.9c — canonical bootstrap event surfacing
+# ---------------------------------------------------------------------------
+
+
+_CANON_COMPONENT = "dashboard/dashboard.py:register_roadmap_priority_routes"
+_CANON_REASON = "governance_bootstrap_required"
+
+
+def _hn_canon(
+    *,
+    event_id: "str | None" = "h_044e7e64e",
+    extra_events: "list | None" = None,
+    matching_blocking_component: str = _CANON_COMPONENT,
+    matching_reason: str = _CANON_REASON,
+    include_match: bool = True,
+    generated_at_utc: str = "2026-05-05T13:00:00Z",
+) -> dict:
+    """human_needed digest with one matching canonical event plus
+    optional extra (unrelated) events. Used by v3.15.16.9c tests."""
+    events: list = []
+    if include_match:
+        ev: dict[str, Any] = {
+            "reason": matching_reason,
+            "blocking_component": matching_blocking_component,
+            "priority": "HIGH",
+        }
+        if event_id is not None:
+            ev["event_id"] = event_id
+        events.append(ev)
+    if extra_events:
+        events.extend(extra_events)
+    return {
+        "schema_version": 1,
+        "report_kind": "human_needed_digest",
+        "module_version": "v3.15.16.8",
+        "generated_at_utc": generated_at_utc,
+        "counts": {
+            "events_total": len(events),
+            "by_reason": {_CANON_REASON: 1 if include_match else 0},
+        },
+        "events": events,
+    }
+
+
+def _gb_canon(
+    *,
+    event_id: str = "h_044e7e64e",
+    branch_name: str = "governance-bootstrap/h_044e7e64e",
+    extra_templates: "list | None" = None,
+    include_match: bool = True,
+    matching_blocking_component: str = _CANON_COMPONENT,
+    matching_reason: str = _CANON_REASON,
+    generated_at_utc: str = "2026-05-05T13:00:00Z",
+) -> dict:
+    """governance_bootstrap digest with one matching canonical
+    template (using the *full* canonical schema: source_event_id,
+    source_reason, evidence.blocking_component) plus optional extras."""
+    templates: list = []
+    if include_match:
+        templates.append(
+            {
+                "template_id": "gb_044e7e64e",
+                "source_event_id": event_id,
+                "source_reason": matching_reason,
+                "branch_name": branch_name,
+                "evidence": {
+                    "blocking_component": matching_blocking_component,
+                    "impact": "HIGH",
+                    "priority": "HIGH",
+                    "related_item": None,
+                },
+            }
+        )
+    if extra_templates:
+        templates.extend(extra_templates)
+    return {
+        "schema_version": 1,
+        "report_kind": "governance_bootstrap_digest",
+        "module_version": "v3.15.16.9",
+        "generated_at_utc": generated_at_utc,
+        "counts": {"templates_total": len(templates)},
+        "templates": templates,
+    }
+
+
+def _ai_canon(
+    *,
+    event_id: str = "h_044e7e64e",
+    include_match: bool = True,
+    extra_items: "list | None" = None,
+    generated_at_utc: str = "2026-05-05T13:00:00Z",
+) -> dict:
+    items: list = []
+    if include_match:
+        items.append(
+            {"item_id": "i_canon", "source": f"human_needed:{event_id}"}
+        )
+    if extra_items:
+        items.extend(extra_items)
+    return {
+        "schema_version": 1,
+        "report_kind": "approval_inbox_digest",
+        "module_version": "v3.15.15.20",
+        "generated_at_utc": generated_at_utc,
+        "items": items,
+    }
+
+
+# --- open state ---
+
+
+def test_rpw_open_when_event_matches_both_literals(client, tmp_path: Path) -> None:
+    """Canonical pre-bootstrap state: matching event + matching
+    template + matching inbox row → state=open with all literals."""
+    _set_loop_closure_artifacts(
+        tmp_path, hn=_hn_canon(), gb=_gb_canon(), ai=_ai_canon()
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "open"
+    assert rpw["reason"] is None
+    assert rpw["event_id"] == "h_044e7e64e"
+    assert rpw["blocking_component"] == _CANON_COMPONENT
+    assert rpw["source_reason"] == _CANON_REASON
+    assert rpw["template_branch"] == "governance-bootstrap/h_044e7e64e"
+    assert rpw["inbox_row_present"] is True
+
+
+def test_rpw_open_template_branch_resolved_by_source_event_id_PRIMARY(
+    client, tmp_path: Path
+) -> None:
+    """Template match is PRIMARY on (source_event_id, source_reason).
+    A template whose source_event_id matches the chosen event_id
+    populates template_branch, regardless of evidence shape."""
+    # Two templates: one with the canonical pair (matches), one
+    # with the canonical reason but a different event_id (does NOT
+    # match). Helper must pick the PRIMARY (event_id) match.
+    extra = [
+        {
+            "template_id": "gb_other",
+            "source_event_id": "h_other",
+            "source_reason": _CANON_REASON,
+            "branch_name": "governance-bootstrap/h_other",
+            "evidence": {"blocking_component": _CANON_COMPONENT},
+        }
+    ]
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_canon(),
+        gb=_gb_canon(extra_templates=extra),
+        ai=_ai_canon(),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "open"
+    assert rpw["template_branch"] == "governance-bootstrap/h_044e7e64e"
+
+
+def test_rpw_open_inbox_row_present_via_exact_source_equality(
+    client, tmp_path: Path
+) -> None:
+    """inbox_row_present is True ONLY when an item has
+    source == "human_needed:<event_id>" exactly. Substring matches
+    or near-misses must NOT count."""
+    near_miss_items = [
+        {
+            "item_id": "i_substr",
+            "source": "human_needed:h_044e7e64e_extra",
+        },  # near-miss: superstring
+        {
+            "item_id": "i_other_prefix",
+            "source": "recurring_maintenance:h_044e7e64e",
+        },  # near-miss: different prefix
+        {
+            "item_id": "i_blocking_substr",
+            "source": "manual:dashboard/dashboard.py:register_roadmap_priority_routes",
+        },  # near-miss: blocking_component embedded but not the canonical source format
+    ]
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_canon(),
+        gb=_gb_canon(),
+        ai=_ai_canon(include_match=False, extra_items=near_miss_items),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "open"
+    assert rpw["inbox_row_present"] is False
+
+
+def test_rpw_open_picks_lex_smallest_event_id_deterministically(
+    client, tmp_path: Path
+) -> None:
+    """When several human_needed events match the canonical pair,
+    the lex-smallest event_id is chosen for the open report."""
+    extra_events = [
+        {
+            "event_id": "h_zzzzzzzzzz",
+            "reason": _CANON_REASON,
+            "blocking_component": _CANON_COMPONENT,
+            "priority": "HIGH",
+        },
+        {
+            "event_id": "h_000000000a",  # smallest
+            "reason": _CANON_REASON,
+            "blocking_component": _CANON_COMPONENT,
+            "priority": "HIGH",
+        },
+    ]
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_canon(extra_events=extra_events),
+        gb=_gb_canon(),
+        ai=_ai_canon(),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "open"
+    assert rpw["event_id"] == "h_000000000a"
+
+
+# --- resolved state ---
+
+
+def test_rpw_resolved_when_all_three_artifacts_clear_of_canonical(
+    client, tmp_path: Path
+) -> None:
+    """Resolved requires the *full triple* cleared. With no matching
+    event, no matching template, and no matching inbox row, state is
+    resolved — even though counts are non-zero (unrelated work)."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_canon(include_match=False),
+        gb=_gb_canon(include_match=False),
+        ai=_ai_canon(include_match=False),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "resolved"
+    assert rpw["reason"] is None
+    assert rpw["event_id"] is None
+    assert rpw["blocking_component"] is None
+    assert rpw["source_reason"] is None
+    assert rpw["template_branch"] is None
+    assert rpw["inbox_row_present"] is False
+
+
+def test_rpw_resolved_ignores_unrelated_events_and_unrelated_inbox_rows(
+    client, tmp_path: Path
+) -> None:
+    """The resolved decision is *non-aggregate*. Unrelated
+    human_needed events, unrelated governance_bootstrap templates,
+    and unrelated approval_inbox rows persist — yet the canonical
+    triple is cleared, so state=resolved."""
+    unrelated_events = [
+        {
+            "event_id": "h_unrelated1",
+            "reason": _CANON_REASON,
+            "blocking_component": "dashboard/dashboard.py:register_other_routes",
+            "priority": "HIGH",
+        },
+        {
+            "event_id": "h_unrelated2",
+            "reason": "decision_unclear",
+            "blocking_component": _CANON_COMPONENT,  # canonical comp + non-canonical reason
+            "priority": "MEDIUM",
+        },
+    ]
+    unrelated_templates = [
+        {
+            "template_id": "gb_other",
+            "source_event_id": "h_unrelated1",
+            "source_reason": _CANON_REASON,
+            "branch_name": "governance-bootstrap/h_unrelated1",
+            "evidence": {
+                "blocking_component": "dashboard/dashboard.py:register_other_routes",
+            },
+        }
+    ]
+    unrelated_items = [
+        {"item_id": "i_un1", "source": "human_needed:h_unrelated1"},
+        {"item_id": "i_un2", "source": "recurring_maintenance:foo"},
+    ]
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_canon(include_match=False, extra_events=unrelated_events),
+        gb=_gb_canon(include_match=False, extra_templates=unrelated_templates),
+        ai=_ai_canon(include_match=False, extra_items=unrelated_items),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "resolved"
+    # Aggregate loop_state may still be open because counts are non-zero —
+    # the rpw subsection is independent of that signal.
+    aggregate_loop_state = body["loop_closure"]["data"]["loop_state"]
+    assert aggregate_loop_state == "open"
+
+
+# --- not_available state ---
+
+
+def test_rpw_not_available_human_needed_missing(
+    client, tmp_path: Path
+) -> None:
+    """Artifact missing → not_available + closed reason."""
+    _set_loop_closure_artifacts(
+        tmp_path, hn=None, gb=_gb_canon(), ai=_ai_canon()
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "human_needed_missing"
+
+
+def test_rpw_not_available_human_needed_malformed(
+    client, tmp_path: Path
+) -> None:
+    """events not a list → human_needed_malformed."""
+    bad = _hn_canon()
+    bad["events"] = {"this": "is not a list"}
+    _set_loop_closure_artifacts(tmp_path, hn=bad, gb=_gb_canon(), ai=_ai_canon())
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "human_needed_malformed"
+
+
+def test_rpw_not_available_governance_bootstrap_missing(
+    client, tmp_path: Path
+) -> None:
+    _set_loop_closure_artifacts(
+        tmp_path, hn=_hn_canon(), gb=None, ai=_ai_canon()
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "governance_bootstrap_missing"
+
+
+def test_rpw_not_available_governance_bootstrap_malformed(
+    client, tmp_path: Path
+) -> None:
+    bad = _gb_canon()
+    bad["templates"] = "not a list"
+    _set_loop_closure_artifacts(tmp_path, hn=_hn_canon(), gb=bad, ai=_ai_canon())
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "governance_bootstrap_malformed"
+
+
+def test_rpw_not_available_approval_inbox_missing(
+    client, tmp_path: Path
+) -> None:
+    _set_loop_closure_artifacts(
+        tmp_path, hn=_hn_canon(), gb=_gb_canon(), ai=None
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "approval_inbox_missing"
+
+
+def test_rpw_not_available_approval_inbox_malformed(
+    client, tmp_path: Path
+) -> None:
+    bad = _ai_canon()
+    bad["items"] = 12345  # int, not a list
+    _set_loop_closure_artifacts(tmp_path, hn=_hn_canon(), gb=_gb_canon(), ai=bad)
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "approval_inbox_malformed"
+
+
+def test_rpw_not_available_event_id_missing(client, tmp_path: Path) -> None:
+    """Matching event with empty event_id → event_id_missing.
+    Matching is observed (so not 'resolved') but cannot be derived
+    deterministically (so not 'open')."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_canon(event_id=None),  # event present but missing event_id field
+        gb=_gb_canon(),
+        ai=_ai_canon(),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "event_id_missing"
+
+
+def test_rpw_not_available_governance_bootstrap_lags_human_needed(
+    client, tmp_path: Path
+) -> None:
+    """Mid-refresh inconsistency: gb has matching template but hn
+    does not. Closed reason captures this exact case."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_canon(include_match=False),
+        gb=_gb_canon(),  # still has the canonical template
+        ai=_ai_canon(),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "governance_bootstrap_lags_human_needed"
+
+
+# --- closed-vocabulary, schema and no-leak guards ---
+
+
+def test_rpw_closed_reason_vocabulary_pinned() -> None:
+    """The closed reason vocabulary is pinned; any addition is a
+    deliberate API change requiring a new release."""
+    expected = {
+        "human_needed_missing",
+        "human_needed_malformed",
+        "governance_bootstrap_missing",
+        "governance_bootstrap_malformed",
+        "approval_inbox_missing",
+        "approval_inbox_malformed",
+        "event_id_missing",
+        "governance_bootstrap_lags_human_needed",
+    }
+    assert set(ac.ROADMAP_PRIORITY_WIRING_NOT_AVAILABLE_REASONS) == expected
+
+
+def test_rpw_canonical_literals_are_frozen() -> None:
+    """Source-text invariant: the two canonical literals are pinned.
+    A drift breaks the open→resolved proof for the operator."""
+    src = (REPO_ROOT / "dashboard" / "api_agent_control.py").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        'ROADMAP_PRIORITY_WIRING_COMPONENT: str = (\n'
+        '    "dashboard/dashboard.py:register_roadmap_priority_routes"\n'
+        ")"
+    ) in src
+    assert (
+        'ROADMAP_PRIORITY_WIRING_REASON: str = "governance_bootstrap_required"'
+        in src
+    )
+
+
+def test_rpw_governance_bootstrap_template_schema_pinned() -> None:
+    """The fields the helper consumes (source_event_id, source_reason,
+    branch_name, evidence.blocking_component) MUST exist in the
+    governance_bootstrap module's template builder. If that schema
+    drifts, this test fails before the live wire silently misclassifies."""
+    src = (REPO_ROOT / "reporting" / "governance_bootstrap.py").read_text(
+        encoding="utf-8"
+    )
+    # Top-level keys.
+    assert '"source_event_id"' in src
+    assert '"source_reason"' in src
+    assert '"branch_name"' in src
+    # Nested key.
+    assert '"blocking_component"' in src
+
+
+def test_rpw_payload_keys_are_bounded(client, tmp_path: Path) -> None:
+    """The roadmap_priority_wiring payload exposes ONLY the seven
+    bounded keys. No extra fields, no proposed_patch, no pr_body."""
+    _set_loop_closure_artifacts(
+        tmp_path, hn=_hn_canon(), gb=_gb_canon(), ai=_ai_canon()
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert set(rpw.keys()) == {
+        "state",
+        "reason",
+        "event_id",
+        "blocking_component",
+        "source_reason",
+        "template_branch",
+        "inbox_row_present",
+    }
+
+
+def test_rpw_no_proposed_patch_or_pr_body_or_diff_leak(
+    client, tmp_path: Path
+) -> None:
+    """Defensive: feed templates / events with leak-shaped fields and
+    confirm none of them appear in the rendered payload."""
+    leaky_events = [
+        {
+            "event_id": "h_044e7e64e",
+            "reason": _CANON_REASON,
+            "blocking_component": _CANON_COMPONENT,
+            "proposed_patch": "MARKER_LEAK_PATCH",
+            "priority": "HIGH",
+        }
+    ]
+    leaky_templates = [
+        {
+            "template_id": "gb_044e7e64e",
+            "source_event_id": "h_044e7e64e",
+            "source_reason": _CANON_REASON,
+            "branch_name": "governance-bootstrap/h_044e7e64e",
+            "pr_body": "MARKER_LEAK_PR_BODY",
+            "file_diff": "MARKER_LEAK_FILE_DIFF",
+            "commit_message": "MARKER_LEAK_COMMIT",
+            "evidence": {"blocking_component": _CANON_COMPONENT},
+        }
+    ]
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn={
+            "schema_version": 1,
+            "module_version": "v3.15.16.8",
+            "generated_at_utc": "2026-05-05T13:00:00Z",
+            "counts": {"events_total": 1, "by_reason": {_CANON_REASON: 1}},
+            "events": leaky_events,
+        },
+        gb={
+            "schema_version": 1,
+            "module_version": "v3.15.16.9",
+            "generated_at_utc": "2026-05-05T13:00:00Z",
+            "counts": {"templates_total": 1},
+            "templates": leaky_templates,
+        },
+        ai=_ai_canon(),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    rpw = body["loop_closure"]["roadmap_priority_wiring"]
+    assert rpw["state"] == "open"
+    text = json.dumps(rpw)
+    for marker in (
+        "MARKER_LEAK_PATCH",
+        "MARKER_LEAK_PR_BODY",
+        "MARKER_LEAK_FILE_DIFF",
+        "MARKER_LEAK_COMMIT",
+        "proposed_patch",
+        "pr_body",
+        "file_diff",
+        "commit_message",
+    ):
+        assert marker not in text, (
+            f"roadmap_priority_wiring leaks forbidden token: {marker!r}"
+        )
+
+
+def test_rpw_present_at_envelope_level_on_not_available_loop_closure(
+    client, tmp_path: Path
+) -> None:
+    """When the aggregate loop_closure is itself not_available
+    (e.g. an artifact is missing), the rpw subsection still rides
+    at the envelope level so the operator can see the canonical
+    reason."""
+    _set_loop_closure_artifacts(tmp_path, hn=None, gb=None, ai=None)
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "not_available"
+    rpw = lc["roadmap_priority_wiring"]
+    assert rpw["state"] == "not_available"
+    assert rpw["reason"] == "human_needed_missing"
