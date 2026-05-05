@@ -902,11 +902,16 @@ def _build_all_proposals(files: list[Path]) -> list[dict[str, Any]]:
             continue
         segments = _heading_segments(text)
         for level, line_idx, title, body in segments:
-            # Skip the file-level title heading on a doc that consists
-            # only of a single H1 + index (very common in docs/).
-            if level == 1 and not body.strip():
+            # Skip the file-level title heading regardless of body. By
+            # the documented authoring convention used by every intake
+            # doc under DEFAULT_SOURCE_ROOTS, one H1 = the document
+            # title; shippable items are at H2 / H3. An H1 with a
+            # non-empty preamble body otherwise self-classifies as a
+            # fresh roadmap_adoption / governance_change proposal via
+            # trigger tokens in the rationale text — false positive.
+            if level == 1:
                 continue
-            # Only H1/H2/H3 segments produce proposals; H4+ are sub-
+            # Only H2/H3 segments produce proposals; H4+ are sub-
             # sections and would dilute the queue.
             if level == 0 or level > 3:
                 # Preamble + deep sub-sections are surfaced as a single
