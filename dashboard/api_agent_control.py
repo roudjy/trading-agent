@@ -43,6 +43,7 @@ Until that PR lands, the PWA frontend treats every endpoint as
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
 from pathlib import Path
 from typing import Any
@@ -59,6 +60,21 @@ LOGS_DIR: Path = REPO_ROOT / "logs"
 # happens here, so this surface stays light and side-effect free.
 WORKLOOP_LATEST: Path = LOGS_DIR / "autonomous_workloop" / "latest.json"
 PR_LIFECYCLE_LATEST: Path = LOGS_DIR / "github_pr_lifecycle" / "latest.json"
+# v3.15.16.9b — loop closure visibility. Three additional artifacts
+# read by ``_loop_closure_summary()`` to surface whether the
+# v3.15.16.8 detection -> v3.15.16.9 templating -> operator-PR ->
+# loop-closure cycle has completed. Read-only.
+HUMAN_NEEDED_LATEST: Path = LOGS_DIR / "human_needed" / "latest.json"
+GOVERNANCE_BOOTSTRAP_LATEST: Path = (
+    LOGS_DIR / "governance_bootstrap" / "latest.json"
+)
+APPROVAL_INBOX_LATEST: Path = LOGS_DIR / "approval_inbox" / "latest.json"
+# Consistency window: when all three counts are zero, the three
+# generated_at_utc values must lie within this window of each
+# other to qualify as ``resolved``. Wider spread -> ``stale``
+# (the typed scheduler runs sequentially; a 10-min spread is the
+# conservative upper bound on a single tick's wall-clock cost).
+LOOP_CLOSURE_CONSISTENCY_WINDOW_SECONDS: int = 10 * 60
 
 # Frozen contracts the PWA surfaces verbatim (path + sha256 only).
 FROZEN_CONTRACTS: tuple[str, ...] = (
@@ -186,6 +202,185 @@ def _status_payload() -> dict[str, Any]:
         "approval_policy": _approval_policy_summary(),
         "autonomy_metrics": _autonomy_metrics_summary(),
         "roadmap_protocol": _roadmap_protocol_summary(),
+        "loop_closure": _loop_closure_summary(),
+    }
+
+
+def _loop_closure_summary() -> dict[str, Any]:
+    """v3.15.16.9b — surface the autonomous-loop closure state on
+    the existing Status card.
+
+    Reads three already-published artifacts:
+
+    * ``logs/human_needed/latest.json`` (v3.15.16.8) — counts.events_total,
+      top events[0].blocking_component, generated_at_utc.
+    * ``logs/governance_bootstrap/latest.json`` (v3.15.16.9) —
+      counts.templates_total, top templates[0].branch_name,
+      generated_at_utc.
+    * ``logs/approval_inbox/latest.json`` (v3.15.15.20+) — count of
+      data.items where source startswith ``human_needed:``,
+      generated_at_utc.
+
+    Returns the bounded envelope::
+
+        {status: "ok"|"not_available", reason?, data?: {
+            loop_state: "open"|"resolved"|"stale",
+            human_needed: {events_total, by_reason,
+                           top_blocking_component, generated_at_utc},
+            governance_bootstrap: {templates_total, top_branch_name,
+                                   generated_at_utc},
+            approval_inbox: {human_needed_derived_rows,
+                             generated_at_utc},
+            last_refreshed_utc: str
+        }}
+
+    Hard guarantees:
+
+    * ``loop_state`` is the semantic state, separate from
+      transport-level ``status``.
+    * No ``proposed_patch``, no ``pr_body``, no full ``events`` /
+      ``templates`` lists are returned. Only safe summary fields.
+    * Defensive: any missing / malformed artifact -> ``not_available``.
+    """
+    hn_env = _read_json_artifact(HUMAN_NEEDED_LATEST)
+    gb_env = _read_json_artifact(GOVERNANCE_BOOTSTRAP_LATEST)
+    ai_env = _read_json_artifact(APPROVAL_INBOX_LATEST)
+
+    if hn_env.get("status") != "ok":
+        return {
+            "status": "not_available",
+            "reason": f"human_needed: {hn_env.get('reason') or 'unknown'}",
+        }
+    if gb_env.get("status") != "ok":
+        return {
+            "status": "not_available",
+            "reason": f"governance_bootstrap: {gb_env.get('reason') or 'unknown'}",
+        }
+    if ai_env.get("status") != "ok":
+        return {
+            "status": "not_available",
+            "reason": f"approval_inbox: {ai_env.get('reason') or 'unknown'}",
+        }
+
+    hn_data = hn_env.get("data") or {}
+    gb_data = gb_env.get("data") or {}
+    ai_data = ai_env.get("data") or {}
+
+    hn_ts = hn_data.get("generated_at_utc")
+    gb_ts = gb_data.get("generated_at_utc")
+    ai_ts = ai_data.get("generated_at_utc")
+    if not all(isinstance(t, str) and t for t in (hn_ts, gb_ts, ai_ts)):
+        return {
+            "status": "not_available",
+            "reason": "missing generated_at_utc on one or more artifacts",
+        }
+
+    # human_needed projection — bounded.
+    hn_counts = hn_data.get("counts") or {}
+    hn_events_total = int(hn_counts.get("events_total") or 0)
+    hn_by_reason = (
+        dict(hn_counts.get("by_reason") or {})
+        if isinstance(hn_counts.get("by_reason"), dict)
+        else {}
+    )
+    hn_events_list = (
+        hn_data.get("events") if isinstance(hn_data.get("events"), list) else []
+    )
+    top_blocking_component: str | None = None
+    if hn_events_list:
+        first = hn_events_list[0]
+        if isinstance(first, dict):
+            bc = first.get("blocking_component")
+            if isinstance(bc, str) and bc:
+                top_blocking_component = bc
+
+    # governance_bootstrap projection — bounded.
+    gb_counts = gb_data.get("counts") or {}
+    gb_templates_total = int(gb_counts.get("templates_total") or 0)
+    gb_templates_list = (
+        gb_data.get("templates")
+        if isinstance(gb_data.get("templates"), list)
+        else []
+    )
+    top_branch_name: str | None = None
+    if gb_templates_list:
+        first_t = gb_templates_list[0]
+        if isinstance(first_t, dict):
+            bn = first_t.get("branch_name")
+            if isinstance(bn, str) and bn:
+                top_branch_name = bn
+
+    # approval_inbox derived-row count — counts items whose
+    # ``source`` starts with the canonical v3.15.16.8 prefix.
+    items = ai_data.get("items")
+    if not isinstance(items, list):
+        items = []
+    ai_human_needed_derived_rows = sum(
+        1
+        for it in items
+        if isinstance(it, dict)
+        and isinstance(it.get("source"), str)
+        and it["source"].startswith("human_needed:")
+    )
+
+    # Derive loop_state.
+    counts_all_zero = (
+        hn_events_total == 0
+        and gb_templates_total == 0
+        and ai_human_needed_derived_rows == 0
+    )
+
+    if not counts_all_zero:
+        loop_state = "open"
+    else:
+        # Counts all zero — judge consistency by spread of
+        # generated_at_utc values. ``stale`` if the spread is
+        # wider than the consistency window; ``resolved`` if
+        # within the window. Parsing is defensive: if any
+        # timestamp is unparsable, fall back to ``stale``.
+        parsed: list[float] = []
+        for t in (hn_ts, gb_ts, ai_ts):
+            try:
+                norm = t[:-1] + "+00:00" if t.endswith("Z") else t
+                parsed.append(_dt.datetime.fromisoformat(norm).timestamp())
+            except (TypeError, ValueError):
+                parsed = []
+                break
+        if not parsed or len(parsed) != 3:
+            loop_state = "stale"
+        else:
+            spread = max(parsed) - min(parsed)
+            if spread > LOOP_CLOSURE_CONSISTENCY_WINDOW_SECONDS:
+                loop_state = "stale"
+            else:
+                loop_state = "resolved"
+
+    # last_refreshed_utc is the lexicographic max of the three
+    # ISO-Z timestamps. Lexicographic ordering is correct for
+    # ISO-8601 UTC strings ending in ``Z``.
+    last_refreshed_utc = max(hn_ts, gb_ts, ai_ts)
+
+    return {
+        "status": "ok",
+        "data": {
+            "loop_state": loop_state,
+            "human_needed": {
+                "events_total": hn_events_total,
+                "by_reason": hn_by_reason,
+                "top_blocking_component": top_blocking_component,
+                "generated_at_utc": hn_ts,
+            },
+            "governance_bootstrap": {
+                "templates_total": gb_templates_total,
+                "top_branch_name": top_branch_name,
+                "generated_at_utc": gb_ts,
+            },
+            "approval_inbox": {
+                "human_needed_derived_rows": ai_human_needed_derived_rows,
+                "generated_at_utc": ai_ts,
+            },
+            "last_refreshed_utc": last_refreshed_utc,
+        },
     }
 
 

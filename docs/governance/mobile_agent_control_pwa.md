@@ -1,13 +1,71 @@
 # Mobile-first Agent Control PWA — Operator Runbook
 
 > Module: `dashboard.api_agent_control` (backend) + `frontend/src/routes/AgentControl.tsx` (frontend)
-> Release: v3.15.15.26 (mobile-first IA rebuild on top of v3.15.15.18)
+> Release: v3.15.15.26 (mobile-first IA rebuild on top of v3.15.15.18); v3.15.16.9b adds Loop closure subsection
 > Sibling lifecycle modules: `reporting.autonomous_workloop`,
 > `reporting.github_pr_lifecycle`,
 > `reporting.workloop_runtime`,
 > `reporting.recurring_maintenance`,
 > `reporting.approval_policy`,
-> `reporting.autonomy_metrics`
+> `reporting.autonomy_metrics`,
+> `reporting.human_needed` (v3.15.16.8),
+> `reporting.governance_bootstrap` (v3.15.16.9)
+
+## v3.15.16.9b — Loop closure subsection on the Status card
+
+The Overview tab's existing Status card gains a "Loop closure"
+subsection that surfaces the autonomous-loop closure state at a
+glance. Read-only; no new endpoint; no `dashboard/dashboard.py`
+change (the `/api/agent-control/status` route is already wired
+since v3.15.15.21 — v3.15.16.9b only **extends the existing
+payload**).
+
+### What the subsection shows
+
+| field | source artifact | meaning |
+| --- | --- | --- |
+| `loop_state` | derived | `open` / `resolved` / `stale` |
+| `human_needed` count | `logs/human_needed/latest.json` | `counts.events_total` |
+| `top_blocking_component` | `logs/human_needed/latest.json` | first event's `blocking_component` (only when `events_total > 0`) |
+| `governance_bootstrap` count | `logs/governance_bootstrap/latest.json` | `counts.templates_total` |
+| `top_branch_name` | `logs/governance_bootstrap/latest.json` | first template's `branch_name` (only when `templates_total > 0`) |
+| `approval_inbox` derived rows | `logs/approval_inbox/latest.json` | count of `items` whose `source` startswith `human_needed:` |
+| `last_refreshed_utc` | derived | lexicographic max of the three `generated_at_utc` fields |
+
+### State derivation rules (pinned by tests)
+
+| rule | resulting state |
+| --- | --- |
+| any source missing / malformed / no `generated_at_utc` | transport: `not_available` |
+| any of the three counts > 0 | `data.loop_state: open` |
+| all three counts == 0 AND timestamps within consistency window (10 min) | `data.loop_state: resolved` |
+| all three counts == 0 BUT timestamps spread > 10 min | `data.loop_state: stale` |
+
+The 10-minute consistency window is a relative spread check, not
+an absolute clock check. There is **no recurring 30-minute timer
+in v3.15.16.x** — the current cadence is the v3.15.16.3
+post-deploy hook only. The operator compares `last_refreshed_utc`
+against their last known deploy time to assess freshness; the
+`stale` indicator only flags inconsistency between the three
+artifacts within the same tick window.
+
+### Bounded payload
+
+The `loop_closure` envelope **never** carries `proposed_patch`,
+`pr_body`, `file_diff`, full `events[]`, or full `templates[]`
+lists. Only safe summary fields. Pinned by a defensive guard test
+that asserts the exact set of allowed keys.
+
+### Canonical use case
+
+Bootstrap-PR validation for the v3.15.16.5 wiring gap: the
+operator opens the Overview tab BEFORE the bootstrap PR merges
+and sees `loop_state: open` with
+`top_blocking_component: dashboard/dashboard.py:register_roadmap_priority_routes`.
+After the bootstrap PR merges and the auto-deploy completes, the
+operator refreshes and sees `loop_state: resolved` with all three
+counts at zero. That two-state visual flip is the canonical
+Phase 1 end-to-end proof — no log inspection required.
 
 This is the operator-facing runbook for the Agent Control PWA.
 It explains what the app shows, what it does NOT do, how it is

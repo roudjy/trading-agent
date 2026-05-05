@@ -335,7 +335,128 @@ function StatusCard({ payload }: { payload: AgentControlStatus | null }) {
           </div>
         ))
       )}
+      <LoopClosureBlock payload={payload.loop_closure} />
     </Card>
+  );
+}
+
+// --- Subsection: Loop closure (v3.15.16.9b) ---
+// Renders the autonomous-loop closure state on the existing
+// Status card. Read-only. Surfaces only safe summary fields:
+// counts, top blocking_component, top branch_name,
+// last_refreshed_utc, loop_state. NEVER renders proposed_patch
+// body, pr_body, or full events / templates lists.
+function LoopClosureBlock({
+  payload,
+}: {
+  payload: AgentControlStatus["loop_closure"];
+}) {
+  if (!payload) {
+    return null;
+  }
+  if (payload.status !== "ok" || !payload.data) {
+    return (
+      <>
+        <div
+          className="agent-control-card__row"
+          data-testid="loop-closure-row"
+        >
+          <dt>loop closure</dt>
+          <dd>
+            <StatusPill state="unknown" />
+          </dd>
+        </div>
+        <div
+          className="agent-control-card__row"
+          data-testid="loop-closure-not-available"
+        >
+          <dt>reason</dt>
+          <dd>{payload.reason ?? "not_available"}</dd>
+        </div>
+      </>
+    );
+  }
+  const data = payload.data;
+  const loopState = data.loop_state;
+  const pillState: "ok" | "warn" | "danger" | "unknown" =
+    loopState === "resolved"
+      ? "ok"
+      : loopState === "open"
+        ? "danger"
+        : loopState === "stale"
+          ? "warn"
+          : "unknown";
+  return (
+    <>
+      <div
+        className="agent-control-card__row"
+        data-testid="loop-closure-row"
+      >
+        <dt>loop closure</dt>
+        <dd>
+          <span data-testid="loop-closure-state">{loopState}</span>{" "}
+          <StatusPill state={pillState} />
+        </dd>
+      </div>
+      <div
+        className="agent-control-card__row"
+        data-testid="loop-closure-human-needed-row"
+      >
+        <dt>human_needed</dt>
+        <dd data-testid="loop-closure-human-needed-count">
+          {data.human_needed.events_total} event(s)
+        </dd>
+      </div>
+      {data.human_needed.top_blocking_component ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="loop-closure-blocking-component-row"
+        >
+          <dt>blocking_component</dt>
+          <dd data-testid="loop-closure-blocking-component">
+            <code>{data.human_needed.top_blocking_component}</code>
+          </dd>
+        </div>
+      ) : null}
+      <div
+        className="agent-control-card__row"
+        data-testid="loop-closure-governance-bootstrap-row"
+      >
+        <dt>governance_bootstrap</dt>
+        <dd data-testid="loop-closure-templates-count">
+          {data.governance_bootstrap.templates_total} template(s)
+        </dd>
+      </div>
+      {data.governance_bootstrap.top_branch_name ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="loop-closure-branch-name-row"
+        >
+          <dt>branch</dt>
+          <dd data-testid="loop-closure-branch-name">
+            <code>{data.governance_bootstrap.top_branch_name}</code>
+          </dd>
+        </div>
+      ) : null}
+      <div
+        className="agent-control-card__row"
+        data-testid="loop-closure-approval-inbox-row"
+      >
+        <dt>approval_inbox derived rows</dt>
+        <dd data-testid="loop-closure-inbox-rows-count">
+          {data.approval_inbox.human_needed_derived_rows}
+        </dd>
+      </div>
+      <div
+        className="agent-control-card__row"
+        data-testid="loop-closure-last-refreshed-row"
+      >
+        <dt>last refreshed</dt>
+        <dd data-testid="loop-closure-last-refreshed">
+          {data.last_refreshed_utc}
+        </dd>
+      </div>
+    </>
   );
 }
 
