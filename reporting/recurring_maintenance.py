@@ -104,6 +104,10 @@ JOB_REFRESH_AGENT_FLOW: str = "refresh_agent_flow"
 # with proposed_patch text. Future push notifications trigger only
 # from these events.
 JOB_REFRESH_HUMAN_NEEDED: str = "refresh_human_needed"
+# v3.15.16.9 — read-only governance-bootstrap PR-template
+# synthesizer. Reads logs/human_needed/latest.json and produces
+# copy-paste-able bootstrap-PR templates (text only).
+JOB_REFRESH_GOVERNANCE_BOOTSTRAP: str = "refresh_governance_bootstrap"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -115,6 +119,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_TASK_BOARD,
     JOB_REFRESH_AGENT_FLOW,
     JOB_REFRESH_HUMAN_NEEDED,
+    JOB_REFRESH_GOVERNANCE_BOOTSTRAP,
 )
 
 
@@ -385,6 +390,28 @@ def _exec_refresh_human_needed() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_governance_bootstrap() -> dict[str, Any]:
+    """Run the v3.15.16.9 governance-bootstrap PR-template
+    synthesizer (read-only). Reads logs/human_needed/latest.json
+    (v3.15.16.8) and writes logs/governance_bootstrap/latest.json
+    with one copy-paste-able PR template per bootstrappable event.
+    Never starts a branch, never opens a PR, never invokes ``gh``."""
+    from reporting.governance_bootstrap import collect_snapshot, write_outputs
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    counts = snap.get("counts") or {}
+    return {
+        "summary": (
+            f"governance_bootstrap "
+            f"{snap.get('final_recommendation') or 'no recommendation'}"
+        ),
+        "evidence": {
+            "templates_total": counts.get("templates_total"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -511,6 +538,18 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
         "description": (
             "Refresh human_needed event-detection digest "
             "(read-only blocker detection with proposed_patch synthesis)."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_GOVERNANCE_BOOTSTRAP: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_governance_bootstrap,
+        "description": (
+            "Refresh governance-bootstrap PR-template digest "
+            "(read-only text synthesis over the human_needed events)."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,

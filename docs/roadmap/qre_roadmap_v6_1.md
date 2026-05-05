@@ -237,6 +237,36 @@ only on these events.
   `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
+* `status`: done
+
+### v3.15.16.9 — Governance-bootstrap PR-template synthesizer
+
+Ship `reporting/governance_bootstrap.py` — pure read-only text
+synthesizer. Reads `logs/human_needed/latest.json` (v3.15.16.8) and
+produces copy-paste-able bootstrap-PR templates the operator can
+apply in seconds. Each template carries `branch_name`,
+`commit_message`, `file_diff` (byte-identical copy of the upstream
+`proposed_patch`), `pr_title`, `pr_body`, `validation_checklist`.
+Three template shapes ship under `docs/governance/bootstrap_templates/`.
+The synthesizer NEVER opens a branch, NEVER opens a PR, NEVER
+calls `gh`, NEVER applies a patch (pinned by source-text test
+forbidding `git apply`, `patch -`, `subprocess.run`,
+`subprocess.Popen`). JOB_REFRESH_GOVERNANCE_BOOTSTRAP added to
+`recurring_maintenance`. **Final Phase 1 release before the
+operator-authored v3.15.16.10 governance ratification.**
+
+* `affected_files`: `reporting/governance_bootstrap.py`,
+  `reporting/recurring_maintenance.py`,
+  `tests/unit/test_governance_bootstrap.py`,
+  `tests/unit/test_recurring_maintenance.py`,
+  `docs/governance/governance_bootstrap.md`,
+  `docs/governance/bootstrap_templates/wiring_dashboard_py.md`,
+  `docs/governance/bootstrap_templates/extend_agent_allowlist.md`,
+  `docs/governance/bootstrap_templates/add_no_touch_carveout.md`,
+  `docs/governance/recurring_maintenance.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
+* `risk_class`: LOW
+* `proposal_type`: observability_addition
 * `status`: proposed
 
 ---
