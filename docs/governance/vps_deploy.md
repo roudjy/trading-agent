@@ -166,6 +166,85 @@ merges, never force-pushes. See
 `docs/governance/recurring_maintenance.md` for the full surface
 of read-only refresh jobs.
 
+## Post-deploy recurring maintenance refresh (v3.15.16.3)
+
+After the v3.15.16.1 `pr_lifecycle` step, the deploy script runs
+a **second best-effort, non-fatal** post-deploy step that drives
+the existing typed scheduler:
+
+```
+python3 -m reporting.recurring_maintenance --run-due-once
+```
+
+This refreshes every Agent-Control-facing read-only artifact in
+one tick:
+
+| job | refreshes |
+| --- | --- |
+| `refresh_workloop_runtime_once` | `logs/workloop_runtime/latest.json` |
+| `refresh_proposal_queue` | `logs/proposal_queue/latest.json` |
+| `refresh_approval_inbox` | `logs/approval_inbox/latest.json` |
+| `refresh_github_pr_lifecycle_dry_run` | `logs/github_pr_lifecycle/latest.json` (often `skipped` since the explicit v3.15.16.1 step just refreshed it) |
+| `refresh_roadmap_priority` | `logs/roadmap_priority/latest.json` |
+| `dependabot_low_medium_execute_safe` | **blocked** — the deploy script does NOT pass `--enable-dependabot-execute-safe`, so the scheduler classifies this job as `blocked` with reason `missing_dependabot_cli_opt_in`. By construction at this call site, the deploy hook can never trigger a Dependabot mutation. |
+
+The result: every PWA card on `/agent-control` that surfaces one
+of these artifacts (Status, Approval Inbox, Proposals, PRs, Next
+up) shows fresh data on the operator's next refresh after a
+merge. No manual SSH, no operator CLI command.
+
+### Hard guarantees re-asserted
+
+| guarantee | how it is enforced |
+| --- | --- |
+| Cannot fail the deploy | wrapped in `if ...; then ... else ... fi`. `set -e` does not trip on commands inside `if` conditions; a non-zero exit logs a single non-fatal line and the script still proceeds to `exit 0`. |
+| No GitHub mutation | the Dependabot execute-safe job stays `blocked` because the deploy script does not pass the CLI opt-in flag. The scheduler refuses execute-capable work at the call-site level — verifiable in the workflow log. |
+| No new free-form surface | the argv is literal: `python3 -m reporting.recurring_maintenance --run-due-once`. No positional argument forwarding. |
+| No new secret | the typed scheduler delegates to existing reporters (`gh` already authenticated on the VPS for the v3.15.16.1 hook). |
+| No agent restart | the step does not touch any compose service. |
+| Atomic writes | every refresher in the typed registry uses tmp + `os.replace`. |
+| Per-job timeout | 90 s wall-clock per job in the scheduler's supervisor; a hung downstream cannot stall the deploy beyond the bounded budget. |
+
+### Failure projection
+
+If any job fails or times out, the existing
+`reporting.approval_inbox` projection surfaces a
+`failed_automation` row (severity `high`) into the PWA's approval
+inbox card on the next refresh. Three consecutive failures of any
+single job surface a `runtime_halt` row (severity `critical`). The
+operator notices via the PWA without any new code.
+
+### Operator log lines
+
+Successful refresh:
+
+```
+[deploy_vps_dashboard] post-deploy: refresh recurring maintenance artifacts (best-effort)
+[deploy_vps_dashboard] post-deploy: recurring maintenance refresh ok
+```
+
+Failed refresh (non-fatal — deploy still exits 0):
+
+```
+[deploy_vps_dashboard] post-deploy: refresh recurring maintenance artifacts (best-effort)
+[deploy_vps_dashboard] post-deploy: recurring maintenance refresh failed or unavailable (non-fatal)
+```
+
+Persistent failures should be triaged via the PWA's approval
+inbox card, which surfaces the underlying job's status and
+reason.
+
+### What this is NOT
+
+* It is **not** a between-merge cadence. Between deploys, the
+  scheduler does not run on the VPS. Adding a between-merge
+  systemd timer is the explicit scope of a separate later
+  release that requires an operator-authored
+  governance-bootstrap (because `ops/systemd/*` is not in any
+  agent's `allowed_roots` union today).
+* It is **not** an automation surface. The deploy hook is a
+  one-shot tick driven by the merge event itself.
+
 ## Auth-aware healthcheck (v3.15.15.29.2)
 
 The deploy script's final step verifies that the dashboard is

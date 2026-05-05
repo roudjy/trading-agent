@@ -225,4 +225,76 @@ else
     log "post-deploy: pr_lifecycle refresh failed or unavailable (non-fatal)"
 fi
 
+# v3.15.16.3 — drive the typed recurring_maintenance scheduler so
+# every Agent-Control-facing read-only artifact is fresh on the
+# VPS after every merge to main.
+#
+# Why this lives AFTER the v3.15.16.1 pr_lifecycle step:
+#   * The pr_lifecycle step has been a stable operator-visible
+#     signal since v3.15.16.1 ("post-deploy: pr_lifecycle refresh
+#     ok"). Removing it would be a breaking observability change.
+#     The typed scheduler also covers the pr_lifecycle job, but
+#     decides per-job whether each is "due" via
+#     next_run_after_utc — so when the explicit step has just
+#     refreshed the artifact, the scheduler usually classifies
+#     pr_lifecycle as `skipped` rather than re-running it.
+#
+# What it does:
+#   * Runs ``python3 -m reporting.recurring_maintenance
+#     --run-due-once`` on the VPS host. The typed scheduler
+#     iterates its closed job registry and refreshes every job
+#     whose next_run_after_utc has passed. Jobs covered:
+#       - refresh_workloop_runtime_once          → logs/workloop_runtime/latest.json
+#       - refresh_proposal_queue                 → logs/proposal_queue/latest.json
+#       - refresh_approval_inbox                 → logs/approval_inbox/latest.json
+#       - refresh_github_pr_lifecycle_dry_run    → logs/github_pr_lifecycle/latest.json
+#       - refresh_roadmap_priority               → logs/roadmap_priority/latest.json
+#       - dependabot_low_medium_execute_safe     → BLOCKED (see below)
+#   * The scheduler owns its own per-job 90 s wall-clock timeout,
+#     atomic state file under logs/recurring_maintenance/state.json,
+#     and approval-inbox failure projection — failures here surface
+#     in the existing PWA inbox card without any new code.
+#
+# Why this CANNOT mutate GitHub state:
+#   * The only execute-capable job in the registry is
+#     ``dependabot_low_medium_execute_safe``. The scheduler
+#     refuses to run it without ``--enable-dependabot-execute-safe``
+#     on the CLI. The deploy script intentionally does NOT pass
+#     that flag, so the job is classified ``blocked`` with reason
+#     ``missing_dependabot_cli_opt_in`` on every deploy.
+#   * Hard-coded by construction at this call site.
+#
+# Why host-side and not container-side:
+#   * Mirrors the v3.15.16.1 pr_lifecycle step: ``gh`` is
+#     authenticated on the VPS host (used by other operator work)
+#     but is not necessarily in the dashboard container image. The
+#     artifacts land at ``/root/trading-agent/logs/...`` on the
+#     host; the dashboard container's ``./logs:/app/logs``
+#     bind-mount makes them immediately readable inside the
+#     container as ``/app/logs/...`` — the path the Flask routes
+#     read from.
+#
+# Failure handling:
+#   * Wrapped in ``if ...; then ... else ... fi`` so ``set -e``
+#     does not trip on a non-zero exit. Failures log a single
+#     human-readable line; the deploy still exits 0.
+#   * ``command -v python3`` short-circuits on hosts that don't
+#     have a system ``python3``; the step degrades to a logged
+#     skip instead of an error.
+#
+# Hard guarantees re-asserted:
+#   * No mutation of GitHub state (Dependabot job stays blocked).
+#   * No new free-form command surface (literal argv only).
+#   * No new secret read or printed.
+#   * No agent service started or restarted.
+#   * No api_execute_safe_controls wiring.
+log "post-deploy: refresh recurring maintenance artifacts (best-effort)"
+if command -v python3 >/dev/null 2>&1 \
+        && python3 -m reporting.recurring_maintenance \
+            --run-due-once >/dev/null 2>&1; then
+    log "post-deploy: recurring maintenance refresh ok"
+else
+    log "post-deploy: recurring maintenance refresh failed or unavailable (non-fatal)"
+fi
+
 exit 0

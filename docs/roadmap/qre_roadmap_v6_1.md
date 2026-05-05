@@ -76,22 +76,28 @@ so the digest stays fresh on the VPS.
   `docs/governance/recurring_maintenance.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
-* `status`: proposed
+* `status`: done
 
-### v3.15.16.3 — PWA next-up card for the priority digest
+### v3.15.16.3 — VPS recurring maintenance automation on deploy
 
-Surface `logs/roadmap_priority/latest.json` to the operator via a
-new GET-only `/api/agent-control/next-up` endpoint and a read-only
-"Next up" card on the Agent Control PWA. No mutation, no
-auto-execution, no execute-safe wiring. The card displays the
-chosen-next-up item, its rationale, and its protocol plan summary.
+Append a best-effort, non-fatal post-deploy step to
+`scripts/deploy_vps_dashboard.sh` that runs the existing typed
+scheduler via `python3 -m reporting.recurring_maintenance
+--run-due-once` on the VPS host after every successful merge to
+`main`. Result: every Agent-Control-facing read-only artifact
+(`logs/proposal_queue/latest.json`,
+`logs/approval_inbox/latest.json`,
+`logs/github_pr_lifecycle/latest.json`,
+`logs/roadmap_priority/latest.json`,
+`logs/workloop_runtime/latest.json`) is refreshed automatically
+on every merge — no manual SSH, no operator command. The deploy
+script does not pass `--enable-dependabot-execute-safe`, so the
+only execute-capable job stays `blocked` by construction.
 
-* `affected_files`: `dashboard/api_agent_control.py`,
-  `frontend/src/api/agent_control.ts`,
-  `frontend/src/routes/AgentControl.tsx`,
-  `frontend/src/test/AgentControl.test.tsx`,
-  `tests/unit/test_dashboard_api_agent_control.py`,
-  `docs/governance/roadmap_priority.md`
+* `affected_files`: `scripts/deploy_vps_dashboard.sh`,
+  `docs/governance/vps_deploy.md`,
+  `docs/governance/recurring_maintenance.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
 * `status`: proposed
@@ -102,7 +108,9 @@ Operator-authored governance-bootstrap PR that adds `ops/systemd/`
 to an agent's allowlist union, then ships
 `ops/systemd/trading-agent-recurring-maintenance.{service,timer}`
 so the existing read-only scheduler runs on a fixed cadence on the
-VPS without any manual `cron` / `systemd` step.
+VPS for **between-merge** freshness without any manual `cron` /
+`systemd` step. v3.15.16.3 already covers the merge-driven
+cadence; v3.15.16.4 adds the continuous tick.
 
 * `affected_files`: `.claude/agents/...`,
   `docs/governance/no_touch_paths.md`,
@@ -112,6 +120,26 @@ VPS without any manual `cron` / `systemd` step.
   `docs/governance/vps_deploy.md`
 * `risk_class`: HIGH (governance-bootstrap; operator-authored)
 * `proposal_type`: governance_change
+* `status`: proposed
+
+### v3.15.16.5 — PWA next-up card for the priority digest
+
+Surface `logs/roadmap_priority/latest.json` to the operator via a
+new GET-only `/api/agent-control/next-up` endpoint and a read-only
+"Next up" card on the Agent Control PWA. No mutation, no
+auto-execution, no execute-safe wiring. The card displays the
+chosen-next-up item, its rationale, and its protocol plan summary.
+(Previously slotted as v3.15.16.3; renumbered after the
+recurring-maintenance deploy hook took priority.)
+
+* `affected_files`: `dashboard/api_agent_control.py`,
+  `frontend/src/api/agent_control.ts`,
+  `frontend/src/routes/AgentControl.tsx`,
+  `frontend/src/test/AgentControl.test.tsx`,
+  `tests/unit/test_dashboard_api_agent_control.py`,
+  `docs/governance/roadmap_priority.md`
+* `risk_class`: LOW
+* `proposal_type`: observability_addition
 * `status`: proposed
 
 ---
