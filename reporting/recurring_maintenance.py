@@ -85,6 +85,11 @@ JOB_REFRESH_PROPOSAL_QUEUE: str = "refresh_proposal_queue"
 JOB_REFRESH_APPROVAL_INBOX: str = "refresh_approval_inbox"
 JOB_REFRESH_PR_LIFECYCLE_DRY_RUN: str = "refresh_github_pr_lifecycle_dry_run"
 JOB_DEPENDABOT_EXECUTE_SAFE: str = "dependabot_low_medium_execute_safe"
+# v3.15.16.2 — read-only roadmap priority projection. Joins the
+# proposal queue with the roadmap execution protocol to emit a
+# deterministic chosen_next_up item plus its plan summary. LOW
+# risk; no gh; no external network; no mutation.
+JOB_REFRESH_ROADMAP_PRIORITY: str = "refresh_roadmap_priority"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -92,6 +97,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_APPROVAL_INBOX,
     JOB_REFRESH_PR_LIFECYCLE_DRY_RUN,
     JOB_DEPENDABOT_EXECUTE_SAFE,
+    JOB_REFRESH_ROADMAP_PRIORITY,
 )
 
 
@@ -266,6 +272,33 @@ def _exec_refresh_pr_lifecycle_dry_run() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_roadmap_priority() -> dict[str, Any]:
+    """Run the v3.15.16.2 roadmap priority projection (read-only).
+
+    Reads ``logs/proposal_queue/latest.json`` and, for each
+    proposal, calls ``roadmap_execution_protocol.plan_item`` to
+    obtain the per-item decision. Writes the deterministic
+    ``logs/roadmap_priority/latest.json`` digest. Never starts a
+    branch, never opens a PR, never invokes ``gh``. The digest's
+    ``safe_to_execute`` field is hard-coded ``false``."""
+    from reporting.roadmap_priority import collect_snapshot, write_outputs
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    chosen = snap.get("chosen_next_up") or {}
+    return {
+        "summary": (
+            f"roadmap_priority "
+            f"{snap.get('final_recommendation') or 'no recommendation'}"
+        ),
+        "evidence": {
+            "chosen_proposal_id": chosen.get("proposal_id"),
+            "chosen_title": chosen.get("title"),
+            "counts": snap.get("counts"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -346,6 +379,19 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
         "risk_class": RISK_MEDIUM,
         "needs_gh": True,
         "timeout_seconds": DEPENDABOT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_ROADMAP_PRIORITY: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_roadmap_priority,
+        "description": (
+            "Refresh roadmap priority dry-run digest "
+            "(read-only projection over the proposal queue + "
+            "roadmap execution protocol)."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
     },
 }
 

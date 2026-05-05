@@ -52,6 +52,22 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 @pytest.fixture
 def isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(rm, "DIGEST_DIR_JSON", tmp_path / "rm")
+    # v3.15.16.2 — the recurring scheduler now contains a
+    # roadmap_priority refresh job whose real executor reads the
+    # repo's logs/proposal_queue/latest.json (~290 KB, 206
+    # proposals) and runs the roadmap_execution_protocol per
+    # proposal. That is fine in production but unnecessary work
+    # for tests, and the real write_outputs would also pollute
+    # ``logs/roadmap_priority/`` in the repo. Stub it with a
+    # no-op summary so every test using ``isolated`` stays
+    # hermetic. Tests that specifically want to exercise the
+    # roadmap_priority job can still call _patch_executor with
+    # their own stub.
+    spec = dict(rm._JOB_REGISTRY[rm.JOB_REFRESH_ROADMAP_PRIORITY])
+    spec["executor"] = lambda: {"summary": "ok (test stub)"}
+    monkeypatch.setitem(
+        rm._JOB_REGISTRY, rm.JOB_REFRESH_ROADMAP_PRIORITY, spec
+    )
     return tmp_path
 
 
@@ -87,10 +103,24 @@ def test_job_registry_contains_only_approved_types() -> None:
         "refresh_approval_inbox",
         "refresh_github_pr_lifecycle_dry_run",
         "dependabot_low_medium_execute_safe",
+        # v3.15.16.2 — read-only roadmap priority projection.
+        "refresh_roadmap_priority",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 5
+    assert len(rm.JOB_TYPES) == 6
+
+
+def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
+    """v3.15.16.2: the roadmap priority refresh job must be LOW
+    risk, must not need ``gh``, and must be enabled by default
+    (it is a pure read-only projection)."""
+    spec = rm._JOB_REGISTRY[rm.JOB_REFRESH_ROADMAP_PRIORITY]
+    assert spec["risk_class"] == rm.RISK_LOW
+    assert spec["needs_gh"] is False
+    assert spec["default_enabled"] is True
+    # 30-minute default cadence matches the design.
+    assert spec["default_interval_seconds"] == 30 * 60
 
 
 def test_dependabot_job_disabled_by_default() -> None:
