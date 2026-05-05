@@ -239,6 +239,33 @@ only on these events.
 * `proposal_type`: observability_addition
 * `status`: done
 
+### v3.15.16.9b — Loop closure visibility on Agent Control Overview tab
+
+Extend the already-wired `/api/agent-control/status` payload with
+a small read-only `loop_closure` envelope. The existing Status
+card on the PWA Overview tab gains a "Loop closure" subsection
+surfacing `loop_state` (open / resolved / stale), counts and top
+items from `human_needed` / `governance_bootstrap` /
+`approval_inbox`, plus `last_refreshed_utc`. Pure observability;
+**no new endpoint**, **no `dashboard/dashboard.py` change** (status
+route already wired since v3.15.15.21), no mutation surface, no
+`.claude` change. Bounded payload — never carries `proposed_patch`
+body, `pr_body`, `file_diff`, or full events/templates lists.
+Validates the v3.15.16.6→.7→.8→.9 detection→templating→loop-closure
+cycle visually in the PWA, with no log inspection needed by the
+operator.
+
+* `affected_files`: `dashboard/api_agent_control.py`,
+  `frontend/src/api/agent_control.ts`,
+  `frontend/src/routes/AgentControl.tsx`,
+  `tests/unit/test_dashboard_api_agent_control.py`,
+  `frontend/src/test/AgentControl.test.tsx`,
+  `docs/governance/mobile_agent_control_pwa.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
+* `risk_class`: LOW
+* `proposal_type`: observability_addition
+* `status`: proposed
+
 ### v3.15.16.9 — Governance-bootstrap PR-template synthesizer
 
 Ship `reporting/governance_bootstrap.py` — pure read-only text

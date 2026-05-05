@@ -126,6 +126,35 @@ export interface AgentControlStatus {
       proposed_branch?: string;
     };
   };
+  // v3.15.16.9b — Loop closure subsection on the Status card.
+  // Surfaces whether the v3.15.16.8 detection -> v3.15.16.9 templating
+  // -> operator-PR -> loop-closure cycle has completed. Bounded
+  // payload only: counts, top blocking_component, top branch_name,
+  // last_refreshed_utc, loop_state. NEVER carries proposed_patch
+  // body, pr_body, full events / templates lists.
+  loop_closure?: {
+    status: "ok" | "not_available";
+    reason?: string;
+    data?: {
+      loop_state: "open" | "resolved" | "stale";
+      human_needed: {
+        events_total: number;
+        by_reason: Record<string, number>;
+        top_blocking_component: string | null;
+        generated_at_utc: string;
+      };
+      governance_bootstrap: {
+        templates_total: number;
+        top_branch_name: string | null;
+        generated_at_utc: string;
+      };
+      approval_inbox: {
+        human_needed_derived_rows: number;
+        generated_at_utc: string;
+      };
+      last_refreshed_utc: string;
+    };
+  };
 }
 
 export interface AgentControlActivity {

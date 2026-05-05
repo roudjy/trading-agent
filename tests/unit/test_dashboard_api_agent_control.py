@@ -47,6 +47,24 @@ def app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Flask:
         "PR_LIFECYCLE_LATEST",
         tmp_path / "logs" / "github_pr_lifecycle" / "latest.json",
     )
+    # v3.15.16.9b — redirect the three Loop closure source paths
+    # too so the ``isolated`` test environment cannot read repo
+    # artifacts.
+    monkeypatch.setattr(
+        ac,
+        "HUMAN_NEEDED_LATEST",
+        tmp_path / "logs" / "human_needed" / "latest.json",
+    )
+    monkeypatch.setattr(
+        ac,
+        "GOVERNANCE_BOOTSTRAP_LATEST",
+        tmp_path / "logs" / "governance_bootstrap" / "latest.json",
+    )
+    monkeypatch.setattr(
+        ac,
+        "APPROVAL_INBOX_LATEST",
+        tmp_path / "logs" / "approval_inbox" / "latest.json",
+    )
     flask_app = Flask(__name__)
     ac.register_agent_control_routes(flask_app)
     return flask_app
@@ -357,3 +375,345 @@ def test_no_gh_or_git_invocation_in_module() -> None:
     )
     for token in forbidden:
         assert token not in src, f"forbidden token in api_agent_control.py: {token!r}"
+
+
+# ---------------------------------------------------------------------------
+# v3.15.16.9b — loop closure subsection tests
+# ---------------------------------------------------------------------------
+
+
+def _write_artifact(p: Path, payload: dict) -> None:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _hn_payload(
+    *,
+    events_total: int = 0,
+    blocking_component: "str | None" = None,
+    generated_at_utc: str = "2026-05-05T13:00:00Z",
+) -> dict:
+    events = []
+    if events_total > 0 and blocking_component:
+        events.append(
+            {
+                "event_id": "h_aaaaaaaaaa",
+                "reason": "governance_bootstrap_required",
+                "blocking_component": blocking_component,
+                "priority": "HIGH",
+            }
+        )
+    return {
+        "schema_version": 1,
+        "report_kind": "human_needed_digest",
+        "module_version": "v3.15.16.8",
+        "generated_at_utc": generated_at_utc,
+        "counts": {
+            "events_total": events_total,
+            "by_reason": {"governance_bootstrap_required": events_total},
+        },
+        "events": events,
+    }
+
+
+def _gb_payload(
+    *,
+    templates_total: int = 0,
+    branch_name: "str | None" = None,
+    generated_at_utc: str = "2026-05-05T13:00:00Z",
+) -> dict:
+    templates = []
+    if templates_total > 0 and branch_name:
+        templates.append(
+            {
+                "template_id": "gb_aaaaaaaaaa",
+                "branch_name": branch_name,
+                "source_event_id": "h_aaaaaaaaaa",
+            }
+        )
+    return {
+        "schema_version": 1,
+        "report_kind": "governance_bootstrap_digest",
+        "module_version": "v3.15.16.9",
+        "generated_at_utc": generated_at_utc,
+        "counts": {"templates_total": templates_total},
+        "templates": templates,
+    }
+
+
+def _ai_payload(
+    *,
+    items=None,
+    generated_at_utc: str = "2026-05-05T13:00:00Z",
+) -> dict:
+    """Approval-inbox digest fixture. Items live at TOP LEVEL of the
+    digest (per ``reporting.approval_inbox.collect_snapshot`` line
+    1047 — ``items: items``); they are NOT nested under a ``data``
+    key. Matching the canonical schema is critical: the loop-closure
+    summary reads ``digest['items']`` directly."""
+    return {
+        "schema_version": 1,
+        "report_kind": "approval_inbox_digest",
+        "module_version": "v3.15.15.20",
+        "generated_at_utc": generated_at_utc,
+        "items": items if items is not None else [],
+    }
+
+
+def _set_loop_closure_artifacts(
+    tmp_path: Path,
+    *,
+    hn,
+    gb,
+    ai,
+) -> None:
+    if hn is not None:
+        _write_artifact(tmp_path / "logs" / "human_needed" / "latest.json", hn)
+    if gb is not None:
+        _write_artifact(
+            tmp_path / "logs" / "governance_bootstrap" / "latest.json", gb
+        )
+    if ai is not None:
+        _write_artifact(tmp_path / "logs" / "approval_inbox" / "latest.json", ai)
+
+
+def test_loop_closure_not_available_when_human_needed_missing(
+    client, tmp_path: Path
+) -> None:
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "not_available"
+    assert "human_needed" in lc["reason"]
+
+
+def test_loop_closure_not_available_when_governance_bootstrap_missing(
+    client, tmp_path: Path
+) -> None:
+    _set_loop_closure_artifacts(
+        tmp_path, hn=_hn_payload(), gb=None, ai=_ai_payload()
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "not_available"
+    assert "governance_bootstrap" in lc["reason"]
+
+
+def test_loop_closure_not_available_when_approval_inbox_missing(
+    client, tmp_path: Path
+) -> None:
+    _set_loop_closure_artifacts(
+        tmp_path, hn=_hn_payload(), gb=_gb_payload(), ai=None
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "not_available"
+    assert "approval_inbox" in lc["reason"]
+
+
+def test_loop_closure_open_with_top_blocking_component(
+    client, tmp_path: Path
+) -> None:
+    """The canonical v3.15.16.5 wiring-gap case: human_needed has 1
+    event, governance_bootstrap has 1 template, approval_inbox has
+    1 derived row."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_payload(
+            events_total=1,
+            blocking_component="dashboard/dashboard.py:register_roadmap_priority_routes",
+        ),
+        gb=_gb_payload(
+            templates_total=1,
+            branch_name="governance-bootstrap/h_aaaaaaaaaa",
+        ),
+        ai=_ai_payload(
+            items=[
+                {"item_id": "i_xxx", "source": "human_needed:h_aaaaaaaaaa"},
+                {"item_id": "i_yyy", "source": "recurring_maintenance:something"},
+            ]
+        ),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "ok"
+    data = lc["data"]
+    assert data["loop_state"] == "open"
+    assert data["human_needed"]["events_total"] == 1
+    assert (
+        data["human_needed"]["top_blocking_component"]
+        == "dashboard/dashboard.py:register_roadmap_priority_routes"
+    )
+    assert data["governance_bootstrap"]["templates_total"] == 1
+    assert (
+        data["governance_bootstrap"]["top_branch_name"]
+        == "governance-bootstrap/h_aaaaaaaaaa"
+    )
+    # Counts only rows whose source startswith human_needed: (the
+    # canonical v3.15.16.8 emission); other sources do not count.
+    assert data["approval_inbox"]["human_needed_derived_rows"] == 1
+    assert data["last_refreshed_utc"] == "2026-05-05T13:00:00Z"
+
+
+def test_loop_closure_resolved_when_all_zero_and_timestamps_within_window(
+    client, tmp_path: Path
+) -> None:
+    """All three counts zero AND timestamps within consistency
+    window -> resolved."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_payload(generated_at_utc="2026-05-05T13:00:01Z"),
+        gb=_gb_payload(generated_at_utc="2026-05-05T13:00:30Z"),
+        ai=_ai_payload(generated_at_utc="2026-05-05T13:00:45Z"),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "ok"
+    data = lc["data"]
+    assert data["loop_state"] == "resolved"
+    assert data["human_needed"]["events_total"] == 0
+    assert data["human_needed"]["top_blocking_component"] is None
+    assert data["governance_bootstrap"]["templates_total"] == 0
+    assert data["governance_bootstrap"]["top_branch_name"] is None
+    assert data["approval_inbox"]["human_needed_derived_rows"] == 0
+    # last_refreshed_utc is the lexicographic max of the three.
+    assert data["last_refreshed_utc"] == "2026-05-05T13:00:45Z"
+
+
+def test_loop_closure_stale_when_timestamps_spread_beyond_window(
+    client, tmp_path: Path
+) -> None:
+    """All three counts zero BUT one timestamp >10 min older than
+    the others -> stale (digests inconsistent)."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_payload(generated_at_utc="2026-05-05T13:00:00Z"),
+        gb=_gb_payload(generated_at_utc="2026-05-05T12:30:00Z"),  # 30 min older
+        ai=_ai_payload(generated_at_utc="2026-05-05T13:00:30Z"),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "ok"
+    assert lc["data"]["loop_state"] == "stale"
+
+
+def test_loop_closure_inbox_count_uses_canonical_source_prefix(
+    client, tmp_path: Path
+) -> None:
+    """The human_needed_derived_rows count must use the canonical
+    v3.15.16.8 source-field prefix human_needed: — not any other
+    field, not a substring search elsewhere."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn=_hn_payload(),
+        gb=_gb_payload(),
+        ai=_ai_payload(
+            items=[
+                {"item_id": "a", "source": "human_needed:h_111"},
+                {"item_id": "b", "source": "human_needed:h_222"},
+                {"item_id": "c", "source": "recurring_maintenance:foo"},
+                {"item_id": "d", "source": "proposal_queue:bar"},
+                # Non-string source is ignored, not crashed:
+                {"item_id": "e", "source": None},
+            ]
+        ),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "ok"
+    # Two of five items match the canonical prefix.
+    assert lc["data"]["approval_inbox"]["human_needed_derived_rows"] == 2
+
+
+def test_loop_closure_payload_contains_no_unsafe_fields(
+    client, tmp_path: Path
+) -> None:
+    """The bounded payload must NOT carry proposed_patch, pr_body,
+    or full events / templates lists. Pinned defensively."""
+    _set_loop_closure_artifacts(
+        tmp_path,
+        hn={
+            **_hn_payload(
+                events_total=1,
+                blocking_component="dashboard/dashboard.py:register_x_routes",
+            ),
+            "events": [
+                {
+                    "event_id": "h_a",
+                    "reason": "governance_bootstrap_required",
+                    "blocking_component": "dashboard/dashboard.py:register_x_routes",
+                    "proposed_patch": "secret-shaped patch text NOT for the wire",
+                    "priority": "HIGH",
+                }
+            ],
+        },
+        gb={
+            **_gb_payload(
+                templates_total=1, branch_name="governance-bootstrap/h_a"
+            ),
+            "templates": [
+                {
+                    "template_id": "gb_a",
+                    "branch_name": "governance-bootstrap/h_a",
+                    "source_event_id": "h_a",
+                    "pr_body": "MARKER_SHOULD_NOT_APPEAR_ON_WIRE",
+                    "file_diff": "MARKER_SHOULD_NOT_APPEAR_ON_WIRE",
+                }
+            ],
+        },
+        ai=_ai_payload(),
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "ok"
+    text = json.dumps(lc)
+    forbidden = (
+        "proposed_patch",
+        "pr_body",
+        "file_diff",
+        "MARKER_SHOULD_NOT_APPEAR_ON_WIRE",
+        "secret-shaped patch text",
+    )
+    for tok in forbidden:
+        assert tok not in text, (
+            f"loop_closure payload leaks forbidden field/value: {tok!r}"
+        )
+    # Defensive: confirm the bounded keys and ONLY the bounded keys.
+    data = lc["data"]
+    assert set(data.keys()) == {
+        "loop_state",
+        "human_needed",
+        "governance_bootstrap",
+        "approval_inbox",
+        "last_refreshed_utc",
+    }
+    assert set(data["human_needed"].keys()) == {
+        "events_total",
+        "by_reason",
+        "top_blocking_component",
+        "generated_at_utc",
+    }
+    assert set(data["governance_bootstrap"].keys()) == {
+        "templates_total",
+        "top_branch_name",
+        "generated_at_utc",
+    }
+    assert set(data["approval_inbox"].keys()) == {
+        "human_needed_derived_rows",
+        "generated_at_utc",
+    }
+
+
+def test_loop_closure_not_available_on_missing_generated_at_utc(
+    client, tmp_path: Path
+) -> None:
+    """If any artifact lacks generated_at_utc, the surface returns
+    not_available rather than rendering a meaningless timestamp."""
+    bad_hn = _hn_payload()
+    del bad_hn["generated_at_utc"]
+    _set_loop_closure_artifacts(
+        tmp_path, hn=bad_hn, gb=_gb_payload(), ai=_ai_payload()
+    )
+    body = client.get("/api/agent-control/status").get_json()
+    lc = body["loop_closure"]
+    assert lc["status"] == "not_available"
+    assert "generated_at_utc" in lc["reason"]

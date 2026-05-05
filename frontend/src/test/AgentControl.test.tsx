@@ -1026,3 +1026,274 @@ describe("AgentControl — UI affordances", () => {
     expect(nav).not.toBeNull();
   });
 });
+
+
+const loopClosureOpen = {
+  status: "ok" as const,
+  data: {
+    loop_state: "open" as const,
+    human_needed: {
+      events_total: 1,
+      by_reason: { governance_bootstrap_required: 1 },
+      top_blocking_component:
+        "dashboard/dashboard.py:register_roadmap_priority_routes",
+      generated_at_utc: "2026-05-05T13:00:00Z",
+    },
+    governance_bootstrap: {
+      templates_total: 1,
+      top_branch_name: "governance-bootstrap/h_aaaaaaaaaa",
+      generated_at_utc: "2026-05-05T13:00:00Z",
+    },
+    approval_inbox: {
+      human_needed_derived_rows: 1,
+      generated_at_utc: "2026-05-05T13:00:00Z",
+    },
+    last_refreshed_utc: "2026-05-05T13:00:00Z",
+  },
+};
+
+const loopClosureResolved = {
+  status: "ok" as const,
+  data: {
+    loop_state: "resolved" as const,
+    human_needed: {
+      events_total: 0,
+      by_reason: { governance_bootstrap_required: 0 },
+      top_blocking_component: null,
+      generated_at_utc: "2026-05-05T13:00:00Z",
+    },
+    governance_bootstrap: {
+      templates_total: 0,
+      top_branch_name: null,
+      generated_at_utc: "2026-05-05T13:00:30Z",
+    },
+    approval_inbox: {
+      human_needed_derived_rows: 0,
+      generated_at_utc: "2026-05-05T13:00:45Z",
+    },
+    last_refreshed_utc: "2026-05-05T13:00:45Z",
+  },
+};
+
+const loopClosureStale = {
+  status: "ok" as const,
+  data: {
+    loop_state: "stale" as const,
+    human_needed: {
+      events_total: 0,
+      by_reason: { governance_bootstrap_required: 0 },
+      top_blocking_component: null,
+      generated_at_utc: "2026-05-05T13:00:00Z",
+    },
+    governance_bootstrap: {
+      templates_total: 0,
+      top_branch_name: null,
+      generated_at_utc: "2026-05-05T12:30:00Z",
+    },
+    approval_inbox: {
+      human_needed_derived_rows: 0,
+      generated_at_utc: "2026-05-05T13:00:30Z",
+    },
+    last_refreshed_utc: "2026-05-05T13:00:30Z",
+  },
+};
+
+const loopClosureNotAvailable = {
+  status: "not_available" as const,
+  reason: "human_needed: missing",
+};
+
+function makeStatusBodyWithLoopClosure(loopClosure: unknown) {
+  return { ...okStatusBody, loop_closure: loopClosure };
+}
+
+describe("AgentControl — loop closure subsection (v3.15.16.9b)", () => {
+  it("renders open state with blocking_component and branch_name", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(makeStatusBodyWithLoopClosure(loopClosureOpen)),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () => jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("loop-closure-state")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("loop-closure-state")).toHaveTextContent("open");
+    expect(screen.getByTestId("loop-closure-human-needed-count")).toHaveTextContent(
+      "1 event(s)",
+    );
+    expect(
+      screen.getByTestId("loop-closure-blocking-component"),
+    ).toHaveTextContent(
+      "dashboard/dashboard.py:register_roadmap_priority_routes",
+    );
+    expect(
+      screen.getByTestId("loop-closure-templates-count"),
+    ).toHaveTextContent("1 template(s)");
+    expect(screen.getByTestId("loop-closure-branch-name")).toHaveTextContent(
+      "governance-bootstrap/h_aaaaaaaaaa",
+    );
+    expect(
+      screen.getByTestId("loop-closure-inbox-rows-count"),
+    ).toHaveTextContent("1");
+    expect(
+      screen.getByTestId("loop-closure-last-refreshed"),
+    ).toHaveTextContent("2026-05-05T13:00:00Z");
+  });
+
+  it("renders resolved state with all zero counts", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(makeStatusBodyWithLoopClosure(loopClosureResolved)),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () => jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("loop-closure-state")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("loop-closure-state")).toHaveTextContent(
+      "resolved",
+    );
+    expect(
+      screen.getByTestId("loop-closure-human-needed-count"),
+    ).toHaveTextContent("0 event(s)");
+    expect(
+      screen.getByTestId("loop-closure-templates-count"),
+    ).toHaveTextContent("0 template(s)");
+    expect(
+      screen.getByTestId("loop-closure-inbox-rows-count"),
+    ).toHaveTextContent("0");
+    // Resolved state: blocking_component and branch_name rows are
+    // ABSENT (not just empty).
+    expect(
+      screen.queryByTestId("loop-closure-blocking-component"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("loop-closure-branch-name"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("loop-closure-last-refreshed"),
+    ).toHaveTextContent("2026-05-05T13:00:45Z");
+  });
+
+  it("renders stale state when artifacts are inconsistent", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(makeStatusBodyWithLoopClosure(loopClosureStale)),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () => jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("loop-closure-state")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("loop-closure-state")).toHaveTextContent(
+      "stale",
+    );
+  });
+
+  it("renders not_available when loop_closure status is not_available", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(makeStatusBodyWithLoopClosure(loopClosureNotAvailable)),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () => jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("loop-closure-not-available"),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByTestId("loop-closure-not-available"),
+    ).toHaveTextContent("human_needed: missing");
+  });
+
+  it("does not render the loop closure block when payload omits loop_closure", async () => {
+    // Backwards-compat: an older /status payload without loop_closure
+    // must not crash the card.
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () => jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("agent-control-root")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByTestId("loop-closure-state"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("loop-closure-not-available"),
+    ).not.toBeInTheDocument();
+  });
+});
