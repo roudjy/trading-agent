@@ -132,6 +132,12 @@ export interface AgentControlStatus {
   // payload only: counts, top blocking_component, top branch_name,
   // last_refreshed_utc, loop_state. NEVER carries proposed_patch
   // body, pr_body, full events / templates lists.
+  //
+  // v3.15.16.9c — ``roadmap_priority_wiring`` rides at the envelope
+  // level (sibling of ``status`` / ``reason`` / ``data``) so the
+  // operator sees the canonical bootstrap event proof independently
+  // of the aggregate ``loop_state``. Closed vocabulary on
+  // ``state`` and (when ``state == "not_available"``) ``reason``.
   loop_closure?: {
     status: "ok" | "not_available";
     reason?: string;
@@ -153,6 +159,15 @@ export interface AgentControlStatus {
         generated_at_utc: string;
       };
       last_refreshed_utc: string;
+    };
+    roadmap_priority_wiring?: {
+      state: "open" | "resolved" | "not_available";
+      reason: string | null;
+      event_id: string | null;
+      blocking_component: string | null;
+      source_reason: string | null;
+      template_branch: string | null;
+      inbox_row_present: boolean;
     };
   };
 }

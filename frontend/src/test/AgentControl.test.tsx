@@ -1297,3 +1297,238 @@ describe("AgentControl — loop closure subsection (v3.15.16.9b)", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// v3.15.16.9c — roadmap_priority route wiring subsection
+// ---------------------------------------------------------------------------
+
+const rpwOpen = {
+  state: "open" as const,
+  reason: null,
+  event_id: "h_044e7e64e",
+  blocking_component:
+    "dashboard/dashboard.py:register_roadmap_priority_routes",
+  source_reason: "governance_bootstrap_required",
+  template_branch: "governance-bootstrap/h_044e7e64e",
+  inbox_row_present: true,
+};
+
+const rpwResolved = {
+  state: "resolved" as const,
+  reason: null,
+  event_id: null,
+  blocking_component: null,
+  source_reason: null,
+  template_branch: null,
+  inbox_row_present: false,
+};
+
+const rpwNotAvailable = {
+  state: "not_available" as const,
+  reason: "governance_bootstrap_lags_human_needed",
+  event_id: null,
+  blocking_component: null,
+  source_reason: null,
+  template_branch: null,
+  inbox_row_present: false,
+};
+
+const loopClosureOpenWithRpwOpen = {
+  ...loopClosureOpen,
+  roadmap_priority_wiring: rpwOpen,
+};
+
+const loopClosureOpenWithRpwResolved = {
+  ...loopClosureOpen,
+  roadmap_priority_wiring: rpwResolved,
+};
+
+const loopClosureNotAvailableWithRpwNotAvailable = {
+  ...loopClosureNotAvailable,
+  roadmap_priority_wiring: rpwNotAvailable,
+};
+
+describe("AgentControl — roadmap_priority route wiring subsection (v3.15.16.9c)", () => {
+  it("renders open state with all five canonical fields", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(makeStatusBodyWithLoopClosure(loopClosureOpenWithRpwOpen)),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("roadmap-priority-wiring-state"),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-state"),
+    ).toHaveTextContent("open");
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-event-id"),
+    ).toHaveTextContent("h_044e7e64e");
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-blocking-component"),
+    ).toHaveTextContent(
+      "dashboard/dashboard.py:register_roadmap_priority_routes",
+    );
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-source-reason"),
+    ).toHaveTextContent("governance_bootstrap_required");
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-template-branch"),
+    ).toHaveTextContent("governance-bootstrap/h_044e7e64e");
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-inbox-present"),
+    ).toHaveTextContent("present");
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-reason"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders resolved state without descriptive fields", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(
+            makeStatusBodyWithLoopClosure(loopClosureOpenWithRpwResolved),
+          ),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("roadmap-priority-wiring-state"),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-state"),
+    ).toHaveTextContent("resolved");
+    // Descriptive rows are absent in the resolved state.
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-event-id"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-blocking-component"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-source-reason"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-template-branch"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-inbox-present"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-reason"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders not_available state with the closed reason", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(
+            makeStatusBodyWithLoopClosure(
+              loopClosureNotAvailableWithRpwNotAvailable,
+            ),
+          ),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("roadmap-priority-wiring-state"),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-state"),
+    ).toHaveTextContent("not_available");
+    expect(
+      screen.getByTestId("roadmap-priority-wiring-reason"),
+    ).toHaveTextContent("governance_bootstrap_lags_human_needed");
+    // No descriptive open-only fields in not_available either.
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-event-id"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-template-branch"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render the wiring subsection when payload omits roadmap_priority_wiring", async () => {
+    // Backwards-compat: an older /status payload without the new
+    // sub-object must not crash the card.
+    installFetchMock(
+      {
+        "/api/agent-control/status": () =>
+          jsonResp(makeStatusBodyWithLoopClosure(loopClosureOpen)),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("loop-closure-state")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByTestId("roadmap-priority-wiring-state"),
+    ).not.toBeInTheDocument();
+  });
+});

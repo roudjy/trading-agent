@@ -1,7 +1,7 @@
 # Mobile-first Agent Control PWA — Operator Runbook
 
 > Module: `dashboard.api_agent_control` (backend) + `frontend/src/routes/AgentControl.tsx` (frontend)
-> Release: v3.15.15.26 (mobile-first IA rebuild on top of v3.15.15.18); v3.15.16.9b adds Loop closure subsection
+> Release: v3.15.15.26 (mobile-first IA rebuild on top of v3.15.15.18); v3.15.16.9b adds Loop closure subsection; v3.15.16.9c adds canonical bootstrap event surfacing
 > Sibling lifecycle modules: `reporting.autonomous_workloop`,
 > `reporting.github_pr_lifecycle`,
 > `reporting.workloop_runtime`,
@@ -66,6 +66,80 @@ After the bootstrap PR merges and the auto-deploy completes, the
 operator refreshes and sees `loop_state: resolved` with all three
 counts at zero. That two-state visual flip is the canonical
 Phase 1 end-to-end proof — no log inspection required.
+
+> **Aggregate vs canonical proof:** the `loop_state` field above is
+> an aggregate over *all* `human_needed` events. With many unrelated
+> blockers in flight, a single bootstrap PR may not flip
+> `loop_state` to `resolved`. v3.15.16.9c adds an independent
+> `roadmap_priority_wiring` subsection (see below) that is filtered
+> to one canonical `(reason, blocking_component)` pair, so the
+> specific v3.15.16.5 wiring gap can flip open→resolved without the
+> aggregate clearing.
+
+## v3.15.16.9c — `roadmap_priority_wiring` subsection (specific bootstrap proof)
+
+The Loop closure subsection now also carries a sibling field at
+the envelope level — `loop_closure.roadmap_priority_wiring` —
+that reports a single, *specific* canonical bootstrap event by
+exact `(reason, blocking_component)` match. It is independent of
+the aggregate `loop_state` so the operator can validate one
+bootstrap PR's effect without being drowned out by 200+ unrelated
+`human_needed` events.
+
+### Closed vocabulary
+
+`state ∈ {open, resolved, not_available}`. Three values, no fourth.
+
+`reason` is `null` when `state ∈ {open, resolved}`. When
+`state == "not_available"`, `reason` is one of the eight closed
+values:
+
+| reason | meaning |
+| --- | --- |
+| `human_needed_missing` | `logs/human_needed/latest.json` not present |
+| `human_needed_malformed` | artifact present but `events` is not a list |
+| `governance_bootstrap_missing` | `logs/governance_bootstrap/latest.json` not present |
+| `governance_bootstrap_malformed` | artifact present but `templates` is not a list |
+| `approval_inbox_missing` | `logs/approval_inbox/latest.json` not present |
+| `approval_inbox_malformed` | artifact present but `items` is not a list |
+| `event_id_missing` | a matching event was found but its `event_id` is empty |
+| `governance_bootstrap_lags_human_needed` | mid-refresh inconsistency: a matching template exists but no matching event |
+
+### Detection rules
+
+| step | rule |
+| --- | --- |
+| canonical literals | `REASON = "governance_bootstrap_required"`; `COMPONENT = "dashboard/dashboard.py:register_roadmap_priority_routes"` |
+| open | `human_needed.events[*]` contains an entry with `reason == REASON` AND `blocking_component == COMPONENT` AND a non-empty `event_id` |
+| open primary event | the lex-smallest matching `event_id` |
+| open template branch | first `governance_bootstrap.templates[*].branch_name` whose `source_event_id == event_id` AND `source_reason == REASON` (PRIMARY match by `source_event_id`) |
+| open inbox row present | any `approval_inbox.items[*]` whose `source == f"human_needed:{event_id}"` (exact equality, no substring) |
+| resolved | all three artifacts valid AND no `human_needed` event matches AND no `governance_bootstrap` template matches `(source_reason, evidence.blocking_component)` |
+| not_available | any artifact missing/malformed; or matching event with no `event_id`; or template-without-event mid-refresh |
+
+### Acceptance contract
+
+**Pre-bootstrap (current operator state):**
+
+```
+roadmap_priority route wiring: open
+  event_id: h_<10hex>
+  blocking_component: dashboard/dashboard.py:register_roadmap_priority_routes
+  source_reason: governance_bootstrap_required
+  template branch: governance-bootstrap/h_<10hex>
+  approval_inbox row: present
+```
+
+**Post-bootstrap (after operator's dashboard.py wiring PR merges and the
+recurring-maintenance refresh completes):**
+
+```
+roadmap_priority route wiring: resolved
+```
+
+The flip happens **independently** of the aggregate `loop_state`.
+Other `human_needed` events may persist; the aggregate may stay
+`open`. The canonical proof is the specific subsection.
 
 This is the operator-facing runbook for the Agent Control PWA.
 It explains what the app shows, what it does NOT do, how it is

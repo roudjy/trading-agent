@@ -76,6 +76,34 @@ APPROVAL_INBOX_LATEST: Path = LOGS_DIR / "approval_inbox" / "latest.json"
 # conservative upper bound on a single tick's wall-clock cost).
 LOOP_CLOSURE_CONSISTENCY_WINDOW_SECONDS: int = 10 * 60
 
+# v3.15.16.9c — canonical bootstrap event surfacing. The aggregate
+# loop_closure block can hide whether the *specific* v3.15.16.5
+# wiring gap is open / resolved when many unrelated human_needed
+# events are present. ``_roadmap_priority_wiring_summary()`` filters
+# the same three artifacts by an exact ``(reason, blocking_component)``
+# pair and reports its own closed-vocabulary state, independent of
+# the aggregate. The two literals below are the canonical filter.
+# They are pinned by a source-text test so they cannot drift.
+ROADMAP_PRIORITY_WIRING_COMPONENT: str = (
+    "dashboard/dashboard.py:register_roadmap_priority_routes"
+)
+ROADMAP_PRIORITY_WIRING_REASON: str = "governance_bootstrap_required"
+
+# Closed reason vocabulary surfaced when
+# ``roadmap_priority_wiring.state == "not_available"``. The set is
+# small on purpose: every entry maps to a deterministic upstream
+# condition the operator can act on.
+ROADMAP_PRIORITY_WIRING_NOT_AVAILABLE_REASONS: tuple[str, ...] = (
+    "human_needed_missing",
+    "human_needed_malformed",
+    "governance_bootstrap_missing",
+    "governance_bootstrap_malformed",
+    "approval_inbox_missing",
+    "approval_inbox_malformed",
+    "event_id_missing",
+    "governance_bootstrap_lags_human_needed",
+)
+
 # Frozen contracts the PWA surfaces verbatim (path + sha256 only).
 FROZEN_CONTRACTS: tuple[str, ...] = (
     "research/research_latest.json",
@@ -206,6 +234,178 @@ def _status_payload() -> dict[str, Any]:
     }
 
 
+def _roadmap_priority_wiring_summary(
+    hn_env: dict[str, Any],
+    gb_env: dict[str, Any],
+    ai_env: dict[str, Any],
+) -> dict[str, Any]:
+    """v3.15.16.9c — derive the canonical bootstrap event surfacing.
+
+    Consumes the *same* three artifact envelopes that the aggregate
+    ``_loop_closure_summary()`` already reads and reports its own
+    state, independent of the aggregate ``loop_state``. This lets the
+    operator see whether the *specific* v3.15.16.5 wiring gap is open
+    / resolved without being drowned out by 200+ unrelated
+    ``human_needed`` events.
+
+    Returned shape (closed vocabulary, never raises)::
+
+        {
+            "state": "open" | "resolved" | "not_available",
+            "reason": str | None,
+            "event_id": str | None,
+            "blocking_component": str | None,
+            "source_reason": str | None,
+            "template_branch": str | None,
+            "inbox_row_present": bool,
+        }
+
+    State semantics:
+
+    * ``open`` — at least one ``human_needed.events[*]`` matches both
+      canonical literals AND yields a non-empty ``event_id``. The
+      lex-smallest matching event_id is reported. ``template_branch``
+      is resolved by ``source_event_id == event_id`` AND
+      ``source_reason == REASON`` (PRIMARY match). ``inbox_row_present``
+      is ``True`` only when an ``approval_inbox.items[*]`` has
+      ``source == f"human_needed:{event_id}"`` (exact equality).
+
+    * ``resolved`` — all three artifacts valid (events / templates /
+      items are lists) AND no ``human_needed`` event matches the
+      canonical pair AND no ``governance_bootstrap`` template matches
+      ``source_reason == REASON`` AND
+      ``evidence.blocking_component == COMPONENT``. Unrelated events
+      may persist; aggregate ``loop_state`` may still be ``open``.
+
+    * ``not_available`` — any artifact is missing or malformed, or
+      the artifacts are mid-refresh inconsistent. ``reason`` carries
+      the closed-vocabulary value from
+      ``ROADMAP_PRIORITY_WIRING_NOT_AVAILABLE_REASONS``.
+
+    Hard guarantees:
+
+    * Stdlib-only. No subprocess, no network, no git, no gh.
+    * Reads artifact envelopes only — never re-reads the disk.
+    * Never returns ``proposed_patch``, ``pr_body``, ``file_diff``,
+      ``commit_message``, or any other large/sensitive template
+      payload. Bounded scalars only.
+    """
+
+    def _na(reason: str) -> dict[str, Any]:
+        return {
+            "state": "not_available",
+            "reason": reason,
+            "event_id": None,
+            "blocking_component": None,
+            "source_reason": None,
+            "template_branch": None,
+            "inbox_row_present": False,
+        }
+
+    # 1. Validate each artifact's envelope and inner shape.
+    if hn_env.get("status") != "ok":
+        return _na("human_needed_missing")
+    hn_data = hn_env.get("data") or {}
+    if not isinstance(hn_data, dict):
+        return _na("human_needed_malformed")
+    hn_events = hn_data.get("events")
+    if not isinstance(hn_events, list):
+        return _na("human_needed_malformed")
+
+    if gb_env.get("status") != "ok":
+        return _na("governance_bootstrap_missing")
+    gb_data = gb_env.get("data") or {}
+    if not isinstance(gb_data, dict):
+        return _na("governance_bootstrap_malformed")
+    gb_templates = gb_data.get("templates")
+    if not isinstance(gb_templates, list):
+        return _na("governance_bootstrap_malformed")
+
+    if ai_env.get("status") != "ok":
+        return _na("approval_inbox_missing")
+    ai_data = ai_env.get("data") or {}
+    if not isinstance(ai_data, dict):
+        return _na("approval_inbox_malformed")
+    ai_items = ai_data.get("items")
+    if not isinstance(ai_items, list):
+        return _na("approval_inbox_malformed")
+
+    # 2. Identify canonical references in each source.
+    matching_hn_events = [
+        e
+        for e in hn_events
+        if isinstance(e, dict)
+        and e.get("reason") == ROADMAP_PRIORITY_WIRING_REASON
+        and e.get("blocking_component") == ROADMAP_PRIORITY_WIRING_COMPONENT
+    ]
+    canonical_hn_event_ids = sorted(
+        eid
+        for eid in (str(e.get("event_id") or "") for e in matching_hn_events)
+        if eid
+    )
+    matching_gb_templates = [
+        t
+        for t in gb_templates
+        if isinstance(t, dict)
+        and t.get("source_reason") == ROADMAP_PRIORITY_WIRING_REASON
+        and isinstance(t.get("evidence"), dict)
+        and t["evidence"].get("blocking_component")
+        == ROADMAP_PRIORITY_WIRING_COMPONENT
+    ]
+    canonical_gb_event_ids = sorted(
+        eid
+        for eid in (
+            str(t.get("source_event_id") or "") for t in matching_gb_templates
+        )
+        if eid
+    )
+
+    # 3. Decide.
+    if matching_hn_events and not canonical_hn_event_ids:
+        return _na("event_id_missing")
+
+    if canonical_hn_event_ids:
+        event_id = canonical_hn_event_ids[0]
+        template_branch: str | None = None
+        for t in gb_templates:
+            if (
+                isinstance(t, dict)
+                and str(t.get("source_event_id") or "") == event_id
+                and t.get("source_reason") == ROADMAP_PRIORITY_WIRING_REASON
+            ):
+                bn = t.get("branch_name")
+                if isinstance(bn, str) and bn:
+                    template_branch = bn
+                    break
+        inbox_source = f"human_needed:{event_id}"
+        inbox_row_present = any(
+            isinstance(it, dict) and it.get("source") == inbox_source
+            for it in ai_items
+        )
+        return {
+            "state": "open",
+            "reason": None,
+            "event_id": event_id,
+            "blocking_component": ROADMAP_PRIORITY_WIRING_COMPONENT,
+            "source_reason": ROADMAP_PRIORITY_WIRING_REASON,
+            "template_branch": template_branch,
+            "inbox_row_present": inbox_row_present,
+        }
+
+    if canonical_gb_event_ids:
+        return _na("governance_bootstrap_lags_human_needed")
+
+    return {
+        "state": "resolved",
+        "reason": None,
+        "event_id": None,
+        "blocking_component": None,
+        "source_reason": None,
+        "template_branch": None,
+        "inbox_row_present": False,
+    }
+
+
 def _loop_closure_summary() -> dict[str, Any]:
     """v3.15.16.9b — surface the autonomous-loop closure state on
     the existing Status card.
@@ -246,20 +446,29 @@ def _loop_closure_summary() -> dict[str, Any]:
     gb_env = _read_json_artifact(GOVERNANCE_BOOTSTRAP_LATEST)
     ai_env = _read_json_artifact(APPROVAL_INBOX_LATEST)
 
+    # v3.15.16.9c — compute the canonical bootstrap event surfacing
+    # against the same three artifact envelopes. Always emitted at
+    # the envelope level so the operator sees the canonical proof
+    # whether or not the aggregate loop_closure is ``ok``.
+    rpw = _roadmap_priority_wiring_summary(hn_env, gb_env, ai_env)
+
     if hn_env.get("status") != "ok":
         return {
             "status": "not_available",
             "reason": f"human_needed: {hn_env.get('reason') or 'unknown'}",
+            "roadmap_priority_wiring": rpw,
         }
     if gb_env.get("status") != "ok":
         return {
             "status": "not_available",
             "reason": f"governance_bootstrap: {gb_env.get('reason') or 'unknown'}",
+            "roadmap_priority_wiring": rpw,
         }
     if ai_env.get("status") != "ok":
         return {
             "status": "not_available",
             "reason": f"approval_inbox: {ai_env.get('reason') or 'unknown'}",
+            "roadmap_priority_wiring": rpw,
         }
 
     hn_data = hn_env.get("data") or {}
@@ -273,6 +482,7 @@ def _loop_closure_summary() -> dict[str, Any]:
         return {
             "status": "not_available",
             "reason": "missing generated_at_utc on one or more artifacts",
+            "roadmap_priority_wiring": rpw,
         }
 
     # human_needed projection — bounded.
@@ -381,6 +591,7 @@ def _loop_closure_summary() -> dict[str, Any]:
             },
             "last_refreshed_utc": last_refreshed_utc,
         },
+        "roadmap_priority_wiring": rpw,
     }
 
 

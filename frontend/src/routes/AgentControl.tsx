@@ -373,6 +373,9 @@ function LoopClosureBlock({
           <dt>reason</dt>
           <dd>{payload.reason ?? "not_available"}</dd>
         </div>
+        <RoadmapPriorityWiringBlock
+          payload={payload.roadmap_priority_wiring}
+        />
       </>
     );
   }
@@ -456,6 +459,113 @@ function LoopClosureBlock({
           {data.last_refreshed_utc}
         </dd>
       </div>
+      <RoadmapPriorityWiringBlock
+        payload={payload.roadmap_priority_wiring}
+      />
+    </>
+  );
+}
+
+// --- Subsection: roadmap_priority route wiring (v3.15.16.9c) ---
+// Surfaces the *specific* canonical bootstrap event for the
+// v3.15.16.5 wiring gap, independent of the aggregate loop_state.
+// Read-only. No proposed_patch / pr_body / file_diff is rendered;
+// only bounded scalar fields.
+function RoadmapPriorityWiringBlock({
+  payload,
+}: {
+  payload: NonNullable<
+    AgentControlStatus["loop_closure"]
+  >["roadmap_priority_wiring"];
+}) {
+  if (!payload) {
+    return null;
+  }
+  const state = payload.state;
+  const pillState: "ok" | "warn" | "danger" | "unknown" =
+    state === "resolved"
+      ? "ok"
+      : state === "open"
+        ? "danger"
+        : "unknown";
+  return (
+    <>
+      <div
+        className="agent-control-card__row"
+        data-testid="roadmap-priority-wiring-row"
+      >
+        <dt>roadmap_priority route wiring</dt>
+        <dd>
+          <span data-testid="roadmap-priority-wiring-state">{state}</span>{" "}
+          <StatusPill state={pillState} />
+        </dd>
+      </div>
+      {state === "not_available" && payload.reason ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="roadmap-priority-wiring-reason-row"
+        >
+          <dt>reason</dt>
+          <dd data-testid="roadmap-priority-wiring-reason">
+            {payload.reason}
+          </dd>
+        </div>
+      ) : null}
+      {state === "open" && payload.event_id ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="roadmap-priority-wiring-event-id-row"
+        >
+          <dt>event_id</dt>
+          <dd data-testid="roadmap-priority-wiring-event-id">
+            <code>{payload.event_id}</code>
+          </dd>
+        </div>
+      ) : null}
+      {state === "open" && payload.blocking_component ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="roadmap-priority-wiring-blocking-component-row"
+        >
+          <dt>blocking_component</dt>
+          <dd data-testid="roadmap-priority-wiring-blocking-component">
+            <code>{payload.blocking_component}</code>
+          </dd>
+        </div>
+      ) : null}
+      {state === "open" && payload.source_reason ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="roadmap-priority-wiring-source-reason-row"
+        >
+          <dt>source_reason</dt>
+          <dd data-testid="roadmap-priority-wiring-source-reason">
+            <code>{payload.source_reason}</code>
+          </dd>
+        </div>
+      ) : null}
+      {state === "open" && payload.template_branch ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="roadmap-priority-wiring-template-branch-row"
+        >
+          <dt>template branch</dt>
+          <dd data-testid="roadmap-priority-wiring-template-branch">
+            <code>{payload.template_branch}</code>
+          </dd>
+        </div>
+      ) : null}
+      {state === "open" ? (
+        <div
+          className="agent-control-card__row"
+          data-testid="roadmap-priority-wiring-inbox-row"
+        >
+          <dt>approval_inbox row</dt>
+          <dd data-testid="roadmap-priority-wiring-inbox-present">
+            {payload.inbox_row_present ? "present" : "absent"}
+          </dd>
+        </div>
+      ) : null}
     </>
   );
 }
