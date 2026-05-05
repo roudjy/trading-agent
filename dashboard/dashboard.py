@@ -39,6 +39,7 @@ from dashboard.api_system_meta import register_system_meta_routes
 from dashboard.api_agent_control import register_agent_control_routes
 from dashboard.api_proposal_queue import register_proposal_queue_routes
 from dashboard.api_approval_inbox import register_approval_inbox_routes
+from dashboard.api_roadmap_priority import register_roadmap_priority_routes
 from reporting import audit_log
 
 app = Flask(__name__, template_folder="templates")
@@ -86,6 +87,7 @@ register_observability_routes(app)
 register_agent_control_routes(app)
 register_proposal_queue_routes(app)
 register_approval_inbox_routes(app)
+register_roadmap_priority_routes(app)
 
 
 @app.errorhandler(Exception)
