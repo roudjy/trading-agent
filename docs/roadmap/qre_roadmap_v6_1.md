@@ -100,7 +100,7 @@ only execute-capable job stays `blocked` by construction.
   `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
-* `status`: proposed
+* `status`: done
 
 ### v3.15.16.4 — Recurring-maintenance systemd timer (governance-bootstrap-gated)
 
@@ -122,22 +122,33 @@ cadence; v3.15.16.4 adds the continuous tick.
 * `proposal_type`: governance_change
 * `status`: proposed
 
-### v3.15.16.5 — PWA next-up card for the priority digest
+### v3.15.16.5 — PWA Next-Up card surfacing roadmap_priority digest
 
-Surface `logs/roadmap_priority/latest.json` to the operator via a
-new GET-only `/api/agent-control/next-up` endpoint and a read-only
-"Next up" card on the Agent Control PWA. No mutation, no
-auto-execution, no execute-safe wiring. The card displays the
-chosen-next-up item, its rationale, and its protocol plan summary.
-(Previously slotted as v3.15.16.3; renumbered after the
-recurring-maintenance deploy hook took priority.)
+Add a new GET-only endpoint `/api/agent-control/next-up` backed
+by `dashboard/api_roadmap_priority.py` and a read-only "Next up"
+card on the Agent Control PWA's Inbox tab. The card surfaces
+`logs/roadmap_priority/latest.json`: chosen_next_up,
+final_recommendation pill, rationale, protocol_plan_summary,
+filtered_out counts, needs_human indicator. Pure observability;
+no action buttons; never wires `api_execute_safe_controls`.
 
-* `affected_files`: `dashboard/api_agent_control.py`,
+The two-line `dashboard/dashboard.py` wiring required to activate
+the route is **deferred to a separate operator-authored
+governance-bootstrap PR** because the `deny_no_touch` hook blocks
+the file-level write to `dashboard/dashboard.py` regardless of
+in-chat operator approval — same shape that v3.15.15.21 used to
+land the previous batch of agent-control wiring lines. Until that
+bootstrap merges, the endpoint returns 404 and the PWA card
+renders its `next-up-not-available` empty state.
+
+* `affected_files`: `dashboard/api_roadmap_priority.py`,
   `frontend/src/api/agent_control.ts`,
   `frontend/src/routes/AgentControl.tsx`,
   `frontend/src/test/AgentControl.test.tsx`,
-  `tests/unit/test_dashboard_api_agent_control.py`,
-  `docs/governance/roadmap_priority.md`
+  `tests/unit/test_dashboard_api_roadmap_priority.py`,
+  `tests/unit/test_observability_security_invariants.py`,
+  `docs/governance/roadmap_priority.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
 * `status`: proposed

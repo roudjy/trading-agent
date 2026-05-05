@@ -208,6 +208,53 @@ export interface AgentControlApprovalInbox {
   artifact_path: string;
 }
 
+// v3.15.16.5 — read-only Next-Up surface backed by
+// reporting.roadmap_priority's chosen_next_up projection.
+// Strictly bounded subset of logs/roadmap_priority/latest.json;
+// the full candidates / filtered_out arrays stay in the file. The
+// PWA card surfaces the chosen item, recommendation pill,
+// rationale, protocol plan summary, backlog counts, and a derived
+// needs_human boolean. No mutation surface; no action verbs.
+export interface AgentControlNextUp {
+  kind: "agent_control_next_up";
+  schema_version: number;
+  status: "ok" | "not_available";
+  reason?: string;
+  data?: {
+    module_version?: string;
+    generated_at_utc?: string;
+    final_recommendation: string;
+    safe_to_execute: boolean;
+    chosen_next_up: {
+      proposal_id?: string;
+      title?: string;
+      summary?: string;
+      proposal_type?: string;
+      risk_class?: string;
+      rationale?: string;
+      protocol_plan_summary?: {
+        decision?: string;
+        implementation_allowed?: boolean;
+        requires_human?: boolean;
+        risk_class?: string;
+        item_type?: string;
+        proposed_branch?: string;
+        proposed_release_id?: string;
+        required_tests?: string[];
+        expected_artifacts?: string[];
+      };
+    } | null;
+    counts: {
+      proposals_total?: number;
+      eligible_total?: number;
+      filtered_out_total?: number;
+      filtered_out_by_reason?: Record<string, number>;
+    };
+    needs_human: boolean;
+  };
+  artifact_path?: string;
+}
+
 export interface AgentControlExecuteSafe {
   kind: "agent_control_execute_safe";
   schema_version: number;
@@ -273,4 +320,5 @@ export const agentControlApi = {
     getJson<AgentControlApprovalInbox>(`${BASE}/approval-inbox`),
   executeSafe: () =>
     getJson<AgentControlExecuteSafe>(`${BASE}/execute-safe`),
+  nextUp: () => getJson<AgentControlNextUp>(`${BASE}/next-up`),
 };

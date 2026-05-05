@@ -174,6 +174,58 @@ this release projects, the operator decides.
 5. If `final_recommendation == "not_available"`, refresh the
    proposal queue first (step 1) and re-run.
 
+## PWA card (v3.15.16.5)
+
+The Agent Control PWA's **Inbox** tab gains a "Next up" card
+backed by `dashboard/api_roadmap_priority.py` and the new GET-only
+endpoint `/api/agent-control/next-up`. The endpoint is a strictly
+bounded projection over `logs/roadmap_priority/latest.json`:
+
+| field | source | shape |
+| --- | --- | --- |
+| `final_recommendation` | digest top-level | `"ready_for_implementation"` / `"nothing_ready"` / `"not_available"` |
+| `safe_to_execute` | hard-coded `false` at the boundary | `false` (defensive — even if a corrupted upstream digest sets this to `true`, the boundary projection drops it back to `false`) |
+| `chosen_next_up.{proposal_id,title,summary,proposal_type,risk_class,rationale}` | digest | bounded copy |
+| `chosen_next_up.protocol_plan_summary.{decision,implementation_allowed,requires_human,risk_class,item_type,proposed_branch,proposed_release_id,required_tests,expected_artifacts}` | digest | bounded copy; the lists are capped at 8 elements each |
+| `counts.{proposals_total,eligible_total,filtered_out_total,filtered_out_by_reason}` | digest | bounded copy |
+| `needs_human` | derived | `true` when `final_recommendation in {"not_available","unsafe"}` OR the chosen item's protocol plan reports `requires_human=true` |
+
+The full `candidates[]` and `filtered_out[]` arrays are NOT
+projected to the PWA card. They stay in the artifact for
+operators who need them.
+
+The card never adds an action button. The only interactive
+element on the Agent Control surface remains the global "Vernieuw"
+refresh button. Operator decisions remain manual: read the card,
+optionally re-run `python -m reporting.roadmap_execution_protocol
+--plan-item <item> --dry-run` for the full record, then start
+work by hand.
+
+### Wiring shape (operator note)
+
+`dashboard/dashboard.py` is on the no-touch list and the
+`deny_no_touch` hook blocks the wiring write at the file level
+even when the operator authorises it in chat. The two-line edit:
+
+```python
+from dashboard.api_roadmap_priority import register_roadmap_priority_routes
+register_roadmap_priority_routes(app)
+```
+
+therefore lands as a separate one-shot operator-authored
+governance-bootstrap PR after v3.15.16.5 merges — same shape that
+v3.15.15.21 used to wire `register_agent_control_routes` /
+`register_proposal_queue_routes` / `register_approval_inbox_routes`.
+
+Until that bootstrap lands:
+
+* `/api/agent-control/next-up` returns 404 from the dashboard;
+* the PWA's frontend client collapses 404 into the standard
+  `not_available` envelope;
+* the Next-Up card renders its `next-up-not-available` empty
+  state;
+* nothing crashes, nothing leaks.
+
 ## What this module is NOT
 
 * It is **not** an autonomous starter. It does not create a

@@ -35,6 +35,7 @@ import {
   type AgentControlActivity,
   type AgentControlApprovalInbox,
   type AgentControlExecuteSafe,
+  type AgentControlNextUp,
   type AgentControlNotifications,
   type AgentControlPRLifecycle,
   type AgentControlProposals,
@@ -607,6 +608,151 @@ function ProposalsCard({
   );
 }
 
+// --- Card: deterministic priority projection (v3.15.16.5) ---
+// Read-only surface over logs/roadmap_priority/latest.json. Renders
+// chosen_next_up + final_recommendation pill + rationale + protocol
+// plan summary + backlog counts + needs_human indicator. NEVER adds
+// an action button; the operator decides whether to act on the
+// recommendation by hand.
+function NextUpCard({
+  payload,
+}: {
+  payload: AgentControlNextUp | null;
+}) {
+  if (!payload) {
+    return (
+      <Card title="Next up" subtitle="deterministic priority projection">
+        <p className="agent-control-card__empty" data-testid="next-up-loading">
+          Laden…
+        </p>
+      </Card>
+    );
+  }
+  if (payload.status !== "ok" || !payload.data) {
+    return (
+      <Card title="Next up" subtitle="deterministic priority projection">
+        <p
+          className="agent-control-card__empty"
+          data-testid="next-up-not-available"
+        >
+          {payload.reason ?? "not_available"} —{" "}
+          <code>{payload.artifact_path ?? "logs/roadmap_priority/latest.json"}</code>
+        </p>
+      </Card>
+    );
+  }
+  const data = payload.data;
+  const chosen = data.chosen_next_up;
+  const counts = data.counts ?? {};
+  const recommendation = String(data.final_recommendation ?? "unknown");
+  const needsHuman = Boolean(data.needs_human);
+  const recPill: "ok" | "warn" | "danger" | "unknown" =
+    recommendation === "ready_for_implementation"
+      ? "ok"
+      : recommendation === "nothing_ready"
+        ? "warn"
+        : recommendation === "not_available"
+          ? "unknown"
+          : "danger";
+  const proposalsTotal = Number(counts.proposals_total ?? 0);
+  const eligibleTotal = Number(counts.eligible_total ?? 0);
+  const filteredTotal = Number(counts.filtered_out_total ?? 0);
+  return (
+    <Card title="Next up" subtitle="deterministic priority projection">
+      <div className="agent-control-card__row">
+        <dt>recommendation</dt>
+        <dd data-testid="next-up-recommendation">
+          {recommendation} <StatusPill state={recPill} />
+        </dd>
+      </div>
+      <div className="agent-control-card__row">
+        <dt>needs_human</dt>
+        <dd data-testid="next-up-needs-human">{needsHuman ? "yes" : "no"}</dd>
+      </div>
+      {chosen ? (
+        <>
+          <div className="agent-control-card__row">
+            <dt>{String(chosen.proposal_id ?? "?")}</dt>
+            <dd data-testid="next-up-title">
+              {String(chosen.title ?? "(no title)")}
+            </dd>
+          </div>
+          <div className="agent-control-card__row">
+            <dt>type</dt>
+            <dd data-testid="next-up-type">
+              {String(chosen.proposal_type ?? "unknown")} ·{" "}
+              {String(chosen.risk_class ?? "?")}
+            </dd>
+          </div>
+          {chosen.rationale ? (
+            <div className="agent-control-card__row">
+              <dt>rationale</dt>
+              <dd data-testid="next-up-rationale">{String(chosen.rationale)}</dd>
+            </div>
+          ) : null}
+          {chosen.protocol_plan_summary ? (
+            <>
+              <div className="agent-control-card__row">
+                <dt>decision</dt>
+                <dd data-testid="next-up-decision">
+                  {String(
+                    chosen.protocol_plan_summary.decision ?? "unknown",
+                  )}
+                </dd>
+              </div>
+              <div className="agent-control-card__row">
+                <dt>impl_allowed</dt>
+                <dd>
+                  {chosen.protocol_plan_summary.implementation_allowed
+                    ? "yes"
+                    : "no"}
+                </dd>
+              </div>
+              <div className="agent-control-card__row">
+                <dt>requires_human</dt>
+                <dd>
+                  {chosen.protocol_plan_summary.requires_human ? "yes" : "no"}
+                </dd>
+              </div>
+              {chosen.protocol_plan_summary.proposed_branch ? (
+                <div className="agent-control-card__row">
+                  <dt>branch</dt>
+                  <dd data-testid="next-up-branch">
+                    <code>{String(chosen.protocol_plan_summary.proposed_branch)}</code>
+                  </dd>
+                </div>
+              ) : null}
+              {chosen.protocol_plan_summary.proposed_release_id ? (
+                <div className="agent-control-card__row">
+                  <dt>release</dt>
+                  <dd>
+                    {String(chosen.protocol_plan_summary.proposed_release_id)}
+                  </dd>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </>
+      ) : (
+        <p
+          className="agent-control-card__empty"
+          data-testid="next-up-no-candidate"
+        >
+          Geen geschikte kandidaat — {filteredTotal} gefilterd van{" "}
+          {proposalsTotal}.
+        </p>
+      )}
+      <div className="agent-control-card__row">
+        <dt>backlog</dt>
+        <dd data-testid="next-up-counts">
+          {proposalsTotal} proposals · {eligibleTotal} eligible ·{" "}
+          {filteredTotal} filtered
+        </dd>
+      </div>
+    </Card>
+  );
+}
+
 // --- Card: approval / exception inbox (v3.15.15.20) ---
 function InboxCard({
   payload,
@@ -944,13 +1090,14 @@ export function AgentControl() {
   const [inbox, setInbox] = useState<AgentControlApprovalInbox | null>(null);
   const [executeSafe, setExecuteSafe] =
     useState<AgentControlExecuteSafe | null>(null);
+  const [nextUp, setNextUp] = useState<AgentControlNextUp | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshedAt, setRefreshedAt] = useState<string>("");
   const [activeSection, setActiveSection] = useState<SectionId>("overview");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [s, a, w, p, n, q, i, e] = await Promise.all([
+    const [s, a, w, p, n, q, i, e, nu] = await Promise.all([
       agentControlApi.status(),
       agentControlApi.activity(),
       agentControlApi.workloop(),
@@ -959,6 +1106,7 @@ export function AgentControl() {
       agentControlApi.proposals(),
       agentControlApi.approvalInbox(),
       agentControlApi.executeSafe(),
+      agentControlApi.nextUp(),
     ]);
     setStatus(s);
     setActivity(a);
@@ -968,6 +1116,7 @@ export function AgentControl() {
     setProposals(q);
     setInbox(i);
     setExecuteSafe(e);
+    setNextUp(nu);
     setRefreshedAt(new Date().toISOString().replace("T", " ").slice(0, 19));
     setLoading(false);
   }, []);
@@ -1052,6 +1201,7 @@ export function AgentControl() {
           active={activeSection === "inbox"}
           ariaLabel="Operator inbox and proposal queue"
         >
+          <NextUpCard payload={nextUp} />
           <InboxCard payload={inbox} />
           <ProposalsCard payload={proposals} />
         </Section>
