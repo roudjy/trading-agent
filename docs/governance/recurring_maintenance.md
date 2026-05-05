@@ -77,6 +77,7 @@ python -m reporting.recurring_maintenance --run-due-once \
 | `refresh_github_pr_lifecycle_dry_run` | LOW | yes | 30 min | ✓ | refreshes `github_pr_lifecycle` dry-run artifact |
 | `dependabot_low_medium_execute_safe` | MEDIUM | yes | 60 min | **✗** | delegates to `github_pr_lifecycle` execute-safe path |
 | `refresh_roadmap_priority` | LOW | no | 30 min | ✓ | refreshes `roadmap_priority` read-only digest (v3.15.16.2) |
+| `refresh_task_board` | LOW | no | 30 min | ✓ | refreshes `task_board` state-machine digest (v3.15.16.6) |
 
 ## Dependabot execute-safe — two-layer opt-in
 
@@ -184,6 +185,29 @@ endpoint — no new dashboard.py wiring.
 | v3.15.15.24 | per-job audit-ledger linkage (populated `audit_refs`) |
 | v3.15.15.25 | metrics dashboards on top of `history.jsonl` |
 | later | systemd service / cron wrapper around the loop driver |
+
+## Task board projection (v3.15.16.6)
+
+A new closed job entry — `refresh_task_board` — runs the
+read-only state-machine projection
+(`reporting.task_board.collect_snapshot` + `write_outputs`) every
+30 minutes by default. The projection is a pure function over
+`logs/proposal_queue/latest.json`,
+`logs/roadmap_priority/latest.json`,
+`logs/github_pr_lifecycle/latest.json`,
+`logs/approval_inbox/latest.json`. It writes the deterministic
+kanban digest into `logs/task_board/latest.json`.
+
+Hard guarantees re-asserted at this layer:
+
+* LOW risk; `needs_gh = False`; default-enabled.
+* `safe_to_execute` is hard-coded `false` in the digest schema
+  and pinned by a unit test.
+* The job never starts a branch, never opens a PR, never merges,
+  never invokes `gh`. It is observability only.
+* See `docs/governance/task_board.md` for the closed state /
+  owner-agent vocabularies, the rule precedence, and the operator
+  workflow.
 
 ## Deploy-hook integration (v3.15.16.3)
 
