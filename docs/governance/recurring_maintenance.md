@@ -76,6 +76,7 @@ python -m reporting.recurring_maintenance --run-due-once \
 | `refresh_approval_inbox` | LOW | no | 15 min | ✓ | refreshes `approval_inbox` dry-run artifact |
 | `refresh_github_pr_lifecycle_dry_run` | LOW | yes | 30 min | ✓ | refreshes `github_pr_lifecycle` dry-run artifact |
 | `dependabot_low_medium_execute_safe` | MEDIUM | yes | 60 min | **✗** | delegates to `github_pr_lifecycle` execute-safe path |
+| `refresh_roadmap_priority` | LOW | no | 30 min | ✓ | refreshes `roadmap_priority` read-only digest (v3.15.16.2) |
 
 ## Dependabot execute-safe — two-layer opt-in
 
@@ -183,6 +184,27 @@ endpoint — no new dashboard.py wiring.
 | v3.15.15.24 | per-job audit-ledger linkage (populated `audit_refs`) |
 | v3.15.15.25 | metrics dashboards on top of `history.jsonl` |
 | later | systemd service / cron wrapper around the loop driver |
+
+## Roadmap priority projection (v3.15.16.2)
+
+A new closed job entry — `refresh_roadmap_priority` — runs the
+read-only prioritizer (`reporting.roadmap_priority.collect_snapshot`
++ `write_outputs`) every 30 minutes by default. The prioritizer
+is a pure projection over `logs/proposal_queue/latest.json`; it
+calls `reporting.roadmap_execution_protocol.plan_item` on each
+proposal to obtain the per-item decision and writes the
+deterministic `chosen_next_up` candidate into
+`logs/roadmap_priority/latest.json`.
+
+Hard guarantees re-asserted at this layer:
+
+* LOW risk; `needs_gh = False`; default-enabled.
+* `safe_to_execute` is hard-coded `false` in the digest schema
+  and pinned by a unit test.
+* The job never starts a branch, never opens a PR, never merges,
+  never invokes `gh`. It is observability only.
+* See `docs/governance/roadmap_priority.md` for the eligibility
+  filters, ranking policy, and operator workflow.
 
 ## VPS-side automation (v3.15.16.1)
 
