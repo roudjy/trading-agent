@@ -185,6 +185,46 @@ endpoint — no new dashboard.py wiring.
 | v3.15.15.25 | metrics dashboards on top of `history.jsonl` |
 | later | systemd service / cron wrapper around the loop driver |
 
+## Deploy-hook integration (v3.15.16.3)
+
+`scripts/deploy_vps_dashboard.sh` runs a **best-effort, non-fatal**
+post-deploy step that calls
+`python3 -m reporting.recurring_maintenance --run-due-once` on
+the VPS host after every successful merge to `main`. This drives
+the typed scheduler once per merge so every Agent-Control-facing
+read-only artifact (`logs/proposal_queue/latest.json`,
+`logs/approval_inbox/latest.json`,
+`logs/github_pr_lifecycle/latest.json`,
+`logs/roadmap_priority/latest.json`,
+`logs/workloop_runtime/latest.json`) is refreshed without manual
+SSH or operator commands.
+
+Hard guarantees re-asserted at this call site:
+
+* The deploy script does **not** pass
+  `--enable-dependabot-execute-safe`, so the only execute-capable
+  job (`dependabot_low_medium_execute_safe`) is classified
+  `blocked` with reason `missing_dependabot_cli_opt_in`. By
+  construction at this call site, the deploy hook can never
+  trigger a Dependabot mutation.
+* The step is wrapped in `if ...; then ... else ... fi` so a
+  non-zero exit is non-fatal — `set -e` does not trip on
+  commands inside `if` conditions, and the deploy still exits 0
+  even if the recurring tick fails.
+* Failures project into the existing approval-inbox surface
+  (`failed_automation` row on first failure,
+  `runtime_halt` row after 3 consecutive failures), which the
+  operator sees on the PWA without any new code.
+
+This is the **merge-driven cadence**. Between-merge ongoing
+freshness — running the same scheduler every 10–30 min via a
+systemd timer on the VPS — requires the operator-authored
+governance-bootstrap that adds `ops/systemd/*` to an agent's
+`allowed_roots` union, and is the explicit scope of a separate
+later release. See `docs/governance/vps_deploy.md`
+§"Post-deploy recurring maintenance refresh (v3.15.16.3)" for
+the deploy-hook contract in full.
+
 ## Roadmap priority projection (v3.15.16.2)
 
 A new closed job entry — `refresh_roadmap_priority` — runs the
