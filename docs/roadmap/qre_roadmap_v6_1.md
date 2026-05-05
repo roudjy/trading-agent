@@ -177,6 +177,31 @@ authority + execution engine pair.
   `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
+* `status`: done
+
+### v3.15.16.7 — Agent flow orchestration with explicit handoffs
+
+Ship `reporting/agent_flow.py` — a deterministic orchestration
+projection over the v3.15.16.6 task-board. For every task surfaces
+`current_stage`, `responsible_agent`, `next_agent`,
+`next_action_proposed` (closed eight-element enum:
+select_next_task, generate_plan, implement, validate, review,
+merge, escalate_human, no_op), `blocking_reason`,
+`handoff_eligible`. The closed `next_action_proposed` enum is the
+deterministic interface the v3.15.16.11 actuator will consume.
+Writes `logs/agent_flow/latest.json`. JOB_REFRESH_AGENT_FLOW added
+to `recurring_maintenance`. Pure observability; no git/gh, no
+mutation surface.
+
+* `affected_files`: `reporting/agent_flow.py`,
+  `reporting/recurring_maintenance.py`,
+  `tests/unit/test_agent_flow.py`,
+  `tests/unit/test_recurring_maintenance.py`,
+  `docs/governance/agent_flow.md`,
+  `docs/governance/recurring_maintenance.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
+* `risk_class`: LOW
+* `proposal_type`: observability_addition
 * `status`: proposed
 
 ---
