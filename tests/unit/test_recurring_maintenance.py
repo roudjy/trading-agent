@@ -68,6 +68,15 @@ def isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setitem(
         rm._JOB_REGISTRY, rm.JOB_REFRESH_ROADMAP_PRIORITY, spec
     )
+    # v3.15.16.6 — same isolation rationale: the task-board executor
+    # reads multiple repo-relative artifacts and writes to
+    # logs/task_board/. Stub it for tests using the ``isolated``
+    # fixture so they stay hermetic.
+    tb_spec = dict(rm._JOB_REGISTRY[rm.JOB_REFRESH_TASK_BOARD])
+    tb_spec["executor"] = lambda: {"summary": "ok (test stub)"}
+    monkeypatch.setitem(
+        rm._JOB_REGISTRY, rm.JOB_REFRESH_TASK_BOARD, tb_spec
+    )
     return tmp_path
 
 
@@ -105,10 +114,12 @@ def test_job_registry_contains_only_approved_types() -> None:
         "dependabot_low_medium_execute_safe",
         # v3.15.16.2 — read-only roadmap priority projection.
         "refresh_roadmap_priority",
+        # v3.15.16.6 — read-only task-board state machine.
+        "refresh_task_board",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 6
+    assert len(rm.JOB_TYPES) == 7
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
@@ -120,6 +131,17 @@ def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
     assert spec["needs_gh"] is False
     assert spec["default_enabled"] is True
     # 30-minute default cadence matches the design.
+    assert spec["default_interval_seconds"] == 30 * 60
+
+
+def test_task_board_job_is_low_risk_no_gh_enabled_by_default() -> None:
+    """v3.15.16.6: the task-board refresh job must be LOW risk,
+    must not need ``gh``, and must be enabled by default (it is a
+    pure read-only kanban projection)."""
+    spec = rm._JOB_REGISTRY[rm.JOB_REFRESH_TASK_BOARD]
+    assert spec["risk_class"] == rm.RISK_LOW
+    assert spec["needs_gh"] is False
+    assert spec["default_enabled"] is True
     assert spec["default_interval_seconds"] == 30 * 60
 
 

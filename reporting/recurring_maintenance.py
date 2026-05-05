@@ -90,6 +90,11 @@ JOB_DEPENDABOT_EXECUTE_SAFE: str = "dependabot_low_medium_execute_safe"
 # deterministic chosen_next_up item plus its plan summary. LOW
 # risk; no gh; no external network; no mutation.
 JOB_REFRESH_ROADMAP_PRIORITY: str = "refresh_roadmap_priority"
+# v3.15.16.6 — read-only task board state machine. Projects every
+# proposal-queue row into a typed kanban record carrying
+# current_state, next_state, transition_reason, owner_agent. LOW
+# risk; no gh; no external network; no mutation.
+JOB_REFRESH_TASK_BOARD: str = "refresh_task_board"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -98,6 +103,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_PR_LIFECYCLE_DRY_RUN,
     JOB_DEPENDABOT_EXECUTE_SAFE,
     JOB_REFRESH_ROADMAP_PRIORITY,
+    JOB_REFRESH_TASK_BOARD,
 )
 
 
@@ -299,6 +305,29 @@ def _exec_refresh_roadmap_priority() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_task_board() -> dict[str, Any]:
+    """Run the v3.15.16.6 task-board state-machine projection
+    (read-only). Reads logs/proposal_queue/latest.json plus the
+    optional sibling artifacts (roadmap_priority, github_pr_lifecycle,
+    approval_inbox) and writes logs/task_board/latest.json. Never
+    starts a branch, never opens a PR, never invokes ``gh``."""
+    from reporting.task_board import collect_snapshot, write_outputs
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    counts = snap.get("counts") or {}
+    return {
+        "summary": (
+            f"task_board "
+            f"{snap.get('final_recommendation') or 'no recommendation'}"
+        ),
+        "evidence": {
+            "tasks_total": counts.get("tasks_total"),
+            "by_state": counts.get("by_state"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -388,6 +417,19 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
             "Refresh roadmap priority dry-run digest "
             "(read-only projection over the proposal queue + "
             "roadmap execution protocol)."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_TASK_BOARD: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_task_board,
+        "description": (
+            "Refresh task-board state-machine digest "
+            "(read-only kanban projection over the proposal queue "
+            "+ roadmap_priority + github_pr_lifecycle + approval_inbox)."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,

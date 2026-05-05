@@ -151,6 +151,32 @@ renders its `next-up-not-available` empty state.
   `docs/roadmap/qre_roadmap_v6_1.md`
 * `risk_class`: LOW
 * `proposal_type`: observability_addition
+* `status`: done
+
+### v3.15.16.6 — Task board state machine for the autonomous loop
+
+Ship `reporting/task_board.py` — a deterministic state-machine
+projection over the roadmap-item lifecycle. Closed eight-state
+vocabulary (backlog, refined, todo, in_progress, review, done,
+blocked, human_needed). Closed eight-role owner_agent vocabulary
+mirroring `reporting.roadmap_execution_protocol._AGENT_ROLES`.
+First-match precedence rules mapping (proposal status, PR state,
+priority eligibility, inbox severity) → state. Writes
+`logs/task_board/latest.json`. JOB_REFRESH_TASK_BOARD added to
+`recurring_maintenance` (LOW, no gh, default-enabled, 30-min
+cadence). Pure observability; no git/gh, no mutation surface.
+Phase 1 foundation for the v3.15.16.10 + v3.15.16.11 execution
+authority + execution engine pair.
+
+* `affected_files`: `reporting/task_board.py`,
+  `reporting/recurring_maintenance.py`,
+  `tests/unit/test_task_board.py`,
+  `tests/unit/test_recurring_maintenance.py`,
+  `docs/governance/task_board.md`,
+  `docs/governance/recurring_maintenance.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
+* `risk_class`: LOW
+* `proposal_type`: observability_addition
 * `status`: proposed
 
 ---
