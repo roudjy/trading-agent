@@ -451,7 +451,18 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
         "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
     },
     JOB_REFRESH_PROPOSAL_QUEUE: {
-        "default_interval_seconds": 60 * 60,
+        # Aligned with JOB_REFRESH_APPROVAL_INBOX at 15 min. Previously
+        # 60 min; that left a 60-min race where two close-together
+        # deploys would let the second post-deploy ``--run-due-once``
+        # skip proposal_queue while every downstream (task_board /
+        # human_needed / governance_bootstrap / approval_inbox) was
+        # already due, refreshed, and re-projected the stale upstream
+        # source. The proposal_queue ingester is stdlib-only, parses
+        # ~6 markdown files, and runs in <100 ms — running it 4× more
+        # often is harmless. Invariant pinned by tests:
+        # proposal_queue.interval <= task_board.interval (upstream
+        # must never refresh slower than its downstream projection).
+        "default_interval_seconds": 15 * 60,
         "default_enabled": True,
         "executor": _exec_refresh_proposal_queue,
         "description": "Refresh proposal-queue dry-run artifact.",

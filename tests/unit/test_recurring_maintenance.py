@@ -211,6 +211,73 @@ def test_governance_bootstrap_job_is_low_risk_no_gh_enabled_by_default() -> None
     assert spec["default_interval_seconds"] == 30 * 60
 
 
+# ---------------------------------------------------------------------------
+# v3.15.16.9f — proposal_queue interval alignment
+# ---------------------------------------------------------------------------
+#
+# The proposal_queue refresh is the upstream of the entire downstream
+# projection chain (task_board → human_needed → governance_bootstrap
+# and approval_inbox). If proposal_queue throttles slower than its
+# downstreams, two close-together deploys will let the second
+# post-deploy ``--run-due-once`` skip proposal_queue while every
+# downstream refreshes and re-projects the stale upstream — observed
+# as ``task_board:p_57880c67`` surviving PR #107's archive-skip code
+# fix because the VPS had not yet re-run the ingester.
+
+
+def test_proposal_queue_refresh_interval_is_15_minutes() -> None:
+    """Pinned to exactly 15 minutes after the v3.15.16.9f alignment.
+    Aligned with JOB_REFRESH_APPROVAL_INBOX. Previous value was 60
+    minutes; the change narrows the close-together-deploys race
+    window from 60 min to 15 min."""
+    spec = rm._JOB_REGISTRY[rm.JOB_REFRESH_PROPOSAL_QUEUE]
+    assert spec["default_interval_seconds"] == 15 * 60
+
+
+def test_proposal_queue_interval_does_not_exceed_downstream_intervals() -> None:
+    """Invariant: the proposal_queue refresh interval must be <= every
+    downstream that consumes its artifact. Otherwise the downstream
+    will refresh and re-project the stale upstream, defeating any
+    code change in the proposal_queue ingester until proposal_queue
+    catches up.
+
+    Downstream consumers of logs/proposal_queue/latest.json:
+      * roadmap_priority — reads proposal_queue
+      * task_board — reads proposal_queue
+      * approval_inbox — reads proposal_queue (and human_needed)
+      * human_needed — reads task_board (transitively reads
+        proposal_queue)
+      * governance_bootstrap — reads human_needed (transitively
+        reads proposal_queue)
+    """
+    upstream = rm._JOB_REGISTRY[rm.JOB_REFRESH_PROPOSAL_QUEUE][
+        "default_interval_seconds"
+    ]
+    downstream_jobs = (
+        rm.JOB_REFRESH_ROADMAP_PRIORITY,
+        rm.JOB_REFRESH_TASK_BOARD,
+        rm.JOB_REFRESH_APPROVAL_INBOX,
+        rm.JOB_REFRESH_HUMAN_NEEDED,
+        rm.JOB_REFRESH_GOVERNANCE_BOOTSTRAP,
+    )
+    for job in downstream_jobs:
+        downstream_interval = rm._JOB_REGISTRY[job]["default_interval_seconds"]
+        assert upstream <= downstream_interval, (
+            f"proposal_queue interval ({upstream}s) must not exceed "
+            f"{job} interval ({downstream_interval}s) — otherwise the "
+            f"downstream re-projects stale upstream data."
+        )
+
+
+def test_proposal_queue_job_is_low_risk_no_gh_enabled_by_default() -> None:
+    """Regression guard: aligning the interval must not change any
+    other registry attribute of JOB_REFRESH_PROPOSAL_QUEUE."""
+    spec = rm._JOB_REGISTRY[rm.JOB_REFRESH_PROPOSAL_QUEUE]
+    assert spec["risk_class"] == rm.RISK_LOW
+    assert spec["needs_gh"] is False
+    assert spec["default_enabled"] is True
+
+
 def test_dependabot_job_disabled_by_default() -> None:
     spec = rm._JOB_REGISTRY[rm.JOB_DEPENDABOT_EXECUTE_SAFE]
     assert spec["default_enabled"] is False
