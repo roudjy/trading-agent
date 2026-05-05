@@ -80,6 +80,7 @@ python -m reporting.recurring_maintenance --run-due-once \
 | `refresh_task_board` | LOW | no | 30 min | ✓ | refreshes `task_board` state-machine digest (v3.15.16.6) |
 | `refresh_agent_flow` | LOW | no | 30 min | ✓ | refreshes `agent_flow` orchestration digest (v3.15.16.7) |
 | `refresh_human_needed` | LOW | no | 30 min | ✓ | refreshes `human_needed` blocker-detection digest (v3.15.16.8) |
+| `refresh_governance_bootstrap` | LOW | no | 30 min | ✓ | refreshes `governance_bootstrap` PR-template digest (v3.15.16.9) |
 
 ## Dependabot execute-safe — two-layer opt-in
 
@@ -250,6 +251,27 @@ Hard guarantees re-asserted at this layer:
   patch-application call (pinned).
 * The job never starts a branch, never opens a PR, never merges,
   never invokes `gh`.
+
+## Governance-bootstrap synthesizer (v3.15.16.9)
+
+A new closed job entry — `refresh_governance_bootstrap` — runs
+the read-only PR-template synthesizer
+(`reporting.governance_bootstrap.collect_snapshot` +
+`write_outputs`) every 30 minutes by default. Reads
+`logs/human_needed/latest.json` and writes
+`logs/governance_bootstrap/latest.json` with one copy-paste-able
+PR template per bootstrappable event. Pinned by tests: the module
+contains no patch-application code; produces text only.
+
+Hard guarantees re-asserted at this layer:
+
+* LOW risk; `needs_gh = False`; default-enabled.
+* `safe_to_execute` is hard-coded `false` in the digest schema.
+* The job never starts a branch, never opens a PR, never merges,
+  never invokes `gh`, never applies a patch.
+
+See `docs/governance/governance_bootstrap.md` for the synthesizer
+contract and the three template-shape cross-references.
 
 ## Deploy-hook integration (v3.15.16.3)
 
