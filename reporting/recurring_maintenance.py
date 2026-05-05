@@ -95,6 +95,10 @@ JOB_REFRESH_ROADMAP_PRIORITY: str = "refresh_roadmap_priority"
 # current_state, next_state, transition_reason, owner_agent. LOW
 # risk; no gh; no external network; no mutation.
 JOB_REFRESH_TASK_BOARD: str = "refresh_task_board"
+# v3.15.16.7 — read-only agent flow projection. Per task surfaces
+# responsible_agent, next_agent, next_action_proposed (closed enum)
+# so the v3.15.16.11 actuator can consume handoffs deterministically.
+JOB_REFRESH_AGENT_FLOW: str = "refresh_agent_flow"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -104,6 +108,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_DEPENDABOT_EXECUTE_SAFE,
     JOB_REFRESH_ROADMAP_PRIORITY,
     JOB_REFRESH_TASK_BOARD,
+    JOB_REFRESH_AGENT_FLOW,
 )
 
 
@@ -328,6 +333,28 @@ def _exec_refresh_task_board() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_agent_flow() -> dict[str, Any]:
+    """Run the v3.15.16.7 agent-flow projection (read-only).
+    Reads logs/task_board/latest.json (v3.15.16.6) and writes
+    logs/agent_flow/latest.json. Never starts a branch, never opens
+    a PR, never invokes ``gh``."""
+    from reporting.agent_flow import collect_snapshot, write_outputs
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    counts = snap.get("counts") or {}
+    return {
+        "summary": (
+            f"agent_flow "
+            f"{snap.get('final_recommendation') or 'no recommendation'}"
+        ),
+        "evidence": {
+            "handoffs_total": counts.get("handoffs_total"),
+            "by_next_action_proposed": counts.get("by_next_action_proposed"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -430,6 +457,18 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
             "Refresh task-board state-machine digest "
             "(read-only kanban projection over the proposal queue "
             "+ roadmap_priority + github_pr_lifecycle + approval_inbox)."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_AGENT_FLOW: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_agent_flow,
+        "description": (
+            "Refresh agent-flow handoff digest "
+            "(read-only orchestration projection over the task_board)."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,

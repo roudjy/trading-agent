@@ -78,6 +78,7 @@ python -m reporting.recurring_maintenance --run-due-once \
 | `dependabot_low_medium_execute_safe` | MEDIUM | yes | 60 min | **✗** | delegates to `github_pr_lifecycle` execute-safe path |
 | `refresh_roadmap_priority` | LOW | no | 30 min | ✓ | refreshes `roadmap_priority` read-only digest (v3.15.16.2) |
 | `refresh_task_board` | LOW | no | 30 min | ✓ | refreshes `task_board` state-machine digest (v3.15.16.6) |
+| `refresh_agent_flow` | LOW | no | 30 min | ✓ | refreshes `agent_flow` orchestration digest (v3.15.16.7) |
 
 ## Dependabot execute-safe — two-layer opt-in
 
@@ -208,6 +209,26 @@ Hard guarantees re-asserted at this layer:
 * See `docs/governance/task_board.md` for the closed state /
   owner-agent vocabularies, the rule precedence, and the operator
   workflow.
+
+## Agent flow projection (v3.15.16.7)
+
+A new closed job entry — `refresh_agent_flow` — runs the
+read-only orchestration projection
+(`reporting.agent_flow.collect_snapshot` + `write_outputs`) every
+30 minutes by default. Reads `logs/task_board/latest.json` and
+emits per-task handoff records carrying `responsible_agent`,
+`next_agent`, `next_action_proposed` (closed eight-element enum),
+`blocking_reason`, `handoff_eligible`. The future v3.15.16.11
+actuator consumes `next_action_proposed` directly.
+
+Hard guarantees re-asserted at this layer:
+
+* LOW risk; `needs_gh = False`; default-enabled.
+* `safe_to_execute` is hard-coded `false` in the digest schema.
+* The job never starts a branch, never opens a PR, never merges,
+  never invokes `gh`. It is observability only.
+* See `docs/governance/agent_flow.md` for the closed action /
+  next_agent mappings.
 
 ## Deploy-hook integration (v3.15.16.3)
 
