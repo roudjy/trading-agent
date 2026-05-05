@@ -271,6 +271,71 @@ const okExecuteSafeBody = {
   },
 };
 
+// v3.15.16.5 — Next-Up card test fixtures.
+const okNextUpReadyBody = {
+  kind: "agent_control_next_up",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    module_version: "v3.15.16.2",
+    generated_at_utc: "2026-05-05T08:00:00Z",
+    final_recommendation: "ready_for_implementation",
+    safe_to_execute: false,
+    chosen_next_up: {
+      proposal_id: "p_aaaaaaaa",
+      title: "add observability metric",
+      summary: "add observability monitoring for the audit log",
+      proposal_type: "observability_addition",
+      risk_class: "LOW",
+      rationale:
+        "risk LOW, type observability_addition, protocol decision allowed_read_only",
+      protocol_plan_summary: {
+        decision: "allowed_read_only",
+        implementation_allowed: true,
+        requires_human: false,
+        risk_class: "LOW",
+        item_type: "observability_addition",
+        proposed_branch: "fix/v3-15-16-x-p-aaaaaaaa-add-observability-metric",
+        proposed_release_id: "v3.15.16.x",
+        required_tests: ["scripts/governance_lint.py", "tests/smoke"],
+        expected_artifacts: ["docs/governance/<doc>.md"],
+      },
+    },
+    counts: {
+      proposals_total: 206,
+      eligible_total: 4,
+      filtered_out_total: 202,
+      filtered_out_by_reason: {
+        risk_high_excluded: 12,
+        protocol_decision_not_allowed_read_only: 180,
+      },
+    },
+    needs_human: false,
+  },
+  artifact_path: "logs/roadmap_priority/latest.json",
+};
+
+const okNextUpNothingReadyBody = {
+  kind: "agent_control_next_up",
+  schema_version: 1,
+  status: "ok",
+  data: {
+    module_version: "v3.15.16.2",
+    generated_at_utc: "2026-05-05T08:00:00Z",
+    final_recommendation: "nothing_ready",
+    safe_to_execute: false,
+    chosen_next_up: null,
+    counts: {
+      proposals_total: 12,
+      eligible_total: 0,
+      filtered_out_total: 12,
+      filtered_out_by_reason: { status_not_proposed: 12 },
+    },
+    needs_human: false,
+  },
+  artifact_path: "logs/roadmap_priority/latest.json",
+};
+
 const okInboxBody = {
   kind: "agent_control_approval_inbox",
   schema_version: 1,
@@ -501,6 +566,117 @@ describe("AgentControl — approval inbox card", () => {
     ).not.toHaveLength(0);
     // Still exactly one button on the page (the refresh).
     expect(screen.queryAllByRole("button")).toHaveLength(1);
+  });
+});
+
+describe("AgentControl — next-up card (v3.15.16.5)", () => {
+  it("renders chosen_next_up with the ready_for_implementation recommendation", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+        "/api/agent-control/next-up": () => jsonResp(okNextUpReadyBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("next-up-recommendation")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("next-up-recommendation")).toHaveTextContent(
+      "ready_for_implementation",
+    );
+    expect(screen.getByTestId("next-up-needs-human")).toHaveTextContent("no");
+    expect(screen.getByTestId("next-up-title")).toHaveTextContent(
+      /add observability metric/,
+    );
+    expect(screen.getByTestId("next-up-decision")).toHaveTextContent(
+      "allowed_read_only",
+    );
+    expect(screen.getByTestId("next-up-counts")).toHaveTextContent(
+      /206 proposals/,
+    );
+    // The card must never add an action button — only the global
+    // refresh button stays.
+    expect(screen.queryAllByRole("button")).toHaveLength(1);
+  });
+
+  it("renders the no-candidate empty state when nothing is ready", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+        "/api/agent-control/next-up": () => jsonResp(okNextUpNothingReadyBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("next-up-no-candidate")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("next-up-recommendation")).toHaveTextContent(
+      "nothing_ready",
+    );
+  });
+
+  it("renders not_available when the next-up endpoint 404s", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+        // Intentionally omit /api/agent-control/next-up so the
+        // fetch falls through to the 404 fallback. This emulates
+        // production while the v3.15.16.5 dashboard.py wiring has
+        // not yet landed via its bootstrap PR.
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("next-up-not-available")).toBeInTheDocument();
+    });
   });
 });
 

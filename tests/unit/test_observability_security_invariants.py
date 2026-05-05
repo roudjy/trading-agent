@@ -51,6 +51,12 @@ _AGENT_CONTROL_BOUNDARY_FILES: tuple[str, ...] = (
     "dashboard/api_approval_inbox.py",
     "dashboard/api_proposal_queue.py",
     "dashboard/api_execute_safe_controls.py",
+    # v3.15.16.5 — Next-Up read-only projection over
+    # logs/roadmap_priority/latest.json. Same hard guarantees as
+    # every other agent-control boundary file: GET-only, no
+    # subprocess / network, no exception-string leak, no mutation
+    # verb literal.
+    "dashboard/api_roadmap_priority.py",
 )
 
 
