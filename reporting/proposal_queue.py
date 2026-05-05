@@ -306,6 +306,14 @@ def _expand_source(source: Path) -> list[Path]:
     * file → [file] if .md/.markdown/.txt, else [].
     * dir  → recursive scan for .md/.markdown/.txt.
     * missing → [] (caller reports).
+
+    Files under any directory segment named ``archive`` (case-
+    insensitive) are skipped. Operators ``git mv`` historical
+    retrospectives into ``docs/<root>/archive/`` to opt them out of
+    fresh ingestion; this rule honors that intent. The filter
+    matches *path components* only — a top-level file like
+    ``archive_strategy.md`` is still ingested because its name is a
+    file, not a directory.
     """
     if not source.exists():
         return []
@@ -316,8 +324,21 @@ def _expand_source(source: Path) -> list[Path]:
     if source.is_dir():
         out: list[Path] = []
         for p in sorted(source.rglob("*")):
-            if p.is_file() and p.suffix.lower() in (".md", ".markdown", ".txt"):
-                out.append(p)
+            if not p.is_file():
+                continue
+            if p.suffix.lower() not in (".md", ".markdown", ".txt"):
+                continue
+            try:
+                rel_parts = p.relative_to(source).parts
+            except ValueError:
+                rel_parts = ()
+            # Only directory segments count — drop the filename
+            # before the membership check so a top-level file named
+            # ``archive_*.md`` is still ingested.
+            dir_parts = rel_parts[:-1]
+            if any(part.lower() == "archive" for part in dir_parts):
+                continue
+            out.append(p)
         return out
     return []
 

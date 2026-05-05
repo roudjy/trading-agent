@@ -513,6 +513,101 @@ def test_h1_skipped_even_when_body_contains_governance_token(
 
 
 # ---------------------------------------------------------------------------
+# Archive-subdirectory skip — _expand_source must honor the operator's
+# git-mv-into-archive convention.
+# ---------------------------------------------------------------------------
+#
+# Operators move historical retrospectives into a subdirectory named
+# ``archive`` (e.g. ``docs/roadmap/archive/<retrospective>.md``) to opt
+# them out of fresh ingestion. The recursive walker must skip files
+# under any directory segment named ``archive`` (case-insensitive). The
+# filter operates on path *components* only — a top-level filename
+# containing the word ``archive`` is NOT skipped.
+
+
+def test_archive_subdirectory_is_skipped(isolated_pq: Path) -> None:
+    """Direct ``archive/`` subdirectory: files inside are excluded; a
+    sibling file at the source root is still included."""
+    archive_dir = isolated_pq / "archive"
+    archive_dir.mkdir()
+    (archive_dir / "old_retrospective.md").write_text(
+        "# Historical title\n\n"
+        "## Goal\n\nLegacy goal that should not re-emit a proposal.\n",
+        encoding="utf-8",
+    )
+    (isolated_pq / "active.md").write_text(
+        "# Active doc\n\n## Add ruff\n\nMIT license, dev-only.\n",
+        encoding="utf-8",
+    )
+    files = pq._expand_source(isolated_pq)
+    rels = sorted(p.name for p in files)
+    assert rels == ["active.md"], rels
+
+
+def test_nested_archive_subdirectory_is_skipped(isolated_pq: Path) -> None:
+    """Nested ``sub/archive/...`` is also skipped — the rule matches
+    any directory segment in the relative path, not just the first."""
+    nested = isolated_pq / "sub" / "archive" / "deep"
+    nested.mkdir(parents=True)
+    (nested / "buried.md").write_text("# t\n", encoding="utf-8")
+    files = pq._expand_source(isolated_pq)
+    assert files == []
+
+
+@pytest.mark.parametrize("segment", ["Archive", "ARCHIVE", "ArCHive"])
+def test_archive_segment_match_is_case_insensitive(
+    isolated_pq: Path, segment: str
+) -> None:
+    """``Archive/``, ``ARCHIVE/``, ``ArCHive/`` segments are all
+    skipped. One fresh tmp_path per parameter — Windows filesystems
+    are case-insensitive, so each variant needs an isolated
+    workspace."""
+    d = isolated_pq / segment
+    d.mkdir()
+    (d / "x.md").write_text("# t\n", encoding="utf-8")
+    (isolated_pq / "active.md").write_text(
+        "# active\n\n## body\n", encoding="utf-8"
+    )
+    files = pq._expand_source(isolated_pq)
+    rels = sorted(p.name for p in files)
+    assert rels == ["active.md"], rels
+
+
+def test_archive_in_filename_outside_archive_dir_is_not_skipped(
+    isolated_pq: Path,
+) -> None:
+    """A *filename* containing the word ``archive`` at the root of the
+    source tree is NOT a directory segment and must still be ingested.
+    Skipping by filename would over-exclude legitimate operator docs
+    such as ``archive_strategy_sketch.md`` placed alongside live items."""
+    (isolated_pq / "archive_strategy_sketch.md").write_text(
+        "# Doc title\n\n## Some idea\n\nbody\n", encoding="utf-8"
+    )
+    (isolated_pq / "archived_quarterly_review.md").write_text(
+        "# Doc title\n\n## Notes\n\nbody\n", encoding="utf-8"
+    )
+    files = pq._expand_source(isolated_pq)
+    rels = sorted(p.name for p in files)
+    assert rels == [
+        "archive_strategy_sketch.md",
+        "archived_quarterly_review.md",
+    ], rels
+
+
+def test_normal_markdown_files_are_still_included(isolated_pq: Path) -> None:
+    """Regression guard: ordinary subdirectories without the ``archive``
+    name continue to be walked recursively. This pins that the
+    archive-skip rule is narrow."""
+    sub = isolated_pq / "subdir"
+    sub.mkdir()
+    (sub / "nested.md").write_text("# t\n\n## item\n\nbody\n", encoding="utf-8")
+    (isolated_pq / "top.md").write_text("# t\n\n## item\n\nbody\n", encoding="utf-8")
+    files = pq._expand_source(isolated_pq)
+    rels = sorted(str(p.relative_to(isolated_pq)).replace("\\", "/") for p in files)
+    assert rels == ["subdir/nested.md", "top.md"], rels
+
+
+# ---------------------------------------------------------------------------
 # Frozen contract integrity
 # ---------------------------------------------------------------------------
 
