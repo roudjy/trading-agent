@@ -1,0 +1,289 @@
+name: Observe v3.15.16 Intelligent Routing (advisory)
+
+# v3.15.16 — observation-only workflow_dispatch surface.
+#
+# Purpose:
+#   Run the already-merged advisory reporting CLIs on the VPS where
+#   the upstream research artifacts exist, then upload the two
+#   resulting JSON files as workflow artifacts so the operator can
+#   inspect the v3.15.16 advisory Intelligent Routing Layer against
+#   real input.
+#
+# Hard guarantees (mirrored from scripts/deploy_vps_dashboard.sh
+# governance posture and the v3.15.16 release framing):
+#
+#   * workflow_dispatch only. No push/pull_request/schedule trigger.
+#   * Zero workflow inputs. No operator-supplied tokens, branches,
+#     paths, or commands. The remote script is hard-coded inline.
+#   * No campaign launcher, research generation, run_research,
+#     docker compose, deploy script, broker, live/paper/shadow/
+#     trading/risk/execution, dashboard or nginx restart.
+#   * The remote CLIs are stdlib-only and write only into
+#     ``logs/intelligent_routing/latest.json`` and
+#     ``logs/intelligent_routing_status/latest.json``.
+#   * Frozen contracts (``research/research_latest.json`` and
+#     ``research/strategy_matrix.csv``) are sha256-pinned BEFORE
+#     and AFTER the CLI run; any drift fails the job.
+#   * Tracked-file changes during the run fail the job.
+#   * Any untracked file outside the two allowed log directories
+#     fails the job.
+#   * The runner uploads exactly the two log files plus the raw
+#     remote stdout transcript as the workflow artifact for audit.
+#   * Secrets (VPS_HOST / VPS_USER / VPS_SSH_KEY) are referenced via
+#     ${{ secrets.* }} only; never echoed; never printed.
+#   * SHA-pinned third-party actions per
+#     docs/governance/sha_pin_review.md.
+#
+# Why a separate workflow (not added to deploy-vps-dashboard.yml):
+#   The deploy workflow's posture is "deploy on push to main only,
+#   no manual escape hatch". Adding observation to it would widen
+#   that surface. A standalone workflow_dispatch entry point keeps
+#   the deploy posture intact and the observation posture explicit.
+#
+# Companion runbook: docs/governance/intelligent_routing_observation.md
+# Related modules:    reporting/intelligent_routing.py,
+#                     reporting/intelligent_routing_status.py
+# Release framing:    routing_effect = "advisory_only"
+#                     queue_ordering_effect = "none"
+
+on:
+  workflow_dispatch:
+    # Intentionally no inputs. The workflow is parameter-free by
+    # design. A future change that adds inputs MUST land in a new
+    # governance-bootstrap PR.
+
+concurrency:
+  group: observe-intelligent-routing
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    name: Observe Intelligent Routing artifact on VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo (runner-side context only)
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          # Shallow checkout is fine — the observation work runs on
+          # the VPS, not on this runner. We only need this checkout
+          # so the runner has a workspace for the upload-artifact
+          # step.
+          fetch-depth: 1
+
+      - name: Configure SSH client
+        env:
+          # Pulled via env so the values never appear in the
+          # workflow's shell trace.
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_SSH_KEY}" ]; then
+            echo "missing one or more required secrets: VPS_HOST / VPS_USER / VPS_SSH_KEY"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          # Write the private key without placing the value on a
+          # command line where another process could observe it.
+          umask 077
+          printf '%s\n' "${VPS_SSH_KEY}" > ~/.ssh/observe_key
+          chmod 600 ~/.ssh/observe_key
+          # Pin the host key. ssh-keyscan is silent on stderr to
+          # avoid leaking VPS_HOST to logs.
+          ssh-keyscan -H -T 10 "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+          echo "ssh client configured (key + known_hosts)"
+
+      - name: Run observation on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          # Single fixed SSH command. The remote script is hard-coded
+          # inline via a quoted heredoc so no expansion happens on the
+          # runner. The remote bash is invoked via ``bash -s`` so it
+          # reads the script from stdin; we pass NO arguments.
+          ssh \
+            -i ~/.ssh/observe_key \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${VPS_USER}@${VPS_HOST}" \
+            'bash -s' > artifacts/remote_stdout.txt << 'REMOTE_EOF'
+          set -euo pipefail
+          cd /root/trading-agent
+
+          # Bootstrap to main (mirror deploy-vps-dashboard pattern).
+          # If this first observation lands before the workflow file
+          # is on the VPS, the fetch+reset is what brings it in.
+          git fetch origin main >/dev/null
+          git reset --hard origin/main >/dev/null
+
+          # Pre-snapshot frozen contracts.
+          echo "FROZEN_BEFORE_BEGIN"
+          for f in research/research_latest.json research/strategy_matrix.csv; do
+            if [ -f "$f" ]; then
+              printf '%s  %s\n' "$(sha256sum "$f" | cut -d ' ' -f 1)" "$f"
+            else
+              printf 'absent  %s\n' "$f"
+            fi
+          done
+          echo "FROZEN_BEFORE_END"
+
+          # Pre-CLI git status (must be clean).
+          echo "GIT_STATUS_PRE_BEGIN"
+          git status --short || true
+          echo "GIT_STATUS_PRE_END"
+
+          # Run the advisory CLIs. Both are stdlib-only and write
+          # only inside logs/intelligent_routing[_status]/.
+          python3 -m reporting.intelligent_routing --write > /dev/null
+          python3 -m reporting.intelligent_routing_status --write > /dev/null
+
+          # Post-snapshot frozen contracts.
+          echo "FROZEN_AFTER_BEGIN"
+          for f in research/research_latest.json research/strategy_matrix.csv; do
+            if [ -f "$f" ]; then
+              printf '%s  %s\n' "$(sha256sum "$f" | cut -d ' ' -f 1)" "$f"
+            else
+              printf 'absent  %s\n' "$f"
+            fi
+          done
+          echo "FROZEN_AFTER_END"
+
+          # Post-CLI git status — only logs/intelligent_routing[_status]/*
+          # may be untracked.
+          echo "GIT_STATUS_POST_BEGIN"
+          git status --short || true
+          echo "GIT_STATUS_POST_END"
+
+          # Hard fail on any tracked-file modification.
+          if ! git diff --quiet HEAD --; then
+            echo "FAIL: tracked files modified during observation"
+            exit 2
+          fi
+
+          # Hard fail on any untracked file outside the two allowed
+          # log directories.
+          unexpected="$(git status --short \
+            | grep -vE '^\?\? logs/intelligent_routing(/|_status/)' \
+            | grep -v '^$' || true)"
+          if [ -n "${unexpected}" ]; then
+            echo "FAIL: unexpected untracked files during observation:"
+            printf '%s\n' "${unexpected}"
+            exit 3
+          fi
+
+          # Stream artifact contents back via stdout for the runner
+          # to extract and upload as a workflow artifact.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          allowed = [
+              Path("logs/intelligent_routing/latest.json"),
+              Path("logs/intelligent_routing_status/latest.json"),
+          ]
+          for p in allowed:
+              if not p.exists():
+                  raise SystemExit(f"missing expected artifact: {p}")
+              print(f"ARTIFACT_BEGIN {p}")
+              print(p.read_text(encoding="utf-8"))
+              print(f"ARTIFACT_END {p}")
+          PY
+          REMOTE_EOF
+
+      - name: Extract artifacts from SSH stdout
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/logs/intelligent_routing
+          mkdir -p artifacts/logs/intelligent_routing_status
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          src = Path("artifacts/remote_stdout.txt").read_text(encoding="utf-8")
+          # Pull every ARTIFACT_BEGIN/END pair. The path label echoed
+          # by the remote script appears on both fences; use it as
+          # the back-reference target so the regex cannot match
+          # across mismatched begin/end markers.
+          pattern = re.compile(
+              r"ARTIFACT_BEGIN\s+(?P<path>\S+)\s*\n"
+              r"(?P<body>.*?)\n?"
+              r"ARTIFACT_END\s+(?P=path)",
+              re.DOTALL,
+          )
+          blocks = list(pattern.finditer(src))
+          if len(blocks) != 2:
+              raise SystemExit(
+                  f"expected 2 artifact blocks, got {len(blocks)}"
+              )
+          for m in blocks:
+              path = m.group("path")
+              body = m.group("body")
+              out = Path("artifacts") / path
+              out.parent.mkdir(parents=True, exist_ok=True)
+              out.write_text(body, encoding="utf-8")
+              print(f"extracted: {out}")
+          PY
+
+      - name: Verify frozen-contract drift on remote
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          src = Path("artifacts/remote_stdout.txt").read_text(encoding="utf-8")
+
+          def section(label: str) -> dict[str, str]:
+              start_marker = f"FROZEN_{label}_BEGIN"
+              end_marker = f"FROZEN_{label}_END"
+              if start_marker not in src or end_marker not in src:
+                  raise SystemExit(f"missing marker block: {label}")
+              start = src.index(start_marker) + len(start_marker)
+              end = src.index(end_marker)
+              out: dict[str, str] = {}
+              for line in src[start:end].splitlines():
+                  line = line.strip()
+                  if not line or "  " not in line:
+                      continue
+                  digest, path = line.split("  ", 1)
+                  out[path] = digest
+              return out
+
+          before = section("BEFORE")
+          after = section("AFTER")
+          if before != after:
+              raise SystemExit(
+                  f"FROZEN-CONTRACT DRIFT: before={before!r} "
+                  f"after={after!r}"
+              )
+          print("frozen-contract sha256 unchanged across observation:")
+          for path in sorted(before):
+              print(f"  {before[path]}  {path}")
+          PY
+
+      - name: Upload observation artifacts
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808  # v4.3.3
+        with:
+          name: v3-15-16-intelligent-routing-observation
+          path: |
+            artifacts/logs/intelligent_routing/latest.json
+            artifacts/logs/intelligent_routing_status/latest.json
+            artifacts/remote_stdout.txt
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Wipe SSH artifacts
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f ~/.ssh/observe_key ~/.ssh/known_hosts || true
