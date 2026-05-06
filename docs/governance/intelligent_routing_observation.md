@@ -126,9 +126,19 @@ Workflow artifact name: `v3-15-16-intelligent-routing-observation`
 
 ```
 artifacts/logs/intelligent_routing/latest.json
+artifacts/logs/intelligent_routing/metadata_shape_diagnostic.json   # optional
 artifacts/logs/intelligent_routing_status/latest.json
 artifacts/remote_stdout.txt
 ```
+
+The optional `metadata_shape_diagnostic.json` is a **sanitized**
+preview of the shape of the upstream registry + queue artifacts. It
+lists top-level keys, the value-type of `campaigns` (`dict` vs
+`list`), the record count, and the **key sets** of the first three
+records along with **scalar previews** (≤ 80 chars; no full payload;
+no secrets). It is purely diagnostic — used to confirm what fields
+the routing layer can safely index without inferring metadata from
+`campaign_id`.
 
 The runtime artifact on the VPS itself is at
 `/root/trading-agent/logs/intelligent_routing/latest.json` and
