@@ -37,10 +37,12 @@ from research.presets import PRESETS as _PRODUCTION_PRESETS
 def test_derivation_constants_pinned() -> None:
     assert ir.DERIVATION_REGISTRY == "registry"
     assert ir.DERIVATION_PRESET_CATALOG == "preset_catalog"
+    assert ir.DERIVATION_PRESET_NAME_FALLBACK == "preset_name_fallback"
     assert ir.DERIVATION_MISSING == "missing"
     assert ir.UNKNOWN_COORDINATE in ir.DERIVATION_SOURCES
     assert set(ir.DERIVATION_SOURCES) == {
-        "registry", "preset_catalog", "missing", "unknown",
+        "registry", "preset_catalog", "preset_name_fallback",
+        "missing", "unknown",
     }
 
 
@@ -156,6 +158,148 @@ def test_preset_lookup_is_cached() -> None:
     a = ir._preset_lookup()
     b = ir._preset_lookup()
     assert a is b
+
+
+# ---------------------------------------------------------------------------
+# AST source-parse fallback
+# ---------------------------------------------------------------------------
+
+
+def test_ast_source_parse_yields_same_presets_as_canonical_import() -> None:
+    """The Tier-2 AST source parse of research/presets.py must
+    produce a superset (== set) of (name, timeframe) pairs as the
+    canonical Tier-1 import. Tier 2 is what the VPS uses when its
+    system Python cannot import the project's deps."""
+    canonical: dict[str, str] = {}
+    for p in _PRODUCTION_PRESETS:
+        if p.name and p.timeframe:
+            canonical[p.name] = p.timeframe
+    ast_out = ir._parse_presets_source_via_ast()
+    ast_pairs = {n: e["timeframe"] for n, e in ast_out.items()}
+    assert ast_pairs == canonical, (
+        f"AST source parse drift:\n  canonical={canonical!r}\n  ast={ast_pairs!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tier 3 — preset_name regex fallback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "preset_name,expected",
+    [
+        # Real production preset names observed on the VPS.
+        ("vol_compression_breakout_crypto_4h", "4h"),
+        ("trend_equities_4h_baseline", "4h"),
+        ("trend_pullback_crypto_1h", "1h"),
+        ("trend_regime_filtered_equities_4h", "4h"),
+        ("vol_compression_breakout_crypto_1h", "1h"),
+        # Other timeframe shapes.
+        ("strategy_15m_xyz", "15m"),
+        ("xyz_5m_baseline", "5m"),
+        ("daily_only_1d", "1d"),
+        ("anchor_1w", "1w"),
+        ("monthly_1M", "1M"),
+        # Negative cases — must NOT match.
+        ("no_timeframe_token_here", None),
+        ("crypto4hello", None),  # not bounded by underscore
+        ("only_4hours", None),  # 4hours has 4h as substring but not a token
+        ("", None),
+    ],
+)
+def test_parse_timeframe_from_preset_name(
+    preset_name: str, expected: str | None,
+) -> None:
+    out = ir._parse_timeframe_from_preset_name(preset_name)
+    assert out == expected
+
+
+def test_parse_timeframe_from_preset_name_none_input() -> None:
+    assert ir._parse_timeframe_from_preset_name(None) is None
+    assert ir._parse_timeframe_from_preset_name(42) is None
+
+
+def test_coords_uses_preset_name_fallback_when_catalog_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Simulate the VPS environment: catalog import fails AND the
+    AST source parse fails. The regex on preset_name then fires."""
+    # Force both tiers to return empty by clearing the cache and
+    # monkeypatching _parse_presets_source_via_ast to {}, then also
+    # making the real PRESETS import return nothing usable. The
+    # cleanest way: override the cache directly with empty content.
+    ir._reset_preset_lookup_cache_for_tests()
+    monkeypatch.setattr(ir, "_PRESET_LOOKUP_CACHE", {})
+    rec = {
+        "campaign_id": "col-fallback",
+        "preset_name": "trend_pullback_crypto_1h",  # Tier-3 will parse "1h"
+        "asset_class": "crypto",
+        "strategy_family": "trend_pullback",
+        "extra": {},
+        "input_artifact_fingerprint": "abcd",
+    }
+    coords, preset_name, _fp, has_full = ir._coords_for_campaign(
+        "col-fallback", {"col-fallback": rec},
+    )
+    assert coords.timeframe == "1h"
+    assert coords.derivation_source == "preset_name_fallback"
+    assert preset_name == "trend_pullback_crypto_1h"
+    assert has_full is True
+    # Restore catalog so other tests are unaffected.
+    ir._reset_preset_lookup_cache_for_tests()
+
+
+def test_coords_preset_name_fallback_failure_yields_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When all three tiers fail (preset_name has no recognizable
+    timeframe token), derivation_source == 'missing'."""
+    ir._reset_preset_lookup_cache_for_tests()
+    monkeypatch.setattr(ir, "_PRESET_LOOKUP_CACHE", {})
+    rec = {
+        "campaign_id": "col-no-timeframe",
+        "preset_name": "no_timeframe_token_here",
+        "asset_class": "crypto",
+        "strategy_family": "ema_crossover",
+        "extra": {},
+    }
+    coords, _preset_name, _fp, has_full = ir._coords_for_campaign(
+        "col-no-timeframe", {"col-no-timeframe": rec},
+    )
+    assert coords.timeframe == "unknown"
+    assert coords.derivation_source == "missing"
+    assert has_full is False
+    ir._reset_preset_lookup_cache_for_tests()
+
+
+def test_coords_preference_order_registry_then_catalog_then_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the registry record carries an explicit timeframe, it
+    wins over both the catalog and the regex (already pinned by
+    test_coords_extra_timeframe_takes_priority_over_preset_catalog).
+    When registry omits timeframe but catalog has it, catalog wins
+    over the regex (the regex never even runs). Verify the regex is
+    reached only when both registry AND catalog are silent."""
+    real_preset = next(
+        p for p in _PRODUCTION_PRESETS if p.timeframe and p.name
+    )
+    ir._reset_preset_lookup_cache_for_tests()
+    # Catalog populated normally — regex must NOT fire.
+    rec = {
+        "campaign_id": "col-cat-wins",
+        "preset_name": real_preset.name,
+        "asset_class": "equity",
+        "strategy_family": "ema_crossover",
+        "extra": {},
+    }
+    coords, _, _, _ = ir._coords_for_campaign(
+        "col-cat-wins", {"col-cat-wins": rec},
+    )
+    assert coords.timeframe == real_preset.timeframe
+    assert coords.derivation_source == "preset_catalog"  # NOT "preset_name_fallback"
+    ir._reset_preset_lookup_cache_for_tests()
 
 
 # ---------------------------------------------------------------------------
