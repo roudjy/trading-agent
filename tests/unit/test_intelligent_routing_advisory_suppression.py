@@ -71,8 +71,13 @@ def _snapshot() -> dict[str, str | None]:
     ],
 )
 def test_dead_zone_suppression_only_for_dead(status: str, expected: str | None) -> None:
+    """v3.15.16.1: suppression on status==dead requires the lookup to
+    have been exact_timeframe_match. This test pins the EXACT path
+    (suppression fires); the coarse path is pinned separately below.
+    """
     out = ir.derive_advisory_suppression_reason(
         dead_zone_status=status,
+        dead_zone_lookup_precision="exact_timeframe_match",
         near_duplicate_group=None,
         is_first_in_group=True,
     )
@@ -82,6 +87,7 @@ def test_dead_zone_suppression_only_for_dead(status: str, expected: str | None) 
 def test_near_duplicate_first_member_keeps_none() -> None:
     out = ir.derive_advisory_suppression_reason(
         dead_zone_status="alive",
+        dead_zone_lookup_precision="exact_timeframe_match",
         near_duplicate_group="abc123",
         is_first_in_group=True,
     )
@@ -91,6 +97,7 @@ def test_near_duplicate_first_member_keeps_none() -> None:
 def test_near_duplicate_non_first_member_is_suppressed() -> None:
     out = ir.derive_advisory_suppression_reason(
         dead_zone_status="alive",
+        dead_zone_lookup_precision="exact_timeframe_match",
         near_duplicate_group="abc123",
         is_first_in_group=False,
     )
@@ -100,6 +107,7 @@ def test_near_duplicate_non_first_member_is_suppressed() -> None:
 def test_dead_zone_takes_precedence_over_near_duplicate() -> None:
     out = ir.derive_advisory_suppression_reason(
         dead_zone_status="dead",
+        dead_zone_lookup_precision="exact_timeframe_match",
         near_duplicate_group="abc123",
         is_first_in_group=False,
     )
@@ -110,10 +118,51 @@ def test_dead_zone_takes_precedence_over_near_duplicate() -> None:
 def test_no_group_no_suppression() -> None:
     out = ir.derive_advisory_suppression_reason(
         dead_zone_status="alive",
+        dead_zone_lookup_precision="exact_timeframe_match",
         near_duplicate_group=None,
         is_first_in_group=True,
     )
     assert out is None
+
+
+# ---------------------------------------------------------------------------
+# v3.15.16.1 — coarse fallback NEVER triggers suppression
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "precision",
+    [
+        # Per the v3.15.16.1 spec: only exact_timeframe_match may
+        # trigger dead-zone suppression. Every other value MUST keep
+        # the suppression at None even when status == dead.
+        "coarse_unknown_timeframe_match",
+        "no_match",
+    ],
+)
+def test_dead_status_with_non_exact_lookup_does_not_suppress(precision: str) -> None:
+    out = ir.derive_advisory_suppression_reason(
+        dead_zone_status="dead",
+        dead_zone_lookup_precision=precision,
+        near_duplicate_group=None,
+        is_first_in_group=True,
+    )
+    assert out is None
+
+
+def test_coarse_dead_match_does_not_block_near_duplicate_suppression() -> None:
+    """If the campaign is a non-first near-duplicate group member AND
+    its dead-zone lookup is coarse, the near_duplicate suppression
+    still fires (the coarse dead-zone match must not "shadow" the
+    near-duplicate path; it just doesn't add its own
+    dead_zone_suppression)."""
+    out = ir.derive_advisory_suppression_reason(
+        dead_zone_status="dead",
+        dead_zone_lookup_precision="coarse_unknown_timeframe_match",
+        near_duplicate_group="g1",
+        is_first_in_group=False,
+    )
+    assert out == "near_duplicate"
 
 
 # ---------------------------------------------------------------------------

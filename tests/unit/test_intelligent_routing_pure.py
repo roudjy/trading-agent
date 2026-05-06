@@ -206,20 +206,27 @@ def _coords(family: str, asset: str, timeframe: str) -> ir.BehaviorCoordinates:
 
 def test_classify_dead_zone_status_lookup_hits() -> None:
     # Index keyed on (asset, timeframe, family) — same key the upstream
-    # dead-zone artifact uses.
+    # dead-zone artifact uses. v3.15.16.1: the helper returns a
+    # 2-tuple (status, lookup_precision).
     index: dict[tuple[str, str, str], str] = {
         ("crypto", "4h", "ema_crossover"): "dead",
         ("equities", "1d", "rsi_extreme"): "alive",
     }
     coords1 = _coords("ema_crossover", "crypto", "4h")
     coords2 = _coords("rsi_extreme", "equities", "1d")
-    assert ir.classify_dead_zone_status(coords1, index) == "dead"
-    assert ir.classify_dead_zone_status(coords2, index) == "alive"
+    assert ir.classify_dead_zone_status(coords1, index) == (
+        "dead", "exact_timeframe_match",
+    )
+    assert ir.classify_dead_zone_status(coords2, index) == (
+        "alive", "exact_timeframe_match",
+    )
 
 
 def test_classify_dead_zone_status_missing_collapses_to_unknown() -> None:
     coords = _coords("does_not_exist", "crypto", "4h")
-    assert ir.classify_dead_zone_status(coords, {}) == "unknown"
+    assert ir.classify_dead_zone_status(coords, {}) == (
+        "unknown", "no_match",
+    )
 
 
 def test_classify_dead_zone_status_only_returns_closed_taxonomy() -> None:
@@ -227,9 +234,12 @@ def test_classify_dead_zone_status_only_returns_closed_taxonomy() -> None:
         ("crypto", "4h", "ema_crossover"): "DEFINITELY_NOT_A_REAL_STATUS",
     }
     coords = _coords("ema_crossover", "crypto", "4h")
-    out = ir.classify_dead_zone_status(coords, bogus_index)
-    assert out in ir.DEAD_ZONE_STATUSES
-    assert out == "unknown"
+    status, precision = ir.classify_dead_zone_status(coords, bogus_index)
+    assert status in ir.DEAD_ZONE_STATUSES
+    assert status == "unknown"
+    # Bogus statuses still register the lookup as exact (the key was
+    # present in the artifact); only the status itself is normalised.
+    assert precision == "exact_timeframe_match"
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +339,7 @@ def test_routing_decision_payload_uses_advisory_field_names() -> None:
         info_gain_score=0.42,
         info_gain_bucket="medium",
         dead_zone_status="alive",
+        dead_zone_lookup_precision="exact_timeframe_match",
         near_duplicate_group=None,
         orthogonality_bucket="novel",
         advisory_suppression_reason=None,
@@ -340,6 +351,8 @@ def test_routing_decision_payload_uses_advisory_field_names() -> None:
     assert "advisory_suppression_reason" in payload
     assert "advisory_priority_score" in payload
     assert "advisory_rank" in payload
+    assert "dead_zone_lookup_precision" in payload  # v3.15.16.1
+    assert payload["dead_zone_lookup_precision"] == "exact_timeframe_match"
     assert "suppression_reason" not in payload
     assert "recommended_priority" not in payload
     assert "priority" not in payload
@@ -370,6 +383,7 @@ def test_routing_report_payload_carries_advisory_framing() -> None:
         info_gain_score=0.0,
         info_gain_bucket="none",
         dead_zone_status="unknown",
+        dead_zone_lookup_precision="no_match",
         near_duplicate_group=None,
         orthogonality_bucket="novel",
         advisory_suppression_reason=None,
