@@ -237,21 +237,39 @@ def test_report_near_duplicate_group_consistent_within_coords(
 def test_report_decisions_are_sorted_deterministically(
     synth_inputs: dict[str, Path], fixed_now_utc: _dt.datetime,
 ) -> None:
+    """PR-C: decisions are listed in ``advisory_rank`` ascending order
+    — equivalent to ``(-priority, tie_break_key)`` ascending. Two
+    invocations with identical inputs produce the same total ordering.
+    """
     report = _build(synth_inputs, fixed_now_utc)
-    keys = [d.tie_break_key for d in report.decisions]
-    assert keys == sorted(keys)
+    ranks = [d.advisory_rank for d in report.decisions]
+    assert ranks == sorted(ranks)
+    # Re-build and assert the listing is byte-identical with a pinned
+    # generated_at_utc.
+    report2 = _build(synth_inputs, fixed_now_utc)
+    assert report.to_payload() == report2.to_payload()
 
 
 def test_report_summary_counts(
     synth_inputs: dict[str, Path], fixed_now_utc: _dt.datetime,
 ) -> None:
+    """PR-C: summary counters reflect the suppression pipeline.
+
+    Fixture: col-c1 and col-c2 share coords (crypto/4h/ema_crossover)
+    and the dead-zones artifact marks that coord ``dead`` — both get
+    ``advisory_suppressed_dead_zone``. col-c3 is on a unique alive
+    coordinate.
+    """
     report = _build(synth_inputs, fixed_now_utc)
     s = report.summary
     assert s.total == 3
-    assert s.advisory_suppressed_dead_zone == 0  # PR-B: still 0
-    assert s.advisory_suppressed_near_duplicate == 0  # PR-B: still 0
-    assert s.high_info_gain == 1  # only col-c3
-    assert s.novel_behavior_coordinates == 1  # only col-c3
+    # Both crypto/4h/ema_crossover campaigns are dead-zone suppressed.
+    assert s.advisory_suppressed_dead_zone == 2
+    # Dead-zone takes precedence over near-duplicate, so the
+    # near-duplicate counter stays 0.
+    assert s.advisory_suppressed_near_duplicate == 0
+    assert s.high_info_gain == 1  # only col-c3 (IG=0.85)
+    assert s.novel_behavior_coordinates == 1  # only col-c3 (unique coords)
     assert s.metadata_gaps == 0  # all coordinates fully populated
 
 

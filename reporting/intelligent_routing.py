@@ -174,6 +174,37 @@ NEAR_DUPLICATE_FINGERPRINT_PREFIX_LEN: Final[int] = 8
 #: Output prefix length for the group hash. 12 hex chars = 48 bits.
 NEAR_DUPLICATE_GROUP_HASH_LEN: Final[int] = 12
 
+# ---------------------------------------------------------------------------
+# Advisory priority weights (PR-C)
+# ---------------------------------------------------------------------------
+
+#: Information-gain bucket → priority weight. Named constants per
+#: CLAUDE.md. Higher is better.
+INFO_GAIN_BUCKET_WEIGHTS: Final[dict[str, int]] = {
+    BUCKET_NONE: 0,
+    BUCKET_LOW: 1,
+    BUCKET_MEDIUM: 2,
+    BUCKET_HIGH: 3,
+}
+
+#: Orthogonality bucket → priority weight. Higher is better.
+ORTHOGONALITY_BUCKET_WEIGHTS: Final[dict[str, int]] = {
+    ORTHOGONALITY_SATURATED: 0,
+    ORTHOGONALITY_ADJACENT: 1,
+    ORTHOGONALITY_NOVEL: 2,
+}
+
+#: IG dominates orthogonality. Multiplier is intentionally larger than
+#: ``max(ORTHOGONALITY_BUCKET_WEIGHTS.values())`` so an IG step always
+#: outranks any orthogonality difference.
+INFO_GAIN_PRIORITY_MULTIPLIER: Final[int] = 10
+
+#: A campaign with ``advisory_suppression_reason != None`` receives this
+#: priority score so it sinks below every non-suppressed campaign in
+#: ``advisory_rank``. The artifact's ``queue_ordering_effect`` is still
+#: ``none`` — this is a *recommendation only*.
+SUPPRESSED_PRIORITY_SCORE: Final[int] = -1
+
 
 # ---------------------------------------------------------------------------
 # Pure dataclasses
@@ -417,6 +448,56 @@ def compute_orthogonality_bucket(
     if count <= ORTHOGONALITY_ADJACENT_MAX_PRIOR:
         return ORTHOGONALITY_ADJACENT
     return ORTHOGONALITY_SATURATED
+
+
+def derive_advisory_suppression_reason(
+    *,
+    dead_zone_status: str,
+    near_duplicate_group: str | None,
+    is_first_in_group: bool,
+) -> str | None:
+    """Pure derivation of the advisory suppression reason.
+
+    Resolution order:
+
+    1. ``dead_zone`` if and only if ``dead_zone_status == DEAD_ZONE_DEAD``.
+       Statuses in ``NEVER_SUPPRESS_DEAD_ZONE_STATUSES`` *never*
+       trigger suppression.
+    2. ``near_duplicate`` if and only if the campaign is part of a
+       near-duplicate group AND is **not** the first member of that
+       group (the first member always keeps ``None``).
+    3. ``None`` otherwise.
+
+    The framing remains advisory: the artifact still carries
+    ``routing_effect = "advisory_only"``. Downstream queue ordering
+    is not changed.
+    """
+    if dead_zone_status == DEAD_ZONE_DEAD:
+        return SUPPRESSION_DEAD_ZONE
+    if near_duplicate_group is not None and not is_first_in_group:
+        return SUPPRESSION_NEAR_DUPLICATE
+    return None
+
+
+def compute_advisory_priority_score(
+    *,
+    advisory_suppression_reason: str | None,
+    info_gain_bucket: str,
+    orthogonality_bucket: str,
+) -> int:
+    """Pure derivation of the advisory priority score.
+
+    Suppressed campaigns receive ``SUPPRESSED_PRIORITY_SCORE`` so they
+    always rank below non-suppressed campaigns. Non-suppressed
+    campaigns receive ``ig_weight * INFO_GAIN_PRIORITY_MULTIPLIER +
+    ortho_weight``. Higher is better. Unknown bucket names map to
+    weight 0 (defensive fallback).
+    """
+    if advisory_suppression_reason is not None:
+        return SUPPRESSED_PRIORITY_SCORE
+    ig_weight = INFO_GAIN_BUCKET_WEIGHTS.get(info_gain_bucket, 0)
+    ortho_weight = ORTHOGONALITY_BUCKET_WEIGHTS.get(orthogonality_bucket, 0)
+    return ig_weight * INFO_GAIN_PRIORITY_MULTIPLIER + ortho_weight
 
 
 def compute_near_duplicate_group(
@@ -702,9 +783,14 @@ def build_report(
     ``datetime.now(tz=UTC)``).
 
     PR-B: populates behavior_coordinates, info_gain_score/bucket,
-    dead_zone_status, near_duplicate_group, orthogonality_bucket. Sets
-    ``advisory_suppression_reason = None``, ``advisory_priority_score
-    = 0``, ``advisory_rank = 0``. PR-C derives the advisory ranking.
+    dead_zone_status, near_duplicate_group, orthogonality_bucket.
+
+    PR-C: derives ``advisory_suppression_reason`` (dead-zone or
+    near-duplicate annotation only — queue is **not** mutated),
+    ``advisory_priority_score`` (deterministic int) and
+    ``advisory_rank`` (1-indexed total ordering). The artifact still
+    carries ``routing_effect = "advisory_only"`` and
+    ``queue_ordering_effect = "none"``.
     """
     if callable(now_utc):
         as_of = now_utc()
@@ -744,7 +830,9 @@ def build_report(
     for _, coords, _, _, _ in coord_records:
         coord_counts[coords.as_tuple()] += 1
 
-    decisions: list[RoutingDecision] = []
+    # First pass: build provisional per-campaign rows without
+    # advisory_* fields.
+    provisional_rows: list[dict[str, Any]] = []
     metadata_gaps = 0
     for entry, coords, preset_name, fp, has_full in coord_records:
         cid = str(entry.get("campaign_id"))
@@ -754,37 +842,97 @@ def build_report(
         zone_status = classify_dead_zone_status(coords, dead_zone_index)
         if not has_full:
             metadata_gaps += 1
-        # Prior count = total occurrences minus the current campaign.
         prior_total = max(0, coord_counts[coords.as_tuple()] - 1)
         ortho = compute_orthogonality_bucket(
             coords, {coords.as_tuple(): prior_total},
         )
         group = compute_near_duplicate_group(coords, fp)
-        decisions.append(
+        provisional_rows.append({
+            "campaign_id": cid,
+            "preset_name": preset_name,
+            "coords": coords,
+            "score": round(score, 4),
+            "bucket": bucket,
+            "zone_status": zone_status,
+            "group": group,
+            "ortho": ortho,
+            "tie_break_key": f"{spawned_at}|{cid}",
+        })
+
+    # Second pass: identify the first member of each near-duplicate
+    # group by tie_break_key. Within a group, the first-by-
+    # (spawned_at_utc, campaign_id) row keeps suppression=None; the
+    # rest get advisory_suppression_reason="near_duplicate" — UNLESS
+    # the dead-zone status already set the reason to "dead_zone".
+    group_members: dict[str, list[str]] = {}
+    for row in provisional_rows:
+        gid = row["group"]
+        if gid is None:
+            continue
+        group_members.setdefault(gid, []).append(row["tie_break_key"])
+    first_member_in_group: dict[str, str] = {
+        gid: min(keys) for gid, keys in group_members.items()
+    }
+
+    # Third pass: derive advisory_suppression_reason +
+    # advisory_priority_score per row.
+    enriched: list[RoutingDecision] = []
+    for row in provisional_rows:
+        gid = row["group"]
+        if gid is None:
+            is_first = True
+        else:
+            is_first = first_member_in_group[gid] == row["tie_break_key"]
+        reason = derive_advisory_suppression_reason(
+            dead_zone_status=row["zone_status"],
+            near_duplicate_group=gid,
+            is_first_in_group=is_first,
+        )
+        priority = compute_advisory_priority_score(
+            advisory_suppression_reason=reason,
+            info_gain_bucket=row["bucket"],
+            orthogonality_bucket=row["ortho"],
+        )
+        enriched.append(
             RoutingDecision(
-                campaign_id=cid,
-                preset_name=preset_name,
-                behavior_coordinates=coords,
-                info_gain_score=round(score, 4),
-                info_gain_bucket=bucket,
-                dead_zone_status=zone_status,
-                near_duplicate_group=group,
-                orthogonality_bucket=ortho,
-                advisory_suppression_reason=None,
-                advisory_priority_score=0,
-                advisory_rank=0,
-                tie_break_key=f"{spawned_at}|{cid}",
+                campaign_id=row["campaign_id"],
+                preset_name=row["preset_name"],
+                behavior_coordinates=row["coords"],
+                info_gain_score=row["score"],
+                info_gain_bucket=row["bucket"],
+                dead_zone_status=row["zone_status"],
+                near_duplicate_group=gid,
+                orthogonality_bucket=row["ortho"],
+                advisory_suppression_reason=reason,
+                advisory_priority_score=priority,
+                advisory_rank=0,  # filled in below
+                tie_break_key=row["tie_break_key"],
             )
         )
 
-    # Stable ordering by (spawned_at_utc, campaign_id) so that two
-    # invocations with identical inputs produce byte-identical output.
-    decisions.sort(key=lambda d: (d.tie_break_key,))
+    # Fourth pass: total ordering by (-advisory_priority_score,
+    # tie_break_key). Higher priority first; ties broken by
+    # (spawned_at_utc, campaign_id) ascending. Assign 1-indexed
+    # advisory_rank.
+    enriched.sort(
+        key=lambda d: (-d.advisory_priority_score, d.tie_break_key)
+    )
+    decisions: list[RoutingDecision] = []
+    for idx, d in enumerate(enriched, start=1):
+        decisions.append(
+            dataclasses.replace(d, advisory_rank=idx)
+        )
 
     summary = RoutingReportSummary(
         total=len(decisions),
-        advisory_suppressed_dead_zone=0,
-        advisory_suppressed_near_duplicate=0,
+        advisory_suppressed_dead_zone=sum(
+            1 for d in decisions
+            if d.advisory_suppression_reason == SUPPRESSION_DEAD_ZONE
+        ),
+        advisory_suppressed_near_duplicate=sum(
+            1 for d in decisions
+            if d.advisory_suppression_reason == SUPPRESSION_NEAR_DUPLICATE
+        ),
         high_info_gain=sum(
             1 for d in decisions if d.info_gain_bucket == BUCKET_HIGH
         ),
@@ -940,6 +1088,8 @@ __all__ = [
     "IG_BUCKET_HIGH_FLOOR",
     "IG_BUCKET_MEDIUM_FLOOR",
     "INFO_GAIN_BUCKETS",
+    "INFO_GAIN_BUCKET_WEIGHTS",
+    "INFO_GAIN_PRIORITY_MULTIPLIER",
     "MODULE_VERSION",
     "NEAR_DUPLICATE_FINGERPRINT_PREFIX_LEN",
     "NEAR_DUPLICATE_GROUP_HASH_LEN",
@@ -948,6 +1098,7 @@ __all__ = [
     "ORTHOGONALITY_ADJACENT_MAX_PRIOR",
     "ORTHOGONALITY_BUCKETS",
     "ORTHOGONALITY_NOVEL",
+    "ORTHOGONALITY_BUCKET_WEIGHTS",
     "ORTHOGONALITY_NOVEL_MAX_PRIOR",
     "ORTHOGONALITY_SATURATED",
     "QUEUE_ORDERING_EFFECT_NONE",
@@ -957,14 +1108,17 @@ __all__ = [
     "RoutingReport",
     "RoutingReportSummary",
     "SCHEMA_VERSION",
+    "SUPPRESSED_PRIORITY_SCORE",
     "SUPPRESSION_DEAD_ZONE",
     "SUPPRESSION_NEAR_DUPLICATE",
     "UNKNOWN_COORDINATE",
     "bucket_info_gain",
     "build_report",
     "classify_dead_zone_status",
+    "compute_advisory_priority_score",
     "compute_near_duplicate_group",
     "compute_orthogonality_bucket",
+    "derive_advisory_suppression_reason",
     "derive_behavior_coordinates",
     "main",
 ]
