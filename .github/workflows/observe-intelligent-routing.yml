@@ -156,6 +156,152 @@ jobs:
           python3 -m reporting.intelligent_routing --write > /dev/null
           python3 -m reporting.intelligent_routing_status --write > /dev/null
 
+          # Metadata-shape diagnostic. Reads the upstream registry and
+          # queue artifacts read-only and writes a sanitized summary
+          # (top-level keys + first three records' key-sets + scalar
+          # presence flags) to logs/intelligent_routing/metadata_shape_
+          # diagnostic.json. Truncates every value to a short scalar
+          # preview; never echoes the full payload; never prints
+          # secrets. Pure stdlib.
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          OUT = Path("logs/intelligent_routing/metadata_shape_diagnostic.json")
+          OUT.parent.mkdir(parents=True, exist_ok=True)
+          REGISTRY = Path("research/campaign_registry_latest.v1.json")
+          QUEUE = Path("research/campaign_queue_latest.v1.json")
+          MAX_PREVIEW = 80
+
+          def preview(v):
+              if v is None:
+                  return None
+              if isinstance(v, (bool, int, float)):
+                  return v
+              if isinstance(v, str):
+                  return v if len(v) <= MAX_PREVIEW else v[:MAX_PREVIEW] + "…"
+              if isinstance(v, (list, tuple)):
+                  return f"<{type(v).__name__} len={len(v)}>"
+              if isinstance(v, dict):
+                  return f"<dict keys={sorted(v)[:8]}>"
+              return f"<{type(v).__name__}>"
+
+          def load(path):
+              if not path.exists():
+                  return None
+              try:
+                  data = json.loads(path.read_text(encoding="utf-8"))
+              except json.JSONDecodeError:
+                  return None
+              return data if isinstance(data, dict) else None
+
+          probe_keys = [
+              "campaign_id", "preset_name", "preset", "strategy",
+              "strategy_name", "strategy_family", "family",
+              "asset_class", "timeframe", "interval", "symbol",
+              "universe", "extra", "metadata", "params",
+              "input_artifact_fingerprint", "hypothesis_id",
+          ]
+
+          def record_probe(rec):
+              out = {"keys": sorted(rec.keys())}
+              found = {}
+              for k in probe_keys:
+                  if k in rec:
+                      found[k] = preview(rec[k])
+              out["probe_fields_present"] = found
+              out["probe_fields_missing"] = sorted(
+                  k for k in probe_keys if k not in rec
+              )
+              extra = rec.get("extra")
+              if isinstance(extra, dict):
+                  out["extra_keys"] = sorted(extra.keys())
+                  out["extra_probe"] = {
+                      k: preview(extra[k]) for k in probe_keys if k in extra
+                  }
+              return out
+
+          summary = {
+              "schema_version": "1.0",
+              "report_kind": "intelligent_routing_metadata_shape_diagnostic",
+              "campaign_registry": {"status": "absent"},
+              "campaign_queue": {"status": "absent"},
+              "campaign_id_encoding_hint": (
+                  "campaign_id format from build_campaign_id() is "
+                  "col-{ts}-{preset_name}-{nonce10}; preset_name embeds "
+                  "asset_class and timeframe by convention "
+                  "(e.g. trend_equities_4h_baseline -> equities/4h)."
+              ),
+          }
+
+          reg = load(REGISTRY)
+          if reg is not None:
+              top_keys = sorted(reg.keys())
+              campaigns = reg.get("campaigns")
+              shape = (
+                  "dict" if isinstance(campaigns, dict)
+                  else ("list" if isinstance(campaigns, list)
+                        else type(campaigns).__name__)
+              )
+              record_count = (
+                  len(campaigns) if isinstance(campaigns, (dict, list))
+                  else 0
+              )
+              first_three = []
+              if isinstance(campaigns, dict):
+                  cids = sorted(campaigns.keys())[:3]
+                  for cid in cids:
+                      rec = campaigns[cid]
+                      if isinstance(rec, dict):
+                          probe = record_probe(rec)
+                          probe["campaign_id_from_index"] = cid
+                          first_three.append(probe)
+              elif isinstance(campaigns, list):
+                  for rec in campaigns[:3]:
+                      if isinstance(rec, dict):
+                          first_three.append(record_probe(rec))
+              summary["campaign_registry"] = {
+                  "status": "present",
+                  "top_level_keys": top_keys,
+                  "campaigns_value_type": shape,
+                  "campaigns_record_count": record_count,
+                  "first_three_records": first_three,
+              }
+
+          q = load(QUEUE)
+          if q is not None:
+              top_keys = sorted(q.keys())
+              entries = q.get("queue")
+              shape = type(entries).__name__
+              entry_count = len(entries) if isinstance(entries, list) else 0
+              first_three = []
+              if isinstance(entries, list):
+                  for entry in entries[:3]:
+                      if isinstance(entry, dict):
+                          out = {"keys": sorted(entry.keys())}
+                          out["scalar_preview"] = {
+                              k: preview(entry[k]) for k in entry
+                              if k in (
+                                  "campaign_id", "priority_tier",
+                                  "spawned_at_utc", "state",
+                              )
+                          }
+                          first_three.append(out)
+              summary["campaign_queue"] = {
+                  "status": "present",
+                  "top_level_keys": top_keys,
+                  "queue_value_type": shape,
+                  "queue_entry_count": entry_count,
+                  "first_three_entries": first_three,
+              }
+
+          OUT.write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(f"wrote: {OUT}")
+          PY
+
           # Post-snapshot frozen contracts.
           echo "FROZEN_AFTER_BEGIN"
           for f in research/research_latest.json research/strategy_matrix.csv; do
@@ -199,17 +345,28 @@ jobs:
           fi
 
           # Stream artifact contents back via stdout for the runner
-          # to extract and upload as a workflow artifact.
+          # to extract and upload as a workflow artifact. The
+          # metadata-shape diagnostic is optional — included when
+          # present, omitted gracefully when absent.
           python3 - <<'PY'
           from pathlib import Path
 
-          allowed = [
+          required = [
               Path("logs/intelligent_routing/latest.json"),
               Path("logs/intelligent_routing_status/latest.json"),
           ]
-          for p in allowed:
+          optional = [
+              Path("logs/intelligent_routing/metadata_shape_diagnostic.json"),
+          ]
+          for p in required:
               if not p.exists():
                   raise SystemExit(f"missing expected artifact: {p}")
+              print(f"ARTIFACT_BEGIN {p}")
+              print(p.read_text(encoding="utf-8"))
+              print(f"ARTIFACT_END {p}")
+          for p in optional:
+              if not p.exists():
+                  continue
               print(f"ARTIFACT_BEGIN {p}")
               print(p.read_text(encoding="utf-8"))
               print(f"ARTIFACT_END {p}")
@@ -237,9 +394,12 @@ jobs:
               re.DOTALL,
           )
           blocks = list(pattern.finditer(src))
-          if len(blocks) != 2:
+          # Two required artifacts (routing + status) are mandatory;
+          # the metadata-shape diagnostic is optional. Accept 2 or 3
+          # blocks; reject anything outside that range.
+          if len(blocks) not in (2, 3):
               raise SystemExit(
-                  f"expected 2 artifact blocks, got {len(blocks)}"
+                  f"expected 2 or 3 artifact blocks, got {len(blocks)}"
               )
           for m in blocks:
               path = m.group("path")
@@ -298,6 +458,7 @@ jobs:
           name: v3-15-16-intelligent-routing-observation
           path: |
             artifacts/logs/intelligent_routing/latest.json
+            artifacts/logs/intelligent_routing/metadata_shape_diagnostic.json
             artifacts/logs/intelligent_routing_status/latest.json
             artifacts/remote_stdout.txt
           retention-days: 14
