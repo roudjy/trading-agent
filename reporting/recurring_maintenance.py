@@ -108,6 +108,12 @@ JOB_REFRESH_HUMAN_NEEDED: str = "refresh_human_needed"
 # synthesizer. Reads logs/human_needed/latest.json and produces
 # copy-paste-able bootstrap-PR templates (text only).
 JOB_REFRESH_GOVERNANCE_BOOTSTRAP: str = "refresh_governance_bootstrap"
+# v3.15.16.10 PR-4 / A6 — read-only autonomous backlog discipline.
+# Reads logs/proposal_queue/latest.json and groups every proposal
+# into the closed Agent Execution Authority buckets via the
+# reporting.execution_authority classifier. LOW risk; no gh; no
+# external network; no mutation.
+JOB_REFRESH_AUTONOMOUS_BACKLOG: str = "refresh_autonomous_backlog"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -120,6 +126,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_AGENT_FLOW,
     JOB_REFRESH_HUMAN_NEEDED,
     JOB_REFRESH_GOVERNANCE_BOOTSTRAP,
+    JOB_REFRESH_AUTONOMOUS_BACKLOG,
 )
 
 
@@ -412,6 +419,36 @@ def _exec_refresh_governance_bootstrap() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_autonomous_backlog() -> dict[str, Any]:
+    """Run the v3.15.16.10 PR-4 autonomous backlog discipline summary
+    (read-only). Reads logs/proposal_queue/latest.json and writes
+    logs/autonomous_backlog/latest.json with proposals grouped by
+    Agent Execution Authority decision. Never starts a branch, never
+    opens a PR, never invokes ``gh``."""
+    from reporting.autonomous_backlog_summary import run_once as _run_once
+
+    snap = _run_once(write=True)
+    counts = snap.get("counts") or {}
+    return {
+        "summary": (
+            "autonomous_backlog "
+            f"total={counts.get('total', 0)} "
+            f"needs_human={counts.get('needs_human', 0)} "
+            f"auto_allowed={counts.get('auto_allowed', 0)} "
+            f"permanently_denied={counts.get('permanently_denied', 0)}"
+        ),
+        "evidence": {
+            "total": counts.get("total"),
+            "permanently_denied": counts.get("permanently_denied"),
+            "needs_human": counts.get("needs_human"),
+            "auto_allowed": counts.get("auto_allowed"),
+            "stale_or_resolved": counts.get("stale_or_resolved"),
+            "unknown_failsafe": counts.get("unknown_failsafe"),
+            "source_available": snap.get("source_available"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -561,6 +598,21 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
         "description": (
             "Refresh governance-bootstrap PR-template digest "
             "(read-only text synthesis over the human_needed events)."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_AUTONOMOUS_BACKLOG: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_autonomous_backlog,
+        "description": (
+            "Refresh autonomous-backlog discipline digest "
+            "(read-only Agent Execution Authority projection over the "
+            "proposal queue). Disable by setting --no-job to opt out; "
+            "the CLI alone (`python -m reporting.autonomous_backlog_summary`) "
+            "remains usable on demand for rollback."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,
