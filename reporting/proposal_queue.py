@@ -279,6 +279,29 @@ _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _BULLET_RE = re.compile(r"^\s*(?:[*\-+]|\d+\.)\s+(.+?)\s*$")
 # A release-candidate marker: "v3.15.15.x", "v4.0", etc.
 _RELEASE_TAG_RE = re.compile(r"\bv\d+(?:\.\d+){2,}(?:[.\-][^\s)]+)?\b")
+# Fenced-code-block fence (start or end of ``` / ~~~ block).
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+# Explicit actionable proposal-metadata marker. Recognized as a marker
+# only when it appears at the beginning of a line (optionally inside a
+# bullet) followed by ``:`` or ``=``. This matches the parser-expected
+# format for explicit proposal payload — e.g.::
+#
+#     - Proposal: archive obsolete v6_1 doc
+#     Risk: HIGH
+#     risk_class: HIGH
+#     status: needs_human
+#     affected_files: [...]
+#     proposal_type: roadmap_diff
+#     decision: approved
+#
+# Generic words like "release" or "version" are *not* markers; the
+# operator's spec explicitly forbids them as actionable signals on
+# their own. The lexicon below is the closed set.
+_MARKER_RE = re.compile(
+    r"\b(?:proposal|risk|risk_class|decision|status|"
+    r"affected_files|proposal_type|required_tests)\s*[:=]",
+    re.IGNORECASE,
+)
 # A path-shaped token. We accept "**/path", "path/**", "path/file.ext",
 # "config/config.yaml", "research/...", etc. The regex is intentionally
 # narrow — we want clear filenames, not prose.
@@ -349,10 +372,22 @@ def _heading_segments(text: str) -> list[tuple[int, int, str, str]]:
     The first heading absorbs everything between it and the next
     heading. Lines before the first heading are reported as a level-0
     preamble segment with title ``"<preamble>"``.
+
+    Fenced-code-block awareness (v3.15.16.10 PR-3): a line that looks
+    like a heading but lies *inside* a ``` / ~~~ fenced code block is
+    NOT treated as a heading. This prevents pseudo-headings such as
+    ``# v3.15.16`` inside a markdown ```text`` block (common in
+    canonical roadmap docs) from being parsed as shippable items.
     """
     lines = text.splitlines()
     headings: list[tuple[int, int, str]] = []  # (level, line_idx, title)
+    in_fence = False
     for idx, line in enumerate(lines):
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
         m = _HEADING_RE.match(line)
         if m:
             level = len(m.group(1))
@@ -371,6 +406,98 @@ def _heading_segments(text: str) -> list[tuple[int, int, str, str]]:
         body = "\n".join(lines[idx + 1 : end])
         segments.append((lvl, idx, title, body))
     return segments
+
+
+# ---------------------------------------------------------------------------
+# Actionable-heading filter (v3.15.16.10 PR-3 / A5)
+# ---------------------------------------------------------------------------
+#
+# Source-of-truth roadmap documents (Roadmap v6, autonomous_development.txt,
+# governance docs) are full of explanatory H2 headings — "Purpose", "Scope",
+# "Status", "Required behavior", "Success criteria", "What it does",
+# "What it adds" — that previously surfaced as proposal_queue items. They
+# are not actionable proposals; they are doc-structure prose. Letting them
+# emit drowns the operator inbox in noise.
+#
+# An H2/H3 segment is "actionable" only if at least one of the following
+# is true (closed-set; first-match wins):
+#
+#  1. Body contains an explicit marker line — Proposal: / Risk: /
+#     risk_class: / Decision: / Status: / affected_files: /
+#     proposal_type: / required_tests:. This is the canonical
+#     "deliberately parsed proposal section" path.
+#  2. Body contains a backtick-quoted concrete file path. A
+#     backticked path is a clear actionable signal (the proposal
+#     names a specific file).
+#  3. Title or body matches one of the existing closed token sets the
+#     classifier already uses to elevate risk: STRATEGIC_ROADMAP_TOKENS,
+#     governance tokens, TOOLING_HIGH_TOKENS / TOOLING_LOW_TOKENS,
+#     CI tokens. These are the legitimate high-risk signals.
+#
+# Generic words like "release", "version", or version numbers MUST NOT
+# by themselves make a heading actionable. There is no decision-bearing
+# verb lexicon — only the closed signal sets above.
+
+_GOVERNANCE_TOKENS: tuple[str, ...] = (
+    "codeowners",
+    "branch protection",
+    ".claude/",
+    "no_touch_paths",
+    "agent governance",
+    "release gate",
+    "autonomy ladder",
+)
+
+_CI_TOKENS: tuple[str, ...] = (
+    "ci hygiene",
+    "github action",
+    "github actions",
+    "sha pin",
+    "dependabot",
+    "github workflow",
+)
+
+
+def _is_actionable_heading(level: int, title: str, body: str, source: str) -> bool:
+    """Return True iff an H2/H3 segment carries an actionable
+    proposal payload and should emit a proposal record.
+
+    Pure function. No I/O. Source-of-truth roadmap headings without
+    explicit markers / backticked paths / governance-or-tooling
+    tokens return False.
+    """
+    if level not in (2, 3):
+        return False
+
+    # Path 1 — explicit marker in body (deliberately parsed).
+    if _MARKER_RE.search(body):
+        return True
+
+    # Path 2 — backtick-quoted concrete file path.
+    if _PATH_RE.search(body):
+        return True
+
+    text = (title + "\n" + body).lower()
+
+    # Path 3a — strategic roadmap adoption tokens.
+    if any(t in text for t in STRATEGIC_ROADMAP_TOKENS):
+        return True
+
+    # Path 3b — governance change tokens.
+    if any(t in text for t in _GOVERNANCE_TOKENS):
+        return True
+
+    # Path 3c — tooling intake (HIGH or LOW).
+    if any(t in text for t in TOOLING_HIGH_TOKENS):
+        return True
+    if any(t in text for t in TOOLING_LOW_TOKENS):
+        return True
+
+    # Path 3d — CI hygiene tokens.
+    if any(t in text for t in _CI_TOKENS):
+        return True
+
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -933,13 +1060,19 @@ def _build_all_proposals(files: list[Path]) -> list[dict[str, Any]]:
             if level == 1:
                 continue
             # Only H2/H3 segments produce proposals; H4+ are sub-
-            # sections and would dilute the queue.
+            # sections and would dilute the queue. Preamble (level 0)
+            # is also suppressed unconditionally — preamble text
+            # describes the doc, not a shippable proposal.
             if level == 0 or level > 3:
-                # Preamble + deep sub-sections are surfaced as a single
-                # row only if they are non-empty AND look like a
-                # proposal heading. We elide deep sub-headings.
-                if level > 3:
-                    continue
+                continue
+            # v3.15.16.10 PR-3 / A5 — H2/H3 only surface when they
+            # carry an actionable proposal payload. Source-of-truth
+            # roadmap headings ("Purpose", "Scope", "Status",
+            # "Success criteria", ...) without explicit markers,
+            # backticked paths, governance / tooling / CI tokens are
+            # suppressed. Real governance proposals continue to surface.
+            if not _is_actionable_heading(level, title, body, _rel(f)):
+                continue
             proposals.append(
                 _build_proposal_from_segment(
                     source=_rel(f),
@@ -950,6 +1083,58 @@ def _build_all_proposals(files: list[Path]) -> list[dict[str, Any]]:
                 )
             )
     return proposals
+
+
+def _diagnose_id(
+    target_id: str, sources: list[Path] | None = None
+) -> dict[str, Any]:
+    """Reverse-derive the (source, title, line_idx) tuple that hashes
+    to ``target_id`` under :func:`_proposal_id` by replaying the
+    sha256(source|title|line_idx)[:8] computation across every heading
+    segment of every default source. Returns a list of matches plus
+    metadata. Stdlib-only; no network; no subprocess.
+    """
+    target = target_id.strip()
+    if not target.startswith("p_") or len(target) != 10:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "report_kind": "proposal_queue_diagnose_id",
+            "target_id": target,
+            "matches": [],
+            "scanned_files": 0,
+            "error": "expected proposal_id of form 'p_<8-hex>'",
+        }
+    if sources is None:
+        files: list[Path] = []
+        for root in DEFAULT_SOURCE_ROOTS:
+            files.extend(_expand_source(REPO_ROOT / root))
+    else:
+        files = list(sources)
+    matches: list[dict[str, Any]] = []
+    for f in files:
+        text, _err = _read_text_safe(f)
+        if text is None:
+            continue
+        rel = _rel(f)
+        for level, line_idx, title, _body in _heading_segments(text):
+            pid = _proposal_id(rel, title, line_idx)
+            if pid == target:
+                matches.append(
+                    {
+                        "source": rel,
+                        "title": title,
+                        "line_idx": line_idx,
+                        "heading_level": level,
+                    }
+                )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "report_kind": "proposal_queue_diagnose_id",
+        "target_id": target,
+        "matches": matches,
+        "scanned_files": len(files),
+        "error": None if matches else "no_match_found_in_default_sources",
+    }
 
 
 def _proposal_counts(proposals: list[dict[str, Any]]) -> dict[str, int]:
@@ -1056,15 +1241,32 @@ def _build_parser() -> argparse.ArgumentParser:
         default=2,
         help="JSON indent (0 for compact).",
     )
+    p.add_argument(
+        "--diagnose-id",
+        type=str,
+        default=None,
+        metavar="PROPOSAL_ID",
+        help=(
+            "Diagnose mode: scan default sources, replay _proposal_id "
+            "across every heading segment, and print the (source, "
+            "title, line_idx) tuple whose sha matches PROPOSAL_ID. "
+            "No write. Mutually exclusive with normal queue output."
+        ),
+    )
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    indent = args.indent if args.indent and args.indent > 0 else None
+    if args.diagnose_id:
+        result = _diagnose_id(args.diagnose_id)
+        json.dump(result, sys.stdout, indent=indent, sort_keys=True)
+        sys.stdout.write("\n")
+        return 0
     snap = collect_snapshot(mode=args.mode, source=args.source)
     if not args.no_write and snap.get("status") != "refused":
         write_outputs(snap)
-    indent = args.indent if args.indent and args.indent > 0 else None
     json.dump(snap, sys.stdout, indent=indent, sort_keys=True)
     sys.stdout.write("\n")
     return 0
