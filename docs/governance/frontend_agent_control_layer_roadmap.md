@@ -357,7 +357,7 @@ performs a merge.
 ## After v3.15.15.23
 
 The project returns to the
-[`docs/roadmap/qre_roadmap_v3_post_v3_15.md`](../roadmap/qre_roadmap_v3_post_v3_15.md)
-sequence (research-platform / v6.1 / v7.x). The agent-control layer
-remains a separately-versioned slice — additions to the dashboard
-or the workloop go through their own ADR amendments.
+[`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md)
+sequence (Roadmap v6 — QRE Feature Build Track). The agent-control
+layer remains a separately-versioned slice — additions to the
+dashboard or the workloop go through their own ADR amendments.

@@ -471,7 +471,7 @@ def _build_roadmap_queue() -> list[dict[str, Any]]:
     recommended next item; never starts a branch.
     """
     sources = [
-        "docs/roadmap/qre_roadmap_v3_post_v3_15.md",
+        "docs/roadmap/Roadmap v6.md",
         "docs/backlog/agent_backlog.md",
         "docs/spillovers/agent_spillovers.md",
     ]

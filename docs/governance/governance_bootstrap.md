@@ -121,7 +121,7 @@ docs/governance/bootstrap_templates/wiring_dashboard_py.md
 docs/governance/bootstrap_templates/extend_agent_allowlist.md
 docs/governance/bootstrap_templates/add_no_touch_carveout.md
 docs/governance/recurring_maintenance.md  (job table + section)
-docs/roadmap/qre_roadmap_v6_1.md
+docs/roadmap/Roadmap v6.md
 ```
 
 No new dependency. No `dashboard/dashboard.py` change. No

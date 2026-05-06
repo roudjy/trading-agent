@@ -299,7 +299,17 @@ _CANONICAL_POLICY_DOC_EXACT: Final[frozenset[str]] = frozenset(
     }
 )
 
-_CANONICAL_ROADMAP_EXACT: Final[str] = "docs/roadmap/qre_roadmap_v6_1.md"
+#: Canonical roadmap / governance-planning documents — exactly two members.
+#: ``autonomous_development.txt`` is the canonical Autonomous Development Track
+#: document; ``Roadmap v6.md`` is the canonical QRE Feature Build Track
+#: document. Any path under ``docs/roadmap/archive/`` is historical-only and
+#: must NOT classify as ``canonical_roadmap``.
+_CANONICAL_ROADMAP_EXACT: Final[frozenset[str]] = frozenset(
+    {
+        "docs/roadmap/autonomous_development.txt",
+        "docs/roadmap/Roadmap v6.md",
+    }
+)
 
 _DASHBOARD_WIRING_EXACT: Final[str] = "dashboard/dashboard.py"
 
@@ -328,7 +338,7 @@ def _categorize_path(target_path: str) -> str:
         return "frozen_contract"
     if p in _CANONICAL_POLICY_DOC_EXACT:
         return "canonical_policy_doc"
-    if p == _CANONICAL_ROADMAP_EXACT:
+    if p in _CANONICAL_ROADMAP_EXACT:
         return "canonical_roadmap"
     if p in _DEPLOY_SCRIPT_EXACT:
         return "deploy_script"

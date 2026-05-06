@@ -31,7 +31,7 @@ in v3.15.15.20).
 python -m reporting.proposal_queue --mode dry-run
 
 # Or point at a specific file or directory.
-python -m reporting.proposal_queue --source docs/roadmap/qre_roadmap_v4.md --mode dry-run
+python -m reporting.proposal_queue --source "docs/roadmap/Roadmap v6.md" --mode dry-run
 
 # Read the digest without persisting it.
 python -m reporting.proposal_queue --mode dry-run --no-write
