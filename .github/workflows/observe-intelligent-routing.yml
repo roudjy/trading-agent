@@ -302,6 +302,254 @@ jobs:
           print(f"wrote: {OUT}")
           PY
 
+          # v3.15.16.2.diag — IG-ledger-shape diagnostic. Streams the
+          # append-only campaign_evidence_ledger.jsonl line-by-line
+          # and emits a sanitized summary (counters + key sets +
+          # mapping-evidence counts only — NEVER full event bodies,
+          # NEVER secrets, NEVER raw nested payloads). Output is a
+          # single new file under the existing log directory:
+          # logs/intelligent_routing/ig_ledger_shape_diagnostic.json.
+          # Pure stdlib; bounded memory; bounded line scan.
+          python3 - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          OUT = Path("logs/intelligent_routing/ig_ledger_shape_diagnostic.json")
+          OUT.parent.mkdir(parents=True, exist_ok=True)
+          LEDGER = Path("research/campaign_evidence_ledger.jsonl")
+          MAX_LINES = 1_000_000
+
+          # Probe field-name vocabularies (closed). The presence of
+          # each name is a hint about the producer's schema; the
+          # diagnostic does NOT decide a final reader contract.
+          PROBE_CID_FIELDS = (
+              "campaign_id", "col_campaign_id", "run_campaign_id",
+          )
+          PROBE_SCORE_FIELDS = (
+              "score", "ig_score", "information_gain_score",
+              "info_gain_score", "ig", "weight",
+          )
+          PROBE_BUCKET_FIELDS = (
+              "bucket", "ig_bucket", "information_gain_bucket",
+              "info_gain_bucket",
+          )
+          PROBE_TS_FIELDS = (
+              "at_utc", "timestamp", "timestamp_utc",
+              "event_at_utc", "ts_utc", "occurred_at_utc",
+          )
+
+          line_count = 0
+          parsed_line_count = 0
+          malformed_line_count = 0
+          truncated = False
+          event_type_counter: Counter = Counter()
+          meaningful_counter: Counter = Counter()
+          outcome_counter: Counter = Counter()
+          reason_code_counter: Counter = Counter()
+          events_per_campaign: Counter = Counter()
+          ig_relevant_per_campaign: set = set()
+          ig_relevant_event_count = 0
+          oldest_at = None
+          newest_at = None
+          missing_at_utc_count = 0
+          malformed_at_utc_count = 0
+          order_violations = 0
+          prev_at = None
+          first_3_keys: list = []
+          first_3_ig_keys: list = []
+          candidate_cid_fields: Counter = Counter()
+          candidate_score_fields: Counter = Counter()
+          candidate_bucket_fields: Counter = Counter()
+          candidate_ts_fields: Counter = Counter()
+          mapping_evidence = {
+              "meaningful_classification_paper_ready": 0,
+              "meaningful_classification_exploratory_pass": 0,
+              "outcome_completed_with_candidates": 0,
+              "event_type_duplicate_detected": 0,
+              "event_type_duplicate_spawn_rejected": 0,
+              "event_type_campaign_failed": 0,
+              "reason_code_present_non_none": 0,
+              "any_score_like_scalar_field_present": 0,
+          }
+
+          def _is_ig_relevant(ev: dict) -> bool:
+              mc = ev.get("meaningful_classification")
+              if mc in ("paper_ready", "exploratory_pass"):
+                  return True
+              if ev.get("outcome") == "completed_with_candidates":
+                  return True
+              et = ev.get("event_type")
+              if et in (
+                  "duplicate_detected",
+                  "duplicate_spawn_rejected",
+                  "campaign_failed",
+              ):
+                  return True
+              return False
+
+          present = LEDGER.is_file()
+          file_size = LEDGER.stat().st_size if present else 0
+
+          if present:
+              try:
+                  with LEDGER.open("r", encoding="utf-8") as fh:
+                      for raw in fh:
+                          line_count += 1
+                          if line_count > MAX_LINES:
+                              truncated = True
+                              line_count -= 1
+                              break
+                          stripped = raw.strip()
+                          if not stripped:
+                              continue
+                          try:
+                              ev = json.loads(stripped)
+                          except json.JSONDecodeError:
+                              malformed_line_count += 1
+                              continue
+                          if not isinstance(ev, dict):
+                              malformed_line_count += 1
+                              continue
+                          parsed_line_count += 1
+
+                          if len(first_3_keys) < 3:
+                              first_3_keys.append(sorted(ev.keys()))
+
+                          for fld in PROBE_CID_FIELDS:
+                              if fld in ev:
+                                  candidate_cid_fields[fld] += 1
+                          for fld in PROBE_SCORE_FIELDS:
+                              if fld in ev:
+                                  candidate_score_fields[fld] += 1
+                          for fld in PROBE_BUCKET_FIELDS:
+                              if fld in ev:
+                                  candidate_bucket_fields[fld] += 1
+                          for fld in PROBE_TS_FIELDS:
+                              if fld in ev:
+                                  candidate_ts_fields[fld] += 1
+
+                          et = ev.get("event_type")
+                          if isinstance(et, str):
+                              event_type_counter[et] += 1
+                          mc = ev.get("meaningful_classification")
+                          if mc is None:
+                              meaningful_counter["__null__"] += 1
+                          elif isinstance(mc, str):
+                              meaningful_counter[mc] += 1
+                          outcome = ev.get("outcome")
+                          if outcome is None:
+                              outcome_counter["__null__"] += 1
+                          elif isinstance(outcome, str):
+                              outcome_counter[outcome] += 1
+                          rc = ev.get("reason_code")
+                          if isinstance(rc, str):
+                              reason_code_counter[rc] += 1
+
+                          cid = ev.get("campaign_id")
+                          if isinstance(cid, str) and cid:
+                              events_per_campaign[cid] += 1
+
+                          if _is_ig_relevant(ev):
+                              ig_relevant_event_count += 1
+                              if isinstance(cid, str) and cid:
+                                  ig_relevant_per_campaign.add(cid)
+                              if len(first_3_ig_keys) < 3:
+                                  first_3_ig_keys.append(sorted(ev.keys()))
+
+                          at = ev.get("at_utc")
+                          if at is None:
+                              missing_at_utc_count += 1
+                          elif isinstance(at, str):
+                              if oldest_at is None or at < oldest_at:
+                                  oldest_at = at
+                              if newest_at is None or at > newest_at:
+                                  newest_at = at
+                              if prev_at is not None and at < prev_at:
+                                  order_violations += 1
+                              prev_at = at
+                          else:
+                              malformed_at_utc_count += 1
+
+                          if mc == "paper_ready":
+                              mapping_evidence["meaningful_classification_paper_ready"] += 1
+                          elif mc == "exploratory_pass":
+                              mapping_evidence["meaningful_classification_exploratory_pass"] += 1
+                          if outcome == "completed_with_candidates":
+                              mapping_evidence["outcome_completed_with_candidates"] += 1
+                          if et == "duplicate_detected":
+                              mapping_evidence["event_type_duplicate_detected"] += 1
+                          elif et == "duplicate_spawn_rejected":
+                              mapping_evidence["event_type_duplicate_spawn_rejected"] += 1
+                          elif et == "campaign_failed":
+                              mapping_evidence["event_type_campaign_failed"] += 1
+                          if isinstance(rc, str) and rc and rc != "none":
+                              mapping_evidence["reason_code_present_non_none"] += 1
+                          for fld in PROBE_SCORE_FIELDS:
+                              if fld in ev:
+                                  mapping_evidence["any_score_like_scalar_field_present"] += 1
+                                  break
+              except OSError as e:
+                  # Defensive: never raise from the diagnostic.
+                  malformed_line_count = -1  # signal read error
+
+          def _bucket(n: int) -> str:
+              if n == 1:
+                  return "1"
+              if n == 2:
+                  return "2"
+              if n <= 5:
+                  return "3-5"
+              if n <= 10:
+                  return "6-10"
+              return "11+"
+
+          events_per_campaign_histogram: Counter = Counter(
+              _bucket(c) for c in events_per_campaign.values()
+          )
+
+          diag = {
+              "schema_version": "1.0",
+              "report_kind": "intelligent_routing_ig_ledger_shape_diagnostic",
+              "ledger_path": str(LEDGER),
+              "present": present,
+              "file_size_bytes": file_size,
+              "max_lines_scanned": MAX_LINES,
+              "line_count": line_count,
+              "parsed_line_count": parsed_line_count,
+              "malformed_line_count": malformed_line_count,
+              "truncated": truncated,
+              "event_type_distribution": dict(event_type_counter),
+              "meaningful_classification_distribution": dict(meaningful_counter),
+              "outcome_distribution": dict(outcome_counter),
+              "reason_code_distribution_top20": dict(
+                  reason_code_counter.most_common(20)
+              ),
+              "unique_campaign_id_count": len(events_per_campaign),
+              "events_per_campaign_histogram": dict(events_per_campaign_histogram),
+              "campaigns_with_ig_relevant_event_count": len(ig_relevant_per_campaign),
+              "ig_relevant_event_count": ig_relevant_event_count,
+              "oldest_event_at_utc": oldest_at,
+              "newest_event_at_utc": newest_at,
+              "events_in_at_utc_ascending_order": (order_violations == 0),
+              "missing_at_utc_count": missing_at_utc_count,
+              "malformed_at_utc_count": malformed_at_utc_count,
+              "first_3_event_keys_only": first_3_keys,
+              "first_3_ig_relevant_event_keys_only": first_3_ig_keys,
+              "candidate_campaign_id_fields_seen": dict(candidate_cid_fields),
+              "candidate_score_fields_seen": dict(candidate_score_fields),
+              "candidate_bucket_fields_seen": dict(candidate_bucket_fields),
+              "candidate_timestamp_fields_seen": dict(candidate_ts_fields),
+              "mapping_evidence": mapping_evidence,
+          }
+
+          OUT.write_text(
+              json.dumps(diag, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(f"wrote: {OUT}")
+          PY
+
           # Post-snapshot frozen contracts.
           echo "FROZEN_AFTER_BEGIN"
           for f in research/research_latest.json research/strategy_matrix.csv; do
@@ -357,6 +605,7 @@ jobs:
           ]
           optional = [
               Path("logs/intelligent_routing/metadata_shape_diagnostic.json"),
+              Path("logs/intelligent_routing/ig_ledger_shape_diagnostic.json"),
           ]
           for p in required:
               if not p.exists():
@@ -395,11 +644,12 @@ jobs:
           )
           blocks = list(pattern.finditer(src))
           # Two required artifacts (routing + status) are mandatory;
-          # the metadata-shape diagnostic is optional. Accept 2 or 3
-          # blocks; reject anything outside that range.
-          if len(blocks) not in (2, 3):
+          # up to two optional diagnostics may follow
+          # (metadata-shape, ig-ledger-shape). Accept 2-4 blocks;
+          # reject anything outside that range.
+          if len(blocks) not in (2, 3, 4):
               raise SystemExit(
-                  f"expected 2 or 3 artifact blocks, got {len(blocks)}"
+                  f"expected 2, 3, or 4 artifact blocks, got {len(blocks)}"
               )
           for m in blocks:
               path = m.group("path")
@@ -459,6 +709,7 @@ jobs:
           path: |
             artifacts/logs/intelligent_routing/latest.json
             artifacts/logs/intelligent_routing/metadata_shape_diagnostic.json
+            artifacts/logs/intelligent_routing/ig_ledger_shape_diagnostic.json
             artifacts/logs/intelligent_routing_status/latest.json
             artifacts/remote_stdout.txt
           retention-days: 14
