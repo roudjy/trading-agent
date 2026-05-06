@@ -48,9 +48,17 @@ This module never writes anywhere outside ``logs/intelligent_routing/``.
 
 from __future__ import annotations
 
+import argparse
 import dataclasses
+import datetime as _dt
 import hashlib
-from typing import Final
+import json
+import os
+import sys
+import tempfile
+from collections import Counter
+from pathlib import Path
+from typing import Any, Callable, Final, Sequence
 
 # ---------------------------------------------------------------------------
 # Schema / version pins
@@ -446,12 +454,479 @@ def compute_near_duplicate_group(
 
 
 # ---------------------------------------------------------------------------
+# Read-only input paths (PR-B)
+# ---------------------------------------------------------------------------
+
+REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+
+CAMPAIGN_QUEUE_PATH: Final[Path] = (
+    REPO_ROOT / "research" / "campaign_queue_latest.v1.json"
+)
+CAMPAIGN_REGISTRY_PATH: Final[Path] = (
+    REPO_ROOT / "research" / "campaign_registry_latest.v1.json"
+)
+DEAD_ZONES_PATH: Final[Path] = (
+    REPO_ROOT / "research" / "campaigns" / "evidence"
+    / "dead_zones_latest.v1.json"
+)
+INFORMATION_GAIN_PATH: Final[Path] = (
+    REPO_ROOT / "research" / "campaigns" / "evidence"
+    / "information_gain_latest.v1.json"
+)
+
+INPUT_PATHS: Final[tuple[Path, ...]] = (
+    CAMPAIGN_QUEUE_PATH,
+    CAMPAIGN_REGISTRY_PATH,
+    DEAD_ZONES_PATH,
+    INFORMATION_GAIN_PATH,
+)
+
+
+# ---------------------------------------------------------------------------
+# Output path (PR-B)
+# ---------------------------------------------------------------------------
+
+OUTPUT_DIR: Final[Path] = REPO_ROOT / "logs" / "intelligent_routing"
+LATEST_OUTPUT_PATH: Final[Path] = OUTPUT_DIR / "latest.json"
+
+
+# ---------------------------------------------------------------------------
+# Provenance + safe loaders (PR-B)
+# ---------------------------------------------------------------------------
+
+
+def _provenance_entry(path: Path) -> dict[str, str]:
+    """Sha256 + mtime UTC for a path. Returns the not-available envelope
+    when the path is missing or unreadable.
+
+    Pure: never raises. Reads bytes; never opens in write mode.
+    """
+    try:
+        if not path.exists() or not path.is_file():
+            return {"status": "not_available"}
+        data = path.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        mtime_dt = _dt.datetime.fromtimestamp(
+            path.stat().st_mtime, tz=_dt.timezone.utc,
+        )
+        return {
+            "status": "present",
+            "sha256": digest,
+            "mtime_utc": mtime_dt.isoformat(),
+        }
+    except OSError:
+        return {"status": "not_available"}
+
+
+def _read_json(path: Path) -> dict[str, Any] | None:
+    """Read a JSON object from ``path``. Returns None if the file does
+    not exist, is unreadable, or is malformed.
+
+    Never raises. Read-only — never opens the path in write mode.
+    """
+    try:
+        if not path.exists() or not path.is_file():
+            return None
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+# ---------------------------------------------------------------------------
+# Index helpers (PR-B)
+# ---------------------------------------------------------------------------
+
+
+def _index_registry(
+    registry_payload: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """Project the registry payload to ``{campaign_id: record_dict}``.
+
+    Tolerates absent / malformed payloads. Read-only.
+    """
+    if not registry_payload:
+        return {}
+    records = registry_payload.get("campaigns") or registry_payload.get(
+        "registry"
+    ) or []
+    if not isinstance(records, list):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        cid = rec.get("campaign_id")
+        if not isinstance(cid, str) or not cid:
+            continue
+        out[cid] = rec
+    return out
+
+
+def _index_dead_zones(
+    dead_zones_payload: dict[str, Any] | None,
+) -> dict[tuple[str, str, str], str]:
+    """Project the dead-zones payload to
+    ``{(asset, timeframe, strategy_family): zone_status}``.
+
+    Mirrors the upstream artifact's key order. Tolerates malformed
+    payloads.
+    """
+    if not dead_zones_payload:
+        return {}
+    zones = dead_zones_payload.get("zones") or []
+    if not isinstance(zones, list):
+        return {}
+    out: dict[tuple[str, str, str], str] = {}
+    for zone in zones:
+        if not isinstance(zone, dict):
+            continue
+        key = _normalize_dead_zone_key(
+            zone.get("asset"),
+            zone.get("timeframe"),
+            zone.get("strategy_family"),
+        )
+        status = zone.get("zone_status")
+        if not isinstance(status, str):
+            continue
+        if status not in DEAD_ZONE_STATUSES:
+            status = DEAD_ZONE_UNKNOWN
+        out[key] = status
+    return out
+
+
+def _index_information_gain(
+    ig_payload: dict[str, Any] | None,
+) -> dict[str, float]:
+    """Project the information-gain payload to ``{campaign_id: score}``.
+
+    The upstream artifact carries a single-campaign payload (one
+    ``col_campaign_id`` per file). The lookup is therefore sparse —
+    most campaigns will have no entry; ``build_report`` falls back to
+    score 0.0 / bucket "none" in that case.
+    """
+    if not ig_payload:
+        return {}
+    cid = ig_payload.get("col_campaign_id")
+    ig = ig_payload.get("information_gain") or {}
+    if not isinstance(cid, str) or not cid:
+        return {}
+    if not isinstance(ig, dict):
+        return {}
+    score = ig.get("score")
+    try:
+        score_f = float(score)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return {}
+    return {cid: score_f}
+
+
+def _queue_entries(
+    queue_payload: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    if not queue_payload:
+        return []
+    entries = queue_payload.get("queue") or []
+    if not isinstance(entries, list):
+        return []
+    return [e for e in entries if isinstance(e, dict)]
+
+
+def _coords_for_campaign(
+    cid: str,
+    registry_index: dict[str, dict[str, Any]],
+) -> tuple[BehaviorCoordinates, str, str | None, bool]:
+    """Return (coords, preset_name, fingerprint, has_full_metadata).
+
+    ``has_full_metadata`` is False when at least one of the three
+    coordinate fields was missing or empty in the registry record —
+    used to populate ``summary.metadata_gaps``.
+    """
+    rec = registry_index.get(cid, {})
+    family = rec.get("strategy_family")
+    asset_class = rec.get("asset_class")
+    extra = rec.get("extra") if isinstance(rec.get("extra"), dict) else {}
+    timeframe = (
+        rec.get("timeframe")
+        or rec.get("interval")
+        or extra.get("timeframe")
+        or extra.get("interval")
+    )
+    coords = derive_behavior_coordinates(
+        strategy_family=family,
+        asset_class=asset_class,
+        timeframe=timeframe,
+    )
+    has_full = (
+        coords.family != UNKNOWN_COORDINATE
+        and coords.asset_class != UNKNOWN_COORDINATE
+        and coords.timeframe != UNKNOWN_COORDINATE
+    )
+    preset_name = rec.get("preset_name")
+    if not isinstance(preset_name, str) or not preset_name:
+        preset_name = UNKNOWN_COORDINATE
+    fingerprint = rec.get("input_artifact_fingerprint")
+    if not isinstance(fingerprint, str) or not fingerprint:
+        fingerprint = None
+    return coords, preset_name, fingerprint, has_full
+
+
+# ---------------------------------------------------------------------------
+# Report builder (PR-B)
+# ---------------------------------------------------------------------------
+
+
+def _now_utc_default() -> _dt.datetime:
+    return _dt.datetime.now(tz=_dt.timezone.utc)
+
+
+def build_report(
+    *,
+    now_utc: Callable[[], _dt.datetime] | _dt.datetime | None = None,
+    queue_path: Path = CAMPAIGN_QUEUE_PATH,
+    registry_path: Path = CAMPAIGN_REGISTRY_PATH,
+    dead_zones_path: Path = DEAD_ZONES_PATH,
+    information_gain_path: Path = INFORMATION_GAIN_PATH,
+) -> RoutingReport:
+    """Pure (modulo file reads) builder for the advisory routing report.
+
+    No I/O writes anywhere. ``now_utc`` is an injectable seam for
+    deterministic tests: pass either a callable returning a tz-aware
+    datetime, a frozen datetime, or ``None`` (defaults to
+    ``datetime.now(tz=UTC)``).
+
+    PR-B: populates behavior_coordinates, info_gain_score/bucket,
+    dead_zone_status, near_duplicate_group, orthogonality_bucket. Sets
+    ``advisory_suppression_reason = None``, ``advisory_priority_score
+    = 0``, ``advisory_rank = 0``. PR-C derives the advisory ranking.
+    """
+    if callable(now_utc):
+        as_of = now_utc()
+    elif isinstance(now_utc, _dt.datetime):
+        as_of = now_utc
+    else:
+        as_of = _now_utc_default()
+    if as_of.tzinfo is None:
+        as_of = as_of.replace(tzinfo=_dt.timezone.utc)
+
+    queue_payload = _read_json(queue_path)
+    registry_payload = _read_json(registry_path)
+    dead_zones_payload = _read_json(dead_zones_path)
+    ig_payload = _read_json(information_gain_path)
+
+    queue = _queue_entries(queue_payload)
+    registry_index = _index_registry(registry_payload)
+    dead_zone_index = _index_dead_zones(dead_zones_payload)
+    ig_index = _index_information_gain(ig_payload)
+
+    # First pass: per-campaign coords + metadata.
+    coord_records: list[tuple[dict[str, Any], BehaviorCoordinates, str, str | None, bool]] = []
+    for entry in queue:
+        cid = entry.get("campaign_id")
+        if not isinstance(cid, str) or not cid:
+            continue
+        coords, preset_name, fp, has_full = _coords_for_campaign(
+            cid, registry_index,
+        )
+        coord_records.append((entry, coords, preset_name, fp, has_full))
+
+    # Prior-coordinate counts across the whole input set. The bucket
+    # uses *prior* count, so a coord seen N times in the queue should
+    # use N-1 as its prior. Build the count table once, then subtract
+    # 1 for self when classifying each entry.
+    coord_counts: Counter[tuple[str, str, str]] = Counter()
+    for _, coords, _, _, _ in coord_records:
+        coord_counts[coords.as_tuple()] += 1
+
+    decisions: list[RoutingDecision] = []
+    metadata_gaps = 0
+    for entry, coords, preset_name, fp, has_full in coord_records:
+        cid = str(entry.get("campaign_id"))
+        spawned_at = str(entry.get("spawned_at_utc") or "")
+        score = float(ig_index.get(cid, 0.0))
+        bucket = bucket_info_gain(score)
+        zone_status = classify_dead_zone_status(coords, dead_zone_index)
+        if not has_full:
+            metadata_gaps += 1
+        # Prior count = total occurrences minus the current campaign.
+        prior_total = max(0, coord_counts[coords.as_tuple()] - 1)
+        ortho = compute_orthogonality_bucket(
+            coords, {coords.as_tuple(): prior_total},
+        )
+        group = compute_near_duplicate_group(coords, fp)
+        decisions.append(
+            RoutingDecision(
+                campaign_id=cid,
+                preset_name=preset_name,
+                behavior_coordinates=coords,
+                info_gain_score=round(score, 4),
+                info_gain_bucket=bucket,
+                dead_zone_status=zone_status,
+                near_duplicate_group=group,
+                orthogonality_bucket=ortho,
+                advisory_suppression_reason=None,
+                advisory_priority_score=0,
+                advisory_rank=0,
+                tie_break_key=f"{spawned_at}|{cid}",
+            )
+        )
+
+    # Stable ordering by (spawned_at_utc, campaign_id) so that two
+    # invocations with identical inputs produce byte-identical output.
+    decisions.sort(key=lambda d: (d.tie_break_key,))
+
+    summary = RoutingReportSummary(
+        total=len(decisions),
+        advisory_suppressed_dead_zone=0,
+        advisory_suppressed_near_duplicate=0,
+        high_info_gain=sum(
+            1 for d in decisions if d.info_gain_bucket == BUCKET_HIGH
+        ),
+        novel_behavior_coordinates=sum(
+            1 for d in decisions if d.orthogonality_bucket == ORTHOGONALITY_NOVEL
+        ),
+        metadata_gaps=metadata_gaps,
+    )
+
+    provenance: dict[str, dict[str, str]] = {}
+    for path in (queue_path, registry_path, dead_zones_path, information_gain_path):
+        try:
+            rel = str(path.resolve().relative_to(REPO_ROOT)).replace("\\", "/")
+        except ValueError:
+            rel = str(path)
+        provenance[rel] = _provenance_entry(path)
+
+    return RoutingReport(
+        schema_version=SCHEMA_VERSION,
+        report_kind=REPORT_KIND,
+        version=MODULE_VERSION,
+        routing_effect=ROUTING_EFFECT_ADVISORY_ONLY,
+        queue_ordering_effect=QUEUE_ORDERING_EFFECT_NONE,
+        generated_at_utc=as_of.astimezone(_dt.timezone.utc).isoformat(),
+        provenance=provenance,
+        decisions=tuple(decisions),
+        summary=summary,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Atomic writer (PR-B)
+# ---------------------------------------------------------------------------
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Atomic JSON write to ``path``. Creates parent dir if needed.
+
+    Determinism: ``sort_keys=True``, indent=2, trailing newline. The
+    write goes through a temp file in the *same* directory so the
+    final ``os.replace`` is atomic on the same filesystem.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp_path, path)
+    except OSError:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+# ---------------------------------------------------------------------------
+# CLI (PR-B)
+# ---------------------------------------------------------------------------
+
+CLI_DESCRIPTION: Final[str] = (
+    "v3.15.16 advisory Intelligent Routing Layer reporter. "
+    "Default: --no-write (prints JSON, writes nothing). "
+    "Pass --write to persist logs/intelligent_routing/latest.json. "
+    "Routing effect: advisory_only. Queue ordering effect: none."
+)
+
+
+def _build_argparser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="reporting.intelligent_routing",
+        description=CLI_DESCRIPTION,
+    )
+    write_group = parser.add_mutually_exclusive_group()
+    write_group.add_argument(
+        "--no-write",
+        dest="write",
+        action="store_false",
+        help=(
+            "Print the report to stdout and do not write any artifact "
+            "(default)."
+        ),
+    )
+    write_group.add_argument(
+        "--write",
+        dest="write",
+        action="store_true",
+        help=(
+            "Persist logs/intelligent_routing/latest.json (single "
+            "file; no timestamped siblings)."
+        ),
+    )
+    parser.set_defaults(write=False)
+    parser.add_argument(
+        "--indent",
+        type=int,
+        default=2,
+        help="JSON indent for stdout (default: 2).",
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """CLI entry point. Returns process exit code (0 on success).
+
+    Default behavior is ``--no-write``: prints the JSON report to
+    stdout and writes nothing. ``--write`` persists exactly one file
+    at ``logs/intelligent_routing/latest.json``.
+    """
+    parser = _build_argparser()
+    args = parser.parse_args(argv)
+    report = build_report()
+    payload = report.to_payload()
+    if args.write:
+        _atomic_write_json(LATEST_OUTPUT_PATH, payload)
+    sys.stdout.write(
+        json.dumps(payload, indent=int(args.indent), sort_keys=True) + "\n"
+    )
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
+
+
+# ---------------------------------------------------------------------------
 # __all__
 # ---------------------------------------------------------------------------
 
 __all__ = [
     "ADVISORY_SUPPRESSION_REASONS",
     "BUCKET_HIGH",
+    "CAMPAIGN_QUEUE_PATH",
+    "CAMPAIGN_REGISTRY_PATH",
+    "DEAD_ZONES_PATH",
+    "INFORMATION_GAIN_PATH",
+    "INPUT_PATHS",
+    "LATEST_OUTPUT_PATH",
+    "OUTPUT_DIR",
     "BUCKET_LOW",
     "BUCKET_MEDIUM",
     "BUCKET_NONE",
@@ -486,8 +961,10 @@ __all__ = [
     "SUPPRESSION_NEAR_DUPLICATE",
     "UNKNOWN_COORDINATE",
     "bucket_info_gain",
+    "build_report",
     "classify_dead_zone_status",
     "compute_near_duplicate_group",
     "compute_orthogonality_bucket",
     "derive_behavior_coordinates",
+    "main",
 ]
