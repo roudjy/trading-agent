@@ -211,6 +211,27 @@ SUPPRESSED_PRIORITY_SCORE: Final[int] = -1
 # ---------------------------------------------------------------------------
 
 
+#: Provenance labels for ``BehaviorCoordinates.derivation_source``.
+#: ``registry`` — every coordinate field came directly from the
+#: campaign registry record. ``preset_catalog`` — at least one
+#: coordinate (typically ``timeframe``, which the registry record
+#: does not carry) was populated from the in-memory
+#: ``research.presets.PRESETS`` catalog by ``preset_name`` lookup.
+#: ``missing`` — at least one coordinate stayed ``unknown`` after
+#: every available source was tried. ``unknown`` is the dataclass
+#: default before derivation runs.
+DERIVATION_REGISTRY: Final[str] = "registry"
+DERIVATION_PRESET_CATALOG: Final[str] = "preset_catalog"
+DERIVATION_MISSING: Final[str] = "missing"
+
+DERIVATION_SOURCES: Final[tuple[str, ...]] = (
+    DERIVATION_REGISTRY,
+    DERIVATION_PRESET_CATALOG,
+    DERIVATION_MISSING,
+    UNKNOWN_COORDINATE,
+)
+
+
 @dataclasses.dataclass(frozen=True)
 class BehaviorCoordinates:
     """Provisional deterministic routing coordinates.
@@ -218,12 +239,16 @@ class BehaviorCoordinates:
     Not a behavior taxonomy. Not final tags. Derived from existing
     metadata only. The ``provisional`` boolean is part of the artifact
     so a reader is reminded of the framing.
+
+    ``derivation_source`` records which source(s) populated the
+    coordinate fields. See ``DERIVATION_SOURCES`` for the closed list.
     """
 
     family: str
     asset_class: str
     timeframe: str
     provisional: bool = True
+    derivation_source: str = UNKNOWN_COORDINATE
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -231,6 +256,7 @@ class BehaviorCoordinates:
             "asset_class": self.asset_class,
             "timeframe": self.timeframe,
             "provisional": self.provisional,
+            "derivation_source": self.derivation_source,
         }
 
     def as_tuple(self) -> tuple[str, str, str]:
@@ -359,6 +385,7 @@ def derive_behavior_coordinates(
     strategy_family: object = None,
     asset_class: object = None,
     timeframe: object = None,
+    derivation_source: str = UNKNOWN_COORDINATE,
 ) -> BehaviorCoordinates:
     """Pure derivation of the provisional 3-tuple from existing metadata.
 
@@ -366,12 +393,18 @@ def derive_behavior_coordinates(
     ``UNKNOWN_COORDINATE``. The ``provisional`` flag is always True so
     downstream readers cannot mistake the coordinates for final
     behavior tags.
+
+    ``derivation_source`` records the provenance label (one of
+    ``DERIVATION_SOURCES``). Callers that derive coordinates from
+    multiple sources use a label like ``DERIVATION_PRESET_CATALOG``
+    when at least one field came from ``research.presets``.
     """
     return BehaviorCoordinates(
         family=_safe_str(strategy_family),
         asset_class=_safe_str(asset_class),
         timeframe=_safe_str(timeframe),
         provisional=True,
+        derivation_source=derivation_source,
     )
 
 
@@ -630,24 +663,99 @@ def _index_registry(
 ) -> dict[str, dict[str, Any]]:
     """Project the registry payload to ``{campaign_id: record_dict}``.
 
+    Production writer (``research.campaign_registry.write_registry``)
+    stores ``"campaigns"`` as a **dict** keyed by ``campaign_id``.
+    Older test fixtures used the **list** shape; both are accepted.
+    The legacy ``"registry"`` top-level key is also accepted as a
+    fallback for forward-compat.
+
     Tolerates absent / malformed payloads. Read-only.
     """
     if not registry_payload:
         return {}
-    records = registry_payload.get("campaigns") or registry_payload.get(
-        "registry"
-    ) or []
-    if not isinstance(records, list):
-        return {}
     out: dict[str, dict[str, Any]] = {}
-    for rec in records:
-        if not isinstance(rec, dict):
-            continue
-        cid = rec.get("campaign_id")
-        if not isinstance(cid, str) or not cid:
-            continue
-        out[cid] = rec
+
+    def _ingest(value: Any) -> None:
+        if isinstance(value, dict):
+            # Production shape: {campaign_id: {<record>}}.
+            for cid, rec in value.items():
+                if not isinstance(rec, dict) or not isinstance(cid, str):
+                    continue
+                if not cid:
+                    continue
+                # Trust the index key when a record's own
+                # ``campaign_id`` differs (the index key is the canonical
+                # identity per ``write_registry`` sort).
+                out[cid] = rec
+        elif isinstance(value, list):
+            # Test-fixture shape: [{campaign_id, ...}, ...].
+            for rec in value:
+                if not isinstance(rec, dict):
+                    continue
+                cid = rec.get("campaign_id")
+                if isinstance(cid, str) and cid:
+                    out[cid] = rec
+
+    _ingest(registry_payload.get("campaigns"))
+    if not out:
+        _ingest(registry_payload.get("registry"))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Lazy preset-catalog lookup (PR-E — Stage 4 fix for v3.15.16)
+# ---------------------------------------------------------------------------
+
+#: Module-level cache of the {preset_name: {"timeframe": "<value>"}}
+#: projection. Populated at first call to ``_preset_lookup`` so module
+#: import remains I/O-free (the ``test_intelligent_routing_import_safety``
+#: pin still holds: importing the module never opens any file in write
+#: mode and never pulls forbidden modules). ``research.presets`` is a
+#: pure-data module of frozen dataclasses; importing it lazily here is
+#: a read-only consumption matching the v3.15.16 advisory framing.
+_PRESET_LOOKUP_CACHE: dict[str, dict[str, str]] | None = None
+
+
+def _preset_lookup() -> dict[str, dict[str, str]]:
+    """Return ``{preset_name: {"timeframe": str}}`` from
+    ``research.presets.PRESETS``.
+
+    Lazy-imported and cached. If the import fails for any reason,
+    returns an empty mapping; the caller falls back to ``unknown``.
+    Pure-read; never raises.
+    """
+    global _PRESET_LOOKUP_CACHE
+    if _PRESET_LOOKUP_CACHE is not None:
+        return _PRESET_LOOKUP_CACHE
+    out: dict[str, dict[str, str]] = {}
+    try:
+        from research.presets import PRESETS  # local import — see docstring
+    except Exception:  # noqa: BLE001 — defensive: lookup must never raise
+        _PRESET_LOOKUP_CACHE = out
+        return out
+    for preset in PRESETS:
+        try:
+            name = str(getattr(preset, "name", ""))
+            timeframe = str(getattr(preset, "timeframe", ""))
+        except (AttributeError, TypeError):
+            continue
+        if not name:
+            continue
+        entry: dict[str, str] = {}
+        if timeframe:
+            entry["timeframe"] = timeframe
+        if entry:
+            out[name] = entry
+    _PRESET_LOOKUP_CACHE = out
+    return out
+
+
+def _reset_preset_lookup_cache_for_tests() -> None:
+    """Test seam: clear the preset-catalog cache. Called only by
+    tests that need to verify the lookup-failure path explicitly.
+    """
+    global _PRESET_LOOKUP_CACHE
+    _PRESET_LOOKUP_CACHE = None
 
 
 def _index_dead_zones(
@@ -725,37 +833,94 @@ def _coords_for_campaign(
 ) -> tuple[BehaviorCoordinates, str, str | None, bool]:
     """Return (coords, preset_name, fingerprint, has_full_metadata).
 
-    ``has_full_metadata`` is False when at least one of the three
-    coordinate fields was missing or empty in the registry record —
-    used to populate ``summary.metadata_gaps``.
+    Source-of-truth order (Stage 4 metadata-mapping fix):
+
+    1. **Registry record** — ``strategy_family``, ``asset_class``, and
+       (rarely) ``timeframe`` / ``interval`` come from the registry
+       record's own fields. The production registry record on the VPS
+       does **not** carry ``timeframe`` / ``interval`` directly; the
+       record's ``extra`` is typically empty.
+    2. **Preset catalog** — when ``timeframe`` is missing from the
+       registry record, look it up by ``preset_name`` in
+       ``research.presets.PRESETS``. The catalog's ``timeframe`` field
+       is the canonical run-time setting (e.g. ``"4h"`` /  ``"1h"`` /
+       ``"1d"``). This is **not** parsing the campaign_id; it is
+       reading a real registry-side artifact field (``preset_name``)
+       and joining it against an in-memory frozen catalog.
+
+    ``has_full_metadata`` is True iff all three coordinate fields are
+    populated after the lookups above. ``coords.derivation_source``
+    records which sources contributed.
     """
     rec = registry_index.get(cid, {})
-    family = rec.get("strategy_family")
-    asset_class = rec.get("asset_class")
+    raw_family = rec.get("strategy_family")
+    raw_asset_class = rec.get("asset_class")
     extra = rec.get("extra") if isinstance(rec.get("extra"), dict) else {}
-    timeframe = (
+    raw_timeframe = (
         rec.get("timeframe")
         or rec.get("interval")
         or extra.get("timeframe")
         or extra.get("interval")
     )
-    coords = derive_behavior_coordinates(
-        strategy_family=family,
+
+    raw_preset_name = rec.get("preset_name")
+    preset_name_str = (
+        raw_preset_name
+        if isinstance(raw_preset_name, str) and raw_preset_name
+        else None
+    )
+
+    # Step 2: preset-catalog fallback for timeframe only.
+    used_preset_catalog = False
+    if not raw_timeframe and preset_name_str is not None:
+        catalog = _preset_lookup()
+        catalog_entry = catalog.get(preset_name_str, {})
+        catalog_timeframe = catalog_entry.get("timeframe")
+        if catalog_timeframe:
+            raw_timeframe = catalog_timeframe
+            used_preset_catalog = True
+
+    # Compute provisional coords.
+    family = _safe_str(raw_family)
+    asset_class = _safe_str(raw_asset_class)
+    timeframe = _safe_str(raw_timeframe)
+
+    has_full = (
+        family != UNKNOWN_COORDINATE
+        and asset_class != UNKNOWN_COORDINATE
+        and timeframe != UNKNOWN_COORDINATE
+    )
+
+    # Compute the derivation_source label. Order:
+    #   * "missing" if any coord stayed unknown after fallback.
+    #   * "preset_catalog" if the preset-catalog filled at least one
+    #     field (currently only timeframe).
+    #   * "registry" otherwise (every coord came from the registry
+    #     record fields directly).
+    if not has_full:
+        source = DERIVATION_MISSING
+    elif used_preset_catalog:
+        source = DERIVATION_PRESET_CATALOG
+    else:
+        source = DERIVATION_REGISTRY
+
+    coords = BehaviorCoordinates(
+        family=family,
         asset_class=asset_class,
         timeframe=timeframe,
+        provisional=True,
+        derivation_source=source,
     )
-    has_full = (
-        coords.family != UNKNOWN_COORDINATE
-        and coords.asset_class != UNKNOWN_COORDINATE
-        and coords.timeframe != UNKNOWN_COORDINATE
+
+    preset_name_out = preset_name_str if preset_name_str else UNKNOWN_COORDINATE
+
+    fingerprint_raw = rec.get("input_artifact_fingerprint")
+    fingerprint = (
+        fingerprint_raw
+        if isinstance(fingerprint_raw, str) and fingerprint_raw
+        else None
     )
-    preset_name = rec.get("preset_name")
-    if not isinstance(preset_name, str) or not preset_name:
-        preset_name = UNKNOWN_COORDINATE
-    fingerprint = rec.get("input_artifact_fingerprint")
-    if not isinstance(fingerprint, str) or not fingerprint:
-        fingerprint = None
-    return coords, preset_name, fingerprint, has_full
+    return coords, preset_name_out, fingerprint, has_full
 
 
 # ---------------------------------------------------------------------------
@@ -1191,6 +1356,10 @@ __all__ = [
     "DEAD_ZONE_STATUSES",
     "DEAD_ZONE_UNKNOWN",
     "DEAD_ZONE_WEAK",
+    "DERIVATION_MISSING",
+    "DERIVATION_PRESET_CATALOG",
+    "DERIVATION_REGISTRY",
+    "DERIVATION_SOURCES",
     "DIAGNOSE_REPORT_KIND",
     "IG_BUCKET_HIGH_FLOOR",
     "IG_BUCKET_MEDIUM_FLOOR",
