@@ -993,13 +993,89 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI (PR-B)
+# Diagnose-id (PR-D)
+# ---------------------------------------------------------------------------
+
+DIAGNOSE_REPORT_KIND: Final[str] = "intelligent_routing_diagnose_id"
+
+
+def _diagnose_id(
+    target_campaign_id: str,
+    *,
+    latest_artifact_path: Path = LATEST_OUTPUT_PATH,
+) -> dict[str, Any]:
+    """Look up an advisory routing decision by ``campaign_id``.
+
+    Pure-read. **Never writes.** Returns the matching decision row
+    from ``logs/intelligent_routing/latest.json`` if present, or a
+    structured envelope describing why no match was found.
+
+    Schema:
+
+    ::
+
+        {
+          "schema_version": "1.0",
+          "report_kind": "intelligent_routing_diagnose_id",
+          "target_campaign_id": "...",
+          "artifact_path": "logs/intelligent_routing/latest.json",
+          "artifact_status": "present" | "not_available" | "malformed",
+          "match": {<decision row>} | null,
+          "error": null | "<reason>",
+        }
+    """
+    target = target_campaign_id.strip() if target_campaign_id else ""
+    try:
+        rel = str(
+            latest_artifact_path.resolve().relative_to(REPO_ROOT)
+        ).replace("\\", "/")
+    except ValueError:
+        rel = str(latest_artifact_path)
+    base: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "report_kind": DIAGNOSE_REPORT_KIND,
+        "target_campaign_id": target,
+        "artifact_path": rel,
+        "artifact_status": "not_available",
+        "match": None,
+        "error": None,
+    }
+    if not target:
+        base["error"] = "empty_target_campaign_id"
+        return base
+    payload = _read_json(latest_artifact_path)
+    if not latest_artifact_path.exists():
+        base["error"] = "artifact_not_found"
+        return base
+    if payload is None:
+        base["artifact_status"] = "malformed"
+        base["error"] = "artifact_unreadable_or_invalid_json"
+        return base
+    base["artifact_status"] = "present"
+    decisions = payload.get("decisions") or []
+    if not isinstance(decisions, list):
+        base["artifact_status"] = "malformed"
+        base["error"] = "decisions_field_not_a_list"
+        return base
+    for d in decisions:
+        if not isinstance(d, dict):
+            continue
+        if d.get("campaign_id") == target:
+            base["match"] = d
+            return base
+    base["error"] = "campaign_id_not_in_artifact"
+    return base
+
+
+# ---------------------------------------------------------------------------
+# CLI (PR-B + PR-D)
 # ---------------------------------------------------------------------------
 
 CLI_DESCRIPTION: Final[str] = (
     "v3.15.16 advisory Intelligent Routing Layer reporter. "
     "Default: --no-write (prints JSON, writes nothing). "
     "Pass --write to persist logs/intelligent_routing/latest.json. "
+    "Use --diagnose-id <campaign_id> for read-only lookup. "
     "Routing effect: advisory_only. Queue ordering effect: none."
 )
 
@@ -1030,6 +1106,17 @@ def _build_argparser() -> argparse.ArgumentParser:
     )
     parser.set_defaults(write=False)
     parser.add_argument(
+        "--diagnose-id",
+        dest="diagnose_id",
+        type=str,
+        default=None,
+        help=(
+            "Look up an advisory routing decision by campaign_id. "
+            "Reads logs/intelligent_routing/latest.json only; "
+            "never writes."
+        ),
+    )
+    parser.add_argument(
         "--indent",
         type=int,
         default=2,
@@ -1041,12 +1128,31 @@ def _build_argparser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Returns process exit code (0 on success).
 
-    Default behavior is ``--no-write``: prints the JSON report to
-    stdout and writes nothing. ``--write`` persists exactly one file
-    at ``logs/intelligent_routing/latest.json``.
+    Modes:
+
+    * ``--no-write`` (default) — print the routing report to stdout;
+      write nothing.
+    * ``--write`` — persist ``logs/intelligent_routing/latest.json``
+      (single file; no timestamped siblings).
+    * ``--diagnose-id <campaign_id>`` — print the matching decision
+      from the latest artifact; **never writes** regardless of the
+      ``--write``/``--no-write`` flag.
     """
     parser = _build_argparser()
     args = parser.parse_args(argv)
+    if args.diagnose_id:
+        # Pass the current module-level path explicitly so
+        # monkeypatch.setattr(ir, "LATEST_OUTPUT_PATH", ...) works in
+        # tests. (Default-argument binding happens at function
+        # definition time and would otherwise pin the original value.)
+        result = _diagnose_id(
+            args.diagnose_id, latest_artifact_path=LATEST_OUTPUT_PATH,
+        )
+        sys.stdout.write(
+            json.dumps(result, indent=int(args.indent), sort_keys=True)
+            + "\n"
+        )
+        return 0
     report = build_report()
     payload = report.to_payload()
     if args.write:
@@ -1085,6 +1191,7 @@ __all__ = [
     "DEAD_ZONE_STATUSES",
     "DEAD_ZONE_UNKNOWN",
     "DEAD_ZONE_WEAK",
+    "DIAGNOSE_REPORT_KIND",
     "IG_BUCKET_HIGH_FLOOR",
     "IG_BUCKET_MEDIUM_FLOOR",
     "INFO_GAIN_BUCKETS",
