@@ -252,7 +252,7 @@ Until that bootstrap lands:
 ## Files added by v3.15.16.2
 
 ```
-docs/roadmap/qre_roadmap_v6_1.md          (the canonical structured roadmap)
+docs/roadmap/Roadmap v6.md                (the canonical structured roadmap)
 reporting/roadmap_priority.py             (the prioritizer module)
 reporting/recurring_maintenance.py        (one new closed job entry)
 tests/unit/test_roadmap_priority.py       (filter + rank + write tests)
@@ -277,5 +277,5 @@ shadow / risk path touch. No test weakening.
   for the scheduler.
 * `docs/governance/roadmap_item_execution_protocol.md` — operator
   runbook for the per-item protocol module.
-* `docs/roadmap/qre_roadmap_v6_1.md` — the canonical structured
-  Roadmap v6.1 the prioritizer ingests via the proposal queue.
+* `docs/roadmap/Roadmap v6.md` — the canonical structured
+  Roadmap v6 the prioritizer ingests via the proposal queue.

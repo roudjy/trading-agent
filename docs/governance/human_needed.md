@@ -129,7 +129,7 @@ tests/unit/test_recurring_maintenance.py (registry + per-job assertion)
 docs/governance/human_needed.md        (this file)
 docs/governance/approval_exception_inbox.md (cross-reference update)
 docs/governance/recurring_maintenance.md (job table + section)
-docs/roadmap/qre_roadmap_v6_1.md
+docs/roadmap/Roadmap v6.md
 ```
 
 No new dependency. No `dashboard/dashboard.py` change. No

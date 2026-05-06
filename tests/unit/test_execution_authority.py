@@ -171,7 +171,12 @@ def test_risk_classes_match_approval_policy() -> None:
             "docs/governance/observability_security_hardening.md",
             "canonical_policy_doc",
         ),
-        ("docs/roadmap/qre_roadmap_v6_1.md", "canonical_roadmap"),
+        ("docs/roadmap/autonomous_development.txt", "canonical_roadmap"),
+        ("docs/roadmap/Roadmap v6.md", "canonical_roadmap"),
+        # Archive copy is historical-only and must NOT classify as canonical.
+        ("docs/roadmap/archive/qre_roadmap_v6_1.md", "doc_non_policy"),
+        # The obsolete top-level path is not canonical anywhere after PR-1.
+        ("docs/roadmap/qre_roadmap_v6_1.md", "doc_non_policy"),
         (".github/workflows/tests.yml", "ci_workflow"),
         ("reporting/proposal_queue.py", "reporting_module"),
         ("tests/unit/foo.py", "test"),
@@ -230,7 +235,7 @@ _ALL_CATEGORY_REPRESENTATIVES: dict[str, str] = {
     "branch_protection_config": ".github/branch_protection_main.yml",
     "deploy_script": "scripts/deploy_vps_dashboard.sh",
     "canonical_policy_doc": "docs/governance/execution_authority.md",
-    "canonical_roadmap": "docs/roadmap/qre_roadmap_v6_1.md",
+    "canonical_roadmap": "docs/roadmap/Roadmap v6.md",
     "ci_workflow": ".github/workflows/tests.yml",
     "reporting_module": "reporting/foo.py",
     "dashboard_api": "dashboard/api_x.py",
@@ -350,13 +355,52 @@ def test_modify_canonical_policy_doc_needs_human() -> None:
 
 
 def test_modify_canonical_roadmap_needs_human() -> None:
-    d = ea.classify(
-        action_type="file_edit",
-        target_path="docs/roadmap/qre_roadmap_v6_1.md",
-        risk_class="LOW",
+    """Both canonical roadmap/governance-planning documents trigger
+    ``high_risk_canonical_roadmap_change`` on modify, regardless of risk."""
+    for canonical_path in (
+        "docs/roadmap/autonomous_development.txt",
+        "docs/roadmap/Roadmap v6.md",
+    ):
+        d = ea.classify(
+            action_type="file_edit",
+            target_path=canonical_path,
+            risk_class="LOW",
+        )
+        assert d.decision == "NEEDS_HUMAN", canonical_path
+        assert d.reason == "high_risk_canonical_roadmap_change", canonical_path
+
+
+def test_canonical_roadmap_set_has_exactly_two_members() -> None:
+    """The canonical roadmap pin must remain exactly the two operator-
+    sanctioned planning documents. A third (or zero) is a regression."""
+    assert ea._CANONICAL_ROADMAP_EXACT == frozenset(
+        {
+            "docs/roadmap/autonomous_development.txt",
+            "docs/roadmap/Roadmap v6.md",
+        }
     )
-    assert d.decision == "NEEDS_HUMAN"
-    assert d.reason == "high_risk_canonical_roadmap_change"
+    assert len(ea._CANONICAL_ROADMAP_EXACT) == 2
+
+
+def test_qre_roadmap_v6_1_top_level_path_is_not_canonical() -> None:
+    """``docs/roadmap/qre_roadmap_v6_1.md`` is obsolete; after PR-1 it
+    is archived. Even if a legacy path string is passed, it must not
+    classify as ``canonical_roadmap``."""
+    p = "docs/roadmap/qre_roadmap_v6_1.md"
+    assert p not in ea._CANONICAL_ROADMAP_EXACT
+    assert ea._categorize_path(p) != "canonical_roadmap"
+
+
+def test_archive_copy_is_historical_only_not_canonical() -> None:
+    """``docs/roadmap/archive/qre_roadmap_v6_1.md`` is historical
+    archive material. It must never classify as ``canonical_roadmap``
+    and modifying it must not trigger the canonical-roadmap change
+    reason."""
+    p = "docs/roadmap/archive/qre_roadmap_v6_1.md"
+    assert p not in ea._CANONICAL_ROADMAP_EXACT
+    assert ea._categorize_path(p) != "canonical_roadmap"
+    d = ea.classify(action_type="file_edit", target_path=p, risk_class="LOW")
+    assert d.reason != "high_risk_canonical_roadmap_change"
 
 
 def test_modify_deploy_script_needs_human() -> None:

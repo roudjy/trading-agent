@@ -1,0 +1,747 @@
+# Autonomous Development Track
+
+## Status
+
+Canonical planning document for completing the Autonomous Development Track before returning to the QRE Feature Build Track.
+
+This document intentionally does **not** rebuild, replace, or restate the original QRE Roadmap v6. The operator has the original Roadmap v6 locally. Roadmap v6 remains the canonical source for the QRE Feature Build Track.
+
+This document exists only to separate and finish the autonomous-development/governance work that was previously mixed into roadmap v6.1.
+
+\---
+
+# 1\. Core correction
+
+The project now has two distinct top-level tracks.
+
+## 1.1 Autonomous Development Track
+
+Purpose:
+
+```text
+Make Claude/agent-driven development safe, deterministic, observable, approval-gated, CI-governed, and operator-controllable.
+```
+
+This track governs how development work is proposed, classified, approved, tested, merged, deployed, and observed.
+
+It is meta-infrastructure for the development process.
+
+It is **not** QRE trading, research, paper, shadow, broker, or execution-engine product functionality.
+
+## 1.2 QRE Feature Build Track
+
+Purpose:
+
+```text
+Build the actual Quant Research Engine product roadmap.
+```
+
+This track is defined by the original Roadmap v6, which the operator maintains locally.
+
+After the Autonomous Development Track is complete, the project returns to the QRE Feature Build Track at:
+
+```text
+v3.15.16 — Intelligent Routing Layer
+```
+
+The next QRE feature sequence after that remains the Roadmap v6 product sequence:
+
+```text
+v3.15.17 — Sampling Intelligence
+v3.15.18 — Research Observability Expansion
+v3.15.19 — Hypothesis Discovery Engine
+v3.15.20 — Failure → Action Mapping
+v3.16.x  — Adaptive Research Learning
+v4.x     — Shadow Trading
+v5.x     — Paper Trading
+v6.x     — Live Trading
+```
+
+Do not reconstruct this product roadmap inside this document. Use the operator-provided Roadmap v6 as the product-roadmap source of truth.
+
+\---
+
+# 2\. Terminology guardrail
+
+The word `execution` has caused ambiguity and must be disambiguated.
+
+## 2.1 Agent execution authority
+
+Means:
+
+```text
+May Claude/the agent perform this repository-development action automatically,
+should it require operator approval,
+or is it permanently denied?
+```
+
+This belongs to the Autonomous Development Track.
+
+Examples:
+
+```text
+file edits
+branch creation
+commit creation
+PR creation
+CI checks
+roadmap edits
+governance policy edits
+frozen contract changes
+live-path changes
+approval-inbox mutations
+```
+
+## 2.2 Trading/research execution
+
+Means:
+
+```text
+May the QRE system execute strategies, campaigns, orders, paper trades,
+shadow trades, broker interactions, risk decisions, or capital allocation?
+```
+
+This belongs to the QRE Feature Build Track and later semantic maturity layers.
+
+Agent Execution Authority does **not** grant trading execution authority.
+
+\---
+
+# 3\. Current state
+
+## 3.1 Completed
+
+### v3.15.16.10 Phase A — Agent Execution Authority Governance Policy
+
+Landed as:
+
+```text
+PR #110
+main SHA: 890a0a6
+```
+
+Files:
+
+```text
+docs/governance/execution\_authority.md
+docs/roadmap/qre\_roadmap\_v6\_1.md
+```
+
+Purpose:
+
+```text
+Operator-authored canonical policy defining AUTO\_ALLOWED, NEEDS\_HUMAN,
+and PERMANENTLY\_DENIED decisions for agent/development actions.
+```
+
+Validation status:
+
+```text
+PR checks: green
+main deploy: green
+main gate: green
+Docker build: green
+```
+
+### v3.15.16.10 Phase B — Agent Execution Authority Classifier
+
+Landed as:
+
+```text
+PR #111
+main SHA: 4bdc1e5
+```
+
+Files:
+
+```text
+reporting/execution\_authority.py
+tests/unit/test\_execution\_authority.py
+```
+
+Purpose:
+
+```text
+Pure, deterministic, stdlib-only classifier implementing the canonical
+Agent Execution Authority policy.
+```
+
+Hard guarantees:
+
+```text
+stdlib-only
+no subprocess
+no network
+no git or gh calls
+no dashboard imports
+no automation imports
+no broker imports
+no agent.risk imports
+no agent.execution imports
+no live/paper/shadow/trading execution behavior
+no approval mutation behavior
+no target file-content reads
+bounded scalar evidence only
+```
+
+Validation status at PR time:
+
+```text
+execution\_authority unit tests: 104/104
+cross-module unit tests: 165/165
+governance\_lint: OK
+smoke tests: 14/14
+CI: green
+```
+
+Post-merge status still must be confirmed from GitHub Actions if not already complete.
+
+\---
+
+# 4\. Remaining Autonomous Development Track work
+
+The Autonomous Development Track is not complete until the system can reliably classify, expose, and act on development authority signals without polluting the operator workflow with false positives.
+
+The remaining work is divided into five completion blocks.
+
+\---
+
+# A3 — Read-only Execution Authority reporting/PWA exposure
+
+## Purpose
+
+Make the Agent Execution Authority layer visible to the operator.
+
+The classifier currently exists as code and tests. The next step is to expose its health and status in read-only reporting surfaces.
+
+## Scope
+
+Allowed:
+
+```text
+read-only reporting module integration
+read-only JSON/status output
+read-only PWA display if already supported by existing safe surfaces
+tests for visibility and health checks
+```
+
+Not allowed:
+
+```text
+no approval mutation
+no dashboard POST/PUT/PATCH/DELETE routes
+no approval-inbox decisions
+no .claude changes
+no dashboard/dashboard.py direct change unless explicitly operator-approved
+no broker/live/paper/shadow/risk/trading/execution behavior
+no frozen contract mutation
+```
+
+## Desired reporting fields
+
+The operator should be able to see:
+
+```text
+execution\_authority\_present: OK|FAIL
+policy\_doc\_present: OK|FAIL
+classifier\_present: OK|FAIL
+policy\_source: docs/governance/execution\_authority.md
+classifier\_source: reporting/execution\_authority.py
+policy\_doc\_hash: <bounded hash>
+classifier\_hash: <bounded hash>
+unit\_test\_reference: tests/unit/test\_execution\_authority.py
+sample\_decisions\_ok: true|false
+last\_validation\_status: OK|FAIL|UNKNOWN
+last\_validation\_timestamp: <timestamp if available>
+```
+
+Optional sample decisions:
+
+```text
+file\_read + doc\_non\_policy + LOW -> AUTO\_ALLOWED
+canonical\_policy\_doc edit + HIGH -> NEEDS\_HUMAN
+live\_broker\_call -> PERMANENTLY\_DENIED
+frozen\_contract\_mutate -> PERMANENTLY\_DENIED
+unknown action/risk -> NEEDS\_HUMAN
+```
+
+## Success criteria
+
+```text
+operator can see authority health without reading code
+surface is read-only
+no mutation routes are added
+no protected paths are touched
+CI green
+smoke green
+```
+
+\---
+
+# A4 — Roadmap structure correction
+
+## Purpose
+
+Repair the semantic drift caused by mixing Autonomous Development Track work into the QRE product roadmap.
+
+The roadmap must explicitly separate:
+
+```text
+Part I  — Autonomous Development Track
+Part II — QRE Feature Build Track
+```
+
+## Required correction
+
+The roadmap must state:
+
+```text
+Autonomous Development Track is temporary hardening work required before
+resuming product feature development.
+```
+
+and:
+
+```text
+QRE Feature Build Track remains governed by the original Roadmap v6.
+The operator maintains Roadmap v6 locally and will provide it as needed.
+```
+
+The roadmap must not redefine or reconstruct the full Roadmap v6 product plan unless the operator explicitly asks for that.
+
+## Required future handoff statement
+
+After Autonomous Development Track completion, the next QRE Feature Build Track phase is:
+
+```text
+v3.15.16 — Intelligent Routing Layer
+```
+
+With product focus:
+
+```text
+behavior-aware routing
+orthogonality-aware queue discipline
+dead-zone-aware routing suppression
+information-gain prioritization
+reduced duplicate exploration
+improved compute allocation
+```
+
+## Success criteria
+
+```text
+Claude can no longer confuse agent execution authority with trading execution
+Roadmap structure has two clear tracks
+QRE Feature Build Track points back to Roadmap v6
+No product roadmap is rebuilt incorrectly
+CI/governance checks green
+```
+
+\---
+
+# A5 — Proposal queue and loop-closure false-positive cleanup
+
+## Purpose
+
+Reduce operator-inbox noise so `NEEDS\_HUMAN` and blockers represent real decisions.
+
+Current known issue:
+
+```text
+loop closure open / BLOCKED
+human\_needed approximately 183
+top blocker likely task\_board:p\_1f81cb23
+```
+
+This appears to be active-doc heading/preamble noise rather than a true execution blocker.
+
+## Scope
+
+Allowed:
+
+```text
+read-only proposal detection refinement
+false-positive filtering for H1/H2/preamble text
+archive-folder suppression already established
+specific tests proving real proposals still surface
+specific tests proving false positives are suppressed
+```
+
+Not allowed:
+
+```text
+no broad suppression of governance proposals
+no hiding real NEEDS\_HUMAN items
+no approval mutation
+no dashboard mutation
+no frozen contract mutation
+no live/paper/shadow/risk/trading/execution changes
+```
+
+## Required behavior
+
+The proposal queue must continue to detect:
+
+```text
+explicit proposal blocks
+canonical governance changes
+roadmap changes requiring operator decision
+HIGH risk changes
+UNKNOWN risk changes
+protected-path changes
+```
+
+The proposal queue should suppress:
+
+```text
+plain document titles
+H1/H2 headings without actionable proposal payload
+introductory/preamble text
+archived roadmap/doc historical content
+stale already-resolved artifacts
+```
+
+## Success criteria
+
+```text
+human\_needed count materially drops
+loop closure blocker points to a real actionable item or clears
+archive false positives remain suppressed
+active-doc false positives are reduced
+real governance proposals still surface
+CI/tests green
+```
+
+\---
+
+# A6 — Autonomous backlog discipline
+
+## Purpose
+
+Make the backlog actionable by the new authority model.
+
+The system should distinguish:
+
+```text
+AUTO\_ALLOWED low-risk work
+NEEDS\_HUMAN operator-gated work
+PERMANENTLY\_DENIED prohibited work
+stale/false-positive noise
+```
+
+## Scope
+
+Allowed:
+
+```text
+read-only classification of backlog/proposal items
+summary reports
+operator-visible queue grouping
+tests for classification correctness
+```
+
+Not allowed:
+
+```text
+no automatic approval execution
+no mutation of approval inbox
+no direct main pushes
+no force pushes
+no branch-protection bypass
+no test weakening
+no live/paper/shadow/risk/trading/broker/execution behavior
+```
+
+## Desired grouping
+
+Backlog/reporting should group items as:
+
+```text
+1. Permanently denied
+2. Needs human
+3. Auto-allowed candidate work
+4. Stale/resolved/noise
+5. Unknown/fail-safe
+```
+
+## Success criteria
+
+```text
+operator can understand which work Claude may do next
+Claude cannot self-authorize protected work
+permanently denied work is visibly blocked
+needs-human work remains operator-gated
+auto-allowed work is low-risk and auditable
+```
+
+\---
+
+# A7 — Final Autonomous Development readiness check
+
+## Purpose
+
+Declare the Autonomous Development Track complete only after the control plane is coherent and observable.
+
+## Completion checklist
+
+Autonomous Development Track is complete when all are true:
+
+```text
+1. Agent authority policy exists and is canonical
+2. Agent authority classifier exists and is tested exhaustively
+3. Classifier health is visible read-only in reporting/PWA
+4. Roadmap explicitly separates Autonomous Development Track from QRE Feature Build Track
+5. Proposal queue no longer produces major false-positive blocker noise
+6. Loop-closure blockers are real or cleared
+7. Operator inbox is actionable
+8. Governance/frozen/deploy/approval/authority health is visible
+9. Claude understands that the next product phase is v3.15.16 Intelligent Routing Layer from Roadmap v6
+10. No live/paper/shadow/risk/trading/broker/execution behavior has been changed during Autonomous Development hardening
+```
+
+## Final output
+
+When complete, produce a short handoff note:
+
+```text
+Autonomous Development Track complete.
+Return to QRE Feature Build Track.
+Next product phase: v3.15.16 — Intelligent Routing Layer.
+Canonical product-roadmap source: operator-provided Roadmap v6.
+```
+
+\---
+
+# 5\. Global constraints for all remaining Autonomous Development work
+
+Unless explicitly operator-approved in a separate governance-bootstrap PR, the following remain prohibited or out of scope.
+
+## Hard no-touch paths
+
+```text
+.claude/\*\*
+dashboard/dashboard.py
+research/research\_latest.json
+research/strategy\_matrix.csv
+```
+
+## No product execution paths
+
+```text
+automation/live\_gate.py
+broker/\*\*
+agent/risk/\*\*
+agent/execution/\*\*
+live/\*\*
+paper/\*\*
+shadow/\*\*
+trading/\*\*
+execution engine behavior
+risk engine behavior
+order placement
+capital allocation
+broker calls
+```
+
+## No unsafe git/CI behavior
+
+```text
+no direct main push
+no force push
+no branch protection bypass
+no test weakening
+no CI weakening
+no hidden deploy bypass
+```
+
+## PWA rule
+
+The Agent Control PWA remains read-only unless the operator explicitly authorizes a governed mutation phase.
+
+Allowed:
+
+```text
+GET/read-only status
+read-only health cards
+read-only JSON summaries
+```
+
+Not allowed:
+
+```text
+approval decision buttons
+mutation API
+POST/PUT/PATCH/DELETE control routes
+agent self-approval
+```
+
+\---
+
+# 6\. Recommended PR sequence from here
+
+## PR A3 — Execution Authority reporting exposure
+
+Risk:
+
+```text
+LOW or MEDIUM, reporting\_read\_only
+```
+
+Expected files depend on existing architecture, but should be limited to reporting/read-only surfaces and tests.
+
+Validation:
+
+```text
+python scripts/governance\_lint.py
+python -m pytest tests/unit -q
+python -m pytest tests/smoke -x --no-header -q
+```
+
+## PR A4 — Roadmap two-track correction
+
+Risk:
+
+```text
+HIGH if canonical roadmap/governance doc changes
+```
+
+This should be operator-authored or operator-approved.
+
+Purpose:
+
+```text
+Separate Autonomous Development Track from QRE Feature Build Track.
+State that Roadmap v6 remains the product-roadmap source.
+```
+
+Validation:
+
+```text
+python scripts/governance\_lint.py
+python -m pytest tests/smoke -x --no-header -q
+```
+
+## PR A5 — Proposal queue false-positive cleanup
+
+Risk:
+
+```text
+LOW or MEDIUM depending on files touched
+```
+
+Must include tests proving that real proposals still surface.
+
+Validation:
+
+```text
+python scripts/governance\_lint.py
+python -m pytest relevant proposal\_queue tests -q
+python -m pytest tests/smoke -x --no-header -q
+```
+
+## PR A6 — Autonomous backlog discipline/readiness grouping
+
+Risk:
+
+```text
+LOW or MEDIUM, reporting\_read\_only
+```
+
+Should classify backlog/proposal items using the authority model without mutating anything.
+
+Validation:
+
+```text
+python scripts/governance\_lint.py
+python -m pytest relevant reporting/backlog tests -q
+python -m pytest tests/smoke -x --no-header -q
+```
+
+## PR A7 — Final handoff marker
+
+Risk:
+
+```text
+LOW docs/reporting only, or HIGH if canonical roadmap status changes
+```
+
+Output:
+
+```text
+Autonomous Development Track complete.
+Next: QRE Feature Build Track v3.15.16 — Intelligent Routing Layer.
+```
+
+\---
+
+# 7\. Claude operating instruction
+
+Claude must treat this document as the current autonomous-development plan.
+
+Claude must not treat this document as a replacement for Roadmap v6.
+
+Claude must not rebuild Roadmap v6 unless explicitly instructed by the operator.
+
+Claude must keep all remaining work in the Autonomous Development Track until A3-A7 are complete.
+
+After completion, Claude must return to the QRE Feature Build Track at:
+
+```text
+v3.15.16 — Intelligent Routing Layer
+```
+
+Claude must not jump to:
+
+```text
+Execution Engine Phase 1
+live execution
+paper execution
+shadow execution
+broker integration
+risk engine changes
+capital allocation
+```
+
+unless the operator explicitly starts the corresponding QRE Feature Build Track phase.
+
+\---
+
+# 8\. Immediate next instruction to Claude
+
+Use this as the next implementation prompt after confirming PR #111 post-merge gates are green.
+
+```text
+Continue Autonomous Development Track hardening.
+
+Do not start QRE Feature Build work yet.
+Do not modify live/paper/shadow/risk/trading/broker/execution behavior.
+Do not modify .claude/\*\*, dashboard/dashboard.py, or frozen contracts.
+
+Next task: A3 — expose Agent Execution Authority health in read-only reporting/PWA surfaces.
+
+Use docs/governance/execution\_authority.md and reporting/execution\_authority.py as the canonical policy/classifier pair.
+
+Goal:
+Make the operator able to see that Agent Execution Authority is present, healthy, deterministic, and policy-backed.
+
+Allowed:
+- read-only reporting/status integration
+- tests for reporting health
+- bounded hashes/status fields
+- sample decision checks
+
+Not allowed:
+- mutation routes
+- approval decisions
+- dashboard mutation
+- direct main push
+- force push
+- branch protection bypass
+- test weakening
+- live/paper/shadow/risk/trading/broker/execution changes
+
+Open a PR against main.
+Do not merge automatically.
+```
+

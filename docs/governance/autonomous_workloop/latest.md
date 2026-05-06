@@ -76,7 +76,7 @@
 
 | source | risk_class | next_action |
 |---|---|---|
-| `docs/roadmap/qre_roadmap_v3_post_v3_15.md` | waiting_for_checks | operator picks next item from this source |
+| `docs/roadmap/Roadmap v6.md` | waiting_for_checks | operator picks next item from this source |
 | `docs/backlog/agent_backlog.md` | waiting_for_checks | operator picks next item from this source |
 | `docs/spillovers/agent_spillovers.md` | waiting_for_checks | operator picks next item from this source |
 

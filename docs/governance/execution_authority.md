@@ -14,6 +14,42 @@ Active. Modifications to this document require operator approval
 
 (canonical policy doc — `NEEDS_HUMAN`).
 
+## Canonical documents
+
+After the canonical-roadmap reset (PR-1 of A4) the repository has
+
+exactly two top-level canonical roadmap/governance-planning
+
+documents:
+
+* `autonomous_development_track`: `docs/roadmap/autonomous_development.txt`
+
+* `qre_feature_build_track`: `docs/roadmap/Roadmap v6.md`
+
+Both are operator-authored and committed in this repository
+
+verbatim. `Roadmap v6.md` is **not** external-only; it is the
+
+canonical product-roadmap source-of-truth committed in the repo.
+
+The classifier maps both paths to the `canonical_roadmap` target
+
+path category and treats modifications as `NEEDS_HUMAN` with
+
+reason `high_risk_canonical_roadmap_change`.
+
+Anything under `docs/roadmap/archive/**` (including
+
+`docs/roadmap/archive/qre_roadmap_v6_1.md`,
+
+`qre_roadmap_v3_post_v3_15.md`, `qre_roadmap_v4.md`,
+
+`qre_prompt_guidelines_v2.md`, and the pre-existing
+
+`v3.15.15.12-agent-governance.md`) is historical/archive material
+
+only and **must not** classify as `canonical_roadmap`.
+
 ## Scope
 
 Applies to every action Claude (the implementation agent and its
@@ -122,7 +158,7 @@ value is invalid input and yields `NEEDS_HUMAN` with reason
 
 | `canonical_policy_doc` | path matches `docs/governance/execution_authority.md`, `docs/governance/no_touch_paths.md`, or `docs/governance/observability_security_hardening.md` |
 
-| `canonical_roadmap` | path equals `docs/roadmap/qre_roadmap_v6_1.md` exactly |
+| `canonical_roadmap` | path equals `docs/roadmap/autonomous_development.txt` or `docs/roadmap/Roadmap v6.md` exactly. Both are operator-authored canonical planning documents committed in this repo (Roadmap v6 is **not** external-only). Anything under `docs/roadmap/archive/**` is historical material only and **must not** classify as `canonical_roadmap`. |
 
 | `ci_workflow` | path matches `.github/workflows/**.yml` |
 
@@ -436,7 +472,9 @@ Apply only when no rule above matches.
 
 | `docs/governance/no_touch_paths.md`, `docs/governance/observability_security_hardening.md` | `canonical_policy_doc` â†’ `NEEDS_HUMAN` (modify) | governance-bootstrap PR pattern |
 
-| `docs/roadmap/qre_roadmap_v6_1.md` (exact) | `canonical_roadmap` â†’ `NEEDS_HUMAN` (modify) | operator-authored or operator-approved-Claude PR |
+| `docs/roadmap/autonomous_development.txt` (exact) | `canonical_roadmap` â†’ `NEEDS_HUMAN` (modify) | autonomous_development_track canonical doc; operator-authored or operator-approved-Claude PR |
+
+| `docs/roadmap/Roadmap v6.md` (exact) | `canonical_roadmap` â†’ `NEEDS_HUMAN` (modify) | qre_feature_build_track canonical doc; operator-authored or operator-approved-Claude PR |
 
 | `.github/workflows/**` | `ci_workflow` â†’ `NEEDS_HUMAN` (modify) | classifier + ci-guardian agent ownership |
 
@@ -610,7 +648,11 @@ Mandatory cases:
 
 | `docs/governance/no_touch_paths.md` | `canonical_policy_doc` |
 
-| `docs/roadmap/qre_roadmap_v6_1.md` | `canonical_roadmap` |
+| `docs/roadmap/autonomous_development.txt` | `canonical_roadmap` |
+
+| `docs/roadmap/Roadmap v6.md` | `canonical_roadmap` |
+
+| `docs/roadmap/archive/qre_roadmap_v6_1.md` | `doc_non_policy` (historical/archive only; **not** canonical) |
 
 | `.github/workflows/tests.yml` | `ci_workflow` |
 
@@ -706,7 +748,7 @@ This release is split into two phases.
 
 | `docs/governance/execution_authority.md` | this document |
 
-| `docs/roadmap/qre_roadmap_v6_1.md` | new `### v3.15.16.10 — Execution Authority Governance` entry under `## v3.15.16.x — â€¦` |
+| `docs/roadmap/archive/qre_roadmap_v6_1.md` | historical — Phase A added the `### v3.15.16.10 — Execution Authority Governance` entry to this file when it was the canonical roadmap; since the canonical-roadmap reset (PR-1 of A4) the canonical roadmap/governance-planning documents are `docs/roadmap/autonomous_development.txt` (autonomous_development_track) and `docs/roadmap/Roadmap v6.md` (qre_feature_build_track), and `qre_roadmap_v6_1.md` is archive/historical only |
 
 Risk class: HIGH (canonical policy doc). Operator authors and
 
