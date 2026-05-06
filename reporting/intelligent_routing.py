@@ -49,11 +49,13 @@ This module never writes anywhere outside ``logs/intelligent_routing/``.
 from __future__ import annotations
 
 import argparse
+import ast
 import dataclasses
 import datetime as _dt
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
 from collections import Counter
@@ -222,13 +224,33 @@ SUPPRESSED_PRIORITY_SCORE: Final[int] = -1
 #: default before derivation runs.
 DERIVATION_REGISTRY: Final[str] = "registry"
 DERIVATION_PRESET_CATALOG: Final[str] = "preset_catalog"
+#: Last-resort label: the timeframe was parsed deterministically from
+#: the ``preset_name`` field (a real registry-side artifact field) via
+#: a closed regex when both the canonical ``research.presets.PRESETS``
+#: import AND the AST-based source parse of ``research/presets.py``
+#: were unreachable on the runtime environment (e.g. VPS system
+#: Python where the trading-agent's transitive dependencies are only
+#: installed inside the Docker container). This is **not** parsing
+#: ``campaign_id`` — it is parsing the registry record's own
+#: ``preset_name`` field. Tests pin the exact regex.
+DERIVATION_PRESET_NAME_FALLBACK: Final[str] = "preset_name_fallback"
 DERIVATION_MISSING: Final[str] = "missing"
 
 DERIVATION_SOURCES: Final[tuple[str, ...]] = (
     DERIVATION_REGISTRY,
     DERIVATION_PRESET_CATALOG,
+    DERIVATION_PRESET_NAME_FALLBACK,
     DERIVATION_MISSING,
     UNKNOWN_COORDINATE,
+)
+
+#: Regex that recognises a timeframe token as authored in canonical
+#: preset names. Matches one of ``1m``, ``5m``, ``15m``, ``1h``,
+#: ``4h``, ``1d``, ``1w``, ``1M`` etc. — the standard CCXT/yfinance
+#: convention. Anchored so it is bounded by ``_`` or string edges so
+#: a substring like ``crypto4hello`` does not match.
+_PRESET_NAME_TIMEFRAME_REGEX: Final[re.Pattern[str]] = re.compile(
+    r"(?:^|_)(\d+[smhdwM])(?:_|$)"
 )
 
 
@@ -717,37 +739,128 @@ _PRESET_LOOKUP_CACHE: dict[str, dict[str, str]] | None = None
 
 
 def _preset_lookup() -> dict[str, dict[str, str]]:
-    """Return ``{preset_name: {"timeframe": str}}`` from
-    ``research.presets.PRESETS``.
+    """Return ``{preset_name: {"timeframe": str}}`` derived from
+    ``research/presets.py``.
 
-    Lazy-imported and cached. If the import fails for any reason,
-    returns an empty mapping; the caller falls back to ``unknown``.
-    Pure-read; never raises.
+    Two-tier resolution (lazy + cached):
+
+    1. **Canonical import** — ``from research.presets import PRESETS``.
+       Works in any environment where the project's dependency tree
+       is installed (CI, dev shells, the trading-agent Docker
+       container).
+    2. **AST source parse** — when the import fails (e.g. on the VPS
+       system Python where the project's transitive deps are only
+       inside the Docker container), parse ``research/presets.py``
+       with the ``ast`` module and extract every ``ResearchPreset(
+       name=..., timeframe=..., ...)`` instantiation's ``name`` and
+       ``timeframe`` keyword args. Stdlib-only; no transitive imports.
+
+    Returns an empty mapping if both tiers fail; the caller falls
+    back to ``DERIVATION_PRESET_NAME_FALLBACK`` (regex on
+    ``preset_name``) or to ``DERIVATION_MISSING``. Pure-read; never
+    raises.
     """
     global _PRESET_LOOKUP_CACHE
     if _PRESET_LOOKUP_CACHE is not None:
         return _PRESET_LOOKUP_CACHE
     out: dict[str, dict[str, str]] = {}
+
+    # Tier 1: canonical import.
     try:
         from research.presets import PRESETS  # local import — see docstring
     except Exception:  # noqa: BLE001 — defensive: lookup must never raise
-        _PRESET_LOOKUP_CACHE = out
-        return out
-    for preset in PRESETS:
-        try:
-            name = str(getattr(preset, "name", ""))
-            timeframe = str(getattr(preset, "timeframe", ""))
-        except (AttributeError, TypeError):
-            continue
-        if not name:
-            continue
-        entry: dict[str, str] = {}
-        if timeframe:
-            entry["timeframe"] = timeframe
-        if entry:
-            out[name] = entry
+        PRESETS = None  # type: ignore[assignment]
+    if PRESETS is not None:
+        for preset in PRESETS:
+            try:
+                name = str(getattr(preset, "name", ""))
+                timeframe = str(getattr(preset, "timeframe", ""))
+            except (AttributeError, TypeError):
+                continue
+            if not name:
+                continue
+            entry: dict[str, str] = {}
+            if timeframe:
+                entry["timeframe"] = timeframe
+            if entry:
+                out[name] = entry
+
+    # Tier 2: AST source parse (only if Tier 1 yielded nothing).
+    if not out:
+        out.update(_parse_presets_source_via_ast())
+
     _PRESET_LOOKUP_CACHE = out
     return out
+
+
+def _parse_presets_source_via_ast() -> dict[str, dict[str, str]]:
+    """Stdlib-only AST parse of ``research/presets.py`` to extract
+    ``{preset_name: {"timeframe": str}}`` from every
+    ``ResearchPreset(name="...", timeframe="...", ...)`` call. Pure;
+    never raises; returns an empty dict on any error.
+
+    This intentionally does NOT import the module — the whole point
+    is to work in environments where the import would fail.
+    """
+    out: dict[str, dict[str, str]] = {}
+    src_path = REPO_ROOT / "research" / "presets.py"
+    try:
+        if not src_path.is_file():
+            return out
+        text = src_path.read_text(encoding="utf-8")
+    except OSError:
+        return out
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return out
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        # Match `ResearchPreset(...)`. Be strict — only match the
+        # bare name; do not match `module.ResearchPreset(...)` etc.
+        if not (isinstance(func, ast.Name) and func.id == "ResearchPreset"):
+            continue
+        kwargs = {kw.arg: kw.value for kw in node.keywords if kw.arg}
+        name_node = kwargs.get("name")
+        timeframe_node = kwargs.get("timeframe")
+        if not (
+            isinstance(name_node, ast.Constant)
+            and isinstance(timeframe_node, ast.Constant)
+        ):
+            continue
+        name_value = name_node.value
+        timeframe_value = timeframe_node.value
+        if not (isinstance(name_value, str) and isinstance(timeframe_value, str)):
+            continue
+        if name_value and timeframe_value:
+            out[name_value] = {"timeframe": timeframe_value}
+    return out
+
+
+def _parse_timeframe_from_preset_name(preset_name: object) -> str | None:
+    """Last-resort regex parse of ``preset_name`` to extract a
+    timeframe. Used only when both the canonical import AND the AST
+    source parse fail (e.g. on a stripped runtime where neither
+    Python deps nor the source file are reachable).
+
+    Matches ``\\d+[smhdwM]`` as a token bounded by ``_`` or string
+    edges (canonical preset-name convention). Returns ``None`` if no
+    match. Pure; never raises.
+
+    NB: this parses the registry-side ``preset_name`` field, NOT the
+    ``campaign_id``. ``preset_name`` is a real registry artifact
+    field with author-controlled values; ``campaign_id`` is a
+    derived collision-proof identifier.
+    """
+    if not isinstance(preset_name, str) or not preset_name:
+        return None
+    match = _PRESET_NAME_TIMEFRAME_REGEX.search(preset_name)
+    if match is None:
+        return None
+    return match.group(1)
 
 
 def _reset_preset_lookup_cache_for_tests() -> None:
@@ -872,6 +985,7 @@ def _coords_for_campaign(
 
     # Step 2: preset-catalog fallback for timeframe only.
     used_preset_catalog = False
+    used_preset_name_fallback = False
     if not raw_timeframe and preset_name_str is not None:
         catalog = _preset_lookup()
         catalog_entry = catalog.get(preset_name_str, {})
@@ -879,6 +993,17 @@ def _coords_for_campaign(
         if catalog_timeframe:
             raw_timeframe = catalog_timeframe
             used_preset_catalog = True
+
+    # Step 3: last-resort regex parse of preset_name. Only fires when
+    # both the registry record AND the preset catalog (import + AST
+    # source parse) failed to produce a timeframe. Marks the
+    # provenance distinctly so an auditor can identify rows that
+    # depend on the regex contract.
+    if not raw_timeframe and preset_name_str is not None:
+        parsed = _parse_timeframe_from_preset_name(preset_name_str)
+        if parsed:
+            raw_timeframe = parsed
+            used_preset_name_fallback = True
 
     # Compute provisional coords.
     family = _safe_str(raw_family)
@@ -892,13 +1017,17 @@ def _coords_for_campaign(
     )
 
     # Compute the derivation_source label. Order:
-    #   * "missing" if any coord stayed unknown after fallback.
-    #   * "preset_catalog" if the preset-catalog filled at least one
-    #     field (currently only timeframe).
+    #   * "missing" if any coord stayed unknown after every fallback.
+    #   * "preset_name_fallback" if at least one coord came from the
+    #     regex parse of preset_name (last-resort).
+    #   * "preset_catalog" if at least one coord came from the
+    #     preset-catalog lookup (currently only timeframe).
     #   * "registry" otherwise (every coord came from the registry
     #     record fields directly).
     if not has_full:
         source = DERIVATION_MISSING
+    elif used_preset_name_fallback:
+        source = DERIVATION_PRESET_NAME_FALLBACK
     elif used_preset_catalog:
         source = DERIVATION_PRESET_CATALOG
     else:
@@ -1358,6 +1487,7 @@ __all__ = [
     "DEAD_ZONE_WEAK",
     "DERIVATION_MISSING",
     "DERIVATION_PRESET_CATALOG",
+    "DERIVATION_PRESET_NAME_FALLBACK",
     "DERIVATION_REGISTRY",
     "DERIVATION_SOURCES",
     "DIAGNOSE_REPORT_KIND",
