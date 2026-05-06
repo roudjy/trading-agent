@@ -149,10 +149,14 @@ def test_job_registry_contains_only_approved_types() -> None:
         "refresh_human_needed",
         # v3.15.16.9 — read-only governance-bootstrap synthesizer.
         "refresh_governance_bootstrap",
+        # v3.15.16.10 PR-4 / A6 — read-only autonomous backlog
+        # discipline summary. Closed-set Agent Execution Authority
+        # buckets over the proposal queue.
+        "refresh_autonomous_backlog",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 10
+    assert len(rm.JOB_TYPES) == 11
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
