@@ -127,13 +127,46 @@ DEAD_ZONE_STATUSES: Final[tuple[str, ...]] = (
 
 #: Statuses that *never* trigger advisory suppression. Anything not in
 #: this set (i.e. only ``DEAD_ZONE_DEAD``) may set
-#: ``advisory_suppression_reason = "dead_zone"`` in PR-C.
+#: ``advisory_suppression_reason = "dead_zone"`` in PR-C — and only
+#: when the lookup that produced the status is ``exact_timeframe_match``
+#: (see ``DEAD_ZONE_LOOKUP_PRECISION_VALUES`` below).
 NEVER_SUPPRESS_DEAD_ZONE_STATUSES: Final[frozenset[str]] = frozenset({
     DEAD_ZONE_INSUFFICIENT_DATA,
     DEAD_ZONE_UNKNOWN,
     DEAD_ZONE_ALIVE,
     DEAD_ZONE_WEAK,
 })
+
+# ---------------------------------------------------------------------------
+# Dead-zone lookup precision (v3.15.16.1)
+# ---------------------------------------------------------------------------
+
+#: ``exact_timeframe_match`` — the dead-zone artifact contained a key
+#: ``(asset_class, timeframe, family)`` matching the campaign's
+#: behavior coordinates exactly. The status carries the same
+#: timeframe-aware precision as the campaign and may participate in
+#: existing advisory suppression behaviour.
+DEAD_ZONE_LOOKUP_EXACT: Final[str] = "exact_timeframe_match"
+
+#: ``coarse_unknown_timeframe_match`` — the dead-zone artifact did
+#: not contain an exact timeframed key but did contain
+#: ``(asset_class, "unknown", family)``. Per
+#: ``research/dead_zone_detection.py`` the upstream zones are
+#: currently always keyed with ``timeframe="unknown"`` (a documented
+#: producer-side limit awaiting a v4 ledger enrichment). The coarse
+#: match is **observability metadata only**: it MUST NOT trigger
+#: ``advisory_suppression_reason``, MUST NOT alter
+#: ``advisory_priority_score``, and MUST NOT alter ``advisory_rank``.
+DEAD_ZONE_LOOKUP_COARSE: Final[str] = "coarse_unknown_timeframe_match"
+
+#: ``no_match`` — neither key form was present in the artifact.
+DEAD_ZONE_LOOKUP_NO_MATCH: Final[str] = "no_match"
+
+DEAD_ZONE_LOOKUP_PRECISION_VALUES: Final[tuple[str, ...]] = (
+    DEAD_ZONE_LOOKUP_EXACT,
+    DEAD_ZONE_LOOKUP_COARSE,
+    DEAD_ZONE_LOOKUP_NO_MATCH,
+)
 
 # ---------------------------------------------------------------------------
 # Orthogonality buckets
@@ -300,6 +333,11 @@ class RoutingDecision:
     info_gain_score: float
     info_gain_bucket: str
     dead_zone_status: str
+    #: v3.15.16.1 — closed-vocabulary precision label for the
+    #: dead-zone lookup that produced ``dead_zone_status``. Coarse
+    #: matches are observability metadata only; they do NOT
+    #: participate in advisory suppression / priority / rank.
+    dead_zone_lookup_precision: str
     near_duplicate_group: str | None
     orthogonality_bucket: str
     advisory_suppression_reason: str | None
@@ -315,6 +353,7 @@ class RoutingDecision:
             "info_gain_score": float(self.info_gain_score),
             "info_gain_bucket": self.info_gain_bucket,
             "dead_zone_status": self.dead_zone_status,
+            "dead_zone_lookup_precision": self.dead_zone_lookup_precision,
             "near_duplicate_group": self.near_duplicate_group,
             "orthogonality_bucket": self.orthogonality_bucket,
             "advisory_suppression_reason": self.advisory_suppression_reason,
@@ -464,20 +503,59 @@ def _normalize_dead_zone_key(
 def classify_dead_zone_status(
     coords: BehaviorCoordinates,
     dead_zone_index: dict[tuple[str, str, str], str],
-) -> str:
+) -> tuple[str, str]:
     """Pure lookup of the dead-zone status for a coordinate.
 
-    The index is keyed on (asset, timeframe, family) — the same key the
-    upstream artifact uses. Missing entries collapse to
-    ``DEAD_ZONE_UNKNOWN``. Returns one of ``DEAD_ZONE_STATUSES``.
+    Returns a 2-tuple ``(status, lookup_precision)`` where:
+
+    * ``status`` is one of ``DEAD_ZONE_STATUSES`` (defaults to
+      ``DEAD_ZONE_UNKNOWN`` on miss).
+    * ``lookup_precision`` is one of
+      ``DEAD_ZONE_LOOKUP_PRECISION_VALUES``:
+
+      - ``DEAD_ZONE_LOOKUP_EXACT`` — the artifact contained
+        ``(asset_class, timeframe, family)`` matching the campaign's
+        coordinates exactly. Status carries timeframe-aware precision
+        and may participate in existing advisory suppression.
+      - ``DEAD_ZONE_LOOKUP_COARSE`` — the artifact did not contain
+        the exact key but did contain
+        ``(asset_class, "unknown", family)``. The upstream zones
+        currently always use ``timeframe="unknown"`` (a documented
+        producer-side limit). The coarse match is **observability
+        metadata only**: it MUST NOT participate in advisory
+        suppression / priority / rank.
+      - ``DEAD_ZONE_LOOKUP_NO_MATCH`` — neither key form was present.
+
+    Pure; never raises. The 2-tuple replaces the previous single-str
+    return as part of the v3.15.16.1 dead-zone coarse-lookup
+    annotation work.
     """
-    key = _normalize_dead_zone_key(
+    # Tier 1: exact (asset_class, timeframe, family).
+    exact_key = _normalize_dead_zone_key(
         coords.asset_class, coords.timeframe, coords.family,
     )
-    status = dead_zone_index.get(key, DEAD_ZONE_UNKNOWN)
-    if status not in DEAD_ZONE_STATUSES:
-        return DEAD_ZONE_UNKNOWN
-    return status
+    if exact_key in dead_zone_index:
+        status = dead_zone_index[exact_key]
+        if status not in DEAD_ZONE_STATUSES:
+            status = DEAD_ZONE_UNKNOWN
+        return status, DEAD_ZONE_LOOKUP_EXACT
+
+    # Tier 2: coarse fallback — match the documented upstream form
+    # ``(asset_class, "unknown", family)``. Skip when the coordinates
+    # themselves already use ``"unknown"`` for timeframe (the exact
+    # lookup above already covered that case).
+    if _safe_str(coords.timeframe) != UNKNOWN_COORDINATE:
+        coarse_key = _normalize_dead_zone_key(
+            coords.asset_class, UNKNOWN_COORDINATE, coords.family,
+        )
+        if coarse_key in dead_zone_index:
+            status = dead_zone_index[coarse_key]
+            if status not in DEAD_ZONE_STATUSES:
+                status = DEAD_ZONE_UNKNOWN
+            return status, DEAD_ZONE_LOOKUP_COARSE
+
+    # Tier 3: no match.
+    return DEAD_ZONE_UNKNOWN, DEAD_ZONE_LOOKUP_NO_MATCH
 
 
 def compute_orthogonality_bucket(
@@ -508,6 +586,7 @@ def compute_orthogonality_bucket(
 def derive_advisory_suppression_reason(
     *,
     dead_zone_status: str,
+    dead_zone_lookup_precision: str = DEAD_ZONE_LOOKUP_NO_MATCH,
     near_duplicate_group: str | None,
     is_first_in_group: bool,
 ) -> str | None:
@@ -515,9 +594,14 @@ def derive_advisory_suppression_reason(
 
     Resolution order:
 
-    1. ``dead_zone`` if and only if ``dead_zone_status == DEAD_ZONE_DEAD``.
+    1. ``dead_zone`` if and only if ``dead_zone_status == DEAD_ZONE_DEAD``
+       AND ``dead_zone_lookup_precision == DEAD_ZONE_LOOKUP_EXACT``.
        Statuses in ``NEVER_SUPPRESS_DEAD_ZONE_STATUSES`` *never*
-       trigger suppression.
+       trigger suppression. v3.15.16.1: a coarse
+       ``(asset, "unknown", family)`` match (precision
+       ``DEAD_ZONE_LOOKUP_COARSE``) is **observability metadata only**
+       and MUST NOT trigger this branch even if its status is
+       ``DEAD_ZONE_DEAD``.
     2. ``near_duplicate`` if and only if the campaign is part of a
        near-duplicate group AND is **not** the first member of that
        group (the first member always keeps ``None``).
@@ -527,7 +611,10 @@ def derive_advisory_suppression_reason(
     ``routing_effect = "advisory_only"``. Downstream queue ordering
     is not changed.
     """
-    if dead_zone_status == DEAD_ZONE_DEAD:
+    if (
+        dead_zone_status == DEAD_ZONE_DEAD
+        and dead_zone_lookup_precision == DEAD_ZONE_LOOKUP_EXACT
+    ):
         return SUPPRESSION_DEAD_ZONE
     if near_duplicate_group is not None and not is_first_in_group:
         return SUPPRESSION_NEAR_DUPLICATE
@@ -1133,7 +1220,9 @@ def build_report(
         spawned_at = str(entry.get("spawned_at_utc") or "")
         score = float(ig_index.get(cid, 0.0))
         bucket = bucket_info_gain(score)
-        zone_status = classify_dead_zone_status(coords, dead_zone_index)
+        zone_status, zone_precision = classify_dead_zone_status(
+            coords, dead_zone_index,
+        )
         if not has_full:
             metadata_gaps += 1
         prior_total = max(0, coord_counts[coords.as_tuple()] - 1)
@@ -1148,6 +1237,7 @@ def build_report(
             "score": round(score, 4),
             "bucket": bucket,
             "zone_status": zone_status,
+            "zone_precision": zone_precision,
             "group": group,
             "ortho": ortho,
             "tie_break_key": f"{spawned_at}|{cid}",
@@ -1179,6 +1269,7 @@ def build_report(
             is_first = first_member_in_group[gid] == row["tie_break_key"]
         reason = derive_advisory_suppression_reason(
             dead_zone_status=row["zone_status"],
+            dead_zone_lookup_precision=row["zone_precision"],
             near_duplicate_group=gid,
             is_first_in_group=is_first,
         )
@@ -1195,6 +1286,7 @@ def build_report(
                 info_gain_score=row["score"],
                 info_gain_bucket=row["bucket"],
                 dead_zone_status=row["zone_status"],
+                dead_zone_lookup_precision=row["zone_precision"],
                 near_duplicate_group=gid,
                 orthogonality_bucket=row["ortho"],
                 advisory_suppression_reason=reason,
@@ -1482,6 +1574,10 @@ __all__ = [
     "DEAD_ZONE_ALIVE",
     "DEAD_ZONE_DEAD",
     "DEAD_ZONE_INSUFFICIENT_DATA",
+    "DEAD_ZONE_LOOKUP_COARSE",
+    "DEAD_ZONE_LOOKUP_EXACT",
+    "DEAD_ZONE_LOOKUP_NO_MATCH",
+    "DEAD_ZONE_LOOKUP_PRECISION_VALUES",
     "DEAD_ZONE_STATUSES",
     "DEAD_ZONE_UNKNOWN",
     "DEAD_ZONE_WEAK",

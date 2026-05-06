@@ -3,8 +3,108 @@
 > Workflow: `.github/workflows/observe-intelligent-routing.yml`
 > Modules:  `reporting/intelligent_routing.py`,
 >           `reporting/intelligent_routing_status.py`
-> Release:  v3.15.16 (advisory)
+> Release:  v3.15.16 (advisory) + v3.15.16.1 (dead-zone coarse-lookup
+>           annotation)
 > Companion: [`scripts/deploy_vps_dashboard.sh`](../../scripts/deploy_vps_dashboard.sh) (sibling deploy posture, mirrored secrets/SSH pattern)
+
+## v3.15.16.1 — dead-zone coarse-lookup annotation only
+
+The first real-input observations of the v3.15.16 advisory artifact
+showed `dead_zone_status: "unknown"` for every campaign. Root cause:
+the upstream `dead_zones_latest.v1.json` artifact currently keys
+zones on `(asset, "unknown", family)` (per
+[`research/dead_zone_detection.py:21-24`](../../research/dead_zone_detection.py:21):
+*"Timeframe is currently 'unknown' for every zone because the
+upstream ledger event does not carry interval. v4 will enrich
+ledger events with timeframe."*). The routing layer's coordinates
+now carry real timeframes (`4h` / `1h` / `1d` etc.), so the exact
+key never matches.
+
+**v3.15.16.1 adds a coarse-lookup observability annotation only.**
+
+* If the artifact has an exact `(asset_class, timeframe, family)`
+  key, that wins → `dead_zone_lookup_precision = "exact_timeframe_match"`.
+  Existing advisory dead-zone behaviour applies (a `dead` exact
+  match may set `advisory_suppression_reason = "dead_zone"`).
+* If the artifact has only `(asset_class, "unknown", family)`,
+  the coarse fallback fires → `dead_zone_lookup_precision =
+  "coarse_unknown_timeframe_match"`. The decision row carries the
+  upstream `dead_zone_status` for operator visibility, **but**:
+  - It MUST NOT set `advisory_suppression_reason`.
+  - It MUST NOT alter `advisory_priority_score`.
+  - It MUST NOT alter `advisory_rank`.
+  - It MUST NOT be classified as exact timeframe-aware evidence.
+* If neither key is present →
+  `dead_zone_lookup_precision = "no_match"`,
+  `dead_zone_status = "unknown"`, no suppression / priority /
+  rank effect.
+
+These invariants are pinned by 14 dedicated tests in
+[`tests/unit/test_intelligent_routing_dead_zone_coarse_lookup.py`](../../tests/unit/test_intelligent_routing_dead_zone_coarse_lookup.py)
+plus updates to `test_intelligent_routing_advisory_suppression.py`
+and `test_intelligent_routing_pure.py`. No test was weakened,
+skipped, deleted, or marked `xfail`.
+
+## Current upstream-signal limits (operator-facing summary)
+
+These three limits sit upstream of the routing layer; the routing
+layer surfaces them honestly but does **not** infer them away.
+
+1. **Dead-zone artifact carries `timeframe="unknown"` for every zone
+   today.** v3.15.16.1 reads them via the coarse fallback (above)
+   so operators can see them at all. The canonical fix is the
+   upstream v4 ledger enrichment named in
+   [`research/dead_zone_detection.py:21-24`](../../research/dead_zone_detection.py:21).
+   That work is in `research/**`, which is no-touch for the
+   reporting layer; addressing it requires a separate
+   research-side product task.
+
+2. **Information-gain artifact is single-campaign.** The producer
+   in [`research/information_gain.py`](../../research/information_gain.py)
+   emits one `col_campaign_id` per file (the most recent
+   meaningful campaign). The routing layer's IG lookup is sparse
+   by construction: most campaigns will have `info_gain_score = 0
+   / bucket = "none"`. A multi-campaign IG roll-up via the
+   evidence ledger reader is **deferred to a separate, operator-
+   reviewed task** with a tight event-type allowlist; no scoping
+   nor implementation in this v3.15.16.1 phase.
+
+3. **`strategy_family` partial population.** Per
+   [`research/campaign_launcher.py:240-251`](../../research/campaign_launcher.py:240),
+   `strategy_family` is populated only when a preset has
+   `hypothesis_id` AND that hypothesis exists in the catalog.
+   Records whose preset lacks a `hypothesis_id` (or references a
+   missing one) carry `strategy_family: null`, surfaced as
+   `family: "unknown"` in the routing artifact. The fix is
+   producer-side (in `research/presets.py` or
+   `research/strategy_hypothesis_catalog.py`) and is therefore not
+   addressable from the routing layer.
+
+## Queue integration remains deferred
+
+`queue_ordering_effect: "none"` and `routing_effect: "advisory_only"`
+are unchanged in v3.15.16.1. Queue integration MUST NOT be
+considered until **all** of the following are met:
+
+- Per-campaign IG history is reliable across substantially more
+  than `1/N` campaigns (today's observed sparsity).
+- Dead-zone matching uses an exact, timeframe-aware key path
+  (i.e. the upstream v4 ledger enrichment has landed; coarse
+  matches alone are not sufficient).
+- `strategy_family` is populated for the strong majority of
+  active campaigns.
+- Behavior coordinates have meaningful diversity in the active
+  queue (today: 3 unique triples across 25 campaigns →
+  `orthogonality_bucket: "saturated"` for every row).
+- Top-ranked rows are explainable on signal beyond a single
+  campaign's IG.
+
+v3.15.17 Sampling Intelligence remains deferred until the same
+upstream-signal readiness gate clears (see Roadmap v6 lines
+297-340; *"low-information-region suppression"* and *"signal-
+density-aware sampling"* depend on per-campaign IG, *"stratified
+sampling"* depends on coordinate diversity, *"lower dead-zone
+compute burn"* depends on an exact dead-zone match path).
 
 This is the operator-facing runbook for the v3.15.16 advisory
 Intelligent Routing **observation** workflow. It is the only governed
