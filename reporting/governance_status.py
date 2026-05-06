@@ -42,6 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from reporting import agent_audit
+from reporting import execution_authority_status as _ea_status
 
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 
@@ -382,6 +383,9 @@ def collect_status() -> dict[str, Any]:
         "autonomy": _autonomy_levels_available(),
         "audit_ledger_today": _ledger_summary(),
         "autonomous_mode": _autonomous_mode_state(),
+        # v3.15.16.10 Phase C — read-only Execution Authority projection.
+        # Additive only; does not affect any pre-existing field above.
+        "execution_authority": _ea_status.build_status(),
     }
 
 
