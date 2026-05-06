@@ -375,9 +375,14 @@ def test_malformed_input_does_not_crash(isolated_pq: Path) -> None:
 
 def test_proposal_id_is_deterministic(isolated_pq: Path) -> None:
     src = isolated_pq / "x.md"
+    # The body carries an explicit ``risk_class:`` marker so the
+    # post-PR-3 actionable-heading filter surfaces this segment. The
+    # test's intent — determinism of proposal_id across two
+    # invocations — is preserved.
     src.write_text(
         "# Repeatable test fixture\n\n"
-        "## v3.15.15.42 — repeatable\n\nThis is a release candidate.\n",
+        "## v3.15.15.42 — repeatable\n\n"
+        "This is a release candidate. risk_class: MEDIUM.\n",
         encoding="utf-8",
     )
     snap1 = pq.collect_snapshot(mode="dry-run", source=str(src))
