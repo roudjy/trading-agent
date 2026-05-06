@@ -226,7 +226,8 @@ Workflow artifact name: `v3-15-16-intelligent-routing-observation`
 
 ```
 artifacts/logs/intelligent_routing/latest.json
-artifacts/logs/intelligent_routing/metadata_shape_diagnostic.json   # optional
+artifacts/logs/intelligent_routing/metadata_shape_diagnostic.json     # optional
+artifacts/logs/intelligent_routing/ig_ledger_shape_diagnostic.json    # optional
 artifacts/logs/intelligent_routing_status/latest.json
 artifacts/remote_stdout.txt
 ```
@@ -239,6 +240,45 @@ records along with **scalar previews** (≤ 80 chars; no full payload;
 no secrets). It is purely diagnostic — used to confirm what fields
 the routing layer can safely index without inferring metadata from
 `campaign_id`.
+
+The optional `ig_ledger_shape_diagnostic.json` (v3.15.16.2.diag) is
+a **sanitized** preview of the append-only
+`research/campaign_evidence_ledger.jsonl` ledger. It exists to help
+calibrate a future reporting-only multi-campaign Information Gain
+ledger reader (proposed v3.15.16.2). The diagnostic emits **counts,
+key sets, and bounded scalar values only** — never full event
+bodies, never raw nested payloads, never secrets. Specifically:
+
+* Ledger presence + size + line counts (`line_count`,
+  `parsed_line_count`, `malformed_line_count`, `truncated`,
+  `max_lines_scanned = 1_000_000`).
+* Distributions over `event_type`, `meaningful_classification`,
+  `outcome`, top-20 `reason_code`.
+* Per-campaign histogram (`1`, `2`, `3-5`, `6-10`, `11+` event
+  buckets) and unique campaign count.
+* Timestamp diagnostics (oldest / newest `at_utc`,
+  ascending-order check, missing/malformed `at_utc` counts).
+* Field-shape probes: first-three event key-sets (names only),
+  candidate `campaign_id`/`score`/`bucket`/`timestamp` field
+  names seen.
+* Mapping-evidence counts for the candidate signals named in the
+  v3.15.16.2 plan (`paper_ready`, `exploratory_pass`,
+  `completed_with_candidates`, `duplicate_detected`,
+  `duplicate_spawn_rejected`, `campaign_failed`,
+  `reason_code_present_non_none`,
+  `any_score_like_scalar_field_present`).
+
+The diagnostic JSON is **calibration evidence only**. It does NOT
+encode a final reader contract. The eventual v3.15.16.2 reader's
+event-type allowlist + score mapping must be operator-blessed in a
+separate PR after reviewing this diagnostic.
+
+The diagnostic step is parameter-free, stdlib-only, and consumes
+the ledger read-only. The same pre/post sha256 frozen-contract pin
++ tracked-file-mutation check + untracked-delta allowlist that
+gate the rest of the observation workflow continue to gate the
+diagnostic. The diagnostic writes only to
+`logs/intelligent_routing/ig_ledger_shape_diagnostic.json`.
 
 The runtime artifact on the VPS itself is at
 `/root/trading-agent/logs/intelligent_routing/latest.json` and
