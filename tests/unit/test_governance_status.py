@@ -102,6 +102,10 @@ def test_snapshot_has_stable_top_level_shape(isolated_repo: Path) -> None:
         "autonomy",
         "audit_ledger_today",
         "autonomous_mode",
+        # v3.15.16.10 Phase C — read-only Execution Authority projection
+        # appended additively. The shape pin is intentionally tight so
+        # any *further* drift is caught.
+        "execution_authority",
     }
     assert set(snap.keys()) == expected_keys
     assert snap["schema_version"] == 1
@@ -390,6 +394,8 @@ def test_cli_emits_same_snapshot_shape_as_collect(
         "autonomy",
         "audit_ledger_today",
         "autonomous_mode",
+        # v3.15.16.10 Phase C — read-only Execution Authority projection.
+        "execution_authority",
     }
     assert set(parsed.keys()) == expected_keys
 
@@ -435,8 +441,29 @@ def test_collect_status_does_not_touch_frozen_contracts() -> None:
     assert before_a == after_a, "research_latest.json was modified or created"
     assert before_b == after_b, "strategy_matrix.csv was modified or created"
 
-    # Neither contract path appears anywhere in the snapshot; downstream
-    # consumers cannot stumble onto them through this surface.
-    flat = json.dumps(snapshot)
-    assert "research_latest.json" not in flat
-    assert "strategy_matrix.csv" not in flat
+    # Neither frozen-contract path may appear anywhere in the snapshot
+    # OUTSIDE the v3.15.16.10 Phase C ``execution_authority`` block,
+    # which legitimately uses these path STRINGS as labels for the
+    # PERMANENTLY_DENIED sample-decision row that proves the classifier
+    # blocks modifications. The before/after sha256 equality above is
+    # the canonical guarantee that no file was read or written; this
+    # check guards the legacy snapshot fields against accidental body
+    # embedding.
+    legacy_only = {k: v for k, v in snapshot.items() if k != "execution_authority"}
+    flat_legacy = json.dumps(legacy_only)
+    assert "research_latest.json" not in flat_legacy
+    assert "strategy_matrix.csv" not in flat_legacy
+
+    # Inside the execution_authority block the path strings are bounded
+    # labels: each must appear only as a ``target_path`` value of a
+    # sample-decision row, never as embedded file body content. We
+    # assert that by checking the maximum string length carrying the
+    # token is short (path + reasonable metadata, not file bytes).
+    ea_block = snapshot.get("execution_authority", {})
+    for sample in ea_block.get("sample_decisions", []):
+        for value in sample.values():
+            if not isinstance(value, str):
+                continue
+            if "research_latest.json" in value or "strategy_matrix.csv" in value:
+                # Path-only string; must be short, not file content.
+                assert len(value) <= 64, value
