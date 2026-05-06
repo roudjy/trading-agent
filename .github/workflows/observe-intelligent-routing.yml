@@ -139,9 +139,16 @@ jobs:
           done
           echo "FROZEN_BEFORE_END"
 
-          # Pre-CLI git status (must be clean).
+          # Pre-CLI git status snapshot. The VPS is a live system
+          # and will legitimately have untracked-non-ignored files
+          # under research/campaigns/, research/discovery_sprints/,
+          # etc. that the trading agent has produced. We do NOT
+          # demand a clean tree; we demand only that the observation
+          # introduces no NEW untracked entries outside the two
+          # allowed log directories.
           echo "GIT_STATUS_PRE_BEGIN"
-          git status --short || true
+          pre_status="$(git status --short || true)"
+          printf '%s\n' "${pre_status}"
           echo "GIT_STATUS_PRE_END"
 
           # Run the advisory CLIs. Both are stdlib-only and write
@@ -160,10 +167,10 @@ jobs:
           done
           echo "FROZEN_AFTER_END"
 
-          # Post-CLI git status — only logs/intelligent_routing[_status]/*
-          # may be untracked.
+          # Post-CLI git status snapshot.
           echo "GIT_STATUS_POST_BEGIN"
-          git status --short || true
+          post_status="$(git status --short || true)"
+          printf '%s\n' "${post_status}"
           echo "GIT_STATUS_POST_END"
 
           # Hard fail on any tracked-file modification.
@@ -172,15 +179,23 @@ jobs:
             exit 2
           fi
 
-          # Hard fail on any untracked file outside the two allowed
-          # log directories.
-          unexpected="$(git status --short \
-            | grep -vE '^\?\? logs/intelligent_routing(/|_status/)' \
+          # Compute NEW untracked entries (post minus pre) and fail
+          # if any new entry lives outside the two allowed log
+          # directories. comm -13 prints lines unique to file 2
+          # (post). Both inputs are sorted for stable comparison.
+          new_entries="$(comm -13 \
+            <(printf '%s\n' "${pre_status}" | sort -u) \
+            <(printf '%s\n' "${post_status}" | sort -u) \
             | grep -v '^$' || true)"
-          if [ -n "${unexpected}" ]; then
-            echo "FAIL: unexpected untracked files during observation:"
-            printf '%s\n' "${unexpected}"
-            exit 3
+          if [ -n "${new_entries}" ]; then
+            unexpected="$(printf '%s\n' "${new_entries}" \
+              | grep -vE '^\?\? logs/intelligent_routing(/|_status/)' \
+              || true)"
+            if [ -n "${unexpected}" ]; then
+              echo "FAIL: unexpected new untracked files during observation:"
+              printf '%s\n' "${unexpected}"
+              exit 3
+            fi
           fi
 
           # Stream artifact contents back via stdout for the runner
@@ -272,6 +287,12 @@ jobs:
           PY
 
       - name: Upload observation artifacts
+        # Always upload — on failure we still want the
+        # remote_stdout.txt transcript for post-mortem. The two
+        # log JSONs may be missing on failure (extraction step
+        # would have skipped); upload-artifact handles per-path
+        # absence gracefully when at least one path is present.
+        if: always()
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808  # v4.3.3
         with:
           name: v3-15-16-intelligent-routing-observation
@@ -280,7 +301,7 @@ jobs:
             artifacts/logs/intelligent_routing_status/latest.json
             artifacts/remote_stdout.txt
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Wipe SSH artifacts
         if: always()
