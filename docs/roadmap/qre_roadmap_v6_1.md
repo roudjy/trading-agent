@@ -338,6 +338,26 @@ operator-authored v3.15.16.10 governance ratification.**
 * `proposal_type`: observability_addition
 * `status`: proposed
 
+### v3.15.16.10 — Execution Authority Governance
+
+Operator-authored canonical policy document defining the explicit
+boundary between actions Claude may take automatically
+(`AUTO_ALLOWED`), actions that require operator approval through
+the PWA approval inbox (`NEEDS_HUMAN`), and actions that are
+absolutely prohibited (`PERMANENTLY_DENIED`). The document
+specifies closed vocabularies for `action_type`,
+`target_path_category`, `decision`, and `reason`; deterministic
+precedence rules; protected-path invariants; and the
+operator-only boundary. Authored as the canonical source of truth
+for the future `reporting.execution_authority` classifier
+(v3.15.16.10 phase B, Claude-implementable after this doc lands).
+
+* `affected_files`: `docs/governance/execution_authority.md`,
+  `docs/roadmap/qre_roadmap_v6_1.md`
+* `risk_class`: HIGH
+* `proposal_type`: governance_change
+* `status`: proposed
+
 ---
 
 ## v3.15.17.x — Push notifications (operator-authored governance bootstrap required)
