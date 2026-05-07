@@ -303,13 +303,24 @@ jobs:
           PY
 
           # v3.15.16.2.diag — IG-ledger-shape diagnostic. Streams the
-          # append-only campaign_evidence_ledger.jsonl line-by-line
-          # and emits a sanitized summary (counters + key sets +
-          # mapping-evidence counts only — NEVER full event bodies,
-          # NEVER secrets, NEVER raw nested payloads). Output is a
-          # single new file under the existing log directory:
+          # append-only campaign-evidence ledger line-by-line and
+          # emits a sanitized summary (counters + key sets + mapping-
+          # evidence counts only — NEVER full event bodies, NEVER
+          # secrets, NEVER raw nested payloads). Output is a single
+          # new file under the existing log directory:
           # logs/intelligent_routing/ig_ledger_shape_diagnostic.json.
           # Pure stdlib; bounded memory; bounded line scan.
+          #
+          # v3.15.16.2.diag.1 — corrected ledger path. The previous
+          # diagnostic targeted ``research/campaign_evidence_ledger.jsonl``
+          # which does NOT exist on the VPS (verified empirically by
+          # the prior diagnostic run; PR #127 / merge 4dcd5460). The
+          # canonical writer lives at
+          # ``research/campaign_evidence_ledger_latest.v1.jsonl`` per
+          # research/campaign_launcher.py:146 and
+          # research/diagnostics/paths.py:169 (CAMPAIGN_EVIDENCE_LEDGER_PATH).
+          # The literal corrected path is used here so the diagnostic
+          # is fully self-contained and never imports research modules.
           python3 - <<'PY'
           import json
           from collections import Counter
@@ -317,7 +328,7 @@ jobs:
 
           OUT = Path("logs/intelligent_routing/ig_ledger_shape_diagnostic.json")
           OUT.parent.mkdir(parents=True, exist_ok=True)
-          LEDGER = Path("research/campaign_evidence_ledger.jsonl")
+          LEDGER = Path("research/campaign_evidence_ledger_latest.v1.jsonl")
           MAX_LINES = 1_000_000
 
           # Probe field-name vocabularies (closed). The presence of
