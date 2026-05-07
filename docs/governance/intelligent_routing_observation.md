@@ -243,6 +243,120 @@ density-aware sampling"* depend on per-campaign IG, *"stratified
 sampling"* depends on coordinate diversity, *"lower dead-zone
 compute burn"* depends on an exact dead-zone match path).
 
+## Accepted limitation — `family: "unknown"` for ensemble presets
+
+**This is not a routing-layer bug.** The 10 of 25 advisory rows
+that report `behavior_coordinates.family = "unknown"` after
+v3.15.16.2 are the honest representation of a data-model boundary.
+The architectural decision brief (recorded in the v3.15.16-series
+session transcript) reviewed five candidate options and adopted
+"keep `family: \"unknown\"`" as the v3.15.16-era posture.
+
+### What's affected
+
+The two presets in the active VPS queue that account for the gap:
+
+- `trend_equities_4h_baseline`
+- `trend_regime_filtered_equities_4h`
+
+Both are **multi-strategy ensemble / baseline presets**. Their
+bundles combine strategy families such as `trend_following`
+(from `sma_crossover`), `breakout` (from `breakout_momentum`), and
+optional trend / Bollinger-regime components. They are deliberately
+authored as multi-strategy baselines (`preset_class="baseline"` /
+`preset_class="diagnostic"` respectively) rather than as
+single-strategy hypothesis-bound presets.
+
+### Why no enrichment PR was opened
+
+The current hypothesis catalog model is **intentionally 1:1**
+between `hypothesis_id` and `strategy_family` (see the catalog's
+own design comment at
+[research/strategy_hypothesis_catalog.py:25-29](../../research/strategy_hypothesis_catalog.py:25)
+and the explicit precedent at
+[research/registry.py:213-217](../../research/registry.py:213)
+that some strategies are *"intentionally NOT part of the v3.15.3
+hypothesis-catalog bridge"*). Multi-strategy ensemble presets do
+not fit the 1:1 mapping. The candidate fixes were rejected:
+
+| Candidate | Rejected because |
+|---|---|
+| Assign an existing `hypothesis_id` (e.g. `trend_pullback_v1`) to the affected presets | **False precision.** No existing hypothesis carries `strategy_family ∈ {"trend_following", "breakout"}`. Tagging the SMA-crossover-plus-breakout bundle as `trend_pullback` would falsely label 10 campaigns as a strategy family they don't run. Strictly worse than `unknown`. |
+| Add a synthetic ensemble catalog entry (e.g. `trend_ensemble_baseline_v0`) | **Bends the catalog model.** Every `status` slot fits poorly: `active_discovery` requires an enabled registry strategy whose family matches (none exists; adding one would change the execution surface, forbidden); `planned` documents *"executable wiring deferred"* (the underlying strategies are already executable); `diagnostic` is reserved for true enrichment-only branchpoints (these presets do produce trade signals). |
+| Reporting-side fallback that infers family from the bundle | **False precision plus brittle.** Would require AST-parsing `research/registry.py` to map strategy names to families; multi-family bundles still need a "primary" pick that mis-labels. |
+| Reporting-side row split (one campaign → multiple advisory rows for advisory analysis) | **Distorts campaign counts, orthogonality priors, and near-duplicate grouping.** Breaks the implicit `len(decisions) == len(queue)` invariant. Inflates every contributing coordinate's prior count, worsening orthogonality saturation rather than improving it. |
+
+### Therefore
+
+For v3.15.16, **`family: "unknown"` is the honest representation
+of a data-model boundary** that the current
+`hypothesis_id → strategy_family` 1:1 catalog cannot describe for
+multi-strategy ensemble presets. The advisory artifact's
+`metadata_gaps` summary counter is the canonical operator-facing
+signal that this design boundary is being hit.
+
+### What stays unchanged
+
+- `routing_effect: "advisory_only"` — the v3.15.16 advisory framing
+  is unchanged.
+- `queue_ordering_effect: "none"` — queue integration **remains
+  deferred** under the existing five-precondition gate documented
+  in *Queue integration remains deferred* above.
+- v3.15.17 **remains deferred** under the same upstream-signal
+  readiness gate.
+
+### Out of scope here
+
+Two longer-horizon paths exist; neither is part of v3.15.16.x and
+neither should be opened as a PR until the data state matures and
+the operator authorises a separate task:
+
+- **Multi-component behavior schema** (e.g. `behavior_components`,
+  `primary_family` + `secondary_families`, or equivalent). This is
+  a **v3.17-class** architectural topic that would touch
+  `RoutingDecision`, the campaign-registry record, the hypothesis
+  catalog, dead-zone keying, orthogonality bucketing, and
+  near-duplicate grouping. It is the architecturally correct
+  long-horizon answer **only when** v3.15.17 readiness is
+  demonstrable (per the upstream-signal gate above).
+- **Preset retirement or de-emphasis.** If the affected ensemble
+  presets prove low-value (e.g. repeated
+  `meaningful_classification: meaningful_failure_confirmed` with
+  `reason_code: degenerate_no_evaluable_pairs` over many runs),
+  the right answer is a **v3.15.20 failure→action mapping** or
+  preset-policy review — handled by existing mechanisms
+  (`enabled=False`, `excluded_from_daily_scheduler`,
+  `campaign_preset_policy` cooldown / deprioritization / freeze
+  states), not by inventing a metadata label.
+
+### Revisit conditions
+
+This accepted limitation should be revisited only when **all** of
+the following hold:
+
+1. At least two of the four v3.15.17 blockers (dead-zone match
+   absence, IG bucket degeneracy, orthogonality saturation, family
+   completeness) have closed via upstream signal evolution rather
+   than synthetic patches.
+2. The active queue diversifies to ≥ 8 unique
+   `(family, asset_class, timeframe)` triples (v3.15.16.2
+   observation: 3).
+3. At least one campaign per affected ensemble preset produces a
+   non-degenerate outcome (`paper_ready` / `exploratory_pass` /
+   `completed_with_candidates`), or repeated
+   `meaningful_failure_confirmed` becomes a clear operator signal
+   to retire that preset via the v3.15.20 / preset-policy path.
+4. An operator-led architectural conversation about the
+   multi-component behavior schema is opened as a v3.17-era ADR
+   draft, with explicit input from research/** owners on whether
+   the catalog 1:1 invariant should be relaxed.
+
+Without conditions 1-3, opening a multi-family schema PR would be
+designed against degenerate data and would likely need to be
+rewritten once the data state matures. Without condition 4, any
+partial schema change risks landing as architectural drift rather
+than principled design.
+
 This is the operator-facing runbook for the v3.15.16 advisory
 Intelligent Routing **observation** workflow. It is the only governed
 path that runs `python -m reporting.intelligent_routing --write` (and
