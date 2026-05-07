@@ -1008,3 +1008,125 @@ Step 5 — Autonomous Implementation Loop (planning may begin after A12;
          implementation only after readiness gate + explicit operator approval)
 ```
 
+\---
+
+# A10 — Agentic Bugfix Loop
+
+## Status
+
+```text
+Status: PR-ready (NOT complete)
+```
+
+A10 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+
+## Purpose
+
+Convert structured routine failures into bounded bugfix-candidate proposals so the operator can decide what to promote into the development work queue. A10 is **intake only**: it never writes to seed files, never creates branches, never opens PRs, never modifies code.
+
+## Architectural separation: ADE core vs failure collectors
+
+ADE core (this PR):
+
+```text
+reporting/development_bugfix_loop.py
+```
+
+Stdlib + `reporting.execution_authority` + `reporting.approval_policy` + `reporting.development_work_queue`. No subprocess, no network, no `gh`, no `git`, no test runners. Pinned by tests at AST level.
+
+Failure collectors / adapters (out of scope for A10 core; preserved future path):
+
+```text
+- collectors live outside ADE core, preferred under scripts/
+- collectors may invoke pytest/ruff/mypy/gh and parse outputs
+- collectors produce logs/bugfix_loop_input/latest.json
+- ADE core consumes only the failure-input contract
+- ADE core never imports collectors
+```
+
+## Vocabulary (closed)
+
+```text
+failure_classes (10): unit_test, smoke_test, regression_test,
+                      lint, typecheck, governance_lint,
+                      frozen_hash, hook, ci_workflow, unknown
+bugfix_scopes (7):    bounded_in_repo, protected_path, live_path,
+                      frozen_contract, ci_only,
+                      requires_architecture_review, out_of_scope
+severities (4):       low, medium, high, unknown
+suggested_statuses:   proposed, human_needed
+```
+
+## Discipline invariants (load-bearing)
+
+```text
+writes_to_seed_jsonl: false
+writes_to_bugfix_seed_jsonl: false
+auto_creates_branches: false
+auto_opens_prs: false
+auto_modifies_code: false
+operator_promotion_required: true
+```
+
+The atomic-write guard refuses any path outside `logs/`, including `seed.jsonl` and `bugfix_seed.jsonl`. Acceptance-criteria templates are pinned to a closed safe set; test-weakening tokens (`skip`, `xfail`, `remove pin`, `weaken`, `relax`, `disable`) are absent and asserted by tests.
+
+## Authority overrides
+
+```text
+frozen_contract path           → human_needed (frozen_contract_change)
+live_path                      → human_needed (capital_or_live_execution_related)
+canonical_policy_doc /
+  canonical_roadmap /
+  claude_governance_hook /
+  dashboard_wiring /
+  branch_protection_config /
+  deploy_script               → human_needed (protected_governance_change)
+ci_workflow                   → ci_only + human_needed (protected_governance_change)
+authority NEEDS_HUMAN /
+  PERMANENTLY_DENIED          → human_needed
+repeat_count ≥ 3              → human_needed (repeated_validation_failure)
+```
+
+## Required deliverables (this PR)
+
+```text
+1. reporting/development_bugfix_loop.py
+2. tests/unit/test_development_bugfix_loop.py
+3. docs/governance/development_bugfix_loop.md
+4. This entry in docs/roadmap/autonomous_development.txt
+```
+
+## Out of scope (deferred)
+
+```text
+- failure collector script(s) — separate PR after A10
+- automatic branch / PR / commit creation — never; operator-gated
+- A11 / A12 — separate phases
+- Any QRE/IR/v3.15.17 changes
+- Any live/paper/shadow/risk/trading/broker/execution change
+```
+
+## Definition of Done
+
+```text
+1. Branch feature/a10-bugfix-loop exists; nothing on main.
+2. Implementation complete on branch (module, tests, docs, roadmap entry).
+3. Targeted tests green:
+     python -m pytest tests/unit/test_development_bugfix_loop.py -q
+4. Broader unit suite green:
+     python -m pytest tests/unit -q
+5. Smoke suite green:
+     python -m pytest tests/smoke -q
+6. Governance lint green:
+     python scripts/governance_lint.py
+7. PR opened against main via the documented gh CLI flow.
+8. CI green on the PR.
+9. Squash-merged to main; post-merge gates green.
+10. Only after step 9 may this entry be flipped from `PR-ready` to
+    `Complete`, recording PR number and merge SHA.
+```
+
+## Determinism
+
+The pure module accepts an injectable `generated_at_utc`. With the same failure-input contract and the same injected timestamp, output bytes are identical. Per-row `candidate_id` is sha256-derived from `(failure_class, target_path, message_digest)` and stable across runs.
+
