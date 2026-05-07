@@ -1137,3 +1137,116 @@ repeat_count ≥ 3              → human_needed (repeated_validation_failure)
 
 The pure module accepts an injectable `generated_at_utc`. With the same failure-input contract and the same injected timestamp, output bytes are identical. Per-row `candidate_id` is sha256-derived from `(failure_class, target_path, message_digest)` and stable across runs.
 
+\---
+
+# A11 — Bounded Roadmap Implementation Delegation
+
+## Status
+
+```text
+Status: PR-ready (NOT complete)
+```
+
+A11 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+
+## Purpose
+
+Convert explicit, machine-readable roadmap items into routable delegation entries — without any fuzzy parsing. Markers inside canonical roadmap docs are HTML-comment fenced and invisible to readers; an optional sidecar JSONL seed supports bulk operator-authored decomposition. Promotion into the development work queue remains a separate manual operator action.
+
+## Architectural separation
+
+ADE core (this PR):
+
+```text
+reporting/development_delegation.py
+```
+
+Stdlib + `reporting.execution_authority` + `reporting.approval_policy` + `reporting.development_work_queue`. No subprocess, no network, no `gh`, no `git`. Pinned by tests at AST level.
+
+There is no out-of-core collector for A11 — markers and the sidecar are operator-authored.
+
+## Marker grammar (canonical roadmap docs)
+
+```
+<!-- ade_delegation
+delegation_id: <opaque-stable-id, [A-Za-z0-9_.-]+>
+title: <≤200 chars>
+category: <one of A8 CATEGORIES>
+required_agent_role: <one of A8 AGENT_ROLES>
+risk_level: <LOW | MEDIUM | HIGH | UNKNOWN>
+acceptance_criteria:
+  - <≤200 chars>
+  - <…>
+human_needed: <true | false>
+human_needed_reason: <closed reason; "none" iff human_needed=false>
+-->
+```
+
+Strict closed grammar — every required field must be present and pass the closed-vocab check. Any failure drops the marker with a `validation_warning`.
+
+Use markers sparingly. Canonical roadmap docs must remain human-readable. Markers are appropriate for high-level approved delegation anchors. Bulk decomposition belongs in the sidecar seed.
+
+## Sidecar seed
+
+```text
+docs/development_work_queue/delegation_seed.jsonl
+```
+
+Strict JSONL. Empty by default. One JSON object per non-blank line; same fields as the marker grammar.
+
+## Discipline invariants (load-bearing)
+
+```text
+writes_to_seed_jsonl: false
+writes_to_bugfix_seed_jsonl: false
+writes_to_delegation_seed_jsonl: false
+fuzzy_parsing: false
+operator_promotion_required: true
+```
+
+## Required deliverables (this PR)
+
+```text
+1. reporting/development_delegation.py
+2. tests/unit/test_development_delegation.py
+3. docs/governance/development_delegation.md
+4. docs/development_work_queue/delegation_seed.jsonl (empty placeholder)
+5. This entry in docs/roadmap/autonomous_development.txt
+```
+
+## Out of scope (deferred)
+
+```text
+- automatic promotion into seed.jsonl — never; operator-gated
+- prose / heading / list / NLP parsing — never
+- A12 operational digest — separate phase
+- Any QRE/IR/v3.15.17 changes
+- Any live/paper/shadow/risk/trading/broker/execution change
+```
+
+## Definition of Done
+
+```text
+1. Branch feature/a11-roadmap-delegation exists; nothing on main.
+2. Implementation complete on branch (module, tests, docs, seed,
+   roadmap entry).
+3. Targeted tests green:
+     python -m pytest tests/unit/test_development_delegation.py -q
+4. Broader unit suite green:
+     python -m pytest tests/unit -q
+5. Smoke suite green:
+     python -m pytest tests/smoke -q
+6. Governance lint green:
+     python scripts/governance_lint.py
+7. PR opened against main via the documented gh CLI flow.
+8. CI green on the PR.
+9. Squash-merged to main; post-merge gates green.
+10. Only after step 9 may this entry be flipped from `PR-ready` to
+    `Complete`, recording PR number and merge SHA.
+```
+
+## Determinism
+
+The pure module accepts an injectable `generated_at_utc`. With the same canonical roadmap content, the same sidecar seed, and the same injected timestamp, output bytes are identical.
+
+
