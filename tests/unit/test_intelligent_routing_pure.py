@@ -353,6 +353,15 @@ def test_routing_decision_payload_uses_advisory_field_names() -> None:
     assert "advisory_rank" in payload
     assert "dead_zone_lookup_precision" in payload  # v3.15.16.1
     assert payload["dead_zone_lookup_precision"] == "exact_timeframe_match"
+    # v3.15.16.2 — IG provenance fields present in payload.
+    assert "info_gain_source" in payload
+    assert payload["info_gain_source"] == "missing"
+    assert "info_gain_observation_count" in payload
+    assert "info_gain_latest_event_utc" in payload
+    assert "info_gain_classification" in payload
+    assert "info_gain_outcome" in payload
+    assert "info_gain_reason_code" in payload
+    assert "info_gain_projection_note" in payload
     assert "suppression_reason" not in payload
     assert "recommended_priority" not in payload
     assert "priority" not in payload

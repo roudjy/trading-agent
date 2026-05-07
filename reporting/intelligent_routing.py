@@ -169,6 +169,61 @@ DEAD_ZONE_LOOKUP_PRECISION_VALUES: Final[tuple[str, ...]] = (
 )
 
 # ---------------------------------------------------------------------------
+# v3.15.16.2 — Multi-campaign IG ledger reader (operator-blessed contracts)
+# ---------------------------------------------------------------------------
+
+#: Closed allowlist for ledger event types that may contribute IG
+#: signal. Operator-blessed in v3.15.16.2 based on the corrected
+#: VPS diagnostic (PR #128). Other event types are silently ignored.
+LEDGER_ALLOWED_EVENT_TYPES: Final[frozenset[str]] = frozenset({
+    "campaign_completed",
+    "campaign_failed",
+})
+
+#: Closed mapping table from observed ``meaningful_classification``
+#: values on the canonical ledger to per-event IG scores. Operator-
+#: blessed in v3.15.16.2. Bucket assignment uses the existing
+#: ``bucket_info_gain`` thresholds — 0.0 → none, 0.0 < x < 0.3 → low,
+#: 0.3 ≤ x < 0.7 → medium, ≥ 0.7 → high.
+#:
+#: Semantic framing: this is a *simplified projection* of the
+#: canonical IG calculation in ``research/information_gain.py``.
+#: ``meaningful_failure_confirmed`` is mapped at 0.2 (low bucket),
+#: NOT 0.5 (medium / IG_NEW_FAILURE_MODE), because the ledger event
+#: alone cannot prove novelty (the canonical 0.5 weight in
+#: information_gain.py:172-177 explicitly requires "Failure reason
+#: not seen in prior evidence ledger" — a check the line-streaming
+#: reader cannot replicate without an O(n²) scan).
+LEDGER_MEANINGFUL_CLASSIFICATION_TO_SCORE: Final[dict[str, float]] = {
+    "meaningful_failure_confirmed": 0.2,
+    "duplicate_low_value_run": 0.1,
+    "uninformative_technical_failure": 0.0,
+}
+
+#: IG source labels on per-decision rows (closed vocabulary).
+INFO_GAIN_SOURCE_LATEST_ARTIFACT: Final[str] = "latest_artifact"
+INFO_GAIN_SOURCE_EVIDENCE_LEDGER: Final[str] = "evidence_ledger"
+INFO_GAIN_SOURCE_MISSING: Final[str] = "missing"
+
+INFO_GAIN_SOURCE_VALUES: Final[tuple[str, ...]] = (
+    INFO_GAIN_SOURCE_LATEST_ARTIFACT,
+    INFO_GAIN_SOURCE_EVIDENCE_LEDGER,
+    INFO_GAIN_SOURCE_MISSING,
+)
+
+#: Top-level semantic framing string. Pinned by tests.
+INFO_GAIN_SEMANTIC: Final[str] = "research_information_value"
+
+#: Annotation on Tier-2 (evidence_ledger) rows so a reader is
+#: reminded the IG was a ledger projection, not the canonical full
+#: IG calculation.
+INFO_GAIN_PROJECTION_NOTE_LEDGER: Final[str] = "ledger_simplified_projection"
+
+#: Bound on streamed JSONL lines. Beyond this, the reader stops and
+#: flags ``truncated: true`` in provenance.
+LEDGER_MAX_LINES: Final[int] = 1_000_000
+
+# ---------------------------------------------------------------------------
 # Orthogonality buckets
 # ---------------------------------------------------------------------------
 
@@ -344,6 +399,20 @@ class RoutingDecision:
     advisory_priority_score: int
     advisory_rank: int
     tie_break_key: str
+    #: v3.15.16.2 — IG provenance annotations. ``info_gain_source``
+    #: is one of ``INFO_GAIN_SOURCE_VALUES``. The remaining fields
+    #: are populated when source is ``evidence_ledger``; null
+    #: otherwise. ``info_gain_projection_note`` carries the
+    #: ``ledger_simplified_projection`` constant on Tier-2 rows so
+    #: downstream readers cannot mistake the projection for the
+    #: canonical full IG calculation.
+    info_gain_source: str = INFO_GAIN_SOURCE_MISSING
+    info_gain_observation_count: int = 0
+    info_gain_latest_event_utc: str | None = None
+    info_gain_classification: str | None = None
+    info_gain_outcome: str | None = None
+    info_gain_reason_code: str | None = None
+    info_gain_projection_note: str | None = None
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -352,6 +421,13 @@ class RoutingDecision:
             "behavior_coordinates": self.behavior_coordinates.to_payload(),
             "info_gain_score": float(self.info_gain_score),
             "info_gain_bucket": self.info_gain_bucket,
+            "info_gain_source": self.info_gain_source,
+            "info_gain_observation_count": int(self.info_gain_observation_count),
+            "info_gain_latest_event_utc": self.info_gain_latest_event_utc,
+            "info_gain_classification": self.info_gain_classification,
+            "info_gain_outcome": self.info_gain_outcome,
+            "info_gain_reason_code": self.info_gain_reason_code,
+            "info_gain_projection_note": self.info_gain_projection_note,
             "dead_zone_status": self.dead_zone_status,
             "dead_zone_lookup_precision": self.dead_zone_lookup_precision,
             "near_duplicate_group": self.near_duplicate_group,
@@ -376,8 +452,13 @@ class RoutingReportSummary:
     high_info_gain: int
     novel_behavior_coordinates: int
     metadata_gaps: int
+    #: v3.15.16.2 — IG source distribution and vocabulary-drift
+    #: counter. ``by_info_gain_source`` keys are
+    #: ``INFO_GAIN_SOURCE_VALUES``.
+    by_info_gain_source: dict[str, int] = dataclasses.field(default_factory=dict)
+    unrecognised_classification_count: int = 0
 
-    def to_payload(self) -> dict[str, int]:
+    def to_payload(self) -> dict[str, object]:
         return {
             "total": int(self.total),
             "advisory_suppressed_dead_zone": int(self.advisory_suppressed_dead_zone),
@@ -387,6 +468,10 @@ class RoutingReportSummary:
             "high_info_gain": int(self.high_info_gain),
             "novel_behavior_coordinates": int(self.novel_behavior_coordinates),
             "metadata_gaps": int(self.metadata_gaps),
+            "by_info_gain_source": dict(sorted(self.by_info_gain_source.items())),
+            "unrecognised_classification_count": int(
+                self.unrecognised_classification_count
+            ),
         }
 
 
@@ -404,9 +489,12 @@ class RoutingReport:
     routing_effect: str
     queue_ordering_effect: str
     generated_at_utc: str
-    provenance: dict[str, dict[str, str]]
+    provenance: dict[str, dict[str, Any]]
     decisions: tuple[RoutingDecision, ...]
     summary: RoutingReportSummary
+    #: v3.15.16.2 — semantic framing constant. Always equal to
+    #: ``INFO_GAIN_SEMANTIC == "research_information_value"``.
+    info_gain_semantic: str = INFO_GAIN_SEMANTIC
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -415,6 +503,7 @@ class RoutingReport:
             "version": self.version,
             "routing_effect": self.routing_effect,
             "queue_ordering_effect": self.queue_ordering_effect,
+            "info_gain_semantic": self.info_gain_semantic,
             "generated_at_utc": self.generated_at_utc,
             "provenance": dict(sorted(self.provenance.items())),
             "decisions": [d.to_payload() for d in self.decisions],
@@ -697,11 +786,20 @@ INFORMATION_GAIN_PATH: Final[Path] = (
     / "information_gain_latest.v1.json"
 )
 
+#: v3.15.16.2 Tier-2 input. Path matches the canonical writer at
+#: research/campaign_launcher.py:146 and
+#: research/diagnostics/paths.py:169 (CAMPAIGN_EVIDENCE_LEDGER_PATH),
+#: empirically verified by PR #128's corrected diagnostic.
+CAMPAIGN_EVIDENCE_LEDGER_PATH: Final[Path] = (
+    REPO_ROOT / "research" / "campaign_evidence_ledger_latest.v1.jsonl"
+)
+
 INPUT_PATHS: Final[tuple[Path, ...]] = (
     CAMPAIGN_QUEUE_PATH,
     CAMPAIGN_REGISTRY_PATH,
     DEAD_ZONES_PATH,
     INFORMATION_GAIN_PATH,
+    CAMPAIGN_EVIDENCE_LEDGER_PATH,
 )
 
 
@@ -1016,6 +1114,175 @@ def _index_information_gain(
     return {cid: score_f}
 
 
+# ---------------------------------------------------------------------------
+# v3.15.16.2 — Tier-2 ledger reader (research_information_value projection)
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class _LedgerProjectionStats:
+    """Sanitised provenance for the Tier-2 ledger projection.
+
+    ``unrecognised_classification_count`` flags vocabulary drift —
+    new ``meaningful_classification`` values that the operator-blessed
+    mapping table does not yet cover. Operators inspect this counter
+    to decide whether the v3.15.16.2 mapping needs revision.
+    """
+
+    line_count: int = 0
+    parsed_line_count: int = 0
+    malformed_jsonl_lines: int = 0
+    malformed_at_utc_count: int = 0
+    truncated: bool = False
+    unrecognised_classification_count: int = 0
+
+
+def _index_information_gain_from_ledger(
+    ledger_path: Path = CAMPAIGN_EVIDENCE_LEDGER_PATH,
+    *,
+    max_lines: int = LEDGER_MAX_LINES,
+) -> tuple[dict[str, dict[str, Any]], _LedgerProjectionStats]:
+    """Stream the append-only campaign-evidence ledger line-by-line
+    and emit a per-campaign IG projection.
+
+    Per-campaign rule (operator-blessed v3.15.16.2): retain the event
+    with the latest ``at_utc`` (lex-compared as ISO-8601 string)
+    among events that
+
+    * have ``event_type`` in :data:`LEDGER_ALLOWED_EVENT_TYPES`, AND
+    * have a non-null ``meaningful_classification``, AND
+    * have a non-empty ``campaign_id``, AND
+    * have a string-typed ``at_utc``.
+
+    Tie-break: smaller ``event_id`` wins when ``at_utc`` is identical.
+    Events with non-string or missing ``at_utc`` are skipped and
+    counted in ``stats.malformed_at_utc_count``. Malformed JSONL
+    lines are skipped and counted in ``stats.malformed_jsonl_lines``.
+
+    Stdlib-only. Pure-read. Bounded memory (per-campaign dict only;
+    one event retained per campaign). The reader does NOT import
+    ``research.campaign_evidence_ledger`` (which would pull the
+    project's heavy transitive deps and fail on the VPS system
+    Python).
+
+    Returns ``(per_campaign, stats)`` where ``per_campaign`` is
+    ``{campaign_id: {<terminal-event annotation fields>}}``.
+    """
+    per_campaign: dict[str, dict[str, Any]] = {}
+    stats_line_count = 0
+    stats_parsed = 0
+    stats_malformed = 0
+    stats_malformed_at = 0
+    stats_truncated = False
+    stats_unrecognised = 0
+
+    if not ledger_path.exists() or not ledger_path.is_file():
+        return per_campaign, _LedgerProjectionStats(
+            line_count=0,
+            parsed_line_count=0,
+            malformed_jsonl_lines=0,
+            malformed_at_utc_count=0,
+            truncated=False,
+            unrecognised_classification_count=0,
+        )
+
+    try:
+        # Open in read mode. NEVER write. The reader is bound by the
+        # ``test_ig_reader_no_research_writes`` invariant.
+        with ledger_path.open("r", encoding="utf-8") as fh:
+            for raw_line in fh:
+                stats_line_count += 1
+                if stats_line_count > max_lines:
+                    stats_truncated = True
+                    stats_line_count -= 1
+                    break
+                stripped = raw_line.strip()
+                if not stripped:
+                    continue
+                try:
+                    ev = json.loads(stripped)
+                except json.JSONDecodeError:
+                    stats_malformed += 1
+                    continue
+                if not isinstance(ev, dict):
+                    stats_malformed += 1
+                    continue
+                stats_parsed += 1
+
+                event_type = ev.get("event_type")
+                if event_type not in LEDGER_ALLOWED_EVENT_TYPES:
+                    continue
+
+                mc = ev.get("meaningful_classification")
+                if mc is None:
+                    continue
+                if not isinstance(mc, str) or not mc:
+                    continue
+
+                cid = ev.get("campaign_id")
+                if not isinstance(cid, str) or not cid:
+                    continue
+
+                at_utc = ev.get("at_utc")
+                if not isinstance(at_utc, str) or not at_utc:
+                    stats_malformed_at += 1
+                    continue
+
+                event_id = ev.get("event_id")
+                if not isinstance(event_id, str):
+                    event_id = ""
+
+                if mc in LEDGER_MEANINGFUL_CLASSIFICATION_TO_SCORE:
+                    score = LEDGER_MEANINGFUL_CLASSIFICATION_TO_SCORE[mc]
+                else:
+                    stats_unrecognised += 1
+                    score = 0.0
+
+                outcome = ev.get("outcome")
+                if not isinstance(outcome, str):
+                    outcome = None
+                reason_code = ev.get("reason_code")
+                if not isinstance(reason_code, str):
+                    reason_code = None
+                # Surface "none" reason_code as None (semantic noise
+                # suppression: the producer uses "none" as a literal
+                # placeholder).
+                if reason_code == "none":
+                    reason_code = None
+
+                candidate = {
+                    "score": float(score),
+                    "classification": mc,
+                    "outcome": outcome,
+                    "reason_code": reason_code,
+                    "at_utc": at_utc,
+                    "event_id": event_id,
+                }
+
+                existing = per_campaign.get(cid)
+                if existing is None:
+                    per_campaign[cid] = candidate
+                else:
+                    existing_key = (existing["at_utc"], existing["event_id"])
+                    candidate_key = (at_utc, event_id)
+                    if candidate_key > existing_key:
+                        per_campaign[cid] = candidate
+    except OSError:
+        # Defensive: an OSError mid-stream still returns the
+        # partial result we accumulated. The caller treats this
+        # the same as a missing ledger.
+        pass
+
+    return per_campaign, _LedgerProjectionStats(
+        line_count=stats_line_count,
+        parsed_line_count=stats_parsed,
+        malformed_jsonl_lines=stats_malformed,
+        malformed_at_utc_count=stats_malformed_at,
+        truncated=stats_truncated,
+        unrecognised_classification_count=stats_unrecognised,
+    )
+
+
 def _queue_entries(
     queue_payload: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
@@ -1155,6 +1422,7 @@ def build_report(
     registry_path: Path = CAMPAIGN_REGISTRY_PATH,
     dead_zones_path: Path = DEAD_ZONES_PATH,
     information_gain_path: Path = INFORMATION_GAIN_PATH,
+    campaign_evidence_ledger_path: Path = CAMPAIGN_EVIDENCE_LEDGER_PATH,
 ) -> RoutingReport:
     """Pure (modulo file reads) builder for the advisory routing report.
 
@@ -1192,6 +1460,15 @@ def build_report(
     dead_zone_index = _index_dead_zones(dead_zones_payload)
     ig_index = _index_information_gain(ig_payload)
 
+    # v3.15.16.2 — Tier-2 ledger projection. Independent of the
+    # canonical Tier-1 (information_gain_latest.v1.json); resolved
+    # per-campaign in the row-build loop below. Returns a
+    # ``{campaign_id: {<terminal-event annotations>}}`` dict plus a
+    # provenance/stats record.
+    ledger_projection, ledger_stats = _index_information_gain_from_ledger(
+        campaign_evidence_ledger_path,
+    )
+
     # First pass: per-campaign coords + metadata.
     coord_records: list[tuple[dict[str, Any], BehaviorCoordinates, str, str | None, bool]] = []
     for entry in queue:
@@ -1218,8 +1495,34 @@ def build_report(
     for entry, coords, preset_name, fp, has_full in coord_records:
         cid = str(entry.get("campaign_id"))
         spawned_at = str(entry.get("spawned_at_utc") or "")
-        score = float(ig_index.get(cid, 0.0))
-        bucket = bucket_info_gain(score)
+
+        # v3.15.16.2 IG tier resolution.
+        # Tier 1 (latest_artifact) wins for its single canonical
+        # campaign; Tier 2 (evidence_ledger) fills the rest;
+        # missing → score 0 / bucket "none".
+        ig_source = INFO_GAIN_SOURCE_MISSING
+        ig_score = 0.0
+        ig_observation_count = 0
+        ig_latest_event_utc: str | None = None
+        ig_classification: str | None = None
+        ig_outcome: str | None = None
+        ig_reason_code: str | None = None
+        ig_projection_note: str | None = None
+        if cid in ig_index:
+            ig_score = float(ig_index[cid])
+            ig_source = INFO_GAIN_SOURCE_LATEST_ARTIFACT
+        elif cid in ledger_projection:
+            ledger_row = ledger_projection[cid]
+            ig_score = float(ledger_row["score"])
+            ig_source = INFO_GAIN_SOURCE_EVIDENCE_LEDGER
+            ig_observation_count = 1
+            ig_latest_event_utc = ledger_row["at_utc"]
+            ig_classification = ledger_row["classification"]
+            ig_outcome = ledger_row["outcome"]
+            ig_reason_code = ledger_row["reason_code"]
+            ig_projection_note = INFO_GAIN_PROJECTION_NOTE_LEDGER
+
+        bucket = bucket_info_gain(ig_score)
         zone_status, zone_precision = classify_dead_zone_status(
             coords, dead_zone_index,
         )
@@ -1234,8 +1537,15 @@ def build_report(
             "campaign_id": cid,
             "preset_name": preset_name,
             "coords": coords,
-            "score": round(score, 4),
+            "score": round(ig_score, 4),
             "bucket": bucket,
+            "ig_source": ig_source,
+            "ig_observation_count": ig_observation_count,
+            "ig_latest_event_utc": ig_latest_event_utc,
+            "ig_classification": ig_classification,
+            "ig_outcome": ig_outcome,
+            "ig_reason_code": ig_reason_code,
+            "ig_projection_note": ig_projection_note,
             "zone_status": zone_status,
             "zone_precision": zone_precision,
             "group": group,
@@ -1293,6 +1603,13 @@ def build_report(
                 advisory_priority_score=priority,
                 advisory_rank=0,  # filled in below
                 tie_break_key=row["tie_break_key"],
+                info_gain_source=row["ig_source"],
+                info_gain_observation_count=row["ig_observation_count"],
+                info_gain_latest_event_utc=row["ig_latest_event_utc"],
+                info_gain_classification=row["ig_classification"],
+                info_gain_outcome=row["ig_outcome"],
+                info_gain_reason_code=row["ig_reason_code"],
+                info_gain_projection_note=row["ig_projection_note"],
             )
         )
 
@@ -1308,6 +1625,15 @@ def build_report(
         decisions.append(
             dataclasses.replace(d, advisory_rank=idx)
         )
+
+    # v3.15.16.2 — IG source distribution. Initialise every bucket to
+    # 0 so downstream readers can distinguish "0 rows from this
+    # source" from "this source not measured".
+    by_source: dict[str, int] = {
+        s: 0 for s in INFO_GAIN_SOURCE_VALUES
+    }
+    for d in decisions:
+        by_source[d.info_gain_source] = by_source.get(d.info_gain_source, 0) + 1
 
     summary = RoutingReportSummary(
         total=len(decisions),
@@ -1326,15 +1652,35 @@ def build_report(
             1 for d in decisions if d.orthogonality_bucket == ORTHOGONALITY_NOVEL
         ),
         metadata_gaps=metadata_gaps,
+        by_info_gain_source=by_source,
+        unrecognised_classification_count=int(
+            ledger_stats.unrecognised_classification_count
+        ),
     )
 
-    provenance: dict[str, dict[str, str]] = {}
+    provenance: dict[str, dict[str, Any]] = {}
     for path in (queue_path, registry_path, dead_zones_path, information_gain_path):
         try:
             rel = str(path.resolve().relative_to(REPO_ROOT)).replace("\\", "/")
         except ValueError:
             rel = str(path)
-        provenance[rel] = _provenance_entry(path)
+        provenance[rel] = dict(_provenance_entry(path))
+    # v3.15.16.2 — ledger provenance with stream stats.
+    try:
+        ledger_rel = str(
+            campaign_evidence_ledger_path.resolve().relative_to(REPO_ROOT)
+        ).replace("\\", "/")
+    except ValueError:
+        ledger_rel = str(campaign_evidence_ledger_path)
+    ledger_prov: dict[str, Any] = dict(
+        _provenance_entry(campaign_evidence_ledger_path)
+    )
+    ledger_prov["line_count"] = int(ledger_stats.line_count)
+    ledger_prov["parsed_line_count"] = int(ledger_stats.parsed_line_count)
+    ledger_prov["malformed_jsonl_lines"] = int(ledger_stats.malformed_jsonl_lines)
+    ledger_prov["malformed_at_utc_count"] = int(ledger_stats.malformed_at_utc_count)
+    ledger_prov["truncated"] = bool(ledger_stats.truncated)
+    provenance[ledger_rel] = ledger_prov
 
     return RoutingReport(
         schema_version=SCHEMA_VERSION,
@@ -1574,10 +1920,20 @@ __all__ = [
     "DEAD_ZONE_ALIVE",
     "DEAD_ZONE_DEAD",
     "DEAD_ZONE_INSUFFICIENT_DATA",
+    "CAMPAIGN_EVIDENCE_LEDGER_PATH",
     "DEAD_ZONE_LOOKUP_COARSE",
     "DEAD_ZONE_LOOKUP_EXACT",
     "DEAD_ZONE_LOOKUP_NO_MATCH",
     "DEAD_ZONE_LOOKUP_PRECISION_VALUES",
+    "INFO_GAIN_PROJECTION_NOTE_LEDGER",
+    "INFO_GAIN_SEMANTIC",
+    "INFO_GAIN_SOURCE_EVIDENCE_LEDGER",
+    "INFO_GAIN_SOURCE_LATEST_ARTIFACT",
+    "INFO_GAIN_SOURCE_MISSING",
+    "INFO_GAIN_SOURCE_VALUES",
+    "LEDGER_ALLOWED_EVENT_TYPES",
+    "LEDGER_MAX_LINES",
+    "LEDGER_MEANINGFUL_CLASSIFICATION_TO_SCORE",
     "DEAD_ZONE_STATUSES",
     "DEAD_ZONE_UNKNOWN",
     "DEAD_ZONE_WEAK",

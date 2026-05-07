@@ -276,17 +276,36 @@ def test_report_summary_counts(
 def test_report_provenance_present_for_every_input(
     synth_inputs: dict[str, Path], fixed_now_utc: _dt.datetime,
 ) -> None:
+    """v3.15.16.2: 5 provenance entries — queue, registry,
+    dead_zones, information_gain, and the campaign-evidence ledger.
+    The ledger entry is tolerated as ``not_available`` because this
+    fixture does not provide a ledger path; the test asserts the
+    other four are present and that the ledger entry exists in the
+    block (with stream-stat fields)."""
     report = _build(synth_inputs, fixed_now_utc)
     payload = report.to_payload()
     prov = payload["provenance"]
     assert isinstance(prov, dict)
-    # One key per input file.
-    assert len(prov) == 4
+    assert len(prov) == 5  # +1 for the ledger entry
+    present_count = sum(1 for e in prov.values() if e["status"] == "present")
+    assert present_count >= 4  # the four ig-fixture inputs
     for entry in prov.values():
-        assert entry["status"] == "present"
-        # SHA256 is 64 hex chars.
-        assert len(entry["sha256"]) == 64
-        assert "mtime_utc" in entry
+        if entry["status"] == "present":
+            assert len(entry["sha256"]) == 64
+            assert "mtime_utc" in entry
+        else:
+            assert entry["status"] == "not_available"
+    # The ledger entry carries v3.15.16.2 stream-stat fields even
+    # when not_available.
+    ledger_keys = {
+        "line_count", "parsed_line_count", "malformed_jsonl_lines",
+        "malformed_at_utc_count", "truncated",
+    }
+    ledger_entries = [
+        e for e in prov.values()
+        if all(k in e for k in ledger_keys)
+    ]
+    assert len(ledger_entries) == 1
 
 
 # ---------------------------------------------------------------------------
