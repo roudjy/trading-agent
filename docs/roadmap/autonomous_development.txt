@@ -1015,10 +1015,17 @@ Step 5 — Autonomous Implementation Loop (planning may begin after A12;
 ## Status
 
 ```text
-Status: PR-ready (NOT complete)
+Status: Complete
+PR: #136
+Merge SHA: 21d9064
+CI: green
+Post-merge gates: green (governance_lint OK, smoke 18/18 passed,
+                  A10 + adjacent unit tests 238/238 passed,
+                  no research/IR/frozen/.claude/.github/workflows
+                  changes in the merge SHA)
 ```
 
-A10 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+A10 is the completed agentic bugfix-loop intake foundation. A11 may now begin.
 
 ## Purpose
 
