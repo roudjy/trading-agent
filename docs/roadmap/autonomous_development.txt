@@ -707,6 +707,133 @@ unless the operator explicitly starts the corresponding QRE Feature Build Track 
 
 \---
 
+# A8 — Autonomous Development Operating Queue Foundation
+
+## Status
+
+```text
+Status: PR-ready (NOT complete)
+```
+
+A8 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass. Until then, this section reads `PR-ready` and the operator may move it to `Implementing` if a hard blocker emerges.
+
+## Correction
+
+The wording "Autonomous Development Track complete" was misleading from the operator's perspective. Replace with:
+
+```text
+Autonomous Development Governance Foundation: complete (A1–A7).
+Autonomous Development Operating Queue: begins at A8.
+Fully autonomous code-development loop: future work (A9–A12).
+```
+
+A1–A7 delivered the policy, classifier, read-only authority/readiness surfaces, proposal-queue cleanup, backlog discipline, and the readiness gate. None of those provide a Kanban-style operating queue, agent mandate routing, or human-needed escalation semantics — so they cannot count as autonomous development on their own.
+
+## Purpose
+
+A8 introduces the first concrete, repo-native foundation for the autonomous development operating loop:
+
+```text
+- a deterministic, read-only Kanban-style development work queue;
+- explicit agent mandate vocabulary;
+- closed Kanban status vocabulary;
+- closed human-needed reason vocabulary;
+- a stable JSON artifact under logs/development_work_queue/latest.json;
+- a status summary CLI for operator visibility.
+```
+
+It is **not** the QRE research campaign queue, **not** the Intelligent Routing advisory queue, and **not** `reporting.proposal_queue`. The module path, file name, and log path all use `development_work_queue` to make the distinction structural.
+
+## Scope
+
+Allowed:
+
+```text
+read-only reporting modules (reporting/development_work_queue.py and reporting/development_work_queue_status.py)
+operator-authored sidecar seed (docs/development_work_queue/seed.jsonl, strict JSONL, empty by default)
+governance documentation (docs/governance/development_work_queue.md)
+unit tests under tests/unit/
+```
+
+Not allowed in this phase:
+
+```text
+no QRE research campaign queue ordering changes
+no Intelligent Routing scoring or queue ordering changes
+no v3.15.17 work
+no auto-execute, auto-approve, auto-merge behavior
+no LLM-driven runtime planner
+no live/paper/shadow/risk/trading/broker/execution behavior changes
+no .claude/ writes
+no frozen-contract mutation
+no recurring_maintenance JOB_TYPES wiring (deferred to A9)
+no markdown roadmap-marker parser (schema reserved; not implemented in v0)
+```
+
+## Required deliverables
+
+```text
+1. reporting/development_work_queue.py — generator, vocabularies, schema, CLI.
+2. reporting/development_work_queue_status.py — read-only summary CLI.
+3. docs/development_work_queue/seed.jsonl — empty strict-JSONL placeholder.
+4. docs/governance/development_work_queue.md — governance doc explaining the autonomy correction, the mandate model, human-needed semantics, A8 v0 limits, and the A9–A12 outlook.
+5. tests/unit/test_development_work_queue.py — vocabulary, schema, parser, archive exclusion, false-positive suppression, deterministic output, source-text scans for forbidden imports.
+6. tests/unit/test_development_work_queue_status.py — counts pass-through, vocabulary buckets, read-only invariant, source-text scans.
+7. This entry in docs/roadmap/autonomous_development.txt.
+```
+
+## Closed vocabularies (canonical reference)
+
+```text
+AGENT_ROLES (16) — see reporting.development_work_queue.AGENT_ROLES
+STATUSES (12)    — Kanban: proposed, triaged, planned, ready, in_progress,
+                   blocked, human_needed, review_needed, validation_needed,
+                   done, rejected, archived
+CATEGORIES (10)  — governance, reporting, frontend, test, docs, ci,
+                   deployment, release, observability, refactor
+HUMAN_NEEDED_REASONS (11) — including "none" for human_needed=False
+ROADMAP_TRACKS (3)        — autonomous_development, qre_feature_build, sidecar_seed
+RISK_LEVELS               — reused from reporting.execution_authority.RISK_CLASSES
+```
+
+## Definition of Done
+
+```text
+1. Branch feature/a8-autonomous-development-operating-queue exists; nothing on main.
+2. Implementation complete on branch (modules, docs, tests, seed file).
+3. Targeted tests green:
+     python -m pytest tests/unit/test_development_work_queue.py \
+                      tests/unit/test_development_work_queue_status.py -q
+4. Broader unit suite green:
+     python -m pytest tests/unit -q
+5. Smoke suite green:
+     python -m pytest tests/smoke -q
+6. PR opened against main with summary, file map, and validation evidence.
+7. CI green on the PR.
+8. Squash-merged to main; post-merge gates green.
+9. Only after step 8 may this entry be flipped from `PR-ready` to `Complete`.
+10. If the PR cannot be merged in this session, the entry remains `PR-ready`
+    (or moves to `Implementing` if a hard blocker emerges) — never falsely
+    marked Complete.
+```
+
+## Determinism
+
+The pure generator accepts an injectable `generated_at_utc`. With the same seed input and the same injected timestamp, output bytes are identical. The runtime CLI defaults the timestamp to the current UTC clock, which means CLI invocations across different wall-clock seconds are **not** byte-identical for the wrapper; per-item bytes (item_id, ordering, content) remain stable.
+
+## Future phases
+
+```text
+A9  — Agentic release-gate integration into the queue
+A10 — Agentic bugfix loop for AUTO_ALLOWED bounded items
+A11 — Bounded roadmap implementation delegation (planner → seed entries)
+A12 — Operational digest of queue throughput and human-needed trends
+```
+
+These build on top of A8 and are explicitly out of scope for this PR.
+
+\---
+
 # 8\. Immediate next instruction to Claude
 
 Use this as the next implementation prompt after confirming PR #111 post-merge gates are green.
