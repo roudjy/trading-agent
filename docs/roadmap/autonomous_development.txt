@@ -885,10 +885,16 @@ Do not merge automatically.
 ## Status
 
 ```text
-Status: PR-ready (NOT complete)
+Status: Complete
+PR: #134
+Merge SHA: 0241775
+CI: green
+Post-merge gates: green (governance_lint OK, smoke 18/18 passed,
+                  A9 + adjacent unit tests 262/262 passed,
+                  no research/IR/frozen/.claude/.github/workflows changes)
 ```
 
-A9 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+A9 is the completed agentic release-gate foundation. A10 may now begin.
 
 ## Purpose
 
