@@ -1,4 +1,8 @@
-# Orchestrator Brief: Quant Strategy & Research Framework --- ## 1. Strategy Universe The 
+# Orchestrator Brief: Quant Strategy & Research Framework
+
+> **Session-start protocol (mandatory):** Every Claude session that performs any branch → PR → CI → squash-merge → post-merge flow MUST follow [`docs/governance/github_pr_lifecycle.md`](governance/github_pr_lifecycle.md). GitHub CLI portable lives at `C:\Users\joery.van.rooij\tools\gh\bin\gh.exe`; if `gh` is not on PATH, use the explicit path. The absence of `gh` on PATH is **never** justification to fall back to manual PRs. No `--admin` merges, no force push, no direct push to `main`.
+
+--- ## 1. Strategy Universe The 
 system must support a defined set of quantitative strategy classes. Each strategy must be 
 modular, parameterized, and fully compatible with the existing layered architecture. ### Core 
 Strategy Classes 1. **Trend Following (Momentum)** * Objective: capture persistent directional 

@@ -712,10 +712,16 @@ unless the operator explicitly starts the corresponding QRE Feature Build Track 
 ## Status
 
 ```text
-Status: PR-ready (NOT complete)
+Status: Complete
+PR: #132
+Merge SHA: 09bb439
+CI: green
+Post-merge gates: green (governance_lint OK, smoke 18/18 passed,
+                  A8 + adjacent unit tests 213/213 passed,
+                  no research/IR/frozen/.claude/.github/workflows changes)
 ```
 
-A8 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass. Until then, this section reads `PR-ready` and the operator may move it to `Implementing` if a hard blocker emerges.
+A8 is the completed foundation for A9. Future phases A9–A12 build on top.
 
 ## Correction
 
