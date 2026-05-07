@@ -878,3 +878,127 @@ Open a PR against main.
 Do not merge automatically.
 ```
 
+\---
+
+# A9 — Agentic Release-Gate Integration
+
+## Status
+
+```text
+Status: PR-ready (NOT complete)
+```
+
+A9 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+
+## Purpose
+
+Connect the `release_gate_agent` mandate to the development work queue: items in `category=release` with `status=validation_needed` receive deterministic go/no-go reports. Replace ad-hoc readiness reasoning with an evidence-backed verdict keyed by closed vocabulary.
+
+A9 is **not** an automatic merge or deployment trigger. `go` means "evidence shows nothing blocks merge"; the merge itself remains a separate `pr_squash_merge` action gated by the Execution Authority classifier and the GitHub PR lifecycle protocol.
+
+## Architectural separation: ADE core vs evidence collectors
+
+ADE core (this PR):
+
+```text
+reporting/development_release_gate.py
+reporting/development_release_gate_status.py
+```
+
+Stdlib + `reporting.execution_authority` + `reporting.approval_policy` + `reporting.development_work_queue`. No subprocess, no network, no `gh`, no `git`. Pinned by tests at AST level.
+
+Evidence collectors / adapters (out of scope for A9 core; preserved future path):
+
+```text
+- collectors live outside ADE core, preferred under scripts/
+- collectors may invoke gh/git/CI APIs
+- collectors produce logs/release_gate_input/latest.json
+- ADE core consumes only the evidence input contract
+- ADE core never imports collectors
+```
+
+A9 v0 accepts operator-driven evidence collection as a transitional state — not as the permanent architecture. The architecture explicitly preserves the future collector path so the operator does not have to permanently assemble release evidence by hand.
+
+## Verdict vocabulary (closed, 5)
+
+```text
+go                  - all required evidence clean
+go_with_followups   - clean, queue item lists advisory followups
+no_go_blocked       - hard-block evidence observed
+no_go_human_needed  - protected_surface=true OR authority NEEDS_HUMAN
+                       / PERMANENTLY_DENIED
+not_evaluated       - evidence absent / pending / item not qualifying
+```
+
+## Evidence keys (closed, 6)
+
+```text
+ci_status                   { green | red | pending | unknown }
+smoke_status                { passed | failed | unknown }
+governance_lint_status      { ok | fail | unknown }
+frozen_hash_status          { stable | drift | unknown }
+no_touch_path_delta_status  { clean | violation | unknown }
+queue_cross_reference_status { consistent | missing_item | unknown }
+```
+
+Frozen-hash drift signals always win. Protected-surface override always wins.
+
+## Required deliverables (this PR)
+
+```text
+1. reporting/development_release_gate.py
+2. reporting/development_release_gate_status.py
+3. tests/unit/test_development_release_gate.py
+4. tests/unit/test_development_release_gate_status.py
+5. docs/governance/development_release_gate.md
+6. This entry in docs/roadmap/autonomous_development.txt
+```
+
+## Out of scope (deferred)
+
+```text
+- evidence collector script(s) — separate PR after A9
+- automatic merge — never; remains operator-gated
+- deployment trigger — out of scope
+- A10/A11/A12 — separate phases
+- QRE-specific release semantics — disjoint
+```
+
+## Definition of Done
+
+```text
+1. Branch feature/a9-release-gate-integration exists; nothing on main.
+2. Implementation complete on branch (modules, docs, tests, roadmap entry).
+3. Targeted tests green:
+     python -m pytest tests/unit/test_development_release_gate.py \
+                      tests/unit/test_development_release_gate_status.py -q
+4. Broader unit suite green:
+     python -m pytest tests/unit -q
+5. Smoke suite green:
+     python -m pytest tests/smoke -q
+6. Governance lint green:
+     python scripts/governance_lint.py
+7. PR opened against main via the documented gh CLI flow.
+8. CI green on the PR.
+9. Squash-merged to main; post-merge gates green.
+10. Only after step 9 may this entry be flipped from `PR-ready` to
+    `Complete`, recording PR number and merge SHA.
+11. If the PR cannot be merged in this session, the entry remains
+    `PR-ready` (or moves to `Implementing` if a hard blocker emerges)
+    — never falsely marked Complete.
+```
+
+## Determinism
+
+Same as A8. The pure scorer accepts an injectable `generated_at_utc`. With the same queue artifact, the same evidence input, and the same injected timestamp, output bytes are identical. Per-row `gate_id` is sha256-derived and stable across runs with identical evidence.
+
+## Future phases
+
+```text
+A10 — Agentic Bugfix Loop (intake/proposal only; no auto-write to seed)
+A11 — Bounded Roadmap Implementation Delegation (explicit markers only)
+A12 — Operational Digest / Observability Loop
+Step 5 — Autonomous Implementation Loop (planning may begin after A12;
+         implementation only after readiness gate + explicit operator approval)
+```
+
