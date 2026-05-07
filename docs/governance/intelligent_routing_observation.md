@@ -241,13 +241,25 @@ no secrets). It is purely diagnostic — used to confirm what fields
 the routing layer can safely index without inferring metadata from
 `campaign_id`.
 
-The optional `ig_ledger_shape_diagnostic.json` (v3.15.16.2.diag) is
-a **sanitized** preview of the append-only
-`research/campaign_evidence_ledger.jsonl` ledger. It exists to help
-calibrate a future reporting-only multi-campaign Information Gain
-ledger reader (proposed v3.15.16.2). The diagnostic emits **counts,
-key sets, and bounded scalar values only** — never full event
-bodies, never raw nested payloads, never secrets. Specifically:
+The optional `ig_ledger_shape_diagnostic.json`
+(v3.15.16.2.diag, path-corrected in v3.15.16.2.diag.1) is a
+**sanitized** preview of the append-only campaign-evidence ledger
+at `research/campaign_evidence_ledger_latest.v1.jsonl`. The path
+matches the canonical writer in
+[`research/campaign_launcher.py:146`](../../research/campaign_launcher.py:146)
+and the constant
+`CAMPAIGN_EVIDENCE_LEDGER_PATH` at
+[`research/diagnostics/paths.py:169`](../../research/diagnostics/paths.py:169).
+(The unsuffixed path
+`research/campaign_evidence_ledger.jsonl` referenced in
+`research/research_evidence_ledger.py:42` is a stale alias and is
+**not** what the producer writes.)
+
+The diagnostic exists to help calibrate a future reporting-only
+multi-campaign Information Gain ledger reader (proposed
+v3.15.16.2). It emits **counts, key sets, and bounded scalar
+values only** — never full event bodies, never raw nested
+payloads, never secrets. Specifically:
 
 * Ledger presence + size + line counts (`line_count`,
   `parsed_line_count`, `malformed_line_count`, `truncated`,
