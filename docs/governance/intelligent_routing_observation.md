@@ -4,8 +4,145 @@
 > Modules:  `reporting/intelligent_routing.py`,
 >           `reporting/intelligent_routing_status.py`
 > Release:  v3.15.16 (advisory) + v3.15.16.1 (dead-zone coarse-lookup
->           annotation)
+>           annotation) + v3.15.16.2 (multi-campaign IG ledger
+>           reader — research-information-value projection only)
 > Companion: [`scripts/deploy_vps_dashboard.sh`](../../scripts/deploy_vps_dashboard.sh) (sibling deploy posture, mirrored secrets/SSH pattern)
+
+## v3.15.16.2 — multi-campaign IG ledger reader
+
+After the corrected diagnostic ([PR #128](https://github.com/roudjy/trading-agent/pull/128) / [run 25476792555](https://github.com/roudjy/trading-agent/actions/runs/25476792555)) confirmed the
+ledger's empirical shape, v3.15.16.2 adds a reporting-only
+multi-campaign IG ledger reader. The reader is **observability-only**;
+it does not change scoring weights, advisory suppression, dead-zone
+lookup, or orthogonality logic.
+
+### Top-level semantic framing
+
+The artifact carries a constant top-level field:
+```
+"info_gain_semantic": "research_information_value"
+```
+This is **research information value**. It is **not** candidate
+quality. It is **not** trading promise. It is **not** alpha
+confidence. It is **not** a profitability signal.
+
+### Tier resolution
+
+```
+Tier 1 — research/campaigns/evidence/information_gain_latest.v1.json
+         (canonical, full-fidelity, single most-recent campaign)
+                 ↓ wins for that one campaign
+Tier 2 — research/campaign_evidence_ledger_latest.v1.jsonl
+         (multi-campaign, simplified projection)
+                 ↓ fills every other campaign
+Missing → score 0.0, bucket "none", info_gain_source "missing"
+```
+
+### Closed event-type allowlist (operator-blessed)
+
+```
+LEDGER_ALLOWED_EVENT_TYPES = {"campaign_completed", "campaign_failed"}
+```
+
+`campaign_spawned` / `campaign_leased` / `campaign_started` carry
+no `meaningful_classification` and are excluded.
+`funnel_decision_emitted` / `funnel_technical_no_freeze` are
+**deliberately excluded** until their semantics inside `extra` are
+operator-reviewed in a separate task.
+
+### Closed mapping table (operator-blessed)
+
+| `meaningful_classification` | score | bucket |
+|---|---|---|
+| `meaningful_failure_confirmed` | 0.2 | `low` |
+| `duplicate_low_value_run` | 0.1 | `low` |
+| `uninformative_technical_failure` | 0.0 | `none` |
+| any unrecognised value (vocabulary drift) | 0.0 | `none` + `unrecognised_classification_count` increment |
+| `null` (event has no terminal classification) | event excluded from aggregation | — |
+
+`meaningful_failure_confirmed` is mapped at 0.2 (NOT 0.5 /
+medium) because the ledger event alone cannot prove novelty (the
+canonical 0.5 weight in `information_gain.py:172-177` requires
+"Failure reason not seen in prior evidence ledger" — a check the
+line-streaming reader cannot replicate without an O(n²) scan). Any
+upgrade to 0.5 requires a separate operator-approved PR with
+explicit novelty-detection logic.
+
+### Aggregation rule (operator-blessed)
+
+Per campaign: latest event with non-null
+`meaningful_classification` wins. Sort key is parsed `at_utc`
+(ISO-8601 lex order); tie-break on `event_id` ascending. The file
+is **not** guaranteed to be `at_utc`-ordered on disk, so the
+reader compares `at_utc` explicitly. Events with non-string /
+missing `at_utc` are skipped and counted as
+`malformed_at_utc_count` in provenance.
+
+### Per-decision annotation fields (additive — backwards-compatible)
+
+| Field | Closed values |
+|---|---|
+| `info_gain_source` | `"latest_artifact"` / `"evidence_ledger"` / `"missing"` |
+| `info_gain_observation_count` | int (0 for `latest_artifact` and `missing`, 1 for `evidence_ledger`) |
+| `info_gain_latest_event_utc` | ISO-8601 string or `null` |
+| `info_gain_classification` | the terminal `meaningful_classification` (Tier-2 only) |
+| `info_gain_outcome` | the terminal `outcome` (Tier-2 only) |
+| `info_gain_reason_code` | the terminal `reason_code` (Tier-2 only; the producer's literal `"none"` is normalised to `null`) |
+| `info_gain_projection_note` | constant `"ledger_simplified_projection"` for Tier-2; `null` otherwise |
+
+### Provenance — ledger entry stream-stat fields
+
+The artifact's `provenance` block grows a new entry under the key
+`research/campaign_evidence_ledger_latest.v1.jsonl` with these
+additional fields beyond the standard `status`/`sha256`/`mtime_utc`:
+
+```
+line_count, parsed_line_count, malformed_jsonl_lines,
+malformed_at_utc_count, truncated
+```
+
+The reader bounds the stream at `LEDGER_MAX_LINES = 1_000_000`;
+beyond that, `truncated: true` is flagged.
+
+### Summary additions
+
+```
+"summary": {
+  ...,
+  "by_info_gain_source": {"latest_artifact": N, "evidence_ledger": N, "missing": N},
+  "unrecognised_classification_count": N
+}
+```
+
+### What v3.15.16.2 does NOT do
+
+- Does **not** import `research.campaign_evidence_ledger` (which
+  pulls heavy transitive deps that fail on the VPS system Python).
+  The reader is stdlib-only JSONL.
+- Does **not** parse `extra` fields.
+- Does **not** infer hidden scores.
+- Does **not** include raw event bodies in the artifact (sanitised
+  to the six annotation fields above).
+- Does **not** read the full ledger upload it; only stream-stats are
+  exposed in provenance.
+- Does **not** modify any research producer.
+- Does **not** change scoring weights / bucket boundaries / advisory
+  suppression / dead-zone lookup / orthogonality logic.
+- Does **not** alter `routing_effect = "advisory_only"` or
+  `queue_ordering_effect = "none"`. Queue integration remains
+  deferred. v3.15.17 remains deferred.
+
+### Expected ranking impact (operator-acknowledged)
+
+Under current VPS data state, ~24 of 25 campaigns ship to
+`info_gain_bucket: low` via Tier-2; ranking will tie 24 rows at
+`advisory_priority_score = 10` (low IG × 10 multiplier + 0
+saturated orthogonality). This is **expected and acceptable**.
+The PR's primary value is observability — every row gains a
+`info_gain_classification` annotation explaining *why* the bucket
+is what it is. Ranking differentiation will improve naturally as
+the upstream queue diversifies and the orthogonality bucket
+distribution spreads.
 
 ## v3.15.16.1 — dead-zone coarse-lookup annotation only
 
