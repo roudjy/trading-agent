@@ -56,126 +56,51 @@ These outputs must:
 
 ---
 
-## 4. AI Tooling Roles
+## 4. Agent roles and authority
 
-Strict separation between reasoning, planning, and execution.
+Agent role separation has moved from the original "Claude / Codex CLI
+/ Claude Code" three-actor model to the v3.15.15.12 governance layer's
+sixteen-role model, plus the eight canonical handoff roles defined in
+`reporting.roadmap_execution_protocol`. The full mapping lives in:
 
-No agent may operate outside its assigned role.
+- `docs/governance/agent_handoff_protocol.md` — eight canonical
+  handoff roles (product_owner, strategic_advisor, planner,
+  implementation_agent, architecture_guardian, ci_guardian,
+  security/governance_guardian, human_operator).
+- `docs/governance/autonomy_ladder.md` — six autonomy levels (L0–L6).
+  Level 6 is permanently disabled.
+- `docs/adr/ADR-015-claude-agent-governance.md` — authority chain.
+- `.claude/agents/` — per-agent frontmatter with `allowed_roots`,
+  `tools`, and `max_autonomy_level`.
 
----
+Agent capability is bounded at every layer (policy, hooks,
+CODEOWNERS, branch protection). No agent role overrides
+`reporting.execution_authority.classify(...)`. Step 5 design (the
+future autonomous implementation loop) is documented in
+`docs/governance/step5_design.md` and remains implementation-blocked.
 
-### Claude (Architect / Analyst)
-
-Responsible for:
-
-- system architecture decisions
-- research reasoning
-- hypothesis design
-- evaluation of results
-- defining refactor scope
-
-Must:
-
-- produce structured plans before any implementation
-- enforce AGENTS.md and orchestrator specifications
-- identify risks and constraint violations
-
-Not responsible for:
-
-- executing code changes
-- performing multi-file edits
-- running CLI commands
+The original "Claude / Codex CLI / Claude Code" three-actor model is
+**superseded** and should not be cited as current. Cross-reference
+`docs/governance/agent_governance.md` for the public-facing overview.
 
 ---
 
-### Codex CLI (Implementation Engine)
+## 5. Execution workflow
 
-Responsible for:
+The canonical execution workflow is defined in:
 
-- implementing approved changes
-- performing multi-file refactors
-- running commands and validations
+- `docs/governance/roadmap_item_execution_protocol.md` — protocol
+  per roadmap item.
+- `docs/governance/agent_flow.md` — closed `next_action_proposed`
+  vocabulary.
+- `docs/governance/task_board.md` — read-only state-machine
+  projection.
+- `docs/governance/github_pr_lifecycle.md` — branch → PR → CI →
+  squash-merge → post-merge protocol.
 
-Must:
-
-- read `AGENTS.md` and `docs/orchestrator_brief.md` before acting
-- present a clear diff plan before making changes
-- keep changes minimal, scoped, and reversible
-- preserve existing behavior unless explicitly instructed otherwise
-
-Not allowed to:
-
-- introduce new strategy logic without explicit approval
-- change architecture without a prior plan
-- bypass system constraints or layer boundaries
-
----
-
-### Claude Code (Precision Tool)
-
-Responsible for:
-
-- small targeted edits
-- debugging specific issues
-- inspecting and explaining code
-
-Must:
-
-- operate within the current architecture
-- avoid structural or multi-file changes
-
----
-
-### Execution Flow (Strict)
-
-All work must follow this sequence:
-
-1. Claude:
-   - analyzes problem
-   - defines plan
-   - identifies risks
-
-2. Human:
-   - reviews and approves plan
-
-3. Codex:
-   - proposes diff
-   - applies changes
-
-4. Human:
-   - validates outcome
-
-No step may be skipped.
-
----
-
-### Core Principle
-
-Separate thinking from execution:
-
-- Claude decides what to build
-- Codex implements it
-- Human validates correctness
-
-Never mix roles within a single step.
-
----
-
-## 5. Execution Workflow
-
-Every change follows this sequence:
-
-1. Define the task (architecture or research goal)
-2. Use Claude to design the minimal solution
-3. Use Codex to implement the change
-4. Run smoke checks
-5. Review outputs before committing
-
-Rules:
-
-* no direct coding without a plan
-* no strategy changes during architecture work
-* prefer the smallest possible change set
+No agent may bypass `reporting.execution_authority.classify(...)`
+or skip the GitHub PR lifecycle. The previous prose ("Claude
+designs → Codex implements → Human validates") is superseded.
 
 ---
 
@@ -250,38 +175,25 @@ Then continue from the current system state.
   * `refactor:` structural change
   * `fix:` bug fix
 
-## 11. Git Workflow
+## 11. Git workflow
 
-All work must happen on a non-main branch.
+Canonical: `docs/governance/github_pr_lifecycle.md`.
 
-Branch rules:
-- never work directly on `main`
-- create a new branch before any implementation work
-- keep one branch limited to one coherent scope
+- Never commit directly to `main`.
+- Branch naming: `feature/`, `feat/`, `fix/`, `chore/`, `docs/`,
+  `refactor/` per the existing repo convention.
+- Merge strategy: squash-merge only (`gh pr merge --squash
+  --delete-branch`).
+- No `--admin` merge.
+- No force push.
+- No hook bypass (`--no-verify`, `--no-gpg-sign`, etc.).
+- Pre-commit and pre-push hooks run on every commit and push.
+- CI must be green before merge; post-merge gates must pass before
+  a roadmap entry is flipped to `Complete`.
 
-Branch naming:
-- `feature/...` for new capabilities
-- `refactor/...` for structural changes
-- `fix/...` for bug fixes
-
-Commit rules:
-- keep commits small and atomic
-- commit only at meaningful checkpoints
-- push regularly so remote state stays current
-
-Pull request rules:
-- merge to `main` only through a reviewed, intentional PR
-- summarize scope, risks, and smoke checks in the PR
-
-Session start rule:
-- confirm current branch before doing any work
-- if on `main`, create a new branch immediately
-
-Never commit:
-
-* temporary logs
-* irrelevant artifacts
-* partial experiments
+The GitHub CLI portable lives at
+`C:\Users\joery.van.rooij\tools\gh\bin\gh.exe`. Absence of `gh` on
+PATH is **never** justification to fall back to manual PRs.
 
 ## 12. Enforcement
 

@@ -221,6 +221,19 @@ Wat je doet in deze fase:
 - Geen crashes of rare gedragingen
 - Je begrijpt waarom elke trade is gemaakt
 
+> **Current paper-readiness criteria** are now defined by the
+> v3.15+ paper-validation engine, not by the simple `win-rate >55%
+> over 50 trades` threshold above. The full closed-vocabulary
+> readiness gate is documented in:
+>
+> - `research/paper_readiness.py` — closed blocking-reason taxonomy.
+> - `docs/handoffs/v3.15-to-v3.16.md` §2 — narrative summary.
+>
+> The threshold above is kept as a simple human-readable signpost;
+> the authoritative criteria are the ones in the paper-readiness
+> gate. Treat the section above as the "comfort milestone", not the
+> live-trading authorisation gate.
+
 ---
 
 ## STAP 8 — Live zetten

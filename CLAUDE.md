@@ -9,6 +9,38 @@ De agent mag NOOIT risico verhogen om een doel te halen
 
 Authority doctrine: `docs/adr/ADR-014-truth-authority-settlement.md` — canonical mapping of which subsystem owns truth for each domain (registry / presets / catalog / candidate lifecycle / paper readiness / live governance).
 
+Agent governance doctrine: `docs/adr/ADR-015-claude-agent-governance.md`
+— authority chain for Claude / agent code-modification capability
+(no-touch paths, autonomy ladder L0–L6, audit ledger). Level 6
+(autonomous merge / deploy) is permanently disabled.
+
+Session-start protocol for any branch → PR → CI → squash-merge →
+post-merge work: `docs/governance/github_pr_lifecycle.md`.
+GitHub CLI portable: `C:\Users\joery.van.rooij\tools\gh\bin\gh.exe`.
+No `--admin` merges, no force push, no direct push to `main`, no
+hook bypass, no test weakening, no `.claude/**` writes.
+
+Project split:
+
+- **QRE** (Quant Research Engine) — research execution platform
+  under `research/`. Roadmap: `docs/roadmap/Roadmap v6.md`.
+- **ADE** (Autonomous Development Engine) — governance + work queue
+  + release gate + bugfix loop + delegation + operational digest +
+  E2E proof under `reporting/development_*.py`. Roadmap:
+  `docs/roadmap/autonomous_development.txt`.
+
+ADE A1–A13 are complete. Step 5 design is complete
+(`docs/governance/step5_design.md`,
+`docs/adr/_drafts/ADR-017-step5-autonomous-implementation-loop.md`).
+**Step 5 implementation remains blocked** behind explicit operator
+authorisation, the autonomy-ladder ceiling, and the readiness gate
+(`docs/governance/step5_design.md` §12).
+
+Allowed surfaces and forbidden surfaces are listed in
+`docs/governance/no_touch_paths.md`. Per-action authority decisions
+follow `docs/governance/execution_authority.md`. Autonomy levels
+follow `docs/governance/autonomy_ladder.md`.
+
 ## Server
 VPS: Hetzner CX22 | IP: 23.88.110.92
 OS: Ubuntu 24.04 | Project: /root/trading-agent/
@@ -340,6 +372,8 @@ KERNREGEL ZELFLEREN:
 - Telegram: nog in te voeren na monitoring build
 
 ---
+
+## Historical (pre-v3.15) — superseded by Roadmap v6 + autonomous_development.txt
 
 ## ROADMAP — Maximaal 1 maand
 
