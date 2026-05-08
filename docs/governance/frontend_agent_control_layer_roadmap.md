@@ -1,5 +1,24 @@
 # Frontend Agent Control Layer — Roadmap (v3.15.15.17 → .23)
 
+> **Status: paused / historical.** This roadmap was sequenced before
+> the ADE Autonomous Development Track (A1–A13) was authored. After
+> A13 completed (PRs #143 / #144 / #145) and the Step 5 design
+> (`docs/governance/step5_design.md`, PR #148) landed, this frontend
+> control-layer sequence (v3.15.15.17 → .23) is **paused** and
+> remains historical pending operator authorisation to resume.
+>
+> Resuming this sequence is **not** required for ADE Step 5 design,
+> Step 5 readiness, or QRE Feature Build Track work. It is a
+> separate frontend-surface initiative that the operator may
+> reactivate after Step 5 design planning closes and after the
+> documentation modernization cleanup (this branch) lands. None of
+> the contents below has been implemented in production; the
+> dashboard surfaces described here are speculative until the
+> operator restarts the sequence.
+>
+> Cross-reference: [`docs/governance/step5_design.md`](step5_design.md),
+> [`docs/governance/documentation_audit.md`](documentation_audit.md).
+
 This document captures the post-v3.15.15.16 release sequence that
 moves the operator's daily interaction from CLI / GitHub web UI to a
 backend-mediated dashboard surface. Frontend remains UI-only;
