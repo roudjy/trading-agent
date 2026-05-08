@@ -1377,10 +1377,29 @@ The pure module accepts an injectable `generated_at_utc`. With the same upstream
 ## Status
 
 ```text
-Status: PR-ready (NOT complete)
+Status: Complete
+PR: #143
+Merge SHA: 210eeca
+CI: green
+Post-merge gates: green (governance_lint OK, smoke 18/18 passed,
+                  A13 + adjacent unit tests 318/318 passed,
+                  no research/IR/frozen/.claude/.github/workflows
+                  changes in the merge SHA)
+
+Live proof outcome (run on post-merge main):
+  proof_status: passed
+  autonomous_development_possible: true
+  flow_steps: 8/8 passed
+  protected_path_violations: none
+  qre_coupling_violations: none
+  missing_capabilities: none
+  step5_design_planning_allowed: true
+  step5_implementation_allowed: false
 ```
 
-A13 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+A13 is the completed ADE end-to-end proof harness. The ADE A8–A13 sequence is complete.
+
+The Autonomous Development Engine has been proven end-to-end on synthetic fixtures. **Step 5 design planning is allowed.** Step 5 **implementation** requires separate operator authorisation and is NOT auto-enabled.
 
 ## Purpose
 
