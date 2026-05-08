@@ -1,17 +1,21 @@
-# ADR-017 — Step 5 Autonomous Implementation Loop (Draft)
+# ADR-017 — Step 5 Autonomous Implementation Loop
 
-> **Draft.** Lives under `docs/adr/_drafts/`. Promotion to a numbered
-> `docs/adr/ADR-017-*.md` requires an operator-authored,
-> CODEOWNERS-reviewed governance-bootstrap PR (per
-> [`docs/governance/no_touch_paths.md`](../../governance/no_touch_paths.md)
-> "ADRs" entry: existing ADRs are immutable; drafts go into
-> `docs/adr/_drafts/` via the `ask` flow). This file is the design-time
-> draft only; it is **not** an accepted ADR.
+> **Accepted ADR.** Promoted from `docs/adr/_drafts/` via operator-authored
+> governance-bootstrap PR. Sits beside ADR-014 (truth-authority settlement)
+> and ADR-015 (Claude Agent Governance) as the third pillar of the project's
+> authority chain. Pairs with the canonical Step 5 design document at
+> [`docs/governance/step5_design.md`](../../governance/step5_design.md).
+> Acceptance does **not** authorise Step 5 implementation; that requires the
+> separate readiness-gate criteria (G1–G12) of `docs/governance/step5_design.md` §12.
 
 ## Status
 
-`Draft — design planning only`. Pairs with the canonical Step 5 design
-document at [`docs/governance/step5_design.md`](../../governance/step5_design.md).
+Accepted — 2026-05-08. Promoted via operator-authored governance-bootstrap
+PR. Pairs with the canonical Step 5 design document at
+[`docs/governance/step5_design.md`](../../governance/step5_design.md).
+Step 5 implementation remains gated by the readiness criteria in
+`docs/governance/step5_design.md` §12 and by explicit operator authorisation;
+acceptance of this ADR alone does **not** authorise implementation.
 
 ## Context
 
