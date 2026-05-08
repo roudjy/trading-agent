@@ -1263,10 +1263,17 @@ The pure module accepts an injectable `generated_at_utc`. With the same canonica
 ## Status
 
 ```text
-Status: PR-ready (NOT complete)
+Status: Complete
+PR: #140
+Merge SHA: 3f80479
+CI: green
+Post-merge gates: green (governance_lint OK, smoke 18/18 passed,
+                  A12 + adjacent unit tests 297/297 passed,
+                  no research/IR/frozen/.claude/.github/workflows
+                  changes in the merge SHA)
 ```
 
-A12 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+A12 is the completed operational digest / observability foundation. The ADE A8–A12 sequence is now complete; ADE E2E proof phase (A13) may now begin.
 
 ## Purpose
 
