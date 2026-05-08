@@ -1370,4 +1370,125 @@ logs/development_operational_digest/history.jsonl — bounded append-only,
 
 The pure module accepts an injectable `generated_at_utc`. With the same upstream artifact contents and the same injected timestamp, output bytes are identical. The bounded history file is rewritten atomically on every append.
 
+\---
+
+# A13 — Autonomous Development End-to-End Proof Harness
+
+## Status
+
+```text
+Status: PR-ready (NOT complete)
+```
+
+A13 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+
+## Purpose
+
+Prove, on synthetic deterministic fixtures, that the Autonomous Development Engine can run the full lifecycle from roadmap pickup to operator digest report-out. This is the operator-required end-to-end validation that A9–A12 are not just individually green but coherent as a loop.
+
+A13 is **not** a real autonomous-implementation loop. The bounded-execution step is a pure no-op dry-run. Step 5 implementation is **never** authorised by A13.
+
+## Architectural separation
+
+ADE core (this PR):
+
+```text
+reporting/development_e2e_proof.py
+```
+
+Stdlib + ADE peer modules' read-only APIs only. No subprocess, no network, no `gh`, no `git`. AST-level pin forbids imports from `dashboard`/`automation`/`broker`/`agent.risk`/`agent.execution`/`research`/`reporting.intelligent_routing`.
+
+## Lifecycle steps (closed, 8)
+
+```text
+roadmap_pickup
+agent_refinement
+prioritisation
+execution_readiness
+bounded_execution_or_simulation
+validation
+release_gate
+digest_report_out
+```
+
+Each step has a closed status (`passed | failed | blocked | not_evaluated`) and a closed blocker_reason.
+
+## Discipline invariants (load-bearing)
+
+```text
+actually_modifies_target: false
+creates_real_branches: false
+opens_real_prs: false
+mutates_production_artifacts: false
+uses_subprocess_or_network: false
+operator_step5_authorisation_required: true
+```
+
+The harness writes only inside a caller-supplied scratch dir plus its own artifact path. Production ADE artifacts are unchanged before vs. after a proof run (pinned by byte-comparison test).
+
+## Required deliverables (this PR)
+
+```text
+1. reporting/development_e2e_proof.py
+2. tests/unit/test_development_e2e_proof.py
+3. docs/governance/development_e2e_proof.md
+4. This entry in docs/roadmap/autonomous_development.txt
+```
+
+## Initial proof outcome
+
+```text
+proof_status: passed
+autonomous_development_possible: true
+flow_steps: 8/8 passed
+protected_path_violations: none
+qre_coupling_violations: none
+missing_capabilities: none
+step5_design_planning_allowed: true
+step5_implementation_allowed: false
+```
+
+## Out of scope (deferred)
+
+```text
+- Real autonomous code execution — never within A13
+- Real branch / PR / commit creation by the harness — never
+- Step 5 implementation authorisation — operator-authored
+- Any QRE/IR/v3.15.17 changes
+- Any live/paper/shadow/risk/trading/broker/execution change
+```
+
+## Definition of Done
+
+```text
+1. Branch feature/a13-e2e-proof-harness exists; nothing on main.
+2. Implementation complete on branch (module, tests, docs, roadmap entry).
+3. Targeted tests green:
+     python -m pytest tests/unit/test_development_e2e_proof.py -q
+4. Broader unit suite green:
+     python -m pytest tests/unit -q
+5. Smoke suite green:
+     python -m pytest tests/smoke -q
+6. Governance lint green:
+     python scripts/governance_lint.py
+7. The harness CLI itself produces proof_status=passed locally
+   when run on synthetic fixtures.
+8. PR opened against main via the documented gh CLI flow.
+9. CI green on the PR.
+10. Squash-merged to main; post-merge gates green.
+11. Only after step 10 may this entry be flipped from `PR-ready`
+    to `Complete`, recording PR number and merge SHA.
+```
+
+## After A13 completes
+
+The end-to-end ADE proof is achievable in proof-harness mode:
+
+```text
+- Step 5 design planning is allowed.
+- Step 5 implementation requires separate operator authorisation
+  and is NOT enabled by A13.
+```
+
+
 
