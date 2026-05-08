@@ -428,6 +428,22 @@ reproducibility\_method
 quality\_gates
 ```
 
+<!-- ade_roadmap_intake
+candidate_id: qre_v3_15_16_addendum_source_manifest_001
+phase: v3.15.16
+title: Draft diagnostic-source manifest operating surface for Roadmap v6 Addendum §9.3 fields
+category: docs
+required_agent_role: planner
+risk_level: LOW
+target_path: docs/governance/agent_run_summaries/qre_addendum_source_manifest_001.md
+human_needed: false
+human_needed_reason: none
+acceptance_criteria:
+  - Candidate appears in logs/development_roadmap_intake/latest.json
+  - Execution Authority classifies target path AUTO_ALLOWED at LOW risk
+  - Step 5.0 dry-run can plan from this candidate after operator promotion
+-->
+
 ### 9.4 Required public-data quality gates
 
 * freshness check
