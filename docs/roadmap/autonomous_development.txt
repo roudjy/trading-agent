@@ -1249,4 +1249,111 @@ operator_promotion_required: true
 
 The pure module accepts an injectable `generated_at_utc`. With the same canonical roadmap content, the same sidecar seed, and the same injected timestamp, output bytes are identical.
 
+\---
+
+# A12 — Operational Digest / Observability Loop
+
+## Status
+
+```text
+Status: PR-ready (NOT complete)
+```
+
+A12 is marked complete only after the PR's CI is green, the squash merge has landed on `main`, and post-merge gates pass.
+
+## Purpose
+
+Aggregate the four ADE artifacts (A8 work queue, A9 release gate, A10 bugfix loop, A11 delegation) into a single operator-facing snapshot plus a bounded append-only history. Compute a `step5_readiness` block whose `step5_ready` flag is the closed-form measurable signal that A9–A12 are coherent enough to consider Step 5 implementation. `step5_ready=true` is necessary but not sufficient — the operator authorises Step 5 separately.
+
+## Architectural separation
+
+ADE core (this PR):
+
+```text
+reporting/development_operational_digest.py
+```
+
+Stdlib + ADE peer modules' read-only API only. No subprocess, no network, no `gh`, no `git`. Pinned by tests at AST level.
+
+There is no out-of-core collector for A12 — its inputs are the four ADE artifacts, all already produced by ADE-core CLIs.
+
+## Step 5 readiness criteria (closed)
+
+```text
+release_gate_artifact_present
+release_gate_no_protected_surface_leakage
+bugfix_loop_artifact_present
+bugfix_loop_no_test_weakening_proposals
+delegation_artifact_present
+delegation_no_fuzzy_parsing_evidence
+queue_artifact_present
+queue_human_needed_signal_meaningful
+ade_qre_loose_coupling_clean
+no_protected_path_violations
+```
+
+`step5_ready = all(criteria)`. Future criteria require a code change pinned by tests.
+
+## Discipline invariants (load-bearing)
+
+```text
+mutates_upstream_artifacts: false
+sends_notifications: false
+writes_dashboard: false
+auto_authorises_step5: false
+operator_step5_authorisation_required: true
+```
+
+## Required deliverables (this PR)
+
+```text
+1. reporting/development_operational_digest.py
+2. tests/unit/test_development_operational_digest.py
+3. docs/governance/development_operational_digest.md
+4. This entry in docs/roadmap/autonomous_development.txt
+```
+
+## Output artifacts
+
+```text
+logs/development_operational_digest/latest.json   — current snapshot
+logs/development_operational_digest/history.jsonl — bounded append-only,
+                                                     90-entry rolling window
+                                                     (operator-approved)
+```
+
+## Out of scope (deferred)
+
+```text
+- notifications (telegram / email / slack) — never within ADE core
+- dashboard surfaces — separate phase
+- Step 5 implementation authorisation — operator-authored
+- Any QRE/IR/v3.15.17 changes
+- Any live/paper/shadow/risk/trading/broker/execution change
+```
+
+## Definition of Done
+
+```text
+1. Branch feature/a12-operational-digest exists; nothing on main.
+2. Implementation complete on branch (module, tests, docs, roadmap entry).
+3. Targeted tests green:
+     python -m pytest tests/unit/test_development_operational_digest.py -q
+4. Broader unit suite green:
+     python -m pytest tests/unit -q
+5. Smoke suite green:
+     python -m pytest tests/smoke -q
+6. Governance lint green:
+     python scripts/governance_lint.py
+7. PR opened against main via the documented gh CLI flow.
+8. CI green on the PR.
+9. Squash-merged to main; post-merge gates green.
+10. Only after step 9 may this entry be flipped from `PR-ready` to
+    `Complete`, recording PR number and merge SHA.
+```
+
+## Determinism
+
+The pure module accepts an injectable `generated_at_utc`. With the same upstream artifact contents and the same injected timestamp, output bytes are identical. The bounded history file is rewritten atomically on every append.
+
 
