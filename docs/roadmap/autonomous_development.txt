@@ -1509,5 +1509,178 @@ The end-to-end ADE proof is achievable in proof-harness mode:
   and is NOT enabled by A13.
 ```
 
+\---
+
+# A14 — Step 5.0 Tests-First Autonomous Implementation Loop Preparation
+
+## Status
+
+```text
+Status: Proposed (operator-authored)
+Class: tests-first only — NOT Step 5 implementation
+Predecessors:
+  - PR #148 (Step 5 design): docs/governance/step5_design.md
+  - PR #151 (ADR-017 promotion): docs/adr/ADR-017-step5-autonomous-implementation-loop.md
+  - PR #149 + PR #150 (documentation modernization): G7 satisfied
+Step 5 implementation: BLOCKED
+  - step5_implementation_allowed = false (hard-pinned constant)
+  - autonomy-ladder Level 6: permanently disabled per ADR-015 §Doctrine 1
+  - readiness gate (step5_design.md §12): G9 in flight via this entry;
+    G10 / G11 / G12 still pending
+```
+
+A14 is **not** a Step 5 implementation. A14 is the operator-authored
+canonical-roadmap declaration that the next agent-implementable
+unit of Step 5 readiness work (G11 — the §10 test matrix from
+`docs/governance/step5_design.md`) may begin **as a tests-first
+PR** — without any production module, without any branch creation
+by the loop, without any real edits to runtime ADE artefacts.
+
+## Purpose
+
+Pin, in canonical roadmap text, the scope and limits of the
+tests-first preparation phase that closes G11 of the Step 5.0
+readiness gate. The intent is the smallest forward step that
+satisfies one more readiness criterion without drifting toward
+implementation.
+
+## Scope (allowed)
+
+```text
+- Add the 12 §10 pin tests from docs/governance/step5_design.md
+  under tests/unit/test_development_step5_loop.py.
+- Add the deterministic-output regression pin under
+  tests/regression/test_v3_step5_artifacts_deterministic.py
+  (subject to the regression-test ask flow per
+  docs/governance/no_touch_paths.md).
+- Tests assert the *contracts* the future Step 5 module will
+  satisfy:
+    - closed vocabularies cardinality
+    - no forbidden imports (research, dashboard, automation,
+      broker, agent.risk, agent.execution,
+      reporting.intelligent_routing, subprocess, socket, requests,
+      urllib)
+    - no protected-path writes
+    - no QRE coupling
+    - no credential extraction
+    - no test weakening tokens
+    - deterministic outputs
+    - dry-run mode
+    - rollback simulation
+    - release-gate integration shape
+    - discipline invariants pinned
+    - step5_implementation_allowed constant is False
+- Until reporting.development_step5_loop is implemented (a later,
+  separately authorised PR), the §10 tests run against a stub
+  module surface that pins the contracts. The stub itself is
+  deliberately minimal — name + closed vocab + module_version
+  string + forbidden-import scan target — and never imports any
+  forbidden module. Stub lives at reporting/development_step5_loop.py
+  and exposes only the surface the §10 tests assert against.
+```
+
+## Scope (NOT allowed in A14)
+
+```text
+- No real Step 5.0 implementation logic (no plan emission,
+  no artefact writes, no log/step5_*/ writes, no audit-ledger
+  events, no upstream-artefact reads).
+- No branch creation by the loop.
+- No real PR creation by the loop.
+- No commit creation by the loop.
+- No subprocess, no network, no gh, no git invocations
+  from the stub module.
+- No QRE behavior change.
+- No Intelligent Routing change.
+- No research artifact mutation.
+- No live/paper/shadow/risk/trading/broker/execution change.
+- No frozen-contract change.
+- No no-touch path edit.
+- No .claude/** edit.
+- No CI workflow edit.
+- No canonical_policy_doc edit.
+- No widening of any agent's allowed_roots.
+- No flip of step5_implementation_allowed (stays false).
+- No autonomy-ladder amendment.
+```
+
+## Relationship to ADR-017 and step5_design.md
+
+A14 is the canonical-roadmap anchor for the agent-implementable
+slice (G11) of the readiness gate defined in
+`docs/governance/step5_design.md` §12. ADR-017 is the architectural
+authority. A14 is the roadmap entry that says "this slice is
+allowed to begin, as tests-first, under operator authorisation,
+and remains gated short of implementation."
+
+```text
+ADR-017                   = architectural decision (Accepted)
+step5_design.md           = canonical design (§1 .. §13)
+step5_design.md §10       = test matrix (the 12 pins)
+step5_design.md §12       = readiness gate (G1 .. G12)
+A14 (this entry)          = canonical-roadmap anchor for G11
+                            tests-first preparation phase
+Step 5.0 implementation   = future, separately authorised, NOT A14
+```
+
+## Remaining Step 5.0 readiness gates after A14 lands
+
+```text
+G9   — this entry merging on main (canonical_roadmap edit)
+G10  — explicit operator authorisation in the future Step 5.0
+       implementation PR body (signed in writing)
+G11  — §10 test matrix committed and green on main
+       (agent-implementable under test-agent allowlist)
+G12  — fresh release-gate report + rollback drill (≤14 days old)
+```
+
+After A14 merges, G9 is satisfied. G11 becomes the next
+agent-implementable item; G10 and G12 remain operator-authored
+or operator-signed acts.
+
+## Definition of Done (this entry)
+
+```text
+1. Branch docs/a14-step5-tests-first exists; nothing on main.
+2. This entry is added in canonical-roadmap text on the branch.
+3. governance_lint green:
+     python scripts/governance_lint.py
+4. Smoke green:
+     python -m pytest tests/smoke -q
+5. Diff scope: only docs/roadmap/autonomous_development.txt
+   touched. No research/, automation/, broker/, agent/risk/,
+   agent/execution/, live/, paper/, shadow/, trading/,
+   dashboard/dashboard.py, .claude/**, .github/workflows/**,
+   tests/regression/** changes.
+6. PR opened against main via the documented gh CLI flow.
+7. CI green on the PR.
+8. Squash-merged to main; post-merge gates green.
+9. After step 8, this entry's Status block above flips from
+   "Proposed (operator-authored)" to "Accepted (operator-authored,
+   merge SHA <sha>)" — recorded in a separate operator-authored
+   canonical-roadmap edit, not by ADE.
+10. step5_implementation_allowed remains false. Autonomy-ladder
+    Level 6 remains permanently disabled.
+```
+
+## Determinism
+
+A14 is a canonical-roadmap text entry. Determinism is satisfied
+trivially: the entry is bytewise identical run-to-run (no machine
+input). The §10 tests' determinism pin (G11) is asserted by the
+regression-pin test under `tests/regression/`.
+
+## After A14 completes
+
+```text
+- G9 is satisfied; G7 + G8 already satisfied.
+- The next agent-implementable Step 5 slice is the §10 test
+  matrix from step5_design.md (G11) under the test-agent
+  allowlist. That is a separate PR.
+- Step 5.0 implementation remains BLOCKED behind G10 + G12 plus
+  the hard-pinned step5_implementation_allowed=false constant
+  and the permanently-disabled autonomy-ladder Level 6 ceiling.
+```
+
 
 
