@@ -43,6 +43,8 @@ Step 5 implementation remains BLOCKED by:
 from __future__ import annotations
 
 import ast
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -52,6 +54,7 @@ from reporting import development_delegation as ddl
 from reporting import development_e2e_proof as e2e
 from reporting import development_operational_digest as dod
 from reporting import development_release_gate as drg
+from reporting import development_step5_loop as s5l
 from reporting import development_work_queue as dwq
 from reporting import governance_status as gs
 
@@ -75,6 +78,7 @@ ADE_CORE_MODULES: tuple[Path, ...] = (
     REPORTING_DIR / "development_delegation.py",
     REPORTING_DIR / "development_operational_digest.py",
     REPORTING_DIR / "development_e2e_proof.py",
+    REPORTING_DIR / "development_step5_loop.py",
 )
 
 # Forbidden imports for any ADE-core module.
@@ -407,21 +411,31 @@ def test_intent_7_e2e_proof_pins_no_production_mutation() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_intent_8_step5_loop_production_module_does_not_exist_on_this_branch() -> None:
-    """Pin the *absence* of ``reporting/development_step5_loop.py``.
-
-    A14 anchors a tests-first preparation phase. The first
-    Step 5.0 implementation slice will be the *minimal stub* under a
-    separately authorised PR; until then, this file must not exist.
-    Once the stub lands, this test will be replaced (in that PR) with
-    pin tests on the stub surface — see ``step5_design.md`` §13.
-    """
-    assert not STEP5_LOOP_MODULE.is_file(), (
-        "reporting/development_step5_loop.py must not exist before the "
-        "separately authorised Step 5.0 implementation PR. Adding the "
-        "module here would violate A14's tests-first scope and §12 G10 "
-        "(operator authorisation required)."
+def test_intent_8_step5_loop_production_module_pins_dry_run_invariants() -> None:
+    """Pin the *presence* of ``reporting/development_step5_loop.py``
+    and verify it satisfies the dry-run discipline invariants from
+    ``step5_design.md`` §13.4. Replaces the absence pin from PR #153
+    once the Step 5.0 implementation lands."""
+    assert STEP5_LOOP_MODULE.is_file(), (
+        "reporting/development_step5_loop.py must exist for Step 5.0."
     )
+    # Closed-vocab default: the cap is "none" so the loop produces
+    # only diagnostic artefacts and never escalates.
+    assert s5l.STEP5_ENABLED_SUBSTAGE == "none"
+    # Hard-pinned literal.
+    assert s5l.step5_implementation_allowed is False
+    # Discipline invariants block.
+    inv = s5l._DISCIPLINE_INVARIANTS
+    assert inv["actually_modifies_target"] is False
+    assert inv["creates_real_branches"] is False
+    assert inv["opens_real_prs"] is False
+    assert inv["mergeable_by_agent"] is False
+    assert inv["deployable_by_agent"] is False
+    assert inv["mutates_qre_artifacts"] is False
+    assert inv["mutates_frozen_contracts"] is False
+    assert inv["mutates_protected_paths"] is False
+    assert inv["uses_subprocess_or_network"] is False
+    assert inv["operator_step5_authorisation_required"] is True
 
 
 def test_intent_8_step5_design_doc_declares_step5_0_first_slice_dry_run_only() -> None:
@@ -592,22 +606,12 @@ def test_ade_module_versions_match_a8_to_a13_anchors() -> None:
     assert e2e.MODULE_VERSION == "v3.15.16.A13"
 
 
-def test_step5_loop_module_version_anchor_does_not_exist_yet() -> None:
-    """The Step 5.0 module-version anchor (proposed ``v3.15.16.A14``)
-    must not exist as a Python-file constant on this branch — the
-    A14 roadmap entry is the canonical anchor; the matching Python
-    constant lands only with the separately authorised Step 5.0 PR."""
-    if not STEP5_LOOP_MODULE.is_file():
-        # Expected state on this branch.
-        return
+def test_step5_loop_module_version_anchor_is_a14() -> None:
+    """Step 5.0 module declares the ``v3.15.16.A14`` MODULE_VERSION
+    anchor, mirroring the A8–A13 convention."""
+    assert s5l.MODULE_VERSION == "v3.15.16.A14"
     src = _read(STEP5_LOOP_MODULE)
-    # If the file does exist (future state), the version constant
-    # must follow the existing A8–A13 naming convention.
-    assert "MODULE_VERSION" in src and "v3.15.16.A14" in src, (
-        "If reporting/development_step5_loop.py exists, it must declare "
-        "MODULE_VERSION following the A8-A13 convention "
-        "(v3.15.16.A14)."
-    )
+    assert 'MODULE_VERSION: Final[str] = "v3.15.16.A14"' in src
 
 
 @pytest.fixture(scope="module")
@@ -629,3 +633,459 @@ def test_proof_snapshot_pins_step5_blocking_invariants(_proof_snapshot: dict) ->
     assert snap["discipline_invariants"]["creates_real_branches"] is False
     assert snap["discipline_invariants"]["opens_real_prs"] is False
     assert snap["discipline_invariants"]["uses_subprocess_or_network"] is False
+
+
+# ---------------------------------------------------------------------------
+# Step 5.0 runtime contract pins
+# ---------------------------------------------------------------------------
+
+
+def test_step5_module_imports_cleanly() -> None:
+    """The Step 5.0 module imports without side effects and exposes
+    the expected public surface."""
+    assert hasattr(s5l, "collect_snapshot")
+    assert hasattr(s5l, "write_outputs")
+    assert hasattr(s5l, "main")
+    assert hasattr(s5l, "ARTIFACT_LATEST")
+    assert hasattr(s5l, "PLAN_DIR")
+    assert hasattr(s5l, "HISTORY_PATH")
+
+
+def test_step5_enabled_substage_default_is_none() -> None:
+    """Default-deny: the cap is ``"none"`` so the loop produces only
+    diagnostic artefacts and never escalates."""
+    assert s5l.STEP5_ENABLED_SUBSTAGE == "none"
+    assert "none" in s5l.STEP5_SUBSTAGES
+
+
+def test_step5_substages_vocabulary_is_closed() -> None:
+    assert s5l.STEP5_SUBSTAGES == ("none", "5.0", "5.1", "5.2")
+
+
+def test_step5_halt_reasons_vocabulary_is_closed() -> None:
+    assert s5l.STEP5_HALT_REASONS == (
+        "needs_human",
+        "permanently_denied",
+        "out_of_allowlist",
+        "no_eligible_item",
+        "ok",
+    )
+
+
+def test_step5_outcome_kinds_vocabulary_is_closed() -> None:
+    assert s5l.STEP5_OUTCOME_KINDS == (
+        "halt_needs_human",
+        "halt_permanently_denied",
+        "halt_out_of_allowlist",
+        "no_op_no_eligible_item",
+        "plan_emitted",
+    )
+
+
+def test_step5_source_kinds_vocabulary_is_closed() -> None:
+    assert s5l.STEP5_SOURCE_KINDS == ("delegation", "bugfix", "queue")
+
+
+def test_step5_implementation_allowed_constant_is_false() -> None:
+    """Hard-pinned literal. Flipping requires a code change pinned by
+    a test update, an ADR-015 amendment, and a fresh release-gate
+    report."""
+    assert s5l.step5_implementation_allowed is False
+    src = _read(STEP5_LOOP_MODULE)
+    assert "step5_implementation_allowed: Final[bool] = False" in src
+
+
+def test_step5_module_no_subprocess_socket_or_network_imports() -> None:
+    """AST-level: the module imports nothing that could spawn a
+    process or open a network connection."""
+    src = _read(STEP5_LOOP_MODULE)
+    imports = _imports(src)
+    forbidden = (
+        "subprocess",
+        "socket",
+        "requests",
+        "urllib3",
+        "httpx",
+        "aiohttp",
+        "asyncio",
+    )
+    for f in forbidden:
+        assert not any(i == f or i.startswith(f + ".") for i in imports), (
+            f"development_step5_loop imports forbidden runtime module {f}"
+        )
+
+
+def test_step5_module_no_git_or_gh_substring_in_source() -> None:
+    """Defense-in-depth source-text scan: the module should not name
+    git/gh/CLI invocations as runtime targets. Docstring mentions of
+    'git' as a noun are acceptable; concrete invocations are not."""
+    src = _read(STEP5_LOOP_MODULE)
+    bad = (
+        "subprocess.run",
+        "subprocess.Popen",
+        "os.system(",
+        "os.popen(",
+        "shutil.which(",
+    )
+    for b in bad:
+        assert b not in src, f"step5 module contains forbidden invocation: {b!r}"
+
+
+def test_max_history_entries_is_ninety() -> None:
+    """Mirrors A12's bounded-history convention."""
+    assert s5l.MAX_HISTORY_ENTRIES == 90
+
+
+def test_collect_snapshot_with_no_eligible_items_returns_no_op_plan(tmp_path: Path) -> None:
+    """When all upstream artefact paths are missing, the snapshot
+    plan is the deterministic ``no_eligible_item`` no-op."""
+    snap = s5l.collect_snapshot(
+        delegation_path=tmp_path / "missing_delegation.json",
+        bugfix_path=tmp_path / "missing_bugfix.json",
+        queue_path=tmp_path / "missing_queue.json",
+        generated_at_utc="2026-05-08T00:00:00Z",
+    )
+    plan = snap["plan"]
+    assert plan["halt_reason"] == "no_eligible_item"
+    assert plan["outcome"] == "no_op_no_eligible_item"
+    assert plan["source_kind"] == "none"
+    assert plan["source_id"] == ""
+    assert plan["execution_authority_decision"] == "NOT_EVALUATED"
+    assert plan["step5_implementation_allowed"] is False
+    assert plan["step5_enabled_substage"] == "none"
+    assert plan["module_version"] == "v3.15.16.A14"
+    assert snap["presence"] == {"delegation": False, "bugfix_loop": False, "queue": False}
+
+
+def test_collect_snapshot_is_deterministic_with_injected_ts(tmp_path: Path) -> None:
+    """Same inputs + same generated_at_utc → byte-identical
+    snapshot JSON."""
+    kw = {
+        "delegation_path": tmp_path / "missing_delegation.json",
+        "bugfix_path": tmp_path / "missing_bugfix.json",
+        "queue_path": tmp_path / "missing_queue.json",
+        "generated_at_utc": "2026-05-08T00:00:00Z",
+    }
+    snap1 = s5l.collect_snapshot(**kw)
+    snap2 = s5l.collect_snapshot(**kw)
+    assert json.dumps(snap1, sort_keys=True) == json.dumps(snap2, sort_keys=True)
+
+
+def test_cycle_id_is_sha256_hex_of_source_kind_and_id() -> None:
+    """``cycle_id`` is sha256 hex digest of ``source_kind|source_id``,
+    stable across runs."""
+    item = {"delegation_id": "ade_e2e_synthetic_001"}
+    cid = s5l._cycle_id_from("delegation", item)
+    expected = hashlib.sha256(b"delegation|ade_e2e_synthetic_001").hexdigest()
+    assert cid == expected
+    assert len(cid) == 64
+
+
+def test_select_item_prefers_delegation_then_bugfix_then_queue() -> None:
+    """Deterministic ordering: delegation_id ASC → bugfix candidate_id
+    ASC → queue item_id ASC."""
+    delegation = {"entries": [{"delegation_id": "B"}, {"delegation_id": "A"}]}
+    bugfix = {"candidates": [{"candidate_id": "x"}]}
+    queue = {"items": [{"item_id": "z"}]}
+    kind, item = s5l._select_item(delegation, bugfix, queue)
+    assert kind == "delegation"
+    assert item == {"delegation_id": "A"}
+    # Without delegations, falls through to bugfix.
+    kind2, item2 = s5l._select_item({"entries": []}, bugfix, queue)
+    assert kind2 == "bugfix"
+    assert item2 == {"candidate_id": "x"}
+    # Without bugfix candidates either, falls through to queue.
+    kind3, item3 = s5l._select_item({}, {}, queue)
+    assert kind3 == "queue"
+    assert item3 == {"item_id": "z"}
+    # Without anything, returns (None, None).
+    kind4, item4 = s5l._select_item(None, None, None)
+    assert kind4 is None and item4 is None
+
+
+def test_classify_maps_authority_decisions_to_closed_halt_reasons() -> None:
+    """``_classify`` reads upstream-recorded execution_authority and
+    maps it to a closed ``STEP5_HALT_REASONS`` value."""
+    decision_a, halt_a = s5l._classify({"execution_authority": "AUTO_ALLOWED"})
+    assert decision_a == "AUTO_ALLOWED"
+    assert halt_a == "ok"
+    decision_n, halt_n = s5l._classify({"execution_authority": "NEEDS_HUMAN"})
+    assert decision_n == "NEEDS_HUMAN"
+    assert halt_n == "needs_human"
+    decision_p, halt_p = s5l._classify({"execution_authority": "PERMANENTLY_DENIED"})
+    assert decision_p == "PERMANENTLY_DENIED"
+    assert halt_p == "permanently_denied"
+    # Missing decision → fail-safe to NEEDS_HUMAN.
+    decision_x, halt_x = s5l._classify({})
+    assert decision_x == "NEEDS_HUMAN"
+    assert halt_x == "needs_human"
+
+
+def test_atomic_write_refuses_paths_outside_logs_step5(tmp_path: Path) -> None:
+    """The atomic-write helper refuses every path outside
+    ``logs/step5_*/...``."""
+    bad = tmp_path / "evil_dir" / "latest.json"
+    with pytest.raises(ValueError):
+        s5l._atomic_write_json(bad, {"x": 1})
+    bad2 = tmp_path / "logs" / "research" / "latest.json"
+    with pytest.raises(ValueError):
+        s5l._atomic_write_json(bad2, {"x": 1})
+
+
+def test_history_truncates_to_max_history_entries(tmp_path: Path) -> None:
+    """Bounded append: writing N+10 entries leaves N on disk."""
+    hist = tmp_path / "logs" / "step5_plan" / "history.jsonl"
+    for i in range(s5l.MAX_HISTORY_ENTRIES + 10):
+        s5l._append_history(hist, {"i": i, "cycle_id": f"c{i}"})
+    lines = [line for line in hist.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(lines) == s5l.MAX_HISTORY_ENTRIES
+    last = json.loads(lines[-1])
+    assert last["i"] == s5l.MAX_HISTORY_ENTRIES + 9
+
+
+def test_dry_run_discipline_invariants_are_pinned_in_plan(tmp_path: Path) -> None:
+    """Every plan artefact carries the closed Step 5.0 discipline
+    invariants block."""
+    snap = s5l.collect_snapshot(
+        delegation_path=tmp_path / "x.json",
+        bugfix_path=tmp_path / "y.json",
+        queue_path=tmp_path / "z.json",
+        generated_at_utc="2026-05-08T00:00:00Z",
+    )
+    inv = snap["plan"]["discipline_invariants"]
+    assert inv["actually_modifies_target"] is False
+    assert inv["creates_real_branches"] is False
+    assert inv["opens_real_prs"] is False
+    assert inv["mergeable_by_agent"] is False
+    assert inv["deployable_by_agent"] is False
+    assert inv["mutates_qre_artifacts"] is False
+    assert inv["mutates_frozen_contracts"] is False
+    assert inv["mutates_protected_paths"] is False
+    assert inv["uses_subprocess_or_network"] is False
+    assert inv["operator_step5_authorisation_required"] is True
+
+
+def test_step5_plan_v1_schema_carries_required_keys(tmp_path: Path) -> None:
+    """Closed schema per step5_design.md §8.3."""
+    snap = s5l.collect_snapshot(
+        delegation_path=tmp_path / "x.json",
+        bugfix_path=tmp_path / "y.json",
+        queue_path=tmp_path / "z.json",
+        generated_at_utc="2026-05-08T00:00:00Z",
+    )
+    plan = snap["plan"]
+    required_keys = {
+        "schema_version",
+        "module_version",
+        "report_kind",
+        "generated_at_utc",
+        "cycle_id",
+        "source_kind",
+        "source_id",
+        "step5_enabled_substage",
+        "step5_implementation_allowed",
+        "execution_authority_decision",
+        "halt_reason",
+        "outcome",
+        "human_required",
+        "release_gate_required",
+        "acceptance_criteria",
+        "target_paths",
+        "discipline_invariants",
+        "vocabularies",
+    }
+    assert required_keys.issubset(plan.keys())
+    assert plan["schema_version"] == "1.0"
+    assert plan["report_kind"] == "step5_plan"
+
+
+def test_collect_snapshot_with_needs_human_item_halts_and_pins_outcome(tmp_path: Path) -> None:
+    """Synthetic delegation entry classified ``NEEDS_HUMAN`` produces
+    ``halt_needs_human`` outcome and the cycle exits cleanly."""
+    deleg_path = tmp_path / "logs" / "development_delegation" / "latest.json"
+    deleg_path.parent.mkdir(parents=True, exist_ok=True)
+    deleg_path.write_text(
+        json.dumps(
+            {
+                "entries": [
+                    {
+                        "delegation_id": "syn_needs_human_001",
+                        "execution_authority": "NEEDS_HUMAN",
+                        "acceptance_criteria": ["criterion-1"],
+                        "target_paths": ["docs/governance/something.md"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    snap = s5l.collect_snapshot(
+        delegation_path=deleg_path,
+        bugfix_path=tmp_path / "missing_bugfix.json",
+        queue_path=tmp_path / "missing_queue.json",
+        generated_at_utc="2026-05-08T00:00:00Z",
+    )
+    plan = snap["plan"]
+    assert plan["halt_reason"] == "needs_human"
+    assert plan["outcome"] == "halt_needs_human"
+    assert plan["source_kind"] == "delegation"
+    assert plan["source_id"] == "syn_needs_human_001"
+    assert plan["execution_authority_decision"] == "NEEDS_HUMAN"
+
+
+def test_collect_snapshot_with_permanently_denied_item_halts(tmp_path: Path) -> None:
+    """Synthetic queue item classified ``PERMANENTLY_DENIED`` produces
+    ``halt_permanently_denied``."""
+    queue_path = tmp_path / "logs" / "development_work_queue" / "latest.json"
+    queue_path.parent.mkdir(parents=True, exist_ok=True)
+    queue_path.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "item_id": "syn_denied_001",
+                        "execution_authority": "PERMANENTLY_DENIED",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    snap = s5l.collect_snapshot(
+        delegation_path=tmp_path / "missing_delegation.json",
+        bugfix_path=tmp_path / "missing_bugfix.json",
+        queue_path=queue_path,
+        generated_at_utc="2026-05-08T00:00:00Z",
+    )
+    plan = snap["plan"]
+    assert plan["halt_reason"] == "permanently_denied"
+    assert plan["outcome"] == "halt_permanently_denied"
+    assert plan["execution_authority_decision"] == "PERMANENTLY_DENIED"
+    assert plan["source_kind"] == "queue"
+    assert plan["source_id"] == "syn_denied_001"
+
+
+def test_collect_snapshot_with_auto_allowed_item_emits_plan(tmp_path: Path) -> None:
+    """Synthetic AUTO_ALLOWED bugfix candidate produces
+    ``plan_emitted`` outcome."""
+    bug_path = tmp_path / "logs" / "development_bugfix_loop" / "latest.json"
+    bug_path.parent.mkdir(parents=True, exist_ok=True)
+    bug_path.write_text(
+        json.dumps(
+            {
+                "candidates": [
+                    {
+                        "candidate_id": "syn_auto_allowed_001",
+                        "execution_authority": "AUTO_ALLOWED",
+                        "acceptance_criteria": ["fix-something"],
+                        "target_paths": ["tests/unit/test_x.py"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    snap = s5l.collect_snapshot(
+        delegation_path=tmp_path / "missing_delegation.json",
+        bugfix_path=bug_path,
+        queue_path=tmp_path / "missing_queue.json",
+        generated_at_utc="2026-05-08T00:00:00Z",
+    )
+    plan = snap["plan"]
+    assert plan["halt_reason"] == "ok"
+    assert plan["outcome"] == "plan_emitted"
+    assert plan["execution_authority_decision"] == "AUTO_ALLOWED"
+    assert plan["source_kind"] == "bugfix"
+    assert plan["source_id"] == "syn_auto_allowed_001"
+    assert plan["acceptance_criteria"] == ["fix-something"]
+    assert plan["target_paths"] == ["tests/unit/test_x.py"]
+
+
+def test_cli_no_write_does_not_mutate_logs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """``--no-write`` mode prints valid JSON to stdout and does not
+    touch any persisted log files."""
+    # Redirect upstream paths to non-existent files so the CLI runs
+    # without depending on real artefacts.
+    monkeypatch.setattr(s5l.ddl, "ARTIFACT_LATEST", tmp_path / "miss_d.json")
+    monkeypatch.setattr(s5l.dbl, "ARTIFACT_LATEST", tmp_path / "miss_b.json")
+    monkeypatch.setattr(s5l.dwq, "ARTIFACT_LATEST", tmp_path / "miss_q.json")
+    # Capture initial state of the actual artifact paths (if any).
+    artifact_before = (
+        s5l.ARTIFACT_LATEST.read_bytes() if s5l.ARTIFACT_LATEST.is_file() else None
+    )
+    history_before = (
+        s5l.HISTORY_PATH.read_bytes() if s5l.HISTORY_PATH.is_file() else None
+    )
+    rc = s5l.main(["--dry-run", "--no-write"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert out.strip(), "CLI should print JSON to stdout"
+    parsed = json.loads(out)
+    assert parsed["plan"]["module_version"] == "v3.15.16.A14"
+    # No-write mode must not touch the real log files.
+    artifact_after = (
+        s5l.ARTIFACT_LATEST.read_bytes() if s5l.ARTIFACT_LATEST.is_file() else None
+    )
+    history_after = (
+        s5l.HISTORY_PATH.read_bytes() if s5l.HISTORY_PATH.is_file() else None
+    )
+    assert artifact_after == artifact_before
+    assert history_after == history_before
+
+
+def test_cli_dry_run_returns_valid_json_no_write(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """``--dry-run --no-write`` produces parseable sorted-key JSON."""
+    monkeypatch.setattr(s5l.ddl, "ARTIFACT_LATEST", tmp_path / "miss_d.json")
+    monkeypatch.setattr(s5l.dbl, "ARTIFACT_LATEST", tmp_path / "miss_b.json")
+    monkeypatch.setattr(s5l.dwq, "ARTIFACT_LATEST", tmp_path / "miss_q.json")
+    rc = s5l.main(["--dry-run", "--no-write"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    parsed = json.loads(out)
+    assert "plan" in parsed
+    assert "loop" in parsed
+    assert "history_entry" in parsed
+
+
+def test_audit_event_records_autonomy_level_zero_via_synthetic_ledger(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``_emit_audit_event`` calls ``agent_audit.append_event`` with
+    ``autonomy_level_claimed=0``."""
+    captured: dict[str, object] = {}
+
+    def fake_append(event: dict) -> dict:
+        captured["event"] = event
+        return event
+
+    monkeypatch.setattr(s5l._audit, "append_event", fake_append)
+    ok = s5l._emit_audit_event(
+        cycle_id="testcycle", outcome="plan_emitted", halt_reason="ok"
+    )
+    assert ok is True
+    event = captured.get("event") or {}
+    assert isinstance(event, dict)
+    assert event["autonomy_level_claimed"] == 0
+    assert event["actor"] == "step5_loop:dry_run"
+    assert event["tool"] == "development_step5_loop"
+    assert event["step5_module_version"] == "v3.15.16.A14"
+
+
+def test_emit_audit_event_returns_false_on_audit_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Audit emission is best-effort. A raising audit ledger must not
+    propagate the exception."""
+
+    def raising_append(event: dict) -> dict:
+        raise RuntimeError("audit broken")
+
+    monkeypatch.setattr(s5l._audit, "append_event", raising_append)
+    ok = s5l._emit_audit_event(cycle_id="x", outcome="plan_emitted", halt_reason="ok")
+    assert ok is False
+
+
+def test_no_op_plan_cycle_id_is_stable() -> None:
+    """The no_eligible_item plan carries a deterministic cycle_id
+    derived from the empty identity tuple."""
+    expected = hashlib.sha256(b"no_eligible_item|").hexdigest()
+    plan = s5l._build_no_op_plan_payload(generated_at_utc="2026-05-08T00:00:00Z")
+    assert plan["cycle_id"] == expected
+    assert plan["halt_reason"] == "no_eligible_item"
+    assert plan["outcome"] == "no_op_no_eligible_item"
