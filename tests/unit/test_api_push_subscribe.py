@@ -73,14 +73,49 @@ def test_register_routes_registers_all_five_endpoints() -> None:
         assert r in rules, r
 
 
-def test_blueprint_not_imported_by_dashboard_dashboard() -> None:
-    """N2b-2a does NOT wire the blueprint into dashboard/dashboard.py.
-    Wiring is N2b-2b territory and lands behind operator approval."""
+def test_blueprint_wired_into_dashboard_dashboard_exactly_once() -> None:
+    """N2b-2b wires the blueprint into dashboard/dashboard.py with
+    exactly one import and exactly one register call.
+
+    Pinned invariant after the operator-authored wiring change:
+
+    * exactly one occurrence of the import line
+      ``from dashboard.api_push_subscribe import
+      register_push_subscribe_routes``
+    * exactly one occurrence of the register call
+      ``register_push_subscribe_routes(app)``
+    * no duplicates of either line
+    * existing ``register_*_routes`` lines stay present
+      (verified separately by
+      ``test_existing_dashboard_registrations_unchanged`` in
+      ``test_dashboard_dashboard_one_line_wiring.py``)
+    """
     text = (
         REPO_ROOT / "dashboard" / "dashboard.py"
     ).read_text(encoding="utf-8")
-    assert "api_push_subscribe" not in text
-    assert "register_push_subscribe_routes" not in text
+    expected_import = (
+        "from dashboard.api_push_subscribe import "
+        "register_push_subscribe_routes"
+    )
+    expected_register = "register_push_subscribe_routes(app)"
+    assert text.count(expected_import) == 1, (
+        "dashboard.py must contain exactly one push-subscribe import"
+    )
+    assert text.count(expected_register) == 1, (
+        "dashboard.py must contain exactly one push-subscribe register call"
+    )
+    # Defense-in-depth: total occurrences of either token across the
+    # file must be exactly 2 — one import, one call. Anything else
+    # signals a stray edit.
+    push_lines = [
+        line
+        for line in text.splitlines()
+        if "register_push_subscribe" in line or "api_push_subscribe" in line
+    ]
+    assert len(push_lines) == 2, (
+        f"dashboard.py must contain exactly 2 push-subscribe lines; "
+        f"found {len(push_lines)}: {push_lines}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -417,32 +452,80 @@ def test_importing_module_does_not_flip_step5_invariants() -> None:
 
 
 # ---------------------------------------------------------------------------
-# dashboard/dashboard.py untouched
+# dashboard/dashboard.py wiring (N2b-2b)
 # ---------------------------------------------------------------------------
 
 
-def test_dashboard_dashboard_does_not_register_push_routes() -> None:
-    """Hard guarantee: the wiring to register_push_subscribe_routes
-    has NOT landed yet. N2b-2a is unwired by design."""
+def test_dashboard_dashboard_registers_push_routes_exactly_once() -> None:
+    """Hard guarantee: after the operator-authored N2b-2b wiring,
+    ``register_push_subscribe_routes(app)`` appears exactly once in
+    dashboard/dashboard.py. Catches accidental duplication or stray
+    re-registration."""
     text = (
         REPO_ROOT / "dashboard" / "dashboard.py"
     ).read_text(encoding="utf-8")
-    assert "register_push_subscribe_routes" not in text
+    assert text.count("register_push_subscribe_routes(app)") == 1
 
 
-def test_dashboard_dashboard_unchanged_in_pr_diff() -> None:
-    """The current branch must not have modified dashboard/dashboard.py
-    relative to origin/main. This is a defense-in-depth check; CI
-    enforces the same via PR file-list assertions."""
+def test_dashboard_dashboard_diff_to_main_is_bounded_to_push_wiring() -> None:
+    """If the branch diff vs origin/main touches dashboard.py, the
+    only modifications must be the two-line N2b-2b wiring change.
+
+    Approximate enforcement: the diff hunks for dashboard.py must
+    contain ONLY added lines mentioning ``register_push_subscribe``
+    or ``api_push_subscribe`` (no removals; no other added lines).
+    """
     out = subprocess.run(
-        ["git", "diff", "--name-only", "origin/main...HEAD"],
+        ["git", "diff", "origin/main...HEAD", "--", "dashboard/dashboard.py"],
         check=False,
         capture_output=True,
         text=True,
         cwd=str(REPO_ROOT),
     )
-    changed = set(out.stdout.split())
-    if changed:
-        # Not all CI runners have origin/main; if this fails for env
-        # reasons, the PR-scope check still holds via the gh CLI.
-        assert "dashboard/dashboard.py" not in changed
+    diff_text = out.stdout
+    if not diff_text.strip():
+        # Not all CI runners have origin/main fetched; if the diff
+        # cannot be computed, the wiring-pin
+        # ``test_dashboard_dashboard_registers_push_routes_exactly_once``
+        # plus the existing-registrations guard in
+        # ``test_dashboard_dashboard_one_line_wiring.py`` cover the
+        # invariant. Pass through.
+        return
+    # Walk the diff. Allow:
+    #   * diff/index/range header lines (start with 'diff', 'index',
+    #     '@@', '---', '+++', or are blank);
+    #   * unchanged context lines (start with a single ' ');
+    #   * ADDED lines whose payload mentions our wiring;
+    #   * pure-whitespace added lines (e.g. blank line between
+    #     existing registration block and new register call).
+    # Disallow:
+    #   * REMOVED lines (start with '-' but not '---');
+    #   * ADDED lines whose payload does not mention the wiring.
+    for line in diff_text.splitlines():
+        if not line:
+            continue
+        if line.startswith(("diff ", "index ", "@@", "---", "+++")):
+            continue
+        if line.startswith(" "):
+            # context line — unchanged, fine
+            continue
+        if line.startswith("-"):
+            raise AssertionError(
+                "dashboard.py diff must not REMOVE any line; "
+                f"found removal: {line!r}"
+            )
+        if line.startswith("+"):
+            payload = line[1:]
+            if not payload.strip():
+                # Blank-line addition — tolerated (formatting around
+                # the new register call).
+                continue
+            if (
+                "register_push_subscribe" in payload
+                or "api_push_subscribe" in payload
+            ):
+                continue
+            raise AssertionError(
+                "dashboard.py diff added a non-push-subscribe line; "
+                f"found: {line!r}"
+            )
