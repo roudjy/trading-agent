@@ -122,3 +122,6 @@ pytest-cache-files-*/
 *.tmp
 *.bak
 *.swp
+# Web Push runtime config
+config/web_push_subscriptions.json
+config/web_push_vapid_public.txt
