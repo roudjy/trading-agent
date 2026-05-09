@@ -43,6 +43,7 @@ import {
   type AgentControlWorkloop,
 } from "../api/agent_control";
 import "../styles/agent_control.css";
+import { PushSettings } from "./AgentControl/PushSettings";
 
 interface CardLoaderProps {
   title: string;
@@ -1461,6 +1462,7 @@ export function AgentControl() {
           ariaLabel="About this surface"
         >
           <NotificationsCard payload={notifications} />
+          <PushSettings />
         </Section>
       </div>
 
