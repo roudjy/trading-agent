@@ -265,3 +265,112 @@ def test_doc_lists_n2b3_n3_n4_n5_as_unimplemented() -> None:
     for marker in ("n2b-3", "n3", "n4", "n5"):
         assert marker in text, marker
     assert "unimplemented" in text or "out of scope" in text or "future" in text
+
+
+# ---------------------------------------------------------------------------
+# Service-worker URL reachability (operator-authored Flask route)
+# ---------------------------------------------------------------------------
+#
+# webPush.ts registers ``/sw-push.js`` with scope ``/agent-control/``.
+# Flask must expose that exact URL, must serve the file from
+# ``FRONTEND_DIST``, and must include the
+# ``Service-Worker-Allowed: /agent-control/`` header so the wider
+# scope is honoured by the browser. This block strictly pins all
+# four invariants so a future regression that breaks the SW URL
+# (e.g. typo in the route, wrong source dir, missing header) fails
+# loudly at unit-test time, not at runtime in the operator's PWA.
+
+WEBPUSH_TS_PATH = REPO_ROOT / "frontend" / "src" / "lib" / "webPush.ts"
+
+
+def _webpush_ts() -> str:
+    return WEBPUSH_TS_PATH.read_text(encoding="utf-8")
+
+
+def test_webpush_ts_registers_exact_sw_path() -> None:
+    """The frontend must register the SW at exactly ``/sw-push.js``.
+    Catches a frontend-only edit that would point to a different
+    URL (e.g. ``/sw-push.mjs`` or ``/agent-control/sw-push.js``).
+    """
+    src = _webpush_ts()
+    assert 'const SW_PATH = "/sw-push.js"' in src, (
+        "frontend/src/lib/webPush.ts must register exactly /sw-push.js"
+    )
+
+
+def test_dashboard_dashboard_serves_sw_push_route() -> None:
+    """dashboard.py must contain @app.route(\"/sw-push.js\").
+
+    Pinned by literal substring search to keep the test independent
+    of Flask import side-effects."""
+    text = _dashboard_text()
+    assert '@app.route("/sw-push.js")' in text, (
+        "dashboard/dashboard.py must declare @app.route(\"/sw-push.js\")"
+    )
+
+
+def test_dashboard_dashboard_sw_push_serves_from_frontend_dist() -> None:
+    """The /sw-push.js handler must read from ``FRONTEND_DIST``.
+
+    Anchored by the route declaration; we check the surrounding
+    handler body. This rules out accidentally reading from
+    ``dashboard/static/`` (where ``sw-push.js`` does not live in the
+    Vite build pipeline) or from any other folder.
+    """
+    text = _dashboard_text()
+    route_idx = text.find('@app.route("/sw-push.js")')
+    assert route_idx != -1
+    handler_window = text[route_idx : route_idx + 600]
+    assert 'send_from_directory(FRONTEND_DIST, "sw-push.js"' in handler_window, (
+        "the /sw-push.js handler must call "
+        "send_from_directory(FRONTEND_DIST, \"sw-push.js\", ...)"
+    )
+
+
+def test_dashboard_dashboard_sw_push_sets_service_worker_allowed_scope() -> None:
+    """The /sw-push.js response must set
+    ``Service-Worker-Allowed: /agent-control/``. Without this header
+    the browser refuses the wider SW scope and the subscribe flow
+    breaks at runtime.
+    """
+    text = _dashboard_text()
+    route_idx = text.find('@app.route("/sw-push.js")')
+    assert route_idx != -1
+    handler_window = text[route_idx : route_idx + 600]
+    assert (
+        'resp.headers["Service-Worker-Allowed"] = "/agent-control/"'
+        in handler_window
+    ), (
+        "the /sw-push.js handler must set "
+        'resp.headers["Service-Worker-Allowed"] = "/agent-control/"'
+    )
+
+
+def test_dashboard_dashboard_sw_push_route_distinct_from_existing_sw() -> None:
+    """The /sw-push.js route must be a distinct route from /sw.js
+    and must not overwrite or alias the existing service worker
+    handler. Both must coexist."""
+    text = _dashboard_text()
+    assert '@app.route("/sw.js")' in text, "/sw.js route must remain"
+    assert '@app.route("/sw-push.js")' in text, "/sw-push.js route required"
+    # Each route appears exactly once.
+    assert text.count('@app.route("/sw.js")') == 1
+    assert text.count('@app.route("/sw-push.js")') == 1
+
+
+def test_webpush_scope_matches_dashboard_service_worker_allowed_header() -> None:
+    """The frontend's registered scope and the backend's
+    Service-Worker-Allowed header must match. Drift here breaks
+    subscribe at runtime even though both ends are individually
+    well-formed."""
+    src = _webpush_ts()
+    text = _dashboard_text()
+    assert 'const SW_SCOPE = "/agent-control/"' in src, (
+        "webPush.ts must set SW_SCOPE = \"/agent-control/\""
+    )
+    assert (
+        'resp.headers["Service-Worker-Allowed"] = "/agent-control/"' in text
+    ), (
+        "dashboard.py must set Service-Worker-Allowed: /agent-control/ "
+        "to match the frontend SW_SCOPE"
+    )
