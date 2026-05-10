@@ -1456,6 +1456,13 @@ def service_worker():
     resp.headers["Service-Worker-Allowed"] = "/"
     return resp
 
+@app.route("/sw-push.js")
+def push_service_worker():
+    resp = send_from_directory(FRONTEND_DIST, "sw-push.js",
+                               mimetype="application/javascript")
+    resp.headers["Service-Worker-Allowed"] = "/agent-control/"
+    return resp
+
 # ──────────────────────────────────────────────
 # Start
 # ──────────────────────────────────────────────
