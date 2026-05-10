@@ -64,17 +64,31 @@ const SW_PATH = "/sw-push.js";
 const SW_SCOPE = "/agent-control/";
 
 /**
- * Convert a base64url string into a Uint8Array for
- * applicationServerKey. The VAPID public key is published as
- * base64url; PushManager.subscribe() needs a binary buffer.
+ * Convert a base64url string into an ArrayBuffer suitable for
+ * `PushManager.subscribe({ applicationServerKey })`. The VAPID
+ * public key is published as base64url. PushManager requires a
+ * `BufferSource`; we allocate a real `ArrayBuffer` and fill it
+ * through a `Uint8Array` view, then return the underlying buffer
+ * so that the function's return type is unambiguously
+ * `ArrayBuffer` (the lib.dom.d.ts type for
+ * `applicationServerKey`).
+ *
+ * Returning a `Uint8Array` directly works at runtime in most
+ * browsers but trips strict TypeScript builds because
+ * `Uint8Array<ArrayBufferLike>` is not assignable to
+ * `BufferSource` under tighter lib.dom.d.ts types — observed in
+ * the v3.15.16 deploy after PR #167.
+ *
+ * Exported for unit-test pinning of the return type.
  */
-function base64UrlToUint8Array(base64url: string): Uint8Array {
+export function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64url.length % 4)) % 4);
   const base64 = (base64url + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = atob(base64);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
+  const buffer = new ArrayBuffer(raw.length);
+  const view = new Uint8Array(buffer);
+  for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+  return buffer;
 }
 
 export async function getPushStatus(): Promise<PushStatusResponse> {
@@ -145,7 +159,7 @@ export async function subscribeToPush(): Promise<SubscribeResult> {
   try {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: base64UrlToUint8Array(vapid),
+      applicationServerKey: base64UrlToArrayBuffer(vapid),
     });
   } catch (_err) {
     return { ok: false, reason: "push_subscribe_failed" };
