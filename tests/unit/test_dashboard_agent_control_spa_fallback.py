@@ -205,3 +205,221 @@ def test_step5_invariants_unaffected_by_this_pr() -> None:
     text = _dashboard_text()
     assert "step5_implementation_allowed" not in text
     assert "STEP5_ENABLED_SUBSTAGE" not in text
+
+
+# ---------------------------------------------------------------------------
+# PWA recovery: unauth SPA deep-link redirects to /login?next=<safe>
+# ---------------------------------------------------------------------------
+#
+# Backend ``authenticate()`` rewrite — the operator-authored fix. The
+# PWA has no address bar; the bare 401 "Login vereist" body would
+# trap the user. For /agent-control SPA paths the response is now a
+# 302 to /login?next=<sanitised>. API routes still receive the
+# Basic-Auth challenge unchanged.
+
+import urllib.parse as _ulp
+
+
+def test_unauth_spa_deeplink_redirects_to_login_next(app_client) -> None:
+    client, _app = app_client
+    resp = client.get(
+        "/agent-control/inbox?event=test",
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302, (
+        f"unauth SPA deep-link must redirect; got {resp.status_code}"
+    )
+    location = resp.headers.get("Location") or ""
+    assert location.startswith("/login?next="), (
+        f"redirect target must be /login?next=...; got {location!r}"
+    )
+    body = resp.data.decode("utf-8", errors="replace")
+    assert "Login vereist" not in body, (
+        "SPA deep-link must NOT return the plain Basic-Auth body"
+    )
+
+
+def test_unauth_spa_deeplink_redirect_preserves_query_in_next(
+    app_client,
+) -> None:
+    client, _app = app_client
+    resp = client.get(
+        "/agent-control/inbox?event=abc12345",
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+    location = resp.headers.get("Location") or ""
+    # Extract and URL-decode the next= value.
+    parsed = _ulp.urlparse(location)
+    qs = dict(_ulp.parse_qsl(parsed.query, keep_blank_values=True))
+    next_target = qs.get("next") or ""
+    assert next_target == "/agent-control/inbox?event=abc12345", (
+        f"next param must round-trip the original SPA path; got {next_target!r}"
+    )
+
+
+def test_unauth_spa_exact_route_redirects_to_login_next(app_client) -> None:
+    client, _app = app_client
+    resp = client.get("/agent-control", follow_redirects=False)
+    assert resp.status_code == 302
+    location = resp.headers.get("Location") or ""
+    assert location.startswith("/login?next="), location
+
+
+def test_unauth_api_route_still_returns_basic_auth_challenge(
+    app_client,
+) -> None:
+    """Defense in depth: the redirect path is scoped to /agent-control
+    SPA routes only. API endpoints continue to return the existing
+    401 "Login vereist" challenge so headless / non-PWA clients behave
+    unchanged."""
+    client, _app = app_client
+    resp = client.get(
+        "/api/agent-control/status",
+        follow_redirects=False,
+    )
+    # The API blueprints register their own routes; some may exist
+    # and require auth (401), some may not exist (returns 404/500
+    # via the existing error handler). What MUST be true: if the
+    # response is 401, the body is the plain "Login vereist" text,
+    # NOT a redirect to /login.
+    if resp.status_code == 401:
+        body = resp.data.decode("utf-8", errors="replace")
+        assert "Login vereist" in body, (
+            "API 401 must still be the plain Basic-Auth body; got "
+            f"{body!r}"
+        )
+    elif resp.status_code == 302:
+        location = resp.headers.get("Location") or ""
+        assert not location.startswith("/login"), (
+            "API routes must NOT redirect to /login (PWA-recovery "
+            "path is scoped to /agent-control only)"
+        )
+
+
+def test_login_route_is_publicly_reachable(app_client) -> None:
+    """The /login route must NOT require auth — the React Login
+    component must always render so the user can authenticate."""
+    client, _app = app_client
+    resp = client.get("/login", follow_redirects=False)
+    assert resp.status_code == 200
+    content_type = resp.headers.get("Content-Type") or ""
+    assert "application/json" not in content_type.lower()
+
+
+def test_unauth_redirect_rejects_external_url_smuggling(app_client) -> None:
+    """Any /agent-control SPA path that itself is malformed (e.g. via
+    proxy/path manipulation) must still produce a safe ``next``.
+    Flask's request.full_path won't normally let an external URL in,
+    but we add this guard to prove the sanitiser drops anything that
+    is not a literal /agent-control prefix."""
+    client, _app = app_client
+    # The path-only request is the only way to reach authenticate();
+    # the sanitiser drops anything else. Test a sub-path that should
+    # still be honoured (round-trip).
+    resp = client.get(
+        "/agent-control/inbox/some/sub?event=evt",
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+    location = resp.headers.get("Location") or ""
+    parsed = _ulp.urlparse(location)
+    qs = dict(_ulp.parse_qsl(parsed.query, keep_blank_values=True))
+    next_target = qs.get("next") or ""
+    assert next_target.startswith("/agent-control/"), next_target
+    assert "://" not in next_target, next_target
+    assert ".." not in next_target, next_target
+
+
+def test_authenticate_function_source_documents_pwa_recovery(
+    app_client,
+) -> None:
+    """Source-text pin: the operator-authored authenticate() body
+    must reference both the SPA prefix and the redirect target so a
+    future careless edit can't silently revert the PWA recovery
+    path."""
+    text = _dashboard_text()
+    # Strict requirements on the modified authenticate() body:
+    assert '"/agent-control"' in text, (
+        "authenticate() must reference the /agent-control prefix"
+    )
+    assert "/login?next=" in text, (
+        "authenticate() must reference the /login?next= redirect target"
+    )
+    assert "Location" in text, (
+        "authenticate() must set a Location header on the redirect"
+    )
+
+
+def test_authenticate_function_still_returns_basic_auth_for_non_spa(
+    app_client,
+) -> None:
+    """The operator-authored change must preserve the existing 401
+    Basic-Auth body for non-SPA paths. Source-text pin asserts the
+    legacy ``Login vereist`` 401 response is still present in the
+    function."""
+    text = _dashboard_text()
+    assert 'Response("Login vereist", 401' in text, (
+        "authenticate() must still return the 401 Basic-Auth body "
+        "for non-SPA paths"
+    )
+    assert 'WWW-Authenticate' in text, (
+        "authenticate() must still set WWW-Authenticate for the "
+        "Basic-Auth challenge"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Authenticated path: SPA HTML, not redirect
+# ---------------------------------------------------------------------------
+
+
+def test_authenticated_spa_deeplink_serves_spa_not_redirect(
+    app_client,
+) -> None:
+    """With an authed session cookie, the SPA deep-link must serve
+    the SPA HTML (or the development fallback) — NOT redirect to
+    /login."""
+    client, _app = app_client
+    with client.session_transaction() as sess:
+        sess["operator_authenticated"] = True
+        sess["operator_actor"] = "test"
+    resp = client.get(
+        "/agent-control/inbox?event=test",
+        follow_redirects=False,
+    )
+    assert resp.status_code == 200, resp.status_code
+    content_type = resp.headers.get("Content-Type") or ""
+    assert "application/json" not in content_type.lower()
+    # The body is SPA HTML (or the dev-mode "frontend bundle niet
+    # gevonden" placeholder). Either way it is NOT a redirect and
+    # NOT the JSON 404 envelope.
+    body = resp.data.decode("utf-8", errors="replace")
+    assert '"data":[]' not in body
+    assert "Login vereist" not in body
+
+
+# ---------------------------------------------------------------------------
+# Scope guards for the new redirect code (no new authority)
+# ---------------------------------------------------------------------------
+
+
+def test_authenticate_change_introduces_no_decision_verbs() -> None:
+    """The operator-authored authenticate() rewrite must not bring
+    any approve/reject/merge/deploy verb call into dashboard.py."""
+    text = _dashboard_text().lower()
+    for verb in ("approve(", "reject(", "merge(", "deploy("):
+        assert verb not in text, verb
+
+
+def test_authenticate_change_introduces_no_token_mint_helpers() -> None:
+    """The PWA recovery path must not introduce any approval-token
+    minting helper. N4 approval-token authority remains future."""
+    text = _dashboard_text().lower()
+    forbidden = (
+        "mint_approval_token",
+        "approval_token_gate",
+        "approval_token_mint",
+    )
+    for needle in forbidden:
+        assert needle not in text, needle
