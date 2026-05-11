@@ -414,12 +414,29 @@ def test_authenticate_change_introduces_no_decision_verbs() -> None:
 
 def test_authenticate_change_introduces_no_token_mint_helpers() -> None:
     """The PWA recovery path must not introduce any approval-token
-    minting helper. N4 approval-token authority remains future."""
+    minting helper into dashboard.py directly.
+
+    The legitimate N4b wiring (``from dashboard.api_approval_token_gate
+    import register_approval_token_gate_routes`` +
+    ``register_approval_token_gate_routes(app)``) is allowed — that
+    imports the BLUEPRINT module, which itself owns the token-mint
+    surface. dashboard.py must not call mint helpers itself, nor
+    directly import the underlying N4a / N4b runtime modules.
+    """
     text = _dashboard_text().lower()
     forbidden = (
+        # Never-present-by-naming helper-call patterns (defense in
+        # depth against a future refactor that accidentally
+        # introduces a mint helper at the dashboard layer).
         "mint_approval_token",
-        "approval_token_gate",
         "approval_token_mint",
+        # Direct imports of the underlying modules — only the
+        # blueprint module (``dashboard.api_approval_token_gate``)
+        # is allowed to wire them.
+        "from reporting.approval_token_gate",
+        "from reporting.approval_token_runtime",
+        "import reporting.approval_token_gate",
+        "import reporting.approval_token_runtime",
     )
     for needle in forbidden:
         assert needle not in text, needle

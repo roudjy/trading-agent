@@ -44,9 +44,12 @@ EXPECTED_IMPORT_LINE = (
 EXPECTED_REGISTER_CALL = "register_push_subscribe_routes(app)"
 
 # These lines MUST remain in dashboard.py post-edit. Removing or
-# reordering any of them is forbidden. The N2b-2b push-subscribe
-# wiring is now part of this required-list so a future edit cannot
-# accidentally drop or reorder it.
+# reordering any of them is forbidden. The list backfills the
+# N2b-3b push-dispatch wiring (which was operator-added in PR #184
+# but not previously listed) AND adds the N3b mobile-inbox + N4b
+# approval-token-gate + N5a merge-recommendation wirings activated
+# by the operator-only six-line edit shipped alongside this test
+# update.
 EXISTING_REGISTRATIONS_REQUIRED: tuple[str, ...] = (
     "from dashboard.api_campaigns import register_campaign_routes",
     "from dashboard.api_research_intelligence import (",
@@ -56,8 +59,15 @@ EXISTING_REGISTRATIONS_REQUIRED: tuple[str, ...] = (
     "from dashboard.api_proposal_queue import register_proposal_queue_routes",
     "from dashboard.api_approval_inbox import register_approval_inbox_routes",
     "from dashboard.api_push_subscribe import register_push_subscribe_routes",
+    "from dashboard.api_push_dispatch import register_push_dispatch_routes",
     "from dashboard.api_roadmap_priority import "
     "register_roadmap_priority_routes",
+    "from dashboard.api_mobile_approval_inbox "
+    "import register_mobile_approval_inbox_routes",
+    "from dashboard.api_approval_token_gate "
+    "import register_approval_token_gate_routes",
+    "from dashboard.api_merge_recommendation "
+    "import register_merge_recommendation_routes",
     "register_campaign_routes(app)",
     "register_research_intelligence_routes(app)",
     "register_system_meta_routes(app)",
@@ -67,6 +77,10 @@ EXISTING_REGISTRATIONS_REQUIRED: tuple[str, ...] = (
     "register_approval_inbox_routes(app)",
     "register_roadmap_priority_routes(app)",
     "register_push_subscribe_routes(app)",
+    "register_push_dispatch_routes(app)",
+    "register_mobile_approval_inbox_routes(app)",
+    "register_approval_token_gate_routes(app)",
+    "register_merge_recommendation_routes(app)",
 )
 
 
@@ -355,12 +369,27 @@ def _mobile_inbox_wiring_present() -> bool:
     )
 
 
+def test_mobile_inbox_wiring_present() -> None:
+    """Strict-enforce: dashboard.py must contain BOTH the import and
+    the register call for the N3b mobile-inbox blueprint. Operator-
+    added in the wiring-activation PR alongside N4b + N5a."""
+    text = _dashboard_text()
+    assert EXPECTED_MOBILE_INBOX_IMPORT_LINE in text, (
+        "dashboard.py is missing the mobile-inbox import line: "
+        f"{EXPECTED_MOBILE_INBOX_IMPORT_LINE!r}"
+    )
+    assert EXPECTED_MOBILE_INBOX_REGISTER_CALL in text, (
+        "dashboard.py is missing the mobile-inbox register call: "
+        f"{EXPECTED_MOBILE_INBOX_REGISTER_CALL!r}"
+    )
+
+
 def test_mobile_inbox_wiring_exactly_one_import_and_one_register_call() -> None:
     if not _mobile_inbox_wiring_present():
-        # Operator has not yet added the two-line diff. Conditional
-        # pin returns early; the test still passes. Once the operator
-        # commits the wiring, this branch is no longer taken and the
-        # assertions below fire.
+        # Defensive: should never trigger post-activation. Once the
+        # operator wires, the always-on test above strictly enforces
+        # presence; this conditional pin is the duplicate-detection
+        # layer.
         return
     text = _dashboard_text()
     assert text.count(EXPECTED_MOBILE_INBOX_IMPORT_LINE) == 1, (
@@ -421,6 +450,21 @@ def _token_gate_wiring_present() -> bool:
     )
 
 
+def test_token_gate_wiring_present() -> None:
+    """Strict-enforce: dashboard.py must contain BOTH the import and
+    the register call for the N4b approval-token-gate blueprint.
+    Operator-added in the wiring-activation PR alongside N3b + N5a."""
+    text = _dashboard_text()
+    assert EXPECTED_TOKEN_GATE_IMPORT_LINE in text, (
+        "dashboard.py is missing the token-gate import line: "
+        f"{EXPECTED_TOKEN_GATE_IMPORT_LINE!r}"
+    )
+    assert EXPECTED_TOKEN_GATE_REGISTER_CALL in text, (
+        "dashboard.py is missing the token-gate register call: "
+        f"{EXPECTED_TOKEN_GATE_REGISTER_CALL!r}"
+    )
+
+
 def test_token_gate_wiring_exactly_one_import_and_one_register_call() -> None:
     if not _token_gate_wiring_present():
         return
@@ -477,6 +521,21 @@ def _merge_recommendation_wiring_present() -> bool:
     return (
         EXPECTED_MERGE_RECOMMENDATION_IMPORT_LINE in text
         and EXPECTED_MERGE_RECOMMENDATION_REGISTER_CALL in text
+    )
+
+
+def test_merge_recommendation_wiring_present() -> None:
+    """Strict-enforce: dashboard.py must contain BOTH the import and
+    the register call for the N5a merge-recommendation blueprint.
+    Operator-added in the wiring-activation PR alongside N3b + N4b."""
+    text = _dashboard_text()
+    assert EXPECTED_MERGE_RECOMMENDATION_IMPORT_LINE in text, (
+        "dashboard.py is missing the merge-recommendation import "
+        f"line: {EXPECTED_MERGE_RECOMMENDATION_IMPORT_LINE!r}"
+    )
+    assert EXPECTED_MERGE_RECOMMENDATION_REGISTER_CALL in text, (
+        "dashboard.py is missing the merge-recommendation register "
+        f"call: {EXPECTED_MERGE_RECOMMENDATION_REGISTER_CALL!r}"
     )
 
 

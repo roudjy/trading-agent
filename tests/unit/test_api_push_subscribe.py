@@ -469,11 +469,17 @@ def test_dashboard_dashboard_registers_push_routes_exactly_once() -> None:
 
 def test_dashboard_dashboard_diff_to_main_is_bounded_to_push_wiring() -> None:
     """If the branch diff vs origin/main touches dashboard.py, the
-    only modifications must be the two-line N2b-2b wiring change.
+    only modifications must be wiring-line additions (no removals,
+    no non-wiring added lines).
 
-    Approximate enforcement: the diff hunks for dashboard.py must
-    contain ONLY added lines mentioning ``register_push_subscribe``
-    or ``api_push_subscribe`` (no removals; no other added lines).
+    The test was introduced in PR #167 to bound the N2b-2b
+    push-subscribe wiring diff. Each subsequent wiring PR
+    (#184 N2b-3b push-dispatch, #188 N3b mobile-inbox, #189 N4b
+    approval-token-gate, #190 N5a merge-recommendation, plus the
+    activation PR that wires them all into dashboard.py) extends
+    the allowed-token list rather than weakening the contract —
+    the test still refuses any REMOVAL and any added line whose
+    payload doesn't mention one of the known wirings.
     """
     out = subprocess.run(
         ["git", "diff", "origin/main...HEAD", "--", "dashboard/dashboard.py"],
@@ -491,16 +497,23 @@ def test_dashboard_dashboard_diff_to_main_is_bounded_to_push_wiring() -> None:
         # ``test_dashboard_dashboard_one_line_wiring.py`` cover the
         # invariant. Pass through.
         return
-    # Walk the diff. Allow:
-    #   * diff/index/range header lines (start with 'diff', 'index',
-    #     '@@', '---', '+++', or are blank);
-    #   * unchanged context lines (start with a single ' ');
-    #   * ADDED lines whose payload mentions our wiring;
-    #   * pure-whitespace added lines (e.g. blank line between
-    #     existing registration block and new register call).
-    # Disallow:
-    #   * REMOVED lines (start with '-' but not '---');
-    #   * ADDED lines whose payload does not mention the wiring.
+    # The allowed-payload tokens are the substring fingerprints of
+    # every wiring line that has legitimately shipped to dashboard.py.
+    # Adding a new wiring requires extending this tuple in the same
+    # PR that adds the wiring; the test still refuses any removal
+    # and any added line whose payload doesn't match.
+    allowed_substrings = (
+        "register_push_subscribe",
+        "api_push_subscribe",
+        "register_push_dispatch",
+        "api_push_dispatch",
+        "register_mobile_approval_inbox",
+        "api_mobile_approval_inbox",
+        "register_approval_token_gate",
+        "api_approval_token_gate",
+        "register_merge_recommendation",
+        "api_merge_recommendation",
+    )
     for line in diff_text.splitlines():
         if not line:
             continue
@@ -520,12 +533,9 @@ def test_dashboard_dashboard_diff_to_main_is_bounded_to_push_wiring() -> None:
                 # Blank-line addition — tolerated (formatting around
                 # the new register call).
                 continue
-            if (
-                "register_push_subscribe" in payload
-                or "api_push_subscribe" in payload
-            ):
+            if any(token in payload for token in allowed_substrings):
                 continue
             raise AssertionError(
-                "dashboard.py diff added a non-push-subscribe line; "
+                "dashboard.py diff added a non-wiring line; "
                 f"found: {line!r}"
             )
