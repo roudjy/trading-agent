@@ -39,8 +39,23 @@
 set -euo pipefail
 
 REPO_ROOT="/root/trading-agent"
-DASHBOARD_HEALTH_URL="http://127.0.0.1:8050/agent-control"
 COMPOSE="docker compose"
+
+# Healthcheck URL strategy:
+# * If DASHBOARD_HEALTH_URL is exported, probe exactly that URL.
+# * Otherwise try HTTPS first, then HTTP. Local nginx may speak
+#   either; the deploy must succeed on both. ``curl -k`` accepts
+#   the self-signed local CA the operator may use on the VPS HTTPS
+#   configuration.
+DASHBOARD_HEALTH_URL_OVERRIDE="${DASHBOARD_HEALTH_URL:-}"
+if [[ -n "${DASHBOARD_HEALTH_URL_OVERRIDE}" ]]; then
+    DASHBOARD_HEALTH_CANDIDATES=("${DASHBOARD_HEALTH_URL_OVERRIDE}")
+else
+    DASHBOARD_HEALTH_CANDIDATES=(
+        "https://127.0.0.1:8050/agent-control"
+        "http://127.0.0.1:8050/agent-control"
+    )
+fi
 
 log() {
     # Plain stdout; never echo secrets.
@@ -116,7 +131,7 @@ if ${COMPOSE} ps --status running --services | grep -qx agent; then
     exit 5
 fi
 
-log "verifying dashboard responds on ${DASHBOARD_HEALTH_URL}"
+log "verifying dashboard responds on candidate URLs (HTTPS then HTTP)"
 # A short retry loop covers the seconds while nginx / Flask warm
 # up. We hit /agent-control because the standalone PWA route is
 # the operator-facing surface and is guaranteed to be wired.
@@ -138,31 +153,38 @@ log "verifying dashboard responds on ${DASHBOARD_HEALTH_URL}"
 # %{http_code} instead of using curl --fail so a 401 does not
 # trip the script. We never embed credentials and never bypass
 # auth.
+#
+# v3.15.15.29.4: protocol-aware healthcheck. When nginx speaks
+# TLS on port 8050 (operator HTTPS setup with self-signed local
+# CA), probing http:// returns HTTP 400. The loop now tries each
+# candidate URL per attempt; ``curl -k`` accepts the self-signed
+# CA on loopback — safe because we only probe 127.0.0.1. The
+# first candidate to return an alive status wins.
 http_ok=0
 last_status=""
+alive_url=""
 for attempt in 1 2 3 4 5; do
-    # ``|| true`` so a transport-level failure (no response at
-    # all) just yields an empty status; the if-block below
-    # treats that as "not yet alive" and retries.
-    last_status="$(curl -sS -o /dev/null -w '%{http_code}' \
-        --max-time 5 "${DASHBOARD_HEALTH_URL}" || true)"
-    case "${last_status}" in
-        200|302|401)
-            http_ok=1
-            log "dashboard responded with HTTP ${last_status}; treating as alive (\
-/agent-control is auth-protected)"
-            break
-            ;;
-        *)
-            log "attempt ${attempt}/5: dashboard not alive yet (status=\
-${last_status:-no_response}), sleeping 3s"
-            sleep 3
-            ;;
-    esac
+    for url in "${DASHBOARD_HEALTH_CANDIDATES[@]}"; do
+        # ``|| true`` so a transport-level failure (no response at
+        # all) just yields an empty status; the case block below
+        # treats that as "not yet alive" and continues.
+        last_status="$(curl -k -sS -o /dev/null -w '%{http_code}' \
+            --max-time 5 "${url}" || true)"
+        case "${last_status}" in
+            200|302|401)
+                http_ok=1
+                alive_url="${url}"
+                log "dashboard responded with HTTP ${last_status} at ${url}; treating as alive (/agent-control is auth-protected)"
+                break 2
+                ;;
+        esac
+    done
+    log "attempt ${attempt}/5: dashboard not alive yet (last status=${last_status:-no_response}), sleeping 3s"
+    sleep 3
 done
 
 if [[ "${http_ok}" -ne 1 ]]; then
-    log "fatal: dashboard did not respond on ${DASHBOARD_HEALTH_URL} \
+    log "fatal: dashboard did not respond on any candidate URLs \
 (last status=${last_status:-no_response})"
     ${COMPOSE} logs --tail=120 dashboard || true
     exit 6
