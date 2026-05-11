@@ -118,7 +118,39 @@ def check_auth(username, password):
     return username == "joery" and h == PW_HASH
 
 def authenticate():
+    # PWA recovery: /agent-control and /agent-control/<anything> are
+    # SPA routes. The PWA has no address bar, so returning the bare
+    # 401 "Login vereist" body would trap the user. For these paths
+    # only, redirect to the React login flow with a sanitised
+    # ?next=<safe relative path> the Login component reads to
+    # navigate back after authentication. API routes still get the
+    # Basic-Auth challenge below.
+    from urllib.parse import quote
+    path = request.path or ""
+    if path == "/agent-control" or path.startswith("/agent-control/"):
+        full = request.full_path or path
+        if full.endswith("?"):
+            full = full[:-1]
+        # Defense-in-depth: must be a relative path under
+        # /agent-control. No protocol-relative URLs, no path
+        # traversal, no backslash smuggling.
+        safe_next = "/agent-control"
+        if (
+            isinstance(full, str) and full
+            and not full.startswith("//")
+            and ".." not in full
+            and "\\" not in full
+            and (
+                full == "/agent-control"
+                or full.startswith("/agent-control/")
+                or full.startswith("/agent-control?")
+            )
+        ):
+            safe_next = full
+        location = "/login?next=" + quote(safe_next, safe="/?=&-_.")
+        return Response("", status=302, headers={"Location": location})
     return Response("Login vereist", 401, {"WWW-Authenticate": 'Basic realm="JvR Agent"'})
+
 
 def requires_auth(f):
     @wraps(f)

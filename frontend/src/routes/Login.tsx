@@ -1,9 +1,32 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth";
 import { Coin, Star, XMark } from "../components/pixel/Glyphs";
 import { PixelCard } from "../components/pixel/PixelCard";
 import { PixelBadge } from "../components/pixel/PixelBadge";
+
+/**
+ * Mirror of the backend ``authenticate()`` inline sanitiser. Only
+ * relative paths under ``/agent-control`` are honoured. Anything else
+ * (external URLs, protocol-relative, path traversal, backslash
+ * smuggling, any other top-level path) is treated as missing.
+ *
+ * Exported for unit-test pinning.
+ */
+export function sanitiseLoginNext(candidate: string | null): string | null {
+  if (typeof candidate !== "string" || !candidate) return null;
+  if (candidate.startsWith("//")) return null;
+  if (candidate.includes("..")) return null;
+  if (candidate.includes("\\")) return null;
+  if (
+    candidate === "/agent-control" ||
+    candidate.startsWith("/agent-control/") ||
+    candidate.startsWith("/agent-control?")
+  ) {
+    return candidate;
+  }
+  return null;
+}
 
 export function Login() {
   const { authenticated, login, error } = useAuth();
@@ -11,8 +34,14 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const location = useLocation();
-  const from =
-    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/";
+  const [searchParams] = useSearchParams();
+  const stateFrom =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  // Priority: sanitised ?next= from URL > React Router state.from > "/".
+  // The PWA push-deep-link flow lands here as /login?next=/agent-control/...
+  // and must navigate back to the original target on successful login.
+  const sanitisedNext = sanitiseLoginNext(searchParams.get("next"));
+  const from = sanitisedNext ?? stateFrom ?? "/";
 
   if (authenticated) {
     return <Navigate to={from} replace />;
