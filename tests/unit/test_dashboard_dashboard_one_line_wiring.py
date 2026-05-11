@@ -326,6 +326,70 @@ def test_dispatch_wiring_no_other_dashboard_dashboard_modifications() -> None:
 
 
 # ---------------------------------------------------------------------------
+# N3b mobile-approval-inbox wiring conditional pins (skip-or-enforce)
+# ---------------------------------------------------------------------------
+#
+# Same dual-mode pattern as the N2b-3b dispatch wiring above. Until
+# the operator adds the two-line
+# ``register_mobile_approval_inbox_routes(app)`` diff, these pins
+# return early. Once added, they enforce the exact wiring shape.
+# The blueprint at ``dashboard/api_mobile_approval_inbox.py`` is
+# READ-ONLY and exposes only GET routes; runtime delivery still
+# requires (a) the existing PWA session middleware and (b) the
+# operator wiring this blueprint into ``dashboard/dashboard.py``.
+
+EXPECTED_MOBILE_INBOX_IMPORT_LINE = (
+    "from dashboard.api_mobile_approval_inbox "
+    "import register_mobile_approval_inbox_routes"
+)
+EXPECTED_MOBILE_INBOX_REGISTER_CALL = (
+    "register_mobile_approval_inbox_routes(app)"
+)
+
+
+def _mobile_inbox_wiring_present() -> bool:
+    text = _dashboard_text()
+    return (
+        EXPECTED_MOBILE_INBOX_IMPORT_LINE in text
+        and EXPECTED_MOBILE_INBOX_REGISTER_CALL in text
+    )
+
+
+def test_mobile_inbox_wiring_exactly_one_import_and_one_register_call() -> None:
+    if not _mobile_inbox_wiring_present():
+        # Operator has not yet added the two-line diff. Conditional
+        # pin returns early; the test still passes. Once the operator
+        # commits the wiring, this branch is no longer taken and the
+        # assertions below fire.
+        return
+    text = _dashboard_text()
+    assert text.count(EXPECTED_MOBILE_INBOX_IMPORT_LINE) == 1, (
+        "dashboard.py must contain exactly one new mobile-inbox "
+        "import line"
+    )
+    assert text.count(EXPECTED_MOBILE_INBOX_REGISTER_CALL) == 1, (
+        "dashboard.py must contain exactly one new mobile-inbox "
+        "register call"
+    )
+
+
+def test_mobile_inbox_wiring_no_other_dashboard_dashboard_modifications() -> None:
+    if not _mobile_inbox_wiring_present():
+        return
+    text = _dashboard_text()
+    mobile_inbox_lines = [
+        line
+        for line in text.splitlines()
+        if "register_mobile_approval_inbox" in line
+        or "api_mobile_approval_inbox" in line
+    ]
+    assert len(mobile_inbox_lines) == 2, (
+        f"dashboard.py must contain exactly 2 mobile-inbox lines; "
+        f"found {len(mobile_inbox_lines)}: {mobile_inbox_lines}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Companion doc invariants (always on)
 # ---------------------------------------------------------------------------
 
