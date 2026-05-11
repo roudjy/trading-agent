@@ -356,8 +356,9 @@ def robots_txt():
 @app.route("/version")
 @app.route("/observability")
 @app.route("/agent-control")
+@app.route("/agent-control/<path:path>")
 @requires_auth
-def spa_fallback_authed():
+def spa_fallback_authed(path: str = ""):
     return index()
 
 
