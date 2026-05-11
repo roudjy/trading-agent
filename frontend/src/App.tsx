@@ -16,6 +16,7 @@ import { History } from "./routes/History";
 import { Reports } from "./routes/Reports";
 import { Candidates } from "./routes/Candidates";
 import { AgentControl } from "./routes/AgentControl";
+import { AgentControlInboxPlaceholder } from "./routes/AgentControl/InboxPlaceholder";
 
 export function App() {
   return (
@@ -37,6 +38,31 @@ export function App() {
           element={
             <RequireAuth>
               <AgentControl />
+            </RequireAuth>
+          }
+        />
+        {/*
+         * Safe placeholder for /agent-control/inbox?event=<event_id>
+         * deep-links opened from the Web Push notification click. The
+         * SW already constrains open_at to the /agent-control/inbox
+         * prefix; the placeholder is read-only and contains no
+         * decision verbs. The real N3c inbox-detail UI is not yet
+         * implemented; until then this view lets the operator land
+         * safely instead of hitting Flask's catch-all JSON 404.
+         */}
+        <Route
+          path="/agent-control/inbox"
+          element={
+            <RequireAuth>
+              <AgentControlInboxPlaceholder />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/agent-control/*"
+          element={
+            <RequireAuth>
+              <AgentControlInboxPlaceholder />
             </RequireAuth>
           }
         />
