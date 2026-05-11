@@ -103,13 +103,23 @@ def test_existing_dashboard_registrations_unchanged() -> None:
         last_pos = pos
 
 
-def test_no_dashboard_api_push_dispatch_module() -> None:
-    """N2b-3 territory: the real-delivery endpoint module must not
-    exist yet. N2b-2b adds the subscription surface only."""
-    bad = REPO_ROOT / "dashboard" / "api_push_dispatch.py"
-    assert not bad.is_file(), (
-        "dashboard/api_push_dispatch.py is N2b-3 territory and must "
-        "not exist in N2b-2b"
+def test_dashboard_api_push_dispatch_module_present_but_unwired() -> None:
+    """N2b-3b: the real-delivery endpoint module exists at
+    ``dashboard/api_push_dispatch.py`` but must remain unwired in
+    ``dashboard/dashboard.py`` until the operator adds the two-line
+    wiring diff (gated by env + nginx + pywebpush).
+
+    This guard runs in BOTH modes (wiring present or absent):
+    * the module file must exist (N2b-3b shipped);
+    * the dispatch wiring may or may not yet be in dashboard.py — the
+      skip-or-enforce conditional pins below enforce the exact shape
+      once the operator adds the two lines.
+    """
+    module_path = REPO_ROOT / "dashboard" / "api_push_dispatch.py"
+    assert module_path.is_file(), (
+        "dashboard/api_push_dispatch.py is N2b-3b territory and must "
+        "exist (the blueprint module is shipped; wiring is operator-"
+        "only)."
     )
 
 
@@ -219,6 +229,63 @@ def test_wiring_no_other_dashboard_dashboard_modifications() -> None:
     assert len(push_lines) == 2, (
         f"dashboard.py must contain exactly 2 push-subscribe lines; "
         f"found {len(push_lines)}: {push_lines}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# N2b-3b dispatch-wiring conditional pins (skip-or-enforce)
+# ---------------------------------------------------------------------------
+#
+# Same dual-mode pattern as the N2b-2b subscribe wiring above. Until
+# the operator adds the two-line ``register_push_dispatch_routes(app)``
+# diff, these pins return early. Once added, they enforce the exact
+# wiring shape.
+
+EXPECTED_DISPATCH_IMPORT_LINE = (
+    "from dashboard.api_push_dispatch import register_push_dispatch_routes"
+)
+EXPECTED_DISPATCH_REGISTER_CALL = "register_push_dispatch_routes(app)"
+
+
+def _dispatch_wiring_present() -> bool:
+    text = _dashboard_text()
+    return (
+        EXPECTED_DISPATCH_IMPORT_LINE in text
+        and EXPECTED_DISPATCH_REGISTER_CALL in text
+    )
+
+
+def test_dispatch_wiring_exactly_one_import_and_one_register_call() -> None:
+    if not _dispatch_wiring_present():
+        # Operator has not yet added the two-line diff. Conditional
+        # pin returns early; the test still passes. Once the operator
+        # commits the wiring, this branch is no longer taken and the
+        # assertions below fire.
+        return
+    text = _dashboard_text()
+    assert text.count(EXPECTED_DISPATCH_IMPORT_LINE) == 1, (
+        "dashboard.py must contain exactly one new dispatch import line"
+    )
+    assert text.count(EXPECTED_DISPATCH_REGISTER_CALL) == 1, (
+        "dashboard.py must contain exactly one new dispatch register call"
+    )
+
+
+def test_dispatch_wiring_no_other_dashboard_dashboard_modifications() -> None:
+    """When the dispatch wiring lands, the diff must include ONLY two
+    new lines (one import + one register call)."""
+    if not _dispatch_wiring_present():
+        return
+    text = _dashboard_text()
+    push_dispatch_lines = [
+        line
+        for line in text.splitlines()
+        if "register_push_dispatch" in line
+        or "api_push_dispatch" in line
+    ]
+    assert len(push_dispatch_lines) == 2, (
+        f"dashboard.py must contain exactly 2 push-dispatch lines; "
+        f"found {len(push_dispatch_lines)}: {push_dispatch_lines}"
     )
 
 
