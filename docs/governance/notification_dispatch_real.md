@@ -282,10 +282,20 @@ must complete these one-shot setup steps on the VPS:
    WEB_PUSH_VAPID_SUBJECT=mailto:joeryvanrooij@gmail.com
    ```
 
-3. **Install the optional runtime dependency** on the VPS:
+3. **Confirm the runtime dependency is present.** `pywebpush>=1.14.0`
+   is now pinned in [`requirements.txt`](../../requirements.txt) and
+   ships in the Dockerfile-built image. After the next image rebuild
+   on the VPS, no operator action is required for this step:
 
    ```bash
-   pip install pywebpush
+   # No-op verification (post next rebuild):
+   docker compose exec dashboard python -m pip show pywebpush | head -1
+   ```
+
+   For ad-hoc non-Docker setups only:
+
+   ```bash
+   pip install 'pywebpush>=1.14.0'
    ```
 
 4. **Restrict the dispatch route to 127.0.0.1** in the nginx config
