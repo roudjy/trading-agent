@@ -504,3 +504,92 @@ def test_no_other_file_references_a_full_vps_ip() -> None:
         assert matches == [], (
             f"{path.name} contains a non-loopback IP literal: {matches!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# v3.15.15.29.4 — protocol-aware healthcheck invariants
+# ---------------------------------------------------------------------------
+
+
+def test_script_healthcheck_supports_https_with_self_signed_ca(
+    script_text: str,
+) -> None:
+    """The healthcheck curl call must use ``-k`` (or ``--insecure``)
+    so the VPS self-signed local CA on the HTTPS variant of port
+    8050 does not cause a certificate-verification failure.
+
+    We only scan executable (non-comment) lines so a comment
+    explaining why ``-k`` is safe does not satisfy this test on
+    its own — the flag must appear in an actual curl invocation.
+    """
+    executable_lines = [
+        ln for ln in script_text.splitlines() if not ln.lstrip().startswith("#")
+    ]
+    executable = "\n".join(executable_lines)
+    assert "curl -k" in executable or "curl --insecure" in executable, (
+        "healthcheck curl call does not pass -k / --insecure; "
+        "HTTPS with a self-signed local CA will fail"
+    )
+
+
+def test_script_healthcheck_lists_https_and_http_candidates(
+    script_text: str,
+) -> None:
+    """Both the HTTPS and HTTP loopback candidates must appear
+    literally in the script so the operator can audit the two
+    probe addresses without having to reason about runtime
+    string construction."""
+    assert "https://127.0.0.1:8050/agent-control" in script_text, (
+        "script does not contain HTTPS candidate "
+        "https://127.0.0.1:8050/agent-control"
+    )
+    assert "http://127.0.0.1:8050/agent-control" in script_text, (
+        "script does not contain HTTP candidate "
+        "http://127.0.0.1:8050/agent-control"
+    )
+
+
+def test_script_healthcheck_honours_env_override(
+    script_text: str,
+) -> None:
+    """The script must expose an operator-level env override so a
+    non-standard setup (different port, different path) can be
+    accommodated without editing the script.
+
+    Accepted forms:
+      * ``${DASHBOARD_HEALTH_URL:-}`` — explicit default-empty
+        expansion used to detect whether the var is set.
+      * ``${DASHBOARD_HEALTH_URL_OVERRIDE}`` — a local copy that
+        the script derives from the env var.
+    Either form proves the script reads DASHBOARD_HEALTH_URL from
+    the environment.
+    """
+    assert (
+        "${DASHBOARD_HEALTH_URL:-}" in script_text
+        or "${DASHBOARD_HEALTH_URL_OVERRIDE}" in script_text
+    ), (
+        "script does not reference DASHBOARD_HEALTH_URL as an "
+        "env-driven override (expected ${DASHBOARD_HEALTH_URL:-} "
+        "or ${DASHBOARD_HEALTH_URL_OVERRIDE})"
+    )
+
+
+def test_script_healthcheck_iterates_candidates(
+    script_text: str,
+) -> None:
+    """The healthcheck must iterate over a candidates array so
+    both HTTPS and HTTP are tried per retry attempt — a healthy
+    HTTP-only deploy must not be delayed by HTTPS timeouts on
+    all five attempts before HTTP is even tried.
+
+    Accepted pattern: ``for url in "${DASHBOARD_HEALTH_CANDIDATES[@]}"``
+    (or a functionally equivalent iteration over the array).
+    """
+    assert (
+        'for url in "${DASHBOARD_HEALTH_CANDIDATES[@]}"' in script_text
+        or "DASHBOARD_HEALTH_CANDIDATES[@]" in script_text
+    ), (
+        "script does not iterate over DASHBOARD_HEALTH_CANDIDATES[@]; "
+        "both HTTPS and HTTP candidates must be tried inside each "
+        "retry attempt"
+    )
