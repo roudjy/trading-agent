@@ -44,7 +44,9 @@ EXPECTED_IMPORT_LINE = (
 EXPECTED_REGISTER_CALL = "register_push_subscribe_routes(app)"
 
 # These lines MUST remain in dashboard.py post-edit. Removing or
-# reordering any of them is forbidden.
+# reordering any of them is forbidden. The N2b-2b push-subscribe
+# wiring is now part of this required-list so a future edit cannot
+# accidentally drop or reorder it.
 EXISTING_REGISTRATIONS_REQUIRED: tuple[str, ...] = (
     "from dashboard.api_campaigns import register_campaign_routes",
     "from dashboard.api_research_intelligence import (",
@@ -53,6 +55,7 @@ EXISTING_REGISTRATIONS_REQUIRED: tuple[str, ...] = (
     "from dashboard.api_agent_control import register_agent_control_routes",
     "from dashboard.api_proposal_queue import register_proposal_queue_routes",
     "from dashboard.api_approval_inbox import register_approval_inbox_routes",
+    "from dashboard.api_push_subscribe import register_push_subscribe_routes",
     "from dashboard.api_roadmap_priority import "
     "register_roadmap_priority_routes",
     "register_campaign_routes(app)",
@@ -63,6 +66,7 @@ EXISTING_REGISTRATIONS_REQUIRED: tuple[str, ...] = (
     "register_proposal_queue_routes(app)",
     "register_approval_inbox_routes(app)",
     "register_roadmap_priority_routes(app)",
+    "register_push_subscribe_routes(app)",
 )
 
 
@@ -103,23 +107,17 @@ def test_existing_dashboard_registrations_unchanged() -> None:
         last_pos = pos
 
 
-def test_dashboard_api_push_dispatch_module_present_but_unwired() -> None:
+def test_dashboard_api_push_dispatch_module_present() -> None:
     """N2b-3b: the real-delivery endpoint module exists at
-    ``dashboard/api_push_dispatch.py`` but must remain unwired in
-    ``dashboard/dashboard.py`` until the operator adds the two-line
-    wiring diff (gated by env + nginx + pywebpush).
-
-    This guard runs in BOTH modes (wiring present or absent):
-    * the module file must exist (N2b-3b shipped);
-    * the dispatch wiring may or may not yet be in dashboard.py — the
-      skip-or-enforce conditional pins below enforce the exact shape
-      once the operator adds the two lines.
+    ``dashboard/api_push_dispatch.py``. After this PR the module is
+    wired into ``dashboard/dashboard.py`` via the strict-enforce
+    pins below — runtime delivery still requires the env vars and
+    the nginx ``127.0.0.1`` lock to fire.
     """
     module_path = REPO_ROOT / "dashboard" / "api_push_dispatch.py"
     assert module_path.is_file(), (
         "dashboard/api_push_dispatch.py is N2b-3b territory and must "
-        "exist (the blueprint module is shipped; wiring is operator-"
-        "only)."
+        "exist."
     )
 
 
@@ -233,13 +231,23 @@ def test_wiring_no_other_dashboard_dashboard_modifications() -> None:
 
 
 # ---------------------------------------------------------------------------
-# N2b-3b dispatch-wiring conditional pins (skip-or-enforce)
+# N2b-3b dispatch-wiring strict pins (operator wired this PR)
 # ---------------------------------------------------------------------------
 #
-# Same dual-mode pattern as the N2b-2b subscribe wiring above. Until
-# the operator adds the two-line ``register_push_dispatch_routes(app)``
-# diff, these pins return early. Once added, they enforce the exact
-# wiring shape.
+# These pins were dual-mode (skip-or-enforce) until the operator added
+# the two-line wiring diff in this PR. They are now STRICT: removing
+# either line will fail CI. The wiring shape is exactly:
+#
+#     from dashboard.api_push_dispatch import register_push_dispatch_routes
+#     ...
+#     register_push_dispatch_routes(app)
+#
+# Runtime delivery still requires (a) ``WEB_PUSH_VAPID_PRIVATE_KEY`` and
+# ``WEB_PUSH_VAPID_SUBJECT`` in the VPS env, and (b) the nginx
+# ``127.0.0.1`` lock on ``/api/push/dispatch``. Without either, the
+# wired endpoint still refuses with 503 ``configuration_missing`` or
+# 403 ``remote_not_loopback`` — pinned by the api_push_dispatch unit
+# tests.
 
 EXPECTED_DISPATCH_IMPORT_LINE = (
     "from dashboard.api_push_dispatch import register_push_dispatch_routes"
@@ -255,13 +263,22 @@ def _dispatch_wiring_present() -> bool:
     )
 
 
+def test_dispatch_wiring_present() -> None:
+    """Strict-enforce: dashboard.py must contain BOTH the import and
+    the register call. Operator-added two-line diff."""
+    text = _dashboard_text()
+    assert EXPECTED_DISPATCH_IMPORT_LINE in text, (
+        "dashboard.py is missing the dispatch import line: "
+        f"{EXPECTED_DISPATCH_IMPORT_LINE!r}"
+    )
+    assert EXPECTED_DISPATCH_REGISTER_CALL in text, (
+        "dashboard.py is missing the dispatch register call: "
+        f"{EXPECTED_DISPATCH_REGISTER_CALL!r}"
+    )
+
+
 def test_dispatch_wiring_exactly_one_import_and_one_register_call() -> None:
-    if not _dispatch_wiring_present():
-        # Operator has not yet added the two-line diff. Conditional
-        # pin returns early; the test still passes. Once the operator
-        # commits the wiring, this branch is no longer taken and the
-        # assertions below fire.
-        return
+    """No duplicate dispatch route registration."""
     text = _dashboard_text()
     assert text.count(EXPECTED_DISPATCH_IMPORT_LINE) == 1, (
         "dashboard.py must contain exactly one new dispatch import line"
@@ -271,11 +288,30 @@ def test_dispatch_wiring_exactly_one_import_and_one_register_call() -> None:
     )
 
 
+def test_dispatch_register_call_after_push_subscribe_call() -> None:
+    """The new dispatch register call must appear AFTER the existing
+    ``register_push_subscribe_routes(app)`` anchor (the N2b-2b
+    wiring). Catches an accidental reorder that would put dispatch
+    above the subscription surface or replace it entirely."""
+    text = _dashboard_text()
+    subscribe_anchor = "register_push_subscribe_routes(app)"
+    subscribe_pos = text.find(subscribe_anchor)
+    dispatch_pos = text.find(EXPECTED_DISPATCH_REGISTER_CALL)
+    assert subscribe_pos != -1, (
+        "dashboard.py must still contain the N2b-2b push-subscribe "
+        "register call as the anchor"
+    )
+    assert dispatch_pos != -1
+    assert dispatch_pos > subscribe_pos, (
+        "the new dispatch register call must appear AFTER the "
+        "existing register_push_subscribe_routes(app) anchor"
+    )
+
+
 def test_dispatch_wiring_no_other_dashboard_dashboard_modifications() -> None:
-    """When the dispatch wiring lands, the diff must include ONLY two
-    new lines (one import + one register call)."""
-    if not _dispatch_wiring_present():
-        return
+    """The dispatch wiring must add exactly 2 lines mentioning the
+    new blueprint (one import + one register call); anything else
+    signals a stray edit."""
     text = _dashboard_text()
     push_dispatch_lines = [
         line

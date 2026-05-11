@@ -40,6 +40,7 @@ from dashboard.api_agent_control import register_agent_control_routes
 from dashboard.api_proposal_queue import register_proposal_queue_routes
 from dashboard.api_approval_inbox import register_approval_inbox_routes
 from dashboard.api_push_subscribe import register_push_subscribe_routes
+from dashboard.api_push_dispatch import register_push_dispatch_routes
 from dashboard.api_roadmap_priority import register_roadmap_priority_routes
 
 from reporting import audit_log
@@ -91,6 +92,7 @@ register_proposal_queue_routes(app)
 register_approval_inbox_routes(app)
 register_roadmap_priority_routes(app)
 register_push_subscribe_routes(app)
+register_push_dispatch_routes(app)
 
 
 @app.errorhandler(Exception)

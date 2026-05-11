@@ -2,22 +2,27 @@
 
 > **Status:** N2b-3a (mocked-transport adapter) implemented.
 > N2b-3b (real Web Push HTTP transport + internal-only operator
-> dispatch endpoint) implemented, **unwired in `dashboard/dashboard.py`**
-> and gated by:
+> dispatch endpoint) implemented and **wired into
+> `dashboard/dashboard.py`** via the two-line operator-authored diff
+> (the agent's no-touch hook continues to block subsequent edits).
+> Runtime delivery still requires:
 >
 > 1. The operator setting the env-only VAPID private key on the VPS
->    (`WEB_PUSH_VAPID_PRIVATE_KEY` + `WEB_PUSH_VAPID_SUBJECT`).
-> 2. The optional `pywebpush` runtime dependency being installed on
->    the VPS.
-> 3. The operator-only two-line wiring diff in
->    `dashboard/dashboard.py` (the no-touch hook blocks the agent
->    from editing that file).
-> 4. nginx restricting `/api/push/dispatch` to `127.0.0.1` at the
->    edge (operator infra change).
+>    (`WEB_PUSH_VAPID_PRIVATE_KEY` + `WEB_PUSH_VAPID_SUBJECT`). The
+>    wired endpoint refuses with HTTP 503 `configuration_missing`
+>    when either is absent.
+> 2. `pywebpush>=1.14.0` in the Docker image — pinned in
+>    [`requirements.txt`](../../requirements.txt); installed by the
+>    image-build pipeline. Pin test: [`tests/unit/test_requirements_pywebpush.py`](../../tests/unit/test_requirements_pywebpush.py).
+> 3. nginx restricting `/api/push/dispatch` to `127.0.0.1` at the
+>    edge (operator infra change). The Python loopback gate in the
+>    blueprint also refuses non-loopback `request.remote_addr` with
+>    HTTP 403 `remote_not_loopback`.
 >
-> Until all four conditions hold, N2b-3b is a no-op at runtime.
-> Real Web Push delivery, when enabled, is **notification delivery
-> only** — never approval, never merge, never deploy.
+> Until all three runtime conditions hold, the wired endpoint is a
+> no-op (returns 503 or 403). Real Web Push delivery, when enabled,
+> is **notification delivery only** — never approval, never merge,
+> never deploy.
 >
 > **Modules:**
 > - [`reporting/web_push_dispatch_adapter.py`](../../reporting/web_push_dispatch_adapter.py) — N2b-3a envelope + outcome classifier (mocked transport)
@@ -310,9 +315,12 @@ must complete these one-shot setup steps on the VPS:
    }
    ```
 
-5. **Authorise the two-line wiring diff** in
-   `dashboard/dashboard.py` (operator commits; the agent prepares
-   the PR):
+5. **Two-line wiring diff in `dashboard/dashboard.py`** — **shipped**
+   in the operator-authored wiring PR (the agent's no-touch hook
+   blocks subsequent edits; the strict pin tests in
+   [`tests/unit/test_dashboard_dashboard_one_line_wiring.py`](../../tests/unit/test_dashboard_dashboard_one_line_wiring.py)
+   refuse any future edit that drops, duplicates, or reorders these
+   two lines):
 
    ```diff
    +from dashboard.api_push_dispatch import register_push_dispatch_routes
