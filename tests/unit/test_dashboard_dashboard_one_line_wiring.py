@@ -452,6 +452,63 @@ def test_token_gate_wiring_no_other_dashboard_dashboard_modifications() -> None:
 
 
 # ---------------------------------------------------------------------------
+# N5a merge-recommendation wiring conditional pins (skip-or-enforce)
+# ---------------------------------------------------------------------------
+#
+# Same dual-mode pattern as the N3b/N4b/N2b-3b wirings above. Until
+# the operator adds the two-line
+# ``register_merge_recommendation_routes(app)`` diff, these pins
+# return early. Once added, they enforce the exact wiring shape.
+# The blueprint at ``dashboard/api_merge_recommendation.py`` is
+# READ-ONLY and exposes only GET routes; it surfaces the A23
+# projector artefact without any merge / deploy / approve action.
+
+EXPECTED_MERGE_RECOMMENDATION_IMPORT_LINE = (
+    "from dashboard.api_merge_recommendation "
+    "import register_merge_recommendation_routes"
+)
+EXPECTED_MERGE_RECOMMENDATION_REGISTER_CALL = (
+    "register_merge_recommendation_routes(app)"
+)
+
+
+def _merge_recommendation_wiring_present() -> bool:
+    text = _dashboard_text()
+    return (
+        EXPECTED_MERGE_RECOMMENDATION_IMPORT_LINE in text
+        and EXPECTED_MERGE_RECOMMENDATION_REGISTER_CALL in text
+    )
+
+
+def test_merge_recommendation_wiring_exactly_one_import_and_one_register_call() -> None:
+    if not _merge_recommendation_wiring_present():
+        return
+    text = _dashboard_text()
+    assert (
+        text.count(EXPECTED_MERGE_RECOMMENDATION_IMPORT_LINE) == 1
+    ), "dashboard.py must contain exactly one merge-recommendation import"
+    assert (
+        text.count(EXPECTED_MERGE_RECOMMENDATION_REGISTER_CALL) == 1
+    ), "dashboard.py must contain exactly one merge-recommendation register call"
+
+
+def test_merge_recommendation_wiring_no_other_dashboard_dashboard_modifications() -> None:
+    if not _merge_recommendation_wiring_present():
+        return
+    text = _dashboard_text()
+    merge_rec_lines = [
+        line
+        for line in text.splitlines()
+        if "register_merge_recommendation" in line
+        or "api_merge_recommendation" in line
+    ]
+    assert len(merge_rec_lines) == 2, (
+        f"dashboard.py must contain exactly 2 merge-recommendation lines; "
+        f"found {len(merge_rec_lines)}: {merge_rec_lines}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Companion doc invariants (always on)
 # ---------------------------------------------------------------------------
 
