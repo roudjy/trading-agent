@@ -34,6 +34,7 @@ from typing import Any
 
 import pytest
 
+from reporting import web_push_dispatch_adapter as wpda
 from reporting import web_push_real_transport as wprt
 
 
@@ -51,11 +52,11 @@ def _valid_envelope() -> dict[str, Any]:
         "url": "https://fcm.googleapis.com/fcm/send/abc",
         "method": "POST",
         "headers": {
-            "TTL": "60",
-            "Content-Encoding": "aes128gcm",
-            "Content-Type": "application/octet-stream",
-            "Authorization-Mode": "vapid_jwt_pending_n2b3b",
-            "Crypto-Key-Mode": "ecdh_p256_pending_n2b3b",
+            "TTL": str(wpda.DEFAULT_TTL_SECONDS),
+            "Content-Encoding": wpda.CONTENT_ENCODING,
+            "Content-Type": wpda.CONTENT_TYPE,
+            "Authorization-Mode": wpda.AUTHORIZATION_MODE_PLACEHOLDER,
+            "Crypto-Key-Mode": wpda.CRYPTO_KEY_MODE_PLACEHOLDER,
         },
         "body_meta": {
             "event_id": "abc12345abc12345",
