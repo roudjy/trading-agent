@@ -390,6 +390,68 @@ def test_mobile_inbox_wiring_no_other_dashboard_dashboard_modifications() -> Non
 
 
 # ---------------------------------------------------------------------------
+# N4b approval-token-gate wiring conditional pins (skip-or-enforce)
+# ---------------------------------------------------------------------------
+#
+# Same dual-mode pattern as the N3b/N2b-3b wirings above. Until the
+# operator adds the two-line ``register_approval_token_gate_routes(app)``
+# diff, these pins return early. Once added, they enforce the exact
+# wiring shape.
+#
+# Runtime delivery additionally requires the env secret
+# ``ADE_APPROVAL_TOKEN_HMAC_SECRET`` to be exported on the VPS; the
+# wired endpoint refuses with HTTP 503 ``configuration_missing`` when
+# the env is absent — pinned by the api_approval_token_gate unit
+# tests.
+
+EXPECTED_TOKEN_GATE_IMPORT_LINE = (
+    "from dashboard.api_approval_token_gate "
+    "import register_approval_token_gate_routes"
+)
+EXPECTED_TOKEN_GATE_REGISTER_CALL = (
+    "register_approval_token_gate_routes(app)"
+)
+
+
+def _token_gate_wiring_present() -> bool:
+    text = _dashboard_text()
+    return (
+        EXPECTED_TOKEN_GATE_IMPORT_LINE in text
+        and EXPECTED_TOKEN_GATE_REGISTER_CALL in text
+    )
+
+
+def test_token_gate_wiring_exactly_one_import_and_one_register_call() -> None:
+    if not _token_gate_wiring_present():
+        return
+    text = _dashboard_text()
+    assert text.count(EXPECTED_TOKEN_GATE_IMPORT_LINE) == 1, (
+        "dashboard.py must contain exactly one new token-gate "
+        "import line"
+    )
+    assert text.count(EXPECTED_TOKEN_GATE_REGISTER_CALL) == 1, (
+        "dashboard.py must contain exactly one new token-gate "
+        "register call"
+    )
+
+
+def test_token_gate_wiring_no_other_dashboard_dashboard_modifications() -> None:
+    if not _token_gate_wiring_present():
+        return
+    text = _dashboard_text()
+    token_gate_lines = [
+        line
+        for line in text.splitlines()
+        if "register_approval_token_gate" in line
+        or "api_approval_token_gate" in line
+    ]
+    assert len(token_gate_lines) == 2, (
+        f"dashboard.py must contain exactly 2 token-gate lines; "
+        f"found {len(token_gate_lines)}: {token_gate_lines}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Companion doc invariants (always on)
 # ---------------------------------------------------------------------------
 
