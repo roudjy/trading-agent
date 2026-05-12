@@ -328,3 +328,277 @@ describe("AgentControlInboxPlaceholder — non-inbox sub-paths", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// N3c polish — distinct safe sub-states with dedicated markers
+// ---------------------------------------------------------------------------
+
+describe("AgentControlInboxPlaceholder — distinct safe sub-states", () => {
+  it("marks the not_found sub-state when the API returns status=not_found", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse(
+        { status: "not_found", reason: "no_matching_event_id" },
+        { status: 404 },
+      ),
+    );
+    renderAt("/agent-control/inbox?event=evt_missing");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-empty-not-found"),
+      ).toBeInTheDocument(),
+    );
+    // Parent wrapper still present for legacy assertions.
+    expect(
+      screen.getByTestId("agent-control-inbox-empty"),
+    ).toBeInTheDocument();
+  });
+
+  it("marks the not_available sub-state when the API returns status=not_available", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse(
+        { status: "not_available", reason: "missing" },
+        { status: 404 },
+      ),
+    );
+    renderAt("/agent-control/inbox?event=evt_missing_artefact");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-empty-not-available"),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByTestId("agent-control-inbox-empty-not-found"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marks the invalid sub-state when the API returns status=invalid_event_id", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse(
+        { status: "invalid_event_id", reason: "bad_charset" },
+        { status: 400 },
+      ),
+    );
+    renderAt("/agent-control/inbox?event=evt_bad");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-empty-invalid"),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("marks the network sub-state when fetch rejects", async () => {
+    mockFetch.mockRejectedValue(new Error("network"));
+    renderAt("/agent-control/inbox?event=evt_x");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-empty-network"),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("marks the malformed sub-state when the body is unparseable", async () => {
+    mockFetch.mockResolvedValue(
+      new Response("not json", {
+        status: 200,
+        headers: { "content-type": "text/plain" },
+      }),
+    );
+    renderAt("/agent-control/inbox?event=evt_x");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-empty-malformed"),
+      ).toBeInTheDocument(),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// N3c polish — extra bounded closed-schema fields
+// ---------------------------------------------------------------------------
+
+describe("AgentControlInboxPlaceholder — N3c polish fields", () => {
+  it("renders inbox_row_id, outbound_delivery_intent, open_at when present", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        status: "ok",
+        row: row("evt_polish"),
+        generated_at_utc: "2026-05-12T08:00:00Z",
+      }),
+    );
+    renderAt("/agent-control/inbox?event=evt_polish");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-detail"),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByTestId("agent-control-inbox-detail-inbox-row-id"),
+    ).toHaveTextContent("row_evt_polish");
+    expect(
+      screen.getByTestId("agent-control-inbox-detail-delivery-intent"),
+    ).toHaveTextContent("sent");
+    expect(
+      screen.getByTestId("agent-control-inbox-detail-open-at"),
+    ).toHaveTextContent("/agent-control/inbox?event=evt_polish");
+    expect(
+      screen.getByTestId("agent-control-inbox-detail-generated-at"),
+    ).toHaveTextContent("2026-05-12T08:00:00Z");
+  });
+
+  it("does NOT render endpoint_hash or source_id (defense-in-depth)", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ status: "ok", row: row("evt_hidden") }),
+    );
+    renderAt("/agent-control/inbox?event=evt_hidden");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-detail"),
+      ).toBeInTheDocument(),
+    );
+    const root = screen.getByTestId("agent-control-inbox-placeholder");
+    const text = root.textContent || "";
+    // The mock endpoint_hash value is the literal "deadbeefdeadbeef".
+    expect(text).not.toContain("deadbeefdeadbeef");
+    // source_id equals event_id in the mock; the canonical test of
+    // exclusion is "no <dt>source_id</dt>" label being rendered.
+    expect(text).not.toMatch(/\bsource_id\b/);
+    expect(text).not.toMatch(/\bendpoint_hash\b/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// N3c polish — semantic pills for severity / attention / decision
+// ---------------------------------------------------------------------------
+
+describe("AgentControlInboxPlaceholder — semantic pills", () => {
+  it("renders pills with tones derived from closed-vocabulary scalars", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        status: "ok",
+        row: {
+          ...row("evt_pills"),
+          event_severity: "push_critical",
+          attention_level: "critical_attention",
+          decision_state: "pending",
+        },
+      }),
+    );
+    renderAt("/agent-control/inbox?event=evt_pills");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-detail"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("inbox-pill-severity")).toHaveAttribute(
+      "data-tone",
+      "danger",
+    );
+    expect(screen.getByTestId("inbox-pill-attention")).toHaveAttribute(
+      "data-tone",
+      "danger",
+    );
+    expect(screen.getByTestId("inbox-pill-decision")).toHaveAttribute(
+      "data-tone",
+      "warn",
+    );
+    // Pills are <span> elements — never <button>.
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("falls back to muted tone when the closed vocab is unknown", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        status: "ok",
+        row: {
+          ...row("evt_muted"),
+          event_severity: "some_future_vocab",
+          attention_level: "some_future_vocab",
+          decision_state: "some_future_vocab",
+        },
+      }),
+    );
+    renderAt("/agent-control/inbox?event=evt_muted");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-detail"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("inbox-pill-severity")).toHaveAttribute(
+      "data-tone",
+      "muted",
+    );
+    expect(screen.getByTestId("inbox-pill-attention")).toHaveAttribute(
+      "data-tone",
+      "muted",
+    );
+    expect(screen.getByTestId("inbox-pill-decision")).toHaveAttribute(
+      "data-tone",
+      "muted",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// N3c polish — invariants still hold after polish
+// ---------------------------------------------------------------------------
+
+describe("AgentControlInboxPlaceholder — polish invariants", () => {
+  it("still issues exactly one same-origin GET on the polished UI", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        status: "ok",
+        row: row("evt_inv"),
+        generated_at_utc: "2026-05-12T08:00:00Z",
+      }),
+    );
+    renderAt("/agent-control/inbox?event=evt_inv");
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    for (const call of mockFetch.mock.calls) {
+      const [url, init] = call;
+      expect(String(url)).toMatch(
+        /^\/api\/agent-control\/mobile-inbox\/detail\//,
+      );
+      const method = (init as RequestInit | undefined)?.method ?? "GET";
+      expect(["GET", "HEAD"]).toContain(method);
+    }
+  });
+
+  it("never fetches an approval-token or merge-recommendation endpoint", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ status: "ok", row: row("evt_safe") }),
+    );
+    renderAt("/agent-control/inbox?event=evt_safe");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-detail"),
+      ).toBeInTheDocument(),
+    );
+    for (const call of mockFetch.mock.calls) {
+      const url = String(call[0]);
+      expect(url).not.toContain("/api/agent-control/approval-token/");
+      expect(url).not.toContain("/api/agent-control/merge-recommendation/");
+    }
+  });
+
+  it("polished UI still contains no approve / reject / merge / deploy verb", async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        status: "ok",
+        row: row("evt_safe"),
+        generated_at_utc: "2026-05-12T08:00:00Z",
+      }),
+    );
+    renderAt("/agent-control/inbox?event=evt_safe");
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("agent-control-inbox-detail"),
+      ).toBeInTheDocument(),
+    );
+    const root = screen.getByTestId("agent-control-inbox-placeholder");
+    const text = (root.textContent || "").toLowerCase();
+    expect(text).not.toMatch(/\bapprove\b/);
+    expect(text).not.toMatch(/\breject\b/);
+    expect(text).not.toMatch(/\bmerge\b/);
+    expect(text).not.toMatch(/\bdeploy\b/);
+  });
+});

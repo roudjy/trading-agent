@@ -9,18 +9,34 @@
  * prefix; this component fetches the bounded N3b detail envelope and
  * renders the safe fields.
  *
- * Hard guarantees enforced by the unit test:
+ * N3c polish (v3.15.16.N3c.polish):
+ *   - Distinct safe sub-states with dedicated data-testid markers
+ *     for ``not_found`` / ``not_available`` / ``invalid_event_id`` /
+ *     ``network`` / ``malformed`` (closed mapping). The legacy
+ *     ``agent-control-inbox-empty`` testid is preserved as a parent
+ *     wrapper so the existing 18 tests keep passing.
+ *   - Extra bounded closed-schema fields surfaced when present
+ *     (``inbox_row_id``, ``outbound_delivery_intent``, ``open_at``,
+ *     ``generated_at_utc``). Defense-in-depth: ``source_id`` and
+ *     ``endpoint_hash`` are intentionally NOT rendered to keep the
+ *     surface free of hash-shaped data.
+ *   - Semantic pills for ``event_severity`` / ``attention_level`` /
+ *     ``decision_state``. Visual only — never interactive.
+ *
+ * Hard guarantees enforced by the unit tests:
  *   - Renders the bounded ``event_id`` query parameter when present.
  *   - When the read-only N3b API at
  *     ``/api/agent-control/mobile-inbox/detail/<event_id>`` returns a
  *     row, the closed-schema scalars are rendered: event_id,
  *     event_kind, event_severity, attention_level, decision_state,
- *     source_module, title, summary, created_at, open_at.
+ *     source_module, title, summary, created_at, open_at,
+ *     inbox_row_id, outbound_delivery_intent.
  *   - When the API returns ``not_available`` / ``not_found`` /
- *     network failure, the component renders the safe empty state
- *     and a ``data-testid="agent-control-inbox-empty"`` marker.
+ *     ``invalid_event_id`` / network failure / malformed body, the
+ *     component renders the safe empty state with a precise
+ *     ``data-testid="agent-control-inbox-empty-<phase>"`` marker.
  *   - Contains NO ``approve`` / ``reject`` / ``merge`` / ``deploy``
- *     button, link, or visible text. Approval still requires the
+ *     button, link, or visible verb. Approval still requires the
  *     future N4 token gate, never a notification tap.
  *   - Performs ONLY a single same-origin GET to the read-only
  *     detail endpoint. No ``XMLHttpRequest``, no
@@ -28,15 +44,13 @@
  *   - Provides a ``<Link>`` back to ``/agent-control``.
  *   - The banner "Read-only inbox detail. Approval actions are not
  *     implemented in this stage." is always rendered.
- *
- * No real evidence is shown — only the bounded six-or-so scalars the
- * projector already emitted. The placeholder is intentionally bland.
  */
 
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
 const MAX_EVENT_ID_LEN = 64;
+const MAX_OPEN_AT_LEN = 200;
 const DETAIL_BASE = "/api/agent-control/mobile-inbox/detail/";
 
 function boundedEventId(raw: string | null): string {
@@ -45,6 +59,16 @@ function boundedEventId(raw: string | null): string {
   if (!trimmed) return "";
   const safe = trimmed.replace(/[^A-Za-z0-9_\-]/g, "");
   return safe.slice(0, MAX_EVENT_ID_LEN);
+}
+
+function boundedOpenAt(raw: string | undefined): string {
+  if (typeof raw !== "string") return "";
+  // Display-only sanitisation: keep anchor-safe chars; drop anything
+  // that could open an attack surface in human eyes. The SW already
+  // pins the open_at to the /agent-control prefix; this is a second
+  // layer of belt-and-braces.
+  const safe = raw.replace(/[^A-Za-z0-9_\-./?=&]/g, "");
+  return safe.slice(0, MAX_OPEN_AT_LEN);
 }
 
 type InboxRow = {
@@ -77,14 +101,138 @@ type DetailResponse =
       reason?: string;
     };
 
+type EmptyPhase =
+  | "not_found"
+  | "not_available"
+  | "invalid"
+  | "network"
+  | "malformed";
+
 type FetchState =
   | { phase: "idle" }
   | { phase: "loading" }
   | { phase: "ok"; row: InboxRow; generatedAt: string }
-  | { phase: "empty"; reason: string };
+  | { phase: "empty"; sub: EmptyPhase; reason: string };
 
 const READ_ONLY_BANNER =
   "Read-only inbox detail. Approval actions are not implemented in this stage.";
+
+// Map a backend status + reason + http status into one of the closed
+// EmptyPhase tokens above. Defense-in-depth: anything unexpected
+// collapses to ``malformed`` rather than crashing.
+function emptyPhaseFor(
+  status: string | undefined,
+  reason: string | undefined,
+  httpStatus: number,
+): EmptyPhase {
+  if (status === "not_found") return "not_found";
+  if (status === "invalid_event_id") return "invalid";
+  if (status === "not_available") return "not_available";
+  if (reason === "network") return "network";
+  // Body said "malformed", or no parseable body at all with non-2xx
+  // → treat as malformed; 5xx without body → also malformed.
+  if (reason === "malformed") return "malformed";
+  if (httpStatus >= 500) return "malformed";
+  // Default: assume the artefact / row is simply missing.
+  return "not_available";
+}
+
+// Pill tone derivation — purely visual, never interactive.
+type PillTone = "ok" | "warn" | "danger" | "info" | "muted";
+
+function severityTone(severity: string | undefined): PillTone {
+  switch ((severity ?? "").toLowerCase()) {
+    case "push_critical":
+    case "critical":
+      return "danger";
+    case "push_warning":
+    case "warning":
+    case "warn":
+      return "warn";
+    case "push_info":
+    case "info":
+    case "informational":
+      return "info";
+    default:
+      return "muted";
+  }
+}
+
+function attentionTone(attention: string | undefined): PillTone {
+  switch ((attention ?? "").toLowerCase()) {
+    case "critical_attention":
+      return "danger";
+    case "blocked_attention":
+      return "danger";
+    case "needs_review":
+      return "warn";
+    case "informational":
+      return "info";
+    default:
+      return "muted";
+  }
+}
+
+function decisionTone(decision: string | undefined): PillTone {
+  switch ((decision ?? "").toLowerCase()) {
+    case "pending":
+      return "warn";
+    case "resolved":
+      return "ok";
+    case "expired":
+      return "muted";
+    case "dismissed":
+      return "muted";
+    default:
+      return "muted";
+  }
+}
+
+const PILL_BG: Record<PillTone, string> = {
+  ok: "rgba(46, 160, 67, 0.12)",
+  warn: "rgba(212, 153, 0, 0.14)",
+  danger: "rgba(207, 34, 46, 0.12)",
+  info: "rgba(26, 115, 232, 0.12)",
+  muted: "rgba(0, 0, 0, 0.06)",
+};
+
+const PILL_FG: Record<PillTone, string> = {
+  ok: "#1a7f37",
+  warn: "#8c5e00",
+  danger: "#a4232f",
+  info: "#1255b3",
+  muted: "#444",
+};
+
+function Pill({
+  tone,
+  label,
+  testId,
+}: {
+  tone: PillTone;
+  label: string;
+  testId?: string;
+}) {
+  return (
+    <span
+      data-testid={testId}
+      data-tone={tone}
+      style={{
+        display: "inline-block",
+        padding: "0.1rem 0.45rem",
+        borderRadius: "999px",
+        background: PILL_BG[tone],
+        color: PILL_FG[tone],
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        lineHeight: 1.4,
+        letterSpacing: "0.01em",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
 
 export function AgentControlInboxPlaceholder() {
   const location = useLocation();
@@ -110,12 +258,14 @@ export function AgentControlInboxPlaceholder() {
       .then(async (res) => {
         if (cancelled) return;
         // Even on 4xx we still parse the body to honour the API's
-        // not_available / not_found envelope shape.
+        // not_available / not_found / invalid_event_id envelope shape.
         let body: DetailResponse | null = null;
+        let parseFailed = false;
         try {
           body = (await res.json()) as DetailResponse;
         } catch {
           body = null;
+          parseFailed = true;
         }
         if (body && body.status === "ok" && "row" in body && body.row) {
           setState({
@@ -128,13 +278,19 @@ export function AgentControlInboxPlaceholder() {
         }
         const reason =
           (body && "reason" in body && body.reason) ||
+          (parseFailed ? "malformed" : undefined) ||
           (body && "status" in body && body.status) ||
           `http_${res.status}`;
-        setState({ phase: "empty", reason });
+        const sub = emptyPhaseFor(
+          body && "status" in body ? body.status : undefined,
+          parseFailed ? "malformed" : reason,
+          res.status,
+        );
+        setState({ phase: "empty", sub, reason });
       })
       .catch(() => {
         if (cancelled) return;
-        setState({ phase: "empty", reason: "network" });
+        setState({ phase: "empty", sub: "network", reason: "network" });
       });
     return () => {
       cancelled = true;
@@ -201,6 +357,39 @@ export function AgentControlInboxPlaceholder() {
               {state.row.summary}
             </p>
           )}
+
+          <div
+            data-testid="agent-control-inbox-pills"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.35rem",
+              margin: "0 0 0.7rem 0",
+            }}
+          >
+            {state.row.event_severity ? (
+              <Pill
+                tone={severityTone(state.row.event_severity)}
+                label={`severity: ${state.row.event_severity}`}
+                testId="inbox-pill-severity"
+              />
+            ) : null}
+            {state.row.attention_level ? (
+              <Pill
+                tone={attentionTone(state.row.attention_level)}
+                label={`attention: ${state.row.attention_level}`}
+                testId="inbox-pill-attention"
+              />
+            ) : null}
+            {state.row.decision_state ? (
+              <Pill
+                tone={decisionTone(state.row.decision_state)}
+                label={`decision: ${state.row.decision_state}`}
+                testId="inbox-pill-decision"
+              />
+            ) : null}
+          </div>
+
           <dl
             data-testid="agent-control-inbox-detail-fields"
             style={{
@@ -236,19 +425,98 @@ export function AgentControlInboxPlaceholder() {
             <dd data-testid="agent-control-inbox-detail-created-at">
               {state.row.created_at}
             </dd>
+            {state.row.inbox_row_id ? (
+              <>
+                <dt>inbox_row_id</dt>
+                <dd
+                  data-testid="agent-control-inbox-detail-inbox-row-id"
+                  style={{
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {state.row.inbox_row_id}
+                </dd>
+              </>
+            ) : null}
+            {state.row.outbound_delivery_intent ? (
+              <>
+                <dt>delivery</dt>
+                <dd data-testid="agent-control-inbox-detail-delivery-intent">
+                  {state.row.outbound_delivery_intent}
+                </dd>
+              </>
+            ) : null}
+            {state.row.open_at ? (
+              <>
+                <dt>open_at</dt>
+                <dd
+                  data-testid="agent-control-inbox-detail-open-at"
+                  style={{
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {boundedOpenAt(state.row.open_at)}
+                </dd>
+              </>
+            ) : null}
           </dl>
+          {state.generatedAt ? (
+            <p
+              data-testid="agent-control-inbox-detail-generated-at"
+              style={{
+                marginTop: "0.6rem",
+                fontSize: "0.75rem",
+                color: "rgba(0,0,0,0.55)",
+              }}
+            >
+              generated_at_utc: <code>{state.generatedAt}</code>
+            </p>
+          ) : null}
         </section>
       )}
 
       {state.phase === "empty" && (
-        <p
+        <div
           data-testid="agent-control-inbox-empty"
           style={{ margin: "0.75rem 0", lineHeight: 1.45 }}
         >
-          No inbox detail is available for this event yet. The full inbox
-          surface is not implemented; the notification opened the PWA here
-          as a safe landing page.
-        </p>
+          {state.sub === "not_found" && (
+            <p data-testid="agent-control-inbox-empty-not-found">
+              No inbox row matches this event id yet. It may have been
+              resolved upstream, or the projector has advanced past it.
+            </p>
+          )}
+          {state.sub === "not_available" && (
+            <p data-testid="agent-control-inbox-empty-not-available">
+              The mobile-inbox artefact is not available
+              ({state.reason || "missing"}). The full inbox surface is
+              not implemented; the notification opened the PWA here as
+              a safe landing page.
+            </p>
+          )}
+          {state.sub === "invalid" && (
+            <p data-testid="agent-control-inbox-empty-invalid">
+              The event id in this URL is not valid ({state.reason}).
+              No inbox row was looked up.
+            </p>
+          )}
+          {state.sub === "network" && (
+            <p data-testid="agent-control-inbox-empty-network">
+              The inbox endpoint could not be reached. Check your
+              connection — no row was fetched.
+            </p>
+          )}
+          {state.sub === "malformed" && (
+            <p data-testid="agent-control-inbox-empty-malformed">
+              The inbox endpoint returned an unexpected response
+              ({state.reason || "malformed"}). Nothing to render.
+            </p>
+          )}
+        </div>
       )}
 
       {state.phase === "idle" && (
