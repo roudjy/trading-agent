@@ -30,6 +30,7 @@
 // docs/governance/mobile_agent_control_pwa.md.
 
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   agentControlApi,
   type AgentControlActivity,
@@ -1159,6 +1160,41 @@ function ExecuteSafeCard({
   );
 }
 
+// --- Card: merge-recommendations discoverability link (N5c spillover) ---
+// Static read-only entry into the existing N5c PWA route
+// /agent-control/merge-recommendation (backed by the N5a list/detail
+// API). The card issues NO fetch and renders NO button — only a
+// <Link>. The destination component is the canonical surface; this
+// card exists solely to make the route discoverable from the PRs tab.
+// No merge / approve / reject / deploy action. No N4b token call.
+function MergeRecommendationsLinkCard() {
+  return (
+    <Card
+      title="Merge Recommendations"
+      subtitle="read-only A23/N5a recommendations"
+    >
+      <p
+        className="agent-control-card__subtitle"
+        data-testid="merge-recommendations-description"
+        style={{ margin: "0 0 0.6rem 0" }}
+      >
+        Read-only oversight surface. Merge execution is not implemented
+        in this stage.
+      </p>
+      <p style={{ margin: 0 }}>
+        <Link
+          to="/agent-control/merge-recommendation"
+          data-testid="merge-recommendations-link"
+          aria-label="Open read-only merge recommendations"
+          style={{ color: "var(--ink, #1a73e8)" }}
+        >
+          Open merge recommendations →
+        </Link>
+      </p>
+    </Card>
+  );
+}
+
 // --- Card: notification center placeholder ---
 function NotificationsCard({
   payload,
@@ -1453,6 +1489,7 @@ export function AgentControl() {
           ariaLabel="PR lifecycle and execute-safe catalog"
         >
           <PRLifecycleCard payload={prLifecycle} />
+          <MergeRecommendationsLinkCard />
           <ExecuteSafeCard payload={executeSafe} />
         </Section>
 
