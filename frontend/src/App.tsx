@@ -18,6 +18,7 @@ import { Candidates } from "./routes/Candidates";
 import { AgentControl } from "./routes/AgentControl";
 import { AgentControlInboxPlaceholder } from "./routes/AgentControl/InboxPlaceholder";
 import { AgentControlMergeRecommendation } from "./routes/AgentControl/MergeRecommendation";
+import { ApprovalTokenDiagnostics } from "./routes/AgentControl/ApprovalTokenDiagnostics";
 
 export function App() {
   return (
@@ -82,6 +83,22 @@ export function App() {
           element={
             <RequireAuth>
               <AgentControlMergeRecommendation />
+            </RequireAuth>
+          }
+        />
+        {/*
+         * v3.15.16.N4c — read-only diagnostic surface over the already-
+         * wired N4b approval-token runtime gate. Surfaces status,
+         * sample mint, immediate verify, replay test, and binding-
+         * mismatch test. No approve / reject / merge / deploy /
+         * execute action. Token state is in-memory only — never
+         * persisted, never logged, never embedded in the DOM.
+         */}
+        <Route
+          path="/agent-control/approval-token-diagnostics"
+          element={
+            <RequireAuth>
+              <ApprovalTokenDiagnostics />
             </RequireAuth>
           }
         />

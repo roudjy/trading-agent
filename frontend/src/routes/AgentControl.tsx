@@ -1160,6 +1160,43 @@ function ExecuteSafeCard({
   );
 }
 
+// --- Card: approval-token diagnostics discoverability link (N4c) ---
+// Static read-only entry into the existing N4c PWA route
+// /agent-control/approval-token-diagnostics. The card issues NO
+// fetch and renders NO button — only a <Link>. The destination
+// surface is the canonical diagnostic; this card exists solely to
+// make it discoverable from the About tab. No approve / reject /
+// merge / deploy / execute verb anywhere on the card.
+function ApprovalTokenDiagnosticsLinkCard() {
+  return (
+    <Card
+      title="Approval Token Diagnostics"
+      subtitle="claim-only / no execution action"
+    >
+      <p
+        className="agent-control-card__subtitle"
+        data-testid="approval-token-diagnostics-link-description"
+        style={{ margin: "0 0 0.6rem 0" }}
+      >
+        Operator-facing surface for N4b approval-token runtime status,
+        sample mint, and verify/replay/binding-mismatch diagnostic
+        roundtrips. Token verification is claim-only and performs no
+        underlying action.
+      </p>
+      <p style={{ margin: 0 }}>
+        <Link
+          to="/agent-control/approval-token-diagnostics"
+          data-testid="approval-token-diagnostics-link"
+          aria-label="Open approval token diagnostics"
+          style={{ color: "var(--ink, #1a73e8)" }}
+        >
+          Open approval token diagnostics →
+        </Link>
+      </p>
+    </Card>
+  );
+}
+
 // --- Card: merge-recommendations discoverability link (N5c spillover) ---
 // Static read-only entry into the existing N5c PWA route
 // /agent-control/merge-recommendation (backed by the N5a list/detail
@@ -1500,6 +1537,7 @@ export function AgentControl() {
         >
           <NotificationsCard payload={notifications} />
           <PushSettings />
+          <ApprovalTokenDiagnosticsLinkCard />
         </Section>
       </div>
 

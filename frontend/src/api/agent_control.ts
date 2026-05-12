@@ -353,6 +353,61 @@ export interface AgentControlMergeRecommendationDetail {
   step5_enabled_substage?: string;
 }
 
+// v3.15.16.N4c — read-only diagnostic surface over the already-wired
+// N4b approval-token runtime gate. All three endpoints already live
+// in dashboard.api_approval_token_gate; this client provides only
+// the consumer-side typing and the bounded request bodies for the
+// diagnostics UI. The verify body mirrors the operator's VPS Phase B
+// smoke contract verbatim — including the ``expected_intent`` field,
+// which the current backend silently ignores but which forward-
+// compatibly binds the contract if the backend ever validates it.
+// **Claim-only**: token verification performs NO approve / reject /
+// merge / deploy action.
+export interface AgentControlApprovalTokenStatus {
+  kind: "approval_token_status";
+  schema_version: number;
+  module_version?: string;
+  status: "ok" | "error";
+  error?: string;
+  reason?: string;
+  is_configured?: boolean;
+  current_kid?: string;
+  step5_implementation_allowed?: boolean;
+  step5_enabled_substage?: string;
+}
+
+export interface AgentControlApprovalTokenMintBody {
+  intent: string;
+  event_id: string;
+  evidence_hash: string;
+}
+
+export interface AgentControlApprovalTokenMintResponse {
+  status: string;
+  token?: string | null;
+  kid?: string;
+  intent?: string;
+  event_id?: string;
+  issued_at_utc?: string;
+  expires_at_utc?: string;
+  reason?: string;
+  error?: string;
+}
+
+export interface AgentControlApprovalTokenVerifyBody {
+  token: string;
+  expected_intent: string;
+  expected_event_id: string;
+  expected_evidence_hash: string;
+}
+
+export interface AgentControlApprovalTokenVerifyResponse {
+  status: string;
+  outcome?: string;
+  reason?: string;
+  error?: string;
+}
+
 export interface AgentControlExecuteSafe {
   kind: "agent_control_execute_safe";
   schema_version: number;
@@ -442,6 +497,48 @@ async function getJsonEnvelope<T extends { status?: string }>(
   }
 }
 
+// v3.15.16.N4c — POST envelope helper that honours the body even
+// on non-2xx. The N4b verify endpoint returns HTTP 400 for the
+// closed outcomes ``replay_detected`` and ``binding_mismatch``;
+// without parsing the 4xx body, the diagnostic UI would collapse
+// those into a generic "rejected" state and lose the operator's
+// ability to distinguish them. Same shape as ``getJsonEnvelope``
+// but for POST with a JSON body. Never logs / never echoes secrets.
+async function postJsonEnvelope<T extends { status?: string }>(
+  path: string,
+  body: unknown,
+): Promise<T> {
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    let parsed: T | null = null;
+    try {
+      parsed = (await res.json()) as T;
+    } catch {
+      parsed = null;
+    }
+    if (parsed && typeof parsed === "object" && parsed.status) {
+      return parsed;
+    }
+    return {
+      status: "error",
+      reason: res.ok ? "malformed" : `http_${res.status}`,
+    } as unknown as T;
+  } catch (err) {
+    return {
+      status: "error",
+      reason: `fetch_error: ${(err as Error)?.name || "Error"}`,
+    } as unknown as T;
+  }
+}
+
 export const agentControlApi = {
   status: () => getJson<AgentControlStatus>(`${BASE}/status`),
   activity: () => getJson<AgentControlActivity>(`${BASE}/activity`),
@@ -465,5 +562,19 @@ export const agentControlApi = {
       `${BASE}/merge-recommendation/detail/${encodeURIComponent(
         recommendationId,
       )}`,
+    ),
+  approvalTokenStatus: () =>
+    getJsonEnvelope<AgentControlApprovalTokenStatus>(
+      `${BASE}/approval-token/status`,
+    ),
+  approvalTokenMint: (body: AgentControlApprovalTokenMintBody) =>
+    postJsonEnvelope<AgentControlApprovalTokenMintResponse>(
+      `${BASE}/approval-token/mint`,
+      body,
+    ),
+  approvalTokenVerify: (body: AgentControlApprovalTokenVerifyBody) =>
+    postJsonEnvelope<AgentControlApprovalTokenVerifyResponse>(
+      `${BASE}/approval-token/verify`,
+      body,
     ),
 };
