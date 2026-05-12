@@ -22,20 +22,16 @@
 
 ## 1. Status
 
-* **Plan only.** This document is a design / governance / planning
-  slice. It contains no executable specification.
-* **Not implemented.** No Flask blueprint exists for N5b. No
-  merge-execution adapter exists. No CLI exists. No PR-mutation
-  call path exists.
-* **No runtime authority.** Nothing in this doc grants any
-  capability to any agent, CI surface, dashboard, or test
-  harness.
-* **No merge execution route exists.** The dashboard's URL map
-  must not contain `/api/agent-control/merge-execution/*` or any
+* **Plan only** with respect to *live merge execution*. This
+  document remains the design / governance / planning slice for
+  any future live-merge implementation.
+* **Phase 1 dry-run preflight projector is implemented**:
+  `reporting/development_merge_preflight.py` emits the
+  closed-schema `logs/development_merge_preflight/latest.json`
+  artefact. **This phase remains read-only and dry-run only.**
+* **No live merge route exists.** The dashboard's URL map must
+  not contain `/api/agent-control/merge-execution/*` or any
   equivalent path. The companion pin-test asserts this absence.
-* **No UI action exists.** The PWA's `/agent-control/*` surface
-  must not render a merge / approve / reject / deploy button
-  pointed at any N5b endpoint.
 * **No GitHub mutation exists.** The repository contains no call
   to `gh pr merge`, `gh pr review --approve`, `git merge` (as a
   non-rebase operation against `main`), or any equivalent
@@ -43,9 +39,22 @@
   audited dashboard deploy script's idempotent
   `fetch + reset --hard origin/main` (which is a checkout
   refresh, not a PR mutation).
+* **No runtime authority.** The Phase 1 projector grants ADE
+  zero new capability beyond *reading* the existing N5a + A22
+  artefacts and *writing* its own read-only preflight artefact.
+* **No UI action exists.** The PWA's `/agent-control/*` surface
+  must not render a merge / approve / reject / deploy button
+  pointed at any N5b endpoint.
+* **Phase 2+ and any live merge execution require separate
+  explicit operator-go.** The earlier operator direction for
+  Phase 1 does not authorise any later phase. Each future phase
+  must obtain its own explicit operator-go in a separate PR per
+  §10.
 
 The companion pin-tests in
 [`tests/unit/test_n5b_merge_execution_plan.py`](../../tests/unit/test_n5b_merge_execution_plan.py)
+and
+[`tests/unit/test_development_merge_preflight.py`](../../tests/unit/test_development_merge_preflight.py)
 enforce these claims.
 
 ---
@@ -539,13 +548,13 @@ following tests in the *same* PR, all failing-closed.
 
 ## 10. Rollout plan
 
-| Phase | What ships | Mutates production? | Operator-go needed? |
-|---|---|---|---|
-| **0 — Plan only** | This doc + pin-tests. | No. | Already given (this PR). |
-| **1 — Dry-run preflight only** | The preflight artefact writer + a read-only status endpoint. No token gate yet. | No. | Yes — separate operator-go before Phase 1 implementation starts. |
-| **2 — Token-bound dry-run** | The dry-run endpoint, token-gated by N4b (after N4b Phase B is activated and N4c or an equivalent UI exists). | No. | Yes — Phase 1 must be merged + deployed + observed clean for ≥ 7 days. |
-| **3 — Operator-confirmed live merge in test repo / simulated harness** | The live execute endpoint, but pointed at a sacrificial test repository OR a recorded-fixture simulator. No production PR is touched. | No (production PRs are not touched). | Yes — Phase 2 must be merged + observed clean. |
-| **4 — Production PR merge, if ever approved** | The live execute endpoint pointed at the production repository, with the `ADE_N5B_LIVE_EXECUTE_ENABLED` env flag required. | Yes (a single PR per invocation). | Yes — distinct go phrase required, recorded by name in the operator runbook update that ships with Phase 4. |
+| Phase | Status | What ships | Mutates production? | Operator-go needed? |
+|---|---|---|---|---|
+| **0 — Plan only** | **Implemented** | This doc + pin-tests. | No. | Already given for Phase 0. |
+| **1 — Dry-run preflight only** | **Implemented (read-only)** | The preflight artefact writer (`reporting/development_merge_preflight.py`) emitting `logs/development_merge_preflight/latest.json`. No dashboard endpoint, no token gate, no GitHub call. | No. | Already given for Phase 1 alone. Future phases are NOT authorised by this go. |
+| **2 — Token-bound dry-run** | Not implemented | The dry-run endpoint, token-gated by N4b (after N4b Phase B is activated and N4c or an equivalent UI exists). | No. | **Yes — separate explicit operator-go required**. Phase 1 must be merged + observed clean for a bounded period before promotion. |
+| **3 — Operator-confirmed live merge in test repo / simulated harness** | Not implemented | The live execute endpoint, but pointed at a sacrificial test repository OR a recorded-fixture simulator. No production PR is touched. | No (production PRs are not touched). | **Yes — separate explicit operator-go required**. Phase 2 must be merged + observed clean. |
+| **4 — Production PR merge, if ever approved** | Not implemented | The live execute endpoint pointed at the production repository, with the `ADE_N5B_LIVE_EXECUTE_ENABLED` env flag required. | Yes (a single PR per invocation). | **Yes — distinct, explicit operator-go phrase required**, recorded by name in the operator runbook update that ships with Phase 4. |
 
 **Each phase requires:**
 
