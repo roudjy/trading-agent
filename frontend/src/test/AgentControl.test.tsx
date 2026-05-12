@@ -1532,3 +1532,145 @@ describe("AgentControl — roadmap_priority route wiring subsection (v3.15.16.9c
     ).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// N5c discoverability spillover — visible read-only entry to
+// /agent-control/merge-recommendation from the PRs section.
+// Read-only by structure: it is a <Link> (anchor), not a button, and
+// the card body never issues a fetch.
+// ---------------------------------------------------------------------------
+
+describe("AgentControl — N5c discoverability link in PRs section", () => {
+  it("renders a visible merge-recommendations link pointing at the N5c route", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    // The PRs section is rendered (hidden when inactive but the
+    // <Link> remains queryable from RTL).
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("merge-recommendations-link"),
+      ).toBeInTheDocument();
+    });
+
+    const link = screen.getByTestId("merge-recommendations-link");
+    expect(link).toHaveAttribute("href", "/agent-control/merge-recommendation");
+    // Anchor element, not a button — read-only by structure.
+    expect(link.tagName.toLowerCase()).toBe("a");
+    // Visible, accessible name describes the destination.
+    expect(link).toHaveAccessibleName(
+      /open read-only merge recommendations/i,
+    );
+    // Subtitle / description is present.
+    expect(
+      screen.getByTestId("merge-recommendations-description"),
+    ).toHaveTextContent(/read-only/i);
+  });
+
+  it("does not add any decision-verb button to the page", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("merge-recommendations-link"),
+      ).toBeInTheDocument();
+    });
+
+    // Existing surface pins exactly one button (the Vernieuw refresh
+    // control). This must remain unchanged — no new button added.
+    const buttons = screen.queryAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAttribute(
+      "data-testid",
+      "agent-control-refresh",
+    );
+
+    // No approve / reject / deploy verbs anywhere on the page.
+    const card = screen.getByTestId("merge-recommendations-link");
+    const cardText = (card.textContent || "").toLowerCase();
+    expect(cardText).not.toMatch(/\bapprove\b/);
+    expect(cardText).not.toMatch(/\breject\b/);
+    expect(cardText).not.toMatch(/\bdeploy\b/);
+  });
+
+  it("does not introduce a new fetch and does not call any token endpoint", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("merge-recommendations-link"),
+      ).toBeInTheDocument();
+    });
+
+    // The discoverability card never adds a fetch. The only fetches
+    // are the existing card-loader endpoints — never the
+    // merge-recommendation list/detail, never an approval-token URL.
+    for (const call of fetchSpy) {
+      const url = String(call.input);
+      expect(url).not.toContain(
+        "/api/agent-control/merge-recommendation/",
+      );
+      expect(url).not.toContain("/api/agent-control/approval-token/");
+      expect(call.method).toBe("GET");
+    }
+  });
+});
