@@ -188,6 +188,222 @@ three.
 * A18a does not change `STEP5_ENABLED_SUBSTAGE`.
 * Step 5.1 / Step 5.2 remain BLOCKED.
 * Level 6 stays permanently disabled.
-* A18b (writer) and A18c (A17 admission integration) remain
-  unimplemented and **each requires its own explicit operator
-  go-signal**.
+* A18c (A17 admission integration) remains unimplemented and
+  requires its own explicit operator go-signal. A18b (writer)
+  is now implemented as a separate module
+  (`reporting/development_generated_lane_writer.py`); see §7.
+
+---
+
+## 7. A18b — generated_seed.jsonl writer (default-disabled)
+
+> **Status:** Implemented (v3.15.16.A18b).
+>
+> **Module:** [`reporting/development_generated_lane_writer.py`](../../reporting/development_generated_lane_writer.py)
+>
+> **Authority:** development-governance read-only documentation +
+> operator-gated runtime writer.
+> A18b is the writer slice. It is **default-disabled** and only
+> appends to `generated_seed.jsonl` when the operator has
+> explicitly exported the exact-string env value:
+>
+>     ADE_GENERATED_LANE_WRITER_ENABLED=true
+>
+> Anything else (unset, `""`, `"false"`, `"1"`, `"yes"`, `"True"`,
+> `"TRUE"`, `"on"`) leaves the writer in **zero-write** mode. The
+> public API returns `status="skipped"` and creates no files of
+> any kind — not even the audit log.
+> Level 6 stays permanently disabled. The writer **registers**
+> only; it does **not** admit, execute, open PRs, merge, deploy,
+> or call the network.
+
+### 7.1 Public API
+
+The module exposes a small, explicit, deterministic API:
+
+* `writer_enabled(env=None) -> bool` — reads the env mapping at
+  *call time*, not at import time. Defaults to `os.environ`.
+* `validate_record(record) -> (ok, stop_status, warnings)` —
+  pure record validator against the 12-key closed schema.
+* `append_generated_seed_record(record, *, generated_seed_path=None, audit_path=None, env=None, now_utc=None) -> dict` —
+  main entry point. Returns the closed-shape return envelope
+  documented in §7.4.
+
+No environment is read at import time. No file is written at
+import time. The module is safe to import even when the env-gate
+is already set to `true` — no write happens until
+`append_generated_seed_record(...)` is called explicitly.
+
+### 7.2 Closed record schema (12 keys, exact and ordered)
+
+```
+generated_candidate_id      str, ≤ 128
+source_module               str, ≤ 200
+source_id                   str, ≤ 200
+proposed_kind               closed vocab (A18a's PROPOSED_KINDS)
+proposed_title              str, ≤ 120
+proposed_summary            str, ≤ 300
+evidence_hash               str, ≤ 128
+admission_preview           closed vocab (WRITER_ADMISSION_PREVIEWS)
+block_reason                closed vocab (WRITER_BLOCK_REASONS)
+would_require_operator_go   bool
+generated_at_utc            ISO 8601 string
+writer_module_version       str (= "v3.15.16.A18b")
+```
+
+### 7.3 Closed vocabularies (A18b extensions of A18a, additive)
+
+```
+WRITER_ADMISSION_PREVIEWS = ("report_only_not_admitted",
+                             "generated_seed_written")
+
+WRITER_BLOCK_REASONS = ("none",
+                        "writer_disabled",
+                        "invalid_record_schema",
+                        "duplicate_candidate_id",
+                        "max_records_reached",
+                        "path_refused",
+                        "secret_detected",
+                        "existing_file_malformed",
+                        "generated_lane_writer_not_authorized")
+
+WRITER_WARNINGS = ("duplicate_evidence_hash",)
+
+AUDIT_ATTEMPT_KINDS = ("written",
+                       "rejected_duplicate_candidate_id",
+                       "rejected_existing_file_malformed",
+                       "rejected_invalid_record_schema",
+                       "rejected_max_records_reached",
+                       "rejected_path_refused",
+                       "rejected_secret_detected",
+                       "skipped_writer_disabled")
+```
+
+A18a's `ADMISSION_PREVIEWS` and `BLOCK_REASONS` remain unchanged.
+The two modules coexist; A18b extends additively.
+
+### 7.4 Return envelope
+
+Every call to `append_generated_seed_record` returns a closed
+envelope:
+
+```
+status                : "written" | "skipped" | "rejected"
+stop_status           : closed-vocab WRITER_BLOCK_REASONS value
+generated_candidate_id: bounded string
+generated_seed_path   : str (the canonical generated_seed.jsonl path)
+audit_path            : str (logs/development_generated_lane_writer/audit.jsonl)
+writer_enabled        : bool
+warnings              : list[str] from WRITER_WARNINGS
+discipline_invariants : closed 14-key dict (see §7.5)
+generated_at_utc      : ISO 8601 string
+```
+
+`assert_no_secrets` runs on the envelope before it is returned.
+
+### 7.5 Discipline invariants (exact 14-key dict)
+
+```
+default_disabled                : True
+writes_only_generated_seed_jsonl: True
+writes_seed_jsonl               : False
+writes_delegation_seed_jsonl    : False
+admits_queue_items              : False
+executes_work                   : False
+creates_branches                : False
+opens_prs                       : False
+merges_prs                      : False
+deploys                         : False
+calls_network                   : False
+uses_subprocess                 : False
+touches_step5_flags             : False
+level6_enabled                  : False
+```
+
+### 7.6 Hard write boundaries
+
+* The single canonical write target is
+  `<repo>/generated_seed.jsonl`. The path-sentinel verifies
+  the basename equals exactly `generated_seed.jsonl` AND the
+  parent directory equals `REPO_ROOT`. Any other path is
+  rejected with `path_refused`.
+* The filenames `seed.jsonl` and `delegation_seed.jsonl` are
+  listed in `_FORBIDDEN_SEED_BASENAMES`. The path-sentinel
+  refuses those targets explicitly — even when a caller
+  overrides the kwarg.
+* The audit log lives only under
+  `logs/development_generated_lane_writer/audit.jsonl`. Audit
+  paths outside that prefix are refused.
+* No function in the writer module opens, writes, appends, or
+  atomically replaces any path other than the canonical seed
+  file and the audit file. The companion AST-level pin-test
+  enforces this invariant.
+
+### 7.7 Duplicate handling
+
+* **Hard reject** on duplicate `generated_candidate_id` — the
+  writer returns `rejected` / `duplicate_candidate_id` and does
+  NOT append the seed row. An audit row IS appended to record
+  the rejection attempt (bounded fields only: candidate id,
+  timestamp, `stop_status`, `attempt_kind`; no record body is
+  leaked).
+* **Soft warning** on duplicate `evidence_hash` with a *different*
+  `generated_candidate_id` — the record is appended and the
+  envelope carries `warnings=["duplicate_evidence_hash"]`.
+
+### 7.8 Cap
+
+`MAX_GENERATED_SEED_RECORDS = 256`. The 257th append attempt is
+rejected with `max_records_reached`.
+
+### 7.9 Existing-file-malformed default-deny
+
+If any line in the existing `generated_seed.jsonl` is not
+parseable JSON, the writer refuses to append and returns
+`rejected` / `existing_file_malformed`. The seed file is
+untouched; the operator must clean it manually. An audit row
+records the refusal.
+
+### 7.10 .gitignore
+
+`generated_seed.jsonl` is listed in the repo's `.gitignore`.
+The file may exist on disk during operator-enabled testing but
+must NEVER be committed. A companion pin-test asserts the
+`.gitignore` membership.
+
+### 7.11 A18a invariance (per the operator's correction)
+
+A18b imports A18a only to consume its read-only closed
+vocabularies (`PROPOSED_KINDS`, scalar-length constants). A18a
+itself remains unchanged:
+
+* A18a source file is not modified by this PR (verifiable via
+  the PR's diff scope).
+* `python -m reporting.development_generated_lane --no-write`
+  continues to work.
+* A18a continues to emit `admission_preview="report_only_not_admitted"`
+  for every candidate.
+* Importing A18b — even with `ADE_GENERATED_LANE_WRITER_ENABLED=true`
+  set — does not create any file and does not mutate A18a's
+  output.
+* A18a remains report-only.
+
+### 7.12 What A18b does NOT do
+
+* A18b never writes to `seed.jsonl` or `delegation_seed.jsonl`.
+  The basenames appear in the module only inside the
+  `_FORBIDDEN_SEED_BASENAMES` blocklist constant.
+* A18b never admits a queue item — A17 admission rules remain
+  authoritative.
+* A18b never executes work.
+* A18b never opens / merges / closes a PR.
+* A18b never deploys.
+* A18b never mints or verifies an approval token (N4 territory).
+* A18b never opens an inbox row (N3 territory).
+* A18b never sends a Web Push (N2b-3 territory).
+* A18b never executes a CLI subprocess and never calls `gh` /
+  `git` / a network endpoint.
+* A18b does not flip Step 5 flags.
+* Level 6 stays permanently disabled.
+* A18c (A17 admission integration) remains **not implemented**
+  and requires its own explicit operator go-signal.
