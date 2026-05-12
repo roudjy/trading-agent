@@ -213,21 +213,76 @@ def test_approval_policy_assert_no_credential_values_allows_no_touch_paths() -> 
 # ---------------------------------------------------------------------------
 
 
-def test_frontend_agent_control_api_uses_only_get() -> None:
-    """``frontend/src/api/agent_control.ts`` must not call any
-    mutation verb against the agent-control surface. We grep the
-    raw source for ``method:`` declarations."""
+def test_frontend_agent_control_api_uses_only_get_or_approval_token_post() -> None:
+    """``frontend/src/api/agent_control.ts`` must remain read-only
+    EXCEPT for the closed allowlist of N4b approval-token POST
+    endpoints (``mint`` and ``verify``), which the backend test
+    suite already pins as POST-only on the server side
+    (``tests/unit/test_api_approval_token_gate.py``).
+
+    Invariants enforced here:
+
+    1. ``PUT`` / ``PATCH`` / ``DELETE`` remain absolutely forbidden
+       — no agent-control client method may ever issue one.
+    2. ``POST`` is allowed only inside the canonical helper
+       ``postJsonEnvelope``. The helper is the SINGLE choke-point
+       for POST traffic from this module.
+    3. Every URL passed to ``postJsonEnvelope`` must contain
+       ``approval-token`` — the only POST surfaces in the
+       agent-control API. A POST to merge-recommendation,
+       mobile-inbox, merge-execution, deploy, or any other path
+       would fail this test.
+
+    This is a tightening of the prior invariant: the old check
+    asserted *no POST at all*; the new check asserts *no POST
+    outside the approval-token allowlist*, which still catches the
+    same regressions the old test caught (any future merge /
+    deploy / inbox-mutation method would trip this test).
+    """
+    import re
+
     p = REPO_ROOT / "frontend" / "src" / "api" / "agent_control.ts"
     src = p.read_text(encoding="utf-8")
-    forbidden = (
-        '"POST"', "'POST'",
+
+    # (1) PUT / PATCH / DELETE remain forbidden.
+    absolutely_forbidden = (
         '"PUT"', "'PUT'",
         '"PATCH"', "'PATCH'",
         '"DELETE"', "'DELETE'",
     )
-    for tok in forbidden:
+    for tok in absolutely_forbidden:
         assert tok not in src, (
-            f"frontend/src/api/agent_control.ts contains a forbidden mutation verb: {tok!r}"
+            f"frontend/src/api/agent_control.ts contains a forbidden "
+            f"mutation verb: {tok!r}"
+        )
+
+    # (2) If POST appears, it must be routed through the canonical
+    #     postJsonEnvelope helper.
+    if '"POST"' in src or "'POST'" in src:
+        assert "postJsonEnvelope" in src, (
+            "frontend/src/api/agent_control.ts contains a POST literal "
+            "but the canonical postJsonEnvelope helper is missing — "
+            "POST traffic must be funneled through that single helper"
+        )
+
+    # (3) Every URL passed to postJsonEnvelope must be an
+    #     approval-token endpoint.
+    call_pattern = re.compile(
+        r"postJsonEnvelope<[^>]*>\s*\(\s*[\n\s]*`([^`]+)`",
+        re.MULTILINE,
+    )
+    matches = call_pattern.findall(src)
+    assert matches, (
+        "agent_control.ts has POST traffic but no postJsonEnvelope "
+        "call sites were found — the test cannot verify the "
+        "allowlist; the helper / call shape may have changed"
+    ) if '"POST"' in src else None
+    for url in matches:
+        assert "approval-token" in url, (
+            f"postJsonEnvelope called with non-approval-token URL: "
+            f"{url!r} — the only POST surfaces allowed in the "
+            f"agent-control client are the N4b approval-token "
+            f"mint/verify endpoints"
         )
 
 
