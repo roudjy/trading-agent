@@ -299,6 +299,60 @@ export interface AgentControlNextUp {
   artifact_path?: string;
 }
 
+// v3.15.16.N5c — read-only N5a merge-recommendation surface.
+// Closed-schema rows projected by reporting.development_merge_recommendation
+// and surfaced via dashboard.api_merge_recommendation (UNWIRED → wired by
+// PR #191). Every field is a bounded scalar (no PR body, no diff, no commit
+// message). The PWA renders these as read-only; no merge / approve / reject /
+// deploy verb is exposed in the UI, and the closed
+// recommendation_action vocabulary uses ``recommend_human_*`` prefixes that
+// are explicitly NOT the executable verbs themselves.
+export interface AgentControlMergeRecommendationRow {
+  recommendation_id: string;
+  pr_number: number;
+  head_sha: string;
+  head_ref: string;
+  base_ref: string;
+  observer_classification: string;
+  inbox_blocked_count: number;
+  inbox_critical_count: number;
+  inbox_needs_review_count: number;
+  recommendation_action: string;
+  recommendation_reason: string;
+  evaluated_at: string;
+}
+
+export interface AgentControlMergeRecommendationList {
+  kind: "agent_control_merge_recommendation_list";
+  schema_version: number;
+  module_version?: string;
+  status: "ok" | "not_available";
+  reason?: string;
+  rows: AgentControlMergeRecommendationRow[];
+  counts?: { rows?: number };
+  generated_at_utc?: string;
+  artifact_path?: string;
+  step5_implementation_allowed?: boolean;
+  step5_enabled_substage?: string;
+}
+
+export interface AgentControlMergeRecommendationDetail {
+  kind: "agent_control_merge_recommendation_detail";
+  schema_version: number;
+  module_version?: string;
+  status:
+    | "ok"
+    | "not_available"
+    | "not_found"
+    | "invalid_recommendation_id";
+  reason?: string;
+  row?: AgentControlMergeRecommendationRow;
+  generated_at_utc?: string;
+  artifact_path?: string;
+  step5_implementation_allowed?: boolean;
+  step5_enabled_substage?: string;
+}
+
 export interface AgentControlExecuteSafe {
   kind: "agent_control_execute_safe";
   schema_version: number;
@@ -351,6 +405,43 @@ async function getJson<T>(path: string): Promise<T> {
   }
 }
 
+// N5c — merge-recommendation client: the N5a API returns well-formed
+// envelopes even on 4xx (``not_found`` → 404, ``invalid_recommendation_id``
+// → 400, ``not_available`` → 404). The shared ``getJson`` helper would
+// collapse all of those to ``not_available``, hiding the API's
+// closed-vocabulary status from the read-only PWA. This helper honours
+// the JSON body on 4xx so the UI can render the precise state — still
+// without any mutating verb on the wire.
+async function getJsonEnvelope<T extends { status?: string }>(
+  path: string,
+): Promise<T> {
+  try {
+    const res = await fetch(path, {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    let body: T | null = null;
+    try {
+      body = (await res.json()) as T;
+    } catch {
+      body = null;
+    }
+    if (body && typeof body === "object" && body.status) {
+      return body;
+    }
+    return {
+      status: "not_available",
+      reason: res.ok ? "malformed" : `http_${res.status}`,
+    } as unknown as T;
+  } catch (err) {
+    return {
+      status: "not_available",
+      reason: `fetch_error: ${(err as Error)?.name || "Error"}`,
+    } as unknown as T;
+  }
+}
+
 export const agentControlApi = {
   status: () => getJson<AgentControlStatus>(`${BASE}/status`),
   activity: () => getJson<AgentControlActivity>(`${BASE}/activity`),
@@ -365,4 +456,14 @@ export const agentControlApi = {
   executeSafe: () =>
     getJson<AgentControlExecuteSafe>(`${BASE}/execute-safe`),
   nextUp: () => getJson<AgentControlNextUp>(`${BASE}/next-up`),
+  mergeRecommendationList: () =>
+    getJsonEnvelope<AgentControlMergeRecommendationList>(
+      `${BASE}/merge-recommendation/list`,
+    ),
+  mergeRecommendationDetail: (recommendationId: string) =>
+    getJsonEnvelope<AgentControlMergeRecommendationDetail>(
+      `${BASE}/merge-recommendation/detail/${encodeURIComponent(
+        recommendationId,
+      )}`,
+    ),
 };

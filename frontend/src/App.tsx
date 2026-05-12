@@ -17,6 +17,7 @@ import { Reports } from "./routes/Reports";
 import { Candidates } from "./routes/Candidates";
 import { AgentControl } from "./routes/AgentControl";
 import { AgentControlInboxPlaceholder } from "./routes/AgentControl/InboxPlaceholder";
+import { AgentControlMergeRecommendation } from "./routes/AgentControl/MergeRecommendation";
 
 export function App() {
   return (
@@ -55,6 +56,32 @@ export function App() {
           element={
             <RequireAuth>
               <AgentControlInboxPlaceholder />
+            </RequireAuth>
+          }
+        />
+        {/*
+         * v3.15.16.N5c — read-only merge-recommendation surface backed
+         * by the existing N5a /api/agent-control/merge-recommendation/{list,detail}
+         * blueprint. Both routes are read-only and share the same
+         * <AgentControlMergeRecommendation /> component, which picks
+         * list vs detail based on the optional :recommendationId param.
+         * No approve / reject / merge / deploy verbs are exposed; merge
+         * execution remains N5b territory and is not implemented in
+         * this stage.
+         */}
+        <Route
+          path="/agent-control/merge-recommendation"
+          element={
+            <RequireAuth>
+              <AgentControlMergeRecommendation />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/agent-control/merge-recommendation/:recommendationId"
+          element={
+            <RequireAuth>
+              <AgentControlMergeRecommendation />
             </RequireAuth>
           }
         />
