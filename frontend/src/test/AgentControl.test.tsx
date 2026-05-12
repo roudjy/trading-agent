@@ -1674,3 +1674,130 @@ describe("AgentControl — N5c discoverability link in PRs section", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// N4c discoverability link in the About section — visible read-only
+// entry to /agent-control/approval-token-diagnostics. Same anchor-only,
+// no-fetch shape as the N5c merge-recommendations link.
+// ---------------------------------------------------------------------------
+
+describe("AgentControl — N4c discoverability link in About section", () => {
+  it("renders a visible approval-token-diagnostics link pointing at the N4c route", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("approval-token-diagnostics-link"),
+      ).toBeInTheDocument();
+    });
+
+    const link = screen.getByTestId("approval-token-diagnostics-link");
+    expect(link).toHaveAttribute(
+      "href",
+      "/agent-control/approval-token-diagnostics",
+    );
+    expect(link.tagName.toLowerCase()).toBe("a");
+    expect(link).toHaveAccessibleName(
+      /open approval token diagnostics/i,
+    );
+    expect(
+      screen.getByTestId("approval-token-diagnostics-link-description"),
+    ).toHaveTextContent(/claim-only/i);
+  });
+
+  it("does not add any new fetch or call the token endpoint from the discoverability card", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("approval-token-diagnostics-link"),
+      ).toBeInTheDocument();
+    });
+
+    for (const call of fetchSpy) {
+      const url = String(call.input);
+      expect(url).not.toContain("/api/agent-control/approval-token/");
+      expect(call.method).toBe("GET");
+    }
+  });
+
+  it("preserves the single-button invariant (only the Vernieuw button)", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("approval-token-diagnostics-link"),
+      ).toBeInTheDocument();
+    });
+
+    const buttons = screen.queryAllByRole("button");
+    // Only the refresh button (the existing single-button invariant
+    // pinned by the earlier N5c test). The discoverability link is
+    // an anchor, not a button.
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAttribute(
+      "data-testid",
+      "agent-control-refresh",
+    );
+  });
+});
