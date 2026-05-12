@@ -1,14 +1,27 @@
 name: Deploy VPS Dashboard
 
-# v3.15.15.29 — automatic deploy of the dashboard + nginx surface
-# to the VPS on every push to main. The agent service is NOT
-# started or restarted by this workflow; it stays operator-gated.
+# v3.15.16.N5b1 — automatic deploy of the dashboard + nginx surface
+# to the VPS AFTER the "Fast pre-merge gate" workflow completes
+# successfully on main, plus a manual operator escape hatch via
+# ``workflow_dispatch``. The agent service is NOT started or
+# restarted by this workflow; it stays operator-gated by the
+# audited ``scripts/deploy_vps_dashboard.sh``.
 #
-# Trigger surface is intentionally narrow:
-#   * push to main only. No pull_request trigger (we never deploy
-#     unmerged code).
-#   * No workflow_dispatch (one less manual escape hatch).
-#   * No schedule (no implicit re-deploys).
+# Why workflow_run instead of push?
+#   The previous push-to-main trigger started the deploy the moment
+#   the merge commit landed, BEFORE the Fast pre-merge gate had a
+#   chance to fail on main (which can happen on direct pushes that
+#   bypass PR checks, or on a re-run that flips conclusion).
+#   ``workflow_run`` guarantees the deploy only fires for commits
+#   that the gate has actually accepted on main.
+#
+# Why workflow_dispatch?
+#   An operator-initiated manual deploy is occasionally useful
+#   (e.g. to retry after a transient SSH failure, or to redeploy
+#   from main without pushing a no-op commit). The dispatch surface
+#   declares NO inputs, so the operator cannot pass an arbitrary
+#   ref or argument — the deploy still resets the VPS checkout to
+#   ``origin/main`` and invokes the byte-identical deploy script.
 #
 # Concurrency policy:
 #   * group "deploy-vps-dashboard" so two deploys cannot race.
@@ -36,9 +49,11 @@ name: Deploy VPS Dashboard
 #   triggers it.
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Fast pre-merge gate"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-vps-dashboard
@@ -52,6 +67,13 @@ jobs:
     name: Deploy dashboard + nginx
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Fire on a successful gate run, OR on a manual operator
+    # dispatch. We deliberately do NOT fire on failed gate runs
+    # (which would otherwise deploy a commit the gate rejected).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout repo (for runner-side context only)
@@ -60,6 +82,13 @@ jobs:
           # Shallow checkout is fine — the deploy script runs on
           # the VPS, not in this checkout.
           fetch-depth: 1
+          # Pin the runner-side checkout to main in both event
+          # shapes. workflow_run defaults to the head of the
+          # triggering workflow's run, and workflow_dispatch
+          # defaults to the branch the workflow was dispatched
+          # from; either way we want main here so the workflow's
+          # own behavior is reproducible from any caller.
+          ref: main
 
       - name: Configure SSH client
         env:
@@ -67,11 +96,11 @@ jobs:
           # the workflow's shell trace.
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_SSH_KEY}" ]; then
-            echo "missing one or more required secrets: VPS_HOST / VPS_USER / VPS_SSH_KEY"
+          if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_SSH_PRIVATE_KEY}" ]; then
+            echo "missing one or more required secrets: VPS_HOST / VPS_USER / VPS_SSH_PRIVATE_KEY"
             exit 1
           fi
           mkdir -p ~/.ssh
@@ -80,7 +109,7 @@ jobs:
           # value on a command line where another process could
           # observe it via /proc/<pid>/cmdline.
           umask 077
-          printf '%s\n' "${VPS_SSH_KEY}" > ~/.ssh/deploy_key
+          printf '%s\n' "${VPS_SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           # Pin the host key. ssh-keyscan is silent on stderr to
           # avoid leaking VPS_HOST to logs.
