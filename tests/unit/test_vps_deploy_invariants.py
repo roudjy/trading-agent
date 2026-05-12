@@ -296,11 +296,65 @@ def workflow_text() -> str:
     return WORKFLOW_PATH.read_text(encoding="utf-8")
 
 
-def test_workflow_triggers_only_on_push_to_main(workflow_text: str) -> None:
-    """The trigger surface must be exactly ``push: branches:
-    [main]``. Specifically NO ``pull_request`` trigger."""
-    # Must contain a push:main block.
-    assert re.search(r"on:\s*\n\s*push:\s*\n\s*branches:\s*\n\s*-\s*main", workflow_text)
+def test_workflow_triggers_on_gate_success_or_dispatch(
+    workflow_text: str,
+) -> None:
+    """v3.15.16.N5b1 — the trigger surface is exactly
+    ``workflow_run`` after the "Fast pre-merge gate" completes on
+    ``main``, plus an operator-only ``workflow_dispatch`` for
+    manual deploys. The legacy ``push:`` trigger has been removed
+    so a direct push to ``main`` (bypassing the gate) cannot
+    auto-deploy. ``pull_request`` is still explicitly absent."""
+    # workflow_run trigger:
+    assert "workflow_run:" in workflow_text, (
+        "workflow must use workflow_run as the auto-deploy trigger"
+    )
+    assert 'workflows: ["Fast pre-merge gate"]' in workflow_text, (
+        "workflow_run must reference the exact 'Fast pre-merge gate' "
+        "workflow name"
+    )
+    assert "types: [completed]" in workflow_text, (
+        "workflow_run must subscribe to the 'completed' type "
+        "(branch filter + if: guard further restrict to success-on-main)"
+    )
+    assert "branches: [main]" in workflow_text, (
+        "workflow_run must restrict to the main branch only"
+    )
+
+    # workflow_dispatch trigger:
+    assert "workflow_dispatch:" in workflow_text, (
+        "workflow must expose a workflow_dispatch surface for "
+        "operator-initiated manual deploys"
+    )
+
+    # Legacy push trigger explicitly removed:
+    assert not re.search(
+        r"^\s*push:\s*\n\s*branches:", workflow_text, re.MULTILINE
+    ), (
+        "legacy push-to-main trigger must be removed — the "
+        "workflow_run trigger is the canonical auto-deploy path"
+    )
+
+
+def test_workflow_only_deploys_on_successful_gate_or_dispatch(
+    workflow_text: str,
+) -> None:
+    """The deploy job must guard against running on a failed gate
+    run. Without this guard, ``workflow_run`` would fire on every
+    gate completion including failures."""
+    # The if-guard must include the conclusion check.
+    assert (
+        "github.event.workflow_run.conclusion == 'success'"
+        in workflow_text
+    ), (
+        "deploy job must guard on workflow_run.conclusion == 'success' "
+        "so a failed gate run cannot trigger a deploy"
+    )
+    # The if-guard must also allow workflow_dispatch through.
+    assert "workflow_dispatch" in workflow_text, (
+        "deploy job must allow workflow_dispatch as the operator "
+        "manual-deploy path through its if-guard"
+    )
 
 
 def test_workflow_does_not_trigger_on_pull_request(workflow_text: str) -> None:
@@ -314,10 +368,22 @@ def test_workflow_does_not_trigger_on_pull_request(workflow_text: str) -> None:
 
 
 def test_workflow_uses_required_secrets(workflow_text: str) -> None:
-    """The three repository secrets the workflow consumes."""
+    """The three repository secrets the workflow consumes.
+
+    v3.15.16.N5b1 renamed ``VPS_SSH_KEY`` → ``VPS_SSH_PRIVATE_KEY``
+    so the secret name self-documents that it carries the *private*
+    key material (and the operator does not confuse it with the
+    deploy *public* key that lives on the VPS authorized_keys)."""
     assert "${{ secrets.VPS_HOST }}" in workflow_text
     assert "${{ secrets.VPS_USER }}" in workflow_text
-    assert "${{ secrets.VPS_SSH_KEY }}" in workflow_text
+    assert "${{ secrets.VPS_SSH_PRIVATE_KEY }}" in workflow_text
+    # The legacy name must not linger anywhere in the workflow,
+    # otherwise the operator could mis-set the GitHub secret and
+    # get a confusing "missing secrets" failure later.
+    assert "VPS_SSH_KEY" not in workflow_text, (
+        "legacy secret name VPS_SSH_KEY must not appear in the "
+        "workflow — it was renamed to VPS_SSH_PRIVATE_KEY"
+    )
 
 
 def test_workflow_has_concurrency_group(workflow_text: str) -> None:
@@ -466,9 +532,11 @@ def test_workflow_uses_batch_mode_to_refuse_password_prompts(
 def test_runbook_references_required_secrets(workflow_text: str) -> None:
     """The operator runbook must enumerate the secrets the
     workflow consumes so the operator can't miss one during
-    setup."""
+    setup. The secret name is the v3.15.16.N5b1
+    ``VPS_SSH_PRIVATE_KEY`` (legacy name ``VPS_SSH_KEY`` is no
+    longer accepted)."""
     text = DOC_PATH.read_text(encoding="utf-8")
-    for sec in ("VPS_HOST", "VPS_USER", "VPS_SSH_KEY"):
+    for sec in ("VPS_HOST", "VPS_USER", "VPS_SSH_PRIVATE_KEY"):
         assert sec in text, f"runbook does not document required secret: {sec!r}"
 
 

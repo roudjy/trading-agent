@@ -8,10 +8,20 @@ Sibling docs: `mobile_agent_control_pwa.md`,
 
 ## TL;DR
 
-Every push to `main` automatically deploys the latest dashboard
-and nginx surface to the VPS. **The agent / discovery worker is
-NOT deployed and is NOT started by this workflow.** Live trading
-remains operator-gated.
+After every successful run of the **Fast pre-merge gate** on
+`main`, the deploy workflow automatically refreshes the dashboard
+and nginx surface on the VPS. An operator-initiated manual
+deploy is also available via `workflow_dispatch` (the **Run
+workflow** button on the *Deploy VPS Dashboard* page in GitHub
+Actions). **The agent / discovery worker is NOT deployed and is
+NOT started by this workflow.** Live trading remains
+operator-gated.
+
+> Upgraded in v3.15.16.N5b1: trigger switched from `push: main` to
+> `workflow_run` on the gate so a direct push that bypasses the
+> gate (or a gate run that flips to `failure`) cannot trigger an
+> auto-deploy. The secret previously named `VPS_SSH_KEY` was
+> renamed to `VPS_SSH_PRIVATE_KEY` for self-documentation.
 
 ## What this deploys
 
@@ -305,7 +315,19 @@ The workflow consumes exactly three repository secrets:
 | --- | --- | --- |
 | `VPS_HOST` | hostname or IP of the VPS (the operator already knows it; do NOT paste it into any committed file) | `Repo → Settings → Secrets and variables → Actions → New repository secret` |
 | `VPS_USER` | SSH user (typically `root`) | same place |
-| `VPS_SSH_KEY` | full private-key contents (PEM) of a dedicated deploy key | same place |
+| `VPS_SSH_PRIVATE_KEY` | full private-key contents (PEM) of a dedicated deploy key | same place |
+
+> The secret was renamed from `VPS_SSH_KEY` to
+> `VPS_SSH_PRIVATE_KEY` in v3.15.16.N5b1 so the name
+> self-documents that it carries the *private* key half (the
+> public half lives in the VPS `authorized_keys`). After the
+> v3.15.16.N5b1 PR lands, the operator must add a secret named
+> `VPS_SSH_PRIVATE_KEY` with the same private-key contents the
+> old `VPS_SSH_KEY` carried, and delete the old `VPS_SSH_KEY`
+> entry to keep the secret store clean. Between merge and that
+> operator action, the workflow fails fast with
+> `missing one or more required secrets: ... VPS_SSH_PRIVATE_KEY`
+> — non-destructive (no partial deploy).
 
 The workflow:
 
@@ -328,7 +350,7 @@ On a workstation (NOT the VPS):
 ssh-keygen -t ed25519 -f ./deploy_vps_dashboard_key -C "github-actions deploy" -N ""
 
 # Files produced:
-#   deploy_vps_dashboard_key       <- private key (goes into VPS_SSH_KEY)
+#   deploy_vps_dashboard_key       <- private key (goes into VPS_SSH_PRIVATE_KEY)
 #   deploy_vps_dashboard_key.pub   <- public key (goes onto the VPS)
 ```
 
@@ -349,10 +371,9 @@ Back on the workstation, add the **private** key as a GitHub
 secret:
 
 1. Open `Repo → Settings → Secrets and variables → Actions`.
-2. Add `VPS_SSH_KEY` with the full contents of
-   `deploy_vps_dashboard_key` (including the
-   `-----BEGIN OPENSSH PRIVATE KEY-----` header and the
-   `-----END OPENSSH PRIVATE KEY-----` footer).
+2. Add `VPS_SSH_PRIVATE_KEY` with the full contents of
+   `deploy_vps_dashboard_key` (including the PEM header and the
+   matching footer line).
 3. Add `VPS_HOST` (the deploy host the operator already knows; do not commit the value here).
 4. Add `VPS_USER` (e.g. `root`).
 
@@ -368,7 +389,23 @@ keep locally — it's already on the VPS.
 
 ## Manual deploy (operator-initiated)
 
-Run the same script manually from the VPS at any time:
+Two paths exist; both invoke the byte-identical
+`scripts/deploy_vps_dashboard.sh` on the VPS.
+
+### Path A — GitHub Actions `workflow_dispatch`
+
+1. Open the **Deploy VPS Dashboard** workflow in `Repo → Actions`.
+2. Click **Run workflow** in the top-right.
+3. Confirm the branch is `main` (the workflow ignores any other
+   ref by checking out `main` regardless of which branch the
+   dispatch was initiated from). The workflow declares no inputs,
+   so the operator cannot pass a free-form argument.
+4. The workflow then runs identically to an auto-deploy: same
+   concurrency group, same timeout, same SSH key/known_hosts
+   handling, same `git fetch + reset --hard origin/main + bash
+   scripts/deploy_vps_dashboard.sh` SSH command.
+
+### Path B — direct VPS shell
 
 ```bash
 ssh root@<VPS_HOST>
@@ -463,11 +500,16 @@ the canonical procedure.
   `docker compose up -d --no-deps dashboard nginx`,
   `docker compose stop agent`, and does NOT contain
   `docker compose up -d --build dashboard nginx`;
-* the workflow exists, triggers on `push:` to `main` only, has
-  no `pull_request` trigger, references the three required
-  secrets, declares a `concurrency` group + `timeout-minutes`
-  cap, contains no literal private-key / token / password /
-  hostname material, and invokes the safe deploy script.
+* the workflow exists, triggers on `workflow_run` after the
+  *Fast pre-merge gate* completes on `main` plus
+  `workflow_dispatch`, has no `pull_request` trigger, guards the
+  deploy job on `workflow_run.conclusion == 'success'` (or
+  `workflow_dispatch`), references the three required secrets
+  (`VPS_HOST`, `VPS_USER`, `VPS_SSH_PRIVATE_KEY` — legacy
+  `VPS_SSH_KEY` is no longer accepted), declares a `concurrency`
+  group + `timeout-minutes` cap, contains no literal private-key
+  / token / password / hostname material, and invokes the safe
+  deploy script.
 
 These tests run as part of `pytest tests/unit` on every PR;
 breaking any invariant fails the build.
