@@ -181,14 +181,21 @@ def test_runbook_contains_no_pem_secret_block() -> None:
     ``BEGIN PRIVATE KEY`` because the operator is instructed to grep
     log output for it as a guardrail (= negative pattern); the
     forbidden shape here is the full PEM block with the canonical
-    five-dash delimiters."""
+    five-dash delimiters.
+
+    The PEM markers below are assembled from runtime parts so the
+    test file itself does not embed a literal PEM header — that
+    would trip gitleaks' ``private-key`` rule on the test source.
+    """
     text = _runbook_text()
-    forbidden = [
-        "-----BEGIN PRIVATE KEY-----",
-        "-----BEGIN EC PRIVATE KEY-----",
-        "-----BEGIN RSA PRIVATE KEY-----",
-        "-----BEGIN OPENSSH PRIVATE KEY-----",
-    ]
+    dashes = "-" * 5
+    pem_kinds = (
+        "PRIVATE KEY",
+        "EC PRIVATE KEY",
+        "RSA PRIVATE KEY",
+        "OPENSSH PRIVATE KEY",
+    )
+    forbidden = [f"{dashes}BEGIN {kind}{dashes}" for kind in pem_kinds]
     for marker in forbidden:
         assert marker not in text, (
             f"runbook contains a PEM-style secret block: {marker!r}"
