@@ -45,6 +45,7 @@ from dashboard.api_roadmap_priority import register_roadmap_priority_routes
 from dashboard.api_mobile_approval_inbox import register_mobile_approval_inbox_routes
 from dashboard.api_approval_token_gate import register_approval_token_gate_routes
 from dashboard.api_merge_recommendation import register_merge_recommendation_routes
+from dashboard.api_pwa_static import register_pwa_static_routes
 
 from reporting import audit_log
 
@@ -99,6 +100,7 @@ register_push_dispatch_routes(app)
 register_mobile_approval_inbox_routes(app)
 register_approval_token_gate_routes(app)
 register_merge_recommendation_routes(app)
+register_pwa_static_routes(app)
 
 
 @app.errorhandler(Exception)
