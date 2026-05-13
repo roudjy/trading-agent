@@ -112,17 +112,27 @@ def test_plan_is_markdown() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_plan_states_plan_only() -> None:
+def test_plan_states_design_source_of_truth() -> None:
+    """Post-Phase-4 the plan doc is no longer plan-only — it is
+    the design / governance source-of-truth for the now-implemented
+    A18c projector. This pin enforces the new framing."""
     text = _plan_text().lower()
-    assert "plan only" in text or "plan-only" in text, (
-        "plan must explicitly state it is plan-only."
+    assert "source-of-truth" in text or "source of truth" in text, (
+        "plan must explicitly describe itself as the design / "
+        "governance source-of-truth for the implemented A18c "
+        "projector."
     )
 
 
-def test_plan_states_not_implemented() -> None:
+def test_plan_states_default_disabled_implementation() -> None:
+    """Phase 4 lands A18c default-disabled. The plan doc must
+    state both 'implemented' and 'default-disabled' verbatim."""
     text = _plan_text().lower()
-    assert "not implemented" in text, (
-        "plan must explicitly state A18c is not implemented."
+    assert "implemented" in text, (
+        "plan must state A18c is implemented (default-disabled)."
+    )
+    assert "default-disabled" in text, (
+        "plan must state A18c is default-disabled."
     )
 
 
@@ -389,20 +399,46 @@ def test_plan_contains_combined_invariants_block() -> None:
 # ---------------------------------------------------------------------------
 
 
-_FORBIDDEN_A18C_MODULES: tuple[str, ...] = (
-    "reporting/development_generated_lane_a18c.py",
+_FORBIDDEN_A18C_SIBLING_MODULES: tuple[str, ...] = (
     "reporting/development_generated_lane_a18c_status.py",
     "reporting/development_generated_lane_a18c_writer.py",
     "reporting/development_generated_lane_a18c_admission.py",
 )
 
 
-def test_no_a18c_module_exists() -> None:
-    """A18c is plan-only. No production module may exist on disk."""
-    for rel in _FORBIDDEN_A18C_MODULES:
+def test_a18c_module_exists_default_disabled() -> None:
+    """Post-Phase-4 the A18c projector module exists on disk and
+    is importable. Its ``env_enabled()`` returns ``False`` under
+    an empty env mapping — i.e. default-disabled at import time."""
+    a18c_path = (
+        REPO_ROOT / "reporting" / "development_generated_lane_a18c.py"
+    )
+    assert a18c_path.is_file(), (
+        "A18c module must exist post-Phase-4: "
+        f"{a18c_path}"
+    )
+
+    from reporting import (  # noqa: WPS433 — local import intentional
+        development_generated_lane_a18c as a18c,
+    )
+
+    assert a18c.env_enabled({}) is False, (
+        "A18c must be default-disabled — env_enabled() must return "
+        "False under an empty env mapping."
+    )
+    # Exact-string env-gate name and enabled value are pinned.
+    assert a18c.ENV_GATE == "ADE_GENERATED_LANE_A18C_ENABLED"
+    assert a18c._ENABLED_VALUE == "true"
+
+
+def test_no_a18c_sibling_modules_exist() -> None:
+    """Phase 4 ships a single A18c module. Any sibling status /
+    writer / admission-specific module would expand the surface
+    beyond the approved scope; this pin enforces "one module only"."""
+    for rel in _FORBIDDEN_A18C_SIBLING_MODULES:
         path = REPO_ROOT / rel
         assert not path.exists(), (
-            f"A18c module must not exist (plan-only): {rel}"
+            f"A18c sibling module must not exist: {rel}"
         )
 
 

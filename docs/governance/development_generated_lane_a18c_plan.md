@@ -1,17 +1,24 @@
-# A18c Admission Integration — Plan-Only Governance Doc
+# A18c Admission Integration — Design / Governance Source-of-Truth
 
-> **Status:** Plan only. Not implemented. No runtime authority.
-> No admission integration exists. No UI action exists. No code
-> module named `reporting.development_generated_lane_a18c` exists
-> on disk.
+> **Status:** **Implemented (default-disabled, env-gated).** This
+> doc remains the design / governance source-of-truth for the
+> A18c admission projector. The implementation lives at
+> [`reporting/development_generated_lane_a18c.py`](../../reporting/development_generated_lane_a18c.py)
+> with companion tests at
+> [`tests/unit/test_development_generated_lane_a18c.py`](../../tests/unit/test_development_generated_lane_a18c.py).
+> The env-gate `ADE_GENERATED_LANE_A18C_ENABLED` (enabled value:
+> the exact literal string `"true"`) is **unset** in all
+> environments today; runtime activation remains a strictly
+> later operator-only VPS step gated by
+> `GO enable A18c on VPS`.
 >
-> **Authority:** development-governance read-only documentation.
-> This doc grants ADE **zero** new authority. It exists solely to
-> document how a future A18c admission integration could be
-> safely designed if and when the operator separately authorises
-> implementation and then runtime activation. No code in this PR
-> can perform an admission, project a queue candidate, mint an
-> action-bearing token, deploy anything, or change Step 5 state.
+> **Authority:** development-governance read-only documentation
+> plus a default-disabled projector module. This doc and module
+> together grant ADE **zero** new runtime authority while the
+> env-gate stays unset. The module is the canonical surface; this
+> doc is the design / governance source-of-truth. A17 remains
+> authoritative; A18c never modifies A17 and never relaxes any
+> A17 filter.
 >
 > **Permanent denials (re-asserted):**
 >
@@ -30,9 +37,12 @@
 
 ## 1. Status
 
-* **Plan only** with respect to *admission integration*. This
-  document remains the design / governance / planning slice for
-  any future A18c implementation.
+* **Implemented (default-disabled, env-gated).** This document
+  remains the design / governance source-of-truth for the A18c
+  admission projector module. The implementation is **default-
+  disabled** — when the env-gate is unset (or set to anything
+  other than the exact string `"true"`), A18c returns a no-op
+  envelope without reading `generated_seed.jsonl` at all.
 * **A18a** dry-run / report-only projector is implemented at
   [`reporting/development_generated_lane.py`](../../reporting/development_generated_lane.py).
 * **A18b** `generated_seed.jsonl` writer is implemented at
@@ -40,26 +50,29 @@
   It is default-disabled, env-gated, and was exercised in the
   Phase 2 controlled production write smoke; one diagnostic row
   exists on disk.
-* **A18c** admission integration is **not implemented**. No
-  module named `reporting.development_generated_lane_a18c`
-  exists. The A17 admission policy module
+* **A18c** admission projector is implemented at
+  [`reporting/development_generated_lane_a18c.py`](../../reporting/development_generated_lane_a18c.py).
+  Phase 4 implementation was authorised by the explicit
+  operator-go phrase `GO A18c admission integration`. The
+  module reads `generated_seed.jsonl` only when the env-gate
+  `ADE_GENERATED_LANE_A18C_ENABLED` is set to exactly the
+  literal string `"true"` (case-sensitive, no aliases). A17
+  remains authoritative; A18c calls
+  `a17.evaluate_promotion_record(...)` verbatim and never
+  modifies A17. The A17 admission policy module
   ([`reporting/development_queue_admission_policy.py`](../../reporting/development_queue_admission_policy.py))
-  does not read `generated_seed.jsonl` at any code path; its
-  references to the filename are narrative (docstring) plus the
-  discipline-invariant flag `writes_to_generated_seed_jsonl=False`.
-* **No runtime authority.** This plan doc grants ADE zero new
-  capability. It does not authorise any implementation; that
-  remains a separate operator-paced action.
+  is byte-identical pre- and post-Phase-4 — A18c is an
+  independent projector that consumes A17's public surface.
+* **No runtime authority while env-gate unset.** A18c grants
+  ADE zero new capability until an operator separately exports
+  the env on VPS. Setting the env is a strictly later
+  operator-only step gated by `GO enable A18c on VPS`.
 * **No UI action exists.** The PWA's `/agent-control/*` surface
   must not render an A18c admission button pointed at any
   endpoint.
-* **A18c implementation and any later runtime activation
-  require separate explicit operator-go phrases.** The plan
-  doc identifies them but does not request either of them:
-  * `GO A18c admission integration` — Phase 4 implementation
-    (default-disabled).
-  * `GO enable A18c on VPS` — Phase 4-followup runtime
-    activation (operator-only VPS env-export step).
+* **Runtime activation requires the separate explicit
+  operator-go phrase** `GO enable A18c on VPS`. The plan doc
+  identifies it but does not request it.
 
 The companion pin-tests in
 [`tests/unit/test_development_generated_lane_a18c_plan.py`](../../tests/unit/test_development_generated_lane_a18c_plan.py)
@@ -121,10 +134,10 @@ A17 and not an alternative admission path.
 
 ---
 
-## 3. Future purpose
+## 3. Operational purpose
 
-When (and only when) Phase 4 implementation lands and an
-operator separately activates the env-gate, A18c will:
+When (and only when) an operator separately activates the
+env-gate on VPS, A18c will:
 
 1. Read the on-disk `generated_seed.jsonl` rows at the canonical
    path `/root/trading-agent/generated_seed.jsonl` (host) or
