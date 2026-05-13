@@ -411,3 +411,6 @@ itself remains unchanged:
 > For the operational caveat that A18b writes must run host-side
 > while the canonical seed file is a file-level bind mount, see
 > [`a18b_writer_host_side_write_runbook.md`](a18b_writer_host_side_write_runbook.md).
+> For the A18c admission-integration plan (plan-only; not
+> implemented), see
+> [`development_generated_lane_a18c_plan.md`](development_generated_lane_a18c_plan.md).
