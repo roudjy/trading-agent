@@ -316,12 +316,16 @@ separate PR.
 
 ## 9. What this runbook does NOT do
 
-* Does **not** schedule the refresh. The recurring-maintenance
-  scheduler (`reporting.recurring_maintenance`) does **not**
-  currently include A22 / N3a / A23 / N5b refresh jobs. A
-  separate PR (the planned Task 2 in the operator's task plan)
-  may add those jobs in a future change. **No** scheduler change
-  is included in this PR.
+* Does **not** schedule the upstream A22 / N3a / A23 refresh.
+  The recurring-maintenance scheduler
+  (`reporting.recurring_maintenance`) **now** schedules
+  `refresh_merge_preflight` (v3.15.16.N5b.phase1) at 30-minute
+  cadence, LOW risk, `needs_gh=false`, default-enabled —
+  failure-non-fatal when upstream A22 / A23 artefacts are
+  absent. The upstream A22 / N3a / A23 projectors themselves
+  are **not** in the scheduler registry yet; a future operator
+  may add them in a separate PR. The §4 manual sequence remains
+  the operator-pace way to refresh the full chain on demand.
 * Does **not** add a dashboard API surface for the preflight
   artefact. (That is the planned Task 3.)
 * Does **not** add a PWA surface for the preflight artefact.
@@ -345,13 +349,13 @@ separate PR.
 
 ## 10. Authority chain summary
 
-| Capability | Today | After this runbook | After Task 2 (future, separate PR) | After N5b Phase 2 (future, operator-go required) | After N5b Phase 4 (future, operator-go required) |
+| Capability | Today | After this runbook + the scheduler PR | After a future upstream-chain scheduler PR | After N5b Phase 2 (future, operator-go required) | After N5b Phase 4 (future, operator-go required) |
 |---|---|---|---|---|---|
 | Read step-1 gh digest | yes | unchanged | unchanged | unchanged | unchanged |
 | Run step-2 A22 projector on demand | yes (CLI) | yes (documented) | yes (scheduled) | unchanged | unchanged |
 | Run step-3 N3a projector on demand | yes (CLI) | yes (documented) | yes (scheduled) | unchanged | unchanged |
 | Run step-4 A23 projector on demand | yes (CLI) | yes (documented) | yes (scheduled) | unchanged | unchanged |
-| Run step-5 N5b Phase 1 preflight on demand | yes (CLI) | yes (documented) | yes (scheduled) | unchanged | unchanged |
+| Run step-5 N5b Phase 1 preflight on demand | yes (CLI) | yes (scheduled, 30 min) | yes (scheduled) | unchanged | unchanged |
 | Mint approval token | does not exist | unchanged | unchanged | yes — operator-env-only via N4b | unchanged |
 | Token-bound dry-run merge endpoint | does not exist | unchanged | unchanged | yes — operator-go required | unchanged |
 | Live merge of any PR | does not exist | unchanged | unchanged | does not exist | yes — separate operator-go per §10 |

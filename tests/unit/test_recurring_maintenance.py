@@ -104,6 +104,21 @@ def isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setitem(
         rm._JOB_REGISTRY, rm.JOB_REFRESH_GOVERNANCE_BOOTSTRAP, gb_spec
     )
+    # v3.15.16.N5b.phase1 — same isolation rationale: the
+    # development_merge_preflight executor reads logs/
+    # development_pr_lifecycle_observer/ + logs/
+    # development_merge_recommendation/ and writes logs/
+    # development_merge_preflight/. Stub it for tests using the
+    # ``isolated`` fixture so they stay hermetic. Tests that
+    # specifically want to exercise the real merge-preflight
+    # executor can still call _patch_executor with their own stub
+    # or invoke the executor directly (see
+    # test_recurring_maintenance_merge_preflight.py).
+    mp_spec = dict(rm._JOB_REGISTRY[rm.JOB_REFRESH_MERGE_PREFLIGHT])
+    mp_spec["executor"] = lambda: {"summary": "ok (test stub)"}
+    monkeypatch.setitem(
+        rm._JOB_REGISTRY, rm.JOB_REFRESH_MERGE_PREFLIGHT, mp_spec
+    )
     return tmp_path
 
 
@@ -153,10 +168,14 @@ def test_job_registry_contains_only_approved_types() -> None:
         # discipline summary. Closed-set Agent Execution Authority
         # buckets over the proposal queue.
         "refresh_autonomous_backlog",
+        # v3.15.16.N5b.phase1 — read-only dry-run merge-preflight
+        # projector. Joins A22 + A23 into a closed-schema preflight
+        # snapshot. Never merges, never deploys, never calls gh.
+        "refresh_merge_preflight",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 11
+    assert len(rm.JOB_TYPES) == 12
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:

@@ -81,6 +81,7 @@ python -m reporting.recurring_maintenance --run-due-once \
 | `refresh_agent_flow` | LOW | no | 30 min | ✓ | refreshes `agent_flow` orchestration digest (v3.15.16.7) |
 | `refresh_human_needed` | LOW | no | 30 min | ✓ | refreshes `human_needed` blocker-detection digest (v3.15.16.8) |
 | `refresh_governance_bootstrap` | LOW | no | 30 min | ✓ | refreshes `governance_bootstrap` PR-template digest (v3.15.16.9) |
+| `refresh_merge_preflight` | LOW | no | 30 min | ✓ | refreshes `development_merge_preflight` dry-run digest (v3.15.16.N5b.phase1; pure stdlib projector over A22 + A23; never merges, never calls `gh`, never deploys, never mints/verifies approval tokens; failure-non-fatal when upstream A22/A23 artefacts are absent) |
 
 ## Dependabot execute-safe — two-layer opt-in
 
