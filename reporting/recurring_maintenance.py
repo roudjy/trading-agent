@@ -125,6 +125,16 @@ JOB_REFRESH_AUTONOMOUS_BACKLOG: str = "refresh_autonomous_backlog"
 # upstream A22/A23 artefacts are absent — the projector
 # default-denies with closed-vocab warnings rather than raising.
 JOB_REFRESH_MERGE_PREFLIGHT: str = "refresh_merge_preflight"
+# v3.15.16.A18c — read-only generated_seed.jsonl admission projector.
+# Default-disabled at the projector layer via the
+# ADE_GENERATED_LANE_A18C_ENABLED env-gate (exact literal "true"
+# required). When the gate is unset, collect_snapshot returns the
+# enabled=False no-op envelope without reading the seed file. The
+# scheduler entry runs the projector every interval; whether it
+# performs any work is decided by the projector itself. LOW risk;
+# no gh; no external network; no mutation of A17; A17 remains
+# authoritative; A18c never bypasses A17 filters.
+JOB_REFRESH_GENERATED_LANE_A18C: str = "refresh_generated_lane_a18c"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -139,6 +149,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_GOVERNANCE_BOOTSTRAP,
     JOB_REFRESH_AUTONOMOUS_BACKLOG,
     JOB_REFRESH_MERGE_PREFLIGHT,
+    JOB_REFRESH_GENERATED_LANE_A18C,
 )
 
 
@@ -500,6 +511,58 @@ def _exec_refresh_merge_preflight() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_generated_lane_a18c() -> dict[str, Any]:
+    """Run the v3.15.16.A18c admission projector (read-only,
+    default-disabled). When the projector's env-gate
+    ADE_GENERATED_LANE_A18C_ENABLED (exact literal value) is
+    unset, collect_snapshot returns the enabled=False no-op
+    envelope and does not read the generated_seed.jsonl file.
+    When the gate is set, the projector reads the seed file,
+    calls a17.evaluate_promotion_record(...) verbatim, and writes
+    ``logs/development_generated_lane_a18c/latest.json``. Never
+    admits to the queue, never starts a branch, never opens a PR,
+    never invokes gh, never deploys, never modifies A17.
+
+    Step 5 + Level 6 invariants stay pinned by the projector:
+    ``step5_implementation_allowed=false``,
+    ``step5_enabled_substage="none"``, ``level6_enabled=false``,
+    ``dry_run_only=true``, ``live_merge_implemented=false``,
+    ``deploy_coupled=false``.
+    """
+    from reporting.development_generated_lane_a18c import (
+        collect_snapshot,
+        write_outputs,
+    )
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    counts = snap.get("counts") or {}
+    return {
+        "summary": (
+            f"development_generated_lane_a18c "
+            f"enabled={snap.get('enabled')} "
+            f"total={counts.get('total', 0)} "
+            f"admissible={counts.get('admissible', 0)} "
+            f"note={snap.get('note') or 'no note'}"
+        ),
+        "evidence": {
+            "enabled": snap.get("enabled"),
+            "total": counts.get("total"),
+            "admissible": counts.get("admissible"),
+            "note": snap.get("note"),
+            "validation_warnings": snap.get("validation_warnings"),
+            "dry_run_only": snap.get("dry_run_only"),
+            "live_merge_implemented": snap.get("live_merge_implemented"),
+            "deploy_coupled": snap.get("deploy_coupled"),
+            "level6_enabled": snap.get("level6_enabled"),
+            "step5_implementation_allowed": snap.get(
+                "step5_implementation_allowed"
+            ),
+            "step5_enabled_substage": snap.get("step5_enabled_substage"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -680,6 +743,24 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
             "never merges, never deploys, never mints or verifies an "
             "approval token. Failure-non-fatal when upstream A22/A23 "
             "artefacts are absent."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_GENERATED_LANE_A18C: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_generated_lane_a18c,
+        "description": (
+            "Refresh A18c admission projector digest "
+            "(read-only projection over generated_seed.jsonl into "
+            "the A17 admission flow). Default-disabled at the "
+            "projector layer via ADE_GENERATED_LANE_A18C_ENABLED; "
+            "when unset, emits the no-op enabled=False envelope "
+            "without reading the seed file. Never calls gh, never "
+            "merges, never deploys, never admits to the queue, "
+            "never modifies A17."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,

@@ -172,10 +172,16 @@ def test_job_registry_contains_only_approved_types() -> None:
         # projector. Joins A22 + A23 into a closed-schema preflight
         # snapshot. Never merges, never deploys, never calls gh.
         "refresh_merge_preflight",
+        # v3.15.16.A18c — read-only generated_seed.jsonl admission
+        # projector. Reads only when ADE_GENERATED_LANE_A18C_ENABLED=
+        # "true"; otherwise emits the no-op enabled=False envelope.
+        # Never merges, never deploys, never calls gh, never modifies
+        # A17.
+        "refresh_generated_lane_a18c",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 12
+    assert len(rm.JOB_TYPES) == 13
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
