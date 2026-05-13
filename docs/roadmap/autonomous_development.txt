@@ -1683,4 +1683,226 @@ regression-pin test under `tests/regression/`.
 ```
 
 
+\---
+
+# A15 — Agent Activity Center / Visual ADE Control Plane (design only)
+
+## Status
+
+```text
+Status: Proposed until this PR is merged; accepted by the merge commit.
+Class: design / canonical_policy_doc only — NOT runtime
+Predecessors:
+  - A8 work queue, A9 release gate, A10 bugfix loop, A11 delegation,
+    A12 operational digest, A13 E2E proof, A14 Step 5.0 dry-run
+  - A18a/A18b/A18c lane, A18 promotion report (PR #216),
+    N5b Phase 1 merge preflight (PR #204), recurring-maintenance
+    entries B1.1/B1.2/B1.4 (PRs #217/#218/#219)
+Step 5 implementation: BLOCKED (unchanged)
+  - step5_implementation_allowed = False (Final constant)
+  - STEP5_ENABLED_SUBSTAGE = "none" (Final constant)
+  - autonomy-ladder Level 6: permanently disabled per ADR-015 Doctrine 1
+```
+
+A15 is the canonical-roadmap anchor for the **Agent Activity
+Center** — a mobile-first, PWA-ready operator UX that surfaces
+the existing ADE pipeline (roadmap → queue → delegation →
+Step 5 → PR → CI → merge → N5b lane → A18 lane) in a calm,
+read-only console.
+
+A15 is **design only**. It ships the canonical design
+specification, aggregator schema, read-only API contract,
+no-mutation doctrine, and push-notification safety doctrine.
+**A15 ships zero runtime code.** Implementation lives in future
+units (B2.0b aggregator, B2.0c Flask blueprint, B2.0d PWA
+frontend, B2.0e push-notification lint hook), each of which is a
+distinct future PR with its own operator-go phrase.
+
+## Purpose
+
+Make the autonomous development pipeline visually understandable
+to the operator before adding more Step 5 / PR / CI / N5b
+runtime authority. Translate the operator-uploaded UX prototype
+into buildable docs that downstream implementation units can
+consume without ambiguity. The visual control plane is read-only
+by construction — no mutation endpoints, no approval buttons, no
+push-notification approval.
+
+## Architectural separation
+
+ADE-core surfaces consumed (read-only):
+
+```text
+- logs/development_work_queue/latest.json (A8)
+- logs/development_delegation/latest.json (A11)
+- logs/development_bugfix_loop/latest.json (A10)
+- logs/development_release_gate/latest.json (A9)
+- logs/step5_loop/latest.json (A14)
+- logs/step5_plan/<cycle_id>.json + history.jsonl (A14)
+- logs/development_generated_lane_a18c/latest.json (A18c)
+- logs/development_generated_lane_promotion_report/latest.json
+  (A18 phase 5a)
+- logs/development_merge_preflight/latest.json (N5b Phase 1)
+- logs/development_operational_digest/latest.json (A12)
+- logs/step5_ci_feedback/<timestamp>.json (future B2.6)
+- generated_seed.jsonl (READ-ONLY warning surface)
+- Future logs/development_addendum_loop/latest.json
+```
+
+AAC-core artefact produced (future B2.0b only — NOT in A15):
+
+```text
+logs/development_agent_activity_timeline/latest.json
+```
+
+AAC-core never imports research, dashboard.dashboard,
+automation, broker, agent.risk, agent.execution,
+reporting.intelligent_routing. AAC-core never invokes
+subprocess, socket, urllib, requests, httpx, aiohttp, gh, git.
+AAC-core writes only to its own sentinel-restricted path.
+
+## Scope (allowed)
+
+```text
+- docs/governance/agent_activity_center_design.md (NEW)
+  19 sections + 2 appendices; mirrors the UX prototype's
+  in-app design spec.
+- docs/governance/agent_activity_center_aggregator_schema.md
+  (NEW) closed schema for logs/development_agent_activity_timeline/
+  latest.json; module_version anchor aat.v0.1; schema_version 1.
+- docs/governance/agent_activity_center_api_contract.md (NEW)
+  six read-only GET endpoints under /api/agent-control/activity/*,
+  HTTP cache + ETag semantics, closed verb set.
+- docs/governance/agent_activity_center_no_mutation_doctrine.md
+  (NEW) forbidden client + server patterns, sentinel-restricted
+  write paths, enforcement plan via pin tests + CI checks.
+- docs/governance/agent_activity_center_push_notification_safety.md
+  (NEW) push body must never contain required_phrase or any
+  secret; tap is read-only deep-link.
+- docs/roadmap/autonomous_development.txt (THIS ENTRY).
+- tests/unit/test_agent_activity_center_governance_docs.py (NEW)
+  structural pin test asserting file existence + load-bearing
+  literals.
+```
+
+## Scope (NOT allowed in A15)
+
+```text
+- No module under reporting/, dashboard/, frontend/,
+  automation/, agent/, broker/, research/, scripts/.
+- No aggregator implementation; no module emits
+  logs/development_agent_activity_timeline/latest.json.
+- No Flask blueprint, no route registration, no dashboard wiring.
+- No PWA frontend code; no React component, no service worker,
+  no manifest.
+- No recurring-maintenance entry; no scheduler change.
+- No env flip; ADE_GENERATED_LANE_A18C_ENABLED and friends
+  stay operator-controlled.
+- No Step 5 flag / substage change; step5_implementation_allowed
+  stays Final False; STEP5_ENABLED_SUBSTAGE stays Final "none".
+- No autonomy-ladder amendment; Level 6 stays permanently
+  disabled per ADR-015 Doctrine 1.
+- No git / gh / subprocess / network code path.
+- No mutation endpoint; no approval button; no push-notification
+  publisher.
+- No writes to seed.jsonl / delegation_seed.jsonl /
+  generated_seed.jsonl.
+- No edits to .claude/**, .github/**, frozen v1 schemas, ADRs,
+  no-touch paths, tests/regression/, live/paper/shadow/risk/
+  broker/execution paths.
+```
+
+## Discipline invariants (load-bearing)
+
+```text
+read_only_by_construction: true
+no_mutation_endpoints: true
+no_approval_button: true
+no_push_approval: true
+no_token_mint_or_verify_ui: true
+no_seed_jsonl_write: true
+no_step5_flag_flip: true
+no_substage_flip: true
+no_level6_enablement: true
+operator_step5_authorisation_required: true
+```
+
+## Future units anchored by A15 (out of A15 scope)
+
+```text
+B2.0b — Aggregator module (reporting/development_agent_activity_timeline.py)
+        + recurring-maintenance scheduling entry
+        Operator-go: "GO Batch 2 Unit B2.0b aggregator module"
+
+B2.0c — Read-only Flask blueprint exposing the 6 GET endpoints
+        under /api/agent-control/activity/*
+        Operator-go: "GO Batch 2 Unit B2.0c Flask blueprint"
+
+B2.0d — frontend/ PWA implementation (React 18 + Vite, OKLCH
+        tokens, service worker, manifest, 8 screens, 13
+        components)
+        Operator-go: "GO Batch 2 Unit B2.0d PWA frontend"
+
+B2.0e — Push-notification body lint hook (rejects required_phrase,
+        operator_go_phrase, api_key, secret, token, bearer in
+        any push-publisher source)
+        Operator-go: "GO Batch 2 Unit B2.0e push body lint"
+```
+
+Each is a distinct future PR with its own operator-go phrase.
+None are part of A15.
+
+## Definition of Done (this entry)
+
+```text
+1. Branch feature/b2-0-agent-activity-center-design exists;
+   nothing on main.
+2. Implementation complete on branch:
+     - five docs under docs/governance/agent_activity_center_*
+     - this canonical-roadmap entry
+     - one structural pin test
+3. Targeted tests green:
+     python -m pytest tests/unit/test_agent_activity_center_governance_docs.py -q
+4. Smoke green:
+     python -m pytest tests/smoke -q
+5. Governance lint green:
+     python scripts/governance_lint.py
+6. Diff scope: only docs/governance/agent_activity_center_*,
+   docs/roadmap/autonomous_development.txt (this entry),
+   tests/unit/test_agent_activity_center_governance_docs.py.
+   No code under reporting/, dashboard/, frontend/,
+   automation/, agent/, broker/, research/, scripts/,
+   workflows/, tests/regression/, tests/smoke/, .claude/**,
+   .github/**.
+7. PR opened against main via the documented gh CLI flow.
+8. CI green on the PR.
+9. Squash-merged to main; post-merge gates green.
+10. step5_implementation_allowed remains False.
+    STEP5_ENABLED_SUBSTAGE remains "none". Level 6 stays
+    permanently disabled.
+```
+
+## Determinism
+
+A15 is a canonical-roadmap text entry plus five governance docs
+plus one structural pin test. All are bytewise identical
+run-to-run (no machine input). The structural pin test reads
+file content and matches against load-bearing literal substrings;
+no time-of-day or random-seed sensitivity.
+
+## After A15 completes
+
+```text
+- The design is on main; no runtime authority added.
+- Future implementation units B2.0b/c/d/e become
+  agent-implementable under their own operator-go phrases.
+- Step 5 runtime activation, N5b Phase 3+, and A18
+  operator-promote remain separately gated per Revised
+  Batch 2's per-unit go phrases.
+- step5_implementation_allowed remains False (Final constant).
+  STEP5_ENABLED_SUBSTAGE remains "none" (Final constant).
+  Level 6 stays permanently disabled per ADR-015 Doctrine 1.
+```
+
+
 
