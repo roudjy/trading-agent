@@ -583,3 +583,8 @@ emitted.
   — per-action authority decisions.
 * [`docs/governance/no_touch_paths.md`](no_touch_paths.md) —
   the protected paths.
+* [`reporting/development_generated_lane_promotion_report.py`](../../reporting/development_generated_lane_promotion_report.py)
+  — read-only promotion-readiness report consumer (Phase 5a).
+  Reports on what *would* be required for operator-promote;
+  never promotes. Hard-pinned `promotion_allowed=false` on every
+  row.
