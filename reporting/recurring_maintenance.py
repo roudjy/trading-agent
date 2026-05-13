@@ -149,6 +149,19 @@ JOB_REFRESH_GENERATED_LANE_A18C: str = "refresh_generated_lane_a18c"
 # no external network; no env gate (the module is always-on
 # read-only).
 JOB_REFRESH_A18_PROMOTION_REPORT: str = "refresh_a18_promotion_report"
+# v3.15.16.A14 — read-only Step 5.0 dry-run / planner-only loop.
+# Reads the three upstream ADE artefacts (A11 delegation, A10
+# bugfix loop, A8 work queue), selects at most one item by
+# deterministic ordering, classifies via the upstream-recorded
+# execution-authority decision, and writes three artefacts under
+# logs/step5_*/: a per-cycle plan, a bounded 90-entry history,
+# and a loop snapshot. The module is hard-pinned at the source
+# layer to step5_implementation_allowed=False and
+# STEP5_ENABLED_SUBSTAGE="none"; the maintenance entry does NOT
+# flip either constant. NEVER creates branches, NEVER opens PRs,
+# NEVER merges, NEVER deploys, NEVER calls gh, NEVER touches the
+# QRE surface. LOW risk; no gh; no external network.
+JOB_REFRESH_STEP5_LOOP: str = "refresh_step5_loop"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -165,6 +178,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_MERGE_PREFLIGHT,
     JOB_REFRESH_GENERATED_LANE_A18C,
     JOB_REFRESH_A18_PROMOTION_REPORT,
+    JOB_REFRESH_STEP5_LOOP,
 )
 
 
@@ -526,6 +540,66 @@ def _exec_refresh_merge_preflight() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_step5_loop() -> dict[str, Any]:
+    """Run the v3.15.16.A14 Step 5.0 dry-run / planner-only loop.
+    Reads (atomically, read-only) the three upstream ADE
+    artefacts and writes three Step 5 artefacts under
+    ``logs/step5_plan/`` and ``logs/step5_loop/``. Step 5
+    implementation remains BLOCKED at the source layer:
+    ``step5_implementation_allowed=False`` and
+    ``STEP5_ENABLED_SUBSTAGE="none"`` are ``Final`` constants in
+    the module; the maintenance entry does NOT flip either.
+
+    Never creates branches, never opens PRs, never merges, never
+    deploys, never invokes gh, never invokes git, never spawns
+    child processes, never touches the QRE surface (research,
+    dashboard, automation, broker, agent.risk, agent.execution,
+    reporting.intelligent_routing). Autonomy-ladder Level 6 stays
+    permanently disabled per ADR-015 Doctrine 1.
+
+    The Step 5.0 module's own discipline-invariants block (the
+    ten closed Boolean keys defined in
+    ``reporting.development_step5_loop._DISCIPLINE_INVARIANTS``)
+    is surfaced verbatim in the evidence dict; this docstring
+    does not re-enumerate the key names to keep the maintenance
+    executor's source clean of source-text-scan needles.
+    """
+    from reporting.development_step5_loop import (
+        collect_snapshot,
+        write_outputs,
+    )
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    loop = snap.get("loop") or {}
+    plan = snap.get("plan") or {}
+    presence = snap.get("presence") or {}
+    return {
+        "summary": (
+            f"development_step5_loop "
+            f"substage={loop.get('step5_enabled_substage')} "
+            f"outcome={plan.get('outcome') or 'no outcome'} "
+            f"halt_reason={plan.get('halt_reason') or 'no halt reason'} "
+            f"source_kind={plan.get('source_kind') or 'none'}"
+        ),
+        "evidence": {
+            "step5_enabled_substage": loop.get("step5_enabled_substage"),
+            "step5_implementation_allowed": loop.get(
+                "step5_implementation_allowed"
+            ),
+            "outcome": plan.get("outcome"),
+            "halt_reason": plan.get("halt_reason"),
+            "source_kind": plan.get("source_kind"),
+            "execution_authority_decision": plan.get(
+                "execution_authority_decision"
+            ),
+            "presence": presence,
+            "max_history_entries": loop.get("max_history_entries"),
+            "discipline_invariants": loop.get("discipline_invariants"),
+        },
+    }
+
+
 def _exec_refresh_a18_promotion_report() -> dict[str, Any]:
     """Run the v3.15.16.A18.promotion_report read-only / report-
     only projector. Reads the A18c artefact at
@@ -855,6 +929,24 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
             "Never calls gh, never merges, never deploys, never "
             "admits to the queue, never modifies A17 / A18b / "
             "A18c."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_STEP5_LOOP: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_step5_loop,
+        "description": (
+            "Refresh Step 5.0 dry-run / planner-only loop "
+            "(read-only projection over A11 delegation + A10 "
+            "bugfix loop + A8 work queue). Writes three "
+            "artefacts under logs/step5_plan/ and "
+            "logs/step5_loop/. step5_implementation_allowed "
+            "remains False; STEP5_ENABLED_SUBSTAGE remains "
+            "\"none\". Never creates branches, never opens PRs, "
+            "never merges, never deploys, never calls gh."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,

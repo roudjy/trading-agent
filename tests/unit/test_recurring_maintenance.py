@@ -185,10 +185,18 @@ def test_job_registry_contains_only_approved_types() -> None:
         # report module never promotes. Never merges, never deploys,
         # never calls gh, never modifies A17 / A18b / A18c.
         "refresh_a18_promotion_report",
+        # v3.15.16.A14 — read-only Step 5.0 dry-run / planner-only
+        # loop. Reads A11 delegation + A10 bugfix loop + A8 work
+        # queue and writes three artefacts under logs/step5_plan/
+        # and logs/step5_loop/. step5_implementation_allowed
+        # remains False; STEP5_ENABLED_SUBSTAGE remains "none".
+        # Never creates branches, never opens PRs, never merges,
+        # never deploys, never calls gh.
+        "refresh_step5_loop",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 14
+    assert len(rm.JOB_TYPES) == 15
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
