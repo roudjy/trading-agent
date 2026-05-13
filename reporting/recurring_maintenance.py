@@ -135,6 +135,20 @@ JOB_REFRESH_MERGE_PREFLIGHT: str = "refresh_merge_preflight"
 # no gh; no external network; no mutation of A17; A17 remains
 # authoritative; A18c never bypasses A17 filters.
 JOB_REFRESH_GENERATED_LANE_A18C: str = "refresh_generated_lane_a18c"
+# v3.15.16.A18.promotion_report — read-only / report-only A18
+# promotion-readiness report. Reads the A18c artefact at
+# logs/development_generated_lane_a18c/latest.json and emits a
+# closed-schema report at
+# logs/development_generated_lane_promotion_report/latest.json.
+# Module-level hard pin: every emitted report row carries
+# promotion_allowed=False; envelope-level promotable_row_count is
+# asserted == 0 before write. NEVER promotes, NEVER admits queue
+# rows, NEVER mutates A17 / A18b / A18c, NEVER writes to
+# generated_seed.jsonl / seed.jsonl / delegation_seed.jsonl,
+# NEVER calls gh, NEVER merges, NEVER deploys. LOW risk; no gh;
+# no external network; no env gate (the module is always-on
+# read-only).
+JOB_REFRESH_A18_PROMOTION_REPORT: str = "refresh_a18_promotion_report"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -150,6 +164,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_AUTONOMOUS_BACKLOG,
     JOB_REFRESH_MERGE_PREFLIGHT,
     JOB_REFRESH_GENERATED_LANE_A18C,
+    JOB_REFRESH_A18_PROMOTION_REPORT,
 )
 
 
@@ -511,6 +526,67 @@ def _exec_refresh_merge_preflight() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_a18_promotion_report() -> dict[str, Any]:
+    """Run the v3.15.16.A18.promotion_report read-only / report-
+    only projector. Reads the A18c artefact at
+    ``logs/development_generated_lane_a18c/latest.json`` and
+    writes
+    ``logs/development_generated_lane_promotion_report/latest.json``.
+    Never admits queue rows, never modifies A17 / A18b / A18c,
+    never writes to generated_seed.jsonl / seed.jsonl /
+    delegation_seed.jsonl, never invokes gh, never merges, never
+    deploys. The closed envelope is hard-pinned at the projector
+    layer: every report row carries ``promotion_allowed=False``
+    and the envelope-level ``promotable_row_count`` is asserted
+    ``== 0`` before write — the maintenance entry does not relax
+    this.
+
+    Step 5 + Level 6 invariants stay pinned by the projector:
+    ``step5_implementation_allowed=false``,
+    ``step5_enabled_substage="none"``, ``level6_enabled=false``,
+    ``dry_run_only=true``, ``live_merge_implemented=false``,
+    ``deploy_coupled=false``.
+    """
+    from reporting.development_generated_lane_promotion_report import (
+        collect_snapshot,
+        write_outputs,
+    )
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    return {
+        "summary": (
+            f"development_generated_lane_promotion_report "
+            f"source_row_count={snap.get('source_row_count', 0)} "
+            f"promotable_row_count={snap.get('promotable_row_count', 0)} "
+            f"blocked_row_count={snap.get('blocked_row_count', 0)} "
+            f"readiness_note={snap.get('readiness_note') or 'no note'}"
+        ),
+        "evidence": {
+            "a18c_artifact_available": snap.get("a18c_artifact_available"),
+            "source_row_count": snap.get("source_row_count"),
+            "promotable_row_count": snap.get("promotable_row_count"),
+            "blocked_row_count": snap.get("blocked_row_count"),
+            "readiness_note": snap.get("readiness_note"),
+            "validation_warnings": snap.get("validation_warnings"),
+            "operator_go_phrase_required": snap.get(
+                "operator_go_phrase_required"
+            ),
+            "promotion_allowed_default": snap.get(
+                "promotion_allowed_default"
+            ),
+            "dry_run_only": snap.get("dry_run_only"),
+            "live_merge_implemented": snap.get("live_merge_implemented"),
+            "deploy_coupled": snap.get("deploy_coupled"),
+            "level6_enabled": snap.get("level6_enabled"),
+            "step5_implementation_allowed": snap.get(
+                "step5_implementation_allowed"
+            ),
+            "step5_enabled_substage": snap.get("step5_enabled_substage"),
+        },
+    }
+
+
 def _exec_refresh_generated_lane_a18c() -> dict[str, Any]:
     """Run the v3.15.16.A18c admission projector (read-only,
     default-disabled). When the projector's env-gate
@@ -761,6 +837,24 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
             "without reading the seed file. Never calls gh, never "
             "merges, never deploys, never admits to the queue, "
             "never modifies A17."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_A18_PROMOTION_REPORT: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_a18_promotion_report,
+        "description": (
+            "Refresh A18 promotion-readiness report "
+            "(read-only / report-only projection over the A18c "
+            "artefact). Hard-pinned at the projector layer: every "
+            "row carries promotion_allowed=False; envelope "
+            "promotable_row_count is asserted == 0 before write. "
+            "Never calls gh, never merges, never deploys, never "
+            "admits to the queue, never modifies A17 / A18b / "
+            "A18c."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,
