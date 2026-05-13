@@ -353,6 +353,81 @@ export interface AgentControlMergeRecommendationDetail {
   step5_enabled_substage?: string;
 }
 
+// v3.15.16.N5b.phase1 — read-only N5b Phase 1 dry-run merge-preflight
+// surface. Closed-schema candidate rows projected by
+// reporting.development_merge_preflight and surfaced via
+// dashboard.api_merge_preflight (UNWIRED → wired by operator-applied
+// two-line dashboard.py diff). Every field is a bounded scalar (no PR
+// body, no diff, no commit message). The PWA renders these as
+// read-only; the closed dry_run_verdict vocabulary uses ``would_*``
+// prefixes that are explicitly NOT executable verbs. Live merge
+// execution is N5b Phase 2/3/4 territory and is not implemented;
+// every envelope mirrors the projector's discipline invariants
+// (dry_run_only=true, live_merge_implemented=false,
+// deploy_coupled=false, level6_enabled=false).
+export interface AgentControlMergePreflightRow {
+  preflight_id: string;
+  recommendation_id: string;
+  pr_number: number;
+  expected_head_sha: string;
+  observed_head_sha: string;
+  base_ref: string;
+  head_ref: string;
+  merge_state: string;
+  checks_state: string;
+  recommendation_action: string;
+  recommendation_reason: string;
+  token_required_for_live: boolean;
+  dry_run_verdict: string;
+  live_merge_implemented: boolean;
+  stop_conditions: string[];
+  audit_note: string;
+  generated_at_utc: string;
+  evidence_freshness_seconds: number;
+}
+
+export interface AgentControlMergePreflightList {
+  kind: "agent_control_merge_preflight_list";
+  schema_version: number;
+  module_version?: string;
+  status: "ok" | "not_available";
+  reason?: string;
+  rows: AgentControlMergePreflightRow[];
+  counts?: {
+    rows?: number;
+    by_dry_run_verdict?: Record<string, number>;
+  };
+  generated_at_utc?: string;
+  artifact_path?: string;
+  step5_implementation_allowed?: boolean;
+  step5_enabled_substage?: string;
+  level6_enabled?: boolean;
+  dry_run_only?: boolean;
+  live_merge_implemented?: boolean;
+  deploy_coupled?: boolean;
+}
+
+export interface AgentControlMergePreflightDetail {
+  kind: "agent_control_merge_preflight_detail";
+  schema_version: number;
+  module_version?: string;
+  status:
+    | "ok"
+    | "not_available"
+    | "not_found"
+    | "invalid_preflight_id";
+  reason?: string;
+  row?: AgentControlMergePreflightRow;
+  generated_at_utc?: string;
+  artifact_path?: string;
+  step5_implementation_allowed?: boolean;
+  step5_enabled_substage?: string;
+  level6_enabled?: boolean;
+  dry_run_only?: boolean;
+  live_merge_implemented?: boolean;
+  deploy_coupled?: boolean;
+}
+
 // v3.15.16.N4c — read-only diagnostic surface over the already-wired
 // N4b approval-token runtime gate. All three endpoints already live
 // in dashboard.api_approval_token_gate; this client provides only
@@ -562,6 +637,20 @@ export const agentControlApi = {
       `${BASE}/merge-recommendation/detail/${encodeURIComponent(
         recommendationId,
       )}`,
+    ),
+  // v3.15.16.N5b.phase1 — read-only N5b Phase 1 merge-preflight
+  // client. Mirrors the N5c merge-recommendation pattern (both are
+  // closed-vocabulary GET-only surfaces). The same getJsonEnvelope
+  // helper honours 4xx bodies so the UI can render the precise
+  // closed status (``not_found`` / ``invalid_preflight_id`` /
+  // ``not_available``) instead of a generic fetch failure.
+  mergePreflightList: () =>
+    getJsonEnvelope<AgentControlMergePreflightList>(
+      `${BASE}/merge-preflight/list`,
+    ),
+  mergePreflightDetail: (preflightId: string) =>
+    getJsonEnvelope<AgentControlMergePreflightDetail>(
+      `${BASE}/merge-preflight/detail/${encodeURIComponent(preflightId)}`,
     ),
   approvalTokenStatus: () =>
     getJsonEnvelope<AgentControlApprovalTokenStatus>(

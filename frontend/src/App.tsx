@@ -18,6 +18,7 @@ import { Candidates } from "./routes/Candidates";
 import { AgentControl } from "./routes/AgentControl";
 import { AgentControlInboxPlaceholder } from "./routes/AgentControl/InboxPlaceholder";
 import { AgentControlMergeRecommendation } from "./routes/AgentControl/MergeRecommendation";
+import { AgentControlMergePreflight } from "./routes/AgentControl/MergePreflight";
 import { ApprovalTokenDiagnostics } from "./routes/AgentControl/ApprovalTokenDiagnostics";
 
 export function App() {
@@ -83,6 +84,35 @@ export function App() {
           element={
             <RequireAuth>
               <AgentControlMergeRecommendation />
+            </RequireAuth>
+          }
+        />
+        {/*
+         * v3.15.16.N5b.phase1 — read-only N5b Phase 1 dry-run
+         * merge-preflight surface backed by the wired
+         * /api/agent-control/merge-preflight/{list,detail} blueprint.
+         * Both routes are read-only and share the same
+         * <AgentControlMergePreflight /> component, which picks list
+         * vs detail based on the optional :preflightId param. No
+         * approve / reject / merge / deploy / execute verbs are
+         * exposed; live merge execution is N5b Phase 2/3/4 territory
+         * and is not implemented in this stage. The banner literal is
+         * fixed verbatim: "Dry-run only. Live merge execution is not
+         * implemented."
+         */}
+        <Route
+          path="/agent-control/merge-preflight"
+          element={
+            <RequireAuth>
+              <AgentControlMergePreflight />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/agent-control/merge-preflight/:preflightId"
+          element={
+            <RequireAuth>
+              <AgentControlMergePreflight />
             </RequireAuth>
           }
         />

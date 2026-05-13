@@ -1232,6 +1232,43 @@ function MergeRecommendationsLinkCard() {
   );
 }
 
+// --- Card: merge-preflight discoverability link (N5b Phase 1) ---
+// Static read-only entry into the v3.15.16.N5b.phase1 PWA route
+// /agent-control/merge-preflight (backed by the read-only
+// /api/agent-control/merge-preflight/list endpoint). The card issues
+// NO fetch and renders NO button — only a <Link>. The destination
+// component is the canonical surface; this card exists solely to make
+// the route discoverable from the PRs tab. No merge / approve /
+// reject / deploy / execute action. No N4b token call. The banner
+// literal on the destination is fixed verbatim:
+// "Dry-run only. Live merge execution is not implemented."
+function MergePreflightLinkCard() {
+  return (
+    <Card
+      title="Merge Preflight (N5b dry-run)"
+      subtitle="read-only N5b Phase 1 verdicts"
+    >
+      <p
+        className="agent-control-card__subtitle"
+        data-testid="merge-preflight-description"
+        style={{ margin: "0 0 0.6rem 0" }}
+      >
+        Dry-run only. Live merge execution is not implemented.
+      </p>
+      <p style={{ margin: 0 }}>
+        <Link
+          to="/agent-control/merge-preflight"
+          data-testid="merge-preflight-link"
+          aria-label="Open read-only merge preflight"
+          style={{ color: "var(--ink, #1a73e8)" }}
+        >
+          Open merge preflight →
+        </Link>
+      </p>
+    </Card>
+  );
+}
+
 // --- Card: notification center placeholder ---
 function NotificationsCard({
   payload,
@@ -1527,6 +1564,7 @@ export function AgentControl() {
         >
           <PRLifecycleCard payload={prLifecycle} />
           <MergeRecommendationsLinkCard />
+          <MergePreflightLinkCard />
           <ExecuteSafeCard payload={executeSafe} />
         </Section>
 
