@@ -178,10 +178,17 @@ def test_job_registry_contains_only_approved_types() -> None:
         # Never merges, never deploys, never calls gh, never modifies
         # A17.
         "refresh_generated_lane_a18c",
+        # v3.15.16.A18.promotion_report — read-only / report-only
+        # A18 promotion-readiness report. Reads A18c's artefact and
+        # writes logs/development_generated_lane_promotion_report/
+        # latest.json. Hard-pinned promotable_row_count == 0; the
+        # report module never promotes. Never merges, never deploys,
+        # never calls gh, never modifies A17 / A18b / A18c.
+        "refresh_a18_promotion_report",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 13
+    assert len(rm.JOB_TYPES) == 14
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:
