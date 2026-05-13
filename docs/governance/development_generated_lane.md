@@ -407,3 +407,7 @@ itself remains unchanged:
 * Level 6 stays permanently disabled.
 * A18c (A17 admission integration) remains **not implemented**
   and requires its own explicit operator go-signal.
+
+> For the operational caveat that A18b writes must run host-side
+> while the canonical seed file is a file-level bind mount, see
+> [`a18b_writer_host_side_write_runbook.md`](a18b_writer_host_side_write_runbook.md).
