@@ -114,6 +114,17 @@ JOB_REFRESH_GOVERNANCE_BOOTSTRAP: str = "refresh_governance_bootstrap"
 # reporting.execution_authority classifier. LOW risk; no gh; no
 # external network; no mutation.
 JOB_REFRESH_AUTONOMOUS_BACKLOG: str = "refresh_autonomous_backlog"
+# v3.15.16.N5b.phase1 — read-only N5b Phase 1 dry-run merge
+# preflight projector. Reads A22
+# (logs/development_pr_lifecycle_observer/latest.json) and A23
+# (logs/development_merge_recommendation/latest.json) and emits a
+# closed-schema dry-run preflight snapshot at
+# logs/development_merge_preflight/latest.json. LOW risk; no gh;
+# no external network; no mutation; never merges; never deploys;
+# never mints or verifies approval tokens. Failure-non-fatal when
+# upstream A22/A23 artefacts are absent — the projector
+# default-denies with closed-vocab warnings rather than raising.
+JOB_REFRESH_MERGE_PREFLIGHT: str = "refresh_merge_preflight"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -127,6 +138,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_HUMAN_NEEDED,
     JOB_REFRESH_GOVERNANCE_BOOTSTRAP,
     JOB_REFRESH_AUTONOMOUS_BACKLOG,
+    JOB_REFRESH_MERGE_PREFLIGHT,
 )
 
 
@@ -449,6 +461,45 @@ def _exec_refresh_autonomous_backlog() -> dict[str, Any]:
     }
 
 
+def _exec_refresh_merge_preflight() -> dict[str, Any]:
+    """Run the v3.15.16.N5b.phase1 dry-run merge-preflight projector
+    (read-only). Reads A22 and A23 artefacts and writes
+    ``logs/development_merge_preflight/latest.json``. Never starts
+    a branch, never opens a PR, never invokes ``gh``, never mints
+    or verifies approval tokens, never deploys. Failure-non-fatal
+    when upstream artefacts are absent — the projector
+    default-denies with closed-vocab warnings.
+
+    Step 5 + Level 6 invariants stay pinned by the projector:
+    ``step5_implementation_allowed=false``,
+    ``step5_enabled_substage="none"``, ``level6_enabled=false``,
+    ``dry_run_only=true``, ``live_merge_implemented=false``,
+    ``deploy_coupled=false``.
+    """
+    from reporting.development_merge_preflight import (
+        collect_snapshot,
+        write_outputs,
+    )
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    return {
+        "summary": (
+            f"development_merge_preflight "
+            f"candidate_count={snap.get('candidate_count', 0)} "
+            f"note={snap.get('note') or 'no note'}"
+        ),
+        "evidence": {
+            "candidate_count": snap.get("candidate_count"),
+            "dry_run_only": snap.get("dry_run_only"),
+            "live_merge_implemented": snap.get("live_merge_implemented"),
+            "deploy_coupled": snap.get("deploy_coupled"),
+            "note": snap.get("note"),
+            "validation_warnings": snap.get("validation_warnings"),
+        },
+    }
+
+
 def _exec_dependabot_execute_safe() -> dict[str, Any]:
     """Delegate to the existing ``reporting.github_pr_lifecycle``
     execute-safe path. The lifecycle module owns every Dependabot
@@ -613,6 +664,22 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
             "proposal queue). Disable by setting --no-job to opt out; "
             "the CLI alone (`python -m reporting.autonomous_backlog_summary`) "
             "remains usable on demand for rollback."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_MERGE_PREFLIGHT: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_merge_preflight,
+        "description": (
+            "Refresh N5b Phase 1 dry-run merge-preflight digest "
+            "(read-only projection over the A22 PR-lifecycle observer "
+            "+ A23 merge recommendation artefacts). Never calls gh, "
+            "never merges, never deploys, never mints or verifies an "
+            "approval token. Failure-non-fatal when upstream A22/A23 "
+            "artefacts are absent."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,
