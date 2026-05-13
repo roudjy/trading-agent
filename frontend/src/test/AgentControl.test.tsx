@@ -1676,6 +1676,150 @@ describe("AgentControl — N5c discoverability link in PRs section", () => {
 });
 
 // ---------------------------------------------------------------------------
+// v3.15.16.N5b.phase1 discoverability spillover — visible read-only entry
+// to /agent-control/merge-preflight from the PRs section. Same
+// anchor-only, no-fetch, no-button shape as the N5c
+// merge-recommendations link.
+// ---------------------------------------------------------------------------
+
+describe("AgentControl — N5b Phase 1 discoverability link in PRs section", () => {
+  it("renders a visible merge-preflight link pointing at the N5b route", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("merge-preflight-link"),
+      ).toBeInTheDocument();
+    });
+
+    const link = screen.getByTestId("merge-preflight-link");
+    expect(link).toHaveAttribute(
+      "href",
+      "/agent-control/merge-preflight",
+    );
+    // Anchor element, not a button — read-only by structure.
+    expect(link.tagName.toLowerCase()).toBe("a");
+    // Visible, accessible name describes the destination.
+    expect(link).toHaveAccessibleName(
+      /open read-only merge preflight/i,
+    );
+    // Description carries the operator-prescribed banner literal.
+    expect(
+      screen.getByTestId("merge-preflight-description"),
+    ).toHaveTextContent(
+      /dry-run only\. live merge execution is not implemented\./i,
+    );
+  });
+
+  it("does not add a button and does not render decision verbs in its card", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("merge-preflight-link"),
+      ).toBeInTheDocument();
+    });
+
+    // The merge-preflight card adds zero new buttons; the surface still
+    // contains exactly the existing single refresh button.
+    const buttons = screen.queryAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAttribute(
+      "data-testid",
+      "agent-control-refresh",
+    );
+
+    // No executable decision verb appears in the new card text.
+    const card = screen.getByTestId("merge-preflight-link");
+    const cardText = (card.textContent || "").toLowerCase();
+    expect(cardText).not.toMatch(/\bapprove\b/);
+    expect(cardText).not.toMatch(/\breject\b/);
+    expect(cardText).not.toMatch(/\bdeploy\b/);
+    expect(cardText).not.toMatch(/\bexecute\b/);
+  });
+
+  it("does not introduce a new fetch and does not call any token endpoint", async () => {
+    installFetchMock(
+      {
+        "/api/agent-control/status": () => jsonResp(okStatusBody),
+        "/api/agent-control/activity": () => jsonResp(okActivityBody),
+        "/api/agent-control/workloop": () => jsonResp(okWorkloopBody),
+        "/api/agent-control/pr-lifecycle": () =>
+          jsonResp(okPRLifecycleEmptyBody),
+        "/api/agent-control/notifications": () =>
+          jsonResp(placeholderNotificationsBody),
+        "/api/agent-control/proposals": () => jsonResp(okProposalsEmptyBody),
+        "/api/agent-control/approval-inbox": () => jsonResp(okInboxEmptyBody),
+        "/api/agent-control/execute-safe": () => jsonResp(okExecuteSafeBody),
+      },
+      () => jsonResp({}, 404),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/agent-control"]}>
+        <AgentControl />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("merge-preflight-link"),
+      ).toBeInTheDocument();
+    });
+
+    // The discoverability card itself never adds a fetch — the
+    // destination route page is where /api/agent-control/merge-preflight/
+    // fetches happen, never from the AgentControl hub.
+    for (const call of fetchSpy) {
+      const url = String(call.input);
+      expect(url).not.toContain("/api/agent-control/merge-preflight/");
+      expect(url).not.toContain("/api/agent-control/approval-token/");
+      expect(call.method).toBe("GET");
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // N4c discoverability link in the About section — visible read-only
 // entry to /agent-control/approval-token-diagnostics. Same anchor-only,
 // no-fetch shape as the N5c merge-recommendations link.
