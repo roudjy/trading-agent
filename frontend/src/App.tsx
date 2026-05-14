@@ -20,6 +20,7 @@ import { AgentControlInboxPlaceholder } from "./routes/AgentControl/InboxPlaceho
 import { AgentControlMergeRecommendation } from "./routes/AgentControl/MergeRecommendation";
 import { AgentControlMergePreflight } from "./routes/AgentControl/MergePreflight";
 import { ApprovalTokenDiagnostics } from "./routes/AgentControl/ApprovalTokenDiagnostics";
+import { AgentActivity } from "./routes/AgentControl/AgentActivity";
 
 export function App() {
   return (
@@ -129,6 +130,23 @@ export function App() {
           element={
             <RequireAuth>
               <ApprovalTokenDiagnostics />
+            </RequireAuth>
+          }
+        />
+        {/*
+         * v3.15.16.A15.B2.0d — read-only Agent Activity Center PWA
+         * surface backed by the wired /api/agent-control/activity/*
+         * blueprint (PR #224). The /* wildcard captures all AAC
+         * sub-paths (today / inbox / pipeline / agents / more /
+         * artefacts / safety / items/<item_id>) handled by nested
+         * <Routes> inside <AgentActivity />. No mutation endpoint;
+         * read-only by construction.
+         */}
+        <Route
+          path="/agent-control/activity/*"
+          element={
+            <RequireAuth>
+              <AgentActivity />
             </RequireAuth>
           }
         />
