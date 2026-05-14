@@ -193,10 +193,17 @@ def test_job_registry_contains_only_approved_types() -> None:
         # Never creates branches, never opens PRs, never merges,
         # never deploys, never calls gh.
         "refresh_step5_loop",
+        # v3.15.16.A15.B2.0b — read-only Agent Activity Center
+        # aggregator. Reads the 11-entry closed upstream catalog
+        # and writes logs/development_agent_activity_timeline/
+        # latest.json. Never calls the GitHub CLI, never merges,
+        # never deploys, never writes outside the canonical
+        # aggregator path.
+        "refresh_agent_activity_timeline",
     }
     assert set(rm.JOB_TYPES) == expected
     assert set(rm._JOB_REGISTRY.keys()) == expected
-    assert len(rm.JOB_TYPES) == 15
+    assert len(rm.JOB_TYPES) == 16
 
 
 def test_roadmap_priority_job_is_low_risk_no_gh_enabled_by_default() -> None:

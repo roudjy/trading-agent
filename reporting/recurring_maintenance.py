@@ -162,6 +162,16 @@ JOB_REFRESH_A18_PROMOTION_REPORT: str = "refresh_a18_promotion_report"
 # NEVER merges, NEVER deploys, NEVER calls gh, NEVER touches the
 # QRE surface. LOW risk; no gh; no external network.
 JOB_REFRESH_STEP5_LOOP: str = "refresh_step5_loop"
+# v3.15.16.A15.B2.0b — read-only Agent Activity Center aggregator
+# emitter. Reads the 11-entry closed catalog of ADE-core upstream
+# artefacts plus the read-only seed health entry and writes
+# logs/development_agent_activity_timeline/latest.json satisfying
+# the closed schema in docs/governance/agent_activity_center_
+# aggregator_schema.md. NEVER opens PRs, NEVER merges, NEVER
+# deploys, NEVER writes outside the canonical aggregator path,
+# NEVER writes to seed.jsonl / generated_seed.jsonl /
+# delegation_seed.jsonl. LOW risk; no external network.
+JOB_REFRESH_AGENT_ACTIVITY_TIMELINE: str = "refresh_agent_activity_timeline"
 
 JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_WORKLOOP_RUNTIME,
@@ -179,6 +189,7 @@ JOB_TYPES: tuple[str, ...] = (
     JOB_REFRESH_GENERATED_LANE_A18C,
     JOB_REFRESH_A18_PROMOTION_REPORT,
     JOB_REFRESH_STEP5_LOOP,
+    JOB_REFRESH_AGENT_ACTIVITY_TIMELINE,
 )
 
 
@@ -536,6 +547,49 @@ def _exec_refresh_merge_preflight() -> dict[str, Any]:
             "deploy_coupled": snap.get("deploy_coupled"),
             "note": snap.get("note"),
             "validation_warnings": snap.get("validation_warnings"),
+        },
+    }
+
+
+def _exec_refresh_agent_activity_timeline() -> dict[str, Any]:
+    """Run the v3.15.16.A15.B2.0b read-only Agent Activity Center
+    aggregator. Reads the 11-entry closed upstream catalog and
+    writes a single canonical artefact at
+    ``logs/development_agent_activity_timeline/latest.json``
+    satisfying the closed schema in
+    ``docs/governance/agent_activity_center_aggregator_schema.md``.
+    Never opens PRs. Never merges. Never deploys. Never invokes
+    the GitHub CLI. Never invokes the version-control CLI. Never
+    spawns child processes. Never touches QRE-internal modules.
+    Autonomy-ladder Level 6 stays permanently disabled per
+    ADR-015 Doctrine 1.
+    """
+    from reporting.development_agent_activity_timeline import (
+        collect_snapshot,
+        write_outputs,
+    )
+
+    snap = collect_snapshot()
+    write_outputs(snap)
+    counts = snap.get("counts") or {}
+    freshness = snap.get("freshness") or {}
+    return {
+        "summary": (
+            f"development_agent_activity_timeline "
+            f"total_open={counts.get('total_open', 0)} "
+            f"needs_human={counts.get('needs_human', 0)} "
+            f"any_stale={freshness.get('any_stale', False)}"
+        ),
+        "evidence": {
+            "total_open": counts.get("total_open"),
+            "needs_human": counts.get("needs_human"),
+            "merge_candidate": counts.get("merge_candidate"),
+            "blocked": counts.get("blocked"),
+            "any_stale": freshness.get("any_stale"),
+            "any_malformed": freshness.get("any_malformed"),
+            "oldest_artifact_age_seconds": freshness.get(
+                "oldest_artifact_age_seconds"
+            ),
         },
     }
 
@@ -947,6 +1001,23 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {
             "remains False; STEP5_ENABLED_SUBSTAGE remains "
             "\"none\". Never creates branches, never opens PRs, "
             "never merges, never deploys, never calls gh."
+        ),
+        "risk_class": RISK_LOW,
+        "needs_gh": False,
+        "timeout_seconds": DEFAULT_JOB_TIMEOUT_SECONDS,
+    },
+    JOB_REFRESH_AGENT_ACTIVITY_TIMELINE: {
+        "default_interval_seconds": 30 * 60,
+        "default_enabled": True,
+        "executor": _exec_refresh_agent_activity_timeline,
+        "description": (
+            "Refresh Agent Activity Center aggregator "
+            "(read-only projection over the 11-entry closed "
+            "upstream catalog). Writes logs/development_agent_"
+            "activity_timeline/latest.json. Never calls the "
+            "GitHub CLI, never merges, never deploys, never "
+            "writes outside the canonical aggregator path, never "
+            "writes seed JSONL files."
         ),
         "risk_class": RISK_LOW,
         "needs_gh": False,
