@@ -666,4 +666,287 @@ export const agentControlApi = {
       `${BASE}/approval-token/verify`,
       body,
     ),
+  // =====================================================================
+  // v3.15.16.A15.B2.0d — Agent Activity Center read-only client.
+  //
+  // All six endpoints under /api/agent-control/activity/* are GET-only
+  // and use the same getJsonEnvelope helper as merge-recommendation /
+  // merge-preflight so closed-vocab error codes (invalid_enum /
+  // invalid_format / not_in_last_snapshot / aggregator_missing) pass
+  // through with their HTTP status preserved.
+  //
+  // No POST / PUT / PATCH / DELETE. No XMLHttpRequest. No sendBeacon.
+  // No push subscription. No backend write side-effect.
+  // =====================================================================
+  activityToday: () =>
+    getJsonEnvelope<ActivityTodayEnvelope>(
+      `${ACTIVITY_BASE}/today`,
+    ),
+  activityItemsList: (params?: ActivityItemsListParams) =>
+    getJsonEnvelope<ActivityItemsListEnvelope>(
+      `${ACTIVITY_BASE}/items${activityQs(params)}`,
+    ),
+  activityItemsDetail: (itemId: string) =>
+    getJsonEnvelope<ActivityItemsDetailEnvelope>(
+      `${ACTIVITY_BASE}/items/${encodeURIComponent(
+        boundedActivityItemId(itemId),
+      )}`,
+    ),
+  activityAgents: () =>
+    getJsonEnvelope<ActivityAgentsEnvelope>(
+      `${ACTIVITY_BASE}/agents`,
+    ),
+  activityArtifacts: () =>
+    getJsonEnvelope<ActivityArtifactsEnvelope>(
+      `${ACTIVITY_BASE}/artifacts`,
+    ),
+  activityInvariants: () =>
+    getJsonEnvelope<ActivityInvariantsEnvelope>(
+      `${ACTIVITY_BASE}/invariants`,
+    ),
 };
+
+// =========================================================================
+// v3.15.16.A15.B2.0d — Agent Activity Center read-only client types
+//
+// Closed-vocabulary unions and envelope shapes for the six AAC endpoints,
+// mirroring docs/governance/agent_activity_center_aggregator_schema.md
+// (§6-§10) and docs/governance/agent_activity_center_api_contract.md
+// (§3).
+// =========================================================================
+
+const ACTIVITY_BASE = "/api/agent-control/activity";
+const MAX_ACTIVITY_ITEM_ID_LEN = 128;
+
+function boundedActivityItemId(raw: string): string {
+  if (typeof raw !== "string") return "";
+  const safe = raw.replace(/[^A-Za-z0-9_.\-]/g, "");
+  return safe.slice(0, MAX_ACTIVITY_ITEM_ID_LEN);
+}
+
+const _ACTIVITY_QS_ALLOWED = [
+  "stage",
+  "owner_role",
+  "human_needed",
+  "updated_since",
+] as const;
+
+function activityQs(p?: ActivityItemsListParams): string {
+  if (!p) return "";
+  const parts: string[] = [];
+  for (const key of _ACTIVITY_QS_ALLOWED) {
+    const value = p[key];
+    if (value === undefined || value === null) continue;
+    if (value === "") continue;
+    parts.push(
+      `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`,
+    );
+  }
+  return parts.length ? `?${parts.join("&")}` : "";
+}
+
+export type ActivityStage =
+  | "discovered"
+  | "queued"
+  | "delegated"
+  | "planned"
+  | "dry_run_ready"
+  | "pr_proposed"
+  | "pr_opened"
+  | "ci_feedback"
+  | "needs_human"
+  | "merge_candidate"
+  | "done_blocked";
+
+export type ActivitySeverity = "info" | "warn" | "human" | "error";
+
+export type ActivityRisk = "low" | "medium" | "high" | "critical";
+
+export type ActivityFreshnessState =
+  | "fresh"
+  | "stale"
+  | "missing"
+  | "malformed";
+
+export type ActivityInvariantTone =
+  | "on"
+  | "off"
+  | "danger_off"
+  | "info"
+  | "unknown";
+
+export type ActivityArtifactGroup =
+  | "queue"
+  | "loops"
+  | "step5"
+  | "gates"
+  | "generated"
+  | "digest"
+  | "seed";
+
+export interface ActivityWorkItem {
+  item_id: string;
+  title: string;
+  source_kind: string;
+  source_path: string;
+  current_stage: ActivityStage;
+  owner_role: string;
+  risk: ActivityRisk;
+  human_needed: boolean;
+  latest_verdict: string;
+  next_action: string;
+  updated_at: string;
+  summary: string;
+  event_ids?: string[];
+}
+
+export interface ActivityAgentEvent {
+  event_id: string;
+  item_id: string;
+  timestamp: string;
+  agent_role: string;
+  module: string;
+  event_type: string;
+  summary: string;
+  decision: string;
+  reason: string;
+  artifact_path: string;
+  severity: ActivitySeverity;
+}
+
+export interface ActivityHumanAction {
+  action_id: string;
+  item_id: string;
+  severity: string;
+  title: string;
+  why_required: string;
+  required_phrase: string | null;
+  safe_to_ignore: boolean;
+  copy_only: boolean;
+  source_artifact_path: string;
+  suggested_role: string;
+  created_at: string;
+}
+
+export interface ActivityArtifactHealth {
+  path: string;
+  group: ActivityArtifactGroup;
+  fresh: boolean;
+  parse_ok: boolean;
+  row_count: number;
+  last_modified: string;
+  module_version: string;
+  has_summary: boolean;
+  parse_error?: string;
+  read_only_warning?: string;
+}
+
+export interface ActivityInvariantStatus {
+  key: string;
+  label: string;
+  value: boolean | string;
+  tone: ActivityInvariantTone;
+  detail: string;
+}
+
+export interface ActivityFreshness {
+  generated_at_utc?: string;
+  oldest_artifact_age_seconds?: number;
+  any_stale?: boolean;
+  any_malformed?: boolean;
+  background_refreshing?: boolean;
+  ttl_seconds_by_path?: Record<string, number>;
+}
+
+export interface ActivityCounts {
+  discovered?: number;
+  queued?: number;
+  delegated?: number;
+  planned?: number;
+  dry_run_ready?: number;
+  pr_proposed?: number;
+  pr_opened?: number;
+  ci_feedback?: number;
+  needs_human?: number;
+  merge_candidate?: number;
+  blocked?: number;
+  total_open?: number;
+}
+
+interface _ActivityEnvelopeBase {
+  kind: string;
+  schema_version: number;
+  module_version: string;
+  status: string;
+  reason?: string;
+  generated_at_utc?: string;
+  artifact_path?: string;
+  step5_implementation_allowed?: boolean;
+  step5_enabled_substage?: string;
+  level6_enabled?: boolean;
+}
+
+export interface ActivityTodayEnvelope extends _ActivityEnvelopeBase {
+  counts?: ActivityCounts;
+  needs_human?: ActivityWorkItem[];
+  merge_candidate?: ActivityWorkItem[];
+  ci_feedback?: ActivityWorkItem[];
+  blocked?: ActivityWorkItem[];
+  recent_events?: ActivityAgentEvent[];
+  freshness?: ActivityFreshness;
+  invariant_status?: ActivityInvariantStatus[];
+  section_totals?: {
+    needs_human?: { total_matching: number; truncated: boolean };
+    merge_candidate?: { total_matching: number; truncated: boolean };
+    ci_feedback?: { total_matching: number; truncated: boolean };
+    blocked?: { total_matching: number; truncated: boolean };
+  };
+}
+
+export interface ActivityItemsListParams {
+  stage?: ActivityStage;
+  owner_role?: string;
+  human_needed?: boolean;
+  updated_since?: string;
+}
+
+export interface ActivityItemsListEnvelope extends _ActivityEnvelopeBase {
+  work_items?: ActivityWorkItem[];
+  total_matching?: number;
+  truncated?: boolean;
+  freshness?: ActivityFreshness;
+}
+
+export interface ActivityItemsDetailEnvelope extends _ActivityEnvelopeBase {
+  work_item?: ActivityWorkItem;
+  agent_events?: ActivityAgentEvent[];
+  human_actions?: ActivityHumanAction[];
+  artefacts_referenced?: string[];
+  error?: string;
+  param?: string;
+  value?: string;
+  detail?: string;
+}
+
+export interface ActivityAgentMatrixRow {
+  role: string;
+  new: number;
+  planned: number;
+  blocked: number;
+  needs_human: number;
+  pr_ready: number;
+  last_action: ActivityAgentEvent | null;
+  total: number;
+}
+
+export interface ActivityAgentsEnvelope extends _ActivityEnvelopeBase {
+  rows?: ActivityAgentMatrixRow[];
+}
+
+export interface ActivityArtifactsEnvelope extends _ActivityEnvelopeBase {
+  artifact_health?: ActivityArtifactHealth[];
+}
+
+export interface ActivityInvariantsEnvelope extends _ActivityEnvelopeBase {
+  invariant_status?: ActivityInvariantStatus[];
+}
