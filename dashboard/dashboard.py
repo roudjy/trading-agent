@@ -47,6 +47,9 @@ from dashboard.api_approval_token_gate import register_approval_token_gate_route
 from dashboard.api_merge_recommendation import register_merge_recommendation_routes
 from dashboard.api_merge_preflight import register_merge_preflight_routes
 from dashboard.api_pwa_static import register_pwa_static_routes
+from dashboard.api_agent_control_activity import (
+    register_agent_control_activity_routes,
+)
 
 from reporting import audit_log
 
@@ -103,6 +106,14 @@ register_approval_token_gate_routes(app)
 register_merge_recommendation_routes(app)
 register_merge_preflight_routes(app)
 register_pwa_static_routes(app)
+
+# v3.15.16.A15.B2.0c: read-only Agent Activity Center blueprint
+# exposing 6 GET endpoints under /api/agent-control/activity/*.
+# Surfaces the aggregator artefact at
+# logs/development_agent_activity_timeline/latest.json. No mutation
+# endpoint; closed verb set pinned by
+# tests/unit/test_api_agent_control_activity.py.
+register_agent_control_activity_routes(app)
 
 
 @app.errorhandler(Exception)
