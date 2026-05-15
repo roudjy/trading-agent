@@ -1436,3 +1436,244 @@ def test_step5_5_1_proposed_would_touch_paths_is_fresh_list_per_payload() -> Non
     assert list_b == []
     assert list_noop == []
     assert s5l._STEP5_5_1_PROPOSED_DEFAULT["would_touch_paths"] == []
+
+
+# ---------------------------------------------------------------------------
+# B2.2 — Step 5.2 PR dry-run (default-disabled, additive schema)
+#
+# These pin tests cover the closed schema and pinned-False/empty
+# defaults of the ``step5_5_2_proposed`` metadata block emitted
+# into every plan payload alongside the B2.1
+# ``step5_5_1_proposed`` block. The block is METADATA ONLY — no
+# runtime gate reads it.
+#
+# Note on the runtime-consumer property: the existing B2.4a test
+# ``test_no_runtime_consumer_of_step5_gate_constants`` already
+# scans the post-B2.2 module source on every CI run and asserts
+# that neither gating constant is read inside any ``if`` /
+# ``while`` / ``assert`` test expression. A separate B2.2 test
+# duplicating that AST walker would be redundant; the existing
+# test is the single source of truth.
+#
+# Per the operator's freshness requirement, the three list fields
+# (``would_labels``, ``would_reviewers``, ``would_assignees``)
+# emitted into each payload must be fresh, independent ``[]``
+# objects — never shared with the module-level
+# ``_STEP5_5_2_PROPOSED_DEFAULT`` constant or with sibling
+# payloads. The helper ``_fresh_step5_5_2_proposed`` exists for
+# exactly this reason.
+# ---------------------------------------------------------------------------
+
+
+_STEP5_5_2_PROPOSED_EXPECTED_KEYS: frozenset[str] = frozenset(
+    {
+        "mode",
+        "would_create_branch",
+        "would_open_pr",
+        "would_target_branch",
+        "would_branch_name",
+        "would_pr_title",
+        "would_pr_body",
+        "would_labels",
+        "would_reviewers",
+        "would_assignees",
+        "would_emit_release_gate_evidence",
+    }
+)
+
+
+def test_step5_5_2_proposed_default_constant_keys_are_closed() -> None:
+    """The module-level ``_STEP5_5_2_PROPOSED_DEFAULT`` constant has
+    exactly the closed key set declared by B2.2. Adding or removing
+    a key requires updating both the constant and this pin."""
+    assert (
+        set(s5l._STEP5_5_2_PROPOSED_DEFAULT.keys())
+        == _STEP5_5_2_PROPOSED_EXPECTED_KEYS
+    )
+
+
+def test_step5_5_2_proposed_default_values_are_safe() -> None:
+    """All Boolean fields default to False, all list fields are
+    empty, all string fields except ``mode`` are the empty
+    literal, and ``mode`` is the pinned literal ``"dry_run_only"``.
+    Flipping any value here requires a coordinated source change
+    pinned by an updated test plus Path B / Path C governance
+    amendments (truth-table doc section 6)."""
+    default = s5l._STEP5_5_2_PROPOSED_DEFAULT
+    assert default["mode"] == "dry_run_only"
+    assert default["would_create_branch"] is False
+    assert default["would_open_pr"] is False
+    assert default["would_target_branch"] == ""
+    assert default["would_branch_name"] == ""
+    assert default["would_pr_title"] == ""
+    assert default["would_pr_body"] == ""
+    assert default["would_labels"] == []
+    assert default["would_reviewers"] == []
+    assert default["would_assignees"] == []
+    assert default["would_emit_release_gate_evidence"] is False
+
+
+def test_step5_5_2_proposed_block_present_in_eligible_plan_payload() -> None:
+    """An eligible plan payload (AUTO_ALLOWED outcome) emits the
+    ``step5_5_2_proposed`` block with the closed schema and pinned
+    safe defaults."""
+    item = {
+        "candidate_id": "syn_b22_eligible",
+        "execution_authority": "AUTO_ALLOWED",
+        "acceptance_criteria": [],
+        "target_paths": [],
+    }
+    plan = s5l._build_plan_payload(
+        source_kind="bugfix",
+        item=item,
+        cycle_id="cid",
+        decision="AUTO_ALLOWED",
+        halt_reason="ok",
+        outcome="plan_emitted",
+        generated_at_utc="2026-05-15T00:00:00Z",
+    )
+    assert "step5_5_2_proposed" in plan
+    block = plan["step5_5_2_proposed"]
+    assert set(block.keys()) == _STEP5_5_2_PROPOSED_EXPECTED_KEYS
+    assert block["mode"] == "dry_run_only"
+    assert block["would_create_branch"] is False
+    assert block["would_open_pr"] is False
+    assert block["would_target_branch"] == ""
+    assert block["would_branch_name"] == ""
+    assert block["would_pr_title"] == ""
+    assert block["would_pr_body"] == ""
+    assert block["would_labels"] == []
+    assert block["would_reviewers"] == []
+    assert block["would_assignees"] == []
+    assert block["would_emit_release_gate_evidence"] is False
+
+
+def test_step5_5_2_proposed_block_present_in_no_op_plan_payload() -> None:
+    """The no_eligible_item plan payload emits the
+    ``step5_5_2_proposed`` block with the same closed schema and
+    pinned safe defaults as the eligible-item path."""
+    plan = s5l._build_no_op_plan_payload(
+        generated_at_utc="2026-05-15T00:00:00Z"
+    )
+    assert "step5_5_2_proposed" in plan
+    block = plan["step5_5_2_proposed"]
+    assert set(block.keys()) == _STEP5_5_2_PROPOSED_EXPECTED_KEYS
+    assert block["mode"] == "dry_run_only"
+    assert block["would_create_branch"] is False
+    assert block["would_open_pr"] is False
+    assert block["would_target_branch"] == ""
+    assert block["would_branch_name"] == ""
+    assert block["would_pr_title"] == ""
+    assert block["would_pr_body"] == ""
+    assert block["would_labels"] == []
+    assert block["would_reviewers"] == []
+    assert block["would_assignees"] == []
+    assert block["would_emit_release_gate_evidence"] is False
+
+
+def test_step5_5_2_does_not_bump_schema_version() -> None:
+    """B2.2 is an *additive* schema change. The module's
+    ``SCHEMA_VERSION`` and ``MODULE_VERSION`` constants are not
+    bumped by adding the ``step5_5_2_proposed`` block — adding an
+    optional metadata field with all-default values is
+    backward-compatible with consumers reading version 1.0."""
+    assert s5l.SCHEMA_VERSION == "1.0"
+    assert s5l.MODULE_VERSION == "v3.15.16.A14"
+
+
+def test_step5_5_2_proposed_list_fields_are_fresh_per_payload() -> None:
+    """Freshness assertion (operator-mandated): each of the three
+    list fields (``would_labels``, ``would_reviewers``,
+    ``would_assignees``) emitted into each plan payload is a fresh,
+    independent ``[]`` — NOT the same object as the module-level
+    ``_STEP5_5_2_PROPOSED_DEFAULT`` entry, and NOT shared between
+    payloads.
+
+    A future caller could otherwise mutate a returned payload's
+    list field and silently affect every other payload holding the
+    same list reference (including prior snapshots written to
+    disk). This test guarantees that scenario is structurally
+    impossible for every list field in the block.
+    """
+    list_field_names = ("would_labels", "would_reviewers", "would_assignees")
+
+    plan_a = s5l._build_plan_payload(
+        source_kind="bugfix",
+        item={
+            "candidate_id": "syn_b22_fresh_a",
+            "execution_authority": "AUTO_ALLOWED",
+            "acceptance_criteria": [],
+            "target_paths": [],
+        },
+        cycle_id="cid_a",
+        decision="AUTO_ALLOWED",
+        halt_reason="ok",
+        outcome="plan_emitted",
+        generated_at_utc="2026-05-15T00:00:00Z",
+    )
+    plan_b = s5l._build_plan_payload(
+        source_kind="bugfix",
+        item={
+            "candidate_id": "syn_b22_fresh_b",
+            "execution_authority": "AUTO_ALLOWED",
+            "acceptance_criteria": [],
+            "target_paths": [],
+        },
+        cycle_id="cid_b",
+        decision="AUTO_ALLOWED",
+        halt_reason="ok",
+        outcome="plan_emitted",
+        generated_at_utc="2026-05-15T00:00:00Z",
+    )
+    plan_noop = s5l._build_no_op_plan_payload(
+        generated_at_utc="2026-05-15T00:00:00Z"
+    )
+
+    block_a = plan_a["step5_5_2_proposed"]
+    block_b = plan_b["step5_5_2_proposed"]
+    block_noop = plan_noop["step5_5_2_proposed"]
+
+    for field in list_field_names:
+        module_default_list = s5l._STEP5_5_2_PROPOSED_DEFAULT[field]
+        list_a = block_a[field]
+        list_b = block_b[field]
+        list_noop = block_noop[field]
+
+        # Each emitted list has the expected empty value.
+        assert list_a == [], f"{field} not empty in plan A"
+        assert list_b == [], f"{field} not empty in plan B"
+        assert list_noop == [], f"{field} not empty in no-op plan"
+
+        # None of the emitted lists is the module-level default's list.
+        assert list_a is not module_default_list, (
+            f"{field}: plan A shares object with module default"
+        )
+        assert list_b is not module_default_list, (
+            f"{field}: plan B shares object with module default"
+        )
+        assert list_noop is not module_default_list, (
+            f"{field}: no-op plan shares object with module default"
+        )
+
+        # No two emitted lists share a reference with each other.
+        assert list_a is not list_b, f"{field}: plan A and plan B share object"
+        assert list_a is not list_noop, (
+            f"{field}: plan A and no-op plan share object"
+        )
+        assert list_b is not list_noop, (
+            f"{field}: plan B and no-op plan share object"
+        )
+
+        # Sanity check by mutation: mutating one emitted list must
+        # NOT propagate to any other emitted list or to the
+        # module-level default.
+        list_a.append("contaminant")
+        assert list_b == [], (
+            f"{field}: mutation of plan A leaked into plan B"
+        )
+        assert list_noop == [], (
+            f"{field}: mutation of plan A leaked into no-op plan"
+        )
+        assert s5l._STEP5_5_2_PROPOSED_DEFAULT[field] == [], (
+            f"{field}: mutation of plan A leaked into module default"
+        )
