@@ -1089,3 +1089,158 @@ def test_no_op_plan_cycle_id_is_stable() -> None:
     assert plan["cycle_id"] == expected
     assert plan["halt_reason"] == "no_eligible_item"
     assert plan["outcome"] == "no_op_no_eligible_item"
+
+
+# ---------------------------------------------------------------------------
+# B2.4a — Step 5 gate truth-table pin tests
+#
+# These additive tests pin the load-bearing source-level properties
+# documented in docs/governance/step5_gate_truth_table.md section 3:
+#
+#   - Both gating constants carry the Final annotation in source.
+#   - Neither constant is read inside an `if` / `while` / `assert`
+#     test-expression branch (metadata-only).
+#   - The future env flag ADE_STEP5_5_2_ENABLED does not yet exist
+#     in the module source.
+#
+# Pinning these properties at the AST level guarantees that any
+# future PR which attempts to silently flip the constants, remove
+# the Final annotation, or introduce the env flag fails CI before
+# it can land.
+# ---------------------------------------------------------------------------
+
+
+_GATE_CONSTANT_NAMES: tuple[str, ...] = (
+    "step5_implementation_allowed",
+    "STEP5_ENABLED_SUBSTAGE",
+)
+
+
+def _find_ann_assign_for(name: str, tree: ast.AST) -> ast.AnnAssign:
+    """Locate the module-level ``AnnAssign`` node binding ``name``.
+    Raises AssertionError when no such binding exists."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign) and isinstance(
+            node.target, ast.Name
+        ):
+            if node.target.id == name:
+                return node
+    raise AssertionError(f"no AnnAssign found for {name!r}")
+
+
+def _annotation_is_final(annotation: ast.AST, expected_inner: str) -> bool:
+    """Return True if ``annotation`` is exactly ``Final[<expected_inner>]``.
+    Requires the parameterised ``Final[X]`` form; bare ``Final``
+    without a type argument is rejected."""
+    if not isinstance(annotation, ast.Subscript):
+        return False
+    value = annotation.value
+    if not isinstance(value, ast.Name) or value.id != "Final":
+        return False
+    inner = annotation.slice
+    if isinstance(inner, ast.Name):
+        return inner.id == expected_inner
+    return False
+
+
+def test_step5_implementation_allowed_is_final_in_source() -> None:
+    """AST pin: ``step5_implementation_allowed`` must carry the
+    ``Final[bool]`` annotation. Removing the ``Final`` annotation
+    requires an ADR-015 / ADR-017 amendment per truth-table doc
+    section 6 Path C."""
+    src = (REPORTING_DIR / "development_step5_loop.py").read_text(
+        encoding="utf-8"
+    )
+    tree = ast.parse(src)
+    node = _find_ann_assign_for("step5_implementation_allowed", tree)
+    assert _annotation_is_final(node.annotation, "bool"), (
+        "step5_implementation_allowed must be annotated Final[bool] "
+        "(truth-table doc section 3.2)"
+    )
+    # Default value must remain False - pinned by other tests, but
+    # we also assert it here for tight coupling with the AST check.
+    assert isinstance(node.value, ast.Constant)
+    assert node.value.value is False
+
+
+def test_step5_enabled_substage_is_final_in_source() -> None:
+    """AST pin: ``STEP5_ENABLED_SUBSTAGE`` must carry the
+    ``Final[str]`` annotation per truth-table doc section 3.1."""
+    src = (REPORTING_DIR / "development_step5_loop.py").read_text(
+        encoding="utf-8"
+    )
+    tree = ast.parse(src)
+    node = _find_ann_assign_for("STEP5_ENABLED_SUBSTAGE", tree)
+    assert _annotation_is_final(node.annotation, "str"), (
+        "STEP5_ENABLED_SUBSTAGE must be annotated Final[str] "
+        "(truth-table doc section 3.1)"
+    )
+    assert isinstance(node.value, ast.Constant)
+    assert node.value.value == "none"
+
+
+def test_step5_constants_have_no_runtime_consumer_branch() -> None:
+    """AST pin: neither gating constant appears as a ``Name`` node
+    anywhere inside the ``test`` sub-tree of any ``ast.If`` /
+    ``ast.While`` / ``ast.Assert`` node in the Step 5.0 module.
+
+    This catches the variants a naive source-text scan would miss:
+
+    * ``if step5_implementation_allowed:`` (bare branch)
+    * ``if not step5_implementation_allowed:`` (negated)
+    * ``if (step5_implementation_allowed):`` (parenthesised)
+    * ``if STEP5_ENABLED_SUBSTAGE != "none":`` (comparison)
+    * ``elif step5_implementation_allowed and other:`` (BoolOp)
+    * ``while STEP5_ENABLED_SUBSTAGE == "5.2":`` (while)
+    * ``assert not step5_implementation_allowed`` (assert with UnaryOp)
+
+    All of the above would mark the constant as a runtime consumer,
+    which violates the truth-table doc section 5 architectural
+    unreachability proof.
+    """
+    src = (REPORTING_DIR / "development_step5_loop.py").read_text(
+        encoding="utf-8"
+    )
+    tree = ast.parse(src)
+    forbidden_names = set(_GATE_CONSTANT_NAMES)
+    offending: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If):
+            test_expr = node.test
+            node_kind = "if/elif"
+        elif isinstance(node, ast.While):
+            test_expr = node.test
+            node_kind = "while"
+        elif isinstance(node, ast.Assert):
+            test_expr = node.test
+            node_kind = "assert"
+        else:
+            continue
+        for sub in ast.walk(test_expr):
+            if isinstance(sub, ast.Name) and sub.id in forbidden_names:
+                line = getattr(node, "lineno", -1)
+                offending.append(
+                    f"{node_kind} branch at line {line} reads {sub.id!r}"
+                )
+    assert offending == [], (
+        "runtime-consumer branch(es) detected on Step 5 gating constants:\n"
+        + "\n".join(offending)
+        + "\n(truth-table doc section 5 architectural unreachability "
+        "proof would no longer hold)"
+    )
+
+
+def test_no_step5_5_2_env_flag_in_step5_module() -> None:
+    """Source-text pin: the prospective ``ADE_STEP5_5_2_ENABLED``
+    env flag does not yet appear anywhere in the Step 5.0 module.
+
+    Introducing the env flag is part of Path B (truth-table doc
+    section 6) and requires a separate, explicitly authorised PR.
+    """
+    src = (REPORTING_DIR / "development_step5_loop.py").read_text(
+        encoding="utf-8"
+    )
+    assert "ADE_STEP5_5_2_ENABLED" not in src, (
+        "ADE_STEP5_5_2_ENABLED env flag introduced without a "
+        "separate B2.3 / B2.4b PR (truth-table doc section 6 Path B)"
+    )
