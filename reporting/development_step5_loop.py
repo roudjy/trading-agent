@@ -181,6 +181,59 @@ _DISCIPLINE_INVARIANTS: Final[dict[str, bool]] = {
 
 
 # ---------------------------------------------------------------------------
+# B2.1 — Step 5.1 adapter (default-disabled, additive schema)
+# ---------------------------------------------------------------------------
+
+#: v3.15.16.A15.B2.1 — Default-disabled "would do" preview for a
+#: hypothetical Step 5.1 cycle. Every Boolean field is pinned False
+#: and ``would_touch_paths`` is empty. The block is emitted into
+#: every plan payload as METADATA ONLY; no runtime gate reads it.
+#:
+#: Flipping any field here requires:
+#:   (a) a coordinated source change pinned by updated tests, AND
+#:   (b) the Path B / Path C governance amendments documented in
+#:       docs/governance/step5_gate_truth_table.md section 6.
+#:
+#: ``step5_implementation_allowed`` remains ``Final[False]`` and
+#: ``STEP5_ENABLED_SUBSTAGE`` remains ``Final["none"]`` regardless
+#: of changes to this block — the B2.4a AST pin still holds.
+#:
+#: This constant declares the closed schema (used by tests).
+#: Emitted payloads MUST call ``_fresh_step5_5_1_proposed()`` instead
+#: of shallow-copying this constant — see helper below for why.
+_STEP5_5_1_PROPOSED_DEFAULT: Final[dict[str, Any]] = {
+    "mode": "dry_run_only",
+    "would_create_branch": False,
+    "would_open_pr": False,
+    "would_touch_paths": [],
+    "would_run_targeted_tests": False,
+    "would_emit_release_gate_evidence": False,
+}
+
+
+def _fresh_step5_5_1_proposed() -> dict[str, Any]:
+    """Return a fresh Step 5.1 adapter default block per payload.
+
+    ``would_touch_paths`` must be a fresh empty list per payload —
+    never a shared object reference with the module-level
+    ``_STEP5_5_1_PROPOSED_DEFAULT`` constant. A shallow ``dict(...)``
+    copy of the constant would leak the same list across every
+    emitted payload, which a future caller could mutate and
+    silently affect prior snapshots. This helper rebuilds the
+    block from scratch so every emitted ``would_touch_paths`` is
+    a fresh, independent ``[]``.
+    """
+    return {
+        "mode": "dry_run_only",
+        "would_create_branch": False,
+        "would_open_pr": False,
+        "would_touch_paths": [],
+        "would_run_targeted_tests": False,
+        "would_emit_release_gate_evidence": False,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
 
@@ -357,6 +410,7 @@ def _build_plan_payload(
         "acceptance_criteria": acceptance,
         "target_paths": target_paths,
         "discipline_invariants": dict(_DISCIPLINE_INVARIANTS),
+        "step5_5_1_proposed": _fresh_step5_5_1_proposed(),
         "vocabularies": {
             "step5_substages": list(STEP5_SUBSTAGES),
             "halt_reasons": list(STEP5_HALT_REASONS),
@@ -389,6 +443,7 @@ def _build_no_op_plan_payload(*, generated_at_utc: str) -> dict[str, Any]:
         "acceptance_criteria": [],
         "target_paths": [],
         "discipline_invariants": dict(_DISCIPLINE_INVARIANTS),
+        "step5_5_1_proposed": _fresh_step5_5_1_proposed(),
         "vocabularies": {
             "step5_substages": list(STEP5_SUBSTAGES),
             "halt_reasons": list(STEP5_HALT_REASONS),
