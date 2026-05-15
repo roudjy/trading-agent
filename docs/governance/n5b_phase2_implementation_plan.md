@@ -545,3 +545,26 @@ authorised** by this PR:
 | Operator-go-only (this PR's go phrase) | given for B2.8a only |
 | No runtime authority | yes — this plan grants none |
 | No merge execution route exists | yes — none added by this PR |
+
+---
+
+## 11. Precondition readiness reference (sub-doc)
+
+A separate governance-only sub-document records the §4
+precondition readiness state for any future code-bearing
+sub-unit (B2.8c / B2.8d / B2.8e):
+
+* [`n5b_phase2_precondition_readiness.md`](n5b_phase2_precondition_readiness.md)
+
+The readiness sub-doc:
+
+* documents the repo evidence for §4.3 (machine-confirmed
+  satisfied by [PR #203](https://github.com/roudjy/trading-agent/pull/203));
+* leaves §4.1 and §4.2 as operator-only declaration fields
+  with defaults `NOT_YET_DECLARED` and `UNKNOWN`;
+* defines the closed declaration schema that the B2.8c PR
+  description must carry verbatim;
+* does **not** advance B2.8c implementation;
+* does **not** import `reporting.approval_token_runtime`,
+  read any environment variable, interact with the VPS, write
+  any audit artefact, or wire `dashboard/dashboard.py`.
