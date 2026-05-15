@@ -234,6 +234,76 @@ def _fresh_step5_5_1_proposed() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# B2.2 — Step 5.2 PR dry-run (default-disabled, additive schema)
+# ---------------------------------------------------------------------------
+
+#: v3.15.16.A15.B2.2 — Default-disabled "would do" preview for a
+#: hypothetical Step 5.2 cycle (the substage that would actually
+#: open a code-review request against ``main``). Every Boolean
+#: field is pinned False, every string field is empty, and every
+#: list field is empty. The block is emitted into every plan
+#: payload as METADATA ONLY; no runtime gate reads it.
+#:
+#: Flipping any field here requires:
+#:   (a) a coordinated source change pinned by updated tests, AND
+#:   (b) the Path B / Path C governance amendments documented in
+#:       docs/governance/step5_gate_truth_table.md section 6.
+#:
+#: ``step5_implementation_allowed`` remains ``Final[False]`` and
+#: ``STEP5_ENABLED_SUBSTAGE`` remains ``Final["none"]`` regardless
+#: of changes to this block — the B2.4a AST pin still holds, and
+#: the existing ``test_no_runtime_consumer_of_step5_gate_constants``
+#: test continues to assert no branch reads the gating constants.
+#:
+#: This constant declares the closed schema (used by tests).
+#: Emitted payloads MUST call ``_fresh_step5_5_2_proposed()`` instead
+#: of shallow-copying this constant — see helper below for why.
+_STEP5_5_2_PROPOSED_DEFAULT: Final[dict[str, Any]] = {
+    "mode": "dry_run_only",
+    "would_create_branch": False,
+    "would_open_pr": False,
+    "would_target_branch": "",
+    "would_branch_name": "",
+    "would_pr_title": "",
+    "would_pr_body": "",
+    "would_labels": [],
+    "would_reviewers": [],
+    "would_assignees": [],
+    "would_emit_release_gate_evidence": False,
+}
+
+
+def _fresh_step5_5_2_proposed() -> dict[str, Any]:
+    """Return a fresh Step 5.2 PR dry-run default block per payload.
+
+    The three list fields (``would_labels``, ``would_reviewers``,
+    ``would_assignees``) must each be a fresh empty list per
+    payload — never a shared object reference with the module-level
+    ``_STEP5_5_2_PROPOSED_DEFAULT`` constant. A shallow
+    ``dict(...)`` copy of the constant would leak the same lists
+    across every emitted payload, which a future caller could
+    mutate and silently affect prior snapshots. This helper
+    rebuilds the block from scratch so every emitted list field
+    is a fresh, independent ``[]``. String fields are immutable
+    in Python so they cannot exhibit the same aliasing hazard;
+    they are pinned to the empty literal regardless.
+    """
+    return {
+        "mode": "dry_run_only",
+        "would_create_branch": False,
+        "would_open_pr": False,
+        "would_target_branch": "",
+        "would_branch_name": "",
+        "would_pr_title": "",
+        "would_pr_body": "",
+        "would_labels": [],
+        "would_reviewers": [],
+        "would_assignees": [],
+        "would_emit_release_gate_evidence": False,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
 
@@ -411,6 +481,7 @@ def _build_plan_payload(
         "target_paths": target_paths,
         "discipline_invariants": dict(_DISCIPLINE_INVARIANTS),
         "step5_5_1_proposed": _fresh_step5_5_1_proposed(),
+        "step5_5_2_proposed": _fresh_step5_5_2_proposed(),
         "vocabularies": {
             "step5_substages": list(STEP5_SUBSTAGES),
             "halt_reasons": list(STEP5_HALT_REASONS),
@@ -444,6 +515,7 @@ def _build_no_op_plan_payload(*, generated_at_utc: str) -> dict[str, Any]:
         "target_paths": [],
         "discipline_invariants": dict(_DISCIPLINE_INVARIANTS),
         "step5_5_1_proposed": _fresh_step5_5_1_proposed(),
+        "step5_5_2_proposed": _fresh_step5_5_2_proposed(),
         "vocabularies": {
             "step5_substages": list(STEP5_SUBSTAGES),
             "halt_reasons": list(STEP5_HALT_REASONS),
