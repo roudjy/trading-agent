@@ -170,6 +170,24 @@ for py in sorted(hooks_dir.glob("*.py")):
             "_hook_runtime (fail-closed wrapper required for deny hooks)"
         )
 
+# 6. Push-notification body safety -----------------------------------------
+#
+# Per docs/governance/agent_activity_center_push_notification_safety.md
+# section 2 + section 8: push-publisher surfaces must never contain
+# operator-go-phrase literals. Generic credential values are covered by
+# the existing gitleaks CI step and the read-deny hooks; this check owns
+# the operator-go-phrase family specifically. Silent on success.
+
+try:
+    from push_body_safety_lint import find_push_body_safety_violations
+except ImportError:
+    # When invoked as `python scripts/governance_lint.py`, the scripts/
+    # directory is not automatically on sys.path. Add it then retry.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from push_body_safety_lint import find_push_body_safety_violations
+
+for violation in find_push_body_safety_violations(ROOT):
+    _err(violation)
 # Result -------------------------------------------------------------------
 
 if ERRORS:
