@@ -475,11 +475,31 @@ def _excerpt_around(text: str, idx: int, span: int = 80) -> str:
     return text[start:end]
 
 
+#: Allowlist of N5b-adapter module paths that are explicitly
+#: permitted by the operator. The list grows one path at a time
+#: per sub-unit, narrowing the "no module exists" pin without
+#: weakening its closed semantics. As of B2.8b the only allowed
+#: path is the Phase 2 dry-run skeleton blueprint introduced
+#: under that operator-go. The reporting-side audit projector
+#: (``reporting/n5b_merge_execution_dry_run.py``) remains
+#: forbidden; it is reserved for B2.8c.
+_ALLOWED_N5B_ADAPTER_MODULES: tuple[str, ...] = (
+    "dashboard/api_merge_execution_dry_run.py",
+)
+
+
 def test_no_new_merge_execution_adapter_module_exists() -> None:
-    """The doc-only PR must not ship a new dashboard.api_n5b_*
-    module nor a reporting.n5b_* module. A future implementation
-    PR can introduce the module; this test then needs to be
-    updated in the same PR."""
+    """Originally a hard 'no module exists' pin; **narrowed by
+    B2.8b** to allow exactly the operator-approved skeleton
+    blueprint at
+    ``dashboard/api_merge_execution_dry_run.py``. Any other
+    file matching the forbidden globs in ``dashboard/`` or
+    ``reporting/`` still fails the test.
+
+    Subsequent sub-units (B2.8c / B2.8d / B2.8e) may extend
+    ``_ALLOWED_N5B_ADAPTER_MODULES`` by appending one further
+    operator-approved path per PR. They must never widen the
+    glob set or remove paths."""
     dashboard_dir = REPO_ROOT / "dashboard"
     reporting_dir = REPO_ROOT / "reporting"
     forbidden_module_globs = [
@@ -495,10 +515,17 @@ def test_no_new_merge_execution_adapter_module_exists() -> None:
         if not d.is_dir():
             continue
         for pat in forbidden_module_globs:
-            hits.extend(str(p) for p in d.rglob(pat))
+            for p in d.rglob(pat):
+                rel = p.relative_to(REPO_ROOT).as_posix()
+                if rel in _ALLOWED_N5B_ADAPTER_MODULES:
+                    continue
+                hits.append(rel)
     assert not hits, (
-        "doc-only PR introduced a runtime N5b adapter module: "
-        f"{hits!r}. The N5b plan-doc must ship without runtime code."
+        "PR introduced a runtime N5b adapter module outside the "
+        "operator-approved allowlist "
+        f"{_ALLOWED_N5B_ADAPTER_MODULES!r}: {hits!r}. "
+        "Adding a new path requires an explicit operator-go and "
+        "an updated allowlist in the same PR."
     )
 
 
@@ -619,27 +646,48 @@ def test_no_subprocess_pr_mutation_in_runtime_code() -> None:
     )
 
 
+#: Allowlist of runtime source files that are explicitly
+#: permitted to contain the ``/api/agent-control/merge-execution``
+#: route prefix. The list grows one path at a time per sub-unit,
+#: narrowing the "no endpoint in runtime code" pin without
+#: weakening its closed semantics. As of B2.8b the only allowed
+#: file is the Phase 2 dry-run skeleton blueprint.
+_ALLOWED_MERGE_EXECUTION_ROUTE_FILES: tuple[str, ...] = (
+    "dashboard/api_merge_execution_dry_run.py",
+)
+
+
 def test_no_new_merge_execution_endpoint_in_runtime_code() -> None:
-    """No Flask route registers anything under
-    /api/agent-control/merge-execution/ in this PR."""
+    """Originally a hard 'no route URL in runtime' pin;
+    **narrowed by B2.8b** to allow exactly the operator-approved
+    skeleton blueprint to carry the
+    ``/api/agent-control/merge-execution`` route prefix. Any
+    other runtime source file that mentions the prefix still
+    fails the test.
+
+    Subsequent sub-units may extend
+    ``_ALLOWED_MERGE_EXECUTION_ROUTE_FILES`` by appending one
+    further operator-approved file per PR. They must never
+    widen the prefix scan or remove files."""
     forbidden_route_prefix = "/api/agent-control/merge-execution"
     hits: list[tuple[str, str]] = []
     for path in _runtime_source_paths():
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel in _ALLOWED_MERGE_EXECUTION_ROUTE_FILES:
+            continue
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         idx = text.find(forbidden_route_prefix)
         if idx >= 0:
-            hits.append(
-                (
-                    str(path.relative_to(REPO_ROOT)),
-                    _excerpt_around(text, idx),
-                )
-            )
+            hits.append((rel, _excerpt_around(text, idx)))
     assert not hits, (
-        f"runtime source registers a /merge-execution route: {hits!r}. "
-        "The N5b plan-doc must ship without endpoints."
+        "runtime source registers a /merge-execution route outside "
+        "the operator-approved allowlist "
+        f"{_ALLOWED_MERGE_EXECUTION_ROUTE_FILES!r}: {hits!r}. "
+        "Adding a new file requires an explicit operator-go and "
+        "an updated allowlist in the same PR."
     )
 
 
