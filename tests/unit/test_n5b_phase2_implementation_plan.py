@@ -670,28 +670,45 @@ def _runtime_source_paths() -> list[Path]:
 
 
 def test_no_phase2_module_exists_in_runtime_yet() -> None:
-    """The future Phase 2 module path must not exist on disk
-    after B2.8a lands. The pin-test in
-    test_n5b_merge_execution_plan.py also enforces the broader
-    'no merge_execution adapter module' invariant; this test
-    adds a path-specific assertion for B2.8a-era clarity."""
-    candidate_paths = (
-        REPO_ROOT / "dashboard" / "api_merge_execution_dry_run.py",
-        REPO_ROOT / "reporting" / "n5b_merge_execution_dry_run.py",
+    """Originally a B2.8a-era pin asserting neither Phase 2
+    module existed on disk. **Narrowed by B2.8b** to allow the
+    operator-approved skeleton blueprint
+    ``dashboard/api_merge_execution_dry_run.py``. The
+    reporting-side audit projector
+    ``reporting/n5b_merge_execution_dry_run.py`` remains
+    forbidden; it is reserved for B2.8c."""
+    dashboard_skeleton = (
+        REPO_ROOT / "dashboard" / "api_merge_execution_dry_run.py"
     )
-    existing = [str(p) for p in candidate_paths if p.is_file()]
-    assert not existing, (
-        f"B2.8a is doc-only; future Phase 2 module(s) must not exist: "
-        f"{existing!r}"
+    reporting_projector = (
+        REPO_ROOT / "reporting" / "n5b_merge_execution_dry_run.py"
     )
+    # The dashboard skeleton MUST exist now (B2.8b landed it).
+    assert dashboard_skeleton.is_file(), (
+        f"B2.8b skeleton missing on disk: {dashboard_skeleton}"
+    )
+    # The reporting-side audit projector MUST NOT exist yet
+    # (B2.8c will land it).
+    assert not reporting_projector.is_file(), (
+        f"B2.8b is skeleton-only; reporting projector must not "
+        f"exist yet: {reporting_projector}"
+    )
+
+
+#: Allowlist of runtime source files that are explicitly
+#: permitted to carry the Phase 2 dry-run route literal. As of
+#: B2.8b the only allowed file is the skeleton blueprint.
+_ALLOWED_PHASE2_ROUTE_FILES: tuple[str, ...] = (
+    "dashboard/api_merge_execution_dry_run.py",
+)
 
 
 def test_no_phase2_route_url_in_runtime_yet() -> None:
-    """The literal future-route URL must not appear in any
-    runtime source file under dashboard/ / reporting/ / scripts/
-    / .github/workflows/ after B2.8a lands. The plan-doc lives
-    under docs/ and is exempt; this test source itself lives
-    under tests/ and is also exempt."""
+    """Originally a B2.8a-era pin forbidding the future Phase 2
+    route URL anywhere in runtime source. **Narrowed by B2.8b**
+    to allow exactly the operator-approved skeleton blueprint
+    to carry the route literal. Any other runtime source file
+    that mentions the literal still fails the test."""
     # Assemble the forbidden URL prefix at runtime so this test
     # source remains inert to greppers looking for the literal.
     forbidden_route = (
@@ -699,6 +716,9 @@ def test_no_phase2_route_url_in_runtime_yet() -> None:
     )
     hits: list[tuple[str, str]] = []
     for path in _runtime_source_paths():
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel in _ALLOWED_PHASE2_ROUTE_FILES:
+            continue
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -706,10 +726,11 @@ def test_no_phase2_route_url_in_runtime_yet() -> None:
         idx = text.find(forbidden_route)
         if idx >= 0:
             excerpt = text[max(0, idx - 80) : idx + 80]
-            hits.append((str(path.relative_to(REPO_ROOT)), excerpt))
+            hits.append((rel, excerpt))
     assert not hits, (
-        "runtime source registers the future Phase 2 dry-run route: "
-        f"{hits!r}. B2.8a must remain doc-only."
+        "runtime source registers the Phase 2 dry-run route outside "
+        "the operator-approved allowlist "
+        f"{_ALLOWED_PHASE2_ROUTE_FILES!r}: {hits!r}."
     )
 
 
