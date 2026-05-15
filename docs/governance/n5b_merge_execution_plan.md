@@ -628,6 +628,28 @@ authorised** by this PR:
 
 ---
 
+## 13. Phase 2 implementation decomposition (sub-plan reference)
+
+A separate plan-only sub-document decomposes any future N5b
+Phase 2 implementation into ordered, auditable sub-units
+(B2.8a / B2.8b / B2.8c / B2.8d / B2.8e):
+
+* [`n5b_phase2_implementation_plan.md`](n5b_phase2_implementation_plan.md)
+
+The sub-plan pins the closed contracts (future module path,
+future route URL, request body schema, response statuses, audit
+artefact paths under `logs/n5b_merge_execution/`) and the hard
+preconditions (Phase 1 observed-clean period, N4b Phase B
+activation, N4c-or-equivalent mint/verify UI) that **all** must
+be true before any runtime code-bearing sub-unit may land.
+
+The sub-plan itself adds **no runtime code**. The status table
+in §5 of this parent doc remains "Phase 2 — Not implemented"
+until B2.8e completes; only B2.8e is authorised to update the
+status row.
+
+---
+
 ## Cross-references
 
 * `docs/governance/development_merge_recommendation.md` — N5a
