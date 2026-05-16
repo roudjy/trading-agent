@@ -76,8 +76,172 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from reporting import n5b_merge_execution_dry_run as projector
 
     monkeypatch.setattr(projector, "PREFLIGHT_LATEST", preflight_target)
+
+    # Re-bind the projector's FAILURE_DIR to tmp_path so the walker
+    # writes B2.8d failure artefacts into the test sandbox.
+    failure_dir = (
+        tmp_path / "logs" / "n5b_merge_execution" / "failure"
+    )
+    failure_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(projector, "FAILURE_DIR", failure_dir)
+
+    # Re-bind the walker's three upstream-artefact paths to tmp_path
+    # so tests can inject synthetic N5a / A22 / github_pr_lifecycle
+    # artefacts to exercise the B2.8d walker.
+    for attr, rel in (
+        ("_N5A_ARTIFACT_PATH",
+         "logs/development_merge_recommendation/latest.json"),
+        ("_A22_ARTIFACT_PATH",
+         "logs/development_pr_lifecycle_observer/latest.json"),
+        ("_GITHUB_PR_LIFECYCLE_ARTIFACT_PATH",
+         "logs/github_pr_lifecycle/latest.json"),
+    ):
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setattr(mod, attr, target)
+
     monkeypatch.delenv(atr.ENV_APPROVAL_TOKEN_HMAC_SECRET, raising=False)
     yield preflight_target
+
+
+# ---------------------------------------------------------------------------
+# Synthetic upstream-artefact helpers for B2.8d walker exercises
+# ---------------------------------------------------------------------------
+
+
+def _write_synthetic_n5a(
+    *,
+    pr_number: int,
+    head_sha: str,
+    action: str = "recommend_human_merge",
+    reason: str = "pr_clean_and_no_blocking_inbox",
+    inbox_critical_count: int = 0,
+    evaluated_at: str | None = None,
+) -> None:
+    """Write a synthetic N5a artefact at the tmp-redirected path."""
+    if evaluated_at is None:
+        from datetime import UTC, datetime
+
+        evaluated_at = (
+            datetime.now(UTC).replace(microsecond=0).isoformat().replace(
+                "+00:00", "Z"
+            )
+        )
+    payload = {
+        "rows": [
+            {
+                "recommendation_id": "rec_synth",
+                "pr_number": pr_number,
+                "head_sha": head_sha,
+                "head_ref": "feature/synth",
+                "base_ref": "main",
+                "observer_classification": "open",
+                "inbox_blocked_count": 0,
+                "inbox_critical_count": inbox_critical_count,
+                "inbox_needs_review_count": 0,
+                "recommendation_action": action,
+                "recommendation_reason": reason,
+                "evaluated_at": evaluated_at,
+            }
+        ]
+    }
+    mod._N5A_ARTIFACT_PATH.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _write_synthetic_a22(
+    *,
+    pr_number: int,
+    head_sha: str,
+    merge_state_status: str = "CLEAN",
+    checks_summary: str = "SUCCESS",
+    base_ref: str = "main",
+) -> None:
+    """Write a synthetic A22 artefact at the tmp-redirected path."""
+    payload = {
+        "rows": [
+            {
+                "pr_number": pr_number,
+                "title": "synth",
+                "head_ref": "feature/synth",
+                "head_sha": head_sha,
+                "base_ref": base_ref,
+                "state": "open",
+                "is_draft": False,
+                "merge_state_status": merge_state_status,
+                "mergeable": True,
+                "checks_summary": checks_summary,
+                "author_login": "synth-author",
+                "is_dependabot": False,
+                "observer_classification": "open",
+                "url": "https://example/pr",
+                "created_at": "2026-05-16T00:00:00Z",
+                "updated_at": "2026-05-16T00:00:00Z",
+            }
+        ]
+    }
+    mod._A22_ARTIFACT_PATH.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _write_synthetic_gh_pr_lifecycle(
+    *,
+    pr_number: int,
+    protected_paths_touched: bool = False,
+    no_touch_path_violation: bool = False,
+    deploy_coupling_detected: bool = False,
+    step5_flag_changed: bool = False,
+    level_6_attempted: bool = False,
+    branch_protection_satisfied: bool = True,
+) -> None:
+    """Write a synthetic github_pr_lifecycle artefact at the
+    tmp-redirected path. Includes the B2.8d extended optional fields
+    that production today does not yet emit — by design, until those
+    fields are added upstream the walker fails closed with
+    ``network_uncertain``."""
+    payload = {
+        "prs": [
+            {
+                "number": pr_number,
+                "title": "synth",
+                "branch": "feature/synth",
+                "base": "main",
+                "author": "synth-author",
+                "package": "synth",
+                "merge_state": "clean",
+                "checks_state": "passed",
+                "additions": 1,
+                "deletions": 0,
+                "files_count": 1,
+                "protected_paths_touched": protected_paths_touched,
+                "no_touch_path_violation": no_touch_path_violation,
+                "deploy_coupling_detected": deploy_coupling_detected,
+                "step5_flag_changed": step5_flag_changed,
+                "level_6_attempted": level_6_attempted,
+                "branch_protection_satisfied": branch_protection_satisfied,
+                "risk_class": "LOW",
+                "risk_reason": "synth",
+                "decision": "merge_allowed",
+                "reason": "synth",
+                "actions_taken": [],
+                "url": "https://example/pr",
+            }
+        ]
+    }
+    mod._GITHUB_PR_LIFECYCLE_ARTIFACT_PATH.write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
+def _seed_all_clean_upstream_artefacts(
+    *,
+    pr_number: int = 123,
+    head_sha: str = "abc1234567890def1234567890abcdef12345678",
+) -> None:
+    """Write all three synthetic upstream artefacts in the
+    all-pass / all-clean configuration. Used by the happy-walker
+    test to drive preconditions 8–17 to success."""
+    _write_synthetic_n5a(pr_number=pr_number, head_sha=head_sha)
+    _write_synthetic_a22(pr_number=pr_number, head_sha=head_sha)
+    _write_synthetic_gh_pr_lifecycle(pr_number=pr_number)
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +254,7 @@ def test_module_imports_successfully() -> None:
 
 
 def test_module_version_is_pinned_string() -> None:
-    assert mod.MODULE_VERSION == "v3.15.16.N5b.phase2.walker_1_7"
+    assert mod.MODULE_VERSION == "v3.15.16.N5b.phase2.walker_1_17"
 
 
 def test_schema_version_is_pinned_integer_1() -> None:
@@ -752,12 +916,14 @@ def test_replay_detected_on_second_request_no_preflight_on_replay(
     _isolate_state: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """First request: all 7 pass → preflight artefact written →
-    not_yet_implemented. Second request with the same token:
-    replay_detected → rejected → preflight artefact NOT overwritten
-    by the rejected branch (we delete the artefact between the two
-    calls to make the negative-assertion strict)."""
+    """First request: all 1–7 pass + all 1–17 pass → preflight
+    artefact written → not_yet_implemented. Second request with
+    the same token: replay_detected → rejected → preflight
+    artefact NOT overwritten by the rejected branch (we delete
+    the artefact between the two calls to make the negative
+    assertion strict)."""
     token = _mint_dry_run_token(monkeypatch)
+    _seed_all_clean_upstream_artefacts()
     body = _body_with_token(token)
     app = _build_app()
     with app.test_client() as client:
@@ -782,11 +948,19 @@ def test_replay_detected_on_second_request_no_preflight_on_replay(
 # ---------------------------------------------------------------------------
 
 
-def test_happy_walker_returns_not_yet_implemented_with_preflight_written(
+def test_happy_walker_returns_not_yet_implemented_after_all_17_pass(
     _isolate_state: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """B2.8d happy path: all 17 preconditions pass.
+
+    Per the operator-approved deferral, B2.8d returns
+    ``not_yet_implemented`` with
+    ``preconditions_evaluated=17``, ``preconditions_passed=17``,
+    ``reason="b2_8e_implementation_pending"``. B2.8e flips the
+    literal to ``ok``."""
     token = _mint_dry_run_token(monkeypatch)
+    _seed_all_clean_upstream_artefacts()
     body = _body_with_token(token)
     app = _build_app()
     with app.test_client() as client:
@@ -795,9 +969,9 @@ def test_happy_walker_returns_not_yet_implemented_with_preflight_written(
     assert payload["status"] == "not_yet_implemented"
     assert payload["stop_condition"] is None
     assert payload["would_proceed"] is False
-    assert payload["preconditions_evaluated"] == 7
-    assert payload["preconditions_passed"] == 7
-    assert payload["reason"] == "preconditions_8_through_17_pending"
+    assert payload["preconditions_evaluated"] == 17
+    assert payload["preconditions_passed"] == 17
+    assert payload["reason"] == "b2_8e_implementation_pending"
     assert payload["pr_number"] == 123
     assert payload["pr_head_sha"] == "abc1234567890def1234567890abcdef12345678"
     # Preflight artefact exists with the closed schema.
@@ -817,6 +991,7 @@ def test_preflight_artefact_carries_kid_and_nonce_hash_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     token = _mint_dry_run_token(monkeypatch)
+    _seed_all_clean_upstream_artefacts()
     body = _body_with_token(token)
     app = _build_app()
     with app.test_client() as client:
@@ -832,14 +1007,15 @@ def test_preflight_artefact_carries_kid_and_nonce_hash_only(
     assert "token" not in snapshot
 
 
-def test_b2_8c_never_emits_ok_status(
+def test_b2_8d_never_emits_ok_status(
     _isolate_state: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Pin: even on the fully-clean happy path, B2.8c emits
-    ``not_yet_implemented`` — never ``ok``. The ``ok`` status is
-    reserved for B2.8e when preconditions 8–17 also walk."""
+    """Pin: even on the fully-clean happy path (1–17 all pass),
+    B2.8d emits ``not_yet_implemented`` — never ``ok``. The ``ok``
+    status is deferred to B2.8e per operator preference."""
     token = _mint_dry_run_token(monkeypatch)
+    _seed_all_clean_upstream_artefacts()
     body = _body_with_token(token)
     app = _build_app()
     with app.test_client() as client:
@@ -857,10 +1033,14 @@ def test_preflight_write_failure_emits_rejected_500_no_new_stop_condition(
     _isolate_state: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Post-verification write failure: status=rejected, HTTP 500,
-    stop_condition=None, reason='preflight_write_failed'. No new
-    §7 stop-condition literal is introduced."""
+    """Post-verification preflight-write failure: status=rejected,
+    HTTP 500, stop_condition=None,
+    reason='preflight_write_failed'. No new §7 stop-condition
+    literal is introduced. This boundary is between B2.8c
+    verification + B2.8d walker."""
     token = _mint_dry_run_token(monkeypatch)
+    # Seed upstream so the walker would otherwise proceed past 1–7.
+    _seed_all_clean_upstream_artefacts()
     body = _body_with_token(token)
 
     from reporting import n5b_merge_execution_dry_run as projector
@@ -999,9 +1179,12 @@ def test_discipline_fields_dict_is_closed_six_set() -> None:
 
 
 def test_only_closed_stop_conditions_appear_in_translation_tables() -> None:
-    """The walker's translation tables must emit only §7 stop
-    conditions enumerated by the B2.8c implementation plan §6.2."""
-    allowed_in_b2_8c = {
+    """The B2.8c body / verify translation tables must emit only
+    the closed §7 vocabulary subset documented for §6.2 (B2.8c).
+    The B2.8d walker for preconditions 8–17 emits additional
+    closed §6.3 stops; those are NOT in the body/verify tables and
+    are pinned separately."""
+    allowed_in_b2_8c_tables = {
         "token_missing",
         "token_invalid",
         "replay_detected",
@@ -1015,19 +1198,557 @@ def test_only_closed_stop_conditions_appear_in_translation_tables() -> None:
         "pr_number_mismatch",
         "binding_mismatch",
     }
-    illegal = (body_stops | verify_stops) - allowed_in_b2_8c
+    illegal = (body_stops | verify_stops) - allowed_in_b2_8c_tables
     assert illegal == set(), (
-        f"walker emits stop_condition literals outside the B2.8c "
-        f"closed §7 vocabulary: {illegal!r}"
+        f"B2.8c translation tables emit stop_condition literals "
+        f"outside the §6.2 closed vocabulary: {illegal!r}"
     )
 
 
-def test_module_source_does_not_mention_b2_8d_or_later_stop_conditions() -> None:
-    """The closed §7 stop conditions reserved for B2.8d / B2.8e
-    must NOT appear as quoted literals in the B2.8c walker source.
-    This pins the scope boundary."""
+def test_walker_does_not_mention_b2_8e_or_later_stop_conditions() -> None:
+    """B2.8d walker source must NOT mention the §7 stop conditions
+    reserved for B2.8e and later phases. The B2.8d-permitted §6.3
+    vocabulary is documented in
+    ``reporting.n5b_merge_execution_dry_run.B2_8D_STOP_CONDITIONS``."""
     src = MODULE_PATH.read_text(encoding="utf-8")
     deferred = (
+        # §7 stops reserved for Phase 3+ / live execute paths.
+        "operator_confirmation_missing",
+        "live_execute_disabled",
+        "dry_run_required_first",
+    )
+    for literal in deferred:
+        assert literal not in src, (
+            f"B2.8d walker source mentions deferred stop_condition literal "
+            f"{literal!r}; that scope belongs to B2.8e or later phases"
+        )
+
+
+# ---------------------------------------------------------------------------
+# B2.8d walker — preconditions 8–17
+# ---------------------------------------------------------------------------
+
+
+def _failure_files(_isolate_state: Path) -> list[Path]:
+    """Return any failure artefacts written under the tmp failure
+    dir. The fixture redirected projector.FAILURE_DIR to
+    tmp_path/.../failure."""
+    failure_dir = _isolate_state.parent.parent / "failure"
+    if not failure_dir.is_dir():
+        return []
+    return sorted(failure_dir.glob("*.json"))
+
+
+def _exercise_walker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[int, dict[str, Any]]:
+    """Mint a valid token + run the walker against the currently
+    seeded upstream artefacts. Returns ``(status_code, payload)``."""
+    token = _mint_dry_run_token(monkeypatch)
+    body = _body_with_token(token)
+    app = _build_app()
+    with app.test_client() as client:
+        return _envelope_after(client, body)
+
+
+def test_walker_8_17_n5a_artifact_absent_emits_network_uncertain(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """N5a artefact missing → status=rejected,
+    stop_condition=network_uncertain. Preflight is written (after
+    1–7 pass), but the walker fails on the FIRST upstream read.
+    A failure artefact is written; no dry_run/latest.json."""
+    # Seed A22 + gh_pr_lifecycle, but NOT N5a.
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    _write_synthetic_gh_pr_lifecycle(pr_number=123)
+    code, payload = _exercise_walker(monkeypatch)
+    assert code == 200
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "network_uncertain"
+    assert payload["preconditions_evaluated"] == 7
+    # Preflight was written (after 1–7).
+    assert _isolate_state.is_file()
+    # One failure artefact written.
+    files = _failure_files(_isolate_state)
+    assert len(files) == 1
+    snapshot = json.loads(files[0].read_text(encoding="utf-8"))
+    assert snapshot["report_kind"] == "n5b_failure"
+    assert snapshot["stop_condition"] == "network_uncertain"
+
+
+def test_walker_8_17_a22_artifact_absent_emits_network_uncertain(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    _write_synthetic_gh_pr_lifecycle(pr_number=123)
+    code, payload = _exercise_walker(monkeypatch)
+    assert code == 200
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "network_uncertain"
+    assert len(_failure_files(_isolate_state)) == 1
+
+
+def test_walker_8_17_gh_artifact_absent_emits_network_uncertain(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert code == 200
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "network_uncertain"
+
+
+def test_walker_8_17_n5a_no_matching_row_emits_network_uncertain(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_synthetic_n5a(
+        pr_number=999,  # different PR
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    _write_synthetic_gh_pr_lifecycle(pr_number=123)
+    code, payload = _exercise_walker(monkeypatch)
+    assert code == 200
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "network_uncertain"
+
+
+def test_walker_8_n5a_action_not_eligible_emits_stale_recommendation(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    # Override N5a with non-eligible action.
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        action="recommend_hold",
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert code == 200
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "stale_recommendation"
+    assert payload["preconditions_evaluated"] == 8
+
+
+def test_walker_8_n5a_reason_not_eligible_emits_stale_recommendation(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        reason="pr_clean_but_inbox_has_critical_attention",
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["stop_condition"] == "stale_recommendation"
+    assert payload["preconditions_evaluated"] == 8
+
+
+@pytest.mark.parametrize(
+    "merge_state",
+    ["DIRTY", "BLOCKED", "BEHIND", "UNSTABLE", "HAS_HOOKS", "UNKNOWN"],
+)
+def test_walker_9_non_clean_merge_state_emits_merge_state_not_clean(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    merge_state: str,
+) -> None:
+    """Per §6.3: adapter accepts ONLY ``CLEAN`` for mergeStateStatus."""
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        merge_state_status=merge_state,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "merge_state_not_clean"
+    assert payload["preconditions_evaluated"] == 9
+
+
+def test_walker_9_clean_merge_state_accepted(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Per §6.3: ``CLEAN`` is the only accepted mergeStateStatus.
+    Companion to the negative parametrization above."""
+    _seed_all_clean_upstream_artefacts()
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "not_yet_implemented"
+    assert payload["preconditions_passed"] == 17
+
+
+def test_walker_9_branch_protection_unsatisfied_emits_stop(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_gh_pr_lifecycle(
+        pr_number=123,
+        branch_protection_satisfied=False,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "branch_protection_not_satisfied"
+    assert payload["preconditions_evaluated"] == 9
+
+
+@pytest.mark.parametrize(
+    "checks_state",
+    ["FAILURE", "CANCELLED", "SKIPPED", "IN_PROGRESS", "NULL"],
+)
+def test_walker_10_non_success_checks_emit_checks_not_green(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    checks_state: str,
+) -> None:
+    """Per §6.3: adapter accepts only success-equivalents for required checks."""
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        checks_summary=checks_state,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "checks_not_green"
+    assert payload["preconditions_evaluated"] == 10
+
+
+def test_walker_11_head_sha_mismatch_emits_head_sha_mismatch(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A22 head_sha differs from token-bound head_sha → head_sha_mismatch."""
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="cafe" * 10,  # different SHA
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "head_sha_mismatch"
+    assert payload["preconditions_evaluated"] == 11
+
+
+def test_walker_12_base_ref_not_main_emits_merge_state_not_clean(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """base_ref != main → operator-approved semantic stretch:
+    merge_state_not_clean."""
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        base_ref="develop",
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "merge_state_not_clean"
+    assert payload["preconditions_evaluated"] == 12
+
+
+def test_walker_13_stale_n5a_emits_stale_recommendation(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """N5a evaluated_at older than 60 minutes → stale_recommendation."""
+    from datetime import UTC, datetime, timedelta
+
+    old = (datetime.now(UTC) - timedelta(hours=2)).replace(
+        microsecond=0
+    ).isoformat().replace("+00:00", "Z")
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        evaluated_at=old,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "stale_recommendation"
+    assert payload["preconditions_evaluated"] == 13
+
+
+def test_walker_14_inbox_criticals_emits_stale_recommendation(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """N5a inbox_critical_count > 0 (with N5a still saying merge) →
+    operator-approved semantic stretch: stale_recommendation."""
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        inbox_critical_count=2,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "stale_recommendation"
+    assert payload["preconditions_evaluated"] == 14
+
+
+def test_walker_15_protected_paths_emits_unexpected_files_touched(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_gh_pr_lifecycle(
+        pr_number=123,
+        protected_paths_touched=True,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "unexpected_files_touched"
+    assert payload["preconditions_evaluated"] == 15
+
+
+def test_walker_15_no_touch_violation_emits_protected_path_violation(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_gh_pr_lifecycle(
+        pr_number=123,
+        no_touch_path_violation=True,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "protected_path_violation"
+    assert payload["preconditions_evaluated"] == 15
+
+
+def test_walker_15_deploy_coupling_emits_deploy_coupling_detected(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_gh_pr_lifecycle(
+        pr_number=123,
+        deploy_coupling_detected=True,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "deploy_coupling_detected"
+    assert payload["preconditions_evaluated"] == 15
+
+
+def test_walker_16_step5_change_emits_step5_flag_changed(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_gh_pr_lifecycle(
+        pr_number=123,
+        step5_flag_changed=True,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "step5_flag_changed"
+    assert payload["preconditions_evaluated"] == 16
+
+
+def test_walker_16_level_6_attempt_emits_level_6_attempted(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_gh_pr_lifecycle(
+        pr_number=123,
+        level_6_attempted=True,
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "level_6_attempted"
+    assert payload["preconditions_evaluated"] == 16
+
+
+def test_walker_8_17_missing_optional_field_fails_closed_network_uncertain(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Critical operator-mandated pin: missing optional B2.8d
+    extended field (no silent auto-pass). When gh_pr_lifecycle row
+    lacks ``step5_flag_changed`` (and other B2.8d fields), walker
+    rejects with network_uncertain. This is what makes B2.8d
+    safe in production today, where these fields don't exist yet."""
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+    )
+    # gh_pr_lifecycle row without the B2.8d extended fields (mimics
+    # current production state).
+    bare_payload = {
+        "prs": [
+            {
+                "number": 123,
+                "title": "synth",
+                "branch": "feature/synth",
+                "base": "main",
+                "author": "synth-author",
+                "package": "synth",
+                "merge_state": "clean",
+                "checks_state": "passed",
+                "additions": 1,
+                "deletions": 0,
+                "files_count": 1,
+                # NO protected_paths_touched, NO step5_flag_changed, etc.
+                "risk_class": "LOW",
+                "risk_reason": "synth",
+                "decision": "merge_allowed",
+                "reason": "synth",
+                "actions_taken": [],
+                "url": "https://example/pr",
+            }
+        ]
+    }
+    mod._GITHUB_PR_LIFECYCLE_ARTIFACT_PATH.write_text(
+        json.dumps(bare_payload), encoding="utf-8"
+    )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "network_uncertain"
+    # The walker rejects on the FIRST missing optional field.
+    # ``branch_protection_satisfied`` is checked inside precondition
+    # 9 (mergeStateStatus + branch protection block), so the walker
+    # stops at preconditions_evaluated=9 before even reaching the
+    # precondition-15 protected-paths fields.
+    assert payload["preconditions_evaluated"] == 9
+
+
+def test_walker_8_17_failure_write_failure_emits_audit_write_failure(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the failure-artefact write itself raises, the walker
+    emits ``audit_write_failure``, HTTP 500."""
+    _seed_all_clean_upstream_artefacts()
+    # Force a §7 stop in the walker (use stale_recommendation via
+    # non-eligible action).
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        action="recommend_hold",
+    )
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    def _boom(**_kwargs: Any) -> Any:
+        raise OSError("simulated failure-artefact disk failure")
+
+    monkeypatch.setattr(projector, "write_failure", _boom)
+    code, payload = _exercise_walker(monkeypatch)
+    assert code == 500
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "audit_write_failure"
+    assert payload["reason"] == "failure_artefact_write_failed"
+
+
+def test_walker_no_dry_run_latest_or_history_written_on_all_pass(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """B2.8d must NOT write dry_run/latest.json or history.jsonl.
+    Those writers remain B2.8e scope."""
+    _seed_all_clean_upstream_artefacts()
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "not_yet_implemented"
+    # dry_run + history MUST NOT exist.
+    dry_run_dir = _isolate_state.parent.parent / "dry_run"
+    assert not dry_run_dir.exists() or not any(dry_run_dir.iterdir())
+
+
+def test_walker_failure_artefact_carries_closed_schema(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify the failure artefact closed schema includes pinned
+    fields and excludes raw token / nonce."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+    _write_synthetic_a22(
+        pr_number=123,
+        head_sha="abc1234567890def1234567890abcdef12345678",
+        merge_state_status="BLOCKED",
+    )
+    token = _mint_dry_run_token(monkeypatch)
+    body = _body_with_token(token)
+    app = _build_app()
+    with app.test_client() as client:
+        _envelope_after(client, body)
+    files = _failure_files(_isolate_state)
+    assert len(files) == 1
+    snapshot = json.loads(files[0].read_text(encoding="utf-8"))
+    assert set(snapshot.keys()) == set(projector.FAILURE_SNAPSHOT_KEYS)
+    assert snapshot["stop_condition"] == "merge_state_not_clean"
+    assert snapshot["report_kind"] == "n5b_failure"
+    # No raw token / nonce / secret in failure artefact.
+    blob = json.dumps(snapshot, default=str)
+    assert token not in blob
+
+
+# ---------------------------------------------------------------------------
+# B2.8d source-text guards
+# ---------------------------------------------------------------------------
+
+
+def test_walker_does_not_import_github_pr_lifecycle_module() -> None:
+    """The github_pr_lifecycle module legitimately uses subprocess
+    to call ``gh``. The walker reads its on-disk artefact instead
+    and MUST NOT import it directly."""
+    imported = set(_module_imports())
+    forbidden = (
+        "reporting.github_pr_lifecycle",
+    )
+    for name in forbidden:
+        assert name not in imported, (
+            f"walker imports {name!r}; it must read its on-disk "
+            "artefact instead"
+        )
+
+
+def test_walker_emits_only_closed_b2_8d_stop_vocab() -> None:
+    """Every literal the B2.8d walker passes to ``write_failure`` or
+    sets on the envelope's ``stop_condition`` field must come from
+    ``projector.B2_8D_STOP_CONDITIONS``. Source-text scan finds
+    the literals used in the walker and asserts none are outside
+    the closed list (modulo the deferred literals pinned above)."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    src = MODULE_PATH.read_text(encoding="utf-8")
+    # Closed list of §6.3 stops B2.8d may emit.
+    closed = set(projector.B2_8D_STOP_CONDITIONS)
+    # Any literal the walker quotes that LOOKS like a stop must be
+    # in the closed list. We scan only inside the walker body for
+    # quoted strings that map to §7 vocabulary.
+    candidates = [
         "head_sha_mismatch",
         "merge_state_not_clean",
         "checks_not_green",
@@ -1040,12 +1761,11 @@ def test_module_source_does_not_mention_b2_8d_or_later_stop_conditions() -> None
         "stale_recommendation",
         "network_uncertain",
         "audit_write_failure",
-        "operator_confirmation_missing",
-        "live_execute_disabled",
-        "dry_run_required_first",
-    )
-    for literal in deferred:
-        assert literal not in src, (
-            f"walker source mentions deferred stop_condition literal "
-            f"{literal!r}; that scope belongs to B2.8d / B2.8e"
-        )
+    ]
+    for literal in candidates:
+        if f'"{literal}"' in src:
+            assert literal in closed, (
+                f"walker source uses stop_condition literal "
+                f"{literal!r} but it's outside the closed "
+                f"B2.8d vocabulary {sorted(closed)!r}"
+            )

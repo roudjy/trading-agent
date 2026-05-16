@@ -490,14 +490,16 @@ def test_parent_plan_has_backpointer_to_readiness_report() -> None:
 #:
 #: * ``v3.15.16.N5b.phase2.skeleton`` — B2.8b (initial UNWIRED skeleton)
 #: * ``v3.15.16.N5b.phase2.walker_1_7`` — B2.8c (walker for §3 preconditions 1–7)
+#: * ``v3.15.16.N5b.phase2.walker_1_17`` — B2.8d (walker for §3 preconditions 1–17)
 #:
-#: Subsequent sub-units (B2.8d / B2.8e) may extend this allowlist
-#: by appending one further operator-approved literal per PR. They
+#: Subsequent sub-units (B2.8e) may extend this allowlist by
+#: appending one further operator-approved literal per PR. They
 #: must never remove a previously-pinned literal or widen the
 #: per-PR exactly-one-match assertion.
 _ALLOWED_SKELETON_MODULE_VERSION_LITERALS: tuple[str, ...] = (
     'MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.skeleton"',
     'MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.walker_1_7"',
+    'MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.walker_1_17"',
 )
 
 
