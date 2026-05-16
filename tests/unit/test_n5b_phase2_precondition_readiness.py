@@ -484,18 +484,46 @@ def test_parent_plan_has_backpointer_to_readiness_report() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_b2_8b_skeleton_module_unchanged_in_this_pr() -> None:
-    """The B2.8b skeleton at
-    dashboard/api_merge_execution_dry_run.py must remain on disk
-    and must still carry its pinned MODULE_VERSION literal so a
-    silent modification by this readiness PR is detected."""
+#: Closed allowlist of ``MODULE_VERSION`` literals the
+#: ``dashboard/api_merge_execution_dry_run.py`` module is permitted
+#: to carry. Grows one entry per operator-approved sub-unit:
+#:
+#: * ``v3.15.16.N5b.phase2.skeleton`` — B2.8b (initial UNWIRED skeleton)
+#: * ``v3.15.16.N5b.phase2.walker_1_7`` — B2.8c (walker for §3 preconditions 1–7)
+#:
+#: Subsequent sub-units (B2.8d / B2.8e) may extend this allowlist
+#: by appending one further operator-approved literal per PR. They
+#: must never remove a previously-pinned literal or widen the
+#: per-PR exactly-one-match assertion.
+_ALLOWED_SKELETON_MODULE_VERSION_LITERALS: tuple[str, ...] = (
+    'MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.skeleton"',
+    'MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.walker_1_7"',
+)
+
+
+def test_b2_8b_skeleton_module_carries_an_allowlisted_version() -> None:
+    """Originally a B2.8c-pre pin asserting the B2.8b skeleton's
+    ``MODULE_VERSION`` literal was unchanged. **Narrowed by B2.8c**
+    to allow exactly the operator-approved walker version
+    introduced by that sub-unit. The narrowing follows the same
+    one-version-at-a-time pattern the adapter-module allowlists
+    in ``test_n5b_merge_execution_plan.py`` /
+    ``test_n5b_phase2_implementation_plan.py`` use. No previously
+    pinned literal is removed; the change only permits the
+    operator-approved walker version literal in addition."""
     assert B2_8B_SKELETON_PATH.is_file(), (
-        f"B2.8b skeleton file missing: {B2_8B_SKELETON_PATH}"
+        f"B2.8b/B2.8c dashboard module missing: {B2_8B_SKELETON_PATH}"
     )
     src = B2_8B_SKELETON_PATH.read_text(encoding="utf-8")
-    assert 'MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.skeleton"' in src, (
-        "B2.8b skeleton MODULE_VERSION literal missing or changed; "
-        "this readiness PR must not modify the skeleton"
+    hits = [
+        literal
+        for literal in _ALLOWED_SKELETON_MODULE_VERSION_LITERALS
+        if literal in src
+    ]
+    assert len(hits) == 1, (
+        "dashboard/api_merge_execution_dry_run.py must carry exactly "
+        f"one MODULE_VERSION literal from the closed allowlist "
+        f"{_ALLOWED_SKELETON_MODULE_VERSION_LITERALS!r}; found: {hits!r}"
     )
 
 

@@ -478,13 +478,19 @@ def _excerpt_around(text: str, idx: int, span: int = 80) -> str:
 #: Allowlist of N5b-adapter module paths that are explicitly
 #: permitted by the operator. The list grows one path at a time
 #: per sub-unit, narrowing the "no module exists" pin without
-#: weakening its closed semantics. As of B2.8b the only allowed
-#: path is the Phase 2 dry-run skeleton blueprint introduced
-#: under that operator-go. The reporting-side audit projector
-#: (``reporting/n5b_merge_execution_dry_run.py``) remains
-#: forbidden; it is reserved for B2.8c.
+#: weakening its closed semantics.
+#:
+#: * B2.8b added ``dashboard/api_merge_execution_dry_run.py`` (the
+#:   skeleton blueprint).
+#: * B2.8c added ``reporting/n5b_merge_execution_dry_run.py`` (the
+#:   preflight-only audit projector the walker calls).
+#:
+#: Subsequent sub-units (B2.8d / B2.8e) may extend this allowlist
+#: by appending one further operator-approved path per PR; they
+#: must never widen the glob set or remove paths.
 _ALLOWED_N5B_ADAPTER_MODULES: tuple[str, ...] = (
     "dashboard/api_merge_execution_dry_run.py",
+    "reporting/n5b_merge_execution_dry_run.py",
 )
 
 

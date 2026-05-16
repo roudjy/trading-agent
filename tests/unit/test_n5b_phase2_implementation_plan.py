@@ -673,25 +673,28 @@ def test_no_phase2_module_exists_in_runtime_yet() -> None:
     """Originally a B2.8a-era pin asserting neither Phase 2
     module existed on disk. **Narrowed by B2.8b** to allow the
     operator-approved skeleton blueprint
-    ``dashboard/api_merge_execution_dry_run.py``. The
-    reporting-side audit projector
-    ``reporting/n5b_merge_execution_dry_run.py`` remains
-    forbidden; it is reserved for B2.8c."""
+    ``dashboard/api_merge_execution_dry_run.py``. **Narrowed
+    again by B2.8c** to allow the operator-approved reporting-side
+    audit projector ``reporting/n5b_merge_execution_dry_run.py``
+    (the preflight writer the walker calls)."""
     dashboard_skeleton = (
         REPO_ROOT / "dashboard" / "api_merge_execution_dry_run.py"
     )
     reporting_projector = (
         REPO_ROOT / "reporting" / "n5b_merge_execution_dry_run.py"
     )
-    # The dashboard skeleton MUST exist now (B2.8b landed it).
+    # The dashboard skeleton MUST exist now (B2.8b landed it; B2.8c
+    # extended it with the precondition walker for 1–7).
     assert dashboard_skeleton.is_file(), (
-        f"B2.8b skeleton missing on disk: {dashboard_skeleton}"
+        f"B2.8b/B2.8c dashboard module missing on disk: {dashboard_skeleton}"
     )
-    # The reporting-side audit projector MUST NOT exist yet
-    # (B2.8c will land it).
-    assert not reporting_projector.is_file(), (
-        f"B2.8b is skeleton-only; reporting projector must not "
-        f"exist yet: {reporting_projector}"
+    # The reporting-side audit projector MUST exist now (B2.8c
+    # landed it). It writes ONLY the preflight artefact in this
+    # slice; the dry-run-decision / failure / history writers
+    # remain reserved for B2.8d / B2.8e per the implementation
+    # plan §2.6.
+    assert reporting_projector.is_file(), (
+        f"B2.8c reporting projector missing on disk: {reporting_projector}"
     )
 
 

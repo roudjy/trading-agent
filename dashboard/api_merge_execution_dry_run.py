@@ -1,92 +1,76 @@
-"""N5b Phase 2 — Token-bound dry-run endpoint skeleton (UNWIRED, fail-closed).
+"""N5b Phase 2 — Token-bound dry-run endpoint (B2.8c walker for preconditions 1–7).
 
-This module is the **B2.8b skeleton** of the future Phase 2
-token-bound dry-run endpoint described in
-``docs/governance/n5b_phase2_implementation_plan.md`` (§2.1/§2.2)
-and ``docs/governance/n5b_merge_execution_plan.md`` (§4.2/§10
-"Phase 2 — Token-bound dry-run").
+This module is the **B2.8c walker** layered on top of the B2.8b
+fail-closed skeleton. It implements the closed precondition walker
+for parent-doc §3 preconditions 1–7 (N4b activation, N4c operator
+UI presence, token bindings, intent, nonce) using
+``reporting.approval_token_runtime.verify_runtime_for_dry_run``
+and writes the preflight audit artefact via
+``reporting.n5b_merge_execution_dry_run.write_preflight``.
 
-**This is NOT a Phase 2 activation.** B2.8b ships ONLY the
-fail-closed skeleton: every request returns the closed-envelope
-``not_yet_implemented`` status. No token verification is
-performed, no GitHub API is called, no audit artefact is
-written, no environment variable is read, and the blueprint is
-**not wired** into ``dashboard/dashboard.py``. The §4.2 N4b
-Phase B activation and §4.3 N4c (or equivalent) mint/verify UI
-preconditions of the implementation plan remain unsatisfied
-and block any subsequent code-bearing sub-unit (B2.8c / B2.8d /
-B2.8e) until the operator explicitly confirms them.
-
-Hard guarantees (pinned by tests in
-``tests/unit/test_api_merge_execution_dry_run.py``)
------------------------------------------------------------
+What B2.8c implements (per
+``docs/governance/n5b_phase2_implementation_plan.md`` §3 and §6.2):
 
 * POST only — exactly one route at
   ``/api/agent-control/merge-execution/dry-run``. GET / PUT /
-  PATCH / DELETE return 405.
-* Every request returns the closed-envelope status
-  ``not_yet_implemented`` regardless of body validity. Malformed
-  bodies attach a bounded ``reason`` field and return HTTP 400;
-  well-formed bodies return HTTP 200. The envelope ``status``
-  field never deviates from ``not_yet_implemented`` in this
-  skeleton.
-* No token verification — this module does not import
-  ``reporting.approval_token_runtime``. Token verification
-  wiring is **B2.8c** scope.
-* No audit artefact write — this module does not import or
-  reference ``reporting.n5b_merge_execution_dry_run`` (which
-  does not exist yet). Audit projector is **B2.8c** scope.
-* No GitHub API call — this module does not import any
-  network primitive (``socket``, ``urllib``, ``requests``,
-  ``httpx``, ``aiohttp``) and performs no outbound HTTP call.
-  GitHub-API-dependent preconditions 8-17 are **B2.8d** scope.
-* No subprocess / shell-out — this module imports no child-process
-  primitive and uses no shell-spawning attribute of the os module.
-* No env var read — this module reads no environment variable
-  whatsoever.
-* No write outside ``logs/n5b_merge_execution/`` — this module
-  performs no filesystem write of any kind. The audit
-  artefact write path is reserved for B2.8c.
-* Every response envelope passes
-  ``reporting.agent_audit_summary.assert_no_secrets`` before
-  being returned to the client.
-* Every response envelope carries the closed six-field
-  discipline invariants verbatim
-  (``step5_implementation_allowed=False``,
-  ``step5_enabled_substage="none"``, ``level6_enabled=False``,
-  ``dry_run_only=True``, ``live_merge_implemented=False``,
-  ``deploy_coupled=False``) so the consumer always sees them.
-* Blueprint is **NOT** registered into
-  ``dashboard/dashboard.py`` by this PR. The two-line wiring
-  change is operator-only per
-  ``docs/governance/execution_authority.md`` and the no-touch
-  hook at ``.claude/hooks/deny_no_touch.py``. Wiring is
-  **B2.8e** scope.
+  PATCH / DELETE return 405. UNCHANGED from B2.8b.
+* Closed response envelope shape from §2.5. UNCHANGED from B2.8b.
+* Token verification routes through
+  :func:`reporting.approval_token_runtime.verify_runtime_for_dry_run`
+  only. The HMAC secret is read by that module exclusively;
+  this dashboard module reads NO environment variable.
+* Audit preflight artefact at
+  ``logs/n5b_merge_execution/preflight/latest.json`` is written
+  ONLY AFTER all of body validation + N4b configuration + N4c
+  component presence + token verification + binding checks
+  succeed. Invalid / malformed / expired / replayed / binding-
+  mismatched / mis-configured requests NEVER produce a preflight
+  artefact. (Operator-mandated B2.8c correction.)
+* Returns ``not_yet_implemented`` on success — never ``ok``. The
+  ``ok`` status is reserved for B2.8e when preconditions 8–17
+  also walk.
+* Stop conditions emitted by this slice are the closed §7 set
+  enumerated by the implementation plan §6.2: ``token_missing``,
+  ``token_invalid``, ``replay_detected``, ``binding_mismatch``
+  (drilled across pr_number / pr_head_sha / evidence_hash /
+  intent / nonce), ``pr_number_mismatch``. The status
+  ``configuration_missing`` is used for §3 preconditions 1 / 2.
+* No new stop-condition literal is introduced. The
+  post-verification preflight-write failure is surfaced as
+  ``status="rejected"``, ``stop_condition=None``,
+  ``reason="preflight_write_failed"`` (a reason, NOT a stop
+  condition) so the closed §7 vocabulary stays untouched.
 
-Status envelope contract
-------------------------
+What B2.8c does NOT do:
 
-The response envelope follows the closed schema declared in
-``docs/governance/n5b_phase2_implementation_plan.md`` §2.5.
-Every field is present in every response. The ``status`` value
-is always the literal ``not_yet_implemented`` for this
-skeleton sub-unit.
-
-Future sub-units (B2.8c onward) will emit additional closed
-status values (``ok``, ``rejected``, ``configuration_missing``)
-once the precondition walkers land. B2.8b never emits any of
-those values.
+* No GitHub-API-dependent preconditions (8–17). Those land in
+  B2.8d under their own operator-go.
+* No dry-run-decision artefact, no failure artefact, no history
+  artefact. Those writers land in B2.8d / B2.8e per §2.6.
+* No wiring into ``dashboard/dashboard.py``. The blueprint
+  remains UNWIRED; the two-line wiring patch is operator-only
+  per ``docs/governance/execution_authority.md`` and the
+  no-touch hook at ``.claude/hooks/deny_no_touch.py``. Wiring is
+  B2.8e scope.
+* No subprocess / shell-out / network primitive of any kind.
+* No environment-variable read in this module (the token runtime
+  reads the HMAC secret on this module's behalf).
+* No raw token persisted, no raw nonce surfaced.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Final
 
 from flask import Flask, Response, jsonify, request
 
+from reporting import approval_token_runtime as atr
+from reporting import n5b_merge_execution_dry_run as projector
 from reporting.agent_audit_summary import assert_no_secrets
 
-MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.skeleton"
+MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.walker_1_7"
 SCHEMA_VERSION: Final[int] = 1
 
 
@@ -136,6 +120,54 @@ _MAX_INTENT_LEN: Final[int] = 64
 _MAX_EVIDENCE_HASH_LEN: Final[int] = 256
 _MAX_REASON_LEN: Final[int] = 200
 
+#: Repo-rooted path to the N4c PWA mint/verify component. Walker
+#: precondition 2 checks this file exists at request time. The
+#: path is identical to the one the B2.8c-pre readiness pin test
+#: asserts.
+_REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+_N4C_COMPONENT_PATH: Final[Path] = (
+    _REPO_ROOT
+    / "frontend"
+    / "src"
+    / "routes"
+    / "AgentControl"
+    / "ApprovalTokenDiagnostics.tsx"
+)
+
+#: Operator-actor literal for the session-protected dry-run route.
+_OPERATOR_ACTOR_SESSION: Final[str] = "session"
+
+#: Closed mapping from body-shape validation reason → §7 stop
+#: condition. Body-shape failures translate to the §7 vocabulary
+#: where the failure unambiguously matches a stop condition.
+#: Unmatched reasons get ``None`` (envelope still says rejected;
+#: stop_condition stays null, reason carries the closed string).
+_BODY_REASON_TO_STOP_CONDITION: Final[dict[str, str]] = {
+    # token field problems → token_missing
+    "field_missing:token": "token_missing",
+    "field_value:token_length": "token_missing",
+    "field_type:token": "token_missing",
+    # pr_number problems → pr_number_mismatch (body lacks a valid pr_number
+    # to bind against, so the binding is unprovable)
+    "field_missing:pr_number": "pr_number_mismatch",
+    "field_type:pr_number": "pr_number_mismatch",
+    "field_value:pr_number_non_positive": "pr_number_mismatch",
+    # intent problems → binding_mismatch (intent dimension)
+    "field_missing:intent": "binding_mismatch",
+    "field_type:intent": "binding_mismatch",
+    "field_value:intent_length": "binding_mismatch",
+    "field_value:intent_not_pinned": "binding_mismatch",
+    # pr_head_sha problems → binding_mismatch (pr_head_sha dimension)
+    "field_missing:pr_head_sha": "binding_mismatch",
+    "field_type:pr_head_sha": "binding_mismatch",
+    "field_value:pr_head_sha_length": "binding_mismatch",
+    # evidence_hash problems → binding_mismatch (evidence_hash dimension)
+    "field_missing:evidence_hash": "binding_mismatch",
+    "field_type:evidence_hash": "binding_mismatch",
+    "field_value:evidence_hash_length": "binding_mismatch",
+    # body_missing / body_not_object: no §7 mapping; stop_condition stays null.
+}
+
 
 def _with_discipline(envelope: dict[str, Any]) -> dict[str, Any]:
     """Attach the closed discipline-invariant fields to ``envelope``.
@@ -153,34 +185,49 @@ def _safe_jsonify(payload: dict[str, Any]) -> Response:
     return jsonify(payload)
 
 
+def _utcnow_iso() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 # ---------------------------------------------------------------------------
 # Envelope builders
 # ---------------------------------------------------------------------------
 
 
-def _not_yet_implemented_envelope(
+def _base_envelope(
     *,
+    status: str,
+    stop_condition: str | None,
+    preconditions_evaluated: int,
+    preconditions_passed: int,
+    would_proceed: bool,
     pr_number: int,
     pr_head_sha: str,
     reason: str | None = None,
 ) -> dict[str, Any]:
-    """Build the closed ``not_yet_implemented`` envelope per
-    implementation-plan §2.5.
+    """Build the closed envelope per implementation-plan §2.5.
 
-    The envelope's ``status`` is always the literal
-    ``not_yet_implemented``. ``would_proceed`` is always False.
-    ``stop_condition`` is always None — stop conditions are emitted
-    by the precondition walker in B2.8c onward.
+    ``status`` is one of the four closed-vocab values
+    (``ok`` / ``rejected`` / ``configuration_missing`` /
+    ``not_yet_implemented``). ``stop_condition`` is from the closed
+    §7 vocabulary OR ``None``. The six discipline invariants are
+    attached unconditionally via :func:`_with_discipline`.
+
+    ``reason`` is optional and bounded to :data:`_MAX_REASON_LEN`
+    chars. It carries closed strings only (body-validation reason
+    codes, ``preconditions_8_through_17_pending``,
+    ``preflight_write_failed``); it never contains user-supplied
+    free text.
     """
     envelope: dict[str, Any] = {
         "kind": "agent_control_merge_execution_dry_run",
         "schema_version": SCHEMA_VERSION,
         "module_version": MODULE_VERSION,
-        "status": "not_yet_implemented",
-        "stop_condition": None,
-        "preconditions_evaluated": 0,
-        "preconditions_passed": 0,
-        "would_proceed": False,
+        "status": status,
+        "stop_condition": stop_condition,
+        "preconditions_evaluated": preconditions_evaluated,
+        "preconditions_passed": preconditions_passed,
+        "would_proceed": would_proceed,
         "pr_number": pr_number,
         "pr_head_sha": pr_head_sha,
     }
@@ -189,32 +236,15 @@ def _not_yet_implemented_envelope(
     return _with_discipline(envelope)
 
 
-def _bad_body_envelope(reason: str) -> dict[str, Any]:
-    """Build the ``not_yet_implemented`` envelope with a sentinel
-    ``pr_number=0`` and empty ``pr_head_sha`` for the malformed-body
-    case. The HTTP layer pairs this envelope with status 400.
-
-    The envelope status remains the closed-vocab
-    ``not_yet_implemented`` per implementation-plan §2.4 ("No
-    other status value is permitted"); the ``reason`` field carries
-    the body-validation outcome (e.g. ``"body_missing"``,
-    ``"field_missing:token"``)."""
-    return _not_yet_implemented_envelope(
-        pr_number=0,
-        pr_head_sha="",
-        reason=reason,
-    )
-
-
 # ---------------------------------------------------------------------------
-# Request body validation
+# Request body validation (B2.8b shape — unchanged)
 # ---------------------------------------------------------------------------
 
 
 def _validate_body(
     body: Any,
 ) -> tuple[bool, str | None, int, str]:
-    """Validate the request body shape.
+    """Validate the request body shape. UNCHANGED from B2.8b.
 
     Returns ``(ok, reason, pr_number, pr_head_sha)`` where:
 
@@ -226,9 +256,7 @@ def _validate_body(
       first validation failure encountered.
     * ``pr_number`` and ``pr_head_sha`` are extracted from the
       body when present and well-typed; they default to ``0`` and
-      ``""`` otherwise. The skeleton echoes them back so the
-      future implementation has body-context in the envelope
-      regardless of validity.
+      ``""`` otherwise.
     """
     if body is None:
         return (False, "body_missing", 0, "")
@@ -286,39 +314,251 @@ def _validate_body(
 
 
 # ---------------------------------------------------------------------------
+# Verify-outcome → §7 stop-condition translation
+# ---------------------------------------------------------------------------
+
+
+#: Closed translation table from :data:`approval_token_runtime`'s
+#: verify envelope onto the §7 closed stop-condition vocabulary.
+#: The walker reads the verify envelope's ``outcome`` (and the
+#: companion ``reason`` for the binding-drift drill) and emits the
+#: corresponding §7 stop_condition. The status component of the
+#: walker envelope is always ``rejected`` for any non-``ok``
+#: outcome that reaches this map.
+_VERIFY_OUTCOME_TO_STOP_CONDITION: Final[dict[str, str]] = {
+    "replay_detected": "replay_detected",
+    "signature_invalid": "token_invalid",
+    "malformed_envelope": "token_invalid",
+    "expired": "token_invalid",
+    "unknown_kid": "token_invalid",
+    "intent_unknown": "binding_mismatch",
+    # binding_mismatch is handled separately because its specific
+    # reason determines whether the walker emits pr_number_mismatch
+    # (a stand-alone §7 stop condition) vs the generic
+    # binding_mismatch.
+}
+
+
+def _translate_verify_envelope(
+    verify_env: dict[str, Any],
+) -> tuple[str, str | None]:
+    """Translate a verify envelope from
+    :func:`reporting.approval_token_runtime.verify_runtime_for_dry_run`
+    onto the walker's ``(status, stop_condition)`` pair.
+
+    Only the closed §7 vocabulary plus the two skeleton statuses
+    are emitted. New literals are not introduced.
+    """
+    status = verify_env.get("status")
+    if status == "configuration_missing":
+        return ("configuration_missing", None)
+    if status == "ok":
+        return ("ok", None)
+    # Any other status from the runtime is a rejection.
+    outcome = verify_env.get("outcome")
+    if outcome == "binding_mismatch":
+        reason = verify_env.get("reason")
+        if reason == "pr_number_mismatch":
+            return ("rejected", "pr_number_mismatch")
+        # All other binding drift dimensions (pr_head_sha,
+        # evidence_hash, event_id, release_tag, intent_drift) →
+        # generic binding_mismatch.
+        return ("rejected", "binding_mismatch")
+    mapped = _VERIFY_OUTCOME_TO_STOP_CONDITION.get(outcome or "")
+    if mapped is not None:
+        return ("rejected", mapped)
+    # Unknown outcome — the runtime contract bounds outcome to the
+    # closed N4a vocabulary, but defense-in-depth: rejected with
+    # token_invalid (the broadest closed §7 token-side stop).
+    return ("rejected", "token_invalid")
+
+
+# ---------------------------------------------------------------------------
+# Preflight artefact write (post-verification only)
+# ---------------------------------------------------------------------------
+
+
+def _write_preflight_after_verification(
+    *,
+    pr_number: int,
+    pr_head_sha: str,
+    token_kid: str,
+    nonce_hash: str,
+) -> tuple[bool, str | None]:
+    """Persist the closed-schema preflight artefact.
+
+    Called ONLY after all of body validation + N4b configuration +
+    N4c component presence + token verification + binding checks
+    have passed. The projector is sentinel-restricted to
+    ``logs/n5b_merge_execution/`` and raises ``ValueError`` /
+    ``AssertionError`` / ``OSError`` on any unsafe write or
+    credential-shaped string.
+
+    Returns ``(True, None)`` on success or ``(False, "<bounded reason>")``
+    on a write failure. The bounded reason is one of
+    ``"preflight_write_failed"``; no underlying exception details
+    leak.
+    """
+    try:
+        projector.write_preflight(
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            token_kid=token_kid,
+            nonce_hash=nonce_hash,
+            operator_actor=_OPERATOR_ACTOR_SESSION,
+            generated_at_utc=_utcnow_iso(),
+        )
+    except Exception:
+        return (False, "preflight_write_failed")
+    return (True, None)
+
+
+# ---------------------------------------------------------------------------
 # View function — exactly one route
 # ---------------------------------------------------------------------------
 
 
 def _view_dry_run() -> tuple[Response, int]:
-    """POST handler for the token-bound dry-run endpoint skeleton.
+    """POST handler for the token-bound dry-run endpoint walker.
 
-    B2.8b behaviour:
+    Walks closed §3 preconditions 1–7 in the order:
 
-    * Parses request body. If the body is non-JSON / missing /
-      malformed, returns ``not_yet_implemented`` with a bounded
-      ``reason`` field at HTTP 400.
-    * If the body is well-formed, returns ``not_yet_implemented``
-      at HTTP 200.
-    * Never verifies a token. Never calls GitHub. Never writes
-      an audit artefact. Never reads an environment variable.
+    1. Body shape (existing :func:`_validate_body`).
+    2. N4b activated (``atr.is_configured()``).
+    3. N4c operator UI present (file presence at
+       :data:`_N4C_COMPONENT_PATH`).
+    4–7. Token verification + binding checks via
+       :func:`reporting.approval_token_runtime.verify_runtime_for_dry_run`.
+
+    Writes the preflight artefact ONLY after steps 1–7 all pass.
+    No preflight write on body-shape failure, missing N4b,
+    missing N4c, invalid token, expired token, replay, or any
+    binding mismatch.
+
+    Returns ``not_yet_implemented`` with
+    ``preconditions_evaluated=7``, ``preconditions_passed=7``,
+    ``reason="preconditions_8_through_17_pending"`` once all
+    seven preconditions clear and the preflight artefact is
+    written — never ``ok`` (which is reserved for B2.8e after
+    preconditions 8–17 also walk).
     """
-    # Parse body permissively — silent=True ensures malformed
-    # JSON returns None rather than raising 400 with the default
-    # Flask handler.
+    # Parse body permissively — silent=True ensures malformed JSON
+    # returns None rather than raising 400 with the default Flask
+    # handler.
     body: Any = request.get_json(silent=True)
-    ok, reason, pr_number, pr_head_sha = _validate_body(body)
-    if not ok:
-        return _safe_jsonify(_bad_body_envelope(reason or "body_invalid")), 400
-    return (
-        _safe_jsonify(
-            _not_yet_implemented_envelope(
-                pr_number=pr_number,
-                pr_head_sha=pr_head_sha,
-            )
-        ),
-        200,
+    ok_body, body_reason, pr_number, pr_head_sha = _validate_body(body)
+    if not ok_body:
+        stop = _BODY_REASON_TO_STOP_CONDITION.get(body_reason or "")
+        envelope = _base_envelope(
+            status="rejected",
+            stop_condition=stop,
+            preconditions_evaluated=0,
+            preconditions_passed=0,
+            would_proceed=False,
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            reason=body_reason or "body_invalid",
+        )
+        return _safe_jsonify(envelope), 400
+
+    # ---- Precondition 1: N4b activated on VPS ----
+    if not atr.is_configured():
+        envelope = _base_envelope(
+            status="configuration_missing",
+            stop_condition=None,
+            preconditions_evaluated=1,
+            preconditions_passed=0,
+            would_proceed=False,
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            reason="n4b_not_activated",
+        )
+        return _safe_jsonify(envelope), 200
+
+    # ---- Precondition 2: N4c (or equivalent) operator UI present ----
+    if not _N4C_COMPONENT_PATH.is_file():
+        envelope = _base_envelope(
+            status="configuration_missing",
+            stop_condition=None,
+            preconditions_evaluated=2,
+            preconditions_passed=1,
+            would_proceed=False,
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            reason="n4c_component_missing",
+        )
+        return _safe_jsonify(envelope), 200
+
+    # ---- Preconditions 3–7: token verification + bindings ----
+    # The dashboard module never reads the env or parses unverified
+    # token payloads for trust decisions — verify_runtime_for_dry_run
+    # owns both responsibilities.
+    body_dict: dict[str, Any] = body  # type: ignore[assignment]
+    verify_env = atr.verify_runtime_for_dry_run(
+        token=str(body_dict["token"]),
+        expected_pr_number=pr_number,
+        expected_pr_head_sha=pr_head_sha,
+        expected_evidence_hash=str(body_dict["evidence_hash"]),
+        expected_intent=_INTENT_LITERAL,
     )
+    status, stop_condition = _translate_verify_envelope(verify_env)
+    if status != "ok":
+        # No preflight write on any verification failure or runtime
+        # configuration-missing reading.
+        # The verify envelope's metadata is non-existent on
+        # non-ok branches by contract, so the walker only echoes
+        # the body's pr_number / pr_head_sha back.
+        envelope = _base_envelope(
+            status=status,
+            stop_condition=stop_condition,
+            preconditions_evaluated=7 if status == "rejected" else 2,
+            preconditions_passed=2,
+            would_proceed=False,
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            reason=str(verify_env.get("reason") or "")[:_MAX_REASON_LEN] or None,
+        )
+        return _safe_jsonify(envelope), 200
+
+    # ---- All 7 preconditions passed. Preflight write THEN
+    # not_yet_implemented (preconditions 8–17 are out of scope
+    # for B2.8c). ----
+    token_kid = str(verify_env.get("kid") or "")
+    nonce_hash = str(verify_env.get("nonce_hash") or "")
+    ok_write, write_reason = _write_preflight_after_verification(
+        pr_number=pr_number,
+        pr_head_sha=pr_head_sha,
+        token_kid=token_kid,
+        nonce_hash=nonce_hash,
+    )
+    if not ok_write:
+        # Post-verification write failure: surface as rejected with
+        # stop_condition=None and reason=preflight_write_failed.
+        # No new §7 stop-condition literal is introduced; the
+        # operator inspects the bounded reason field.
+        envelope = _base_envelope(
+            status="rejected",
+            stop_condition=None,
+            preconditions_evaluated=7,
+            preconditions_passed=7,
+            would_proceed=False,
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            reason=write_reason,
+        )
+        return _safe_jsonify(envelope), 500
+
+    envelope = _base_envelope(
+        status="not_yet_implemented",
+        stop_condition=None,
+        preconditions_evaluated=7,
+        preconditions_passed=7,
+        would_proceed=False,
+        pr_number=pr_number,
+        pr_head_sha=pr_head_sha,
+        reason="preconditions_8_through_17_pending",
+    )
+    return _safe_jsonify(envelope), 200
 
 
 # ---------------------------------------------------------------------------
@@ -342,10 +582,10 @@ _MERGE_EXECUTION_DRY_RUN_ROUTES: Final[
 
 
 def register_merge_execution_dry_run_routes(app: Flask) -> None:
-    """Register the N5b Phase 2 token-bound dry-run skeleton route.
+    """Register the N5b Phase 2 token-bound dry-run walker route.
 
-    **NOT** wired into ``dashboard/dashboard.py`` in the PR that
-    introduces this blueprint. The two-line wiring change
+    **NOT** wired into ``dashboard/dashboard.py`` by B2.8c. The
+    two-line wiring change
 
     ::
 
