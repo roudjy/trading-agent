@@ -69,8 +69,9 @@ from reporting.agent_audit_summary import assert_no_secrets
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[int] = 1
-MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.projector"
+MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.projector_with_failure"
 REPORT_KIND: Final[str] = "n5b_preflight"
+FAILURE_REPORT_KIND: Final[str] = "n5b_failure"
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +97,14 @@ PREFLIGHT_LATEST: Final[Path] = PREFLIGHT_DIR / "latest.json"
 PREFLIGHT_LATEST_RELATIVE: Final[str] = (
     "logs/n5b_merge_execution/preflight/latest.json"
 )
+
+#: B2.8d failure artefact directory. Per parent-doc §6 / §2.6, each
+#: §7 stop condition the walker emits writes a failure artefact at
+#: ``logs/n5b_merge_execution/failure/<cycle_id>.json`` with the
+#: closed schema below and a redacted ``stop_reason``. No raw nonce,
+#: no raw token, no PR diff content.
+FAILURE_DIR: Final[Path] = REPO_ROOT / "logs" / "n5b_merge_execution" / "failure"
+FAILURE_DIR_RELATIVE: Final[str] = "logs/n5b_merge_execution/failure/"
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +142,44 @@ _DISCIPLINE_INVARIANTS: Final[dict[str, bool | str]] = {
     "step5_enabled_substage": "none",
     "level6_enabled": False,
 }
+
+
+# ---------------------------------------------------------------------------
+# Closed §7 stop-condition vocabulary the B2.8d walker is permitted
+# to emit. Mirrors the parent-doc
+# ``docs/governance/n5b_merge_execution_plan.md`` §7 enumeration
+# narrowed to the §6.3 list for B2.8d. The walker writes one of
+# these values into the failure artefact's ``stop_condition`` field.
+# New literals must NOT be added without a doc update.
+# ---------------------------------------------------------------------------
+
+B2_8D_STOP_CONDITIONS: Final[tuple[str, ...]] = (
+    # Token-side (also emitted by B2.8c walker for 1–7; included
+    # here so the failure artefact's schema validator accepts them).
+    "token_missing",
+    "token_invalid",
+    "replay_detected",
+    "binding_mismatch",
+    "pr_number_mismatch",
+    # B2.8d additions for preconditions 8–17 (closed per §6.3).
+    "head_sha_mismatch",
+    "merge_state_not_clean",
+    "checks_not_green",
+    "branch_protection_not_satisfied",
+    "unexpected_files_touched",
+    "deploy_coupling_detected",
+    "step5_flag_changed",
+    "level_6_attempted",
+    "protected_path_violation",
+    "stale_recommendation",
+    "network_uncertain",
+    "audit_write_failure",
+)
+
+#: Maximum bounded length of the failure ``stop_reason`` field.
+#: Defense-in-depth against arbitrary upstream-provided strings
+#: leaking secret-shaped material.
+MAX_STOP_REASON_LEN: Final[int] = 200
 
 
 # ---------------------------------------------------------------------------
@@ -323,8 +370,196 @@ def write_preflight(
     return target
 
 
+# ---------------------------------------------------------------------------
+# B2.8d failure artefact — closed schema
+# ---------------------------------------------------------------------------
+
+
+FAILURE_SNAPSHOT_KEYS: Final[tuple[str, ...]] = (
+    "schema_version",
+    "report_kind",
+    "module_version",
+    "cycle_id",
+    "pr_number",
+    "pr_head_sha",
+    "pr_base_ref",
+    "intent",
+    "stop_condition",
+    "stop_reason",
+    "preconditions_evaluated",
+    "preconditions_passed",
+    "operator_actor",
+    "generated_at_utc",
+    "step5_implementation_allowed",
+    "step5_enabled_substage",
+    "level6_enabled",
+    "dry_run_only",
+    "live_merge_implemented",
+    "deploy_coupled",
+    "discipline_invariants",
+)
+
+
+def _validate_cycle_id(cycle_id: str) -> None:
+    """``cycle_id`` is used as a filename segment, so it must be
+    charset-restricted to safe ASCII (alphanumeric + underscore +
+    hyphen). Any other character raises ``ValueError``."""
+    if not isinstance(cycle_id, str) or not cycle_id:
+        raise ValueError("cycle_id must be a non-empty string")
+    if len(cycle_id) > 128:
+        raise ValueError("cycle_id exceeds 128 chars")
+    for ch in cycle_id:
+        if not (ch.isalnum() or ch in ("_", "-")):
+            raise ValueError(
+                f"cycle_id contains unsafe character: {ch!r}"
+            )
+
+
+def build_failure_snapshot(
+    *,
+    cycle_id: str,
+    pr_number: int,
+    pr_head_sha: str,
+    stop_condition: str,
+    stop_reason: str,
+    preconditions_evaluated: int,
+    preconditions_passed: int,
+    operator_actor: str,
+    generated_at_utc: str,
+) -> dict[str, Any]:
+    """Build the closed-schema failure snapshot dict.
+
+    Pure — no I/O. Caller is responsible for supplying a
+    ``stop_condition`` from :data:`B2_8D_STOP_CONDITIONS` and a
+    ``stop_reason`` that has been bounded / redacted at the caller
+    side. The projector additionally truncates ``stop_reason`` to
+    :data:`MAX_STOP_REASON_LEN` chars defense-in-depth.
+
+    Raises:
+      :class:`TypeError` if ``pr_number`` /
+      ``preconditions_evaluated`` / ``preconditions_passed`` are not
+      ``int`` (or are ``bool``).
+      :class:`ValueError` for any string-shape or vocabulary failure.
+    """
+    _validate_cycle_id(cycle_id)
+    if not isinstance(pr_number, int) or isinstance(pr_number, bool):
+        raise TypeError("pr_number must be int")
+    if pr_number <= 0:
+        raise ValueError("pr_number must be positive")
+    if not isinstance(pr_head_sha, str) or not pr_head_sha:
+        raise ValueError("pr_head_sha must be a non-empty string")
+    if len(pr_head_sha) > 64:
+        raise ValueError("pr_head_sha exceeds 64 chars")
+    if stop_condition not in B2_8D_STOP_CONDITIONS:
+        raise ValueError(
+            f"stop_condition must be one of {B2_8D_STOP_CONDITIONS}; "
+            f"got {stop_condition!r}"
+        )
+    if not isinstance(stop_reason, str):
+        raise TypeError("stop_reason must be str")
+    if not isinstance(preconditions_evaluated, int) or isinstance(
+        preconditions_evaluated, bool
+    ):
+        raise TypeError("preconditions_evaluated must be int")
+    if not isinstance(preconditions_passed, int) or isinstance(
+        preconditions_passed, bool
+    ):
+        raise TypeError("preconditions_passed must be int")
+    if preconditions_evaluated < 0 or preconditions_passed < 0:
+        raise ValueError(
+            "preconditions_evaluated / preconditions_passed must be non-negative"
+        )
+    if preconditions_passed > preconditions_evaluated:
+        raise ValueError(
+            "preconditions_passed must not exceed preconditions_evaluated"
+        )
+    if operator_actor not in OPERATOR_ACTORS:
+        raise ValueError(
+            f"operator_actor must be one of {OPERATOR_ACTORS}; got {operator_actor!r}"
+        )
+    if not isinstance(generated_at_utc, str) or not generated_at_utc:
+        raise ValueError("generated_at_utc must be a non-empty ISO 8601 string")
+
+    snapshot: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "report_kind": FAILURE_REPORT_KIND,
+        "module_version": MODULE_VERSION,
+        "cycle_id": cycle_id,
+        "pr_number": pr_number,
+        "pr_head_sha": pr_head_sha,
+        "pr_base_ref": PR_BASE_REF,
+        "intent": DRY_RUN_INTENT,
+        "stop_condition": stop_condition,
+        "stop_reason": stop_reason[:MAX_STOP_REASON_LEN],
+        "preconditions_evaluated": preconditions_evaluated,
+        "preconditions_passed": preconditions_passed,
+        "operator_actor": operator_actor,
+        "generated_at_utc": generated_at_utc,
+        "step5_implementation_allowed": step5_implementation_allowed,
+        "step5_enabled_substage": STEP5_ENABLED_SUBSTAGE,
+        "level6_enabled": False,
+        "dry_run_only": True,
+        "live_merge_implemented": False,
+        "deploy_coupled": False,
+        "discipline_invariants": dict(_DISCIPLINE_INVARIANTS),
+    }
+    assert set(snapshot.keys()) == set(FAILURE_SNAPSHOT_KEYS), (
+        f"failure snapshot key drift: {sorted(snapshot.keys())!r} vs "
+        f"{sorted(FAILURE_SNAPSHOT_KEYS)!r}"
+    )
+    return snapshot
+
+
+def write_failure(
+    *,
+    cycle_id: str,
+    pr_number: int,
+    pr_head_sha: str,
+    stop_condition: str,
+    stop_reason: str,
+    preconditions_evaluated: int,
+    preconditions_passed: int,
+    operator_actor: str,
+    generated_at_utc: str,
+    target_path: Path | None = None,
+) -> Path:
+    """Build + persist the closed-schema failure artefact.
+
+    Writes to ``FAILURE_DIR / f"{cycle_id}.json"`` by default.
+    ``target_path`` is exposed for unit-test isolation; even the
+    test path must contain :data:`WRITE_PREFIX` or the sentinel
+    guard raises ``ValueError``.
+
+    The dry-run-decision artefact and the dry-run history artefact
+    are NOT written by this function. Those writers remain
+    reserved for B2.8e per the implementation plan §2.6.
+    """
+    snapshot = build_failure_snapshot(
+        cycle_id=cycle_id,
+        pr_number=pr_number,
+        pr_head_sha=pr_head_sha,
+        stop_condition=stop_condition,
+        stop_reason=stop_reason,
+        preconditions_evaluated=preconditions_evaluated,
+        preconditions_passed=preconditions_passed,
+        operator_actor=operator_actor,
+        generated_at_utc=generated_at_utc,
+    )
+    target = (
+        target_path if target_path is not None else FAILURE_DIR / f"{cycle_id}.json"
+    )
+    _atomic_write_json(target, snapshot)
+    return target
+
+
 __all__ = [
+    "B2_8D_STOP_CONDITIONS",
     "DRY_RUN_INTENT",
+    "FAILURE_DIR",
+    "FAILURE_DIR_RELATIVE",
+    "FAILURE_REPORT_KIND",
+    "FAILURE_SNAPSHOT_KEYS",
+    "MAX_STOP_REASON_LEN",
     "MODULE_VERSION",
     "OPERATOR_ACTORS",
     "PREFLIGHT_DIR",
@@ -336,7 +571,9 @@ __all__ = [
     "SCHEMA_VERSION",
     "STEP5_ENABLED_SUBSTAGE",
     "WRITE_PREFIX",
+    "build_failure_snapshot",
     "build_preflight_snapshot",
     "step5_implementation_allowed",
+    "write_failure",
     "write_preflight",
 ]

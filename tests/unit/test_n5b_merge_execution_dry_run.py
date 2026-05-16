@@ -40,7 +40,7 @@ def test_module_imports_successfully() -> None:
 
 
 def test_module_version_is_pinned_string() -> None:
-    assert projector.MODULE_VERSION == "v3.15.16.N5b.phase2.projector"
+    assert projector.MODULE_VERSION == "v3.15.16.N5b.phase2.projector_with_failure"
 
 
 def test_schema_version_is_pinned_integer_1() -> None:
@@ -107,7 +107,13 @@ def test_preflight_snapshot_keys_closed_set() -> None:
 
 def test_all_exports_are_closed() -> None:
     assert set(projector.__all__) == {
+        "B2_8D_STOP_CONDITIONS",
         "DRY_RUN_INTENT",
+        "FAILURE_DIR",
+        "FAILURE_DIR_RELATIVE",
+        "FAILURE_REPORT_KIND",
+        "FAILURE_SNAPSHOT_KEYS",
+        "MAX_STOP_REASON_LEN",
         "MODULE_VERSION",
         "OPERATOR_ACTORS",
         "PREFLIGHT_DIR",
@@ -119,8 +125,10 @@ def test_all_exports_are_closed() -> None:
         "SCHEMA_VERSION",
         "STEP5_ENABLED_SUBSTAGE",
         "WRITE_PREFIX",
+        "build_failure_snapshot",
         "build_preflight_snapshot",
         "step5_implementation_allowed",
+        "write_failure",
         "write_preflight",
     }
 
@@ -270,7 +278,7 @@ def test_build_snapshot_happy_path_returns_closed_schema() -> None:
     assert snap["intent"] == "mobile_approval_dispatch"
     assert snap["schema_version"] == 1
     assert snap["report_kind"] == "n5b_preflight"
-    assert snap["module_version"] == "v3.15.16.N5b.phase2.projector"
+    assert snap["module_version"] == "v3.15.16.N5b.phase2.projector_with_failure"
 
 
 def test_build_snapshot_discipline_invariants_dict_present() -> None:
@@ -414,31 +422,274 @@ def test_write_preflight_runs_assert_no_secrets_before_write(
 
 
 def test_projector_exposes_no_dry_run_decision_writer() -> None:
+    """B2.8d adds ``write_failure`` only. Dry-run-decision /
+    history / execution writers remain reserved for B2.8e per the
+    implementation plan §2.6."""
     for forbidden in (
         "write_dry_run",
         "write_dry_run_latest",
         "write_decision",
-        "write_failure",
         "write_history",
         "write_execution",
     ):
         assert not hasattr(projector, forbidden), (
-            f"B2.8c projector must not expose {forbidden!r}; "
-            "decision/failure/history writers are B2.8d / B2.8e scope"
+            f"B2.8d projector must not expose {forbidden!r}; "
+            "decision/history/execution writers are B2.8e scope"
         )
 
 
-def test_projector_relative_path_only_preflight() -> None:
-    """The projector exposes exactly the preflight relative path. No
-    dry_run / failure / history / decision constants in B2.8c."""
+def test_projector_relative_path_no_decision_or_history() -> None:
+    """B2.8d adds the FAILURE_DIR_RELATIVE constant. The dry_run /
+    decision / execution path constants remain reserved for B2.8e."""
     for forbidden in (
         "DRY_RUN_LATEST_RELATIVE",
         "DRY_RUN_HISTORY_RELATIVE",
-        "FAILURE_DIR_RELATIVE",
         "DECISION_LATEST_RELATIVE",
         "EXECUTION_LATEST_RELATIVE",
     ):
         assert not hasattr(projector, forbidden), (
-            f"B2.8c projector must not expose {forbidden!r}; only "
-            "preflight artefact paths are in scope"
+            f"B2.8d projector must not expose {forbidden!r}; only "
+            "preflight + failure artefact paths are in scope"
         )
+
+
+# ---------------------------------------------------------------------------
+# B2.8d additions — failure artefact closed schema + write_failure
+# ---------------------------------------------------------------------------
+
+
+def test_failure_report_kind_pinned() -> None:
+    assert projector.FAILURE_REPORT_KIND == "n5b_failure"
+
+
+def test_failure_dir_relative_pinned() -> None:
+    assert projector.FAILURE_DIR_RELATIVE == "logs/n5b_merge_execution/failure/"
+
+
+def test_failure_snapshot_keys_closed_set() -> None:
+    assert set(projector.FAILURE_SNAPSHOT_KEYS) == {
+        "schema_version",
+        "report_kind",
+        "module_version",
+        "cycle_id",
+        "pr_number",
+        "pr_head_sha",
+        "pr_base_ref",
+        "intent",
+        "stop_condition",
+        "stop_reason",
+        "preconditions_evaluated",
+        "preconditions_passed",
+        "operator_actor",
+        "generated_at_utc",
+        "step5_implementation_allowed",
+        "step5_enabled_substage",
+        "level6_enabled",
+        "dry_run_only",
+        "live_merge_implemented",
+        "deploy_coupled",
+        "discipline_invariants",
+    }
+
+
+def test_b2_8d_stop_conditions_closed_vocab() -> None:
+    """The B2.8d stop-condition closed list. Adding a literal here
+    requires a paired doc update (governance §6.3) AND an updated
+    pin in the same PR."""
+    assert set(projector.B2_8D_STOP_CONDITIONS) == {
+        "token_missing",
+        "token_invalid",
+        "replay_detected",
+        "binding_mismatch",
+        "pr_number_mismatch",
+        "head_sha_mismatch",
+        "merge_state_not_clean",
+        "checks_not_green",
+        "branch_protection_not_satisfied",
+        "unexpected_files_touched",
+        "deploy_coupling_detected",
+        "step5_flag_changed",
+        "level_6_attempted",
+        "protected_path_violation",
+        "stale_recommendation",
+        "network_uncertain",
+        "audit_write_failure",
+    }
+
+
+def test_max_stop_reason_len_pinned() -> None:
+    assert projector.MAX_STOP_REASON_LEN == 200
+
+
+def _good_failure_kwargs() -> dict[str, Any]:
+    return {
+        "cycle_id": "pr123_20260516T093417Z",
+        "pr_number": 123,
+        "pr_head_sha": "deadbeef" * 5,
+        "stop_condition": "merge_state_not_clean",
+        "stop_reason": "A22 merge_state_status = BLOCKED",
+        "preconditions_evaluated": 9,
+        "preconditions_passed": 8,
+        "operator_actor": "session",
+        "generated_at_utc": "2026-05-16T09:34:17Z",
+    }
+
+
+def test_build_failure_snapshot_happy_path() -> None:
+    snap = projector.build_failure_snapshot(**_good_failure_kwargs())
+    assert set(snap.keys()) == set(projector.FAILURE_SNAPSHOT_KEYS)
+    assert snap["report_kind"] == "n5b_failure"
+    assert snap["cycle_id"] == "pr123_20260516T093417Z"
+    assert snap["stop_condition"] == "merge_state_not_clean"
+    assert snap["preconditions_evaluated"] == 9
+    assert snap["preconditions_passed"] == 8
+    # Discipline invariants mirrored.
+    assert snap["step5_implementation_allowed"] is False
+    assert snap["step5_enabled_substage"] == "none"
+    assert snap["level6_enabled"] is False
+    assert snap["dry_run_only"] is True
+    assert snap["live_merge_implemented"] is False
+    assert snap["deploy_coupled"] is False
+    assert snap["pr_base_ref"] == "main"
+    assert snap["intent"] == "mobile_approval_dispatch"
+
+
+def test_build_failure_snapshot_truncates_stop_reason() -> None:
+    kwargs = _good_failure_kwargs()
+    kwargs["stop_reason"] = "x" * 500
+    snap = projector.build_failure_snapshot(**kwargs)
+    assert len(snap["stop_reason"]) == projector.MAX_STOP_REASON_LEN
+
+
+def test_build_failure_snapshot_rejects_unknown_stop_condition() -> None:
+    kwargs = _good_failure_kwargs()
+    kwargs["stop_condition"] = "not_a_real_stop_condition"
+    with pytest.raises(ValueError):
+        projector.build_failure_snapshot(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "field,bad_value,exc",
+    [
+        ("cycle_id", "", ValueError),
+        ("cycle_id", "with space", ValueError),
+        ("cycle_id", "with/slash", ValueError),
+        ("cycle_id", "with.dot", ValueError),
+        ("cycle_id", "x" * 200, ValueError),
+        ("pr_number", "123", TypeError),
+        ("pr_number", True, TypeError),
+        ("pr_number", 0, ValueError),
+        ("pr_head_sha", "", ValueError),
+        ("pr_head_sha", "x" * 65, ValueError),
+        ("preconditions_evaluated", "9", TypeError),
+        ("preconditions_evaluated", True, TypeError),
+        ("preconditions_evaluated", -1, ValueError),
+        ("preconditions_passed", -1, ValueError),
+        ("operator_actor", "bogus", ValueError),
+        ("generated_at_utc", "", ValueError),
+    ],
+)
+def test_build_failure_snapshot_rejects_bad_inputs(
+    field: str, bad_value: Any, exc: type[BaseException]
+) -> None:
+    kwargs = _good_failure_kwargs()
+    kwargs[field] = bad_value
+    with pytest.raises(exc):
+        projector.build_failure_snapshot(**kwargs)
+
+
+def test_build_failure_snapshot_rejects_passed_gt_evaluated() -> None:
+    kwargs = _good_failure_kwargs()
+    kwargs["preconditions_passed"] = 10
+    kwargs["preconditions_evaluated"] = 5
+    with pytest.raises(ValueError):
+        projector.build_failure_snapshot(**kwargs)
+
+
+def _tmp_failure_path(tmp_path: Path, cycle_id: str) -> Path:
+    target = (
+        tmp_path
+        / "logs"
+        / "n5b_merge_execution"
+        / "failure"
+        / f"{cycle_id}.json"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def test_write_failure_writes_closed_schema_to_target(tmp_path: Path) -> None:
+    kwargs = _good_failure_kwargs()
+    target = _tmp_failure_path(tmp_path, kwargs["cycle_id"])
+    out = projector.write_failure(target_path=target, **kwargs)
+    assert out == target
+    assert target.is_file()
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    assert set(payload.keys()) == set(projector.FAILURE_SNAPSHOT_KEYS)
+    assert payload["stop_condition"] == "merge_state_not_clean"
+    assert payload["cycle_id"] == "pr123_20260516T093417Z"
+
+
+def test_write_failure_refuses_non_sentinel_path(tmp_path: Path) -> None:
+    """The sentinel guard refuses any path that does NOT contain
+    ``logs/n5b_merge_execution/``."""
+    kwargs = _good_failure_kwargs()
+    bogus = tmp_path / "logs" / "elsewhere" / f"{kwargs['cycle_id']}.json"
+    bogus.parent.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError):
+        projector.write_failure(target_path=bogus, **kwargs)
+    assert not bogus.is_file()
+
+
+def test_write_failure_atomic_no_tmp_residue(tmp_path: Path) -> None:
+    kwargs = _good_failure_kwargs()
+    target = _tmp_failure_path(tmp_path, kwargs["cycle_id"])
+    projector.write_failure(target_path=target, **kwargs)
+    leftovers = [
+        p
+        for p in target.parent.iterdir()
+        if p.name.startswith(".n5b_merge_execution_dry_run.")
+    ]
+    assert leftovers == []
+
+
+def test_write_failure_runs_assert_no_secrets_before_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If ``assert_no_secrets`` raises, NO failure file is created."""
+    kwargs = _good_failure_kwargs()
+    target = _tmp_failure_path(tmp_path, kwargs["cycle_id"])
+
+    def _boom(_payload: dict[str, Any]) -> None:
+        raise AssertionError("simulated credential leak")
+
+    monkeypatch.setattr(projector, "assert_no_secrets", _boom)
+    with pytest.raises(AssertionError):
+        projector.write_failure(target_path=target, **kwargs)
+    assert not target.is_file()
+
+
+@pytest.mark.parametrize(
+    "stop_condition",
+    sorted({
+        "token_missing", "token_invalid", "replay_detected",
+        "binding_mismatch", "pr_number_mismatch",
+        "head_sha_mismatch", "merge_state_not_clean", "checks_not_green",
+        "branch_protection_not_satisfied", "unexpected_files_touched",
+        "deploy_coupling_detected", "step5_flag_changed",
+        "level_6_attempted", "protected_path_violation",
+        "stale_recommendation", "network_uncertain", "audit_write_failure",
+    }),
+)
+def test_write_failure_accepts_each_closed_stop(
+    stop_condition: str, tmp_path: Path
+) -> None:
+    """Every closed §6.3 / B2.8c stop must be writable as a
+    failure artefact."""
+    kwargs = _good_failure_kwargs()
+    kwargs["stop_condition"] = stop_condition
+    kwargs["cycle_id"] = f"pr1_{stop_condition[:20]}"
+    target = _tmp_failure_path(tmp_path, kwargs["cycle_id"])
+    projector.write_failure(target_path=target, **kwargs)
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    assert payload["stop_condition"] == stop_condition
