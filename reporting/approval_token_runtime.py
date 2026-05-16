@@ -41,6 +41,7 @@ Hard guarantees (pinned by tests)
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -500,6 +501,206 @@ def verify_runtime(
     }
 
 
+# ---------------------------------------------------------------------------
+# N5b Phase 2 dry-run walker entrypoint (B2.8c)
+#
+# The dry-run dashboard endpoint (``dashboard/api_merge_execution_dry_run.py``)
+# does NOT carry an ``event_id`` in its closed request body (per
+# ``docs/governance/n5b_phase2_implementation_plan.md`` §2.3). The
+# existing :func:`verify_runtime` requires an ``expected_event_id``
+# kwarg, so a separate purpose-built wrapper is needed to cover the
+# dry-run flow. This wrapper:
+#
+# * Does NOT change the semantics, signature, or return shape of
+#   :func:`verify_runtime`, :func:`mint_runtime`, :func:`is_configured`,
+#   :func:`secrets_by_kid`, :func:`current_kid`, or :func:`record_nonce`.
+# * Pre-decodes the claimed ``event_id`` ONLY to feed it back into
+#   :func:`atg.verify_token`. The HMAC signature still binds every
+#   claim including ``event_id``, so the pre-decode is never used as
+#   a trust signal — a tampered ``event_id`` fails signature one step
+#   later.
+# * Pins ``expected_intent == "mobile_approval_dispatch"`` as the only
+#   permitted dry-run intent and rejects with no metadata otherwise.
+# * Surfaces verified metadata (kid, nonce_hash, event_id, intent)
+#   ONLY on a fully verified result. Every rejected /
+#   configuration_missing branch returns exactly the 3-key envelope
+#   ``{"status", "outcome", "reason"}`` — no claim metadata leaks.
+# * Never returns the raw nonce; only its sha256 hex digest.
+# * Records the verified nonce in the existing bounded seen-nonce
+#   store via :func:`record_nonce`, so the second presentation of the
+#   same token is rejected with ``outcome == "replay_detected"``.
+# ---------------------------------------------------------------------------
+
+
+_DRY_RUN_INTENT: Final[str] = "mobile_approval_dispatch"
+
+
+def _pre_decode_event_id(token: str) -> str:
+    """Best-effort extraction of the claimed ``event_id`` claim.
+
+    Used ONLY to feed :func:`atg.verify_token` so the signature check
+    can run. The signature still binds the ``event_id`` to the rest
+    of the claims; any tampered claim is rejected one step later.
+    This pre-decode never participates in a trust decision.
+
+    Returns the empty string on any failure (malformed envelope,
+    base64 / JSON error, missing field, wrong type). The empty
+    string then flows through :func:`atg.verify_token`, which
+    rejects with ``malformed_envelope`` or ``binding_mismatch``.
+    """
+    claims = _claims_from_token(token)
+    value = claims.get("event_id")
+    return value if isinstance(value, str) else ""
+
+
+def verify_runtime_for_dry_run(
+    *,
+    token: str,
+    expected_pr_number: int,
+    expected_pr_head_sha: str,
+    expected_evidence_hash: str,
+    expected_intent: str,
+) -> dict[str, Any]:
+    """N5b Phase 2 dry-run walker entrypoint.
+
+    Returns a closed-shape envelope:
+
+    * ``ok``::
+
+          {"status": "ok", "outcome": "ok", "reason": "verified",
+           "kid": <verified kid str>,
+           "nonce_hash": <sha256-hex of verified nonce>,
+           "event_id": <verified event_id str>,
+           "intent": <verified intent str>}
+
+    * ``rejected``::
+
+          {"status": "rejected", "outcome": <atg outcome>, "reason": <atg reason>}
+
+      No ``kid`` / ``nonce_hash`` / ``event_id`` / ``intent`` / claim
+      metadata is included in the rejected envelope.
+
+    * ``configuration_missing``::
+
+          {"status": "configuration_missing", "outcome": "",
+           "reason": "env_secret_absent"}
+
+      No metadata leak.
+
+    Failure modes (closed enumeration):
+
+    * ``expected_intent`` is not ``"mobile_approval_dispatch"`` →
+      rejected with ``outcome="intent_unknown"``,
+      ``reason="expected_intent_not_supported"``. The env is not
+      read; the verifier is not called.
+    * Env secret absent → ``configuration_missing``.
+    * Signature / shape / kid / expiry failures → bubble the closed
+      :data:`reporting.approval_token_gate.VERIFY_OUTCOMES` outcome.
+    * Binding drift in pr_number / pr_head_sha / evidence_hash →
+      ``outcome="binding_mismatch"`` with the underlying ``reason``
+      ('pr_number_mismatch', 'pr_head_sha_mismatch',
+      'evidence_hash_mismatch', etc.).
+    * Replay → ``outcome="replay_detected"``.
+    * Claimed intent differs from ``expected_intent`` after signature
+      verifies → rejected with ``outcome="binding_mismatch"``,
+      ``reason="intent_drift"``.
+
+    Never returns or persists the raw token, the raw nonce, or the
+    HMAC secret. The nonce is hashed (sha256 hex) before any
+    metadata surfacing.
+    """
+    # Pin the expected intent to the closed dry-run literal. This
+    # is the only intent the N5b Phase 2 dry-run endpoint accepts.
+    # Reject without reading the env, without calling the verifier,
+    # without exposing any metadata.
+    if expected_intent != _DRY_RUN_INTENT:
+        return {
+            "status": "rejected",
+            "outcome": "intent_unknown",
+            "reason": "expected_intent_not_supported",
+        }
+    by_kid = secrets_by_kid()
+    if not by_kid:
+        return {
+            "status": "configuration_missing",
+            "outcome": "",
+            "reason": "env_secret_absent",
+        }
+    # Pre-decode the claimed event_id ONLY to feed it back into
+    # verify_token. The signature step that follows binds the
+    # event_id to the rest of the claims, so a tampered event_id
+    # fails one step later. This is NOT a trust decision.
+    claimed_event_id_for_verify = _pre_decode_event_id(token)
+    seen = _read_seen_nonces()
+    result = atg.verify_token(
+        token,
+        expected_event_id=claimed_event_id_for_verify,
+        expected_pr_number=expected_pr_number,
+        expected_pr_head_sha=expected_pr_head_sha,
+        expected_evidence_hash=expected_evidence_hash,
+        expected_release_tag=None,
+        secrets_by_kid=by_kid,
+        seen_nonces=seen,
+    )
+    if result.outcome != "ok":
+        # No metadata leak on rejection — exactly the 3-key envelope.
+        return {
+            "status": "rejected",
+            "outcome": result.outcome,
+            "reason": result.reason,
+        }
+    if not isinstance(result.claims, dict):
+        # Defense-in-depth — verify_token's contract guarantees a
+        # claims dict on outcome == "ok", but a missing dict here
+        # is rejected without metadata leak.
+        return {
+            "status": "rejected",
+            "outcome": "malformed_envelope",
+            "reason": "claims_missing",
+        }
+    # Signature is verified; claims are now safe to consult.
+    claimed_intent = result.claims.get("intent")
+    if claimed_intent != expected_intent:
+        return {
+            "status": "rejected",
+            "outcome": "binding_mismatch",
+            "reason": "intent_drift",
+        }
+    nonce = result.claims.get("nonce")
+    if not isinstance(nonce, str) or not nonce:
+        return {
+            "status": "rejected",
+            "outcome": "malformed_envelope",
+            "reason": "nonce_missing",
+        }
+    # Record the verified nonce before surfacing metadata so a
+    # successful return implies the nonce can no longer replay.
+    # A failed write is non-fatal: the in-memory seen-set still
+    # holds the nonce for this process and the next request
+    # re-reads the persisted store. :func:`verify_runtime` makes
+    # the same trade-off.
+    try:
+        record_nonce(nonce)
+    except Exception:
+        pass
+    nonce_hash = hashlib.sha256(nonce.encode("utf-8")).hexdigest()
+    claimed_kid = result.claims.get("kid")
+    claimed_event_id_verified = result.claims.get("event_id")
+    return {
+        "status": "ok",
+        "outcome": "ok",
+        "reason": "verified",
+        "kid": claimed_kid if isinstance(claimed_kid, str) else "",
+        "nonce_hash": nonce_hash,
+        "event_id": (
+            claimed_event_id_verified
+            if isinstance(claimed_event_id_verified, str)
+            else ""
+        ),
+        "intent": claimed_intent,
+    }
+
+
 __all__ = [
     "CURRENT_KID",
     "ENV_APPROVAL_TOKEN_HMAC_SECRET",
@@ -519,4 +720,5 @@ __all__ = [
     "secrets_by_kid",
     "step5_implementation_allowed",
     "verify_runtime",
+    "verify_runtime_for_dry_run",
 ]

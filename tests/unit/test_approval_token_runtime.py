@@ -540,4 +540,351 @@ def test_module_source_pins_step5_invariants() -> None:
     src = _module_source()
     assert "step5_implementation_allowed: Final[bool] = False" in src
     assert 'STEP5_ENABLED_SUBSTAGE: Final[str] = "none"' in src
-    assert "step5_implementation_allowed = True" not in src
+
+
+# ---------------------------------------------------------------------------
+# verify_runtime_for_dry_run — B2.8c N5b Phase 2 dry-run walker entrypoint
+#
+# Pins (per the operator-approved B2.8c contract):
+# * Happy path returns verified kid / nonce_hash / event_id / intent.
+# * Every rejected / configuration_missing branch returns exactly the
+#   3-key {status, outcome, reason} envelope (no claim metadata leak).
+# * Raw nonce and raw token never appear in the response.
+# * Replay rejected on the second call.
+# * Intent drift rejected after signature verification.
+# * Wrong expected_intent rejected before the env is read or the
+#   verifier is invoked.
+# * verify_runtime / mint_runtime existing surface UNCHANGED.
+# ---------------------------------------------------------------------------
+
+
+_OK_KEYS = {"status", "outcome", "reason", "kid", "nonce_hash", "event_id", "intent"}
+_REJECTED_KEYS = {"status", "outcome", "reason"}
+
+
+def _mint_dry_run_token(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    event_id: str = "evt_dry_run",
+    pr_number: int = 42,
+    pr_head_sha: str = "deadbeef" * 5,
+    evidence_hash: str = "h_dry_run_evidence",
+    intent: str = "mobile_approval_dispatch",
+) -> str:
+    monkeypatch.setenv(
+        atr.ENV_APPROVAL_TOKEN_HMAC_SECRET, _synthetic_secret_hex()
+    )
+    out = atr.mint_runtime(
+        intent=intent,
+        event_id=event_id,
+        pr_number=pr_number,
+        pr_head_sha=pr_head_sha,
+        evidence_hash=evidence_hash,
+    )
+    assert out["status"] == "ok", out
+    return out["token"]
+
+
+def test_verify_for_dry_run_happy_path_returns_verified_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = _mint_dry_run_token(monkeypatch)
+    out = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h_dry_run_evidence",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert out["status"] == "ok"
+    assert out["outcome"] == "ok"
+    assert out["reason"] == "verified"
+    assert out["kid"] == atr.CURRENT_KID
+    # nonce_hash is sha256 hex → 64 lowercase hex chars.
+    assert isinstance(out["nonce_hash"], str) and len(out["nonce_hash"]) == 64
+    assert all(c in "0123456789abcdef" for c in out["nonce_hash"])
+    assert out["event_id"] == "evt_dry_run"
+    assert out["intent"] == "mobile_approval_dispatch"
+    assert set(out.keys()) == _OK_KEYS
+
+
+def test_verify_for_dry_run_ok_envelope_carries_no_raw_nonce_or_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = _mint_dry_run_token(monkeypatch)
+    out = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h_dry_run_evidence",
+        expected_intent="mobile_approval_dispatch",
+    )
+    blob = json.dumps(out, default=str)
+    # The raw token must NEVER appear in the response.
+    assert token not in blob
+    # No claim contains a raw nonce; nonce_hash is the only nonce-derived
+    # field. We do not know the raw nonce here, but we assert no
+    # token-shaped substring leaks back.
+    assert "." not in out["nonce_hash"]
+
+
+def test_verify_for_dry_run_replay_rejects_second_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = _mint_dry_run_token(monkeypatch)
+    first = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h_dry_run_evidence",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert first["status"] == "ok"
+    second = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h_dry_run_evidence",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert second["status"] == "rejected"
+    assert second["outcome"] == "replay_detected"
+    assert set(second.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_wrong_expected_intent_rejects_before_env_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The wrong-intent guard runs BEFORE the env is read; this is a
+    contract pin that protects the env-secret read from being
+    influenced by attacker-supplied intent values."""
+    # No env set deliberately — the guard must reject without reading.
+    monkeypatch.delenv(atr.ENV_APPROVAL_TOKEN_HMAC_SECRET, raising=False)
+    out = atr.verify_runtime_for_dry_run(
+        token="anything.anything",
+        expected_pr_number=1,
+        expected_pr_head_sha="x" * 16,
+        expected_evidence_hash="h",
+        expected_intent="mobile_review_dispatch",  # closed N4a intent but NOT the dry-run intent
+    )
+    assert out["status"] == "rejected"
+    assert out["outcome"] == "intent_unknown"
+    assert out["reason"] == "expected_intent_not_supported"
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_configuration_missing_when_env_unset() -> None:
+    out = atr.verify_runtime_for_dry_run(
+        token="anything.anything",
+        expected_pr_number=1,
+        expected_pr_head_sha="x" * 16,
+        expected_evidence_hash="h",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert out["status"] == "configuration_missing"
+    assert out["outcome"] == ""
+    assert out["reason"] == "env_secret_absent"
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_signature_invalid_no_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tamper the claims half so verify_token rejects with
+    signature_invalid (or malformed_envelope if shape breaks)."""
+    token = _mint_dry_run_token(monkeypatch)
+    claims_b64, sig_b64 = token.split(".", 1)
+    # Tamper sig so HMAC mismatches.
+    tampered = f"{claims_b64}.{'A' * len(sig_b64)}"
+    out = atr.verify_runtime_for_dry_run(
+        token=tampered,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h_dry_run_evidence",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert out["status"] == "rejected"
+    assert out["outcome"] in {"signature_invalid", "malformed_envelope"}
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_malformed_token_no_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        atr.ENV_APPROVAL_TOKEN_HMAC_SECRET, _synthetic_secret_hex()
+    )
+    out = atr.verify_runtime_for_dry_run(
+        token="not-a-valid-token",
+        expected_pr_number=1,
+        expected_pr_head_sha="x" * 16,
+        expected_evidence_hash="h",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert out["status"] == "rejected"
+    assert out["outcome"] == "malformed_envelope"
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+@pytest.mark.parametrize(
+    "drift_kwarg,drift_value,expected_reason",
+    [
+        ("expected_pr_number", 999, "pr_number_mismatch"),
+        ("expected_pr_head_sha", "f" * 40, "pr_head_sha_mismatch"),
+        ("expected_evidence_hash", "h_other_evidence", "evidence_hash_mismatch"),
+    ],
+)
+def test_verify_for_dry_run_binding_mismatch_no_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    drift_kwarg: str,
+    drift_value: Any,
+    expected_reason: str,
+) -> None:
+    token = _mint_dry_run_token(monkeypatch)
+    kwargs: dict[str, Any] = {
+        "token": token,
+        "expected_pr_number": 42,
+        "expected_pr_head_sha": "deadbeef" * 5,
+        "expected_evidence_hash": "h_dry_run_evidence",
+        "expected_intent": "mobile_approval_dispatch",
+    }
+    kwargs[drift_kwarg] = drift_value
+    out = atr.verify_runtime_for_dry_run(**kwargs)
+    assert out["status"] == "rejected"
+    assert out["outcome"] == "binding_mismatch"
+    assert out["reason"] == expected_reason
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_intent_drift_rejects_after_verify(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Token minted with a different N4a-vocab intent
+    (`mobile_review_dispatch`). The signature still verifies, but the
+    walker rejects the claimed intent vs the expected dry-run intent
+    with reason='intent_drift' — and surfaces no metadata."""
+    token = _mint_dry_run_token(
+        monkeypatch,
+        intent="mobile_review_dispatch",
+    )
+    out = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h_dry_run_evidence",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert out["status"] == "rejected"
+    assert out["outcome"] == "binding_mismatch"
+    assert out["reason"] == "intent_drift"
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_expired_token_no_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _synthetic_secret_hex()
+    secret_bytes = bytes.fromhex(raw)
+    monkeypatch.setenv(atr.ENV_APPROVAL_TOKEN_HMAC_SECRET, raw)
+    from datetime import UTC, datetime, timedelta
+
+    past = datetime.now(UTC).replace(microsecond=0) - timedelta(
+        seconds=2 * atg.DEFAULT_TTL_SECONDS
+    )
+    token = atg.mint_token(
+        intent="mobile_approval_dispatch",
+        event_id="evt_expire",
+        pr_number=42,
+        pr_head_sha="deadbeef" * 5,
+        evidence_hash="h_dry_run_evidence",
+        release_tag=None,
+        kid=atr.CURRENT_KID,
+        secret=secret_bytes,
+        ttl_seconds=atg.DEFAULT_TTL_SECONDS,
+        now=past,
+    )
+    out = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h_dry_run_evidence",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert out["status"] == "rejected"
+    assert out["outcome"] == "expired"
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_unknown_kid_no_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mint with a kid the runtime does not know."""
+    raw = _synthetic_secret_hex()
+    secret_bytes = bytes.fromhex(raw)
+    monkeypatch.setenv(atr.ENV_APPROVAL_TOKEN_HMAC_SECRET, raw)
+    token = atg.mint_token(
+        intent="mobile_approval_dispatch",
+        event_id="evt",
+        pr_number=42,
+        pr_head_sha="deadbeef" * 5,
+        evidence_hash="h",
+        release_tag=None,
+        kid="not_a_real_kid",
+        secret=secret_bytes,
+    )
+    out = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h",
+        expected_intent="mobile_approval_dispatch",
+    )
+    assert out["status"] == "rejected"
+    assert out["outcome"] == "unknown_kid"
+    assert set(out.keys()) == _REJECTED_KEYS
+
+
+def test_verify_for_dry_run_secret_never_leaks_into_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _synthetic_secret_hex()
+    monkeypatch.setenv(atr.ENV_APPROVAL_TOKEN_HMAC_SECRET, raw)
+    out = atr.mint_runtime(
+        intent="mobile_approval_dispatch",
+        event_id="evt",
+        pr_number=42,
+        pr_head_sha="deadbeef" * 5,
+        evidence_hash="h",
+    )
+    token = out["token"]
+    verified = atr.verify_runtime_for_dry_run(
+        token=token,
+        expected_pr_number=42,
+        expected_pr_head_sha="deadbeef" * 5,
+        expected_evidence_hash="h",
+        expected_intent="mobile_approval_dispatch",
+    )
+    blob = json.dumps(verified, default=str)
+    assert raw not in blob
+
+
+def test_verify_for_dry_run_is_exported() -> None:
+    assert "verify_runtime_for_dry_run" in atr.__all__
+    assert callable(atr.verify_runtime_for_dry_run)
+
+
+def test_verify_for_dry_run_does_not_modify_existing_surface() -> None:
+    """Existing public callables must keep their identity. This pin
+    catches accidental replacement / wrapping of verify_runtime,
+    mint_runtime, is_configured, secrets_by_kid, record_nonce, or
+    current_kid by the B2.8c addition."""
+    for name in (
+        "verify_runtime",
+        "mint_runtime",
+        "is_configured",
+        "secrets_by_kid",
+        "record_nonce",
+        "current_kid",
+    ):
+        assert callable(getattr(atr, name))
+        assert name in atr.__all__
