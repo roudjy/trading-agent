@@ -743,34 +743,50 @@ def test_history_append_failure_emits_audit_write_failure(
 
 
 # ---------------------------------------------------------------------------
-# UNWIRED contract — blueprint not registered in dashboard.py YET
+# Wiring contract — simulator blueprint registered in dashboard.py
 #
-# B2.9d will land the operator-applied wiring patch as a separate
-# commit on this same branch (B2.0c precedent).
+# The B2.9d operator-applied wiring commit registered the
+# simulator route module in ``dashboard/dashboard.py`` via the
+# closed-vocab ``register_*_routes(app)`` callable convention.
+# This positive pin replaces the prior UNWIRED-state pin
+# (``test_simulator_blueprint_not_yet_registered_in_dashboard_py``)
+# from B2.9c and locks the wired registration. Same B2.0c
+# precedent used by the B2.8e wiring PR #239.
 # ---------------------------------------------------------------------------
 
 
 def test_dashboard_py_present() -> None:
+    """Existence pin for the wiring-state scan below."""
     assert DASHBOARD_PY.is_file()
 
 
-def test_simulator_blueprint_not_yet_registered_in_dashboard_py() -> None:
-    """B2.9c keeps the simulator route module UNWIRED. The 2-line
-    operator-applied wiring patch is B2.9d (operator manual,
-    B2.0c precedent). This pin will be REPLACED by a positive
-    ``test_simulator_blueprint_registered_in_dashboard_py`` pin
-    in the wiring commit (same B2.0c precedent as the B2.8e
-    wiring PR #239)."""
+def test_simulator_blueprint_registered_in_dashboard_py() -> None:
+    """The operator-applied B2.9d wiring commit registers the
+    simulator route module in ``dashboard/dashboard.py`` via the
+    closed-vocab ``register_*_routes(app)`` callable convention.
+    This positive pin replaces the prior UNWIRED-state pin
+    (``test_simulator_blueprint_not_yet_registered_in_dashboard_py``)
+    and locks the wired registration.
+
+    The wiring patch is the operator's authority (B2.0c
+    precedent); this pin asserts the patch landed correctly on
+    both the import site and the register-call site."""
     src = DASHBOARD_PY.read_text(encoding="utf-8")
-    forbidden_substrings = (
-        "from dashboard.api_merge_execution_simulate",
-        "import api_merge_execution_simulate",
+    required_substrings = (
+        # Import site:
+        "from dashboard.api_merge_execution_simulate import",
+        # Symbol must be imported:
         "register_merge_execution_simulate_routes",
+        # Register-call site:
+        "register_merge_execution_simulate_routes(app)",
     )
-    hits = [s for s in forbidden_substrings if s in src]
-    assert not hits, (
-        "B2.9c simulator route must remain UNWIRED until B2.9d "
-        f"operator-applied wiring. dashboard.py contains: {hits!r}"
+    missing = [s for s in required_substrings if s not in src]
+    assert not missing, (
+        "dashboard.py is missing required B2.9d simulator wiring "
+        f"substrings: {missing!r}. Operator-applied wiring patch "
+        "must add the import + the "
+        "register_merge_execution_simulate_routes(app) call "
+        "(B2.0c precedent)."
     )
 
 
