@@ -1085,29 +1085,45 @@ def test_preflight_write_failure_emits_rejected_500_no_new_stop_condition(
 
 
 # ---------------------------------------------------------------------------
-# UNWIRED contract — blueprint not registered in dashboard.py
+# Wiring contract — blueprint registered in dashboard.py
 # ---------------------------------------------------------------------------
 
 
-def test_dashboard_py_present_for_unwired_pin() -> None:
+def test_dashboard_py_present() -> None:
+    """Existence pin for the wiring-state scan below."""
     assert DASHBOARD_PY.is_file()
 
 
-def test_blueprint_not_registered_in_dashboard_py() -> None:
-    """B2.8c keeps the walker UNWIRED. The wiring patch into
-    ``dashboard/dashboard.py`` is operator-only and reserved for
-    B2.8e. Source-text scan of dashboard.py asserts the import +
-    register-call are absent."""
+def test_blueprint_registered_in_dashboard_py() -> None:
+    """The operator-applied wiring commit registers the B2.8e
+    dry-run blueprint in ``dashboard/dashboard.py`` via the
+    closed-vocab ``register_*_routes(app)`` callable convention
+    used by adjacent api_* modules (api_approval_token_gate,
+    api_merge_recommendation, api_merge_preflight). This positive
+    pin replaces the prior UNWIRED-state pins
+    (``test_blueprint_not_registered_in_dashboard_py`` from
+    B2.8b/B2.8c and
+    ``test_b2_8e_blueprint_still_unwired_in_dashboard_py`` from
+    B2.8e) and locks the wired registration.
+
+    The wiring patch is the operator's authority (B2.0c
+    precedent); this pin asserts the patch landed correctly on
+    both the import site and the register-call site."""
     src = DASHBOARD_PY.read_text(encoding="utf-8")
-    forbidden_substrings = (
-        "from dashboard.api_merge_execution_dry_run",
-        "import api_merge_execution_dry_run",
+    required_substrings = (
+        # Import site:
+        "from dashboard.api_merge_execution_dry_run import",
+        # Symbol must be imported:
         "register_merge_execution_dry_run_routes",
+        # Register-call site (must invoke the callable on app):
+        "register_merge_execution_dry_run_routes(app)",
     )
-    hits = [s for s in forbidden_substrings if s in src]
-    assert not hits, (
-        "B2.8c walker must remain UNWIRED. dashboard.py contains "
-        f"wiring substrings: {hits!r}. Wiring is B2.8e scope."
+    missing = [s for s in required_substrings if s not in src]
+    assert not missing, (
+        "dashboard.py is missing required B2.8e wiring substrings: "
+        f"{missing!r}. Operator-applied wiring patch must add the "
+        "import + the register_merge_execution_dry_run_routes(app) "
+        "call (B2.0c precedent)."
     )
 
 
@@ -2246,26 +2262,14 @@ def test_b2_8e_would_proceed_field_documented_as_dry_run_only_in_source() -> Non
 
 
 # ---------------------------------------------------------------------------
-# B2.8e UNWIRED-state pin — operator-applied wiring is a separate commit
+# Wiring landed — UNWIRED-state pins retired
+#
+# The B2.8e-era ``test_b2_8e_blueprint_still_unwired_in_dashboard_py``
+# pin was retired by the operator-applied wiring commit. The
+# wired-state contract is now enforced by the positive pin
+# ``test_blueprint_registered_in_dashboard_py`` earlier in this
+# file. The readiness self-pin in
+# ``tests/unit/test_n5b_phase2_precondition_readiness.py`` is
+# updated in the same wiring commit to accept the post-wiring
+# positive pin name.
 # ---------------------------------------------------------------------------
-
-
-def test_b2_8e_blueprint_still_unwired_in_dashboard_py() -> None:
-    """B2.8e MUST NOT wire the blueprint into ``dashboard/dashboard.py``.
-    The operator-applied wiring patch + corresponding test-pin
-    retirement is a separate follow-up commit (B2.0c precedent).
-    This pin is identical to ``test_blueprint_not_registered_in_dashboard_py``;
-    re-asserted explicitly so the B2.8e contract surface is
-    self-documenting."""
-    src = DASHBOARD_PY.read_text(encoding="utf-8")
-    forbidden_substrings = (
-        "from dashboard.api_merge_execution_dry_run",
-        "import api_merge_execution_dry_run",
-        "register_merge_execution_dry_run_routes",
-    )
-    hits = [s for s in forbidden_substrings if s in src]
-    assert not hits, (
-        "B2.8e walker must remain UNWIRED. dashboard.py contains "
-        f"wiring substrings: {hits!r}. Wiring is operator-applied "
-        "in a separate follow-up commit."
-    )

@@ -46,6 +46,9 @@ from dashboard.api_mobile_approval_inbox import register_mobile_approval_inbox_r
 from dashboard.api_approval_token_gate import register_approval_token_gate_routes
 from dashboard.api_merge_recommendation import register_merge_recommendation_routes
 from dashboard.api_merge_preflight import register_merge_preflight_routes
+from dashboard.api_merge_execution_dry_run import (
+    register_merge_execution_dry_run_routes,
+)
 from dashboard.api_pwa_static import register_pwa_static_routes
 from dashboard.api_agent_control_activity import (
     register_agent_control_activity_routes,
@@ -105,6 +108,7 @@ register_mobile_approval_inbox_routes(app)
 register_approval_token_gate_routes(app)
 register_merge_recommendation_routes(app)
 register_merge_preflight_routes(app)
+register_merge_execution_dry_run_routes(app)
 register_pwa_static_routes(app)
 
 # v3.15.16.A15.B2.0c: read-only Agent Activity Center blueprint

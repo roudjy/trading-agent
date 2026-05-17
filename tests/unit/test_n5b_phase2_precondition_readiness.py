@@ -593,8 +593,17 @@ def test_existing_b2_8a_pin_test_file_still_exists() -> None:
 
 def test_existing_b2_8b_skeleton_test_file_still_exists() -> None:
     """B2.8b skeleton pin-test file must still be on disk and
-    carry the UNWIRED-contract pin so this readiness PR has not
-    weakened the skeleton's invariants."""
+    carry the dashboard.py wiring-state contract pin so this
+    readiness PR has not weakened the skeleton's invariants.
+
+    Narrowed by the operator-applied wiring commit (B2.0c
+    precedent): the wiring-state contract is now expressed as
+    a positive ``test_blueprint_registered_in_dashboard_py`` pin,
+    landing alongside the actual wiring of
+    ``dashboard/dashboard.py``. Either function name
+    (pre-wiring negative or post-wiring positive) satisfies the
+    readiness invariant — both keep the wiring-state contract
+    on the surface."""
     b2_8b_pin_test = (
         REPO_ROOT
         / "tests"
@@ -605,8 +614,13 @@ def test_existing_b2_8b_skeleton_test_file_still_exists() -> None:
         f"B2.8b skeleton pin-test file missing: {b2_8b_pin_test}"
     )
     src = b2_8b_pin_test.read_text(encoding="utf-8")
-    assert "test_blueprint_not_registered_in_dashboard_py" in src, (
-        "B2.8b skeleton pin-test no longer carries the UNWIRED contract pin"
+    assert (
+        "test_blueprint_not_registered_in_dashboard_py" in src
+        or "test_blueprint_registered_in_dashboard_py" in src
+    ), (
+        "walker pin-test no longer carries the dashboard.py "
+        "wiring-state contract pin (neither pre-wiring negative "
+        "nor post-wiring positive form is present)"
     )
 
 
