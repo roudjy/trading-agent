@@ -1905,4 +1905,246 @@ no time-of-day or random-seed sensitivity.
 ```
 
 
+\---
+
+# A16 — ADE Development-Lane Doctrine
+
+## Status
+
+```text
+Status: Proposed (operator-authored)
+Class: subordinate governance doctrine doc — NOT canonical_policy_doc,
+       NOT ADR, NOT runtime
+Predecessors:
+  - ADR-014 (truth-authority settlement)
+  - ADR-015 (Claude agent governance) — autonomy ladder + no-touch
+  - docs/governance/execution_authority.md (per-action classifier)
+  - docs/governance/no_touch_paths.md
+  - docs/governance/autonomy_ladder.md (Level 6 permanently disabled)
+  - docs/governance/step5_design.md (Step 5 implementation blocked)
+  - docs/governance/n5b_merge_execution_plan.md
+  - docs/governance/n5b_phase3_implementation_plan.md
+  - PR #240 (B2.9 N5b Phase 3 recorded-fixture simulator,
+    merge SHA 352289c, deployed 2026-05-17, live-route checked)
+Step 5 implementation: BLOCKED (unchanged)
+  - step5_implementation_allowed = False (Final constant)
+  - STEP5_ENABLED_SUBSTAGE = "none" (Final constant)
+  - autonomy-ladder Level 6: permanently disabled per
+    ADR-015 Doctrine 1
+N5b Phase 4 production merge: PERMANENTLY DENIED FOR ADE (unchanged)
+```
+
+A16 is the canonical-roadmap anchor for a single subordinate
+governance doctrine doc that pins the load-bearing distinction
+between **ADE development authority** and **QRE runtime authority**
+(including any future paper/shadow/live trading execution
+authority). A16 ships zero runtime code and adds no new authority.
+
+## Purpose
+
+The repository already enforces, across ADR-015, execution\_authority.md,
+no\_touch\_paths.md, autonomy\_ladder.md, step5\_design.md, and the
+github\_pr\_lifecycle.md, that ADE is a development workflow automation
+lane only and that trading execution authority is permanently outside
+ADE. A16 pins that doctrine in a single subordinate doctrine doc
+written in one consistent voice so that future ADE / QRE roadmap work
+can cite the distinction without ambiguity.
+
+A16 is **doctrine pinning only**. It does not unlock, flip, or weaken
+any existing gate.
+
+## Architectural separation
+
+A16 ships:
+
+```text
+- docs/governance/ade_development_lane_doctrine.md (NEW)
+  Subordinate doctrine doc. §1–§10 pinning ADE-vs-QRE-runtime
+  distinction; ADE may / may-not lists; paper/shadow framing;
+  Step 5 + Level 6 reaffirmation; N5b simulator cap +
+  Phase 4 denial; hard-invariant reaffirmation; canonical-doc
+  cross-references; modification policy.
+- tests/unit/test_ade_development_lane_doctrine.py (NEW)
+  Structural pin test: stdlib-only; asserts doctrine doc
+  existence, load-bearing literal substrings, A16 roadmap-anchor
+  literal, and forbidden authority-grant token absence.
+- docs/roadmap/autonomous_development.txt (UPDATE — this entry only)
+```
+
+Cross-reference link additions in AGENTS.md, CLAUDE.md, and
+docs/roadmap/qre_roadmap_v6_ade_operating_manual.md were considered
+in scope during planning but were dropped from this PR (operator
+selected path 2 after `deny_outside_agent_allowlist.py` blocked
+those paths — no agent has them in `allowed_roots`, and widening
+allowlists is `agent_allowlist_widen`/`NEEDS_HUMAN` plus a
+`.claude/**` mutation outside Stage A scope). The doctrine doc and
+A16 entry stand on their own. Future operator-authored or
+operator-applied cross-reference additions in those files may
+re-anchor the doctrine without requiring an A16 update.
+
+A16 does **not** add any module under `reporting/`, `dashboard/`,
+`frontend/`, `automation/`, `agent/`, `broker/`, `research/`,
+`scripts/`, `.github/`, or `.claude/`. A16 does **not** touch any
+ADR, `canonical_policy_doc`, `dashboard/dashboard.py`, frozen v1
+schema, live/paper/shadow/risk/broker/execution path, or
+tests/regression/.
+
+## Scope (allowed)
+
+```text
+- docs/governance/ade_development_lane_doctrine.md (NEW subordinate
+  doctrine doc)
+- tests/unit/test_ade_development_lane_doctrine.py (NEW structural
+  pin test)
+- docs/roadmap/autonomous_development.txt (THIS ENTRY ONLY — no
+  rewrite of prior history; B2.8d / B2.8e / B2.9 completed status
+  preserved; B2.10 / A18 optional / skip-by-default unchanged)
+```
+
+## Scope (NOT allowed in A16)
+
+```text
+- No ADR amendment (ADR-014, ADR-015, ADR-017-draft untouched).
+- No canonical_policy_doc edit (execution_authority.md,
+  no_touch_paths.md, observability_security_hardening.md untouched).
+- No autonomy_ladder.md edit.
+- No step5_design.md edit.
+- No module under reporting/, dashboard/, frontend/, automation/,
+  agent/, broker/, research/, scripts/.
+- No .claude/** edit; no .github/** edit.
+- No dashboard/dashboard.py edit.
+- No frozen v1 schema edit (research/research_latest.json,
+  research/strategy_matrix.csv).
+- No live/paper/shadow/risk/broker/execution path edit
+  (automation/live_gate.py, broker/**, agent/risk/**,
+  agent/execution/**, execution/**, live/**, paper/**, shadow/**,
+  trading/**).
+- No tests/regression/** edit.
+- No paper broker, shadow logger, risk simulator, activation runtime,
+  dashboard tab, runtime route, or any paper/shadow/live execution
+  code.
+- No flip of step5_implementation_allowed (stays Final False).
+- No flip of STEP5_ENABLED_SUBSTAGE (stays Final "none").
+- No autonomy-ladder amendment; Level 6 stays permanently disabled.
+- No N5b Phase 4 production-merge enablement.
+- No widening of any agent's allowed_roots.
+- No git / gh / subprocess / network code path.
+- No mutation endpoint; no approval button; no push-notification
+  publisher.
+```
+
+## Discipline invariants (load-bearing)
+
+```text
+adds_runtime_code: false
+adds_new_authority: false
+amends_adr: false
+amends_canonical_policy_doc: false
+modifies_no_touch_paths: false
+flips_step5_implementation_allowed: false
+flips_step5_enabled_substage: false
+enables_level_6: false
+weakens_n5b_phase4_denial: false
+introduces_paper_shadow_runtime: false
+introduces_broker_or_execution_code: false
+operator_authorisation_required_for_a16: true
+```
+
+## Relationship to existing canon
+
+A16 is a subordinate doctrine doc that reads from and cross-references
+ADR-014, ADR-015, execution\_authority.md, no\_touch\_paths.md,
+autonomy\_ladder.md, step5\_design.md, github\_pr\_lifecycle.md, the
+N5b parent + Phase 3 plans, this canonical roadmap, Roadmap v6, and
+the QRE operating manual. Conflicts resolve in favour of the ADRs and
+canonical policy docs; the doctrine doc never overrides them.
+
+## Reconciliation with current repo state
+
+```text
+- B2.8d: Complete (PR #236, Phase 2 precondition walkers 8–17).
+- B2.8e: Complete (PR #238 status artifacts + PR #239 wiring).
+- B2.9 N5b Phase 3 recorded-fixture simulator: Complete
+  (PR #240, merge SHA 352289c, deployed 2026-05-17, live-route
+  checked non-404).
+- B2.10 / A18 operator-promote: Optional, skip-by-default; unchanged.
+- PWA Activity Center install/deeplink fix: separate follow-up;
+  unchanged.
+- Step 5 runtime: BLOCKED; unchanged.
+- Level 6: permanently disabled; unchanged.
+- N5b Phase 4 production merge: permanently denied for ADE;
+  unchanged.
+```
+
+## Required deliverables (this PR)
+
+```text
+1. docs/governance/ade_development_lane_doctrine.md
+2. tests/unit/test_ade_development_lane_doctrine.py
+3. docs/roadmap/autonomous_development.txt (this entry)
+```
+
+## Definition of Done (this entry)
+
+```text
+1. Branch docs/ade-development-lane-doctrine exists; nothing on main.
+2. Implementation complete on branch (doctrine doc + structural pin
+   test + this canonical-roadmap entry).
+3. Targeted tests green:
+     python -m pytest tests/unit/test_ade_development_lane_doctrine.py -q
+4. Governance lint green:
+     python scripts/governance_lint.py
+5. Push-body safety lint green:
+     python scripts/push_body_safety_lint.py
+6. Smoke green:
+     python -m pytest tests/smoke -x --no-header -q
+7. Adjacent existing governance tests green (sanity):
+     python -m pytest tests/unit/test_execution_authority.py -q
+8. Diff scope: only the three files listed above.
+   No research/, automation/, broker/, agent/risk/, agent/execution/,
+   live/, paper/, shadow/, trading/, dashboard/dashboard.py,
+   .claude/**, .github/**, tests/regression/**, AGENTS.md, CLAUDE.md,
+   docs/roadmap/qre_roadmap_v6_ade_operating_manual.md changes.
+   No ADR / canonical_policy_doc / autonomy_ladder /
+   step5_design / no_touch_paths edit.
+9. PR opened against main via the documented gh CLI flow.
+10. CI green on the PR.
+11. Squash-merged to main; post-merge gates green.
+12. Only after step 11 may this entry's Status block above flip from
+    "Proposed (operator-authored)" to "Accepted (operator-authored,
+    merge SHA <sha>)" — recorded in a separate operator-authored
+    canonical-roadmap edit, not by ADE.
+13. step5_implementation_allowed remains False.
+    STEP5_ENABLED_SUBSTAGE remains "none". Level 6 stays permanently
+    disabled. N5b Phase 4 production merge stays permanently denied
+    for ADE.
+```
+
+## Determinism
+
+A16 is a canonical-roadmap text entry plus one subordinate doctrine
+doc plus one structural pin test. All are bytewise identical
+run-to-run (no machine input). The structural pin test reads file
+content and matches against load-bearing literal substrings; no
+time-of-day or random-seed sensitivity.
+
+## After A16 completes
+
+```text
+- The doctrine is on main; no runtime authority added.
+- Future ADE / QRE roadmap work may cite
+  docs/governance/ade_development_lane_doctrine.md
+  for the ADE-vs-QRE-runtime authority distinction.
+- Step 5 runtime activation, N5b Phase 4 production merge, and any
+  future paper/shadow/live runtime activation remain separately
+  gated per ADR-015, execution_authority.md, autonomy_ladder.md,
+  step5_design.md, and the N5b parent doc.
+- step5_implementation_allowed remains False (Final constant).
+  STEP5_ENABLED_SUBSTAGE remains "none" (Final constant).
+  Level 6 stays permanently disabled per ADR-015 Doctrine 1.
+  N5b Phase 4 production merge stays permanently denied for ADE.
+```
+
+
+
 
