@@ -1,0 +1,13 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_kind": "n5b_phase3_recorded_merge_simulation",
+  "merge_response": {
+    "http_status": 200,
+    "classification": "merged_ok",
+    "post_merge_head_sha": "deadbeefcafefacefeed00112233445566778899",
+    "merge_method": "squash",
+    "delete_branch": true
+  },
+  "generated_at_utc": "2026-05-17T10:00:00Z",
+  "fixture_notes": "Synthetic happy-path merged_ok fixture for B2.9 unit tests. NOT a real GitHub merge response."
+}
