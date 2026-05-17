@@ -705,6 +705,35 @@ status row.
 
 ---
 
+## 14. Phase 3 implementation decomposition (sub-plan reference)
+
+A separate plan-only sub-document decomposes any future N5b
+Phase 3 implementation into ordered, auditable sub-units
+(B2.9a / B2.9b / B2.9c / B2.9d / B2.9e):
+
+* [`n5b_phase3_implementation_plan.md`](n5b_phase3_implementation_plan.md)
+
+The Phase 3 sub-plan pins the closed contracts (future module
+paths, route URL, request body schema, response statuses,
+audit artefact paths under
+`logs/n5b_merge_execution/phase3_simulation/`, closed
+fixture schema) and the operator's selection of the
+**recorded-fixture simulator** path with the sacrificial-
+GitHub-repository path **rejected**. The sub-plan also
+records the **Phase 4 production-merge permanently-denied-
+for-ADE** doctrine: ADE / Claude is not the authority that
+may flip `ADE_N5B_LIVE_EXECUTE_ENABLED=true` on any system.
+Phase 3 recorded-fixture simulator is the maximum allowed
+merge-like ADE surface, symmetric to the trading-side rule
+that paper/shadow is the maximum ADE end state.
+
+The Phase 3 sub-plan itself adds **no runtime code**. The
+status table in §10 of this parent doc remains "Phase 3 —
+Not implemented" until B2.9e completes; only B2.9e is
+authorised to update the row.
+
+---
+
 ## Cross-references
 
 * `docs/governance/development_merge_recommendation.md` — N5a

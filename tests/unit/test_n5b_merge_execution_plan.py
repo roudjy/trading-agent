@@ -744,3 +744,45 @@ def test_cross_referenced_docs_exist() -> None:
     assert not missing, (
         f"N5b plan-doc cross-references missing files: {missing!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 sub-plan back-pointer (added by B2.9a)
+# ---------------------------------------------------------------------------
+
+
+def test_parent_doc_has_phase3_sub_plan_back_pointer() -> None:
+    """B2.9a adds a §14 cross-reference to the Phase 3
+    sub-plan. This pin asserts the back-pointer survives any
+    future doc edit."""
+    text = _doc_text()
+    assert "n5b_phase3_implementation_plan.md" in text, (
+        "parent doc must include a back-pointer to "
+        "n5b_phase3_implementation_plan.md (added by B2.9a)"
+    )
+
+
+def test_parent_doc_phase3_section_declares_recorded_fixture_path() -> None:
+    """The §14 Phase 3 sub-plan reference must declare the
+    recorded-fixture simulator as the selected path and the
+    sacrificial-GitHub-repository path as rejected."""
+    text = _doc_text().lower()
+    assert "recorded-fixture simulator" in text, (
+        "parent doc §14 must reference the recorded-fixture simulator"
+    )
+    # The rejection of the sacrificial repo path must appear.
+    assert "rejected" in text, (
+        "parent doc §14 must mark the sacrificial-GitHub-repository "
+        "path as rejected"
+    )
+
+
+def test_parent_doc_phase3_section_declares_phase_4_denied_for_ade() -> None:
+    """The §14 Phase 3 sub-plan reference must record the
+    Phase 4 permanently-denied-for-ADE doctrine."""
+    text = _doc_text().lower()
+    assert "phase 4" in text
+    assert "permanently denied" in text or "permanently-denied" in text, (
+        "parent doc §14 must declare Phase 4 production-merge "
+        "permanently denied for ADE"
+    )
