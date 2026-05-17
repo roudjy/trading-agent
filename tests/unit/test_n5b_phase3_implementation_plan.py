@@ -660,38 +660,66 @@ def _runtime_source_paths() -> list[Path]:
     return paths
 
 
-def test_no_phase3_module_exists_in_runtime_yet() -> None:
-    """B2.9a is doc-only; the dashboard and reporting modules for
-    Phase 3 must NOT exist on disk yet. B2.9b / B2.9c will land
-    them under their own operator-go phrases."""
+#: Closed allowlist of operator-approved Phase 3 runtime module
+#: paths. Narrowed one entry per sub-unit per PR per the
+#: B2.8b/B2.8c precedent. As of B2.9b/B2.9c on this branch:
+#: both modules are landed; the projector + route module are
+#: both allowed. Subsequent narrowings (B2.9d / B2.9e) must
+#: never remove a previously-pinned path.
+_ALLOWED_PHASE3_MODULES: tuple[str, ...] = (
+    "reporting/n5b_merge_execution_simulate.py",
+    "dashboard/api_merge_execution_simulate.py",
+)
+
+#: Closed allowlist of runtime source files that are explicitly
+#: permitted to carry the Phase 3 simulate route literal. As of
+#: B2.9c the only allowed file is the dashboard route module.
+_ALLOWED_PHASE3_ROUTE_FILES: tuple[str, ...] = (
+    "dashboard/api_merge_execution_simulate.py",
+)
+
+
+def test_phase3_modules_match_allowlist() -> None:
+    """Originally a B2.9a-era pin asserting neither Phase 3
+    module existed on disk. **Narrowed by B2.9b / B2.9c** to
+    allow exactly the operator-approved module paths landed by
+    those sub-units. Both Phase 3 modules MUST exist now.
+    Any module outside the closed allowlist is rejected."""
     dashboard_module = (
         REPO_ROOT / "dashboard" / "api_merge_execution_simulate.py"
     )
     reporting_module = (
         REPO_ROOT / "reporting" / "n5b_merge_execution_simulate.py"
     )
-    assert not dashboard_module.is_file(), (
-        f"B2.9a is plan-only; dashboard module must not exist yet: "
+    assert dashboard_module.is_file(), (
+        f"B2.9c dashboard simulator route module missing: "
         f"{dashboard_module}"
     )
-    assert not reporting_module.is_file(), (
-        f"B2.9a is plan-only; reporting module must not exist yet: "
+    assert reporting_module.is_file(), (
+        f"B2.9b reporting simulator projector module missing: "
         f"{reporting_module}"
     )
+    # No OTHER simulator module is permitted at this time.
+    for rel in _ALLOWED_PHASE3_MODULES:
+        assert (REPO_ROOT / rel).is_file(), (
+            f"Phase 3 allowlist entry missing on disk: {rel}"
+        )
 
 
-def test_no_phase3_route_url_in_runtime_yet() -> None:
-    """B2.9a is doc-only; the future Phase 3 route URL must not
-    appear in any runtime source file. B2.9c will land it under
-    its own operator-go."""
-    # Assemble the forbidden URL at runtime so this test source
-    # remains inert to greppers looking for the literal.
+def test_no_phase3_route_url_outside_allowlist() -> None:
+    """Originally a B2.9a-era pin forbidding the future Phase 3
+    route URL anywhere in runtime source. **Narrowed by B2.9c**
+    to allow exactly the operator-approved route module to carry
+    the route literal. Any other runtime source file still
+    fails the test."""
     forbidden_route = (
         "/api/" + "agent-control/" + "merge-execution/" + "simulate"
     )
     hits: list[tuple[str, str]] = []
     for path in _runtime_source_paths():
         rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel in _ALLOWED_PHASE3_ROUTE_FILES:
+            continue
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -701,8 +729,9 @@ def test_no_phase3_route_url_in_runtime_yet() -> None:
             excerpt = text[max(0, idx - 80) : idx + 80]
             hits.append((rel, excerpt))
     assert not hits, (
-        "runtime source contains the future Phase 3 simulate route "
-        f"literal — B2.9a is plan-only. Hits: {hits!r}"
+        "runtime source registers the Phase 3 simulate route "
+        "outside the operator-approved allowlist "
+        f"{_ALLOWED_PHASE3_ROUTE_FILES!r}: {hits!r}."
     )
 
 

@@ -520,6 +520,10 @@ def _excerpt_around(text: str, idx: int, span: int = 80) -> str:
 _ALLOWED_N5B_ADAPTER_MODULES: tuple[str, ...] = (
     "dashboard/api_merge_execution_dry_run.py",
     "reporting/n5b_merge_execution_dry_run.py",
+    # B2.9c — Phase 3 recorded-fixture simulator route module.
+    "dashboard/api_merge_execution_simulate.py",
+    # B2.9b — Phase 3 recorded-fixture simulator projector.
+    "reporting/n5b_merge_execution_simulate.py",
 )
 
 
@@ -689,6 +693,9 @@ def test_no_subprocess_pr_mutation_in_runtime_code() -> None:
 #: file is the Phase 2 dry-run skeleton blueprint.
 _ALLOWED_MERGE_EXECUTION_ROUTE_FILES: tuple[str, ...] = (
     "dashboard/api_merge_execution_dry_run.py",
+    # B2.9c — Phase 3 simulator route module (different route
+    # URL, same /api/agent-control/merge-execution prefix).
+    "dashboard/api_merge_execution_simulate.py",
 )
 
 
