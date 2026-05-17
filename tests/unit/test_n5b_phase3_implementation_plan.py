@@ -736,15 +736,95 @@ def test_no_phase3_route_url_outside_allowlist() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Status table — operator-go scope is bounded to B2.9a
+# Status table — hard pins on the post-B2.9e doctrine boundaries
 # ---------------------------------------------------------------------------
+#
+# B2.9e narrowed (NOT retired) the B2.9a-era pin
+# ``test_doc_status_table_marks_subsequent_units_not_authorised``
+# into two concrete hard pins below. The original assertion
+# ("operator-go for B2.9b–e is NOT given by this PR") was
+# B2.9a-time-bound and became inaccurate once the B2.9b–B2.9e
+# sub-units landed via staged commits on this branch. Rather
+# than game the test by preserving the obsolete literal in an
+# unrelated context, B2.9e replaces it with two separate hard
+# pins that each lock a still-load-bearing post-B2.9e
+# doctrine boundary:
+#
+# 1. N5b Phase 4 (production PR merge) remains ``Not implemented``
+#    and is permanently denied for ADE.
+# 2. Production / live merge authority remains denied (no
+#    autonomous merge / no live execution / no PR mutation).
+#
+# Any future PR that flips Phase 4 status must also update the
+# corresponding pin in the same commit.
 
 
-def test_doc_status_table_marks_subsequent_units_not_authorised() -> None:
+def test_doc_status_table_marks_phase_4_not_implemented_and_denied_for_ade() -> None:
+    """N5b Phase 4 (production PR merge) MUST remain
+    ``Not implemented`` and ``permanently denied for ADE`` after
+    B2.9e."""
     text = _doc_text()
-    assert "NOT given by this PR" in text or (
-        "not given by this pr" in text.lower()
+    text_lc = text.lower()
+    assert "phase 4" in text_lc, "doc must reference Phase 4"
+    # Scan every "phase 4" occurrence; require at least one to
+    # have BOTH "not implemented" AND "permanently denied" within
+    # a bounded proximity window.
+    scan_match = False
+    start = 0
+    while True:
+        idx = text_lc.find("phase 4", start)
+        if idx < 0:
+            break
+        window = text_lc[max(0, idx - 200) : idx + 500]
+        if (
+            "not implemented" in window
+            and ("permanently denied" in window or "permanently-denied" in window)
+        ):
+            scan_match = True
+            break
+        start = idx + 1
+    assert scan_match, (
+        "doc must declare Phase 4 remains 'Not implemented' AND "
+        "'permanently denied for ADE' after B2.9e"
+    )
+
+
+def test_doc_status_table_denies_production_merge_authority_for_ade() -> None:
+    """Doctrine pin: production / live merge authority remains
+    denied for ADE across the B2.9 simulator surface."""
+    text = _doc_text().lower()
+    for required in (
+        "autonomous merge",
+        "autonomous deploy",
+        "autonomous trading",
+    ):
+        assert required in text, (
+            f"doc must reference {required!r}"
+        )
+    # The Phase 4 production-merge target-classification literal
+    # is reserved; doc must reference it in a forbidden /
+    # reserved-for-Phase-4 context.
+    assert "production_pr_merge" in text, (
+        "doc must reference the production_pr_merge literal in a "
+        "reserved-for-Phase-4 / permanently-denied context"
+    )
+    idx = text.find("production_pr_merge")
+    nearby = text[max(0, idx - 200) : idx + 300]
+    assert any(
+        marker in nearby
+        for marker in (
+            "reserved",
+            "phase 4",
+            "permanently denied",
+            "must not",
+            "must never",
+        )
     ), (
-        "§10 status table must declare operator-go for B2.9b–e "
-        "is NOT given by this PR"
+        "production_pr_merge mention must sit in a "
+        "Phase-4-reserved / permanently-denied context"
+    )
+    # The Phase 4 env flag must be referenced in a denial context.
+    assert "ade_n5b_live_execute_enabled" in text, (
+        "doc must reference the Phase 4 env flag in a "
+        "permanently-denied context"
     )

@@ -590,25 +590,28 @@ authorised** by this PR:
 
 | Aspect | Status |
 |---|---|
-| Plan only | Yes |
-| Not implemented | Yes |
-| Runtime code in this PR | None |
-| Operator-go for B2.9b / B2.9c / B2.9d / B2.9e | NOT given by this PR |
-| Mutates production | No |
+| Plan only | Yes (this plan-doc itself is plan / decomposition only; the Phase 3 runtime it describes is **module implemented + dashboard wired**) |
+| Phase 3 runtime code in repo | **Module implemented + dashboard wired (recorded-fixture simulator only)** — B2.9a sub-plan + B2.9b simulator core + B2.9c dashboard route module + B2.9d operator-applied `dashboard/dashboard.py` wiring + B2.9e docs/status finalization have all landed on the B2.9 branch |
+| `dashboard/dashboard.py` wiring patch | **Operator-applied** on the B2.9 branch (B2.0c precedent — Claude blocked by `.claude/hooks/deny_no_touch.py` regardless) |
+| N5b Phase 4 (production PR merge) | **Not implemented — permanently denied for ADE** |
+| Production / live merge authority | **denied** — Phase 3 simulator never calls GitHub, never opens a network socket, never spawns a subprocess. The closed `target_classification` vocab is singleton `("recorded_fixture_simulator",)`; the Phase 4 production-merge target-classification literal is pinned to be absent from every Phase 3 module's source. |
+| Operator-go phrases | each B2.9a–B2.9e sub-unit required its own explicit operator-go on this branch's staged scope; sub-unit go phrases do NOT authorise Phase 4 or live merge |
+| Mutates production | No (still simulator-only; no real GitHub call, no PR mutation, no deploy trigger) |
 | step5_implementation_allowed | `false` |
 | STEP5_ENABLED_SUBSTAGE | `"none"` |
 | Level 6 | permanently disabled |
 | Autonomous merge | denied |
 | Autonomous deploy | denied |
 | Autonomous trading | denied |
-| Selected Phase 3 path | recorded-fixture simulator |
-| Sacrificial GitHub repository path | rejected |
-| Phase 4 production PR merge | permanently denied for ADE |
-| Dry-run default | required across the entire Phase 3 surface |
+| Selected Phase 3 path | **recorded-fixture simulator** |
+| Sacrificial GitHub repository path | **rejected** per §1.4 — permanently deferred |
+| Phase 4 production PR merge | **permanently denied for ADE** (parent doc §11 carries the operator-authored permanent denial) |
+| Dry-run default | required across the entire Phase 3 surface — every response envelope carries `dry_run_only=true`, `live_merge_implemented=false`, `deploy_coupled=false` even on `status="ok"` + `would_proceed=true` |
+| `would_proceed=true` semantic | dry-run-only proceed signal — *"all Phase 3 preconditions pass and audit artefacts written"*, NOT live merge authority |
 | Deploy coupling | forbidden |
 | Branch protection bypass | forbidden |
-| Operator-go-only (this PR's go phrase) | given for B2.9a only |
-| No runtime authority for live merge | yes — Phase 3 is simulator-only |
+| No runtime authority for live merge | yes — Phase 3 is recorded-fixture simulator only; the Phase 4 env flag `ADE_N5B_LIVE_EXECUTE_ENABLED` is pinned absent from every Phase 3 module's source |
 | No GitHub API / network / subprocess | yes — pinned by AST + source-text scans on every Phase 3 module |
+| Exactly one simulator route module exists | yes — `POST /api/agent-control/merge-execution/simulate` module at [`dashboard/api_merge_execution_simulate.py`](../../dashboard/api_merge_execution_simulate.py); blueprint registered in `dashboard/dashboard.py` by the operator-applied B2.9d commit |
 | Maximum allowed merge-like ADE surface | Phase 3 recorded-fixture simulator |
 | Symmetric trading-side doctrine | ADE never live trades; paper/shadow is the maximum trading-side ADE end state |
