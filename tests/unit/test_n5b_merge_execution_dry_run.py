@@ -40,7 +40,7 @@ def test_module_imports_successfully() -> None:
 
 
 def test_module_version_is_pinned_string() -> None:
-    assert projector.MODULE_VERSION == "v3.15.16.N5b.phase2.projector_with_failure"
+    assert projector.MODULE_VERSION == "v3.15.16.N5b.phase2.projector_implemented"
 
 
 def test_schema_version_is_pinned_integer_1() -> None:
@@ -108,11 +108,21 @@ def test_preflight_snapshot_keys_closed_set() -> None:
 def test_all_exports_are_closed() -> None:
     assert set(projector.__all__) == {
         "B2_8D_STOP_CONDITIONS",
+        "DRY_RUN_DIR",
+        "DRY_RUN_HISTORY",
+        "DRY_RUN_HISTORY_RELATIVE",
         "DRY_RUN_INTENT",
+        "DRY_RUN_LATEST",
+        "DRY_RUN_LATEST_RELATIVE",
+        "DRY_RUN_PRECONDITION_COUNT",
+        "DRY_RUN_PRECONDITION_KEYS",
+        "DRY_RUN_REPORT_KIND",
+        "DRY_RUN_SNAPSHOT_KEYS",
         "FAILURE_DIR",
         "FAILURE_DIR_RELATIVE",
         "FAILURE_REPORT_KIND",
         "FAILURE_SNAPSHOT_KEYS",
+        "MAX_HISTORY_ROWS",
         "MAX_STOP_REASON_LEN",
         "MODULE_VERSION",
         "OPERATOR_ACTORS",
@@ -120,14 +130,19 @@ def test_all_exports_are_closed() -> None:
         "PREFLIGHT_LATEST",
         "PREFLIGHT_LATEST_RELATIVE",
         "PREFLIGHT_SNAPSHOT_KEYS",
+        "PROTECTED_PATH_GRANULARITY_VALUES",
         "PR_BASE_REF",
         "REPORT_KIND",
+        "REQUIRED_CHECKS_GRANULARITY_VALUES",
         "SCHEMA_VERSION",
         "STEP5_ENABLED_SUBSTAGE",
         "WRITE_PREFIX",
+        "append_dry_run_history",
+        "build_dry_run_snapshot",
         "build_failure_snapshot",
         "build_preflight_snapshot",
         "step5_implementation_allowed",
+        "write_dry_run_latest",
         "write_failure",
         "write_preflight",
     }
@@ -278,7 +293,7 @@ def test_build_snapshot_happy_path_returns_closed_schema() -> None:
     assert snap["intent"] == "mobile_approval_dispatch"
     assert snap["schema_version"] == 1
     assert snap["report_kind"] == "n5b_preflight"
-    assert snap["module_version"] == "v3.15.16.N5b.phase2.projector_with_failure"
+    assert snap["module_version"] == "v3.15.16.N5b.phase2.projector_implemented"
 
 
 def test_build_snapshot_discipline_invariants_dict_present() -> None:
@@ -421,35 +436,31 @@ def test_write_preflight_runs_assert_no_secrets_before_write(
 # ---------------------------------------------------------------------------
 
 
-def test_projector_exposes_no_dry_run_decision_writer() -> None:
-    """B2.8d adds ``write_failure`` only. Dry-run-decision /
-    history / execution writers remain reserved for B2.8e per the
-    implementation plan §2.6."""
+def test_projector_exposes_no_decision_or_execution_writer() -> None:
+    """B2.8e adds ``write_dry_run_latest`` + ``append_dry_run_history``.
+    Decision / execution writers remain reserved for N5b Phase 3+
+    (live execute endpoint) and MUST NOT be added without a separate
+    operator-go and parent-doc §10 promotion."""
     for forbidden in (
-        "write_dry_run",
-        "write_dry_run_latest",
         "write_decision",
-        "write_history",
         "write_execution",
     ):
         assert not hasattr(projector, forbidden), (
-            f"B2.8d projector must not expose {forbidden!r}; "
-            "decision/history/execution writers are B2.8e scope"
+            f"B2.8e projector must not expose {forbidden!r}; "
+            "decision/execution writers are Phase 3+ scope"
         )
 
 
-def test_projector_relative_path_no_decision_or_history() -> None:
-    """B2.8d adds the FAILURE_DIR_RELATIVE constant. The dry_run /
-    decision / execution path constants remain reserved for B2.8e."""
+def test_projector_relative_path_no_decision_or_execution() -> None:
+    """The decision / execution path constants remain reserved for
+    Phase 3+ (live execute endpoint)."""
     for forbidden in (
-        "DRY_RUN_LATEST_RELATIVE",
-        "DRY_RUN_HISTORY_RELATIVE",
         "DECISION_LATEST_RELATIVE",
         "EXECUTION_LATEST_RELATIVE",
     ):
         assert not hasattr(projector, forbidden), (
-            f"B2.8d projector must not expose {forbidden!r}; only "
-            "preflight + failure artefact paths are in scope"
+            f"B2.8e projector must not expose {forbidden!r}; only "
+            "preflight + failure + dry_run artefact paths are in scope"
         )
 
 
@@ -693,3 +704,344 @@ def test_write_failure_accepts_each_closed_stop(
     projector.write_failure(target_path=target, **kwargs)
     payload = json.loads(target.read_text(encoding="utf-8"))
     assert payload["stop_condition"] == stop_condition
+
+
+# ---------------------------------------------------------------------------
+# B2.8e additions — dry-run snapshot closed schema + writers
+# ---------------------------------------------------------------------------
+
+
+def test_dry_run_report_kind_pinned() -> None:
+    assert projector.DRY_RUN_REPORT_KIND == "n5b_dry_run"
+
+
+def test_dry_run_latest_relative_pinned() -> None:
+    assert projector.DRY_RUN_LATEST_RELATIVE == (
+        "logs/n5b_merge_execution/dry_run/latest.json"
+    )
+
+
+def test_dry_run_history_relative_pinned() -> None:
+    assert projector.DRY_RUN_HISTORY_RELATIVE == (
+        "logs/n5b_merge_execution/dry_run/history.jsonl"
+    )
+
+
+def test_max_history_rows_pinned() -> None:
+    assert projector.MAX_HISTORY_ROWS == 1024
+
+
+def test_dry_run_precondition_keys_closed_set() -> None:
+    assert projector.DRY_RUN_PRECONDITION_COUNT == 17
+    assert projector.DRY_RUN_PRECONDITION_KEYS == tuple(
+        f"precondition_{i}" for i in range(1, 18)
+    )
+
+
+def test_required_checks_granularity_closed_vocab() -> None:
+    """B2.8e ships only the rollup-only signal. Future per-check
+    granularity requires an upstream extension AND an updated pin."""
+    assert projector.REQUIRED_CHECKS_GRANULARITY_VALUES == ("rollup_only",)
+
+
+def test_protected_path_granularity_closed_vocab() -> None:
+    """B2.8e ships only the boolean signal. Future per-file
+    granularity requires an upstream extension AND an updated pin."""
+    assert projector.PROTECTED_PATH_GRANULARITY_VALUES == ("boolean_only",)
+
+
+def test_dry_run_snapshot_keys_closed_set() -> None:
+    assert set(projector.DRY_RUN_SNAPSHOT_KEYS) == {
+        "schema_version",
+        "report_kind",
+        "module_version",
+        "pr_number",
+        "pr_head_sha",
+        "pr_base_ref",
+        "intent",
+        "token_kid",
+        "nonce_hash",
+        "operator_actor",
+        "generated_at_utc",
+        "preconditions",
+        "recommendation_action_seen",
+        "recommendation_reason_seen",
+        "merge_state_status_seen",
+        "required_checks_summary",
+        "required_checks_granularity",
+        "protected_path_violations",
+        "protected_path_granularity",
+        "would_proceed",
+        "stop_condition",
+        "step5_implementation_allowed",
+        "step5_enabled_substage",
+        "level6_enabled",
+        "dry_run_only",
+        "live_merge_implemented",
+        "deploy_coupled",
+        "discipline_invariants",
+    }
+
+
+def _all_pass_preconditions() -> dict[str, bool]:
+    return {key: True for key in projector.DRY_RUN_PRECONDITION_KEYS}
+
+
+def _good_dry_run_kwargs() -> dict[str, Any]:
+    return {
+        "pr_number": 123,
+        "pr_head_sha": "deadbeef" * 5,
+        "token_kid": "k1",
+        "nonce_hash": hashlib.sha256(b"synthetic-nonce").hexdigest(),
+        "operator_actor": "session",
+        "generated_at_utc": "2026-05-16T15:00:00Z",
+        "preconditions": _all_pass_preconditions(),
+        "recommendation_action_seen": "recommend_human_merge",
+        "recommendation_reason_seen": "pr_clean_and_no_blocking_inbox",
+        "merge_state_status_seen": "CLEAN",
+        "required_checks_summary": {"_rollup": "SUCCESS"},
+        "required_checks_granularity": "rollup_only",
+        "protected_path_violations": [],
+        "protected_path_granularity": "boolean_only",
+        "would_proceed": True,
+        "stop_condition": None,
+    }
+
+
+def test_build_dry_run_snapshot_happy_path() -> None:
+    snap = projector.build_dry_run_snapshot(**_good_dry_run_kwargs())
+    assert set(snap.keys()) == set(projector.DRY_RUN_SNAPSHOT_KEYS)
+    assert snap["report_kind"] == "n5b_dry_run"
+    assert snap["would_proceed"] is True
+    assert snap["stop_condition"] is None
+    assert snap["pr_base_ref"] == "main"
+    assert snap["intent"] == "mobile_approval_dispatch"
+    # Discipline invariants preserved on the ok envelope.
+    assert snap["step5_implementation_allowed"] is False
+    assert snap["step5_enabled_substage"] == "none"
+    assert snap["level6_enabled"] is False
+    assert snap["dry_run_only"] is True
+    assert snap["live_merge_implemented"] is False
+    assert snap["deploy_coupled"] is False
+    # Granularity sentinels.
+    assert snap["required_checks_granularity"] == "rollup_only"
+    assert snap["protected_path_granularity"] == "boolean_only"
+
+
+def test_build_dry_run_snapshot_rejected_path() -> None:
+    kwargs = _good_dry_run_kwargs()
+    failing = _all_pass_preconditions()
+    failing["precondition_9"] = False
+    kwargs["preconditions"] = failing
+    kwargs["would_proceed"] = False
+    kwargs["stop_condition"] = "merge_state_not_clean"
+    snap = projector.build_dry_run_snapshot(**kwargs)
+    assert snap["would_proceed"] is False
+    assert snap["stop_condition"] == "merge_state_not_clean"
+
+
+def test_build_dry_run_snapshot_rejects_unknown_stop_condition() -> None:
+    kwargs = _good_dry_run_kwargs()
+    kwargs["would_proceed"] = False
+    kwargs["stop_condition"] = "made_up_stop"
+    with pytest.raises(ValueError):
+        projector.build_dry_run_snapshot(**kwargs)
+
+
+def test_build_dry_run_snapshot_rejects_would_proceed_with_stop() -> None:
+    """would_proceed=True with a non-null stop_condition is a
+    contradiction; the builder must reject it."""
+    kwargs = _good_dry_run_kwargs()
+    kwargs["would_proceed"] = True
+    kwargs["stop_condition"] = "merge_state_not_clean"
+    with pytest.raises(ValueError):
+        projector.build_dry_run_snapshot(**kwargs)
+
+
+def test_build_dry_run_snapshot_rejects_no_stop_when_not_proceeding() -> None:
+    kwargs = _good_dry_run_kwargs()
+    kwargs["would_proceed"] = False
+    kwargs["stop_condition"] = None
+    with pytest.raises(ValueError):
+        projector.build_dry_run_snapshot(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "field,bad_value,exc",
+    [
+        ("preconditions", {"precondition_1": True}, ValueError),  # missing 16 keys
+        ("preconditions", "not_a_dict", TypeError),
+        ("required_checks_summary", {}, ValueError),  # empty dict
+        ("required_checks_summary", "not_a_dict", TypeError),
+        ("required_checks_granularity", "per_check", ValueError),  # not in vocab
+        ("protected_path_granularity", "per_file", ValueError),  # not in vocab
+        ("protected_path_violations", "not_a_list", TypeError),
+        ("protected_path_violations", [123], TypeError),  # non-str entry
+        ("would_proceed", "true", TypeError),
+    ],
+)
+def test_build_dry_run_snapshot_rejects_bad_inputs(
+    field: str, bad_value: Any, exc: type[BaseException]
+) -> None:
+    kwargs = _good_dry_run_kwargs()
+    kwargs[field] = bad_value
+    with pytest.raises(exc):
+        projector.build_dry_run_snapshot(**kwargs)
+
+
+def test_build_dry_run_snapshot_preconditions_must_be_bool() -> None:
+    kwargs = _good_dry_run_kwargs()
+    bad = _all_pass_preconditions()
+    bad["precondition_5"] = "yes"  # type: ignore[assignment]
+    kwargs["preconditions"] = bad
+    with pytest.raises(TypeError):
+        projector.build_dry_run_snapshot(**kwargs)
+
+
+def _tmp_dry_run_paths(tmp_path: Path) -> tuple[Path, Path]:
+    """Return ``(latest_path, history_path)`` under the tmp sentinel."""
+    base = tmp_path / "logs" / "n5b_merge_execution" / "dry_run"
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "latest.json", base / "history.jsonl"
+
+
+def test_write_dry_run_latest_writes_closed_schema(tmp_path: Path) -> None:
+    latest, _history = _tmp_dry_run_paths(tmp_path)
+    out = projector.write_dry_run_latest(target_path=latest, **_good_dry_run_kwargs())
+    assert out == latest
+    assert latest.is_file()
+    payload = json.loads(latest.read_text(encoding="utf-8"))
+    assert set(payload.keys()) == set(projector.DRY_RUN_SNAPSHOT_KEYS)
+    assert payload["report_kind"] == "n5b_dry_run"
+    assert payload["would_proceed"] is True
+
+
+def test_write_dry_run_latest_refuses_non_sentinel_path(tmp_path: Path) -> None:
+    bogus = tmp_path / "logs" / "elsewhere" / "latest.json"
+    bogus.parent.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError):
+        projector.write_dry_run_latest(target_path=bogus, **_good_dry_run_kwargs())
+    assert not bogus.is_file()
+
+
+def test_write_dry_run_latest_runs_assert_no_secrets_before_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    latest, _history = _tmp_dry_run_paths(tmp_path)
+
+    def _boom(_payload: dict[str, Any]) -> None:
+        raise AssertionError("simulated credential leak")
+
+    monkeypatch.setattr(projector, "assert_no_secrets", _boom)
+    with pytest.raises(AssertionError):
+        projector.write_dry_run_latest(
+            target_path=latest, **_good_dry_run_kwargs()
+        )
+    assert not latest.is_file()
+
+
+def test_append_dry_run_history_creates_file_and_appends_line(
+    tmp_path: Path,
+) -> None:
+    _latest, history = _tmp_dry_run_paths(tmp_path)
+    out = projector.append_dry_run_history(
+        target_path=history, **_good_dry_run_kwargs()
+    )
+    assert out == history
+    assert history.is_file()
+    lines = [
+        line for line in history.read_text(encoding="utf-8").splitlines() if line
+    ]
+    assert len(lines) == 1
+    row = json.loads(lines[0])
+    assert set(row.keys()) == set(projector.DRY_RUN_SNAPSHOT_KEYS)
+
+
+def test_append_dry_run_history_appends_to_existing_file(tmp_path: Path) -> None:
+    _latest, history = _tmp_dry_run_paths(tmp_path)
+    projector.append_dry_run_history(
+        target_path=history, **_good_dry_run_kwargs()
+    )
+    second = _good_dry_run_kwargs()
+    second["generated_at_utc"] = "2026-05-16T15:01:00Z"
+    projector.append_dry_run_history(target_path=history, **second)
+    lines = [
+        line for line in history.read_text(encoding="utf-8").splitlines() if line
+    ]
+    assert len(lines) == 2
+
+
+def test_append_dry_run_history_compacts_to_max_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Shrink retention so the test is cheap.
+    monkeypatch.setattr(projector, "MAX_HISTORY_ROWS", 5)
+    _latest, history = _tmp_dry_run_paths(tmp_path)
+    for i in range(12):
+        kwargs = _good_dry_run_kwargs()
+        kwargs["generated_at_utc"] = f"2026-05-16T15:00:{i:02d}Z"
+        projector.append_dry_run_history(target_path=history, **kwargs)
+    lines = [
+        line for line in history.read_text(encoding="utf-8").splitlines() if line
+    ]
+    assert len(lines) == 5
+    # The newest entry is the last appended.
+    rows = [json.loads(line) for line in lines]
+    assert rows[-1]["generated_at_utc"] == "2026-05-16T15:00:11Z"
+
+
+def test_append_dry_run_history_refuses_non_sentinel_path(tmp_path: Path) -> None:
+    bogus = tmp_path / "logs" / "elsewhere" / "history.jsonl"
+    bogus.parent.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError):
+        projector.append_dry_run_history(
+            target_path=bogus, **_good_dry_run_kwargs()
+        )
+    assert not bogus.is_file()
+
+
+def test_append_dry_run_history_runs_assert_no_secrets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _latest, history = _tmp_dry_run_paths(tmp_path)
+
+    def _boom(_payload: dict[str, Any]) -> None:
+        raise AssertionError("simulated credential leak")
+
+    monkeypatch.setattr(projector, "assert_no_secrets", _boom)
+    with pytest.raises(AssertionError):
+        projector.append_dry_run_history(
+            target_path=history, **_good_dry_run_kwargs()
+        )
+    assert not history.is_file()
+
+
+def test_dry_run_schema_carries_no_raw_token_or_nonce_field_name() -> None:
+    """Closed schema must NOT include ``token`` or a raw ``nonce``
+    field — only the verified ``token_kid`` and the sha256-hashed
+    ``nonce_hash``."""
+    keys = set(projector.DRY_RUN_SNAPSHOT_KEYS)
+    assert "token" not in keys
+    assert "nonce" not in keys
+    assert "token_kid" in keys
+    assert "nonce_hash" in keys
+
+
+def test_dry_run_snapshot_carries_granularity_sentinels_explicitly() -> None:
+    """Operator-mandated contract: the artefact and tests must make
+    clear that ``required_checks_granularity`` and
+    ``protected_path_granularity`` are bounded ('rollup_only' /
+    'boolean_only') and do not imply per-check or per-file
+    coverage. This pin prevents silent removal of either sentinel
+    from the closed schema."""
+    keys = set(projector.DRY_RUN_SNAPSHOT_KEYS)
+    assert "required_checks_granularity" in keys
+    assert "protected_path_granularity" in keys
+
+
+def test_module_source_pins_step5_invariants_still_intact() -> None:
+    """Re-pinned for B2.8e — the new dry_run + history writers must
+    not flip Step 5 invariants."""
+    src = MODULE_PATH.read_text(encoding="utf-8")
+    assert "step5_implementation_allowed: Final[bool] = False" in src
+    assert 'STEP5_ENABLED_SUBSTAGE: Final[str] = "none"' in src

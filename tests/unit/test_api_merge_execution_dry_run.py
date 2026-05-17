@@ -85,6 +85,15 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     failure_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(projector, "FAILURE_DIR", failure_dir)
 
+    # Re-bind the B2.8e dry-run + history artefact paths to
+    # tmp_path so the walker writes both into the test sandbox.
+    dry_run_dir = tmp_path / "logs" / "n5b_merge_execution" / "dry_run"
+    dry_run_dir.mkdir(parents=True, exist_ok=True)
+    dry_run_latest = dry_run_dir / "latest.json"
+    dry_run_history = dry_run_dir / "history.jsonl"
+    monkeypatch.setattr(projector, "DRY_RUN_LATEST", dry_run_latest)
+    monkeypatch.setattr(projector, "DRY_RUN_HISTORY", dry_run_history)
+
     # Re-bind the walker's three upstream-artefact paths to tmp_path
     # so tests can inject synthetic N5a / A22 / github_pr_lifecycle
     # artefacts to exercise the B2.8d walker.
@@ -254,7 +263,7 @@ def test_module_imports_successfully() -> None:
 
 
 def test_module_version_is_pinned_string() -> None:
-    assert mod.MODULE_VERSION == "v3.15.16.N5b.phase2.walker_1_17"
+    assert mod.MODULE_VERSION == "v3.15.16.N5b.phase2.implemented"
 
 
 def test_schema_version_is_pinned_integer_1() -> None:
@@ -929,7 +938,7 @@ def test_replay_detected_on_second_request_no_preflight_on_replay(
     with app.test_client() as client:
         code1, payload1 = _envelope_after(client, body)
     assert code1 == 200
-    assert payload1["status"] == "not_yet_implemented"
+    assert payload1["status"] == "ok"
     assert _isolate_state.is_file()
     # Remove the artefact so the second call's negative assertion is
     # strict.
@@ -948,17 +957,18 @@ def test_replay_detected_on_second_request_no_preflight_on_replay(
 # ---------------------------------------------------------------------------
 
 
-def test_happy_walker_returns_not_yet_implemented_after_all_17_pass(
+def test_happy_walker_returns_ok_after_all_17_pass(
     _isolate_state: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """B2.8d happy path: all 17 preconditions pass.
+    """B2.8e happy path: all 17 preconditions pass.
 
-    Per the operator-approved deferral, B2.8d returns
-    ``not_yet_implemented`` with
-    ``preconditions_evaluated=17``, ``preconditions_passed=17``,
-    ``reason="b2_8e_implementation_pending"``. B2.8e flips the
-    literal to ``ok``."""
+    Per the operator-authorised B2.8e flip, the walker returns
+    ``ok`` with ``would_proceed=True``,
+    ``preconditions_evaluated=17``, ``preconditions_passed=17``.
+    The six discipline invariants stay nailed; ``ok`` means
+    'dry-run checks passed and audit artefacts written' — NOT
+    'merge executed' / 'PR mutated' / 'deploy triggered'."""
     token = _mint_dry_run_token(monkeypatch)
     _seed_all_clean_upstream_artefacts()
     body = _body_with_token(token)
@@ -966,14 +976,20 @@ def test_happy_walker_returns_not_yet_implemented_after_all_17_pass(
     with app.test_client() as client:
         code, payload = _envelope_after(client, body)
     assert code == 200
-    assert payload["status"] == "not_yet_implemented"
+    assert payload["status"] == "ok"
     assert payload["stop_condition"] is None
-    assert payload["would_proceed"] is False
+    assert payload["would_proceed"] is True
     assert payload["preconditions_evaluated"] == 17
     assert payload["preconditions_passed"] == 17
-    assert payload["reason"] == "b2_8e_implementation_pending"
     assert payload["pr_number"] == 123
     assert payload["pr_head_sha"] == "abc1234567890def1234567890abcdef12345678"
+    # Discipline invariants nailed even on ok.
+    assert payload["dry_run_only"] is True
+    assert payload["live_merge_implemented"] is False
+    assert payload["deploy_coupled"] is False
+    assert payload["level6_enabled"] is False
+    assert payload["step5_implementation_allowed"] is False
+    assert payload["step5_enabled_substage"] == "none"
     # Preflight artefact exists with the closed schema.
     assert _isolate_state.is_file()
     snapshot = json.loads(_isolate_state.read_text(encoding="utf-8"))
@@ -1007,21 +1023,27 @@ def test_preflight_artefact_carries_kid_and_nonce_hash_only(
     assert "token" not in snapshot
 
 
-def test_b2_8d_never_emits_ok_status(
+def test_b2_8e_emits_ok_on_all_17_pass(
     _isolate_state: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Pin: even on the fully-clean happy path (1–17 all pass),
-    B2.8d emits ``not_yet_implemented`` — never ``ok``. The ``ok``
-    status is deferred to B2.8e per operator preference."""
+    """B2.8e flips the B2.8d deferral. On the fully-clean happy
+    path (1–17 all pass), the walker emits ``ok`` with
+    ``would_proceed=True``. ``ok`` means 'dry-run checks passed
+    and audit artefacts written' — NOT live merge authority."""
     token = _mint_dry_run_token(monkeypatch)
     _seed_all_clean_upstream_artefacts()
     body = _body_with_token(token)
     app = _build_app()
     with app.test_client() as client:
         _code, payload = _envelope_after(client, body)
-    assert payload["status"] != "ok"
-    assert payload["status"] == "not_yet_implemented"
+    assert payload["status"] == "ok"
+    assert payload["would_proceed"] is True
+    # Critical: would_proceed=True is a dry-run verdict; the six
+    # discipline invariants on the envelope must stay nailed.
+    assert payload["dry_run_only"] is True
+    assert payload["live_merge_implemented"] is False
+    assert payload["deploy_coupled"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -1393,10 +1415,11 @@ def test_walker_9_clean_merge_state_accepted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Per §6.3: ``CLEAN`` is the only accepted mergeStateStatus.
-    Companion to the negative parametrization above."""
+    Companion to the negative parametrization above. B2.8e emits
+    ``ok`` on the all-clean happy path."""
     _seed_all_clean_upstream_artefacts()
     code, payload = _exercise_walker(monkeypatch)
-    assert payload["status"] == "not_yet_implemented"
+    assert payload["status"] == "ok"
     assert payload["preconditions_passed"] == 17
 
 
@@ -1670,18 +1693,40 @@ def test_walker_8_17_failure_write_failure_emits_audit_write_failure(
     assert payload["reason"] == "failure_artefact_write_failed"
 
 
-def test_walker_no_dry_run_latest_or_history_written_on_all_pass(
+def test_walker_writes_dry_run_latest_and_history_on_all_pass(
     _isolate_state: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """B2.8d must NOT write dry_run/latest.json or history.jsonl.
-    Those writers remain B2.8e scope."""
+    """B2.8e MUST write both ``dry_run/latest.json`` and
+    ``dry_run/history.jsonl`` on the ok-decision path."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
     _seed_all_clean_upstream_artefacts()
     code, payload = _exercise_walker(monkeypatch)
-    assert payload["status"] == "not_yet_implemented"
-    # dry_run + history MUST NOT exist.
-    dry_run_dir = _isolate_state.parent.parent / "dry_run"
-    assert not dry_run_dir.exists() or not any(dry_run_dir.iterdir())
+    assert payload["status"] == "ok"
+    assert projector.DRY_RUN_LATEST.is_file()
+    assert projector.DRY_RUN_HISTORY.is_file()
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    assert latest["report_kind"] == "n5b_dry_run"
+    assert latest["would_proceed"] is True
+    assert latest["stop_condition"] is None
+    # Discipline invariants nailed on the dry_run artefact.
+    assert latest["dry_run_only"] is True
+    assert latest["live_merge_implemented"] is False
+    assert latest["deploy_coupled"] is False
+    # Granularity sentinels present.
+    assert latest["required_checks_granularity"] == "rollup_only"
+    assert latest["protected_path_granularity"] == "boolean_only"
+    # History contains exactly one line.
+    history_lines = [
+        line
+        for line in projector.DRY_RUN_HISTORY.read_text(encoding="utf-8").splitlines()
+        if line
+    ]
+    assert len(history_lines) == 1
+    row = json.loads(history_lines[0])
+    assert row["report_kind"] == "n5b_dry_run"
+    assert row["would_proceed"] is True
 
 
 def test_walker_failure_artefact_carries_closed_schema(
@@ -1769,3 +1814,458 @@ def test_walker_emits_only_closed_b2_8d_stop_vocab() -> None:
                 f"{literal!r} but it's outside the closed "
                 f"B2.8d vocabulary {sorted(closed)!r}"
             )
+
+
+# ---------------------------------------------------------------------------
+# B2.8e — integration tests against the mocked-upstream fixture
+# (§6.4: happy path produces ok + dry-run artefact;
+# every §7 stop produces a failure artefact + dry_run artefact)
+# ---------------------------------------------------------------------------
+
+
+def _dry_run_history_lines() -> list[str]:
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    if not projector.DRY_RUN_HISTORY.is_file():
+        return []
+    return [
+        line
+        for line in projector.DRY_RUN_HISTORY.read_text(encoding="utf-8").splitlines()
+        if line
+    ]
+
+
+def test_b2_8e_happy_path_writes_preflight_dry_run_history_no_failure(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end: ok envelope + preflight + dry_run/latest +
+    history.jsonl; no failure artefact."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "ok"
+    assert _isolate_state.is_file()  # preflight
+    assert projector.DRY_RUN_LATEST.is_file()
+    assert projector.DRY_RUN_HISTORY.is_file()
+    # No failure artefact on the happy path.
+    assert _failure_files(_isolate_state) == []
+    # History row matches latest.
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    history_rows = [json.loads(line) for line in _dry_run_history_lines()]
+    assert len(history_rows) == 1
+    assert history_rows[0]["report_kind"] == latest["report_kind"]
+    assert history_rows[0]["would_proceed"] is True
+
+
+@pytest.mark.parametrize(
+    "fixture_setup,expected_stop",
+    [
+        (
+            "n5a_not_eligible",
+            "stale_recommendation",
+        ),
+        (
+            "merge_state_blocked",
+            "merge_state_not_clean",
+        ),
+        (
+            "checks_failure",
+            "checks_not_green",
+        ),
+        (
+            "head_sha_drift",
+            "head_sha_mismatch",
+        ),
+        (
+            "protected_paths",
+            "unexpected_files_touched",
+        ),
+        (
+            "step5_change",
+            "step5_flag_changed",
+        ),
+        (
+            "level_6_attempt",
+            "level_6_attempted",
+        ),
+    ],
+)
+def test_b2_8e_each_stop_writes_failure_and_dry_run_artefacts(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fixture_setup: str,
+    expected_stop: str,
+) -> None:
+    """For each §7 stop in B2.8d scope, the walker writes BOTH the
+    failure artefact (B2.8d behaviour preserved) AND the
+    dry_run/latest + history artefacts (B2.8e additions)."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+    if fixture_setup == "n5a_not_eligible":
+        _write_synthetic_n5a(
+            pr_number=123,
+            head_sha="abc1234567890def1234567890abcdef12345678",
+            action="recommend_hold",
+        )
+    elif fixture_setup == "merge_state_blocked":
+        _write_synthetic_a22(
+            pr_number=123,
+            head_sha="abc1234567890def1234567890abcdef12345678",
+            merge_state_status="BLOCKED",
+        )
+    elif fixture_setup == "checks_failure":
+        _write_synthetic_a22(
+            pr_number=123,
+            head_sha="abc1234567890def1234567890abcdef12345678",
+            checks_summary="FAILURE",
+        )
+    elif fixture_setup == "head_sha_drift":
+        _write_synthetic_a22(
+            pr_number=123,
+            head_sha="cafe" * 10,
+        )
+    elif fixture_setup == "protected_paths":
+        _write_synthetic_gh_pr_lifecycle(
+            pr_number=123,
+            protected_paths_touched=True,
+        )
+    elif fixture_setup == "step5_change":
+        _write_synthetic_gh_pr_lifecycle(
+            pr_number=123,
+            step5_flag_changed=True,
+        )
+    elif fixture_setup == "level_6_attempt":
+        _write_synthetic_gh_pr_lifecycle(
+            pr_number=123,
+            level_6_attempted=True,
+        )
+    code, payload = _exercise_walker(monkeypatch)
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == expected_stop
+    # Failure artefact (B2.8d).
+    failures = _failure_files(_isolate_state)
+    assert len(failures) == 1
+    # Dry_run/latest.json (B2.8e).
+    assert projector.DRY_RUN_LATEST.is_file()
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    assert latest["report_kind"] == "n5b_dry_run"
+    assert latest["would_proceed"] is False
+    assert latest["stop_condition"] == expected_stop
+    # History appended.
+    assert len(_dry_run_history_lines()) == 1
+
+
+def test_b2_8e_dry_run_artefact_carries_preconditions_dict(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """§6.2: the dry_run artefact must carry the preconditions
+    boolean dict with exactly 17 keys."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+    _exercise_walker(monkeypatch)
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    preconditions = latest["preconditions"]
+    assert isinstance(preconditions, dict)
+    assert len(preconditions) == 17
+    assert all(
+        f"precondition_{i}" in preconditions for i in range(1, 18)
+    )
+    # All 17 True on the happy path.
+    assert all(preconditions.values())
+
+
+def test_b2_8e_dry_run_artefact_carries_seen_upstream_fields(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+    _exercise_walker(monkeypatch)
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    assert latest["recommendation_action_seen"] == "recommend_human_merge"
+    assert latest["recommendation_reason_seen"] == "pr_clean_and_no_blocking_inbox"
+    assert latest["merge_state_status_seen"] == "CLEAN"
+    assert latest["required_checks_summary"] == {"_rollup": "SUCCESS"}
+
+
+def test_b2_8e_dry_run_artefact_granularity_sentinels_explicit(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Operator-mandated B2.8e contract: the dry_run artefact MUST
+    explicitly carry ``required_checks_granularity="rollup_only"``
+    and ``protected_path_granularity="boolean_only"`` so the
+    operator-facing surface never silently implies per-check or
+    per-file granularity exists."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+    _exercise_walker(monkeypatch)
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    assert latest["required_checks_granularity"] == "rollup_only"
+    assert latest["protected_path_granularity"] == "boolean_only"
+    assert latest["protected_path_violations"] == []
+
+
+def test_b2_8e_dry_run_artefact_carries_no_raw_token_or_nonce(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Critical B2.8e safety pin: the dry_run artefact carries
+    ``token_kid`` + ``nonce_hash`` only — never the raw token,
+    never the raw nonce."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    token = _mint_dry_run_token(monkeypatch)
+    _seed_all_clean_upstream_artefacts()
+    body = _body_with_token(token)
+    app = _build_app()
+    with app.test_client() as client:
+        _envelope_after(client, body)
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    blob = json.dumps(latest, default=str)
+    assert token not in blob
+    assert "nonce" not in set(latest.keys())
+    assert "token" not in set(latest.keys())
+    assert latest["token_kid"] == atr.CURRENT_KID
+    assert isinstance(latest["nonce_hash"], str)
+    assert len(latest["nonce_hash"]) == 64
+
+
+# ---------------------------------------------------------------------------
+# B2.8e — audit-redaction integration tests (§6.4)
+# ---------------------------------------------------------------------------
+
+
+def test_b2_8e_audit_redaction_aborts_dry_run_write_on_credential_shape(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """§6.4: a tampered payload that trips the redactor at
+    ``write_dry_run_latest`` time aborts the write. The walker
+    emits ``audit_write_failure`` and no dry_run artefact is
+    persisted.
+
+    The B2.8c preflight-write-failure path uses
+    ``stop_condition=None, reason="preflight_write_failed"`` by
+    pre-B2.8e design; this test specifically targets the
+    ``write_dry_run_latest`` writer to exercise the B2.8e §7
+    audit_write_failure path."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+
+    def _boom(**_kwargs: Any) -> Any:
+        raise AssertionError("simulated credential leak in dry_run snapshot")
+
+    monkeypatch.setattr(projector, "write_dry_run_latest", _boom)
+    code, payload = _exercise_walker(monkeypatch)
+    # Walker rejected by the redaction guard.
+    assert code == 500
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "audit_write_failure"
+    # No dry_run/latest.json or history.jsonl created (write aborted
+    # before persistence).
+    assert not projector.DRY_RUN_LATEST.is_file()
+    assert not projector.DRY_RUN_HISTORY.is_file()
+
+
+def test_b2_8e_audit_redaction_via_real_credential_pattern_in_seen_field(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end §6.4 redaction: inject a real
+    credential-shaped string into the N5a row's recommendation_reason
+    field. The walker reads it, passes it to the dry_run snapshot
+    builder which then runs assert_no_secrets — which raises on
+    the credential pattern. The walker translates to
+    audit_write_failure."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    # Seed N5a with a credential-shaped recommendation_reason. The
+    # ``recommendation_reason`` value would normally be a closed
+    # N5a vocab string; here we inject a github_pat_-shaped value.
+    head_sha = "abc1234567890def1234567890abcdef12345678"
+    # Build the marker at runtime so this test source itself is
+    # inert to gitleaks-style scanners.
+    pat_prefix = "g" + "i" + "thub_pat_"
+    tampered_reason = pat_prefix + ("A" * 50)
+    _write_synthetic_n5a(
+        pr_number=123,
+        head_sha=head_sha,
+        reason=tampered_reason,
+    )
+    _write_synthetic_a22(pr_number=123, head_sha=head_sha)
+    _write_synthetic_gh_pr_lifecycle(pr_number=123)
+
+    token = _mint_dry_run_token(monkeypatch, pr_number=123, pr_head_sha=head_sha)
+    body = _body_with_token(token, pr_number=123, pr_head_sha=head_sha)
+    app = _build_app()
+    with app.test_client() as client:
+        code, payload = _envelope_after(client, body)
+    # The walker reaches the §6.2 N5a-reason mismatch check FIRST
+    # (precondition 8) and rejects with stale_recommendation
+    # because the tampered reason != _N5A_ELIGIBLE_REASON. The
+    # rejected branch then tries to write the failure artefact,
+    # which runs assert_no_secrets — that AssertionError surfaces
+    # as audit_write_failure.
+    #
+    # Either outcome is acceptable for this test: the credential
+    # never reaches a persisted artefact.
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] in {"stale_recommendation", "audit_write_failure"}
+    # No on-disk artefact contains the tampered credential pattern.
+    for path in (
+        _isolate_state,
+        projector.DRY_RUN_LATEST,
+        projector.DRY_RUN_HISTORY,
+    ):
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            assert tampered_reason not in text, (
+                f"tampered credential pattern leaked into {path}"
+            )
+    for failure in _failure_files(_isolate_state):
+        text = failure.read_text(encoding="utf-8")
+        assert tampered_reason not in text
+
+
+def test_b2_8e_history_append_failure_emits_audit_write_failure(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If history.jsonl append raises mid-write, the walker emits
+    audit_write_failure. No new stop_condition literal introduced."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+
+    real_append = projector.append_dry_run_history
+
+    def _boom(**_kwargs: Any) -> Any:
+        raise OSError("simulated history disk failure")
+
+    monkeypatch.setattr(projector, "append_dry_run_history", _boom)
+    code, payload = _exercise_walker(monkeypatch)
+    assert code == 500
+    assert payload["status"] == "rejected"
+    assert payload["stop_condition"] == "audit_write_failure"
+    # Restore (defense-in-depth for this test session).
+    monkeypatch.setattr(projector, "append_dry_run_history", real_append)
+
+
+# ---------------------------------------------------------------------------
+# B2.8e — would_proceed semantic pins
+# ---------------------------------------------------------------------------
+
+
+def test_b2_8e_would_proceed_true_always_co_occurs_with_dry_run_invariants(
+    _isolate_state: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**Operator-mandated semantic pin**:
+    ``would_proceed=true`` is a dry-run-only proceed signal. It
+    MUST NOT be readable as merge-proceed / live-merge / deploy
+    authority. The pin asserts that whenever ``would_proceed=true``
+    appears in the response envelope, **every** discipline
+    invariant that nails the dry-run posture also holds:
+
+    * ``dry_run_only=True``
+    * ``live_merge_implemented=False``
+    * ``deploy_coupled=False``
+    * ``level6_enabled=False``
+    * ``step5_implementation_allowed=False``
+    * ``step5_enabled_substage="none"``
+
+    Same pin applies to the persisted ``dry_run/latest.json``
+    snapshot — the artefact carries the same six invariants and
+    NEVER ships ``would_proceed=true`` without them."""
+    from reporting import n5b_merge_execution_dry_run as projector
+
+    _seed_all_clean_upstream_artefacts()
+    code, payload = _exercise_walker(monkeypatch)
+    # Envelope side.
+    assert payload["would_proceed"] is True
+    assert payload["dry_run_only"] is True
+    assert payload["live_merge_implemented"] is False
+    assert payload["deploy_coupled"] is False
+    assert payload["level6_enabled"] is False
+    assert payload["step5_implementation_allowed"] is False
+    assert payload["step5_enabled_substage"] == "none"
+    # Persisted dry_run/latest.json side — same co-occurrence.
+    latest = json.loads(projector.DRY_RUN_LATEST.read_text(encoding="utf-8"))
+    assert latest["would_proceed"] is True
+    assert latest["dry_run_only"] is True
+    assert latest["live_merge_implemented"] is False
+    assert latest["deploy_coupled"] is False
+    assert latest["level6_enabled"] is False
+    assert latest["step5_implementation_allowed"] is False
+    assert latest["step5_enabled_substage"] == "none"
+
+
+def test_b2_8e_would_proceed_field_documented_as_dry_run_only_in_source() -> None:
+    """Source-text pin: the walker module's source must explicitly
+    document ``would_proceed`` as a dry-run-only signal so a future
+    reader cannot mistake it for live merge authority. The doc
+    string adjacent to the ok-emit branch carries that wording.
+
+    Negative pin: the walker source must NOT describe
+    ``would_proceed`` as live-merge / merge-execution / deploy
+    authority."""
+    src = MODULE_PATH.read_text(encoding="utf-8")
+    # Required wording — the comment adjacent to the
+    # status="ok" emit branch must explicitly state this is a
+    # dry-run-only proceed signal, not live merge authority.
+    assert "dry-run-only proceed" in src.lower() or (
+        "dry-run only proceed" in src.lower()
+    ) or "not live merge authority" in src.lower(), (
+        "walker source must document would_proceed=true as a "
+        "dry-run-only proceed signal (not live merge authority) "
+        "next to the status=ok emit branch"
+    )
+    # Negative pin: the source must NOT describe would_proceed
+    # as live-merge / merge-execution / deploy authority.
+    for forbidden_misframing in (
+        "would proceed to merge",
+        "will merge the pr",
+        "executes the merge",
+        "live merge authorized",
+        "live merge authorised",
+        "automatic future merge allowed",
+    ):
+        assert forbidden_misframing not in src.lower(), (
+            f"walker source uses live-merge misframing for "
+            f"would_proceed: {forbidden_misframing!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# B2.8e UNWIRED-state pin — operator-applied wiring is a separate commit
+# ---------------------------------------------------------------------------
+
+
+def test_b2_8e_blueprint_still_unwired_in_dashboard_py() -> None:
+    """B2.8e MUST NOT wire the blueprint into ``dashboard/dashboard.py``.
+    The operator-applied wiring patch + corresponding test-pin
+    retirement is a separate follow-up commit (B2.0c precedent).
+    This pin is identical to ``test_blueprint_not_registered_in_dashboard_py``;
+    re-asserted explicitly so the B2.8e contract surface is
+    self-documenting."""
+    src = DASHBOARD_PY.read_text(encoding="utf-8")
+    forbidden_substrings = (
+        "from dashboard.api_merge_execution_dry_run",
+        "import api_merge_execution_dry_run",
+        "register_merge_execution_dry_run_routes",
+    )
+    hits = [s for s in forbidden_substrings if s in src]
+    assert not hits, (
+        "B2.8e walker must remain UNWIRED. dashboard.py contains "
+        f"wiring substrings: {hits!r}. Wiring is operator-applied "
+        "in a separate follow-up commit."
+    )

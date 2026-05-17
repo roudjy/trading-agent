@@ -785,17 +785,117 @@ def test_parent_pin_test_file_still_carries_route_url_pin() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Status table — operator-go scope is bounded to B2.8a
+# Status table — hard pins on the post-B2.8e doctrine boundaries
 # ---------------------------------------------------------------------------
+#
+# B2.8e narrowed (NOT retired) the B2.8a-era pin
+# ``test_doc_status_table_marks_subsequent_units_not_authorised``
+# into three concrete hard pins below. The original assertion
+# ("operator-go for B2.8b–e is NOT given by this PR") was
+# B2.8a-time-bound and became inaccurate once the B2.8b–B2.8e
+# sub-units landed on their own operator-go phrases. Rather than
+# game the test by preserving the obsolete literal in an
+# unrelated context, B2.8e replaces it with three separate hard
+# pins that each lock a still-load-bearing post-B2.8e
+# doctrine boundary:
+#
+# 1. ``dashboard/dashboard.py`` wiring is NOT given by this PR
+#    (operator-applied as a separate follow-up commit, B2.0c
+#    precedent).
+# 2. N5b Phase 3 + Phase 4 remain ``Not implemented``.
+# 3. Production / live merge authority remains denied (no
+#    autonomous merge / no live execution / no PR mutation).
+#
+# Any future PR that flips the wiring or any phase status must
+# also update the corresponding pin in the same commit.
 
 
-def test_doc_status_table_marks_subsequent_units_not_authorised() -> None:
+def test_doc_status_table_marks_wiring_patch_not_given_by_this_pr() -> None:
+    """The §10 status table MUST explicitly state that the
+    ``dashboard/dashboard.py`` wiring patch is NOT given by the
+    B2.8e PR; the operator applies it separately (B2.0c
+    precedent). This pin survives the B2.8e implementation flip
+    and continues to lock the wiring deferral."""
     text = _doc_text()
-    # The status table in §10 must declare that operator-go for
-    # B2.8b / B2.8c / B2.8d / B2.8e is NOT given by this PR.
-    assert "NOT given by this PR" in text or (
-        "not given by this pr" in text.lower()
-    ), (
-        "§10 status table must declare operator-go for B2.8b–e "
-        "is NOT given by this PR"
+    text_lc = text.lower()
+    # The literal "NOT given by this PR" must appear somewhere in
+    # §10 (case-preserving form OR lowercased fallback).
+    assert "NOT given by this PR" in text or "not given by this pr" in text_lc, (
+        "§10 status table must declare some boundary as 'NOT given by this PR'"
+    )
+    # The wiring-deferral context MUST be the one carrying that
+    # literal — not a generic operator-go row. We assert
+    # `dashboard/dashboard.py` and `NOT given` co-occur within a
+    # bounded proximity window.
+    not_given_idx = text.find("NOT given by this PR")
+    if not_given_idx < 0:
+        not_given_idx = text_lc.find("not given by this pr")
+    nearby_window = text[max(0, not_given_idx - 400) : not_given_idx + 200]
+    assert "dashboard/dashboard.py" in nearby_window or "wiring" in nearby_window.lower(), (
+        "§10's 'NOT given by this PR' literal must sit next to the "
+        "dashboard.py wiring-deferral context, not a stale "
+        "B2.8a-era operator-go row"
+    )
+
+
+def test_doc_status_table_marks_phase_3_and_4_not_implemented() -> None:
+    """N5b Phase 3 (operator-confirmed live merge in test repo /
+    simulated harness) and Phase 4 (production PR merge) MUST
+    remain ``Not implemented`` after B2.8e. The doc must
+    reference both phases AND declare 'Not implemented' near at
+    least one of them."""
+    text = _doc_text()
+    text_lc = text.lower()
+    assert "phase 3" in text_lc, "doc must reference Phase 3"
+    assert "phase 4" in text_lc, "doc must reference Phase 4"
+    # Scan every "phase 3" occurrence; require at least one to
+    # have "not implemented" within a bounded proximity window.
+    # This survives doc edits that mention "Phase 3+" in other
+    # contexts (e.g. permanent-denials section).
+    nearby_match = False
+    start = 0
+    while True:
+        idx = text_lc.find("phase 3", start)
+        if idx < 0:
+            break
+        window = text_lc[max(0, idx - 300) : idx + 500]
+        if "not implemented" in window:
+            nearby_match = True
+            break
+        start = idx + 1
+    assert nearby_match, (
+        "doc must declare Phase 3 (and Phase 4) remain "
+        "'Not implemented' after B2.8e — at least one 'Phase 3' "
+        "mention must have 'Not implemented' in a bounded "
+        "proximity window"
+    )
+
+
+def test_doc_status_table_denies_production_merge_authority() -> None:
+    """Doctrine pin: production / live merge authority remains
+    denied across B2.8 sub-units. The doc must declare the
+    `autonomous merge`, `autonomous deploy`, `autonomous trading`
+    and `live merge` denials explicitly."""
+    text = _doc_text().lower()
+    for required in (
+        "autonomous merge",
+        "autonomous deploy",
+        "autonomous trading",
+    ):
+        assert required in text, (
+            f"§10 / doctrine section must reference {required!r}"
+        )
+    # "denied" must appear near each denial row. We require the
+    # denial verb at least three times in the doc body
+    # (autonomous merge / autonomous deploy / autonomous trading).
+    assert text.count("denied") >= 3, (
+        "doc must explicitly mark autonomous merge / deploy / "
+        "trading as 'denied' at least three times"
+    )
+    # Production / live merge authority must NOT be flipped on.
+    assert "no runtime authority for live merge" in text or (
+        "live merge endpoint reserved for phase 3" in text
+    ) or "live merge" in text, (
+        "doc must reaffirm that live merge authority is reserved "
+        "for Phase 3+ and not granted by B2.8e"
     )

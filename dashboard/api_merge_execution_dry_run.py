@@ -71,7 +71,7 @@ from reporting import approval_token_runtime as atr
 from reporting import n5b_merge_execution_dry_run as projector
 from reporting.agent_audit_summary import assert_no_secrets
 
-MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.walker_1_17"
+MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.implemented"
 SCHEMA_VERSION: Final[int] = 1
 
 
@@ -491,15 +491,28 @@ def _parse_iso_utc(value: Any) -> datetime | None:
 # ---------------------------------------------------------------------------
 
 
+#: Closed seen-fields envelope returned by
+#: :func:`_walk_preconditions_8_through_17` so the dry-run artefact
+#: can record what the walker observed in the upstream artefacts.
+#: Fields default to empty strings / empty dicts when the walker
+#: short-circuits before reading them.
+_EMPTY_SEEN: Final[dict[str, Any]] = {
+    "recommendation_action_seen": "",
+    "recommendation_reason_seen": "",
+    "merge_state_status_seen": "",
+    "required_checks_summary": {"_rollup": ""},
+}
+
+
 def _walk_preconditions_8_through_17(
     *,
     pr_number: int,
     pr_head_sha: str,
-) -> tuple[str | None, str | None, int]:
+) -> tuple[str | None, str | None, int, dict[str, Any]]:
     """Walk parent-doc §3 preconditions 8–17 from the on-disk
     upstream artefacts.
 
-    Returns ``(stop_condition, stop_reason, preconditions_evaluated)``
+    Returns ``(stop_condition, stop_reason, preconditions_evaluated, seen)``
     where:
 
     * ``stop_condition`` is ``None`` on full success, or one of the
@@ -510,6 +523,13 @@ def _walk_preconditions_8_through_17(
       reached. On full success this is 17 (rows 8–17 plus the
       auto-pass row 17, added to the 7 rows already evaluated by
       the B2.8c walker outside this function).
+    * ``seen`` is a closed dict capturing the upstream-observed
+      fields the dry-run artefact records: ``recommendation_action_seen``,
+      ``recommendation_reason_seen``, ``merge_state_status_seen``,
+      ``required_checks_summary`` (always ``{"_rollup": <A22 summary>}``;
+      per-check granularity is a future upstream extension).
+      Defaults to :data:`_EMPTY_SEEN` when the walker short-circuits
+      before reading the relevant artefact.
 
     The walker NEVER calls ``gh`` / ``git`` / subprocess / network.
     Every check reads from existing on-disk artefacts via
@@ -521,96 +541,125 @@ def _walk_preconditions_8_through_17(
     (``step5_flag_changed``, ``level_6_attempted``,
     ``deploy_coupling_detected``, ``branch_protection_satisfied``,
     ``no_touch_path_violation``), missing fields fail closed with
-    ``network_uncertain`` rather than silently auto-passing. Tests
-    inject these fields via monkeypatched artefacts; production
-    today does not yet emit them, so the walker rejects every
-    invocation with ``network_uncertain`` until upstream is
-    extended — by design, since the endpoint is also UNWIRED.
+    ``network_uncertain`` rather than silently auto-passing.
     """
+    seen: dict[str, Any] = dict(_EMPTY_SEEN)
     # ---- Read upstream artefacts. Missing / malformed → network_uncertain.
     n5a_status, n5a_payload = _read_json_artifact(_N5A_ARTIFACT_PATH)
     if n5a_status != "ok" or n5a_payload is None:
-        return ("network_uncertain", "n5a_artifact_unavailable", 7)
+        return ("network_uncertain", "n5a_artifact_unavailable", 7, seen)
     a22_status, a22_payload = _read_json_artifact(_A22_ARTIFACT_PATH)
     if a22_status != "ok" or a22_payload is None:
-        return ("network_uncertain", "a22_artifact_unavailable", 7)
+        return ("network_uncertain", "a22_artifact_unavailable", 7, seen)
     gh_status, gh_payload = _read_json_artifact(_GITHUB_PR_LIFECYCLE_ARTIFACT_PATH)
     if gh_status != "ok" or gh_payload is None:
-        return ("network_uncertain", "gh_pr_lifecycle_artifact_unavailable", 7)
+        return (
+            "network_uncertain",
+            "gh_pr_lifecycle_artifact_unavailable",
+            7,
+            seen,
+        )
 
     n5a_row = _find_row_for_pr(n5a_payload, "rows", pr_number)
     if n5a_row is None:
-        return ("network_uncertain", "n5a_row_missing_for_pr", 7)
+        return ("network_uncertain", "n5a_row_missing_for_pr", 7, seen)
     a22_row = _find_row_for_pr(a22_payload, "rows", pr_number)
     if a22_row is None:
-        return ("network_uncertain", "a22_row_missing_for_pr", 7)
+        return ("network_uncertain", "a22_row_missing_for_pr", 7, seen)
     gh_row = _find_row_for_pr(gh_payload, "prs", pr_number)
     if gh_row is None:
-        return ("network_uncertain", "gh_pr_lifecycle_row_missing_for_pr", 7)
+        return (
+            "network_uncertain",
+            "gh_pr_lifecycle_row_missing_for_pr",
+            7,
+            seen,
+        )
+
+    # Record N5a + A22 seen fields up-front; they're set whether the
+    # walker accepts or rejects the row.
+    seen["recommendation_action_seen"] = str(
+        n5a_row.get("recommendation_action") or ""
+    )
+    seen["recommendation_reason_seen"] = str(
+        n5a_row.get("recommendation_reason") or ""
+    )
+    seen["merge_state_status_seen"] = str(
+        a22_row.get("merge_state_status") or ""
+    ).upper()
+    seen["required_checks_summary"] = {
+        "_rollup": str(a22_row.get("checks_summary") or "").upper()
+    }
 
     # ---- Precondition 8: N5a says eligible.
     rec_action = n5a_row.get("recommendation_action")
     rec_reason = n5a_row.get("recommendation_reason")
     if rec_action != _N5A_ELIGIBLE_ACTION:
-        return ("stale_recommendation", "n5a_action_not_eligible", 8)
+        return ("stale_recommendation", "n5a_action_not_eligible", 8, seen)
     if rec_reason != _N5A_ELIGIBLE_REASON:
-        return ("stale_recommendation", "n5a_reason_not_eligible", 8)
+        return ("stale_recommendation", "n5a_reason_not_eligible", 8, seen)
 
     # ---- Precondition 9: mergeStateStatus = CLEAN (+ branch protection).
     mss = a22_row.get("merge_state_status")
     if not isinstance(mss, str):
-        return ("network_uncertain", "merge_state_status_missing", 9)
+        return ("network_uncertain", "merge_state_status_missing", 9, seen)
     if mss.upper() not in _CLEAN_MERGE_STATES:
-        return ("merge_state_not_clean", "merge_state_status_not_clean", 9)
+        return ("merge_state_not_clean", "merge_state_status_not_clean", 9, seen)
     bp_satisfied = gh_row.get("branch_protection_satisfied")
     if not isinstance(bp_satisfied, bool):
-        return ("network_uncertain", "branch_protection_field_missing", 9)
+        return ("network_uncertain", "branch_protection_field_missing", 9, seen)
     if not bp_satisfied:
         return (
             "branch_protection_not_satisfied",
             "branch_protection_unsatisfied",
             9,
+            seen,
         )
 
     # ---- Precondition 10: all required checks green.
     checks = a22_row.get("checks_summary")
     if not isinstance(checks, str):
-        return ("network_uncertain", "checks_summary_missing", 10)
+        return ("network_uncertain", "checks_summary_missing", 10, seen)
     if checks.upper() not in _GREEN_CHECK_STATES:
-        return ("checks_not_green", "checks_summary_not_green", 10)
+        return ("checks_not_green", "checks_summary_not_green", 10, seen)
 
     # ---- Precondition 11: current head SHA equals token-bound head SHA.
     observed_head = a22_row.get("head_sha")
     if not isinstance(observed_head, str) or not observed_head:
-        return ("network_uncertain", "head_sha_missing_in_a22", 11)
+        return ("network_uncertain", "head_sha_missing_in_a22", 11, seen)
     if observed_head != pr_head_sha:
-        return ("head_sha_mismatch", "a22_head_sha_differs_from_bound", 11)
+        return ("head_sha_mismatch", "a22_head_sha_differs_from_bound", 11, seen)
 
     # ---- Precondition 12: base ref = main.
     base_ref = a22_row.get("base_ref")
     if not isinstance(base_ref, str):
-        return ("network_uncertain", "base_ref_missing", 12)
+        return ("network_uncertain", "base_ref_missing", 12, seen)
     if base_ref.lower() != "main":
-        return ("merge_state_not_clean", "base_ref_not_main", 12)
+        return ("merge_state_not_clean", "base_ref_not_main", 12, seen)
 
     # ---- Precondition 13: N5a freshness within bounded window.
     evaluated_at = _parse_iso_utc(n5a_row.get("evaluated_at"))
     if evaluated_at is None:
-        return ("network_uncertain", "n5a_evaluated_at_unparseable", 13)
+        return ("network_uncertain", "n5a_evaluated_at_unparseable", 13, seen)
     age = datetime.now(UTC) - evaluated_at
     if age.total_seconds() > _N5A_FRESHNESS_SECONDS:
-        return ("stale_recommendation", "n5a_age_exceeds_freshness_window", 13)
+        return (
+            "stale_recommendation",
+            "n5a_age_exceeds_freshness_window",
+            13,
+            seen,
+        )
 
     # ---- Precondition 14: no critical inbox rows.
     try:
         crit = int(n5a_row.get("inbox_critical_count") or 0)
     except (TypeError, ValueError):
-        return ("network_uncertain", "inbox_critical_count_unparseable", 14)
+        return ("network_uncertain", "inbox_critical_count_unparseable", 14, seen)
     if crit > 0:
         return (
             "stale_recommendation",
             "n5a_reports_inbox_criticals_inconsistency",
             14,
+            seen,
         )
 
     # ---- Precondition 15: no protected-path violations
@@ -618,49 +667,62 @@ def _walk_preconditions_8_through_17(
     # deploy_coupling_detected sub-checks).
     pp_touched = gh_row.get("protected_paths_touched")
     if not isinstance(pp_touched, bool):
-        return ("network_uncertain", "protected_paths_field_missing", 15)
+        return ("network_uncertain", "protected_paths_field_missing", 15, seen)
     if pp_touched:
         return (
             "unexpected_files_touched",
             "gh_pr_lifecycle_flags_protected_path",
             15,
+            seen,
         )
     no_touch_violation = gh_row.get("no_touch_path_violation")
     if not isinstance(no_touch_violation, bool):
-        return ("network_uncertain", "no_touch_path_violation_field_missing", 15)
+        return (
+            "network_uncertain",
+            "no_touch_path_violation_field_missing",
+            15,
+            seen,
+        )
     if no_touch_violation:
         return (
             "protected_path_violation",
             "gh_pr_lifecycle_flags_no_touch_path",
             15,
+            seen,
         )
     deploy_coupling = gh_row.get("deploy_coupling_detected")
     if not isinstance(deploy_coupling, bool):
-        return ("network_uncertain", "deploy_coupling_field_missing", 15)
+        return ("network_uncertain", "deploy_coupling_field_missing", 15, seen)
     if deploy_coupling:
         return (
             "deploy_coupling_detected",
             "gh_pr_lifecycle_flags_deploy_coupling",
             15,
+            seen,
         )
 
     # ---- Precondition 16: no Step 5 / Level 6 bypass.
     step5_changed = gh_row.get("step5_flag_changed")
     if not isinstance(step5_changed, bool):
-        return ("network_uncertain", "step5_flag_field_missing", 16)
+        return ("network_uncertain", "step5_flag_field_missing", 16, seen)
     if step5_changed:
-        return ("step5_flag_changed", "gh_pr_lifecycle_flags_step5_change", 16)
+        return (
+            "step5_flag_changed",
+            "gh_pr_lifecycle_flags_step5_change",
+            16,
+            seen,
+        )
     level_6_attempted = gh_row.get("level_6_attempted")
     if not isinstance(level_6_attempted, bool):
-        return ("network_uncertain", "level_6_field_missing", 16)
+        return ("network_uncertain", "level_6_field_missing", 16, seen)
     if level_6_attempted:
-        return ("level_6_attempted", "gh_pr_lifecycle_flags_level_6", 16)
+        return ("level_6_attempted", "gh_pr_lifecycle_flags_level_6", 16, seen)
 
     # ---- Precondition 17: auto-pass (dry-run has no execution boundary).
     # Per operator authority: this is the ONLY precondition auto-passed
     # in B2.8d.
 
-    return (None, None, 17)
+    return (None, None, 17, seen)
 
 
 # ---------------------------------------------------------------------------
@@ -707,6 +769,83 @@ def _write_failure_after_walker(
         )
     except Exception:
         return (False, "failure_write_failed")
+    return (True, None)
+
+
+# ---------------------------------------------------------------------------
+# B2.8e dry-run + history writer helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_preconditions_dict(
+    *, preconditions_passed: int
+) -> dict[str, bool]:
+    """Build the closed-shape preconditions dict for the dry-run
+    artefact. Each of the 17 entries is True iff that row was
+    reached and passed."""
+    return {
+        f"precondition_{i}": i <= preconditions_passed
+        for i in range(1, projector.DRY_RUN_PRECONDITION_COUNT + 1)
+    }
+
+
+def _write_dry_run_artefacts(
+    *,
+    pr_number: int,
+    pr_head_sha: str,
+    token_kid: str,
+    nonce_hash: str,
+    generated_at_utc: str,
+    preconditions_passed: int,
+    seen: dict[str, Any],
+    would_proceed: bool,
+    stop_condition: str | None,
+) -> tuple[bool, str | None]:
+    """Persist the closed-schema ``dry_run/latest.json`` snapshot
+    AND append the same row to ``dry_run/history.jsonl``. Called
+    only after the walker reaches a decision (``ok`` or ``rejected``).
+
+    Returns ``(True, None)`` on success or ``(False, "<bounded reason>")``
+    when either write raises. On any write failure the walker emits
+    the closed §7 ``audit_write_failure`` stop_condition; no new
+    literal is introduced.
+    """
+    common_kwargs: dict[str, Any] = {
+        "pr_number": pr_number,
+        "pr_head_sha": pr_head_sha,
+        "token_kid": token_kid,
+        "nonce_hash": nonce_hash,
+        "operator_actor": _OPERATOR_ACTOR_SESSION,
+        "generated_at_utc": generated_at_utc,
+        "preconditions": _build_preconditions_dict(
+            preconditions_passed=preconditions_passed
+        ),
+        "recommendation_action_seen": str(
+            seen.get("recommendation_action_seen") or ""
+        ),
+        "recommendation_reason_seen": str(
+            seen.get("recommendation_reason_seen") or ""
+        ),
+        "merge_state_status_seen": str(
+            seen.get("merge_state_status_seen") or ""
+        ),
+        "required_checks_summary": dict(
+            seen.get("required_checks_summary") or {"_rollup": ""}
+        ),
+        "required_checks_granularity": "rollup_only",
+        "protected_path_violations": [],
+        "protected_path_granularity": "boolean_only",
+        "would_proceed": would_proceed,
+        "stop_condition": stop_condition,
+    }
+    try:
+        projector.write_dry_run_latest(**common_kwargs)
+    except Exception:
+        return (False, "dry_run_latest_write_failed")
+    try:
+        projector.append_dry_run_history(**common_kwargs)
+    except Exception:
+        return (False, "dry_run_history_append_failed")
     return (True, None)
 
 
@@ -880,8 +1019,8 @@ def _view_dry_run() -> tuple[Response, int]:
         )
         return _safe_jsonify(envelope), 500
 
-    # ---- B2.8d walker for preconditions 8–17 ----
-    walker_stop, walker_reason, walker_evaluated = (
+    # ---- B2.8d/B2.8e walker for preconditions 8–17 ----
+    walker_stop, walker_reason, walker_evaluated, walker_seen = (
         _walk_preconditions_8_through_17(
             pr_number=pr_number,
             pr_head_sha=pr_head_sha,
@@ -889,8 +1028,10 @@ def _view_dry_run() -> tuple[Response, int]:
     )
     walker_now = _utcnow_iso()
     if walker_stop is not None:
-        # §7 stop hit. Write the failure artefact (closed schema,
-        # bounded reason) and emit rejected.
+        # §7 stop hit. Write the failure artefact (B2.8d) AND
+        # the dry_run/latest + history artefacts (B2.8e — per
+        # parent-doc §2.6 "every dry-run invocation that produced
+        # a decision (ok or rejected)").
         passed_count = walker_evaluated - 1
         write_ok, _write_err = _write_failure_after_walker(
             pr_number=pr_number,
@@ -915,6 +1056,29 @@ def _view_dry_run() -> tuple[Response, int]:
                 reason="failure_artefact_write_failed",
             )
             return _safe_jsonify(envelope), 500
+        dry_ok, _dry_err = _write_dry_run_artefacts(
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            token_kid=token_kid,
+            nonce_hash=nonce_hash,
+            generated_at_utc=walker_now,
+            preconditions_passed=passed_count,
+            seen=walker_seen,
+            would_proceed=False,
+            stop_condition=walker_stop,
+        )
+        if not dry_ok:
+            envelope = _base_envelope(
+                status="rejected",
+                stop_condition="audit_write_failure",
+                preconditions_evaluated=walker_evaluated,
+                preconditions_passed=passed_count,
+                would_proceed=False,
+                pr_number=pr_number,
+                pr_head_sha=pr_head_sha,
+                reason="dry_run_artefact_write_failed",
+            )
+            return _safe_jsonify(envelope), 500
         envelope = _base_envelope(
             status="rejected",
             stop_condition=walker_stop,
@@ -928,20 +1092,52 @@ def _view_dry_run() -> tuple[Response, int]:
         return _safe_jsonify(envelope), 200
 
     # ---- All 17 preconditions passed.
-    # Per operator-approved deferral: B2.8d emits
-    # not_yet_implemented with reason="b2_8e_implementation_pending".
-    # B2.8d MUST NOT emit status=ok. B2.8d MUST NOT write
-    # dry_run/latest.json or history.jsonl. Those flips land in
-    # B2.8e along with the wiring patch + doc updates.
+    # B2.8e flips the B2.8d deferral: status="ok" + would_proceed=True
+    # mean "dry-run checks passed and audit artefacts written".
+    # This is a dry-run-only proceed signal — not live merge
+    # authority of any kind. Per operator authority on B2.8e §1,
+    # the response carries no capability to mutate a PR, execute
+    # a merge, trigger a deploy, or authorise live execution.
+    #
+    # The six discipline invariants on the response envelope stay
+    # nailed: dry_run_only=True, live_merge_implemented=False,
+    # deploy_coupled=False, level6_enabled=False,
+    # step5_implementation_allowed=False, step5_enabled_substage="none".
+    # The pinned co-occurrence test
+    # (test_b2_8e_would_proceed_true_always_co_occurs_with_dry_run_invariants)
+    # enforces these on every "ok" / would_proceed=True response.
+    dry_ok, _dry_err = _write_dry_run_artefacts(
+        pr_number=pr_number,
+        pr_head_sha=pr_head_sha,
+        token_kid=token_kid,
+        nonce_hash=nonce_hash,
+        generated_at_utc=walker_now,
+        preconditions_passed=17,
+        seen=walker_seen,
+        would_proceed=True,
+        stop_condition=None,
+    )
+    if not dry_ok:
+        envelope = _base_envelope(
+            status="rejected",
+            stop_condition="audit_write_failure",
+            preconditions_evaluated=17,
+            preconditions_passed=17,
+            would_proceed=False,
+            pr_number=pr_number,
+            pr_head_sha=pr_head_sha,
+            reason="dry_run_artefact_write_failed",
+        )
+        return _safe_jsonify(envelope), 500
     envelope = _base_envelope(
-        status="not_yet_implemented",
+        status="ok",
         stop_condition=None,
         preconditions_evaluated=17,
         preconditions_passed=17,
-        would_proceed=False,
+        would_proceed=True,
         pr_number=pr_number,
         pr_head_sha=pr_head_sha,
-        reason="b2_8e_implementation_pending",
+        reason=None,
     )
     return _safe_jsonify(envelope), 200
 

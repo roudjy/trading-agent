@@ -69,9 +69,10 @@ from reporting.agent_audit_summary import assert_no_secrets
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[int] = 1
-MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.projector_with_failure"
+MODULE_VERSION: Final[str] = "v3.15.16.N5b.phase2.projector_implemented"
 REPORT_KIND: Final[str] = "n5b_preflight"
 FAILURE_REPORT_KIND: Final[str] = "n5b_failure"
+DRY_RUN_REPORT_KIND: Final[str] = "n5b_dry_run"
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +106,26 @@ PREFLIGHT_LATEST_RELATIVE: Final[str] = (
 #: no raw token, no PR diff content.
 FAILURE_DIR: Final[Path] = REPO_ROOT / "logs" / "n5b_merge_execution" / "failure"
 FAILURE_DIR_RELATIVE: Final[str] = "logs/n5b_merge_execution/failure/"
+
+#: B2.8e dry-run artefact paths. Per parent-doc §2.6, every dry-run
+#: invocation that produces a decision (``ok`` or ``rejected``)
+#: writes the closed-schema dry-run snapshot to
+#: ``dry_run/latest.json`` and appends the same row to
+#: ``dry_run/history.jsonl`` (append-only, bounded by
+#: :data:`MAX_HISTORY_ROWS`). No raw token, no raw nonce.
+DRY_RUN_DIR: Final[Path] = REPO_ROOT / "logs" / "n5b_merge_execution" / "dry_run"
+DRY_RUN_LATEST: Final[Path] = DRY_RUN_DIR / "latest.json"
+DRY_RUN_LATEST_RELATIVE: Final[str] = (
+    "logs/n5b_merge_execution/dry_run/latest.json"
+)
+DRY_RUN_HISTORY: Final[Path] = DRY_RUN_DIR / "history.jsonl"
+DRY_RUN_HISTORY_RELATIVE: Final[str] = (
+    "logs/n5b_merge_execution/dry_run/history.jsonl"
+)
+
+#: Bounded history-row retention. Each append compacts to the newest
+#: :data:`MAX_HISTORY_ROWS` rows so the file size stays bounded.
+MAX_HISTORY_ROWS: Final[int] = 1024
 
 
 # ---------------------------------------------------------------------------
@@ -552,13 +573,387 @@ def write_failure(
     return target
 
 
+# ---------------------------------------------------------------------------
+# B2.8e dry-run artefact — closed schema + granularity sentinels
+# ---------------------------------------------------------------------------
+
+
+#: Closed enumeration of the ``required_checks_granularity`` values
+#: the projector recognises. ``rollup_only`` indicates the upstream
+#: A22 artefact provides a single rollup (``SUCCESS`` / ``PASSED`` /
+#: …) rather than per-required-check conclusions. A future upstream
+#: extension can append ``per_check`` without weakening this list;
+#: tests pin the closed set.
+REQUIRED_CHECKS_GRANULARITY_VALUES: Final[tuple[str, ...]] = ("rollup_only",)
+
+#: Closed enumeration of the ``protected_path_granularity`` values.
+#: ``boolean_only`` indicates the upstream ``github_pr_lifecycle``
+#: artefact exposes only a single ``protected_paths_touched`` flag
+#: rather than the list of file paths that triggered it. A future
+#: upstream extension can append ``per_file`` without weakening
+#: this list.
+PROTECTED_PATH_GRANULARITY_VALUES: Final[tuple[str, ...]] = ("boolean_only",)
+
+#: Number of §3 preconditions tracked in the dry-run ``preconditions``
+#: dict (one boolean per §3 row).
+DRY_RUN_PRECONDITION_COUNT: Final[int] = 17
+
+#: Closed keys for the dry-run ``preconditions`` boolean dict.
+DRY_RUN_PRECONDITION_KEYS: Final[tuple[str, ...]] = tuple(
+    f"precondition_{i}" for i in range(1, DRY_RUN_PRECONDITION_COUNT + 1)
+)
+
+
+DRY_RUN_SNAPSHOT_KEYS: Final[tuple[str, ...]] = (
+    # All preflight fields (closed)
+    "schema_version",
+    "report_kind",                    # "n5b_dry_run"
+    "module_version",
+    "pr_number",
+    "pr_head_sha",
+    "pr_base_ref",                    # "main"
+    "intent",                         # "mobile_approval_dispatch"
+    "token_kid",
+    "nonce_hash",
+    "operator_actor",                 # "session" | "operator_token"
+    "generated_at_utc",
+    # §6.2 dry-run additions
+    "preconditions",                  # dict[str, bool] — DRY_RUN_PRECONDITION_KEYS
+    "recommendation_action_seen",     # str from N5a row (or "" if unread)
+    "recommendation_reason_seen",     # str from N5a row (or "" if unread)
+    "merge_state_status_seen",        # str from A22 row (or "" if unread)
+    "required_checks_summary",        # dict[str, str] — {"_rollup": <rollup>}
+    "required_checks_granularity",    # str — REQUIRED_CHECKS_GRANULARITY_VALUES
+    "protected_path_violations",      # list[str] — empty for B2.8e
+    "protected_path_granularity",     # str — PROTECTED_PATH_GRANULARITY_VALUES
+    "would_proceed",                  # bool — True iff status="ok"
+    "stop_condition",                 # str | null — null when would_proceed=True
+    # Discipline invariants
+    "step5_implementation_allowed",   # False
+    "step5_enabled_substage",         # "none"
+    "level6_enabled",                 # False
+    "dry_run_only",                   # True
+    "live_merge_implemented",         # False
+    "deploy_coupled",                 # False
+    "discipline_invariants",          # closed dict
+)
+
+
+def _validate_preconditions_dict(value: Any) -> None:
+    if not isinstance(value, dict):
+        raise TypeError("preconditions must be a dict")
+    if set(value.keys()) != set(DRY_RUN_PRECONDITION_KEYS):
+        raise ValueError(
+            "preconditions keys must equal "
+            f"{sorted(DRY_RUN_PRECONDITION_KEYS)!r}; "
+            f"got {sorted(value.keys())!r}"
+        )
+    for k, v in value.items():
+        if not isinstance(v, bool):
+            raise TypeError(f"preconditions[{k!r}] must be bool")
+
+
+def _validate_required_checks_summary(value: Any) -> None:
+    if not isinstance(value, dict):
+        raise TypeError("required_checks_summary must be a dict")
+    if not value:
+        raise ValueError("required_checks_summary must not be empty")
+    for k, v in value.items():
+        if not isinstance(k, str) or not k:
+            raise ValueError("required_checks_summary keys must be non-empty str")
+        if not isinstance(v, str):
+            raise TypeError("required_checks_summary values must be str")
+
+
+def _validate_protected_path_violations(value: Any) -> None:
+    if not isinstance(value, list):
+        raise TypeError("protected_path_violations must be a list")
+    for entry in value:
+        if not isinstance(entry, str):
+            raise TypeError("protected_path_violations entries must be str")
+
+
+def build_dry_run_snapshot(
+    *,
+    pr_number: int,
+    pr_head_sha: str,
+    token_kid: str,
+    nonce_hash: str,
+    operator_actor: str,
+    generated_at_utc: str,
+    preconditions: dict[str, bool],
+    recommendation_action_seen: str,
+    recommendation_reason_seen: str,
+    merge_state_status_seen: str,
+    required_checks_summary: dict[str, str],
+    required_checks_granularity: str,
+    protected_path_violations: list[str],
+    protected_path_granularity: str,
+    would_proceed: bool,
+    stop_condition: str | None,
+) -> dict[str, Any]:
+    """Build the closed-schema dry-run snapshot dict. Pure — no I/O.
+
+    ``preconditions`` must contain exactly :data:`DRY_RUN_PRECONDITION_KEYS`,
+    each value a ``bool``.
+    ``required_checks_granularity`` must be in
+    :data:`REQUIRED_CHECKS_GRANULARITY_VALUES`.
+    ``protected_path_granularity`` must be in
+    :data:`PROTECTED_PATH_GRANULARITY_VALUES`.
+    ``stop_condition`` must be ``None`` (when ``would_proceed=True``)
+    or a member of :data:`B2_8D_STOP_CONDITIONS`. ``would_proceed=True``
+    requires ``stop_condition=None``.
+    """
+    if not isinstance(pr_number, int) or isinstance(pr_number, bool):
+        raise TypeError("pr_number must be int")
+    if pr_number <= 0:
+        raise ValueError("pr_number must be positive")
+    if not isinstance(pr_head_sha, str) or not pr_head_sha:
+        raise ValueError("pr_head_sha must be a non-empty string")
+    if len(pr_head_sha) > 64:
+        raise ValueError("pr_head_sha exceeds 64 chars")
+    if not isinstance(token_kid, str) or not token_kid:
+        raise ValueError("token_kid must be a non-empty string")
+    if len(token_kid) > 64:
+        raise ValueError("token_kid exceeds 64 chars")
+    if not isinstance(nonce_hash, str) or len(nonce_hash) != 64:
+        raise ValueError("nonce_hash must be a 64-char sha256 hex digest")
+    if any(c not in "0123456789abcdef" for c in nonce_hash):
+        raise ValueError("nonce_hash must be lowercase hex")
+    if operator_actor not in OPERATOR_ACTORS:
+        raise ValueError(
+            f"operator_actor must be one of {OPERATOR_ACTORS}; got {operator_actor!r}"
+        )
+    if not isinstance(generated_at_utc, str) or not generated_at_utc:
+        raise ValueError("generated_at_utc must be a non-empty ISO 8601 string")
+    _validate_preconditions_dict(preconditions)
+    if not isinstance(recommendation_action_seen, str):
+        raise TypeError("recommendation_action_seen must be str")
+    if not isinstance(recommendation_reason_seen, str):
+        raise TypeError("recommendation_reason_seen must be str")
+    if not isinstance(merge_state_status_seen, str):
+        raise TypeError("merge_state_status_seen must be str")
+    _validate_required_checks_summary(required_checks_summary)
+    if required_checks_granularity not in REQUIRED_CHECKS_GRANULARITY_VALUES:
+        raise ValueError(
+            "required_checks_granularity must be one of "
+            f"{REQUIRED_CHECKS_GRANULARITY_VALUES}; "
+            f"got {required_checks_granularity!r}"
+        )
+    _validate_protected_path_violations(protected_path_violations)
+    if protected_path_granularity not in PROTECTED_PATH_GRANULARITY_VALUES:
+        raise ValueError(
+            "protected_path_granularity must be one of "
+            f"{PROTECTED_PATH_GRANULARITY_VALUES}; "
+            f"got {protected_path_granularity!r}"
+        )
+    if not isinstance(would_proceed, bool):
+        raise TypeError("would_proceed must be bool")
+    if would_proceed and stop_condition is not None:
+        raise ValueError(
+            "would_proceed=True requires stop_condition=None"
+        )
+    if not would_proceed and stop_condition is None:
+        raise ValueError(
+            "would_proceed=False requires a non-null stop_condition"
+        )
+    if stop_condition is not None and stop_condition not in B2_8D_STOP_CONDITIONS:
+        raise ValueError(
+            "stop_condition must be one of "
+            f"{B2_8D_STOP_CONDITIONS}; got {stop_condition!r}"
+        )
+
+    snapshot: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "report_kind": DRY_RUN_REPORT_KIND,
+        "module_version": MODULE_VERSION,
+        "pr_number": pr_number,
+        "pr_head_sha": pr_head_sha,
+        "pr_base_ref": PR_BASE_REF,
+        "intent": DRY_RUN_INTENT,
+        "token_kid": token_kid,
+        "nonce_hash": nonce_hash,
+        "operator_actor": operator_actor,
+        "generated_at_utc": generated_at_utc,
+        "preconditions": dict(preconditions),
+        "recommendation_action_seen": recommendation_action_seen,
+        "recommendation_reason_seen": recommendation_reason_seen,
+        "merge_state_status_seen": merge_state_status_seen,
+        "required_checks_summary": dict(required_checks_summary),
+        "required_checks_granularity": required_checks_granularity,
+        "protected_path_violations": list(protected_path_violations),
+        "protected_path_granularity": protected_path_granularity,
+        "would_proceed": would_proceed,
+        "stop_condition": stop_condition,
+        "step5_implementation_allowed": step5_implementation_allowed,
+        "step5_enabled_substage": STEP5_ENABLED_SUBSTAGE,
+        "level6_enabled": False,
+        "dry_run_only": True,
+        "live_merge_implemented": False,
+        "deploy_coupled": False,
+        "discipline_invariants": dict(_DISCIPLINE_INVARIANTS),
+    }
+    assert set(snapshot.keys()) == set(DRY_RUN_SNAPSHOT_KEYS), (
+        f"dry_run snapshot key drift: {sorted(snapshot.keys())!r} vs "
+        f"{sorted(DRY_RUN_SNAPSHOT_KEYS)!r}"
+    )
+    return snapshot
+
+
+def write_dry_run_latest(
+    *,
+    pr_number: int,
+    pr_head_sha: str,
+    token_kid: str,
+    nonce_hash: str,
+    operator_actor: str,
+    generated_at_utc: str,
+    preconditions: dict[str, bool],
+    recommendation_action_seen: str,
+    recommendation_reason_seen: str,
+    merge_state_status_seen: str,
+    required_checks_summary: dict[str, str],
+    required_checks_granularity: str,
+    protected_path_violations: list[str],
+    protected_path_granularity: str,
+    would_proceed: bool,
+    stop_condition: str | None,
+    target_path: Path | None = None,
+) -> Path:
+    """Build + persist the closed-schema dry-run snapshot to
+    ``logs/n5b_merge_execution/dry_run/latest.json``.
+
+    Sentinel-restricted via :func:`_atomic_write_json`;
+    :func:`assert_no_secrets` runs on the payload first.
+    ``target_path`` is exposed for unit-test isolation."""
+    snapshot = build_dry_run_snapshot(
+        pr_number=pr_number,
+        pr_head_sha=pr_head_sha,
+        token_kid=token_kid,
+        nonce_hash=nonce_hash,
+        operator_actor=operator_actor,
+        generated_at_utc=generated_at_utc,
+        preconditions=preconditions,
+        recommendation_action_seen=recommendation_action_seen,
+        recommendation_reason_seen=recommendation_reason_seen,
+        merge_state_status_seen=merge_state_status_seen,
+        required_checks_summary=required_checks_summary,
+        required_checks_granularity=required_checks_granularity,
+        protected_path_violations=protected_path_violations,
+        protected_path_granularity=protected_path_granularity,
+        would_proceed=would_proceed,
+        stop_condition=stop_condition,
+    )
+    target = target_path if target_path is not None else DRY_RUN_LATEST
+    _atomic_write_json(target, snapshot)
+    return target
+
+
+def append_dry_run_history(
+    *,
+    pr_number: int,
+    pr_head_sha: str,
+    token_kid: str,
+    nonce_hash: str,
+    operator_actor: str,
+    generated_at_utc: str,
+    preconditions: dict[str, bool],
+    recommendation_action_seen: str,
+    recommendation_reason_seen: str,
+    merge_state_status_seen: str,
+    required_checks_summary: dict[str, str],
+    required_checks_granularity: str,
+    protected_path_violations: list[str],
+    protected_path_granularity: str,
+    would_proceed: bool,
+    stop_condition: str | None,
+    target_path: Path | None = None,
+) -> Path:
+    """Append the closed-schema dry-run snapshot to
+    ``logs/n5b_merge_execution/dry_run/history.jsonl`` (one JSON
+    object per line). Atomic-replaces the file after compaction to
+    the newest :data:`MAX_HISTORY_ROWS` rows.
+
+    Sentinel-restricted: the path must contain :data:`WRITE_PREFIX`.
+    :func:`assert_no_secrets` runs on the new snapshot before write.
+    """
+    snapshot = build_dry_run_snapshot(
+        pr_number=pr_number,
+        pr_head_sha=pr_head_sha,
+        token_kid=token_kid,
+        nonce_hash=nonce_hash,
+        operator_actor=operator_actor,
+        generated_at_utc=generated_at_utc,
+        preconditions=preconditions,
+        recommendation_action_seen=recommendation_action_seen,
+        recommendation_reason_seen=recommendation_reason_seen,
+        merge_state_status_seen=merge_state_status_seen,
+        required_checks_summary=required_checks_summary,
+        required_checks_granularity=required_checks_granularity,
+        protected_path_violations=protected_path_violations,
+        protected_path_granularity=protected_path_granularity,
+        would_proceed=would_proceed,
+        stop_condition=stop_condition,
+    )
+    target = target_path if target_path is not None else DRY_RUN_HISTORY
+    posix = target.as_posix()
+    if WRITE_PREFIX not in posix:
+        raise ValueError(
+            "n5b_merge_execution_dry_run.append_dry_run_history refuses "
+            f"non-N5b-logs output path: {target}"
+        )
+    assert_no_secrets(snapshot)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    existing_lines: list[str] = []
+    if target.is_file():
+        try:
+            existing_text = target.read_text(encoding="utf-8")
+        except OSError:
+            existing_text = ""
+        for line in existing_text.splitlines():
+            stripped = line.strip()
+            if stripped:
+                existing_lines.append(stripped)
+    new_line = json.dumps(snapshot, sort_keys=True)
+    existing_lines.append(new_line)
+    if len(existing_lines) > MAX_HISTORY_ROWS:
+        existing_lines = existing_lines[-MAX_HISTORY_ROWS:]
+    text = "\n".join(existing_lines) + "\n"
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=".n5b_merge_execution_dry_run.history.",
+        suffix=".tmp",
+        dir=str(target.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp_name, target)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+    return target
+
+
 __all__ = [
     "B2_8D_STOP_CONDITIONS",
+    "DRY_RUN_DIR",
+    "DRY_RUN_HISTORY",
+    "DRY_RUN_HISTORY_RELATIVE",
     "DRY_RUN_INTENT",
+    "DRY_RUN_LATEST",
+    "DRY_RUN_LATEST_RELATIVE",
+    "DRY_RUN_PRECONDITION_COUNT",
+    "DRY_RUN_PRECONDITION_KEYS",
+    "DRY_RUN_REPORT_KIND",
+    "DRY_RUN_SNAPSHOT_KEYS",
     "FAILURE_DIR",
     "FAILURE_DIR_RELATIVE",
     "FAILURE_REPORT_KIND",
     "FAILURE_SNAPSHOT_KEYS",
+    "MAX_HISTORY_ROWS",
     "MAX_STOP_REASON_LEN",
     "MODULE_VERSION",
     "OPERATOR_ACTORS",
@@ -566,14 +961,19 @@ __all__ = [
     "PREFLIGHT_LATEST",
     "PREFLIGHT_LATEST_RELATIVE",
     "PREFLIGHT_SNAPSHOT_KEYS",
+    "PROTECTED_PATH_GRANULARITY_VALUES",
     "PR_BASE_REF",
     "REPORT_KIND",
+    "REQUIRED_CHECKS_GRANULARITY_VALUES",
     "SCHEMA_VERSION",
     "STEP5_ENABLED_SUBSTAGE",
     "WRITE_PREFIX",
+    "append_dry_run_history",
+    "build_dry_run_snapshot",
     "build_failure_snapshot",
     "build_preflight_snapshot",
     "step5_implementation_allowed",
+    "write_dry_run_latest",
     "write_failure",
     "write_preflight",
 ]
