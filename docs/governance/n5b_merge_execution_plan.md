@@ -1,15 +1,28 @@
-# N5b — High-Risk Merge Execution Plan (Governance Doc, Plan-Only)
+# N5b — High-Risk Merge Execution Plan (Governance Doc)
 
-> **Status:** Plan only. Not implemented. No runtime authority.
-> No merge execution route exists. No UI action exists. No GitHub
-> mutation exists.
+> **Status:** Phase 0 + Phase 1 implemented. Phase 2 **module
+> implemented locally (dry-run only); dashboard wiring pending
+> operator-applied patch** — the dry-run route module exists at
+> [`dashboard/api_merge_execution_dry_run.py`](../../dashboard/api_merge_execution_dry_run.py)
+> with closed-schema preflight / failure / dry_run / history
+> writers, but the blueprint is **NOT** registered in
+> [`dashboard/dashboard.py`](../../dashboard/dashboard.py); no
+> client can reach the route until the operator applies the
+> two-line wiring patch separately (B2.0c precedent). Phase 3 +
+> Phase 4 **Not implemented**. No runtime authority for live
+> merge. Exactly one merge-execution route module exists, and
+> it is the dry-run route. No UI action exists. No GitHub
+> mutation exists. Phase 3 and Phase 4 remain plan only.
 >
-> **Authority:** development-governance read-only documentation.
-> This doc grants ADE **zero** new authority. It exists solely to
-> document how a future N5b implementation could be safely
-> designed if and when the operator separately authorises it.
-> No code in this PR can perform a merge, approve a PR, mint an
-> action-bearing token, deploy anything, or change Step 5 state.
+> **Authority:** development-governance documentation. This doc
+> grants ADE **zero** authority over live merge / deploy / trade.
+> The implemented Phase 2 dry-run endpoint emits
+> `status="ok"` to mean *"dry-run checks passed and audit
+> artefacts written"* — never *"merge executed"* or *"PR
+> mutated"* or *"deploy triggered"* or *"live execution
+> authorized"*. Every response envelope carries
+> `dry_run_only=true`, `live_merge_implemented=false`,
+> `deploy_coupled=false`.
 >
 > **Permanent denials (re-asserted):**
 > * `step5_implementation_allowed = false` (unchanged)
@@ -17,6 +30,8 @@
 > * Level 6 is permanently disabled per ADR-015 §Doctrine 1.
 > * No autonomous merge / deploy / trade / approval.
 > * No approval can happen from a notification click alone.
+> * No live merge endpoint exists; Phase 3 + Phase 4 remain plan
+>   only.
 
 ---
 
@@ -24,32 +39,53 @@
 
 * **Plan only** with respect to *live merge execution*. This
   document remains the design / governance / planning slice for
-  any future live-merge implementation.
+  any future live-merge implementation. Phase 3 and Phase 4 are
+  **Not implemented**.
 * **Phase 1 dry-run preflight projector is implemented**:
   `reporting/development_merge_preflight.py` emits the
   closed-schema `logs/development_merge_preflight/latest.json`
   artefact. **This phase remains read-only and dry-run only.**
-* **No live merge route exists.** The dashboard's URL map must
-  not contain `/api/agent-control/merge-execution/*` or any
-  equivalent path. The companion pin-test asserts this absence.
+* **Phase 2 module implemented locally (dry-run only); dashboard
+  wiring pending operator-applied patch.** The dry-run route
+  module exists at
+  [`dashboard/api_merge_execution_dry_run.py`](../../dashboard/api_merge_execution_dry_run.py)
+  with closed-schema preflight / failure / dry_run / history
+  writers under `logs/n5b_merge_execution/`. The blueprint is
+  **NOT** registered in
+  [`dashboard/dashboard.py`](../../dashboard/dashboard.py): the
+  module is on disk and importable, but no HTTP client can reach
+  the route until the operator applies the 2-line wiring patch
+  separately (B2.0c precedent). On `status="ok"` the dry-run
+  endpoint signals *"dry-run checks passed and audit artefacts
+  written"* — never *"merge executed"*, *"PR mutated"*,
+  *"deploy triggered"*, or *"live execution authorized"*. Every
+  response envelope carries `dry_run_only=true`,
+  `live_merge_implemented=false`, `deploy_coupled=false`.
 * **No GitHub mutation exists.** The repository contains no call
   to `gh pr merge`, `gh pr review --approve`, `git merge` (as a
   non-rebase operation against `main`), or any equivalent
   Git/GitHub mutation in production code paths outside the
   audited dashboard deploy script's idempotent
   `fetch + reset --hard origin/main` (which is a checkout
-  refresh, not a PR mutation).
-* **No runtime authority.** The Phase 1 projector grants ADE
-  zero new capability beyond *reading* the existing N5a + A22
-  artefacts and *writing* its own read-only preflight artefact.
+  refresh, not a PR mutation). The Phase 2 dry-run module
+  reads on-disk upstream artefacts (N5a / A22 /
+  github_pr_lifecycle) and writes only its own audit artefacts
+  under `logs/n5b_merge_execution/`.
+* **No runtime authority for live merge.** The Phase 1
+  projector and Phase 2 dry-run module grant ADE no capability
+  to merge, approve, reject, deploy, or trade. Live merge
+  authority remains reserved for Phase 3+ and is not granted by
+  the Phase 2 implementation.
 * **No UI action exists.** The PWA's `/agent-control/*` surface
   must not render a merge / approve / reject / deploy button
   pointed at any N5b endpoint.
-* **Phase 2+ and any live merge execution require separate
-  explicit operator-go.** The earlier operator direction for
-  Phase 1 does not authorise any later phase. Each future phase
-  must obtain its own explicit operator-go in a separate PR per
-  §10.
+* **Phase 3 and Phase 4 and any live merge execution require
+  separate explicit operator-go.** The B2.8a–B2.8e operator-go
+  phrases authorised Phase 2 dry-run sub-units only. The
+  operator-applied `dashboard/dashboard.py` wiring patch for the
+  Phase 2 dry-run module is itself a distinct follow-up commit,
+  **NOT given by the B2.8e PR**. Each future phase must obtain
+  its own explicit operator-go in a separate PR per §10.
 
 The companion pin-tests in
 [`tests/unit/test_n5b_merge_execution_plan.py`](../../tests/unit/test_n5b_merge_execution_plan.py)
@@ -212,46 +248,65 @@ stop condition (if any). Secret material is never written.
 
 ---
 
-## 5. Future API shape — plan-only
+## 5. API shape
 
-> **Not implemented.** The endpoint names below are hypothetical
-> sketches; no Flask blueprint, no route, no view function
-> exists. The pin-test in
-> [`tests/unit/test_n5b_merge_execution_plan.py`](../../tests/unit/test_n5b_merge_execution_plan.py)
-> asserts that no module named `dashboard.api_n5b_merge_execution`
-> (or equivalent) exists yet.
+The N5b API surfaces below. **Exactly one merge-execution route
+exists, and it is the dry-run route** — the module is on disk,
+landed by the B2.8a-through-B2.8e sub-units per
+[`n5b_phase2_implementation_plan.md`](n5b_phase2_implementation_plan.md).
+The blueprint is **NOT** registered in
+[`dashboard/dashboard.py`](../../dashboard/dashboard.py); no HTTP
+client can reach the route until the operator applies the 2-line
+wiring patch separately (B2.0c precedent).
 
-A *future* implementation could surface:
+* **`POST /api/agent-control/merge-execution/dry-run`** —
+  **Module implemented locally; dashboard wiring pending
+  operator-applied patch**, as
+  [`dashboard/api_merge_execution_dry_run.py`](../../dashboard/api_merge_execution_dry_run.py).
+  Session-protected, N4b-token-gated. Accepts the token + bound
+  PR number + head SHA + evidence_hash + intent. Walks all §3
+  preconditions 1–17 from on-disk upstream artefacts
+  (`logs/development_merge_recommendation/latest.json`,
+  `logs/development_pr_lifecycle_observer/latest.json`,
+  `logs/github_pr_lifecycle/latest.json`). Returns a decision
+  envelope (`status` ∈ {`ok`, `rejected`, `configuration_missing`,
+  `not_yet_implemented`}). Writes preflight + dry_run +
+  history artefacts under `logs/n5b_merge_execution/`. NEVER
+  calls GitHub mutation APIs, NEVER mints a token, NEVER
+  triggers deploy. On `status="ok"` the response means
+  *"dry-run checks passed and audit artefacts written"* — not
+  *"merge executed"*. **The `would_proceed=true` field is a
+  dry-run-only proceed signal — it means *"all 17 §3
+  preconditions pass at this moment"*, NOT *"the endpoint is
+  about to merge"*, NOT *"the operator is authorised to
+  click-through automatic merge"*, NOT live merge authority of
+  any kind.** `would_proceed=true` always co-occurs with
+  `dry_run_only=true`, `live_merge_implemented=false`,
+  `deploy_coupled=false`, and the corresponding test pin
+  enforces that co-occurrence in the response envelope. The
+  blueprint is **NOT** registered in
+  [`dashboard/dashboard.py`](../../dashboard/dashboard.py) by
+  the B2.8e PR; the operator applies the 2-line wiring patch
+  separately (B2.0c precedent). The wiring patch and the
+  corresponding test-pin retirement are an operator-applied
+  follow-up commit, **not given by the B2.8e PR**.
 
-* `GET /api/agent-control/merge-execution/status` — session-protected.
-  Reports whether the adapter is configured (env-set, deps
-  available), whether it is in dry-run-only mode, and the count
-  of recent decisions. Read-only. Returns a closed envelope.
-* `POST /api/agent-control/merge-execution/dry-run` —
-  session-protected, token-gated. Accepts the token + bound PR
-  number + head SHA. Walks every §3 precondition. Returns a
-  decision envelope. Never calls GitHub mutation APIs. Writes a
-  dry-run artefact.
-* `POST /api/agent-control/merge-execution/execute` —
-  session-protected, token-gated, **gated behind a separate
-  operator-go env flag** (e.g.
-  `ADE_N5B_LIVE_EXECUTE_ENABLED=true`). Without the env flag the
-  endpoint returns `configuration_missing` even when the token
-  verifies green. Writes a preflight artefact, performs the
-  merge, writes an execution artefact.
+* `GET /api/agent-control/merge-execution/status` — **Not
+  implemented.** Reserved for a future read-only status surface.
+  Adding it requires a separate operator-go.
 
-The dry-run endpoint must exist and be exercised in production
-before any live endpoint is allowed to ship — see §10.
+* `POST /api/agent-control/merge-execution/execute` — **Not
+  implemented.** Reserved for N5b Phase 3 (operator-confirmed
+  live merge in test repo / simulated harness) and Phase 4
+  (production PR merge). Permanently denied without a separate
+  explicit operator-go per §10. Would require the
+  `ADE_N5B_LIVE_EXECUTE_ENABLED` env flag and the closed
+  permanent-denial set in §11.
 
-**No code in this PR introduces any of these endpoints.** A
-future implementation PR must:
-
-1. cite this plan-only doc by SHA;
-2. obtain explicit operator-go per §10;
-3. introduce the routes and the supporting module(s) under a
-   fresh commit, with all §9 tests in the same PR;
-4. update §5 of this doc to mark the future routes as
-   `Implemented` and link to the concrete module(s).
+The Phase 2 dry-run endpoint has been exercised against the
+mocked-upstream test fixture per §6.4 of the sub-plan; the
+operator may now apply the wiring patch to activate the route
+on the live dashboard.
 
 ---
 
@@ -552,7 +607,7 @@ following tests in the *same* PR, all failing-closed.
 |---|---|---|---|---|
 | **0 — Plan only** | **Implemented** | This doc + pin-tests. | No. | Already given for Phase 0. |
 | **1 — Dry-run preflight only** | **Implemented (read-only)** | The preflight artefact writer (`reporting/development_merge_preflight.py`) emitting `logs/development_merge_preflight/latest.json`. No dashboard endpoint, no token gate, no GitHub call. | No. | Already given for Phase 1 alone. Future phases are NOT authorised by this go. |
-| **2 — Token-bound dry-run** | Not implemented | The dry-run endpoint, token-gated by N4b (after N4b Phase B is activated and N4c or an equivalent UI exists). | No. | **Yes — separate explicit operator-go required**. Phase 1 must be merged + observed clean for a bounded period before promotion. |
+| **2 — Token-bound dry-run** | **Module implemented locally (dry-run only); dashboard wiring pending operator-applied patch (blueprint UNWIRED in `dashboard/dashboard.py`)** | The dry-run route module at `POST /api/agent-control/merge-execution/dry-run` is implemented in [`dashboard/api_merge_execution_dry_run.py`](../../dashboard/api_merge_execution_dry_run.py), token-gated by N4b. Walks all §3 preconditions 1–17 from on-disk upstream artefacts; writes preflight + dry_run + history + failure artefacts under `logs/n5b_merge_execution/`. The blueprint is **NOT** registered in [`dashboard/dashboard.py`](../../dashboard/dashboard.py) by the B2.8e PR — it stays **UNWIRED** until the operator applies the 2-line wiring patch separately (B2.0c precedent); no HTTP client can reach the route in the meantime. On `status="ok"` and `would_proceed=true` the endpoint signals *"dry-run checks passed and audit artefacts written"* — never *"merge executed"*, *"PR mutated"*, *"deploy triggered"*, or *"live execution authorized"*. | No (dry-run only; no PR mutation). | Sub-unit operator-go phrases given on each of B2.8a–B2.8e PRs; the operator-applied `dashboard/dashboard.py` wiring patch is **NOT given by the B2.8e PR** — a distinct follow-up commit. |
 | **3 — Operator-confirmed live merge in test repo / simulated harness** | Not implemented | The live execute endpoint, but pointed at a sacrificial test repository OR a recorded-fixture simulator. No production PR is touched. | No (production PRs are not touched). | **Yes — separate explicit operator-go required**. Phase 2 must be merged + observed clean. |
 | **4 — Production PR merge, if ever approved** | Not implemented | The live execute endpoint pointed at the production repository, with the `ADE_N5B_LIVE_EXECUTE_ENABLED` env flag required. | Yes (a single PR per invocation). | **Yes — distinct, explicit operator-go phrase required**, recorded by name in the operator runbook update that ships with Phase 4. |
 

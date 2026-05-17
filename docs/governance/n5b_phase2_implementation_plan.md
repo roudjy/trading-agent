@@ -208,7 +208,7 @@ sub-unit:
 | **B2.8b** | module skeleton UNWIRED — `dashboard/api_merge_execution_dry_run.py` exists; the POST route is registered in the blueprint but the blueprint is NOT yet registered in `dashboard/dashboard.py`; every request returns `status = not_yet_implemented`. Pin-tests assert no token verification, no GitHub call, no audit write yet. Existing N5b plan-only pin tests are narrowed (not weakened) so they allow exactly this one module path. | No | **NOT given** by this PR |
 | **B2.8c** | token verification wired (preconditions 1–7 of the parent doc §3: N4b activated, operator-UI presence, token bound to pr_number / pr_head_sha / evidence_hash / intent / nonce). Audit preflight artefact written. `ok` / `rejected` returned based on those seven preconditions only; preconditions 8–17 still emit `not_yet_implemented`. | No | **NOT given** by this PR |
 | **B2.8d** | GitHub-API-dependent preconditions 8–17 (N5a recommendation, `mergeStateStatus`, required checks, head-SHA advancement, base ref, freshness, inbox criticals, protected-path scan, Step-5 / Level-6 bypass scan). Mocked GitHub API only — no live GitHub call. Test fixtures cover every canonical `mergeStateStatus` value and every canonical check conclusion. | No | **NOT given** by this PR |
-| **B2.8e** | integration tests against the mocked GitHub fixture + governance-status update + operator-applied wiring patch for `dashboard/dashboard.py` + parent-doc §5 / §10 update marking Phase 2 as Implemented + retirement of the now-redundant "no merge execution route exists" pin (replaced by a "exactly one merge execution route exists, and it is the dry-run route" pin). | No (still dry-run only; no PR is mutated) | **NOT given** by this PR |
+| **B2.8e** | integration tests against the mocked-upstream fixture + governance-status update + parent-doc §1 / §5 / §10 update marking Phase 2 as **module implemented locally / dashboard wiring pending operator-applied patch** + retirement of the now-redundant "no merge execution route exists" pin (replaced by a "exactly one merge-execution route module exists, and it is the dry-run route" pin) + `dry_run/latest.json` + `dry_run/history.jsonl` writers + flip of all-17-pass to `status="ok"` (dry-run-only proceed). The operator-applied wiring patch for `dashboard/dashboard.py` is a separate follow-up commit, **NOT given by this PR** (B2.0c precedent). | No (still dry-run only; no PR is mutated) | **Module implemented locally; dashboard wiring pending operator-applied patch** |
 
 Sub-units B2.8b through B2.8e MUST land in this order. Skipping
 order, splitting a unit further, or bundling two units into one
@@ -528,23 +528,25 @@ authorised** by this PR:
 
 | Aspect | Status |
 |---|---|
-| Plan only | Yes |
-| Not implemented | Yes |
-| Runtime code in this PR | None |
-| Operator-go for B2.8b / B2.8c / B2.8d / B2.8e | NOT given by this PR |
-| Mutates production | No |
+| Plan only | Yes (this plan-doc itself is plan / decomposition only; the Phase 2 runtime it describes is module implemented locally / dashboard wiring pending operator-applied patch) |
+| Phase 2 runtime code in repo | **Module implemented locally; dashboard wiring pending operator-applied patch** — B2.8b skeleton + B2.8c walker 1–7 + B2.8d walker 8–17 + B2.8e dry_run / history writers + ok-flip have all landed; `dashboard/dashboard.py` wiring is a distinct follow-up commit |
+| `dashboard/dashboard.py` wiring patch | **NOT given by this PR** — the operator applies the 2-line wiring patch separately (B2.0c precedent) |
+| N5b Phase 3 (operator-confirmed live merge in test repo / simulated harness) | **Not implemented** |
+| N5b Phase 4 (production PR merge) | **Not implemented** |
+| Production / live merge authority | **denied** — neither Phase 2 nor any prior phase grants live merge authority; Phase 3 + Phase 4 remain plan only |
+| Operator-go phrases | each B2.8a–B2.8e sub-unit required its own explicit operator-go on its PR; sub-unit go phrases do NOT authorise wiring, Phase 3, Phase 4, or live merge |
+| Mutates production | No (B2.8e is still dry-run only) |
 | step5_implementation_allowed | `false` |
 | STEP5_ENABLED_SUBSTAGE | `"none"` |
 | Level 6 | permanently disabled |
 | Autonomous merge | denied |
 | Autonomous deploy | denied |
 | Autonomous trading | denied |
-| Dry-run default | required for any future B2.8 sub-unit |
+| Dry-run default | required across the entire B2.8 sub-batch — every B2.8e response envelope carries `dry_run_only=true`, `live_merge_implemented=false`, `deploy_coupled=false` even on `status="ok"` + `would_proceed=true` |
+| `would_proceed=true` semantic | dry-run-only proceed signal — *"all 17 §3 preconditions pass at this moment"*, NOT live merge authority |
 | Deploy coupling | forbidden across the entire B2.8 sub-batch |
 | Branch protection bypass | forbidden |
-| Operator-go-only (this PR's go phrase) | given for B2.8a only |
-| No runtime authority | yes — this plan grants none |
-| No merge execution route exists | yes — none added by this PR |
+| Exactly one merge-execution route module exists | yes — `POST /api/agent-control/merge-execution/dry-run` module at [`dashboard/api_merge_execution_dry_run.py`](../../dashboard/api_merge_execution_dry_run.py); blueprint UNWIRED in `dashboard/dashboard.py` until operator-applied wiring patch |
 
 ---
 

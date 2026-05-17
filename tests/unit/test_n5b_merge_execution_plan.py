@@ -308,10 +308,39 @@ def test_doc_states_no_runtime_authority() -> None:
     )
 
 
-def test_doc_states_no_merge_execution_route_exists() -> None:
-    text = _doc_text().lower()
-    assert "no merge execution route exists" in text, (
-        "doc must declare 'No merge execution route exists'"
+def test_doc_states_exactly_one_merge_execution_route_exists() -> None:
+    """B2.8e replaces the prior "no merge execution route exists"
+    pin with a positive pin per implementation plan §6.4:
+    "exactly one merge-execution route [module] exists, and it
+    is the dry-run route".
+
+    The doc must:
+    * declare exactly one merge-execution route module exists
+      (either as "route exists" or — more precisely after B2.8e —
+      as "route module exists", reflecting that the blueprint is
+      not yet wired into ``dashboard/dashboard.py``);
+    * identify the dry-run route URL literally;
+    * preserve the doctrine that the blueprint remains UNWIRED in
+      ``dashboard/dashboard.py`` until the operator applies the
+      wiring patch separately.
+
+    No other doc-doctrine pin is weakened by B2.8e."""
+    text = _doc_text()
+    text_lc = text.lower()
+    assert (
+        "exactly one merge-execution route exists" in text_lc
+        or "exactly one merge-execution route module exists" in text_lc
+    ), (
+        "doc must declare 'Exactly one merge-execution route [module] exists' "
+        "(B2.8e positive pin replacement)"
+    )
+    # The dry-run route URL must be literally present.
+    assert "/api/agent-control/merge-execution/dry-run" in text, (
+        "doc must identify the dry-run route URL literally"
+    )
+    # UNWIRED-until-operator-applies doctrine must be preserved.
+    assert "unwired" in text_lc, (
+        "doc must preserve the UNWIRED-until-operator-applies doctrine"
     )
 
 
