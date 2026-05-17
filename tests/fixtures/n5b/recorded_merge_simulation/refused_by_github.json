@@ -1,0 +1,13 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_kind": "n5b_phase3_recorded_merge_simulation",
+  "merge_response": {
+    "http_status": 405,
+    "classification": "refused_by_github",
+    "post_merge_head_sha": "0000000000000000000000000000000000000000",
+    "merge_method": "squash",
+    "delete_branch": false
+  },
+  "generated_at_utc": "2026-05-17T10:00:01Z",
+  "fixture_notes": "Synthetic refused-by-github fixture for B2.9 unit tests. NOT a real GitHub merge response."
+}
