@@ -505,7 +505,14 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "risk_class": "LOW",
         "authority_hint": "AUTO_ALLOWED_CANDIDATE",
         "operator_gate": "none",
-        "status": "not_started",
+        # Implemented and merged via PR #250 on 2026-05-18.
+        # Merge SHA: fcb1abbea4bd2ca190fe6e807b3dacd184faa702.
+        # Status flipped from "not_started" -> "merged" in a
+        # follow-up queue-status update PR so the A20e selector
+        # can advance to the next eligible v3.15.16 unit. A20
+        # projections are deterministic / read-only and do not
+        # auto-discover merged PRs.
+        "status": "merged",
     },
     {
         "id": "u_v3_15_16_routing_explanation_reporter_001",

@@ -903,3 +903,95 @@ def test_governance_doc_pins_no_next_buildable_selector_in_a20b() -> None:
     text = _governance_doc_text()
     assert "a20e" in text
     assert "next-buildable" in text or "next buildable" in text
+
+
+# ---------------------------------------------------------------------------
+# Queue-status update: u_v3_15_16_diagnostic_routing_signals_schema_001
+# was implemented and merged via PR #250. The A20 pipeline is deterministic
+# and read-only — it does not auto-discover merged PRs — so the unit's
+# status was advanced manually in the seed via a small follow-up PR.
+# ---------------------------------------------------------------------------
+
+
+_ROUTING_SIGNALS_SCHEMA_UNIT_ID = (
+    "u_v3_15_16_diagnostic_routing_signals_schema_001"
+)
+
+
+def test_routing_signals_schema_unit_status_is_merged(snap: dict) -> None:
+    """After the queue-status update PR, A20b emits this unit with
+    ``status="merged"``. The A20e selector must therefore stop
+    recommending it."""
+    rows = [
+        u
+        for u in snap["implementation_units"]
+        if u["id"] == _ROUTING_SIGNALS_SCHEMA_UNIT_ID
+    ]
+    assert len(rows) == 1
+    assert rows[0]["status"] == "merged"
+
+
+def test_routing_signals_schema_unit_retains_full_metadata(snap: dict) -> None:
+    """Queue-status update is narrow: only the status field flipped.
+    All other unit metadata that downstream consumers (A20c, A20d,
+    A20e) depend on must remain intact."""
+    rows = [
+        u
+        for u in snap["implementation_units"]
+        if u["id"] == _ROUTING_SIGNALS_SCHEMA_UNIT_ID
+    ]
+    assert len(rows) == 1
+    unit = rows[0]
+    # Mandatory list / scalar fields A20c and A20e read.
+    assert unit["expected_files"], unit
+    assert unit["forbidden_files"], unit
+    assert unit["required_tests"], unit
+    assert unit["definition_of_done"], unit
+    assert unit["stop_conditions"], unit
+    assert isinstance(unit["authority_hint"], str) and unit["authority_hint"]
+    # Authority hint matches the original A20b seed.
+    assert unit["authority_hint"] == "AUTO_ALLOWED_CANDIDATE"
+    assert unit["operator_gate"] == "none"
+    assert unit["risk_class"] == "LOW"
+    assert unit["phase"] == "v3.15.16"
+    assert unit["roadmap_task_id"] == "phase_v3_15_16"
+
+
+def test_other_units_unchanged_by_status_update(snap: dict) -> None:
+    """The queue-status update PR only flipped the routing-signals
+    schema unit's status. All other units in the seed must still
+    carry a status drawn from the closed UNIT_STATUS vocabulary and
+    must not have been altered to ``merged`` by accident."""
+    for u in snap["implementation_units"]:
+        if u["id"] == _ROUTING_SIGNALS_SCHEMA_UNIT_ID:
+            continue
+        assert u["status"] in rtu.UNIT_STATUS, u
+        # Defence-in-depth: no other unit silently flipped to merged.
+        assert u["status"] != "merged", u["id"]
+
+
+def test_routing_signals_schema_unit_is_listed_exactly_once(snap: dict) -> None:
+    ids = [u["id"] for u in snap["implementation_units"]]
+    assert ids.count(_ROUTING_SIGNALS_SCHEMA_UNIT_ID) == 1
+
+
+def test_downstream_v3_15_16_units_still_reference_merged_unit(
+    snap: dict,
+) -> None:
+    """The two downstream v3.15.16 units list the routing-signals
+    schema unit as a prerequisite. After the status update the
+    prerequisite edge is preserved (still listed) and A20e can now
+    treat it as satisfied because the prereq unit's status is
+    ``merged``."""
+    downstream = [
+        u
+        for u in snap["implementation_units"]
+        if u["id"]
+        in (
+            "u_v3_15_16_routing_explanation_reporter_001",
+            "u_v3_15_16_routing_governance_doc_001",
+        )
+    ]
+    assert len(downstream) == 2
+    for u in downstream:
+        assert _ROUTING_SIGNALS_SCHEMA_UNIT_ID in u["prerequisites"], u["id"]
