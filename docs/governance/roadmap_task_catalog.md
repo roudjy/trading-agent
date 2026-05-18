@@ -1,15 +1,18 @@
-# Roadmap Task Catalog — A20a + A20b (read-only, deterministic)
+# Roadmap Task Catalog — A20a + A20b + A20c (read-only, deterministic)
 
-> **Status:** A20a implemented; A20b implemented (read-only,
-> deterministic, dry-run by default). Both modules are projections;
-> neither classifies authority, nor surfaces to the AAC / dashboard,
-> nor selects a next-buildable unit.
+> **Status:** A20a implemented; A20b implemented; A20c implemented
+> (read-only, deterministic, dry-run by default). All three modules
+> are projections; none surfaces to the AAC / dashboard, none
+> selects a next-buildable unit.
 >
 > **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
 > **A20a artefact:** `logs/roadmap_task_catalog/latest.json`
 >
 > **A20b module:** [`reporting/roadmap_task_units.py`](../../reporting/roadmap_task_units.py)
 > **A20b artefact:** `logs/roadmap_task_units/latest.json`
+>
+> **A20c module:** [`reporting/roadmap_task_authority.py`](../../reporting/roadmap_task_authority.py)
+> **A20c artefact:** `logs/roadmap_task_authority/latest.json`
 >
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.
@@ -400,23 +403,107 @@ hint is informational only. Unknown inputs fail closed to
   decomposer reads the A20a catalog at runtime and skips any
   unit whose phase is not present in the catalog's task list.
 
-## 8. Future stages (A20c–A20e)
+## 8. A20c — Authority / Risk Classifier Integration (implemented)
 
-The roadmap task catalog + unit decomposer is the foundation of a
-staged sequence. Each subsequent stage requires a separate
-operator-go PR. None of them is pre-authorized by A20a or A20b.
+A20c is a **pure consumer** of two read-only upstreams:
 
-- **A20c — Authority / Risk Classifier Integration.** Annotates
-  each `ImplementationUnit` with an aggregate
-  `UnitAuthorityDecision` derived purely from
-  [`reporting/execution_authority.py`](../../reporting/execution_authority.py).
-  Aggregation is max-severity over per-file decisions. Fail-closed:
-  unknown risk → `NEEDS_HUMAN`; any protected-path / frozen / live
-  surface → `PERMANENTLY_DENIED` or `NEEDS_HUMAN` per the
-  classifier's existing policy. A20c will flip
-  `calls_execution_authority_classifier` and
+* the A20b implementation-unit projection
+  ([`reporting/roadmap_task_units.py`](../../reporting/roadmap_task_units.py));
+* the canonical Execution Authority classifier
+  ([`reporting/execution_authority.py`](../../reporting/execution_authority.py)).
+
+A20c MUST NOT create a second source of truth for authority. For
+every `ImplementationUnit`, A20c calls
+``execution_authority.classify(action_type="file_edit",
+target_path=<entry>, risk_class=<unit.risk_class>)`` for each
+`expected_files[]` and `forbidden_files[]` entry. The per-file
+decision is the verbatim `ExecutionDecision` returned by the
+classifier; A20c stores the bounded-scalar projection
+(`path`, `action_type`, `risk_class`, `decision`, `reason`,
+`target_path_category`).
+
+### 8.1 `UnitAuthorityDecision` schema
+
+Per-unit field list is exact and ordered:
+
+```
+unit_id                    : str  matches A20b ImplementationUnit.id
+parent_task_id             : str  matches A20b ImplementationUnit.roadmap_task_id
+expected_files_decisions   : list[per-file decision record]
+forbidden_files_decisions  : list[per-file decision record]
+aggregate_decision         : str  ∈ reporting.execution_authority.DECISIONS
+aggregate_reason           : str  ∈ reporting.execution_authority.REASONS
+authority_hint_from_a20b   : str  preserved A20b hint (non-authoritative)
+classifier_schema_version  : int  reporting.execution_authority.SCHEMA_VERSION
+classifier_module          : str  "reporting.execution_authority"
+forbidden_surface_reasons  : list[str]  echoed verbatim from A20b unit
+```
+
+### 8.2 Aggregation rules
+
+`aggregate_decision` is a pure max-severity reduction over
+`expected_files_decisions` using the canonical decision ordering
+`AUTO_ALLOWED < NEEDS_HUMAN < PERMANENTLY_DENIED`:
+
+| Condition | Aggregate |
+|---|---|
+| Any `expected_files[]` entry classifies `PERMANENTLY_DENIED` | `PERMANENTLY_DENIED` (with that entry's reason) |
+| Any `expected_files[]` entry classifies `NEEDS_HUMAN` and none denied | `NEEDS_HUMAN` (with that entry's reason) |
+| All `expected_files[]` entries classify `AUTO_ALLOWED` | `AUTO_ALLOWED` (with the first entry's reason in deterministic order) |
+| Empty `expected_files[]` (defence in depth) | `NEEDS_HUMAN` / `unknown_risk_or_target_fail_safe` |
+
+`forbidden_files_decisions` are emitted for transparency but do
+**not** enter the aggregation; A20b enforces that no unit ever
+writes to a forbidden file at implementation time.
+
+### 8.3 Fail-closed contract
+
+* `unit.risk_class == "UNKNOWN"` (or any invalid string) → unit
+  aggregate is `NEEDS_HUMAN` with reason
+  `unknown_risk_or_target_fail_safe`.
+* Any unit whose `expected_files[]` resolves to a `live_path` /
+  `frozen_contract` / `branch_protection_config` category →
+  `PERMANENTLY_DENIED`.
+* Any unit whose `expected_files[]` resolves to a
+  `canonical_roadmap` / `canonical_policy_doc` /
+  `claude_governance_hook` / `dashboard_wiring` / `deploy_script` /
+  `ci_workflow` category → `NEEDS_HUMAN`.
+
+### 8.4 Authority hint preservation (not authority)
+
+A20b's `authority_hint` field is preserved verbatim under
+`authority_hint_from_a20b` for transparency / debugging only. It
+is **not** authority. The classifier verdict is the only authority
+A20c records. Pinned by
+`test_hint_never_overrides_classifier_aggregate`.
+
+### 8.5 What A20c does NOT do
+
+- **No mutation of A20a or A20b artefacts.** Pinned by sha256
+  before/after tests.
+- **No modification of the canonical classifier doc or module.**
+  A20c is a consumer; `reporting/execution_authority.py` and
+  `docs/governance/execution_authority.md` are untouched.
+- **No AAC / dashboard visibility.** A20c emits only
+  `logs/roadmap_task_authority/latest.json`. The AAC aggregator's
+  pinned upstream catalog cardinality remains unchanged (A20d
+  scope).
+- **No next-buildable-unit selector.** A20e scope.
+- **No flip of Step 5 / Level 6 / N5b denials.** Step 5
+  implementation remains BLOCKED, autonomy-ladder Level 6 remains
+  permanently disabled, and N5b Phase 4 production merge remains
+  permanently denied for ADE — verbatim as they were after A20b.
+  A20c flips only `calls_execution_authority_classifier` and
   `final_authority_classified` from `false` to `true` in the
-  projection's invariant block.
+  projection's `classification_invariants` block.
+
+## 9. Future stages (A20d–A20e)
+
+The roadmap task catalog + unit decomposer + authority projection
+is the foundation of the remaining staged sequence. Each subsequent
+stage requires a separate operator-go PR. None of them is
+pre-authorized by A20a, A20b, or A20c.
+
 - **A20d — Read-only AAC / Task-Board Visibility.** Exposes the
   catalog + units + authority decisions to the operator through
   the existing read-only surfaces (`reporting/task_board.py`,
@@ -577,6 +664,69 @@ intentionally allowed to appear inside the baseline `forbidden_files`
 declarations and inside this governance doc. They are forbidden as
 import targets, write targets, and runtime call surfaces; they are
 **not** forbidden as forbidden-path declarations.
+
+### 10.3 A20c
+
+Pinned in [`tests/unit/test_roadmap_task_authority.py`](../../tests/unit/test_roadmap_task_authority.py):
+
+- Re-exported vocabularies (`DECISIONS`, `RISK_CLASSES`) match the
+  canonical classifier verbatim (no second source of truth).
+- Schema field tuples (`PER_FILE_DECISION_FIELDS`,
+  `UNIT_AUTHORITY_DECISION_FIELDS`,
+  `UNIT_AUTHORITY_PROJECTION_FIELDS`) are exact and ordered.
+- Every A20b implementation unit receives exactly one
+  `UnitAuthorityDecision`; unit IDs are unique.
+- Every `expected_files` and `forbidden_files` per-file decision
+  matches the verbatim output of
+  `reporting.execution_authority.classify(...)` for the same
+  `(action_type, target_path, risk_class)` triple.
+- `aggregate_decision` follows max-severity over the canonical
+  decision ordering `AUTO_ALLOWED < NEEDS_HUMAN <
+  PERMANENTLY_DENIED`.
+- Synthetic-unit tests confirm: any `PERMANENTLY_DENIED`
+  expected file drives the unit to `PERMANENTLY_DENIED`; any
+  `NEEDS_HUMAN` expected file with no denied entry drives the unit
+  to `NEEDS_HUMAN`; all `AUTO_ALLOWED` entries yield an
+  `AUTO_ALLOWED` aggregate.
+- Fail-closed: `UNKNOWN` risk -> `NEEDS_HUMAN`; an invalid
+  risk-class string is coerced to `UNKNOWN` and fails closed;
+  empty `expected_files` yields `NEEDS_HUMAN` with reason
+  `unknown_risk_or_target_fail_safe`.
+- Runtime / trading surfaces (`broker/**`, `agent/risk/**`,
+  `agent/execution/**`, `automation/live_gate.py`) are never
+  `AUTO_ALLOWED` at any `risk_class`.
+- `live/**`, `paper/**`, `shadow/**`, `trading/**`, `execution/**`
+  classify as `other` -> `NEEDS_HUMAN` on every modify action, so
+  they are never `AUTO_ALLOWED`.
+- Frozen contracts (`research/research_latest.json`,
+  `research/strategy_matrix.csv`) classify as
+  `PERMANENTLY_DENIED` with reason
+  `denied_frozen_contract_mutation` at every `risk_class`.
+- Canonical roadmap / canonical policy doc paths classify as
+  `NEEDS_HUMAN` (or stronger) at every `risk_class`.
+- A20b's `authority_hint` is preserved verbatim as
+  non-authoritative metadata; the hint never enters the
+  aggregation.
+- Classification invariants pin: `calls_execution_authority_classifier
+  = true`, `final_authority_classified = true`,
+  `no_runtime_trading_authority = true`, `no_step5_runtime =
+  true`, `no_level6 = true`, `no_production_merge_authority =
+  true`, `writes_only_roadmap_task_authority_log = true`,
+  `aac_visibility_present = false`,
+  `next_buildable_selector_present = false`.
+- Deterministic byte-identical output for identical input with
+  injected `generated_at_utc`.
+- Sha256-before-vs-after confirms `collect_snapshot()` does not
+  mutate the A20a or A20b in-memory artefacts.
+- Atomic-write allowlist refuses any path outside
+  `logs/roadmap_task_authority/`, including the frozen-contract
+  paths.
+- Module-source scan: stdlib + `reporting.execution_authority` +
+  `reporting.roadmap_task_units` + `reporting.roadmap_task_catalog`
+  imports only; no `subprocess`, no network, no `gh`, no `git`, no
+  GitHub API, no LLM, no dashboard / automation / broker /
+  agent.risk / agent.execution / research / live / paper / shadow /
+  trading imports.
 
 ---
 
