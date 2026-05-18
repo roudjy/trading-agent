@@ -277,9 +277,10 @@ _BASE_AUTHORITY_INVARIANTS: Final[dict[str, bool]] = {
     "writes_to_delegation_seed_jsonl": False,
     "writes_to_generated_seed_jsonl": False,
     # A20d surfaces this projection in the AAC aggregator; A20e
-    # (next-buildable selector) remains unimplemented.
+    # selects a deterministic next-buildable unit from A20c
+    # authority decisions.
     "aac_visibility_present": True,
-    "next_buildable_selector_present": False,
+    "next_buildable_selector_present": True,
 }
 
 

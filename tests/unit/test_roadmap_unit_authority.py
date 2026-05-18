@@ -704,12 +704,13 @@ def test_invariants_pin_writes_only_roadmap_unit_authority_log(
 
 def test_invariants_pin_aac_visibility_true_after_a20d(snap: dict) -> None:
     """After A20d landed, the AAC aggregator surfaces A20c rows as
-    read-only work items. ``aac_visibility_present`` therefore flips
-    to ``True``. The next-buildable-unit selector (A20e) remains
-    unimplemented; its flag stays ``False``."""
+    read-only work items. ``aac_visibility_present`` is ``True``.
+    After A20e landed, ``reporting.roadmap_next_unit`` deterministically
+    selects from A20c authority decisions, so
+    ``next_buildable_selector_present`` is ``True``."""
     inv = snap["authority_invariants"]
     assert inv["aac_visibility_present"] is True
-    assert inv["next_buildable_selector_present"] is False
+    assert inv["next_buildable_selector_present"] is True
 
 
 def test_invariants_pin_no_seed_jsonl_writes(snap: dict) -> None:
@@ -856,7 +857,7 @@ def test_cli_status_does_not_write(
     assert "final_authority_classified=True" in out
     assert "no_runtime_trading_authority=True" in out
     assert "aac_visibility_present=True" in out
-    assert "next_buildable_selector_present=False" in out
+    assert "next_buildable_selector_present=True" in out
 
 
 def test_cli_default_writes_to_allowlisted_path(
