@@ -183,6 +183,8 @@ def test_block_reason_vocab_is_closed_exact() -> None:
         "unknown_prerequisite_target",
         "operator_gate_required",
         "fail_closed_unknown_evidence",
+        "invalid_dynamic_status",
+        "dynamic_status_terminal",
     )
 
 
@@ -198,6 +200,18 @@ def test_source_vocab_is_closed_exact() -> None:
     assert rnu.NEXT_UNIT_SOURCE == (
         "logs/roadmap_task_units/latest.json",
         "logs/roadmap_unit_authority/latest.json",
+        "logs/roadmap_unit_status/latest.json",
+    )
+
+
+def test_dynamic_status_source_vocab_is_closed_exact() -> None:
+    assert rnu.NEXT_UNIT_DYNAMIC_STATUS_SOURCE == (
+        "",
+        "pr_merge",
+        "operator_override",
+        "loop_state",
+        "ci_failure",
+        "operator_block",
     )
 
 
@@ -252,6 +266,8 @@ def test_candidate_field_list_exact() -> None:
         "phase",
         "title",
         "status",
+        "effective_status",
+        "dynamic_status_source",
         "risk_class",
         "final_authority_class",
         "operator_gate",
@@ -262,6 +278,7 @@ def test_candidate_field_list_exact() -> None:
         "deterministic_sort_key",
         "source_units_artifact",
         "source_authority_artifact",
+        "source_status_artifact",
     )
 
 
@@ -292,6 +309,7 @@ def test_projection_field_list_exact() -> None:
         "module_version",
         "source_units_schema_version",
         "source_authority_schema_version",
+        "source_status_schema_version",
         "selector_mode",
         "candidates",
         "selection",
@@ -1011,6 +1029,319 @@ def test_invariants_pin_calls_execution_authority_classifier_false(
     assert inv["calls_execution_authority_classifier"] is False
 
 
+def test_invariants_pin_dynamic_status_ledger_consumed(
+    tmp_path: Path,
+) -> None:
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    inv = _snap(tmp_path)["selector_invariants"]
+    assert inv["consumes_dynamic_status_ledger"] is True
+    assert inv["dynamic_status_overrides_static_when_valid"] is True
+    assert inv["fail_closed_on_invalid_dynamic_status"] is True
+    assert inv["fail_closed_on_duplicate_dynamic_status"] is True
+    assert inv["dynamic_status_absence_falls_back_to_static"] is True
+    assert inv["merged_units_never_reselected"] is True
+
+
+# ---------------------------------------------------------------------------
+# A21a dynamic-status overlay integration
+# ---------------------------------------------------------------------------
+
+
+def _write_dynamic_status_artifact(
+    tmp_path: Path, records: list[dict[str, Any]]
+) -> Path:
+    target = tmp_path / "logs" / "roadmap_unit_status" / "latest.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "module_version": "v3.15.16.A21a",
+                "report_kind": "roadmap_unit_status",
+                "generated_at_utc": "2026-05-18T08:00:00Z",
+                "ledger_records": records,
+                "fail_closed": False,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    return target
+
+
+def _dyn_merged_record(unit_id: str, pr_number: int = 999) -> dict[str, Any]:
+    return {
+        "unit_id": unit_id,
+        "status": "merged",
+        "source": "pr_merge",
+        "updated_at_utc": "2026-05-18T10:00:00Z",
+        "pr_number": pr_number,
+        "merge_sha": "abc1234def567890abc1234def567890abc1234d",
+        "reason": "implemented by synthetic PR",
+        "evidence": ["github_pr_number=" + str(pr_number)],
+        "valid": True,
+        "validation_reason": "",
+    }
+
+
+def test_dynamic_merged_status_excludes_unit_from_selector(
+    tmp_path: Path,
+) -> None:
+    """Static A20b says ``not_started``; dynamic ledger says
+    ``merged``. The selector must treat the unit as merged and not
+    select it."""
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    _write_dynamic_status_artifact(
+        tmp_path, [_dyn_merged_record("syn_unit_a")]
+    )
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert cand["status"] == "not_started"  # A20b static unchanged
+    assert cand["effective_status"] == "merged"
+    assert cand["dynamic_status_source"] == "pr_merge"
+    assert cand["eligibility"] == "BLOCKED"
+    assert "dynamic_status_terminal" in cand["block_reasons"]
+    assert snap["selection"]["selected_unit_id"] == ""
+
+
+def test_dynamic_status_absent_falls_back_to_static(tmp_path: Path) -> None:
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    # No dynamic ledger artefact.
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert cand["status"] == "not_started"
+    assert cand["effective_status"] == "not_started"
+    assert cand["dynamic_status_source"] == ""
+    assert cand["eligibility"] == "ELIGIBLE"
+    assert snap["selection"]["selected_unit_id"] == "syn_unit_a"
+
+
+def test_invalid_dynamic_status_fails_closed(tmp_path: Path) -> None:
+    """A dynamic record with ``valid = False`` blocks the unit and
+    surfaces fail-closed at the selection level."""
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    bad = _dyn_merged_record("syn_unit_a")
+    bad["valid"] = False
+    bad["validation_reason"] = "merged_without_merge_sha"
+    _write_dynamic_status_artifact(tmp_path, [bad])
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert "invalid_dynamic_status" in cand["block_reasons"]
+    assert cand["eligibility"] == "BLOCKED"
+    assert snap["selection"]["selection_status"] == "FAIL_CLOSED_INVARIANT"
+    assert snap["selection"]["fail_closed"] is True
+
+
+def test_unknown_dynamic_status_value_fails_closed(tmp_path: Path) -> None:
+    """A dynamic record whose ``status`` is outside the closed
+    DYNAMIC_UNIT_STATUS vocab fails closed even if ``valid=True``
+    (defence in depth)."""
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    rec = _dyn_merged_record("syn_unit_a")
+    rec["status"] = "not_a_real_dynamic_status"
+    _write_dynamic_status_artifact(tmp_path, [rec])
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert "invalid_dynamic_status" in cand["block_reasons"]
+
+
+def test_dynamic_pr_open_status_blocks_candidate(tmp_path: Path) -> None:
+    """``pr_open`` is a valid non-buildable dynamic status."""
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    rec = _dyn_merged_record("syn_unit_a")
+    rec["status"] = "pr_open"
+    rec["pr_number"] = 0
+    rec["merge_sha"] = ""
+    rec["reason"] = ""
+    _write_dynamic_status_artifact(tmp_path, [rec])
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert cand["effective_status"] == "pr_open"
+    assert cand["eligibility"] == "BLOCKED"
+    assert "non_buildable_status" in cand["block_reasons"]
+
+
+def test_dynamic_in_progress_status_blocks_candidate(tmp_path: Path) -> None:
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    rec = _dyn_merged_record("syn_unit_a")
+    rec["status"] = "in_progress"
+    rec["source"] = "loop_state"
+    rec["pr_number"] = 0
+    rec["merge_sha"] = ""
+    rec["reason"] = ""
+    _write_dynamic_status_artifact(tmp_path, [rec])
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert cand["effective_status"] == "in_progress"
+    assert cand["eligibility"] == "BLOCKED"
+    assert "non_buildable_status" in cand["block_reasons"]
+
+
+def test_dynamic_failed_status_blocks_candidate(tmp_path: Path) -> None:
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    rec = _dyn_merged_record("syn_unit_a")
+    rec["status"] = "failed"
+    rec["source"] = "ci_failure"
+    rec["pr_number"] = 0
+    rec["merge_sha"] = ""
+    rec["reason"] = ""
+    _write_dynamic_status_artifact(tmp_path, [rec])
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert cand["effective_status"] == "failed"
+    assert cand["eligibility"] == "BLOCKED"
+
+
+def test_dynamic_merged_satisfies_prerequisite(tmp_path: Path) -> None:
+    """A unit whose static prereq is ``not_started`` but whose
+    dynamic prereq is ``merged`` must be considered satisfied."""
+    prereq = _baseline_unit(id="prereq_unit", status="not_started")
+    unit = _baseline_unit(prerequisites=["prereq_unit"])
+    _write_units_artifact(tmp_path, [prereq, unit])
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(implementation_unit_id="prereq_unit"),
+            _baseline_decision(),
+        ],
+    )
+    _write_dynamic_status_artifact(
+        tmp_path, [_dyn_merged_record("prereq_unit", pr_number=100)]
+    )
+    snap = _snap(tmp_path)
+    main_cand = next(
+        c
+        for c in snap["candidates"]
+        if c["implementation_unit_id"] == "syn_unit_a"
+    )
+    assert main_cand["prerequisites_satisfied"] is True
+    assert main_cand["eligibility"] == "ELIGIBLE"
+    assert snap["selection"]["selected_unit_id"] == "syn_unit_a"
+
+
+def test_pinned_three_merged_units_are_not_reselected(tmp_path: Path) -> None:
+    """The bootstrap A21a seed pins the three v3.15.16 routing-layer
+    units as merged. When the live ledger artefact carries those
+    records, the selector must not reselect any of them."""
+    schema_unit = _baseline_unit(
+        id="u_v3_15_16_diagnostic_routing_signals_schema_001",
+        phase="v3.15.16",
+    )
+    expl_unit = _baseline_unit(
+        id="u_v3_15_16_routing_explanation_reporter_001",
+        phase="v3.15.16",
+    )
+    gov_unit = _baseline_unit(
+        id="u_v3_15_16_routing_governance_doc_001",
+        phase="v3.15.16",
+    )
+    next_unit = _baseline_unit(
+        id="u_v3_15_17_synthetic_next",
+        phase="v3.15.17",
+    )
+    _write_units_artifact(
+        tmp_path, [schema_unit, expl_unit, gov_unit, next_unit]
+    )
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(
+                implementation_unit_id=schema_unit["id"]
+            ),
+            _baseline_decision(
+                implementation_unit_id=expl_unit["id"]
+            ),
+            _baseline_decision(
+                implementation_unit_id=gov_unit["id"]
+            ),
+            _baseline_decision(
+                implementation_unit_id=next_unit["id"],
+                phase="v3.15.17",
+            ),
+        ],
+    )
+    _write_dynamic_status_artifact(
+        tmp_path,
+        [
+            _dyn_merged_record(schema_unit["id"], pr_number=250),
+            _dyn_merged_record(expl_unit["id"], pr_number=252),
+            _dyn_merged_record(gov_unit["id"], pr_number=254),
+        ],
+    )
+    snap = _snap(tmp_path)
+    # The three merged units must not appear as the selection.
+    merged_ids = {schema_unit["id"], expl_unit["id"], gov_unit["id"]}
+    assert snap["selection"]["selected_unit_id"] not in merged_ids
+    assert snap["selection"]["selected_unit_id"] == next_unit["id"]
+
+
+def test_malformed_dynamic_status_artifact_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """If the dynamic ledger artefact is corrupt JSON, fail closed
+    with UPSTREAM_UNAVAILABLE (same posture as units / authority)."""
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    target = tmp_path / "logs" / "roadmap_unit_status" / "latest.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("{not valid json", encoding="utf-8")
+    snap = _snap(tmp_path)
+    assert snap["selection"]["selection_status"] == "UPSTREAM_UNAVAILABLE"
+    assert snap["selection"]["fail_closed"] is True
+    assert (
+        "malformed_dynamic_status_artifact"
+        in snap["selection"]["selection_reason"]
+    )
+
+
+def test_static_status_field_unchanged_by_dynamic_overlay(
+    tmp_path: Path,
+) -> None:
+    """The candidate's ``status`` field always carries the A20b
+    static value verbatim. Only ``effective_status`` reflects the
+    overlay. This preserves traceability."""
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    _write_dynamic_status_artifact(
+        tmp_path, [_dyn_merged_record("syn_unit_a")]
+    )
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert cand["status"] == "not_started"  # A20b static
+    assert cand["effective_status"] == "merged"  # dynamic overlay
+
+
+def test_dynamic_status_artifact_path_pinned(tmp_path: Path) -> None:
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert (
+        cand["source_status_artifact"]
+        == "logs/roadmap_unit_status/latest.json"
+    )
+
+
+def test_top_level_projection_carries_status_schema_version(
+    tmp_path: Path,
+) -> None:
+    _write_units_artifact(tmp_path, [_baseline_unit()])
+    _write_authority_artifact(tmp_path, [_baseline_decision()])
+    _write_dynamic_status_artifact(
+        tmp_path, [_dyn_merged_record("syn_unit_a")]
+    )
+    snap = _snap(tmp_path)
+    assert snap["source_status_schema_version"] == "1.0"
+
+
 # ---------------------------------------------------------------------------
 # Module-source forbidden-import / forbidden-token scans
 # ---------------------------------------------------------------------------
@@ -1112,11 +1443,12 @@ def test_no_github_api_or_external_api_calls() -> None:
 
 
 def test_module_imports_only_canonical_upstreams() -> None:
-    """A20e may only import from A20b + A20c. It MUST NOT import
-    from reporting.execution_authority directly."""
+    """A20e may only import from A20b + A20c + A21a (read-only). It
+    MUST NOT import from reporting.execution_authority directly."""
     allowed = {
         "reporting.roadmap_task_units",
         "reporting.roadmap_unit_authority",
+        "reporting.roadmap_unit_status",
     }
     for module in _module_imports():
         if module.startswith("reporting."):
