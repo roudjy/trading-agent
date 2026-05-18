@@ -389,7 +389,7 @@ _DECOMPOSITION_INVARIANTS: Final[dict[str, bool]] = {
     "grants_live_authority": False,
     "calls_execution_authority_classifier": False,  # A20c flipped this on in its own projection
     "final_authority_classified": False,  # A20c flipped this on in its own projection
-    "next_buildable_selector_present": False,  # A20e will flip this on
+    "next_buildable_selector_present": True,  # A20e selects a deterministic next-buildable unit from A20b rows
     "aac_visibility_present": True,  # A20d surfaces A20b rows via the AAC aggregator
 }
 
