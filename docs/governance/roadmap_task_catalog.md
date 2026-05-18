@@ -859,6 +859,7 @@ Each transition is recorded here for traceability:
 | Date (UTC) | Unit id | A20b status | Implementing PR | Merge SHA |
 |---|---|---|---|---|
 | 2026-05-18 | `u_v3_15_16_diagnostic_routing_signals_schema_001` | `not_started` → `merged` | [#250](https://github.com/roudjy/trading-agent/pull/250) | `fcb1abbea4bd2ca190fe6e807b3dacd184faa702` |
+| 2026-05-18 | `u_v3_15_16_routing_explanation_reporter_001` | `not_started` → `merged` | [#252](https://github.com/roudjy/trading-agent/pull/252) | `6f588a89b43a2cfec40f92252bde530220877b37` |
 
 This table is informational. The authoritative `status` lives in
 [`reporting/roadmap_task_units.py`](../../reporting/roadmap_task_units.py)
