@@ -1,23 +1,34 @@
-"""Agent Activity Center — read-only aggregator (B2.0b).
+"""Agent Activity Center — read-only aggregator (B2.0b + A20d).
 
-Pure-stdlib aggregator that reads the closed 11-entry catalog of
+Pure-stdlib aggregator that reads the closed 14-entry catalog of
 upstream ADE-core artefacts on disk and writes a single canonical
 artefact at ``logs/development_agent_activity_timeline/latest.json``
 satisfying the closed schema defined in
 ``docs/governance/agent_activity_center_aggregator_schema.md``.
 
-Catalog cardinality
--------------------
+Catalog cardinality (post-A20d)
+-------------------------------
 
-* ``UPSTREAM_CATALOG_LEN = 11`` — 10 ADE-core upstream artefact paths
-  + 1 read-only seed health entry.
-* ``PROJECTABLE_UPSTREAM_LEN = 4`` — A18c, A18 promotion report,
-  Step 5.0 loop snapshot, N5b merge preflight. These four sources
-  contribute ``work_items[]`` rows in v0.1.
+* ``UPSTREAM_CATALOG_LEN = 14`` — 10 ADE-core upstream artefact
+  paths + 1 read-only seed health entry + 3 A20-series read-only
+  roadmap artefacts (A20a catalog, A20b unit decomposition, A20c
+  unit-authority projection).
+* ``PROJECTABLE_UPSTREAM_LEN = 7`` — A18c, A18 promotion report,
+  Step 5.0 loop snapshot, N5b merge preflight, A20a roadmap task
+  catalog, A20b implementation-unit decomposition, A20c unit
+  authority decisions. These seven sources contribute
+  ``work_items[]`` rows.
 * ``HEALTH_ONLY_UPSTREAM_LEN = 7`` — work_queue (A8), delegation
   (A11), bugfix_loop (A10), release_gate (A9), step5_plan history,
-  operational_digest (A12), plus the read-only ``generated_seed.jsonl``
-  health entry. These contribute ``artifact_health[]`` rows only.
+  operational_digest (A12), plus the read-only
+  ``generated_seed.jsonl`` health entry. These contribute
+  ``artifact_health[]`` rows only.
+
+A20d note: the three roadmap upstreams are surfaced as read-only
+work-item rows. Each row carries explicit ``read_only=True`` and
+``mutation_allowed=False`` markers; no approval-button payload, no
+required-phrase synthesis, no mutation endpoint, no next-buildable
+selector (that is A20e scope).
 
 Hard guarantees (pinned by tests)
 ---------------------------------
@@ -181,6 +192,9 @@ SOURCE_KINDS: Final[tuple[str, ...]] = (
     "merge_preflight",
     "operational_digest",
     "addendum_loop",
+    "roadmap_task_catalog",
+    "roadmap_implementation_unit",
+    "roadmap_unit_authority_decision",
 )
 
 AGENT_ROLES: Final[tuple[str, ...]] = (
@@ -302,10 +316,28 @@ UPSTREAM_CATALOG: Final[
         "generated_seed.jsonl",
         False,
     ),
+    (
+        "roadmap",
+        "roadmap_task_catalog",
+        "logs/roadmap_task_catalog/latest.json",
+        True,
+    ),
+    (
+        "roadmap",
+        "roadmap_implementation_unit",
+        "logs/roadmap_task_units/latest.json",
+        True,
+    ),
+    (
+        "roadmap",
+        "roadmap_unit_authority_decision",
+        "logs/roadmap_unit_authority/latest.json",
+        True,
+    ),
 )
 
-UPSTREAM_CATALOG_LEN: Final[int] = 11
-PROJECTABLE_UPSTREAM_LEN: Final[int] = 4
+UPSTREAM_CATALOG_LEN: Final[int] = 14
+PROJECTABLE_UPSTREAM_LEN: Final[int] = 7
 HEALTH_ONLY_UPSTREAM_LEN: Final[int] = 7
 
 
@@ -321,6 +353,7 @@ TTL_BY_GROUP: Final[dict[str, int]] = {
     "generated": 1800,
     "digest": 1800,
     "seed": 86400,
+    "roadmap": 1800,
 }
 
 
@@ -1069,6 +1102,487 @@ def _project_merge_preflight(
 
 
 # ---------------------------------------------------------------------------
+# A20d roadmap projectors (read-only visibility for A20a / A20b / A20c).
+# Each row carries explicit ``read_only=True`` / ``mutation_allowed=False``
+# markers. No HumanAction synthesises a required_phrase. No mutation
+# endpoint is emitted. No next-buildable-unit selection — that is A20e
+# scope.
+# ---------------------------------------------------------------------------
+
+_ROADMAP_MAX_ROWS: Final[int] = 64
+
+_A20B_RISK_TO_AAC_RISK: Final[dict[str, str]] = {
+    "LOW": "low",
+    "MEDIUM": "medium",
+    "HIGH": "high",
+    "UNKNOWN": "medium",
+}
+
+
+def _project_roadmap_catalog(
+    payload: dict[str, Any] | None,
+    *,
+    generated_at_utc: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Project ``logs/roadmap_task_catalog/latest.json`` (A20a) into
+    read-only catalog rows. One WorkItem per ``RoadmapTask``."""
+    if not isinstance(payload, dict):
+        return ([], [], [])
+    tasks = payload.get("roadmap_tasks") or []
+    if not isinstance(tasks, list):
+        return ([], [], [])
+
+    work_items: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
+
+    upstream_ts = payload.get("generated_at_utc")
+    upstream_ts_str = (
+        upstream_ts if isinstance(upstream_ts, str) else generated_at_utc
+    )
+
+    for task in tasks[:_ROADMAP_MAX_ROWS]:
+        if not isinstance(task, dict):
+            continue
+        task_id = str(task.get("id") or "")
+        if not task_id:
+            continue
+        phase = str(task.get("phase") or "")
+        status = str(task.get("status") or "not_started")
+        title_text = str(task.get("title") or task_id)
+        purpose = str(task.get("purpose") or "")
+
+        short = _short_id_from("roadmap_task_catalog", task_id, phase)
+        item_id = f"wi_rt_catalog_{short}"
+        title = _truncate(
+            f"Roadmap task · {phase} · {title_text}", MAX_TITLE_LEN
+        )
+        verdict = _truncate(
+            f"phase={phase} status={status}", MAX_VERDICT_LEN
+        )
+        next_action = _truncate(
+            "Read-only roadmap catalog row · informational",
+            MAX_NEXT_ACTION_LEN,
+        )
+        summary = _truncate(
+            purpose
+            or (
+                "Roadmap v6 task catalog row (A20a). Informational "
+                "only; no implementation, runtime, trading, paper, "
+                "shadow, broker, risk, or live authority is granted."
+            ),
+            MAX_SUMMARY_LEN,
+        )
+        event_id = f"ev_rt_catalog_{short}"
+
+        work_items.append(
+            {
+                "item_id": item_id,
+                "title": title,
+                "source_kind": "roadmap_task_catalog",
+                "source_path": "logs/roadmap_task_catalog/latest.json",
+                "current_stage": "discovered",
+                "owner_role": "product_owner",
+                "risk": "low",
+                "human_needed": False,
+                "latest_verdict": verdict,
+                "next_action": next_action,
+                "updated_at": upstream_ts_str,
+                "summary": summary,
+                "event_ids": [event_id],
+                "read_only": True,
+                "mutation_allowed": False,
+                "phase": phase,
+                "status": status,
+            }
+        )
+        events.append(
+            {
+                "event_id": event_id,
+                "item_id": item_id,
+                "timestamp": upstream_ts_str,
+                "agent_role": "product_owner",
+                "module": "roadmap_task_catalog",
+                "event_type": "discovered",
+                "summary": verdict,
+                "decision": "surface",
+                "reason": _truncate(
+                    "A20a read-only roadmap task catalog row",
+                    MAX_REASON_LEN,
+                ),
+                "artifact_path": "logs/roadmap_task_catalog/latest.json",
+                "severity": "info",
+            }
+        )
+
+    return (work_items, events, [])
+
+
+def _evidence_value_by_kind(evidence: Any, kind: str) -> str:
+    """Return the first ``value`` for ``kind`` in an A20c evidence
+    list, or the empty string."""
+    if not isinstance(evidence, list):
+        return ""
+    for rec in evidence:
+        if isinstance(rec, dict) and rec.get("kind") == kind:
+            v = rec.get("value")
+            if isinstance(v, str):
+                return v
+    return ""
+
+
+def _project_roadmap_units(
+    payload: dict[str, Any] | None,
+    *,
+    generated_at_utc: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Project ``logs/roadmap_task_units/latest.json`` (A20b) into
+    read-only implementation-unit rows. One WorkItem per
+    ``ImplementationUnit``."""
+    if not isinstance(payload, dict):
+        return ([], [], [])
+    units = payload.get("implementation_units") or []
+    if not isinstance(units, list):
+        return ([], [], [])
+
+    work_items: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
+    actions: list[dict[str, Any]] = []
+
+    upstream_ts = payload.get("generated_at_utc")
+    upstream_ts_str = (
+        upstream_ts if isinstance(upstream_ts, str) else generated_at_utc
+    )
+
+    for unit in units[:_ROADMAP_MAX_ROWS]:
+        if not isinstance(unit, dict):
+            continue
+        unit_id = str(unit.get("id") or "")
+        if not unit_id:
+            continue
+        phase = str(unit.get("phase") or "")
+        task_id = str(unit.get("roadmap_task_id") or "")
+        risk_class = str(unit.get("risk_class") or "UNKNOWN")
+        operator_gate = str(unit.get("operator_gate") or "none")
+        authority_hint = str(unit.get("authority_hint") or "")
+        title_text = str(unit.get("title") or unit_id)
+        target_layer = str(unit.get("target_layer") or "")
+        unit_status = str(unit.get("status") or "not_started")
+
+        if authority_hint == "PERMANENTLY_DENIED_SURFACE":
+            stage = "done_blocked"
+            human_needed = False
+        elif (
+            authority_hint == "NEEDS_HUMAN_CANDIDATE"
+            or operator_gate != "none"
+        ):
+            stage = "needs_human"
+            human_needed = True
+        else:
+            stage = "discovered"
+            human_needed = False
+
+        aac_risk = _A20B_RISK_TO_AAC_RISK.get(risk_class, "medium")
+
+        short = _short_id_from("roadmap_implementation_unit", unit_id, phase)
+        item_id = f"wi_rt_unit_{short}"
+        title = _truncate(
+            f"Roadmap unit · {phase} · {title_text}", MAX_TITLE_LEN
+        )
+        verdict = _truncate(
+            (
+                f"hint={authority_hint or 'unknown'} "
+                f"gate={operator_gate} risk={risk_class}"
+            ),
+            MAX_VERDICT_LEN,
+        )
+        next_action = _truncate(
+            "Operator review · A20b unit hint"
+            if human_needed
+            else (
+                "Awaiting A20c authority verdict"
+                if stage == "done_blocked"
+                else "Read-only unit row · informational"
+            ),
+            MAX_NEXT_ACTION_LEN,
+        )
+        summary = _truncate(
+            (
+                f"A20b implementation unit row. target_layer={target_layer} "
+                "Hint is non-authoritative; A20c integrates the canonical "
+                "Execution Authority verdict. No implementation, runtime, "
+                "trading, paper, shadow, broker, risk, or live authority "
+                "is granted."
+            ),
+            MAX_SUMMARY_LEN,
+        )
+        event_id = f"ev_rt_unit_{short}"
+
+        work_items.append(
+            {
+                "item_id": item_id,
+                "title": title,
+                "source_kind": "roadmap_implementation_unit",
+                "source_path": "logs/roadmap_task_units/latest.json",
+                "current_stage": stage,
+                "owner_role": "planner",
+                "risk": aac_risk,
+                "human_needed": human_needed,
+                "latest_verdict": verdict,
+                "next_action": next_action,
+                "updated_at": upstream_ts_str,
+                "summary": summary,
+                "event_ids": [event_id],
+                "read_only": True,
+                "mutation_allowed": False,
+                "phase": phase,
+                "roadmap_task_id": task_id,
+                "risk_class": risk_class,
+                "operator_gate": operator_gate,
+                "authority_hint_a20b": authority_hint,
+                "status": unit_status,
+            }
+        )
+        events.append(
+            {
+                "event_id": event_id,
+                "item_id": item_id,
+                "timestamp": upstream_ts_str,
+                "agent_role": "planner",
+                "module": "roadmap_task_units",
+                "event_type": "annotated",
+                "summary": verdict,
+                "decision": "require_human" if human_needed else "surface",
+                "reason": _truncate(
+                    f"A20b unit hint={authority_hint}",
+                    MAX_REASON_LEN,
+                ),
+                "artifact_path": "logs/roadmap_task_units/latest.json",
+                "severity": "human" if human_needed else "info",
+            }
+        )
+        if human_needed:
+            actions.append(
+                {
+                    "action_id": f"ha_rt_unit_{short}",
+                    "item_id": item_id,
+                    "severity": "medium",
+                    "title": title,
+                    "why_required": _truncate(
+                        (
+                            "A20b emitted a NEEDS_HUMAN_CANDIDATE hint or "
+                            "operator_gate != none for this unit. Final "
+                            "authority is settled by A20c. This row is "
+                            "informational only — copy / inspect, never "
+                            "execute."
+                        ),
+                        MAX_SUMMARY_LEN,
+                    ),
+                    # A20d MUST NOT synthesise a required phrase; the
+                    # hint is non-authoritative metadata, not an
+                    # operator-go phrase.
+                    "required_phrase": None,
+                    "safe_to_ignore": False,
+                    "copy_only": True,
+                    "source_artifact_path": (
+                        "logs/roadmap_task_units/latest.json"
+                    ),
+                    "suggested_role": "planner",
+                    "created_at": upstream_ts_str,
+                }
+            )
+
+    return (work_items, events, actions)
+
+
+def _project_roadmap_unit_authority(
+    payload: dict[str, Any] | None,
+    *,
+    generated_at_utc: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Project ``logs/roadmap_unit_authority/latest.json`` (A20c)
+    into read-only authority-verdict rows. One WorkItem per
+    ``UnitAuthorityDecision``."""
+    if not isinstance(payload, dict):
+        return ([], [], [])
+    decisions = payload.get("authority_decisions") or []
+    if not isinstance(decisions, list):
+        return ([], [], [])
+
+    work_items: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
+    actions: list[dict[str, Any]] = []
+
+    upstream_ts = payload.get("generated_at_utc")
+    upstream_ts_str = (
+        upstream_ts if isinstance(upstream_ts, str) else generated_at_utc
+    )
+
+    for decision in decisions[:_ROADMAP_MAX_ROWS]:
+        if not isinstance(decision, dict):
+            continue
+        unit_id = str(decision.get("implementation_unit_id") or "")
+        if not unit_id:
+            continue
+        task_id = str(decision.get("roadmap_task_id") or "")
+        phase = str(decision.get("phase") or "")
+        final_class = str(
+            decision.get("final_authority_class") or "NEEDS_HUMAN"
+        )
+        requires_go = bool(decision.get("requires_operator_go"))
+        permanently_denied = bool(decision.get("permanently_denied"))
+        classifier_used = bool(decision.get("classifier_used"))
+        fail_closed = bool(decision.get("fail_closed"))
+        deny_reasons = decision.get("deny_reasons") or []
+        if not isinstance(deny_reasons, list):
+            deny_reasons = []
+        evidence = decision.get("evidence")
+
+        risk_class = _evidence_value_by_kind(evidence, "risk_class") or "UNKNOWN"
+        operator_gate = (
+            _evidence_value_by_kind(evidence, "operator_gate") or "none"
+        )
+
+        if permanently_denied:
+            stage = "done_blocked"
+            aac_risk = "high"
+            human_needed = False
+        elif requires_go:
+            stage = "needs_human"
+            aac_risk = _A20B_RISK_TO_AAC_RISK.get(risk_class, "medium")
+            human_needed = True
+        else:
+            stage = "discovered"
+            aac_risk = _A20B_RISK_TO_AAC_RISK.get(risk_class, "low")
+            human_needed = False
+
+        short = _short_id_from(
+            "roadmap_unit_authority_decision", unit_id, final_class
+        )
+        item_id = f"wi_rt_auth_{short}"
+        title = _truncate(
+            f"Authority · {phase} · {unit_id}", MAX_TITLE_LEN
+        )
+        deny_join = ",".join(str(r) for r in deny_reasons[:4]) or "(none)"
+        verdict = _truncate(
+            (
+                f"final={final_class} requires_operator_go={requires_go} "
+                f"permanently_denied={permanently_denied} "
+                f"deny_reasons={deny_join}"
+            ),
+            MAX_VERDICT_LEN,
+        )
+        if permanently_denied:
+            next_action_text = (
+                "Permanently denied · no implementation path under current policy"
+            )
+        elif requires_go:
+            next_action_text = (
+                "Operator-go required before any implementation PR may proceed"
+            )
+        else:
+            next_action_text = (
+                "AUTO_ALLOWED candidate · read-only display, normal PR review applies"
+            )
+        next_action = _truncate(next_action_text, MAX_NEXT_ACTION_LEN)
+        summary = _truncate(
+            (
+                f"A20c authority verdict on A20b unit {unit_id}. "
+                f"final_authority_class={final_class}; "
+                f"classifier_used={classifier_used}; "
+                f"fail_closed={fail_closed}. Display-only; A20d does "
+                "not execute, merge, or grant runtime / trading / "
+                "paper / shadow / live authority."
+            ),
+            MAX_SUMMARY_LEN,
+        )
+        event_id = f"ev_rt_auth_{short}"
+
+        work_items.append(
+            {
+                "item_id": item_id,
+                "title": title,
+                "source_kind": "roadmap_unit_authority_decision",
+                "source_path": "logs/roadmap_unit_authority/latest.json",
+                "current_stage": stage,
+                "owner_role": "architecture_guardian",
+                "risk": aac_risk,
+                "human_needed": human_needed,
+                "latest_verdict": verdict,
+                "next_action": next_action,
+                "updated_at": upstream_ts_str,
+                "summary": summary,
+                "event_ids": [event_id],
+                "read_only": True,
+                "mutation_allowed": False,
+                "phase": phase,
+                "roadmap_task_id": task_id,
+                "implementation_unit_id": unit_id,
+                "final_authority_class": final_class,
+                "risk_class": risk_class,
+                "operator_gate": operator_gate,
+                "requires_operator_go": requires_go,
+                "permanently_denied": permanently_denied,
+                "classifier_used": classifier_used,
+                "fail_closed": fail_closed,
+            }
+        )
+        events.append(
+            {
+                "event_id": event_id,
+                "item_id": item_id,
+                "timestamp": upstream_ts_str,
+                "agent_role": "architecture_guardian",
+                "module": "roadmap_unit_authority",
+                "event_type": "verdict",
+                "summary": verdict,
+                "decision": (
+                    "flag"
+                    if permanently_denied
+                    else ("require_human" if requires_go else "surface")
+                ),
+                "reason": _truncate(
+                    f"A20c final_authority_class={final_class}",
+                    MAX_REASON_LEN,
+                ),
+                "artifact_path": "logs/roadmap_unit_authority/latest.json",
+                "severity": (
+                    "warn"
+                    if permanently_denied
+                    else ("human" if requires_go else "info")
+                ),
+            }
+        )
+        if human_needed:
+            actions.append(
+                {
+                    "action_id": f"ha_rt_auth_{short}",
+                    "item_id": item_id,
+                    "severity": "medium",
+                    "title": title,
+                    "why_required": _truncate(
+                        (
+                            "A20c authority verdict requires operator "
+                            "review before any implementation PR for "
+                            "this unit. Display-only here; no phrase "
+                            "is synthesised."
+                        ),
+                        MAX_SUMMARY_LEN,
+                    ),
+                    "required_phrase": None,
+                    "safe_to_ignore": False,
+                    "copy_only": True,
+                    "source_artifact_path": (
+                        "logs/roadmap_unit_authority/latest.json"
+                    ),
+                    "suggested_role": "architecture_guardian",
+                    "created_at": upstream_ts_str,
+                }
+            )
+
+    return (work_items, events, actions)
+
+
+# ---------------------------------------------------------------------------
 # Artefact health, freshness, invariants, counts
 # ---------------------------------------------------------------------------
 
@@ -1351,7 +1865,8 @@ def collect_snapshot(
     repo_root: Path | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
-    """Pure scorer. Reads the closed 11-entry upstream catalog and
+    """Pure scorer. Reads the closed 14-entry upstream catalog
+    (11 ADE-core entries + 3 A20d read-only roadmap entries) and
     returns a sorted-key envelope dict satisfying the AAC schema."""
     root = repo_root if repo_root is not None else REPO_ROOT
     ts = generated_at_utc if generated_at_utc is not None else _utcnow()
@@ -1418,6 +1933,45 @@ def collect_snapshot(
         agent_events.extend(ev)
         human_actions.extend(ha)
 
+    # A20d — read-only roadmap visibility. Each projector handles
+    # absent / malformed payload gracefully (returns empty lists);
+    # the aggregator never raises on a missing roadmap upstream.
+    rt_catalog_status, rt_catalog_payload, _ = parsed.get(
+        "logs/roadmap_task_catalog/latest.json",
+        ("absent", None, None),
+    )
+    if rt_catalog_status == "ok":
+        wi, ev, ha = _project_roadmap_catalog(
+            rt_catalog_payload, generated_at_utc=ts
+        )
+        work_items.extend(wi)
+        agent_events.extend(ev)
+        human_actions.extend(ha)
+
+    rt_units_status, rt_units_payload, _ = parsed.get(
+        "logs/roadmap_task_units/latest.json",
+        ("absent", None, None),
+    )
+    if rt_units_status == "ok":
+        wi, ev, ha = _project_roadmap_units(
+            rt_units_payload, generated_at_utc=ts
+        )
+        work_items.extend(wi)
+        agent_events.extend(ev)
+        human_actions.extend(ha)
+
+    rt_auth_status, rt_auth_payload, _ = parsed.get(
+        "logs/roadmap_unit_authority/latest.json",
+        ("absent", None, None),
+    )
+    if rt_auth_status == "ok":
+        wi, ev, ha = _project_roadmap_unit_authority(
+            rt_auth_payload, generated_at_utc=ts
+        )
+        work_items.extend(wi)
+        agent_events.extend(ev)
+        human_actions.extend(ha)
+
     # Deterministic ordering.
     work_items.sort(key=lambda w: w["item_id"])
     agent_events.sort(key=lambda e: (e["timestamp"], e["event_id"]))
@@ -1479,7 +2033,8 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="python -m reporting.development_agent_activity_timeline",
         description=(
             "Agent Activity Center read-only aggregator. Reads the "
-            "closed 11-entry upstream catalog and writes "
+            "closed 14-entry upstream catalog (11 ADE-core entries + "
+            "3 A20d read-only roadmap entries) and writes "
             "logs/development_agent_activity_timeline/latest.json. "
             "NEVER mutates upstream state. NEVER opens, merges, or "
             "deploys anything. NEVER writes outside the canonical "

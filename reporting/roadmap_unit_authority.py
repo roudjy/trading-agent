@@ -276,8 +276,9 @@ _BASE_AUTHORITY_INVARIANTS: Final[dict[str, bool]] = {
     "writes_to_seed_jsonl": False,
     "writes_to_delegation_seed_jsonl": False,
     "writes_to_generated_seed_jsonl": False,
-    # A20d / A20e still pending:
-    "aac_visibility_present": False,
+    # A20d surfaces this projection in the AAC aggregator; A20e
+    # (next-buildable selector) remains unimplemented.
+    "aac_visibility_present": True,
     "next_buildable_selector_present": False,
 }
 
