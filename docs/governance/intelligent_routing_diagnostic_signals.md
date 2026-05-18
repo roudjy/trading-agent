@@ -1,16 +1,29 @@
-# Intelligent Routing — Diagnostic-aware Routing Signals (v3.15.16, schema/projector)
+# Intelligent Routing — Diagnostic-aware Routing Signals (v3.15.16, schema + projector + governance)
 
-> **Status:** Implemented as a read-only schema and deterministic
-> projector. **No routing mutation, no campaign queue mutation, no
-> strategy generation, no trading behaviour.**
+> **Status:** Three v3.15.16 routing-layer units have merged on
+> `main`. This doc covers all three. Each is **read-only by
+> construction**. No campaign routing mutation. No campaign queue
+> mutation. No strategy generation. No trading / paper / shadow /
+> live behaviour.
 >
-> **Module:** [`reporting/intelligent_routing_diagnostic_signals.py`](../../reporting/intelligent_routing_diagnostic_signals.py)
-> **Artefact:** `logs/intelligent_routing_diagnostic_signals/latest.json`
+> **Implemented modules:**
 >
-> **A20e unit anchor:** `u_v3_15_16_diagnostic_routing_signals_schema_001`
+> * [`reporting/intelligent_routing_diagnostic_signals.py`](../../reporting/intelligent_routing_diagnostic_signals.py) — schema + projector for 14 routing-signal families (PR #250).
+> * [`reporting/routing_explanation.py`](../../reporting/routing_explanation.py) — read-only routing-decision explanation reporter (PR #252).
+>
+> **Sidecar artefacts:**
+>
+> * `logs/intelligent_routing_diagnostic_signals/latest.json`
+> * `logs/routing_explanation/latest.json`
+>
+> **A20e unit anchors:**
+>
+> * `u_v3_15_16_diagnostic_routing_signals_schema_001` — schema + projector (PR #250, merge SHA `fcb1abb`).
+> * `u_v3_15_16_routing_explanation_reporter_001` — explanation reporter (PR #252, merge SHA `6f588a8`).
+> * `u_v3_15_16_routing_governance_doc_001` — this governance doc (the unit this PR completes; A20b seed `expected_files = ("docs/governance/intelligent_routing_diagnostic_signals.md",)`, so the governance-doc unit extends the same file PR #250 created).
+>
 > **Phase:** v3.15.16 — Intelligent Routing Layer.
-> **Authority class on merge:** `AUTO_ALLOWED` (LOW risk, `operator_gate = none`,
-> `requires_operator_go = false`).
+> **Authority class on each merge:** `AUTO_ALLOWED` (LOW risk, `operator_gate = none`, `requires_operator_go = false`).
 
 ---
 
@@ -285,35 +298,283 @@ The `--status` and `--no-write` modes never write any file.
 
 ---
 
-## 12. Likely follow-up units
+## 12. v3.15.16 Routing-Layer Governance (governance-doc unit)
 
-A20b's hand-encoded `_UNIT_SEED` already lists the two next
-v3.15.16 follow-up units that depend on this schema:
+This section completes the third v3.15.16 routing-layer unit
+selected by A20e: **`u_v3_15_16_routing_governance_doc_001`**.
+The unit is **documentation only**. It adds no module, no test,
+no runtime behaviour, no routing decision, no campaign queue
+mutation. The A20b seed deliberately lists this unit's
+`expected_files` as the same governance doc PR #250 created, so
+the governance-doc unit extends the existing file rather than
+creating a parallel one.
 
-- `u_v3_15_16_routing_explanation_reporter_001` — read-only
-  routing-decision explanation reporter (LOW risk, AUTO_ALLOWED
-  candidate, depends on this unit). Once this unit is merged,
-  A20e will surface that follow-up as eligible after an A20b
-  `status="merged"` update is staged for this unit.
-- `u_v3_15_16_routing_governance_doc_001` — governance doc for
-  the routing signals (LOW risk, AUTO_ALLOWED candidate). Closely
-  related to this doc; may be folded in or kept separate per a
-  future operator decision.
+### 12.1 Relationship to v3.15.16 Intelligent Routing Layer
+
+Roadmap v6 §v3.15.16 mandates **behaviour-aware** campaign
+routing. Roadmap v6 Addendum §9 v3.15.16 extends this with
+**diagnostic-aware** routing signals (entropy / tail /
+criticality / network / quorum / external-intelligence / dead-zone
+suppression / null-model / barrier / resonance / adversarial /
+seismic / turbulence / market-language).
+
+This document is the **governance anchor** for the v3.15.16
+routing-layer build path. It pins the doctrine that every unit
+in that path inherits: read-only, deterministic, diagnostic-driven
+research-routing context only — never a trade signal, never a
+campaign-queue mutator, never an executable strategy.
+
+### 12.2 Currently implemented surface
+
+Two implementation units have merged on `main` for v3.15.16:
+
+| Unit | PR | Merge SHA | Module | Sidecar |
+|---|---|---|---|---|
+| `u_v3_15_16_diagnostic_routing_signals_schema_001` | [#250](https://github.com/roudjy/trading-agent/pull/250) | `fcb1abb` | [`reporting/intelligent_routing_diagnostic_signals.py`](../../reporting/intelligent_routing_diagnostic_signals.py) | `logs/intelligent_routing_diagnostic_signals/latest.json` |
+| `u_v3_15_16_routing_explanation_reporter_001` | [#252](https://github.com/roudjy/trading-agent/pull/252) | `6f588a8` | [`reporting/routing_explanation.py`](../../reporting/routing_explanation.py) | `logs/routing_explanation/latest.json` |
+
+Both are read-only deterministic projections. Each module's
+status flip in A20b's `_UNIT_SEED` was applied as a small
+follow-up queue-status PR (PR #251 and PR #253 respectively) so
+the A20e selector advances past them. See
+[`docs/governance/roadmap_task_catalog.md`](roadmap_task_catalog.md)
+§11.1 Queue progression log.
+
+#### 12.2.1 The signal schema (PR #250)
+
+[`reporting/intelligent_routing_diagnostic_signals.py`](../../reporting/intelligent_routing_diagnostic_signals.py)
+emits a closed-vocabulary `RoutingSignalProjection`. One
+`RoutingDiagnosticSignal` record per Roadmap v6 + Addendum 1
+diagnostic family. Each signal declares its `family`,
+`target_layer`, `direction` (routing-priority effect; never a
+buy/sell verb), `allowed_use[]`, `forbidden_use[]` (10-entry
+doctrine baseline prepended on every signal), `required_inputs[]`,
+and `missing_input_behavior` (fail-closed). Every signal lands
+at `status="schema_only"` — the schema unit ships no actual
+routing decision. See §3, §4, §5, §6, §7 of this doc for the
+full schema-unit treatment.
+
+#### 12.2.2 The explanation reporter (PR #252)
+
+[`reporting/routing_explanation.py`](../../reporting/routing_explanation.py)
+consumes the schema projection in-process and emits one
+`RoutingExplanation` per signal. Each explanation carries three
+deterministic reasons (`direction_advice`, family-specific,
+`missing_input_fallback`) and three aggregate booleans
+(`supports_exploration`, `suppresses_exploration`,
+`requires_confirmation`) derived from a closed direction-aggregate
+map. Every explanation row carries `read_only=True` and
+`mutation_allowed=False`. The reporter never makes an actual
+routing decision; the operator reads the explanations to
+understand which diagnostic signal would advise what, and why.
+
+### 12.3 Diagnostics do not trade
+
+Verbatim from Roadmap v6 Addendum §2 (Core Rule):
+
+> *Diagnostics do not trade. A diagnostic may influence hypothesis
+> priority, sampling, routing, evidence scoring, cooldown,
+> confirmation, suppression or observability. A diagnostic may not
+> directly create strategies, place trades, mutate live risk,
+> allocate capital, bypass policy governance, or change frozen
+> output contracts.*
+
+Both implemented modules pin `diagnostics_do_not_trade = True` in
+their `projection_invariants` block on every artefact. Their
+10-entry baseline `forbidden_use[]` list (see §9) enforces the
+same posture on every emitted signal / explanation row.
+
+### 12.4 External data is not alpha
+
+Verbatim from Roadmap v6 Addendum §8.1:
+
+> *External / public data is not alpha. It is an unvalidated
+> prior. Only QRE-validated, OOS-stable, cost-aware,
+> execution-realistic, policy-approved behavior can become edge.*
+
+The `rs_external_intelligence_routing` signal and the matching
+explanation row both pin `external_data_is_not_alpha = True`.
+External-intelligence inputs may inform routing priority through
+quality-gate verdicts; they may not be treated as a trade signal
+or as alpha.
+
+### 12.5 Diagnostic signals are read-only research-routing context
+
+Every emitted signal carries:
+
+- `status = "schema_only"` (hard-coded in `_normalise_signal`);
+- a closed-vocab `direction` from
+  `{prioritize, deprioritize, suppress, require_confirmation, neutral}`
+  — never a buy/sell verb;
+- the 10-entry baseline `forbidden_use[]` list (no trades, no
+  live risk mutation, no capital allocation, no live/paper/shadow
+  path writes, no broker/risk/execution writes, no frozen-contract
+  mutation, no direct trade trigger, no policy-governance bypass,
+  no promotion-gate bypass, no executable strategy code).
+
+The signal projection is **research-routing context only**.
+
+### 12.6 Routing explanations are operator-readable only
+
+Every emitted explanation carries:
+
+- `read_only = True`;
+- `mutation_allowed = False`;
+- one of five closed `status` values (`advisory_prioritize`,
+  `advisory_deprioritize`, `advisory_suppress`,
+  `advisory_require_confirmation`, `advisory_neutral`) — none of
+  which authorises any action;
+- three deterministic reasons sourced verbatim from upstream
+  schema fields (no fuzzy parsing, no LLM, no hidden scoring).
+
+The explanation projection is **operator-readable display only**.
+The operator inspects it (via `--status` or by reading
+`logs/routing_explanation/latest.json`); no other consumer is
+authorised to take action on its content.
+
+### 12.7 Allowed uses (governance-wide for v3.15.16)
+
+The implemented routing-layer surface (signals + explanations)
+may:
+
+- **explain routing context** — describe why a diagnostic family
+  would advise prioritise / deprioritise / suppress / require
+  confirmation;
+- **support future deterministic prioritisation** — a future
+  operator-approved unit may consume the schema to produce a
+  deterministic priority ranking for campaigns;
+- **support future suppression / escalation / confirmation
+  logic** — a future unit may use the closed-vocab directions to
+  drive suppression cooldowns, confirmation-requirement
+  escalation, or dead-zone routing avoidance;
+- **support operator observability** — the operator can read both
+  sidecar artefacts via the existing AAC aggregator or via the
+  modules' own `--status` CLIs.
+
+### 12.8 Forbidden uses (governance-wide for v3.15.16)
+
+The implemented routing-layer surface **must not**:
+
+- **direct routing mutation in this unit** — this governance-doc
+  unit (and the two underlying implementation units) make no
+  campaign-routing decision and no routing-policy update;
+- **campaign enqueueing** — no write to
+  `docs/development_work_queue/*.jsonl`, no mutation of any
+  proposal queue, no campaign-queue admission decision;
+- **strategy generation** — no executable strategy code, no
+  free-form indicator generation, no stochastic strategy mutation,
+  no genetic programming;
+- **order placement** — no `broker/**` write, no `automation/live_gate.py`
+  write, no order-placement code path of any kind;
+- **paper / shadow / live activation** — no `paper/**`, `shadow/**`,
+  `live/**`, or `trading/**` path created, modified, or imported;
+- **broker / risk / execution changes** — no `broker/**`,
+  `agent/risk/**`, or `agent/execution/**` modifications;
+- **frozen-contract mutation** — neither
+  `research/research_latest.json` nor
+  `research/strategy_matrix.csv` is read, written, or referenced
+  by any routing-layer module's atomic-write helper;
+- **Step 5 activation** — `step5_implementation_allowed`
+  remains `Final[bool] = False` everywhere in the routing layer;
+- **Level 6 activation** — autonomy-ladder Level 6 stays
+  permanently disabled per ADR-015 §Doctrine 1;
+- **production-merge authority** — no `gh pr merge` invocation,
+  no `--admin`, no force push, no hook bypass anywhere in any
+  routing-layer module.
+
+### 12.9 Sidecar artefact paths (both implemented modules)
+
+| Module | Artefact path |
+|---|---|
+| `reporting.intelligent_routing_diagnostic_signals` | `logs/intelligent_routing_diagnostic_signals/latest.json` |
+| `reporting.routing_explanation` | `logs/routing_explanation/latest.json` |
+
+Both artefacts are gitignored under `logs/` and produced on demand
+by their respective module CLIs (`python -m reporting.<module>`).
+Each module's atomic-write helper refuses every path outside its
+own `logs/<module>/` directory; frozen-contract paths are
+explicitly rejected.
+
+### 12.10 What is explicitly NOT implemented yet
+
+The v3.15.16 routing layer is intentionally narrow today. The
+following are out of scope for the three currently-merged units
+and will require **separate operator-approved units** before any
+runtime behaviour change:
+
+- **Actual deterministic routing policy** — a module that
+  consumes the schema projection and produces a campaign-priority
+  ranking does not exist in A20b's seed today. Adding it requires
+  an A20b seed-data amendment under operator-go, plus the new
+  unit's own schema + module + tests + governance doc PR.
+- **Campaign queue integration** — the existing campaign queues
+  (`reporting/development_work_queue.py`, A18a generated lane)
+  are unchanged. No routing-layer module imports or writes to
+  any queue.
+- **AAC / dashboard extension for these specific v3.15.16
+  signals** — the AAC aggregator was extended to surface the
+  A20 roadmap-to-task pipeline (per A20d), but it has not been
+  extended to surface either the
+  `intelligent_routing_diagnostic_signals` or `routing_explanation`
+  artefacts as work-item rows. Adding them would require an
+  AAC aggregator cardinality change under operator-go (same
+  pattern A20d used).
+- **A20 status auto-advancement** — A20 projections are
+  deterministic / read-only and do not auto-discover merged PRs.
+  Each merged unit's `status` flip in A20b's `_UNIT_SEED`
+  continues to be applied as a small follow-up `chore/a20-*`
+  queue-status PR (see PR #251 and PR #253 for the pattern).
+
+### 12.11 Future follow-up units likely required
+
+After this governance-doc unit merges, the deterministic A20e
+selector will pick the next eligible unit (likely
+`u_v3_15_17_sampling_plan_reporter_001` from v3.15.17 — the next
+phase). Independently of phase progression, the following
+v3.15.16 routing-layer follow-ups will need to be added to A20b's
+seed under operator-go before any actual routing behaviour
+emerges:
+
+1. **Deterministic routing-policy integration unit** — consumes
+   the schema's closed-vocab signals + the explanation reporter's
+   aggregate booleans, and produces a deterministic campaign-
+   priority projection. Read-only by construction. No
+   campaign-queue mutation.
+2. **Read-only routing-summary reporter** (optional) — if the
+   queue selects it, this would aggregate per-campaign routing
+   verdicts across families into a single operator-readable
+   summary. Read-only.
+3. **Queue-status update after this doc merges** — the small
+   `chore/a20-mark-routing-governance-doc-merged` PR that flips
+   this unit's `status` from `"not_started"` to `"merged"` in
+   A20b's `_UNIT_SEED` (same pattern as PR #251 and PR #253).
+   After that lands, A20e advances to the next phase.
+
+---
+
+## 13. Likely follow-up units (schema-unit perspective, retained from PR #250)
+
+A20b's hand-encoded `_UNIT_SEED` lists the two next v3.15.16
+follow-up units that depend on the schema unit:
+
+- `u_v3_15_16_routing_explanation_reporter_001` — **merged via
+  PR #252** (see §12.2.2 above).
+- `u_v3_15_16_routing_governance_doc_001` — **this unit**
+  (extends the existing governance doc with §12; see §12).
 
 Beyond v3.15.16, the actual deterministic-routing integration
 unit (consuming the signal schema to produce campaign-priority
-projections) is **not** in A20b's seed today. Adding it requires
-an A20b seed-data amendment under operator-go, plus the new
-unit's own schema + module + tests + governance doc PR.
+projections) is **not** in A20b's seed today (see §12.11).
 
-Until those follow-up units land, the signals shipped in this
-artefact are advisory-only schema records: they describe the
-intended routing-signal contract, they do not perform any routing
+Until those further follow-up units land, the signals shipped in
+the schema artefact and the explanations shipped in the reporter
+artefact are advisory-only records: they describe and explain the
+intended routing-signal contract; they do not perform any routing
 decision.
 
 ---
 
-## 13. Authority pins carried forward
+## 14. Authority pins carried forward
 
 The `projection_invariants` block on every emitted artefact pins:
 
@@ -342,7 +603,7 @@ workflow automation only.
 
 ---
 
-## 14. Test coverage
+## 15. Test coverage
 
 Pinned in [`tests/unit/test_intelligent_routing_diagnostic_signals.py`](../../tests/unit/test_intelligent_routing_diagnostic_signals.py):
 
@@ -379,7 +640,7 @@ Pinned in [`tests/unit/test_intelligent_routing_diagnostic_signals.py`](../../te
 
 ---
 
-## 15. Cross-references
+## 16. Cross-references
 
 - [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — §v3.15.16 Intelligent Routing Layer.
 - [`docs/roadmap/Roadmap v6 Addendum.md`](../roadmap/Roadmap%20v6%20Addendum.md) — §9 v3.15.16 diagnostic-aware routing.
