@@ -1,11 +1,28 @@
 """A20e — Deterministic Next-Buildable-Unit Selector (read-only).
 
 Pure stdlib-only read-only consumer of the A20b implementation-unit
-projection and the A20c unit-authority projection. Emits a
-deterministic projection at ``logs/roadmap_next_unit/latest.json``
-that names the single ``NextBuildableUnitSelection`` (or no
-selection at all if no unit is eligible) and the full filterable
-candidate list.
+projection, the A20c unit-authority projection, and the optional
+A21a dynamic unit-status ledger. Emits a deterministic projection
+at ``logs/roadmap_next_unit/latest.json`` that names the single
+``NextBuildableUnitSelection`` (or no selection at all if no unit
+is eligible) and the full filterable candidate list.
+
+A21a integration (Step 5 / A21 foundation):
+
+* When ``logs/roadmap_unit_status/latest.json`` is present, the
+  selector overlays the dynamic ledger on top of the A20b static
+  status: a unit marked ``merged`` in the dynamic ledger is treated
+  as ``merged`` for buildable purposes, even if A20b's seed still
+  says ``not_started``. This removes the need for a manual A20b
+  seed-status PR after every merge.
+* Dynamic ledger absence is silent: every unit falls back to its
+  A20b static status. Dynamic ledger top-level malformedness fails
+  closed with ``UPSTREAM_UNAVAILABLE``. Per-record invalidity
+  surfaces as the new ``invalid_dynamic_status`` block reason for
+  the affected unit.
+* The selector still does not execute work, does not create
+  branches, does not open PRs, does not merge or deploy. Step 5
+  implementation remains BLOCKED.
 
 A20e MUST NOT:
 
@@ -26,6 +43,8 @@ A20e MAY:
 
 * read ``logs/roadmap_task_units/latest.json`` (A20b output);
 * read ``logs/roadmap_unit_authority/latest.json`` (A20c output);
+* read ``logs/roadmap_unit_status/latest.json`` (A21a output;
+  optional);
 * apply deterministic filter + sort rules pinned by tests;
 * emit a sorted candidates[] list and at most one selected unit;
 * fail closed loudly with ``selection_status`` in a closed enum
@@ -88,6 +107,7 @@ from typing import Any, Final
 
 from reporting import roadmap_task_units as rtu
 from reporting import roadmap_unit_authority as rua
+from reporting import roadmap_unit_status as rus
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
@@ -133,6 +153,8 @@ NEXT_UNIT_BLOCK_REASON: Final[tuple[str, ...]] = (
     "unknown_prerequisite_target",
     "operator_gate_required",
     "fail_closed_unknown_evidence",
+    "invalid_dynamic_status",
+    "dynamic_status_terminal",
 )
 
 #: Per-candidate eligibility vocabulary.
@@ -142,10 +164,24 @@ NEXT_UNIT_ELIGIBILITY: Final[tuple[str, ...]] = (
     "BLOCKED",
 )
 
-#: Closed source-artifact vocabulary. Exactly two upstreams.
+#: Closed source-artifact vocabulary. Three upstreams: A20b units,
+#: A20c authority, and the optional A21a dynamic status ledger.
 NEXT_UNIT_SOURCE: Final[tuple[str, ...]] = (
     "logs/roadmap_task_units/latest.json",
     "logs/roadmap_unit_authority/latest.json",
+    "logs/roadmap_unit_status/latest.json",
+)
+
+#: Closed dynamic-status overlay-source vocabulary surfaced on
+#: each candidate. ``""`` denotes no dynamic record exists for
+#: that unit (selector falls back to the A20b static status).
+NEXT_UNIT_DYNAMIC_STATUS_SOURCE: Final[tuple[str, ...]] = (
+    "",
+    "pr_merge",
+    "operator_override",
+    "loop_state",
+    "ci_failure",
+    "operator_block",
 )
 
 #: Selector-mode vocabulary. Today exactly one mode: ``default``
@@ -212,6 +248,8 @@ NEXT_BUILDABLE_UNIT_CANDIDATE_FIELDS: Final[tuple[str, ...]] = (
     "phase",
     "title",
     "status",
+    "effective_status",
+    "dynamic_status_source",
     "risk_class",
     "final_authority_class",
     "operator_gate",
@@ -222,6 +260,7 @@ NEXT_BUILDABLE_UNIT_CANDIDATE_FIELDS: Final[tuple[str, ...]] = (
     "deterministic_sort_key",
     "source_units_artifact",
     "source_authority_artifact",
+    "source_status_artifact",
 )
 
 #: Selection record schema.
@@ -250,6 +289,7 @@ NEXT_BUILDABLE_UNIT_PROJECTION_FIELDS: Final[tuple[str, ...]] = (
     "module_version",
     "source_units_schema_version",
     "source_authority_schema_version",
+    "source_status_schema_version",
     "selector_mode",
     "candidates",
     "selection",
@@ -283,6 +323,7 @@ _WRITE_PREFIX: Final[str] = "logs/roadmap_next_unit/"
 #: Upstream relative paths.
 _UNITS_REL_PATH: Final[str] = "logs/roadmap_task_units/latest.json"
 _AUTHORITY_REL_PATH: Final[str] = "logs/roadmap_unit_authority/latest.json"
+_STATUS_REL_PATH: Final[str] = "logs/roadmap_unit_status/latest.json"
 
 
 # ---------------------------------------------------------------------------
@@ -319,6 +360,12 @@ _BASE_SELECTOR_INVARIANTS: Final[dict[str, bool]] = {
     "fail_closed_on_missing_artifact": True,
     "permanently_denied_units_never_selected": True,
     "needs_human_units_require_operator_go": True,
+    "consumes_dynamic_status_ledger": True,
+    "dynamic_status_overrides_static_when_valid": True,
+    "fail_closed_on_invalid_dynamic_status": True,
+    "fail_closed_on_duplicate_dynamic_status": True,
+    "dynamic_status_absence_falls_back_to_static": True,
+    "merged_units_never_reselected": True,
 }
 
 
@@ -386,8 +433,21 @@ def _build_candidate(
     *,
     units_by_id: dict[str, dict[str, Any]],
     decisions_by_unit_id: dict[str, list[dict[str, Any]]],
+    dynamic_status_by_unit_id: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
-    """Build one ``NextBuildableUnitCandidate`` record."""
+    """Build one ``NextBuildableUnitCandidate`` record.
+
+    The dynamic-status overlay (A21a) is applied on top of the
+    A20b static status:
+
+    * If a valid dynamic record exists, its status overrides the
+      static A20b status for buildable purposes (the static value
+      is still emitted on ``status`` for traceability).
+    * If a dynamic record exists but is invalid, the candidate is
+      blocked with ``invalid_dynamic_status`` (fail-closed).
+    * If no dynamic record exists, the candidate falls back to
+      A20b's static status (legacy behaviour).
+    """
     unit_id = _bounded_str(unit.get("id"), 200)
     task_id = _bounded_str(unit.get("roadmap_task_id"), 200)
     phase = _bounded_str(unit.get("phase"), 64)
@@ -405,11 +465,52 @@ def _build_candidate(
 
     block_reasons: list[str] = []
 
-    # --- A20b status check -------------------------------------------------
+    # --- A21a dynamic-status overlay --------------------------------------
+    dyn_record = dynamic_status_by_unit_id.get(unit_id)
+    dyn_status_source = ""
+    if dyn_record is None:
+        # No dynamic record. Fall back to A20b static status.
+        effective_status = status
+    else:
+        dyn_valid = bool(dyn_record.get("valid"))
+        if not dyn_valid:
+            # Fail closed: invalid dynamic record blocks the unit.
+            block_reasons.append("invalid_dynamic_status")
+            effective_status = status
+        else:
+            dyn_status_raw = _bounded_str(dyn_record.get("status"), 32)
+            dyn_source_raw = _bounded_str(dyn_record.get("source"), 64)
+            if dyn_status_raw not in rus.DYNAMIC_UNIT_STATUS:
+                block_reasons.append("invalid_dynamic_status")
+                effective_status = status
+            else:
+                effective_status = dyn_status_raw
+                if dyn_source_raw in rus.DYNAMIC_STATUS_SOURCE:
+                    dyn_status_source = dyn_source_raw
+                # Surface terminal-dynamic-status as a distinct reason
+                # so the operator can see at a glance why a unit no
+                # longer appears in the candidate list.
+                if dyn_status_raw in {"merged", "blocked", "skipped"}:
+                    block_reasons.append("dynamic_status_terminal")
+
+    # --- A20b status check (applied to effective_status) -------------------
+    # The unknown-unit-status check still fires only on truly unknown
+    # A20b static values; the dynamic overlay extends the valid-status
+    # universe but never resurrects an unknown A20b record.
     if status not in rtu.UNIT_STATUS:
         block_reasons.append("unknown_unit_status")
-    elif status not in _BUILDABLE_STATUS:
-        block_reasons.append("non_buildable_status")
+    elif (
+        effective_status != status
+        and effective_status not in rus.DYNAMIC_UNIT_STATUS
+    ):
+        block_reasons.append("invalid_dynamic_status")
+    elif effective_status not in _BUILDABLE_STATUS:
+        # Both static "non_buildable" (e.g. merged in A20b seed) and
+        # dynamic-overlay "non_buildable" (e.g. in_progress / pr_open
+        # / failed) end up here. ``dynamic_status_terminal`` already
+        # covered the explicit terminal case above.
+        if "dynamic_status_terminal" not in block_reasons:
+            block_reasons.append("non_buildable_status")
 
     # --- A20c authority lookup --------------------------------------------
     matching = decisions_by_unit_id.get(unit_id, [])
@@ -430,6 +531,11 @@ def _build_candidate(
             block_reasons.append("unknown_authority")
 
     # --- Prerequisite check ------------------------------------------------
+    # A prerequisite is "satisfied" when its effective status is
+    # ``merged`` — either via the A20b static seed or via a valid
+    # A21a dynamic ledger record. This is what makes the dynamic
+    # overlay useful: a prereq merged through the ledger no longer
+    # requires editing the A20b static seed.
     prereqs_satisfied = True
     if prerequisites:
         for prereq_id in prerequisites:
@@ -438,12 +544,20 @@ def _build_candidate(
                 if "unknown_prerequisite_target" not in block_reasons:
                     block_reasons.append("unknown_prerequisite_target")
                 prereqs_satisfied = False
-            else:
-                prereq_status = prereq_unit.get("status")
-                if prereq_status != "merged":
-                    if "unsatisfied_prerequisite" not in block_reasons:
-                        block_reasons.append("unsatisfied_prerequisite")
-                    prereqs_satisfied = False
+                continue
+            prereq_static = prereq_unit.get("status")
+            prereq_dyn = dynamic_status_by_unit_id.get(prereq_id)
+            prereq_effective = prereq_static
+            if (
+                prereq_dyn is not None
+                and prereq_dyn.get("valid")
+                and prereq_dyn.get("status") in rus.DYNAMIC_UNIT_STATUS
+            ):
+                prereq_effective = prereq_dyn["status"]
+            if prereq_effective != "merged":
+                if "unsatisfied_prerequisite" not in block_reasons:
+                    block_reasons.append("unsatisfied_prerequisite")
+                prereqs_satisfied = False
 
     # --- Eligibility -------------------------------------------------------
     if block_reasons:
@@ -483,6 +597,8 @@ def _build_candidate(
         "phase": phase,
         "title": title,
         "status": status,
+        "effective_status": effective_status,
+        "dynamic_status_source": dyn_status_source,
         "risk_class": risk_class,
         "final_authority_class": final_authority_class,
         "operator_gate": operator_gate,
@@ -493,6 +609,7 @@ def _build_candidate(
         "deterministic_sort_key": sort_key,
         "source_units_artifact": _UNITS_REL_PATH,
         "source_authority_artifact": _AUTHORITY_REL_PATH,
+        "source_status_artifact": _STATUS_REL_PATH,
     }
 
 
@@ -566,6 +683,7 @@ def _select_from_candidates(candidates: list[dict[str, Any]]) -> dict[str, Any]:
             "missing_authority_decision",
             "unknown_unit_status",
             "fail_closed_unknown_evidence",
+            "invalid_dynamic_status",
         }:
             status = "FAIL_CLOSED_INVARIANT"
             reason_str = "fail_closed_on_unknown_or_duplicate_evidence"
@@ -636,9 +754,12 @@ def collect_snapshot(
 ) -> dict[str, Any]:
     """Build the deterministic next-buildable-unit projection.
 
-    Reads ``logs/roadmap_task_units/latest.json`` and
-    ``logs/roadmap_unit_authority/latest.json`` from disk. Fails
-    closed if either upstream is absent or malformed.
+    Reads ``logs/roadmap_task_units/latest.json``,
+    ``logs/roadmap_unit_authority/latest.json``, and (optionally)
+    ``logs/roadmap_unit_status/latest.json`` from disk. Fails closed
+    if A20b or A20c is absent or malformed. The A21a dynamic-status
+    artefact is optional: absence is silent (legacy fallback);
+    top-level malformedness fails closed UPSTREAM_UNAVAILABLE.
     """
     root = repo_root if repo_root is not None else REPO_ROOT
     ts = generated_at_utc if generated_at_utc is not None else _utcnow()
@@ -649,9 +770,13 @@ def collect_snapshot(
     auth_status, auth_payload, auth_err = _load_json_artifact(
         root / _AUTHORITY_REL_PATH
     )
+    status_status, status_payload, status_err = _load_json_artifact(
+        root / _STATUS_REL_PATH
+    )
 
     units_schema_version: str | int = ""
     auth_schema_version: str | int = ""
+    status_schema_version: str | int = ""
 
     if units_status != "ok" or auth_status != "ok":
         # Fail closed loudly. Record the missing artefact in
@@ -675,6 +800,28 @@ def collect_snapshot(
             ts=ts,
             units_schema_version=units_schema_version,
             auth_schema_version=auth_schema_version,
+            status_schema_version=status_schema_version,
+            candidates=[],
+            selection=selection,
+        )
+
+    # A21a is optional. Absence => empty mapping, every unit falls
+    # back to A20b static status. Top-level malformedness => fail
+    # closed (treat as corrupt upstream).
+    if status_status == "malformed":
+        selection = _empty_selection(
+            status="UPSTREAM_UNAVAILABLE",
+            reason=f"malformed_dynamic_status_artifact:{status_err}",
+            candidate_count=0,
+            eligible_count=0,
+            blocked_count=0,
+            fail_closed=True,
+        )
+        return _envelope(
+            ts=ts,
+            units_schema_version=units_schema_version,
+            auth_schema_version=auth_schema_version,
+            status_schema_version=status_schema_version,
             candidates=[],
             selection=selection,
         )
@@ -704,6 +851,24 @@ def collect_snapshot(
             if isinstance(did, str) and did:
                 decisions_by_unit_id.setdefault(did, []).append(d)
 
+    # A21a dynamic status overlay (optional).
+    dynamic_status_by_unit_id: dict[str, dict[str, Any]] = {}
+    if status_status == "ok" and isinstance(status_payload, dict):
+        status_schema_version = status_payload.get("schema_version", "")
+        ledger_records = status_payload.get("ledger_records") or []
+        if isinstance(ledger_records, list):
+            for rec in ledger_records:
+                if not isinstance(rec, dict):
+                    continue
+                ruid = rec.get("unit_id")
+                if not isinstance(ruid, str) or not ruid:
+                    continue
+                # Last-wins is fine because the ledger module itself
+                # surfaces duplicates as ``valid=False`` for every
+                # affected record. Either the existing entry or this
+                # one is already invalid; the candidate will block.
+                dynamic_status_by_unit_id[ruid] = rec
+
     # Build candidates.
     candidates: list[dict[str, Any]] = []
     for u in units[:MAX_CANDIDATES]:
@@ -716,6 +881,7 @@ def collect_snapshot(
             u,
             units_by_id=units_by_id,
             decisions_by_unit_id=decisions_by_unit_id,
+            dynamic_status_by_unit_id=dynamic_status_by_unit_id,
         )
         candidates.append(cand)
 
@@ -727,6 +893,7 @@ def collect_snapshot(
         ts=ts,
         units_schema_version=units_schema_version,
         auth_schema_version=auth_schema_version,
+        status_schema_version=status_schema_version,
         candidates=candidates,
         selection=selection,
     )
@@ -737,6 +904,7 @@ def _envelope(
     ts: str,
     units_schema_version: str | int,
     auth_schema_version: str | int,
+    status_schema_version: str | int,
     candidates: list[dict[str, Any]],
     selection: dict[str, Any],
 ) -> dict[str, Any]:
@@ -751,6 +919,8 @@ def _envelope(
         "source_units_schema_version": units_schema_version,
         "source_authority_module_version": rua.MODULE_VERSION,
         "source_authority_schema_version": auth_schema_version,
+        "source_status_module_version": rus.MODULE_VERSION,
+        "source_status_schema_version": status_schema_version,
         "selector_mode": "default",
         "vocabularies": {
             "next_unit_selection_status": list(NEXT_UNIT_SELECTION_STATUS),
@@ -758,6 +928,9 @@ def _envelope(
             "next_unit_eligibility": list(NEXT_UNIT_ELIGIBILITY),
             "next_unit_source": list(NEXT_UNIT_SOURCE),
             "next_unit_selector_mode": list(NEXT_UNIT_SELECTOR_MODE),
+            "next_unit_dynamic_status_source": list(
+                NEXT_UNIT_DYNAMIC_STATUS_SOURCE
+            ),
             "phase_order": list(_PHASE_ORDER),
             "authority_order": list(_AUTHORITY_ORDER),
             "risk_order": list(_RISK_ORDER),

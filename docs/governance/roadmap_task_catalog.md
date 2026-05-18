@@ -1,9 +1,10 @@
-# Roadmap Task Catalog — A20a + A20b + A20c + A20d + A20e (read-only, deterministic)
+# Roadmap Task Catalog — A20a + A20b + A20c + A20d + A20e + A21a (read-only, deterministic)
 
 > **Status:** A20a implemented; A20b implemented; A20c implemented;
 > A20d implemented; A20e implemented (deterministic next-buildable-unit
-> selector). All five stages are read-only projections; none
-> mutates anything; the selector never executes work, opens
+> selector); A21a implemented (dynamic unit-status ledger,
+> Step 5 foundation). All six stages are read-only projections;
+> none mutates anything; the selector never executes work, opens
 > branches / PRs, merges, or deploys.
 >
 > **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
@@ -20,6 +21,10 @@
 >
 > **A20e module:** [`reporting/roadmap_next_unit.py`](../../reporting/roadmap_next_unit.py)
 > **A20e artefact:** `logs/roadmap_next_unit/latest.json`
+>
+> **A21a module:** [`reporting/roadmap_unit_status.py`](../../reporting/roadmap_unit_status.py)
+> **A21a artefact:** `logs/roadmap_unit_status/latest.json`
+> **A21a governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md)
 >
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.
@@ -847,24 +852,50 @@ implementation unit** opened as its own PR under normal ADE PR
 lifecycle governance. A20e does not open that PR — the operator
 does, using the selector's recommendation as input.
 
-### 11.1 Queue progression log
+### 11.1 Queue progression log (legacy — A20b seed-edit path)
 
-The A20 projections are deterministic / read-only and do not
-auto-discover merged PRs. When a queue-driven Roadmap v6 unit
-lands on `main`, the operator (or a small follow-up
-`chore/a20-*` PR) advances its status in A20b's `_UNIT_SEED`
-so that A20e can recommend the next eligible downstream unit.
-Each transition is recorded here for traceability:
+Until A21a shipped, the A20 projections did not auto-discover
+merged PRs. Each queue-driven Roadmap v6 unit that landed on
+`main` required a small follow-up `chore/a20-*` PR to advance its
+status in A20b's `_UNIT_SEED` so A20e could recommend the next
+eligible downstream unit. Two transitions were recorded by that
+path before §11.2 superseded it:
 
 | Date (UTC) | Unit id | A20b status | Implementing PR | Merge SHA |
 |---|---|---|---|---|
 | 2026-05-18 | `u_v3_15_16_diagnostic_routing_signals_schema_001` | `not_started` → `merged` | [#250](https://github.com/roudjy/trading-agent/pull/250) | `fcb1abbea4bd2ca190fe6e807b3dacd184faa702` |
 | 2026-05-18 | `u_v3_15_16_routing_explanation_reporter_001` | `not_started` → `merged` | [#252](https://github.com/roudjy/trading-agent/pull/252) | `6f588a89b43a2cfec40f92252bde530220877b37` |
 
-This table is informational. The authoritative `status` lives in
-[`reporting/roadmap_task_units.py`](../../reporting/roadmap_task_units.py)
-`_UNIT_SEED` and is pinned by
-[`tests/unit/test_roadmap_task_units.py`](../../tests/unit/test_roadmap_task_units.py).
+This table is informational and frozen. Future merged units are
+recorded in §11.2 via the A21a dynamic ledger instead.
+
+### 11.2 Queue progression log (A21a dynamic ledger path)
+
+[`reporting/roadmap_unit_status.py`](../../reporting/roadmap_unit_status.py)
+(Step 5 / A21a foundation) is now the authoritative source for
+per-unit execution status. The static A20b seed remains the
+authoritative source for **unit definitions** (id, expected
+files, forbidden files, prerequisites, risk hint, authority
+hint), but **execution status** is overlaid by the A21a ledger.
+
+This means a merged unit no longer requires a
+`chore/a20-mark-*-merged` follow-up PR. The bootstrap A21a seed
+already pins the three v3.15.16 routing-layer units as merged
+with their PR numbers and merge SHAs, and the A20e selector
+treats them as `effective_status = "merged"` without any A20b
+edit:
+
+| Date (UTC) | Unit id | Effective status | Implementing PR | Merge SHA | Source |
+|---|---|---|---|---|---|
+| 2026-05-18 | `u_v3_15_16_diagnostic_routing_signals_schema_001` | `merged` | [#250](https://github.com/roudjy/trading-agent/pull/250) | `fcb1abbea4bd2ca190fe6e807b3dacd184faa702` | A21a ledger |
+| 2026-05-18 | `u_v3_15_16_routing_explanation_reporter_001` | `merged` | [#252](https://github.com/roudjy/trading-agent/pull/252) | `6f588a89b43a2cfec40f92252bde530220877b37` | A21a ledger |
+| 2026-05-18 | `u_v3_15_16_routing_governance_doc_001` | `merged` | [#254](https://github.com/roudjy/trading-agent/pull/254) | `df7dc6562ec3cd3a9f87e83e758881bd6fdb16f8` | A21a ledger |
+
+Future merged units append a new record to the A21a seed in the
+same shape. See
+[`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md)
+for the dynamic-ledger schema, the closed vocabularies, and the
+validation / fail-closed contract.
 
 <!-- A20e legacy future-stages section retained below for reference. -->
 ## 12. Future stages — A20 complete
