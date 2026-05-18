@@ -1,10 +1,15 @@
-# Roadmap Task Catalog — A20a (read-only, deterministic seed)
+# Roadmap Task Catalog — A20a + A20b (read-only, deterministic)
 
-> **Status:** Implemented (read-only, deterministic, dry-run by
-> default).
+> **Status:** A20a implemented; A20b implemented (read-only,
+> deterministic, dry-run by default). Both modules are projections;
+> neither classifies authority, nor surfaces to the AAC / dashboard,
+> nor selects a next-buildable unit.
 >
-> **Module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
-> **Output artefact:** `logs/roadmap_task_catalog/latest.json`
+> **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
+> **A20a artefact:** `logs/roadmap_task_catalog/latest.json`
+>
+> **A20b module:** [`reporting/roadmap_task_units.py`](../../reporting/roadmap_task_units.py)
+> **A20b artefact:** `logs/roadmap_task_units/latest.json`
 >
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.
@@ -244,20 +249,163 @@ Until then the absence is explicit and asserted.
 
 ---
 
-## 7. Future stages (A20b–A20e)
+## 7. A20b — Implementation Unit Decomposer (implemented)
 
-The roadmap task catalog is the foundation of a staged sequence.
-Each subsequent stage requires a separate operator-go PR. None of
-them is pre-authorized by A20a.
+A20b consumes the A20a catalog and emits a deterministic
+projection of **PR-sized implementation units** at
+`logs/roadmap_task_units/latest.json`. Each unit records exactly
+how a future PR may slice the work for one `RoadmapTask` — what it
+expects to write, what it must never write, the tests it must run,
+its definition of done, its stop conditions, and the units it
+depends on.
 
-- **A20b — Implementation Unit Decomposer.** Converts each
-  `RoadmapTask` into one or more PR-sized `ImplementationUnit`
-  records with explicit `expected_files[]`, `forbidden_files[]`,
-  `required_tests[]`, `definition_of_done[]`, `stop_conditions[]`,
-  and `prerequisites[]`. Deterministic data, no LLM, no fuzzy
-  parsing. Forbidden files must always include the live / paper /
-  shadow / risk / broker / execution globs and the frozen-contract
-  paths, regardless of the unit's primary surface.
+A20b is **decomposition data**, not heuristics. The
+unit→file mapping is hand-authored as a Python literal inside
+[`reporting/roadmap_task_units.py`](../../reporting/roadmap_task_units.py)
+and pinned by [`tests/unit/test_roadmap_task_units.py`](../../tests/unit/test_roadmap_task_units.py).
+There is no LLM, no fuzzy parsing, and no runtime parsing of
+canonical roadmap documents. The decomposer derives task identity
+from the in-memory A20a catalog only.
+
+### 7.1 PR-sized unit principle
+
+Each `ImplementationUnit` represents one coherent, atomic, mergeable
+slice of future work. Phases with multiple distinct concerns
+(routing signals + routing explanation + governance doc) are
+decomposed into multiple units rather than one giant unit. Each
+unit's `prerequisites[]` records its dependency edges so a future
+A20e selector can topologically order them.
+
+### 7.2 `ImplementationUnit` schema
+
+Per-unit field list is exact and ordered:
+
+```
+id                        : str  ≤128 chars; stable opaque identifier
+roadmap_task_id           : str  RoadmapTask.id this unit belongs to
+title                     : str  ≤200 chars
+phase                     : str  ∈ roadmap_task_catalog.PHASE
+unit_kind                 : str  ∈ UNIT_KIND
+target_layer              : str  ∈ TARGET_LAYER (mirror of catalog)
+source_requirement_ids    : list[str]  RoadmapRequirement.id values
+expected_files            : list[str]  paths the unit may write to
+forbidden_files           : list[str]  paths the unit must NOT touch
+forbidden_surface_reasons : list[str]  ⊆ FORBIDDEN_SURFACE_REASON
+required_tests            : list[str]  pytest selectors + governance lint
+definition_of_done        : list[str]  bounded DoD bullets
+stop_conditions           : list[str]  bounded STOP conditions
+prerequisites             : list[str]  other ImplementationUnit.id values
+risk_class                : str  ∈ {LOW, MEDIUM, HIGH, UNKNOWN}
+authority_hint            : str  ∈ AUTHORITY_HINT (NOT final authority)
+operator_gate             : str  ∈ OPERATOR_GATE
+status                    : str  ∈ UNIT_STATUS (seed value: not_started)
+```
+
+### 7.3 `expected_files` / `forbidden_files` semantics
+
+`expected_files[]` enumerates the **only** paths the future
+implementation PR is permitted to touch. Anything outside this list
+is forbidden by construction. The decomposer never emits a unit
+whose `expected_files[]` overlaps a paper / shadow / live /
+trading / broker / agent.risk / agent.execution surface, the
+`.claude/` tree, `dashboard/dashboard.py`, or the frozen contracts.
+
+`forbidden_files[]` enumerates additional paths the future PR must
+explicitly **not** touch. Every unit's `forbidden_files[]` carries
+the full baseline at minimum:
+
+- `.claude/**`
+- `dashboard/dashboard.py`
+- `research/research_latest.json`, `research/strategy_matrix.csv`
+- `automation/live_gate.py`, `broker/**`, `agent/risk/**`,
+  `agent/execution/**`
+- `live/**`, `paper/**`, `shadow/**`, `trading/**`
+- `.github/branch_protection_main.yml`
+- the canonical policy docs and the canonical roadmap docs
+- the existing A17 admission-policy module and the AAC aggregator
+- `tests/regression/**`
+- frozen schemas under `artifacts/`
+
+These paths appear in the unit records only as **forbidden-path
+declarations**. The unit-decomposer module itself never imports
+those packages and never touches those paths at runtime; the
+strings are metadata.
+
+### 7.4 `forbidden_surface_reasons` semantics
+
+Each unit declares the closed-vocabulary reasons that justify its
+baseline + extra `forbidden_files` entries. Every unit includes
+`frozen_contract`, `live_path`, `claude_governance_hook`,
+`dashboard_wiring`, and `branch_protection_config` at minimum.
+
+### 7.5 `required_tests` / `definition_of_done` / `stop_conditions`
+
+- `required_tests[]` lists pytest selectors (or `scripts/`
+  invocations) the future PR must run green. Every unit inherits a
+  baseline: smoke, governance_lint, and the actual frozen-contract
+  / public-output / authority regression tests present in this
+  repo.
+- `definition_of_done[]` lists the observable conditions that must
+  be true at PR-open time. The baseline includes: clean module
+  import, atomic-write allowlist enforcement, deterministic output,
+  frozen contracts unchanged, no live / paper / shadow / broker /
+  risk / execution path changes, no `dashboard/dashboard.py` change,
+  no `.claude/**` change, no canonical-roadmap or canonical-policy
+  edit, PR opened via the standard `gh pr create` lifecycle (no
+  `--admin`, no force push, no hook bypass).
+- `stop_conditions[]` lists immediate-abort triggers. The baseline
+  includes: forbidden import / token in source, forbidden path in
+  diff, regression-test failure, hook failure, any attempt to
+  grant runtime / trading authority.
+
+### 7.6 `prerequisites` semantics
+
+`prerequisites[]` lists other `ImplementationUnit.id` values that
+must be `status = merged` before this unit becomes eligible to
+implement. A20e (future) will use this for deterministic topological
+ordering. A20b verifies that every prerequisite references a known
+unit.
+
+### 7.7 `authority_hint` is **not** final authority
+
+`authority_hint ∈ {AUTO_ALLOWED_CANDIDATE, NEEDS_HUMAN_CANDIDATE,
+PERMANENTLY_DENIED_SURFACE}`. The hint is a deterministic,
+conservative classification produced by hand-authored seed data; it
+is **not** a substitute for the real classifier output. A20c will
+replace each hint with the actual `reporting.execution_authority`
+verdict aggregated across per-file decisions. Until A20c lands, the
+hint is informational only. Unknown inputs fail closed to
+`NEEDS_HUMAN_CANDIDATE`.
+
+### 7.8 What A20b explicitly does NOT do
+
+- **No final authority classification.** A20b does not import or
+  call `reporting.execution_authority`. A20c will integrate the
+  real classifier and replace each unit's hint with the actual
+  verdict.
+- **No AAC / dashboard visibility.** A20b emits only
+  `logs/roadmap_task_units/latest.json`. The AAC aggregator and
+  `dashboard/dashboard.py` are untouched. A20d will (in a separate
+  operator-go PR) extend the AAC aggregator's pinned upstream
+  catalog to consume A20b's artefact.
+- **No next-buildable-unit selector.** A20e will (in a separate
+  operator-go PR) compute eligibility and emit a deterministic
+  `selected_unit_id` over A20c output.
+- **No unit grants runtime / trading / paper / shadow / live
+  authority.** Each unit's `forbidden_files[]` blocks those
+  surfaces and the projection's `decomposition_invariants` pin
+  `grants_*_authority = false` across every authority lane.
+- **No new units under `phase == "addendum_2"` or
+  `phase == "addendum_3"`.** Catalog absence propagates: the
+  decomposer reads the A20a catalog at runtime and skips any
+  unit whose phase is not present in the catalog's task list.
+
+## 8. Future stages (A20c–A20e)
+
+The roadmap task catalog + unit decomposer is the foundation of a
+staged sequence. Each subsequent stage requires a separate
+operator-go PR. None of them is pre-authorized by A20a or A20b.
+
 - **A20c — Authority / Risk Classifier Integration.** Annotates
   each `ImplementationUnit` with an aggregate
   `UnitAuthorityDecision` derived purely from
@@ -265,7 +413,10 @@ them is pre-authorized by A20a.
   Aggregation is max-severity over per-file decisions. Fail-closed:
   unknown risk → `NEEDS_HUMAN`; any protected-path / frozen / live
   surface → `PERMANENTLY_DENIED` or `NEEDS_HUMAN` per the
-  classifier's existing policy.
+  classifier's existing policy. A20c will flip
+  `calls_execution_authority_classifier` and
+  `final_authority_classified` from `false` to `true` in the
+  projection's invariant block.
 - **A20d — Read-only AAC / Task-Board Visibility.** Exposes the
   catalog + units + authority decisions to the operator through
   the existing read-only surfaces (`reporting/task_board.py`,
@@ -273,7 +424,8 @@ them is pre-authorized by A20a.
   no approval buttons, no `dashboard/dashboard.py` edit unless a
   separate operator-authored governance-bootstrap PR enables it.
   Any AAC aggregator cardinality change requires its own
-  operator-go PR.
+  operator-go PR. A20d will flip `aac_visibility_present` to
+  `true`.
 - **A20e — Deterministic Next-Buildable-Unit Selector.**
   Pure-deterministic filter + sort over A20c output. Eligibility
   requires: `status ∈ {not_started, ready}`; all prerequisites in
@@ -281,10 +433,11 @@ them is pre-authorized by A20a.
   `aggregate_decision = AUTO_ALLOWED`; no triggered
   forbidden-surface reasons. Fail-closed: zero eligible →
   `selected_unit_id = None` with `selection_reason =
-  "no_eligible_units"`. No hidden LLM judgment.
+  "no_eligible_units"`. No hidden LLM judgment. A20e will flip
+  `next_buildable_selector_present` to `true`.
 
-A20a does not produce, imply, or depend on any of the above. Each
-must justify its own scope on its own PR.
+Neither A20a nor A20b produces, implies, or depends on any of the
+above. Each must justify its own scope on its own PR.
 
 ---
 
@@ -325,6 +478,8 @@ refuses every path outside `logs/roadmap_task_catalog/`.
 
 ## 10. Test coverage
 
+### 10.1 A20a
+
 Pinned in [`tests/unit/test_roadmap_task_catalog.py`](../../tests/unit/test_roadmap_task_catalog.py):
 
 - Closed vocabularies are exact and complete.
@@ -356,6 +511,72 @@ Pinned in [`tests/unit/test_roadmap_task_catalog.py`](../../tests/unit/test_road
   agent.risk, agent.execution, live, paper, shadow, trading,
   research.run_research, research_latest.json, strategy_matrix.csv,
   `gh`, `git`).
+
+### 10.2 A20b
+
+Pinned in [`tests/unit/test_roadmap_task_units.py`](../../tests/unit/test_roadmap_task_units.py):
+
+- Closed vocabularies (`UNIT_KIND`, `RISK_CLASS`, `AUTHORITY_HINT`,
+  `OPERATOR_GATE`, `UNIT_STATUS`, `TARGET_LAYER`,
+  `FORBIDDEN_SURFACE_REASON`) are exact.
+- Schema field tuples (`IMPLEMENTATION_UNIT_FIELDS`,
+  `UNIT_DECOMPOSITION_PROJECTION_FIELDS`) are exact and ordered.
+- Every emitted unit satisfies the closed vocabularies on every
+  closed-vocab field.
+- Every emitted unit has non-empty `expected_files`,
+  `forbidden_files`, `forbidden_surface_reasons`, `required_tests`,
+  `definition_of_done`, `stop_conditions`.
+- Every emitted unit has a `prerequisites` field (list, may be
+  empty); every referenced prerequisite resolves to a known unit.
+- Every A20a `RoadmapTask` is decomposed into at least one unit;
+  v3.15.16, v3.15.17, v3.15.18, v3.15.19, v3.15.20 each have more
+  than one unit; Addendum 1 has ≥3 units.
+- No unit is emitted under `phase == "addendum_2"` or
+  `phase == "addendum_3"`.
+- No unit declares paper / shadow / live / trading / broker /
+  agent.risk / agent.execution / `.claude/` / `dashboard.py` /
+  frozen-contract surfaces as `expected_files` targets.
+- Every unit's `forbidden_files` includes the full baseline list.
+- Every unit's `forbidden_surface_reasons` includes the baseline
+  reasons (`frozen_contract`, `live_path`,
+  `claude_governance_hook`, `dashboard_wiring`,
+  `branch_protection_config`).
+- `authority_hint` fail-closed: unknown inputs resolve to
+  `NEEDS_HUMAN_CANDIDATE`.
+- Decomposition invariants pin: no runtime / trading / paper /
+  shadow / broker / risk / live authority granted;
+  `step5_implementation_allowed = false`;
+  `STEP5_ENABLED_SUBSTAGE = "none"`; Addendum 2 / 3 absence flags;
+  no execution_authority classifier called; no AAC visibility;
+  no next-buildable-unit selector.
+- Deterministic byte-identical output for identical input with
+  injected `generated_at_utc`.
+- Atomic-write allowlist refuses any path outside
+  `logs/roadmap_task_units/` — frozen-contract paths in particular.
+- CLI: `--no-write` writes nothing; `--status` writes nothing and
+  emits invariant strings; default writes to the allowlisted path
+  with correct schema; `--indent 0` produces compact output.
+- Module source carries no forbidden imports (subprocess, socket,
+  urllib, http, requests, dashboard, automation, broker,
+  agent.risk, agent.execution, research.run_research,
+  reporting.intelligent_routing, reporting.execution_authority,
+  reporting.development_queue_admission_policy,
+  reporting.development_agent_activity_timeline) and no forbidden
+  runtime tokens (`subprocess.run`, `subprocess.Popen`,
+  `os.system`, `os.popen`, `shell=True`, `gh pr`, `git push`,
+  `git commit`, `eval(`, `exec(`, `anthropic`, `openai`).
+- Module does NOT import or call `reporting.execution_authority`
+  (the canonical classifier integration is A20c's job).
+- Module does NOT reference canonical roadmap file paths as
+  runtime read targets (no fuzzy parsing of the roadmap docs).
+
+The strings `research/research_latest.json`,
+`research/strategy_matrix.csv`, `live/**`, `paper/**`, `shadow/**`,
+`broker/**`, `agent/risk/**`, and `agent/execution/**` are
+intentionally allowed to appear inside the baseline `forbidden_files`
+declarations and inside this governance doc. They are forbidden as
+import targets, write targets, and runtime call surfaces; they are
+**not** forbidden as forbidden-path declarations.
 
 ---
 
