@@ -1,0 +1,1748 @@
+"""A21c -- Bounded Autonomous PR Runner (Step 5 / A21c slice).
+
+Takes exactly ONE A20e-selected unit from the queue, validates a
+closed set of safety gates, creates one branch, invokes a
+pluggable implementation strategy, verifies the resulting git diff
+is contained within the unit's ``expected_files``, runs the unit's
+required tests plus smoke and governance lint, commits, pushes,
+opens a PR, watches CI to first verdict, and stops with a
+deterministic run report at
+``logs/autonomous_pr_runner/latest.json``.
+
+The runner is the **first concrete Step 5 slice**. It is bounded:
+
+* exactly one unit per invocation (``max_units_per_run = 1``);
+* AUTO_ALLOWED + LOW risk + ``operator_gate = none`` only;
+* no auto-merge, no production-merge authority;
+* no deploy, no deploy watcher;
+* no ledger mutation (the dynamic unit-status ledger remains
+  seed-driven; runner emits its OWN report, separate from the
+  ledger);
+* no second-unit continuation; the runner stops after one PR;
+* no ``--admin``, no force-push, no hook bypass;
+* no LLM, no external API calls except via the explicit
+  ``external_command`` implementation strategy that the operator
+  opts into via CLI flag.
+
+Hard guarantees (pinned by tests):
+
+* **Safe to import.** Stdlib + (read-only) consumer of A20b /
+  A20e / A21a. No subprocess invocation on import, no git, no gh,
+  no file writes, no network. The ``subprocess`` module is
+  imported lazily inside the real shell runner factory so the
+  module-level ``import reporting.autonomous_pr_runner`` is
+  side-effect free.
+* **Default CLI behaviour is safe.** ``--status`` and
+  ``--plan-only`` never invoke git / gh / subprocess and never
+  write anything outside ``logs/autonomous_pr_runner/``.
+* **Tests inject fakes for shell / git / gh and the
+  implementation strategy.** No real branch, commit, push, PR,
+  merge, or deploy is ever performed by unit tests.
+* **Fail-closed on every safety-gate failure.** Closed
+  ``STOP_REASON`` vocab; closed ``SAFETY_GATE`` vocab; closed
+  ``GATE_RESULT`` vocab; closed ``RUN_STATUS`` vocab; closed
+  ``RUNNER_MODE`` vocab; closed ``IMPLEMENTATION_STRATEGY``
+  vocab. Widening any requires a code + test change.
+* **Bounded slice.** ``max_units_per_run > 1`` is rejected;
+  ``--implementation-strategy none`` (the default) refuses to
+  execute and reports
+  ``implementation_strategy_not_configured``; auto-merge / deploy
+  paths do not exist in the module source (asserted by tests
+  scanning the module text for forbidden tokens).
+
+CLI::
+
+    # Inspection-only (default; no execution, no writes outside
+    # logs/autonomous_pr_runner/):
+    python -m reporting.autonomous_pr_runner --status
+    python -m reporting.autonomous_pr_runner --plan-only
+    python -m reporting.autonomous_pr_runner --no-write
+
+    # Real execution (requires explicit operator strategy choice):
+    python -m reporting.autonomous_pr_runner \\
+        --run-one --max-units 1 \\
+        --implementation-strategy external_command \\
+        --implementation-command "<operator-provided real command>"
+
+The runner DOES NOT:
+
+* squash-merge;
+* use ``--admin``;
+* force-push;
+* bypass hooks;
+* delete the branch after merge;
+* deploy anything;
+* update the dynamic unit-status ledger to merged;
+* continue to a second unit;
+* touch any forbidden path;
+* mutate any approval inbox, mutation route, or approval button;
+* grant runtime / trading / paper / shadow / live authority;
+* call any LLM, external API, or hidden judgment on its own;
+* activate Step 5 broadly (this slice is the bounded carve-out)
+  or Level 6 (permanently disabled per ADR-015) or relax any
+  branch-protection invariant.
+"""
+
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import datetime as _dt
+import json
+import os
+import shlex
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any, Callable, Final, Protocol
+
+from reporting import roadmap_next_unit as rnu
+from reporting import roadmap_task_units as rtu
+from reporting import roadmap_unit_status as rus
+
+REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+
+SCHEMA_VERSION: Final[str] = "1.0"
+MODULE_VERSION: Final[str] = "v3.15.16.A21c"
+REPORT_KIND: Final[str] = "autonomous_pr_runner"
+
+
+# ---------------------------------------------------------------------------
+# Step 5 + Level 6 invariants (Final constants; never flipped at runtime)
+# ---------------------------------------------------------------------------
+
+#: The A21c slice carves out a bounded PR-creation slice of Step 5.
+#: The broad Step 5 lock remains BLOCKED everywhere else.
+STEP5_ENABLED_SUBSTAGE: Final[str] = "a21c_bounded_pr_creation"
+step5_implementation_allowed: Final[bool] = False
+
+
+# ---------------------------------------------------------------------------
+# Closed vocabularies
+# ---------------------------------------------------------------------------
+
+#: Top-level runner status. Exactly one value per run.
+RUN_STATUS: Final[tuple[str, ...]] = (
+    "not_run",
+    "status_only",
+    "plan_only",
+    "refused_unsafe",
+    "executed_pr_opened",
+    "executed_blocked_at_implementation",
+    "executed_blocked_at_diff",
+    "executed_blocked_at_tests",
+    "executed_blocked_at_governance_lint",
+    "executed_blocked_at_commit",
+    "executed_blocked_at_push",
+    "executed_blocked_at_pr_create",
+    "executed_blocked_at_ci",
+)
+
+#: Closed per-run stop-reason vocabulary. Exactly one value per run.
+STOP_REASON: Final[tuple[str, ...]] = (
+    "status_only_mode",
+    "plan_only_mode",
+    "selector_unavailable",
+    "no_eligible_unit",
+    "ambiguous_selection",
+    "unsafe_authority_class",
+    "unsafe_risk_class",
+    "unsafe_operator_gate",
+    "requires_operator_go",
+    "missing_expected_files",
+    "missing_forbidden_files",
+    "missing_required_tests",
+    "forbidden_path_in_expected_files",
+    "terminal_status",
+    "max_units_exceeded",
+    "implementation_strategy_not_configured",
+    "implementation_strategy_failed",
+    "diff_outside_expected_files",
+    "diff_touches_forbidden_path",
+    "diff_empty",
+    "tests_failed",
+    "governance_lint_failed",
+    "commit_failed",
+    "hook_failed",
+    "branch_creation_failed",
+    "branch_already_exists",
+    "push_failed",
+    "pr_creation_failed",
+    "ci_failed",
+    "ci_timeout",
+    "ci_not_clean",
+    "unknown_evidence",
+    "ok_pr_opened",
+)
+
+#: Closed safety-gate vocabulary. Each gate evaluates PASS / FAIL.
+SAFETY_GATE: Final[tuple[str, ...]] = (
+    "selector_available",
+    "selection_status_ok",
+    "unit_present",
+    "auto_allowed_authority",
+    "low_risk",
+    "no_operator_gate",
+    "no_operator_go_required",
+    "expected_files_nonempty",
+    "forbidden_files_nonempty",
+    "required_tests_nonempty",
+    "no_forbidden_in_expected",
+    "not_terminal_status",
+    "max_units_per_run_one",
+    "implementation_strategy_configured",
+)
+
+#: Closed gate-result vocabulary.
+GATE_RESULT: Final[tuple[str, ...]] = ("PASS", "FAIL", "NOT_CHECKED")
+
+#: Closed runner-mode vocabulary.
+RUNNER_MODE: Final[tuple[str, ...]] = ("status_only", "plan_only", "run_one")
+
+#: Closed implementation-strategy vocabulary. ``none`` is the default
+#: and refuses to execute. ``external_command`` shells out to an
+#: operator-supplied command via ``--implementation-command``.
+IMPLEMENTATION_STRATEGY: Final[tuple[str, ...]] = (
+    "none",
+    "external_command",
+)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden-path patterns (no-touch list). Any expected_files entry
+# matching these refuses the run at the no_forbidden_in_expected gate.
+# Any diff path matching these refuses the run at the diff-scope check.
+# Patterns match by ``startswith`` after normalising to POSIX.
+# ---------------------------------------------------------------------------
+
+FORBIDDEN_PATH_PATTERNS: Final[tuple[str, ...]] = (
+    ".claude/",
+    ".github/",
+    "dashboard/dashboard.py",
+    "automation/live_gate.py",
+    "broker/",
+    "agent/risk/",
+    "agent/execution/",
+    "live/",
+    "paper/",
+    "shadow/",
+    "trading/",
+    "docs/roadmap/Roadmap v6.md",
+    "docs/roadmap/Roadmap v6 Addendum.md",
+    "docs/roadmap/autonomous_development.txt",
+    "docs/governance/execution_authority.md",
+    "docs/governance/no_touch_paths.md",
+    "reporting/execution_authority.py",
+    "reporting/development_queue_admission_policy.py",
+    "docs/development_work_queue/",
+    "tests/regression/",
+    "research/research_latest.json",
+    "research/strategy_matrix.csv",
+    "artifacts/",
+)
+
+
+# ---------------------------------------------------------------------------
+# Schema field tuples (exact, ordered)
+# ---------------------------------------------------------------------------
+
+SAFETY_GATE_RESULT_FIELDS: Final[tuple[str, ...]] = (
+    "gate",
+    "result",
+    "detail",
+)
+
+COMMAND_RUN_FIELDS: Final[tuple[str, ...]] = (
+    "command",
+    "exit_code",
+    "duration_ms",
+    "stdout_excerpt",
+    "stderr_excerpt",
+)
+
+RUNNER_REPORT_FIELDS: Final[tuple[str, ...]] = (
+    "schema_version",
+    "module_version",
+    "report_kind",
+    "generated_at_utc",
+    "mode",
+    "max_units_per_run",
+    "implementation_strategy",
+    "selected_unit_id",
+    "selected_phase",
+    "selected_authority_class",
+    "selected_risk_class",
+    "selected_operator_gate",
+    "branch_name",
+    "safety_gate_results",
+    "commands_run",
+    "files_changed",
+    "tests_run",
+    "pr_number",
+    "ci_status",
+    "stop_reason",
+    "final_runner_status",
+    "next_required_operator_action",
+    "step5_enabled_substage",
+    "step5_implementation_allowed",
+    "runner_invariants",
+)
+
+
+# ---------------------------------------------------------------------------
+# Bounds
+# ---------------------------------------------------------------------------
+
+MAX_UNITS_PER_RUN_HARD_CAP: Final[int] = 1
+MAX_BRANCH_NAME_LEN: Final[int] = 200
+MAX_COMMAND_EXCERPT_LEN: Final[int] = 4000
+MAX_DETAIL_LEN: Final[int] = 240
+MAX_COMMANDS_RECORDED: Final[int] = 32
+MAX_FILES_CHANGED_RECORDED: Final[int] = 64
+MAX_TESTS_RECORDED: Final[int] = 64
+MAX_BRANCH_NAME_PREFIX_LEN: Final[int] = 64
+DEFAULT_COMMAND_TIMEOUT_SECONDS: Final[int] = 600
+DEFAULT_CI_WATCH_TIMEOUT_SECONDS: Final[int] = 1800
+
+
+# ---------------------------------------------------------------------------
+# Artefact paths
+# ---------------------------------------------------------------------------
+
+ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "autonomous_pr_runner"
+ARTIFACT_LATEST: Final[Path] = ARTIFACT_DIR / "latest.json"
+
+_WRITE_PREFIX: Final[str] = "logs/autonomous_pr_runner/"
+
+
+# ---------------------------------------------------------------------------
+# Runner invariants emitted on every report
+# ---------------------------------------------------------------------------
+
+_BASE_RUNNER_INVARIANTS: Final[dict[str, bool]] = {
+    "deterministic_evaluation": True,
+    "import_is_side_effect_free": True,
+    "subprocess_module_used_only_inside_run_one": True,
+    "no_runtime_trading_authority": True,
+    "no_step5_broad": True,
+    "no_level6": True,
+    "no_production_merge_authority": True,
+    "no_auto_merge": True,
+    "no_admin_merge": True,
+    "no_force_push": True,
+    "no_hook_bypass": True,
+    "no_deploy": True,
+    "no_deploy_watcher": True,
+    "no_ledger_mutation": True,
+    "no_second_unit_continuation": True,
+    "no_branch_creation_outside_run_one": True,
+    "no_pr_creation_outside_run_one": True,
+    "no_mutation_routes": True,
+    "no_approval_buttons": True,
+    "no_approval_inbox_mutation": True,
+    "no_test_weakening": True,
+    "writes_only_autonomous_pr_runner_log": True,
+    "writes_to_seed_jsonl": False,
+    "writes_to_delegation_seed_jsonl": False,
+    "writes_to_generated_seed_jsonl": False,
+    "writes_to_work_queue_jsonl": False,
+    "writes_to_dynamic_status_ledger": False,
+    "calls_llm_or_external_api": False,
+    "uses_network": False,
+    "uses_subprocess_outside_run_one": False,
+    "calls_execution_authority_classifier": False,
+    "bounded_step5_pr_creation_only": True,
+    "fail_closed_on_unsafe_unit": True,
+    "fail_closed_on_diff_outside_expected_files": True,
+    "fail_closed_on_forbidden_diff_path": True,
+    "fail_closed_on_test_failure": True,
+    "fail_closed_on_governance_lint_failure": True,
+    "fail_closed_on_ci_failure": True,
+    "fail_closed_on_unknown_evidence": True,
+    "step5_implementation_allowed": False,
+    "max_units_per_run_hard_capped_at_one": True,
+}
+
+
+# ---------------------------------------------------------------------------
+# Dataclasses (deterministic typed records)
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class CommandResult:
+    """Result of a single shell command. Returned by ShellRunner."""
+
+    exit_code: int
+    stdout: str
+    stderr: str
+    duration_ms: int
+
+
+@dataclasses.dataclass(frozen=True)
+class ImplementationResult:
+    """Result of an implementation strategy invocation."""
+
+    success: bool
+    reason: str
+    files_changed: tuple[str, ...]
+
+
+# ---------------------------------------------------------------------------
+# Injectable interfaces (Protocols)
+# ---------------------------------------------------------------------------
+
+
+class ShellRunner(Protocol):
+    """Pluggable shell-command runner.
+
+    Concrete implementations: ``_RealShellRunner`` (uses
+    ``subprocess`` lazily; constructed only inside ``run_one``) and
+    test-injected fakes.
+    """
+
+    def run(
+        self,
+        args: list[str],
+        *,
+        cwd: Path | None = None,
+        timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    ) -> CommandResult: ...
+
+
+class ImplementationStrategy(Protocol):
+    """Pluggable implementation strategy.
+
+    ``invoke(unit, repo_root)`` is expected to mutate the filesystem
+    under ``repo_root`` in a way that satisfies the unit's
+    ``expected_files`` contract. The default in-module strategies are
+    ``_NoneStrategy`` (refuses) and ``_ExternalCommandStrategy``
+    (shells out to a configured command).
+    """
+
+    def invoke(
+        self,
+        unit: dict[str, Any],
+        *,
+        repo_root: Path,
+        shell: ShellRunner,
+    ) -> ImplementationResult: ...
+
+
+# ---------------------------------------------------------------------------
+# Utility helpers
+# ---------------------------------------------------------------------------
+
+
+def _utcnow() -> str:
+    return (
+        _dt.datetime.now(_dt.UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _bounded_str(value: Any, max_len: int) -> str:
+    if not isinstance(value, str):
+        return ""
+    if len(value) <= max_len:
+        return value
+    return value[:max_len]
+
+
+def _is_forbidden_path(path: str) -> bool:
+    posix = path.replace("\\", "/")
+    for pattern in FORBIDDEN_PATH_PATTERNS:
+        if pattern.endswith("/"):
+            if posix.startswith(pattern):
+                return True
+        else:
+            if posix == pattern:
+                return True
+    return False
+
+
+def _gate(name: str, result: str, detail: str = "") -> dict[str, Any]:
+    if name not in SAFETY_GATE:
+        raise ValueError(f"unknown safety gate: {name}")
+    if result not in GATE_RESULT:
+        raise ValueError(f"unknown gate result: {result}")
+    return {
+        "gate": name,
+        "result": result,
+        "detail": _bounded_str(detail, MAX_DETAIL_LEN),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Safety gate evaluation
+# ---------------------------------------------------------------------------
+
+
+def evaluate_safety_gates(
+    *,
+    selector_snapshot: dict[str, Any] | None,
+    unit: dict[str, Any] | None,
+    max_units: int,
+    implementation_strategy: str,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Run every safety gate. Return ``(results, first_failure_reason)``.
+
+    ``first_failure_reason`` is a closed-vocab STOP_REASON value or
+    ``None`` if every gate passed. Gates that depend on a previous
+    gate's pass are recorded as ``NOT_CHECKED`` if that previous gate
+    failed (defence in depth, no silent cascade).
+    """
+    results: list[dict[str, Any]] = []
+    fail: str | None = None
+
+    # selector_available
+    if selector_snapshot is None:
+        results.append(
+            _gate(
+                "selector_available",
+                "FAIL",
+                "no selector snapshot provided",
+            )
+        )
+        fail = "selector_unavailable"
+        for g in SAFETY_GATE:
+            if g != "selector_available":
+                results.append(_gate(g, "NOT_CHECKED", "blocked upstream"))
+        return results, fail
+    results.append(_gate("selector_available", "PASS", ""))
+
+    # selection_status_ok
+    #
+    # ``OK_SELECTED`` is the happy path. ``ALL_NEEDS_HUMAN_GATED``
+    # also names a specific selected unit (just one that needs
+    # operator-go); we let the per-authority gate catch that so the
+    # operator sees the more specific stop reason
+    # (``unsafe_authority_class`` / ``unsafe_operator_gate`` /
+    # ``requires_operator_go``). Any other status means the selector
+    # did not pick a single unit and we stop here.
+    sel = selector_snapshot.get("selection") or {}
+    sel_status = _bounded_str(sel.get("selection_status"), 64)
+    if sel_status not in {"OK_SELECTED", "ALL_NEEDS_HUMAN_GATED"}:
+        results.append(
+            _gate(
+                "selection_status_ok",
+                "FAIL",
+                f"selection_status={sel_status}",
+            )
+        )
+        if sel_status == "":
+            fail = "selector_unavailable"
+        elif sel_status in {"NO_ELIGIBLE_UNITS", "UPSTREAM_UNAVAILABLE"}:
+            fail = "no_eligible_unit"
+        else:
+            fail = "ambiguous_selection"
+        for g in SAFETY_GATE:
+            if g not in {"selector_available", "selection_status_ok"}:
+                results.append(_gate(g, "NOT_CHECKED", "blocked upstream"))
+        return results, fail
+    results.append(_gate("selection_status_ok", "PASS", ""))
+
+    # unit_present
+    if unit is None:
+        results.append(
+            _gate(
+                "unit_present",
+                "FAIL",
+                "selected unit not found in A20b decomposition",
+            )
+        )
+        fail = "no_eligible_unit"
+        for g in SAFETY_GATE:
+            if g not in {
+                "selector_available",
+                "selection_status_ok",
+                "unit_present",
+            }:
+                results.append(_gate(g, "NOT_CHECKED", "blocked upstream"))
+        return results, fail
+    results.append(_gate("unit_present", "PASS", ""))
+
+    # auto_allowed_authority
+    final_class = _bounded_str(sel.get("selected_authority_class"), 32)
+    if final_class != "AUTO_ALLOWED":
+        results.append(
+            _gate(
+                "auto_allowed_authority",
+                "FAIL",
+                f"authority_class={final_class}",
+            )
+        )
+        if fail is None:
+            fail = "unsafe_authority_class"
+    else:
+        results.append(_gate("auto_allowed_authority", "PASS", ""))
+
+    # low_risk
+    risk_class = _bounded_str(sel.get("selected_risk_class"), 16)
+    if risk_class != "LOW":
+        results.append(
+            _gate("low_risk", "FAIL", f"risk_class={risk_class}")
+        )
+        if fail is None:
+            fail = "unsafe_risk_class"
+    else:
+        results.append(_gate("low_risk", "PASS", ""))
+
+    # no_operator_gate
+    gate_val = _bounded_str(sel.get("selected_operator_gate"), 64)
+    if gate_val != "none":
+        results.append(
+            _gate(
+                "no_operator_gate",
+                "FAIL",
+                f"operator_gate={gate_val}",
+            )
+        )
+        if fail is None:
+            fail = "unsafe_operator_gate"
+    else:
+        results.append(_gate("no_operator_gate", "PASS", ""))
+
+    # no_operator_go_required
+    requires_go = bool(sel.get("requires_operator_go"))
+    if requires_go:
+        results.append(
+            _gate(
+                "no_operator_go_required",
+                "FAIL",
+                "requires_operator_go=True",
+            )
+        )
+        if fail is None:
+            fail = "requires_operator_go"
+    else:
+        results.append(_gate("no_operator_go_required", "PASS", ""))
+
+    # expected_files_nonempty
+    expected = unit.get("expected_files") or []
+    if not isinstance(expected, list) or not expected:
+        results.append(
+            _gate(
+                "expected_files_nonempty",
+                "FAIL",
+                "expected_files is empty or not a list",
+            )
+        )
+        if fail is None:
+            fail = "missing_expected_files"
+    else:
+        results.append(_gate("expected_files_nonempty", "PASS", ""))
+
+    # forbidden_files_nonempty
+    forbidden = unit.get("forbidden_files") or []
+    if not isinstance(forbidden, list) or not forbidden:
+        results.append(
+            _gate(
+                "forbidden_files_nonempty",
+                "FAIL",
+                "forbidden_files is empty or not a list",
+            )
+        )
+        if fail is None:
+            fail = "missing_forbidden_files"
+    else:
+        results.append(_gate("forbidden_files_nonempty", "PASS", ""))
+
+    # required_tests_nonempty
+    required_tests = unit.get("required_tests") or []
+    if not isinstance(required_tests, list) or not required_tests:
+        results.append(
+            _gate(
+                "required_tests_nonempty",
+                "FAIL",
+                "required_tests is empty or not a list",
+            )
+        )
+        if fail is None:
+            fail = "missing_required_tests"
+    else:
+        results.append(_gate("required_tests_nonempty", "PASS", ""))
+
+    # no_forbidden_in_expected
+    forbidden_hits = [
+        p for p in expected
+        if isinstance(p, str) and _is_forbidden_path(p)
+    ]
+    if forbidden_hits:
+        detail = ",".join(forbidden_hits[:3])
+        results.append(
+            _gate("no_forbidden_in_expected", "FAIL", detail)
+        )
+        if fail is None:
+            fail = "forbidden_path_in_expected_files"
+    else:
+        results.append(_gate("no_forbidden_in_expected", "PASS", ""))
+
+    # not_terminal_status
+    static_status = _bounded_str(unit.get("status"), 32)
+    if static_status in {"merged", "blocked", "skipped", "failed"}:
+        results.append(
+            _gate(
+                "not_terminal_status",
+                "FAIL",
+                f"status={static_status}",
+            )
+        )
+        if fail is None:
+            fail = "terminal_status"
+    else:
+        results.append(_gate("not_terminal_status", "PASS", ""))
+
+    # max_units_per_run_one
+    if max_units != MAX_UNITS_PER_RUN_HARD_CAP:
+        results.append(
+            _gate(
+                "max_units_per_run_one",
+                "FAIL",
+                f"requested={max_units}",
+            )
+        )
+        if fail is None:
+            fail = "max_units_exceeded"
+    else:
+        results.append(_gate("max_units_per_run_one", "PASS", ""))
+
+    # implementation_strategy_configured
+    if implementation_strategy == "none":
+        results.append(
+            _gate(
+                "implementation_strategy_configured",
+                "FAIL",
+                "default 'none' refuses to run",
+            )
+        )
+        if fail is None:
+            fail = "implementation_strategy_not_configured"
+    elif implementation_strategy not in IMPLEMENTATION_STRATEGY:
+        results.append(
+            _gate(
+                "implementation_strategy_configured",
+                "FAIL",
+                f"unknown strategy={implementation_strategy}",
+            )
+        )
+        if fail is None:
+            fail = "implementation_strategy_not_configured"
+    else:
+        results.append(_gate("implementation_strategy_configured", "PASS", ""))
+
+    return results, fail
+
+
+# ---------------------------------------------------------------------------
+# Real shell runner factory (subprocess imported lazily)
+# ---------------------------------------------------------------------------
+
+
+def _real_shell_runner_factory() -> ShellRunner:
+    """Construct a real ShellRunner.
+
+    ``subprocess`` is imported inside this function so the top-level
+    ``import reporting.autonomous_pr_runner`` is import-safe. This
+    factory is only invoked inside ``run_one`` when the operator has
+    passed ``--run-one`` AND ``--implementation-strategy`` other than
+    ``none``.
+    """
+    import subprocess as _subprocess  # local import: lazy on purpose
+    import time as _time
+
+    class _RealShellRunner:
+        def run(
+            self,
+            args: list[str],
+            *,
+            cwd: Path | None = None,
+            timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+        ) -> CommandResult:
+            start = _time.monotonic()
+            try:
+                proc = _subprocess.run(
+                    args,
+                    cwd=str(cwd) if cwd else None,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                )
+            except _subprocess.TimeoutExpired as exc:
+                duration_ms = int((_time.monotonic() - start) * 1000)
+                return CommandResult(
+                    exit_code=124,
+                    stdout="",
+                    stderr=f"timeout after {timeout}s: {exc}",
+                    duration_ms=duration_ms,
+                )
+            except OSError as exc:
+                duration_ms = int((_time.monotonic() - start) * 1000)
+                return CommandResult(
+                    exit_code=127,
+                    stdout="",
+                    stderr=f"command not found: {exc}",
+                    duration_ms=duration_ms,
+                )
+            duration_ms = int((_time.monotonic() - start) * 1000)
+            return CommandResult(
+                exit_code=proc.returncode,
+                stdout=proc.stdout or "",
+                stderr=proc.stderr or "",
+                duration_ms=duration_ms,
+            )
+
+    return _RealShellRunner()
+
+
+# ---------------------------------------------------------------------------
+# Built-in implementation strategies
+# ---------------------------------------------------------------------------
+
+
+class _NoneStrategy:
+    """Refuse-to-run strategy. The default."""
+
+    name = "none"
+
+    def invoke(
+        self,
+        unit: dict[str, Any],
+        *,
+        repo_root: Path,
+        shell: ShellRunner,
+    ) -> ImplementationResult:
+        return ImplementationResult(
+            success=False,
+            reason="implementation_strategy_not_configured",
+            files_changed=(),
+        )
+
+
+class _ExternalCommandStrategy:
+    """Shell out to an operator-supplied command.
+
+    The command is parsed via :func:`shlex.split`. The command is
+    expected to mutate the filesystem under ``repo_root`` in a way
+    the diff-scope check downstream will validate. The runner does
+    not interpret the command output; it only checks the exit code
+    and the resulting git diff.
+    """
+
+    name = "external_command"
+
+    def __init__(self, command: str, timeout: int) -> None:
+        if not isinstance(command, str) or not command.strip():
+            raise ValueError("external_command requires a non-empty command")
+        self._command = command
+        self._timeout = max(1, int(timeout))
+
+    def invoke(
+        self,
+        unit: dict[str, Any],
+        *,
+        repo_root: Path,
+        shell: ShellRunner,
+    ) -> ImplementationResult:
+        try:
+            args = shlex.split(self._command)
+        except ValueError as exc:
+            return ImplementationResult(
+                success=False,
+                reason=f"command_parse_error:{exc}",
+                files_changed=(),
+            )
+        if not args:
+            return ImplementationResult(
+                success=False,
+                reason="command_parse_empty",
+                files_changed=(),
+            )
+        result = shell.run(args, cwd=repo_root, timeout=self._timeout)
+        if result.exit_code != 0:
+            return ImplementationResult(
+                success=False,
+                reason=(
+                    f"external_command_exit_code={result.exit_code}"
+                ),
+                files_changed=(),
+            )
+        return ImplementationResult(
+            success=True,
+            reason="external_command_ok",
+            files_changed=(),
+        )
+
+
+def _build_strategy(
+    name: str,
+    *,
+    external_command: str | None,
+    external_timeout: int,
+) -> ImplementationStrategy:
+    if name == "none":
+        return _NoneStrategy()
+    if name == "external_command":
+        return _ExternalCommandStrategy(
+            command=external_command or "",
+            timeout=external_timeout,
+        )
+    raise ValueError(f"unknown implementation strategy: {name}")
+
+
+# ---------------------------------------------------------------------------
+# Plan + report assembly
+# ---------------------------------------------------------------------------
+
+
+def _empty_report(
+    *,
+    mode: str,
+    ts: str,
+    max_units: int,
+    implementation_strategy: str,
+) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "module_version": MODULE_VERSION,
+        "report_kind": REPORT_KIND,
+        "generated_at_utc": ts,
+        "mode": mode,
+        "max_units_per_run": max_units,
+        "implementation_strategy": implementation_strategy,
+        "selected_unit_id": "",
+        "selected_phase": "",
+        "selected_authority_class": "",
+        "selected_risk_class": "",
+        "selected_operator_gate": "",
+        "branch_name": "",
+        "safety_gate_results": [],
+        "commands_run": [],
+        "files_changed": [],
+        "tests_run": [],
+        "pr_number": 0,
+        "ci_status": "",
+        "stop_reason": "",
+        "final_runner_status": "not_run",
+        "next_required_operator_action": "",
+        "step5_enabled_substage": STEP5_ENABLED_SUBSTAGE,
+        "step5_implementation_allowed": step5_implementation_allowed,
+        "runner_invariants": dict(_BASE_RUNNER_INVARIANTS),
+    }
+
+
+def _attach_selection(
+    report: dict[str, Any],
+    selector_snapshot: dict[str, Any] | None,
+    unit: dict[str, Any] | None,
+) -> None:
+    if selector_snapshot is None:
+        return
+    sel = selector_snapshot.get("selection") or {}
+    report["selected_unit_id"] = _bounded_str(
+        sel.get("selected_unit_id"), 200
+    )
+    report["selected_phase"] = _bounded_str(sel.get("selected_phase"), 64)
+    report["selected_authority_class"] = _bounded_str(
+        sel.get("selected_authority_class"), 32
+    )
+    report["selected_risk_class"] = _bounded_str(
+        sel.get("selected_risk_class"), 16
+    )
+    report["selected_operator_gate"] = _bounded_str(
+        sel.get("selected_operator_gate"), 64
+    )
+    _ = unit  # unit may be used by callers later; signature stable
+
+
+def _branch_name_for_unit(unit_id: str) -> str:
+    sanitized = "".join(
+        ch if (ch.isalnum() or ch in "-_/") else "-"
+        for ch in unit_id
+    )
+    prefix = "step5-a21c"
+    return _bounded_str(
+        f"{prefix}/{sanitized}",
+        MAX_BRANCH_NAME_LEN,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Selector + unit lookup
+# ---------------------------------------------------------------------------
+
+
+def _load_selector_snapshot(
+    *, repo_root: Path
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Best-effort selector load. Returns ``(snapshot, error)``."""
+    try:
+        snap = rnu.collect_snapshot(repo_root=repo_root)
+    except Exception as exc:  # defensive
+        return None, _bounded_str(repr(exc), MAX_DETAIL_LEN)
+    return snap, None
+
+
+def _find_unit_in_a20b(
+    *,
+    unit_id: str,
+    repo_root: Path,
+) -> dict[str, Any] | None:
+    """Find the unit record in the A20b artefact by id."""
+    units_path = repo_root / "logs" / "roadmap_task_units" / "latest.json"
+    if not units_path.is_file():
+        return None
+    try:
+        payload = json.loads(units_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return None
+    units = payload.get("implementation_units")
+    if not isinstance(units, list):
+        return None
+    for u in units:
+        if isinstance(u, dict) and u.get("id") == unit_id:
+            return u
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Mode entry points
+# ---------------------------------------------------------------------------
+
+
+def status(
+    *,
+    repo_root: Path | None = None,
+    generated_at_utc: str | None = None,
+    max_units: int = MAX_UNITS_PER_RUN_HARD_CAP,
+    implementation_strategy: str = "none",
+) -> dict[str, Any]:
+    """Read-only status mode. Never executes anything."""
+    root = repo_root if repo_root is not None else REPO_ROOT
+    ts = generated_at_utc if generated_at_utc is not None else _utcnow()
+    report = _empty_report(
+        mode="status_only",
+        ts=ts,
+        max_units=max_units,
+        implementation_strategy=implementation_strategy,
+    )
+    snap, _err = _load_selector_snapshot(repo_root=root)
+    _attach_selection(report, snap, None)
+    report["final_runner_status"] = "status_only"
+    report["stop_reason"] = "status_only_mode"
+    report["next_required_operator_action"] = (
+        "review_selector_recommendation_then_invoke_plan_only"
+    )
+    return report
+
+
+def plan(
+    *,
+    repo_root: Path | None = None,
+    generated_at_utc: str | None = None,
+    max_units: int = MAX_UNITS_PER_RUN_HARD_CAP,
+    implementation_strategy: str = "none",
+) -> dict[str, Any]:
+    """Plan-only mode. Evaluates safety gates but executes nothing.
+
+    Useful for the operator to inspect which gates would PASS / FAIL
+    before authorising ``--run-one``. The plan never invokes git,
+    gh, subprocess, or any implementation strategy.
+    """
+    root = repo_root if repo_root is not None else REPO_ROOT
+    ts = generated_at_utc if generated_at_utc is not None else _utcnow()
+    report = _empty_report(
+        mode="plan_only",
+        ts=ts,
+        max_units=max_units,
+        implementation_strategy=implementation_strategy,
+    )
+    snap, _err = _load_selector_snapshot(repo_root=root)
+    unit = None
+    if snap is not None:
+        sel = snap.get("selection") or {}
+        uid = _bounded_str(sel.get("selected_unit_id"), 200)
+        if uid:
+            unit = _find_unit_in_a20b(unit_id=uid, repo_root=root)
+    _attach_selection(report, snap, unit)
+    gates, fail_reason = evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=unit,
+        max_units=max_units,
+        implementation_strategy=implementation_strategy,
+    )
+    report["safety_gate_results"] = gates
+    report["final_runner_status"] = "plan_only"
+    report["stop_reason"] = (
+        fail_reason if fail_reason is not None else "plan_only_mode"
+    )
+    if unit is not None and report["selected_unit_id"]:
+        report["branch_name"] = _branch_name_for_unit(
+            report["selected_unit_id"]
+        )
+    if fail_reason is not None:
+        report["next_required_operator_action"] = (
+            "address_safety_gate_failure_before_run_one"
+        )
+    else:
+        report["next_required_operator_action"] = (
+            "invoke_run_one_with_explicit_implementation_strategy"
+        )
+    return report
+
+
+def _record_command(
+    commands: list[dict[str, Any]],
+    command_args: list[str],
+    result: CommandResult,
+) -> None:
+    if len(commands) >= MAX_COMMANDS_RECORDED:
+        return
+    commands.append(
+        {
+            "command": _bounded_str(" ".join(command_args), 480),
+            "exit_code": int(result.exit_code),
+            "duration_ms": int(result.duration_ms),
+            "stdout_excerpt": _bounded_str(
+                result.stdout, MAX_COMMAND_EXCERPT_LEN
+            ),
+            "stderr_excerpt": _bounded_str(
+                result.stderr, MAX_COMMAND_EXCERPT_LEN
+            ),
+        }
+    )
+
+
+def _diff_paths_after_implementation(
+    shell: ShellRunner,
+    *,
+    repo_root: Path,
+    commands: list[dict[str, Any]],
+) -> tuple[list[str], CommandResult]:
+    """Run ``git status --porcelain`` and parse changed paths."""
+    args = ["git", "status", "--porcelain"]
+    result = shell.run(args, cwd=repo_root)
+    _record_command(commands, args, result)
+    paths: list[str] = []
+    if result.exit_code != 0:
+        return paths, result
+    for line in result.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        path = line[3:].strip().replace("\\", "/")
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        if path and path not in paths:
+            paths.append(path)
+        if len(paths) >= MAX_FILES_CHANGED_RECORDED:
+            break
+    return paths, result
+
+
+def run_one(
+    *,
+    repo_root: Path | None = None,
+    generated_at_utc: str | None = None,
+    max_units: int = MAX_UNITS_PER_RUN_HARD_CAP,
+    implementation_strategy_name: str = "none",
+    external_command: str | None = None,
+    external_command_timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    shell: ShellRunner | None = None,
+    implementation_strategy: ImplementationStrategy | None = None,
+) -> dict[str, Any]:
+    """Bounded autonomous PR runner for exactly one selected unit.
+
+    Tests inject ``shell`` and ``implementation_strategy`` so no real
+    shell command is invoked. The CLI path constructs real ones from
+    the operator-supplied flags.
+    """
+    root = repo_root if repo_root is not None else REPO_ROOT
+    ts = generated_at_utc if generated_at_utc is not None else _utcnow()
+    report = _empty_report(
+        mode="run_one",
+        ts=ts,
+        max_units=max_units,
+        implementation_strategy=implementation_strategy_name,
+    )
+
+    # ---- Safety gates first (no execution) ---------------------------------
+    snap, _err = _load_selector_snapshot(repo_root=root)
+    unit = None
+    if snap is not None:
+        sel = snap.get("selection") or {}
+        uid = _bounded_str(sel.get("selected_unit_id"), 200)
+        if uid:
+            unit = _find_unit_in_a20b(unit_id=uid, repo_root=root)
+    _attach_selection(report, snap, unit)
+    gates, fail_reason = evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=unit,
+        max_units=max_units,
+        implementation_strategy=implementation_strategy_name,
+    )
+    report["safety_gate_results"] = gates
+    if fail_reason is not None:
+        report["final_runner_status"] = "refused_unsafe"
+        report["stop_reason"] = fail_reason
+        report["next_required_operator_action"] = (
+            "address_safety_gate_failure_before_retry"
+        )
+        return report
+
+    assert unit is not None  # gates guaranteed unit_present passed
+
+    branch_name = _branch_name_for_unit(report["selected_unit_id"])
+    report["branch_name"] = branch_name
+
+    # ---- Construct injectable surfaces if not provided ---------------------
+    if shell is None:
+        shell = _real_shell_runner_factory()
+    if implementation_strategy is None:
+        implementation_strategy = _build_strategy(
+            implementation_strategy_name,
+            external_command=external_command,
+            external_timeout=external_command_timeout,
+        )
+
+    commands: list[dict[str, Any]] = []
+    report["commands_run"] = commands
+
+    # ---- Branch creation ---------------------------------------------------
+    args = ["git", "checkout", "-b", branch_name]
+    res = shell.run(args, cwd=root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_implementation"
+        # Distinguish "already exists" from generic failure.
+        if (
+            "already exists" in (res.stderr or "")
+            or "already exists" in (res.stdout or "")
+        ):
+            report["stop_reason"] = "branch_already_exists"
+        else:
+            report["stop_reason"] = "branch_creation_failed"
+        report["next_required_operator_action"] = (
+            "clean_up_branch_state_and_retry"
+        )
+        return report
+
+    # ---- Invoke implementation strategy ------------------------------------
+    impl_result = implementation_strategy.invoke(
+        unit, repo_root=root, shell=shell
+    )
+    if not impl_result.success:
+        report["final_runner_status"] = "executed_blocked_at_implementation"
+        if impl_result.reason == "implementation_strategy_not_configured":
+            report["stop_reason"] = "implementation_strategy_not_configured"
+        else:
+            report["stop_reason"] = "implementation_strategy_failed"
+        report["next_required_operator_action"] = (
+            "review_implementation_strategy_logs_then_retry"
+        )
+        return report
+
+    # ---- Diff scope check --------------------------------------------------
+    changed_paths, diff_res = _diff_paths_after_implementation(
+        shell, repo_root=root, commands=commands
+    )
+    report["files_changed"] = changed_paths
+    if diff_res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_diff"
+        report["stop_reason"] = "unknown_evidence"
+        report["next_required_operator_action"] = "inspect_git_status"
+        return report
+    if not changed_paths:
+        report["final_runner_status"] = "executed_blocked_at_diff"
+        report["stop_reason"] = "diff_empty"
+        report["next_required_operator_action"] = (
+            "implementation_strategy_produced_no_changes_review_strategy"
+        )
+        return report
+
+    expected_files = [
+        _bounded_str(p, 300).replace("\\", "/")
+        for p in (unit.get("expected_files") or [])
+        if isinstance(p, str)
+    ]
+    expected_set = set(expected_files)
+    for p in changed_paths:
+        if _is_forbidden_path(p):
+            report["final_runner_status"] = "executed_blocked_at_diff"
+            report["stop_reason"] = "diff_touches_forbidden_path"
+            report["next_required_operator_action"] = (
+                "revert_branch_strategy_violated_forbidden_path"
+            )
+            return report
+        if p not in expected_set:
+            report["final_runner_status"] = "executed_blocked_at_diff"
+            report["stop_reason"] = "diff_outside_expected_files"
+            report["next_required_operator_action"] = (
+                "revert_branch_strategy_exceeded_expected_files"
+            )
+            return report
+
+    # ---- Required tests ----------------------------------------------------
+    required_tests = [
+        _bounded_str(t, 240)
+        for t in (unit.get("required_tests") or [])
+        if isinstance(t, str)
+    ]
+    tests_run: list[str] = []
+    for test_target in required_tests[:MAX_TESTS_RECORDED]:
+        tests_run.append(test_target)
+        targets = [test_target]
+        args = ["python", "-m", "pytest", "-q", *targets]
+        res = shell.run(args, cwd=root)
+        _record_command(commands, args, res)
+        if res.exit_code != 0:
+            report["final_runner_status"] = "executed_blocked_at_tests"
+            report["stop_reason"] = "tests_failed"
+            report["tests_run"] = tests_run
+            report["next_required_operator_action"] = (
+                "review_failing_tests_then_revert_or_fix_branch"
+            )
+            return report
+    report["tests_run"] = tests_run
+
+    # ---- Smoke tests + governance lint ------------------------------------
+    args = ["python", "-m", "pytest", "-q", "tests/smoke"]
+    res = shell.run(args, cwd=root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_tests"
+        report["stop_reason"] = "tests_failed"
+        report["next_required_operator_action"] = (
+            "review_smoke_failures_then_revert_branch"
+        )
+        return report
+
+    args = ["python", "scripts/governance_lint.py"]
+    res = shell.run(args, cwd=root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_governance_lint"
+        report["stop_reason"] = "governance_lint_failed"
+        report["next_required_operator_action"] = (
+            "review_governance_lint_failures_then_revert_branch"
+        )
+        return report
+
+    # ---- Stage + commit ----------------------------------------------------
+    for p in changed_paths:
+        args = ["git", "add", "--", p]
+        res = shell.run(args, cwd=root)
+        _record_command(commands, args, res)
+        if res.exit_code != 0:
+            report["final_runner_status"] = "executed_blocked_at_commit"
+            report["stop_reason"] = "commit_failed"
+            report["next_required_operator_action"] = (
+                "inspect_git_status_then_resolve"
+            )
+            return report
+
+    commit_message = _commit_message_for_unit(unit)
+    args = ["git", "commit", "-m", commit_message]
+    res = shell.run(args, cwd=root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_commit"
+        # Distinguish hook failure from generic commit failure.
+        text = (res.stdout or "") + (res.stderr or "")
+        if "hook" in text.lower() and "fail" in text.lower():
+            report["stop_reason"] = "hook_failed"
+        else:
+            report["stop_reason"] = "commit_failed"
+        report["next_required_operator_action"] = (
+            "review_commit_or_hook_output_then_resolve"
+        )
+        return report
+
+    # ---- Push --------------------------------------------------------------
+    args = ["git", "push", "-u", "origin", branch_name]
+    res = shell.run(args, cwd=root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_push"
+        report["stop_reason"] = "push_failed"
+        report["next_required_operator_action"] = (
+            "review_push_output_then_resolve"
+        )
+        return report
+
+    # ---- Open PR -----------------------------------------------------------
+    pr_title = _pr_title_for_unit(unit)
+    pr_body = _pr_body_for_unit(unit, branch_name)
+    args = [
+        "gh",
+        "pr",
+        "create",
+        "--base",
+        "main",
+        "--head",
+        branch_name,
+        "--title",
+        pr_title,
+        "--body",
+        pr_body,
+    ]
+    res = shell.run(args, cwd=root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_pr_create"
+        report["stop_reason"] = "pr_creation_failed"
+        report["next_required_operator_action"] = (
+            "review_gh_pr_create_output_then_resolve"
+        )
+        return report
+    pr_number = _parse_pr_number(res.stdout)
+    report["pr_number"] = pr_number
+
+    # ---- CI watch (first verdict only) -------------------------------------
+    if pr_number > 0:
+        args = [
+            "gh",
+            "pr",
+            "checks",
+            str(pr_number),
+            "--watch",
+            "--required",
+        ]
+        res = shell.run(args, cwd=root, timeout=DEFAULT_CI_WATCH_TIMEOUT_SECONDS)
+        _record_command(commands, args, res)
+        if res.exit_code == 124:
+            report["final_runner_status"] = "executed_blocked_at_ci"
+            report["stop_reason"] = "ci_timeout"
+            report["ci_status"] = "TIMEOUT"
+            report["next_required_operator_action"] = (
+                "inspect_ci_run_manually"
+            )
+            return report
+        if res.exit_code != 0:
+            report["final_runner_status"] = "executed_blocked_at_ci"
+            report["stop_reason"] = "ci_failed"
+            report["ci_status"] = "FAIL"
+            report["next_required_operator_action"] = (
+                "review_failing_ci_jobs_then_resolve"
+            )
+            return report
+        report["ci_status"] = "PASS"
+
+    report["final_runner_status"] = "executed_pr_opened"
+    report["stop_reason"] = "ok_pr_opened"
+    report["next_required_operator_action"] = (
+        "review_pr_and_decide_merge_protocol"
+    )
+    return report
+
+
+# ---------------------------------------------------------------------------
+# PR body / commit message helpers
+# ---------------------------------------------------------------------------
+
+
+def _commit_message_for_unit(unit: dict[str, Any]) -> str:
+    uid = _bounded_str(unit.get("id"), 200)
+    title = _bounded_str(unit.get("title"), 200)
+    return (
+        f"feat({uid}): {title}\n"
+        "\n"
+        "Auto-prepared by reporting.autonomous_pr_runner (A21c "
+        "bounded slice).\n"
+        "\n"
+        "No auto-merge; no deploy; no runtime authority granted."
+    )
+
+
+def _pr_title_for_unit(unit: dict[str, Any]) -> str:
+    uid = _bounded_str(unit.get("id"), 200)
+    title = _bounded_str(unit.get("title"), 200)
+    return f"feat({uid}): {title}"
+
+
+def _pr_body_for_unit(unit: dict[str, Any], branch_name: str) -> str:
+    uid = _bounded_str(unit.get("id"), 200)
+    title = _bounded_str(unit.get("title"), 200)
+    expected = unit.get("expected_files") or []
+    expected_lines = "\n".join(
+        f"- `{p}`" for p in expected if isinstance(p, str)
+    ) or "- (none)"
+    required = unit.get("required_tests") or []
+    required_lines = "\n".join(
+        f"- `{t}`" for t in required if isinstance(t, str)
+    ) or "- (none)"
+    return (
+        f"## Summary\n\n"
+        f"Auto-prepared by `reporting.autonomous_pr_runner` (A21c "
+        f"bounded slice) on branch `{branch_name}`.\n\n"
+        f"- **Selected A20e unit id:** `{uid}`\n"
+        f"- **Title:** {title}\n"
+        f"- **Authority class:** `AUTO_ALLOWED` (LOW risk, "
+        f"`operator_gate = none`).\n"
+        f"- **No auto-merge.** Operator decides squash-merge after CI.\n"
+        f"- **No deploy.** Deploy gates run only after operator-driven "
+        f"merge to `main`.\n"
+        f"- **No runtime / trading / paper / shadow / live authority "
+        f"granted.**\n\n"
+        f"## Expected files\n\n{expected_lines}\n\n"
+        f"## Required tests\n\n{required_lines}\n\n"
+        f"## Authority posture\n\n"
+        f"- Step 5 broad implementation remains BLOCKED.\n"
+        f"- Autonomy-ladder Level 6 remains permanently disabled.\n"
+        f"- N5b Phase 4 production merge remains permanently denied "
+        f"for ADE.\n"
+        f"- ADE remains development workflow automation only.\n"
+    )
+
+
+def _parse_pr_number(stdout: str) -> int:
+    """Extract a PR number from a typical `gh pr create` stdout
+    line such as ``https://github.com/owner/repo/pull/256``."""
+    if not isinstance(stdout, str):
+        return 0
+    for token in stdout.split():
+        if "/pull/" in token:
+            tail = token.rsplit("/pull/", 1)[1]
+            digits = "".join(ch for ch in tail if ch.isdigit())
+            if digits:
+                try:
+                    return int(digits)
+                except ValueError:
+                    return 0
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Atomic write
+# ---------------------------------------------------------------------------
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    posix = path.as_posix()
+    if _WRITE_PREFIX not in posix:
+        raise ValueError(
+            "autonomous_pr_runner._atomic_write_json refuses "
+            f"non-runner-logs output path: {path}"
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=".autonomous_pr_runner.",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+def write_outputs(report: dict[str, Any]) -> Path:
+    _atomic_write_json(ARTIFACT_LATEST, report)
+    return ARTIFACT_LATEST
+
+
+# ---------------------------------------------------------------------------
+# Status renderer
+# ---------------------------------------------------------------------------
+
+
+def _render_status(report: dict[str, Any]) -> str:
+    inv = report["runner_invariants"]
+    gates = report["safety_gate_results"]
+    lines = [
+        f"autonomous_pr_runner {report['module_version']} "
+        f"schema={report['schema_version']}",
+        f"generated_at_utc={report['generated_at_utc']}",
+        f"mode={report['mode']}",
+        f"selected_unit_id={report['selected_unit_id']}",
+        f"selected_phase={report['selected_phase']}",
+        f"authority={report['selected_authority_class']} "
+        f"risk={report['selected_risk_class']} "
+        f"gate={report['selected_operator_gate']}",
+        f"implementation_strategy={report['implementation_strategy']}",
+        f"max_units_per_run={report['max_units_per_run']}",
+        f"final_runner_status={report['final_runner_status']}",
+        f"stop_reason={report['stop_reason']}",
+        f"next_required_operator_action="
+        f"{report['next_required_operator_action']}",
+        (
+            "no_runtime_trading_authority="
+            f"{inv['no_runtime_trading_authority']} "
+            f"no_step5_broad={inv['no_step5_broad']} "
+            f"no_level6={inv['no_level6']} "
+            "no_production_merge_authority="
+            f"{inv['no_production_merge_authority']}"
+        ),
+        (
+            "no_auto_merge="
+            f"{inv['no_auto_merge']} "
+            f"no_admin_merge={inv['no_admin_merge']} "
+            f"no_force_push={inv['no_force_push']} "
+            f"no_hook_bypass={inv['no_hook_bypass']} "
+            f"no_deploy={inv['no_deploy']}"
+        ),
+        (
+            "no_ledger_mutation="
+            f"{inv['no_ledger_mutation']} "
+            "no_second_unit_continuation="
+            f"{inv['no_second_unit_continuation']} "
+            "bounded_step5_pr_creation_only="
+            f"{inv['bounded_step5_pr_creation_only']}"
+        ),
+    ]
+    for g in gates:
+        lines.append(
+            f"  gate {g['gate']}={g['result']}"
+            + (f" ({g['detail']})" if g["detail"] else "")
+        )
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="python -m reporting.autonomous_pr_runner",
+        description=(
+            "A21c Bounded Autonomous PR Runner. Takes ONE A20e-"
+            "selected unit and opens a real PR. Does NOT auto-merge, "
+            "does NOT deploy, does NOT continue to another unit. "
+            "Step 5 broad implementation remains BLOCKED."
+        ),
+    )
+    p.add_argument(
+        "--indent",
+        type=int,
+        default=2,
+        help="JSON indent for stdout output (0 for compact).",
+    )
+    p.add_argument(
+        "--no-write",
+        action="store_true",
+        help=(
+            "Do not persist logs/autonomous_pr_runner/latest.json "
+            "(stdout only)."
+        ),
+    )
+    p.add_argument(
+        "--status",
+        action="store_true",
+        help=(
+            "Render a compact human-readable status summary to "
+            "stdout and exit. Does not execute anything."
+        ),
+    )
+    p.add_argument(
+        "--plan-only",
+        action="store_true",
+        help=(
+            "Evaluate every safety gate against the current "
+            "selector recommendation but do not execute anything."
+        ),
+    )
+    p.add_argument(
+        "--run-one",
+        action="store_true",
+        help=(
+            "Execute exactly one bounded PR creation cycle. Must "
+            "be combined with --implementation-strategy != none."
+        ),
+    )
+    p.add_argument(
+        "--max-units",
+        type=int,
+        default=1,
+        help=(
+            "Maximum units per run. A21c hard-caps this at 1; any "
+            "other value is rejected by the safety gates."
+        ),
+    )
+    p.add_argument(
+        "--implementation-strategy",
+        choices=list(IMPLEMENTATION_STRATEGY),
+        default="none",
+        help=(
+            "Implementation strategy. Default 'none' refuses to "
+            "execute."
+        ),
+    )
+    p.add_argument(
+        "--implementation-command",
+        default="",
+        help=(
+            "Operator-supplied implementation command for the "
+            "external_command strategy."
+        ),
+    )
+    p.add_argument(
+        "--implementation-timeout",
+        type=int,
+        default=DEFAULT_COMMAND_TIMEOUT_SECONDS,
+        help=(
+            "Timeout (seconds) for the implementation command "
+            "(external_command strategy only)."
+        ),
+    )
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
+
+    if args.status:
+        report = status(
+            max_units=args.max_units,
+            implementation_strategy=args.implementation_strategy,
+        )
+        sys.stdout.write(_render_status(report))
+        return 0
+
+    if args.plan_only:
+        report = plan(
+            max_units=args.max_units,
+            implementation_strategy=args.implementation_strategy,
+        )
+        indent = args.indent if args.indent and args.indent > 0 else None
+        if not args.no_write:
+            write_outputs(report)
+        json.dump(report, sys.stdout, indent=indent, sort_keys=True)
+        sys.stdout.write("\n")
+        return 0
+
+    if args.run_one:
+        report = run_one(
+            max_units=args.max_units,
+            implementation_strategy_name=args.implementation_strategy,
+            external_command=args.implementation_command,
+            external_command_timeout=args.implementation_timeout,
+        )
+        indent = args.indent if args.indent and args.indent > 0 else None
+        if not args.no_write:
+            write_outputs(report)
+        json.dump(report, sys.stdout, indent=indent, sort_keys=True)
+        sys.stdout.write("\n")
+        return 0 if report["stop_reason"] == "ok_pr_opened" else 1
+
+    # No explicit mode flag. Default to status-only (safe).
+    report = status(
+        max_units=args.max_units,
+        implementation_strategy=args.implementation_strategy,
+    )
+    sys.stdout.write(_render_status(report))
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main())

@@ -114,10 +114,21 @@ step5_implementation_allowed: Final[bool] = False
 # Closed vocabularies
 # ---------------------------------------------------------------------------
 
-#: Closed dynamic unit-status vocabulary. 7 values.
+#: Closed dynamic unit-status vocabulary. 11 values.
+#:
+#: The four runner-lifecycle states (``selected``, ``branch_created``,
+#: ``implementation_complete``, ``tests_passed``) are reserved for
+#: Step 5 / A21 slices (A21c onwards). The A21c bounded PR runner
+#: itself does NOT mutate the dynamic ledger today — the ledger
+#: remains seed-driven — but the vocabulary widening lets future
+#: slices record runner progress without another vocab change.
 DYNAMIC_UNIT_STATUS: Final[tuple[str, ...]] = (
     "not_started",
+    "selected",
+    "branch_created",
     "in_progress",
+    "implementation_complete",
+    "tests_passed",
     "pr_open",
     "merged",
     "failed",
