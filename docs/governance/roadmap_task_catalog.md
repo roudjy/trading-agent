@@ -847,6 +847,24 @@ implementation unit** opened as its own PR under normal ADE PR
 lifecycle governance. A20e does not open that PR — the operator
 does, using the selector's recommendation as input.
 
+### 11.1 Queue progression log
+
+The A20 projections are deterministic / read-only and do not
+auto-discover merged PRs. When a queue-driven Roadmap v6 unit
+lands on `main`, the operator (or a small follow-up
+`chore/a20-*` PR) advances its status in A20b's `_UNIT_SEED`
+so that A20e can recommend the next eligible downstream unit.
+Each transition is recorded here for traceability:
+
+| Date (UTC) | Unit id | A20b status | Implementing PR | Merge SHA |
+|---|---|---|---|---|
+| 2026-05-18 | `u_v3_15_16_diagnostic_routing_signals_schema_001` | `not_started` → `merged` | [#250](https://github.com/roudjy/trading-agent/pull/250) | `fcb1abbea4bd2ca190fe6e807b3dacd184faa702` |
+
+This table is informational. The authoritative `status` lives in
+[`reporting/roadmap_task_units.py`](../../reporting/roadmap_task_units.py)
+`_UNIT_SEED` and is pinned by
+[`tests/unit/test_roadmap_task_units.py`](../../tests/unit/test_roadmap_task_units.py).
+
 <!-- A20e legacy future-stages section retained below for reference. -->
 ## 12. Future stages — A20 complete
 
