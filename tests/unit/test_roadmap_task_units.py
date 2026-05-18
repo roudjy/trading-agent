@@ -957,17 +957,35 @@ def test_routing_signals_schema_unit_retains_full_metadata(snap: dict) -> None:
     assert unit["roadmap_task_id"] == "phase_v3_15_16"
 
 
+#: Set of unit ids that have been queue-status-advanced to
+#: ``merged`` via prior follow-up PRs. Each entry must point at a
+#: real implementation PR that landed on ``main``. This set grows
+#: monotonically as the queue progresses; it never shrinks except
+#: in the extremely rare case of an operator-approved revert PR
+#: (which is out of scope here).
+_MERGED_UNIT_IDS: frozenset[str] = frozenset(
+    {
+        # PR #250 (merge SHA fcb1abb) + PR #251 queue-status update.
+        "u_v3_15_16_diagnostic_routing_signals_schema_001",
+        # PR #252 (merge SHA 6f588a8) + this queue-status update PR.
+        "u_v3_15_16_routing_explanation_reporter_001",
+    }
+)
+
+
 def test_other_units_unchanged_by_status_update(snap: dict) -> None:
-    """The queue-status update PR only flipped the routing-signals
-    schema unit's status. All other units in the seed must still
-    carry a status drawn from the closed UNIT_STATUS vocabulary and
-    must not have been altered to ``merged`` by accident."""
+    """Each queue-status update PR flips exactly one unit's status
+    to ``merged``. Every other unit in the seed must still carry a
+    status drawn from the closed UNIT_STATUS vocabulary and must
+    not have been altered to ``merged`` by accident. The expected
+    merged set is :data:`_MERGED_UNIT_IDS`."""
     for u in snap["implementation_units"]:
-        if u["id"] == _ROUTING_SIGNALS_SCHEMA_UNIT_ID:
-            continue
         assert u["status"] in rtu.UNIT_STATUS, u
-        # Defence-in-depth: no other unit silently flipped to merged.
-        assert u["status"] != "merged", u["id"]
+        if u["id"] in _MERGED_UNIT_IDS:
+            assert u["status"] == "merged", u["id"]
+        else:
+            # Defence-in-depth: no other unit silently flipped to merged.
+            assert u["status"] != "merged", u["id"]
 
 
 def test_routing_signals_schema_unit_is_listed_exactly_once(snap: dict) -> None:
@@ -995,3 +1013,100 @@ def test_downstream_v3_15_16_units_still_reference_merged_unit(
     assert len(downstream) == 2
     for u in downstream:
         assert _ROUTING_SIGNALS_SCHEMA_UNIT_ID in u["prerequisites"], u["id"]
+
+
+# ---------------------------------------------------------------------------
+# Queue-status update: u_v3_15_16_routing_explanation_reporter_001 was
+# implemented and merged via PR #252 (merge SHA
+# 6f588a89b43a2cfec40f92252bde530220877b37). The status is advanced
+# manually in this follow-up PR because A20 projections do not
+# auto-discover merged PRs.
+# ---------------------------------------------------------------------------
+
+
+_ROUTING_EXPLANATION_REPORTER_UNIT_ID = (
+    "u_v3_15_16_routing_explanation_reporter_001"
+)
+
+
+def test_routing_explanation_reporter_unit_status_is_merged(snap: dict) -> None:
+    """After the queue-status update PR, A20b emits this unit with
+    ``status="merged"``. The A20e selector must therefore stop
+    recommending it and advance to the next eligible v3.15.16
+    unit."""
+    rows = [
+        u
+        for u in snap["implementation_units"]
+        if u["id"] == _ROUTING_EXPLANATION_REPORTER_UNIT_ID
+    ]
+    assert len(rows) == 1
+    assert rows[0]["status"] == "merged"
+
+
+def test_routing_explanation_reporter_unit_retains_full_metadata(
+    snap: dict,
+) -> None:
+    """Queue-status update is narrow: only the status field flipped.
+    All other unit metadata that downstream consumers (A20c, A20d,
+    A20e) depend on must remain intact."""
+    rows = [
+        u
+        for u in snap["implementation_units"]
+        if u["id"] == _ROUTING_EXPLANATION_REPORTER_UNIT_ID
+    ]
+    assert len(rows) == 1
+    unit = rows[0]
+    assert unit["expected_files"], unit
+    assert unit["forbidden_files"], unit
+    assert unit["required_tests"], unit
+    assert unit["definition_of_done"], unit
+    assert unit["stop_conditions"], unit
+    assert isinstance(unit["authority_hint"], str) and unit["authority_hint"]
+    assert unit["authority_hint"] == "AUTO_ALLOWED_CANDIDATE"
+    assert unit["operator_gate"] == "none"
+    assert unit["risk_class"] == "LOW"
+    assert unit["phase"] == "v3.15.16"
+    assert unit["roadmap_task_id"] == "phase_v3_15_16"
+    # The prerequisite edge from the explanation reporter to the
+    # routing-signals-schema unit must remain — A20e relies on it
+    # to treat the prerequisite as satisfied (the prereq is also
+    # merged).
+    assert (
+        _ROUTING_SIGNALS_SCHEMA_UNIT_ID in unit["prerequisites"]
+    ), unit
+
+
+def test_routing_explanation_reporter_unit_is_listed_exactly_once(
+    snap: dict,
+) -> None:
+    ids = [u["id"] for u in snap["implementation_units"]]
+    assert ids.count(_ROUTING_EXPLANATION_REPORTER_UNIT_ID) == 1
+
+
+def test_prior_merged_routing_signals_schema_unit_still_merged(
+    snap: dict,
+) -> None:
+    """PR #251 marked the routing-signals-schema unit as merged.
+    PR #252's follow-up status update must NOT undo that previous
+    transition. Both merged units must be ``status="merged"`` on
+    the same seed."""
+    schema_rows = [
+        u
+        for u in snap["implementation_units"]
+        if u["id"] == _ROUTING_SIGNALS_SCHEMA_UNIT_ID
+    ]
+    assert len(schema_rows) == 1
+    assert schema_rows[0]["status"] == "merged"
+
+
+def test_merged_set_contains_exactly_the_expected_unit_ids(snap: dict) -> None:
+    """Every unit with status==merged must appear in the explicit
+    :data:`_MERGED_UNIT_IDS` set. This prevents accidental merged
+    drift in either direction (forgotten status flip OR silent
+    bonus merged)."""
+    merged_in_snap = {
+        u["id"]
+        for u in snap["implementation_units"]
+        if u["status"] == "merged"
+    }
+    assert merged_in_snap == set(_MERGED_UNIT_IDS), merged_in_snap
