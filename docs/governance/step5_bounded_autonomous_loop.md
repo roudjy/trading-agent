@@ -1,25 +1,31 @@
-# Step 5 — Bounded Autonomous Implementation Loop (Foundation)
+# Step 5 — Bounded Autonomous Implementation Loop
 
-> **Status:** Step 5 implementation remains **BLOCKED**.
+> **Status:** Step 5 broad implementation remains **BLOCKED**.
 > Autonomy-ladder Level 6 remains **permanently disabled** per
 > ADR-015 §Doctrine 1. N5b Phase 4 production-merge authority
-> remains **permanently denied for ADE**.
+> remains **permanently denied for ADE**. The A21c **bounded
+> PR-creation slice** is the only carve-out, and is itself
+> bounded (max 1 unit per run, no auto-merge, no deploy, no
+> NEEDS_HUMAN, no MEDIUM/HIGH/CRITICAL risk).
 >
-> This document specifies the **foundation** for the future
-> bounded autonomous implementation loop. The foundation lives in
-> [`reporting/roadmap_unit_status.py`](../../reporting/roadmap_unit_status.py)
-> (the **A21a dynamic unit-status ledger**) and the matching A20e
-> selector overlay in
-> [`reporting/roadmap_next_unit.py`](../../reporting/roadmap_next_unit.py).
-> The actual loop (branch / implement / PR / merge / deploy) is
-> **not implemented in this PR**.
+> The Step 5 implementation surface today consists of:
 >
-> **Phase:** Step 5 / A21 foundation. Each future slice (A21b,
-> A21c, …) ships its own governance section in this doc plus its
-> own implementation PR.
-> **Authority class on this PR:** `AUTO_ALLOWED` (LOW risk,
-> `operator_gate = none`, read-only deterministic projections +
-> documentation).
+> * **A21a** — dynamic unit-status ledger in
+>   [`reporting/roadmap_unit_status.py`](../../reporting/roadmap_unit_status.py)
+>   (foundation: replaces manual seed-edit PRs).
+> * **A20e overlay** — selector consumes A21a in
+>   [`reporting/roadmap_next_unit.py`](../../reporting/roadmap_next_unit.py)
+>   (foundation: skips dynamically-merged units).
+> * **A21c** — bounded autonomous PR runner in
+>   [`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
+>   (real branch + commit + push + PR creation for ONE safe unit;
+>   no auto-merge, no deploy).
+>
+> **Phase:** Step 5 / A21 family. Each slice ships its own
+> governance section in this doc plus its own implementation PR.
+> **Authority class on every slice so far:** `AUTO_ALLOWED` (LOW
+> risk, `operator_gate = none`, deterministic projections or
+> bounded-execution code).
 
 ---
 
@@ -473,20 +479,278 @@ Pinned in
 * [`docs/governance/ade_development_lane_doctrine.md`](ade_development_lane_doctrine.md)
   — ADE remains development workflow automation only.
 
-## 11. Next recommended PR
+## 11. A21c — Bounded Autonomous PR Runner
 
-A21b — bounded **dry-run** autonomous loop slice that:
+[`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
+is the **first real Step 5 execution surface**. It takes exactly
+ONE A20e-selected unit, validates a closed set of safety gates,
+creates one branch, invokes a pluggable implementation strategy,
+verifies the resulting git diff is contained within the unit's
+`expected_files`, runs required tests + smoke + governance lint,
+commits, pushes, opens a PR, watches CI to first verdict, and
+stops with a deterministic run report at
+`logs/autonomous_pr_runner/latest.json`.
 
-* invokes A20e to read the next selected unit;
-* validates the eight selection-level stop conditions in §4.1;
-* prints a deterministic dry-run plan to stdout naming the unit,
-  the expected files, the forbidden files, and the required
-  tests;
-* writes a dry-run report under `logs/step5_loop/dry_run/`;
-* **does not** create a branch, **does not** edit any file,
-  **does not** open a PR, **does not** merge, **does not**
-  deploy.
+### 11.1 Hard boundaries (A21c)
 
-A21b is the next safe step toward bounded autonomy. Its merge
-remains blocked behind operator-explicit authorisation and an
-updated A20b seed entry that lists it as an eligible unit.
+A21c does **not**:
+
+* squash-merge — the PR remains operator-driven to merge;
+* use `--admin` — `--admin` does not appear in any shell-call
+  argument list in the module code;
+* force-push — `--force` does not appear in any shell-call
+  argument list;
+* bypass hooks — `--no-verify` / `--no-gpg-sign` do not appear;
+* delete the branch after merge — the runner exits before merge;
+* deploy anything — no `Build & Push Docker Image` invocation,
+  no `Deploy VPS Dashboard` invocation, no `docker push`, no
+  `ssh root@`;
+* update the dynamic unit-status ledger to `merged` — A21a
+  remains seed-driven; A21c emits its OWN report at
+  `logs/autonomous_pr_runner/latest.json`;
+* continue to a second unit — `max_units_per_run` is hard-capped
+  at 1;
+* touch any forbidden path — every safety gate refusal lists the
+  full no-touch surface (see §11.4 below);
+* mutate any approval inbox, mutation route, or approval button;
+* grant runtime / trading / paper / shadow / live authority;
+* call any LLM, external API, or hidden judgment on its own —
+  the only LLM / external surface is opt-in through
+  `--implementation-strategy external_command
+  --implementation-command "<operator-supplied command>"`.
+
+### 11.2 Import-safety contract
+
+The module is **safe to import**. No subprocess is invoked on
+import, no git / gh / network call is made on import, no file
+write happens on import. The `subprocess` module is imported
+**lazily** inside the real shell-runner factory so the top-level
+`import reporting.autonomous_pr_runner` is fully side-effect free.
+This is pinned by a module-source AST scan in
+[`tests/unit/test_autonomous_pr_runner.py`](../../tests/unit/test_autonomous_pr_runner.py).
+
+### 11.3 Closed vocabularies (pinned by tests)
+
+* `RUN_STATUS` (13 values): `not_run`, `status_only`, `plan_only`,
+  `refused_unsafe`, `executed_pr_opened`,
+  `executed_blocked_at_implementation`,
+  `executed_blocked_at_diff`, `executed_blocked_at_tests`,
+  `executed_blocked_at_governance_lint`,
+  `executed_blocked_at_commit`, `executed_blocked_at_push`,
+  `executed_blocked_at_pr_create`, `executed_blocked_at_ci`.
+* `SAFETY_GATE` (14 values): `selector_available`,
+  `selection_status_ok`, `unit_present`,
+  `auto_allowed_authority`, `low_risk`, `no_operator_gate`,
+  `no_operator_go_required`, `expected_files_nonempty`,
+  `forbidden_files_nonempty`, `required_tests_nonempty`,
+  `no_forbidden_in_expected`, `not_terminal_status`,
+  `max_units_per_run_one`, `implementation_strategy_configured`.
+* `GATE_RESULT` (3 values): `PASS`, `FAIL`, `NOT_CHECKED`.
+* `RUNNER_MODE` (3 values): `status_only`, `plan_only`, `run_one`.
+* `IMPLEMENTATION_STRATEGY` (2 values): `none` (default,
+  refuses), `external_command` (operator opts in).
+* `STOP_REASON` (33 values): one closed-vocab reason per stop
+  condition listed in §4.
+
+### 11.4 Forbidden-path patterns (no-touch list)
+
+Every entry of `FORBIDDEN_PATH_PATTERNS` is checked twice:
+
+1. **Pre-execution:** the selected unit's `expected_files` is
+   scanned. Any match refuses the run at the
+   `no_forbidden_in_expected` gate with stop reason
+   `forbidden_path_in_expected_files`.
+2. **Post-implementation:** the git diff after the implementation
+   strategy is scanned. Any match refuses the run at the
+   diff-scope check with stop reason
+   `diff_touches_forbidden_path`. The runner does NOT commit.
+
+Pinned no-touch patterns: `.claude/`, `.github/`,
+`dashboard/dashboard.py`, `automation/live_gate.py`, `broker/`,
+`agent/risk/`, `agent/execution/`, `live/`, `paper/`, `shadow/`,
+`trading/`, `docs/roadmap/Roadmap v6.md`,
+`docs/roadmap/Roadmap v6 Addendum.md`,
+`docs/roadmap/autonomous_development.txt`,
+`docs/governance/execution_authority.md`,
+`docs/governance/no_touch_paths.md`,
+`reporting/execution_authority.py`,
+`reporting/development_queue_admission_policy.py`,
+`docs/development_work_queue/`, `tests/regression/`,
+`research/research_latest.json`, `research/strategy_matrix.csv`,
+`artifacts/`.
+
+### 11.5 Implementation strategy injection
+
+The runner exposes a `ImplementationStrategy` Protocol with one
+method:
+
+```python
+def invoke(
+    unit: dict[str, Any],
+    *,
+    repo_root: Path,
+    shell: ShellRunner,
+) -> ImplementationResult: ...
+```
+
+A21c ships **two** concrete strategies:
+
+* **`none`** — the default. Refuses to run; the runner stops at
+  the `implementation_strategy_configured` gate with stop reason
+  `implementation_strategy_not_configured`. This is the safe
+  default: bare `--run-one` does not act.
+* **`external_command`** — the operator opts in via
+  `--implementation-strategy external_command
+  --implementation-command "<command>"`. The command is parsed
+  via `shlex.split` and invoked through the injected shell
+  runner. The command is expected to mutate the filesystem under
+  the repo root in a way that satisfies the unit's
+  `expected_files` contract. The runner does not interpret the
+  command output; it only checks the exit code and the resulting
+  diff.
+
+Tests inject a `FakeImplementationStrategy` directly via the
+`implementation_strategy=` keyword argument to `run_one(...)`. No
+real shell command is invoked by unit tests.
+
+### 11.6 CLI
+
+```sh
+# Safe default — status snapshot only:
+python -m reporting.autonomous_pr_runner --status
+
+# Plan-only — evaluate every safety gate against the current
+# A20e recommendation but execute nothing:
+python -m reporting.autonomous_pr_runner --plan-only
+
+# Real execution (requires explicit operator strategy choice):
+python -m reporting.autonomous_pr_runner \
+    --run-one --max-units 1 \
+    --implementation-strategy external_command \
+    --implementation-command "<operator-supplied real command>"
+```
+
+The runner refuses `--max-units > 1` (A21c hard cap = 1) and
+refuses `--implementation-strategy none` even when `--run-one` is
+passed.
+
+### 11.7 Authority pins (every emitted report)
+
+Every report carries a `runner_invariants` block with these pins:
+
+* `step5_implementation_allowed = false` (broad Step 5 stays
+  BLOCKED; A21c carves out a bounded slice via
+  `step5_enabled_substage = "a21c_bounded_pr_creation"`);
+* `bounded_step5_pr_creation_only = true`;
+* `max_units_per_run_hard_capped_at_one = true`;
+* `import_is_side_effect_free = true`;
+* `subprocess_module_used_only_inside_run_one = true`;
+* `uses_subprocess_outside_run_one = false`;
+* `uses_network = false`;
+* `calls_llm_or_external_api = false`;
+* `calls_execution_authority_classifier = false`;
+* `no_runtime_trading_authority = true`;
+* `no_step5_broad = true`;
+* `no_level6 = true`;
+* `no_production_merge_authority = true`;
+* `no_auto_merge = true`;
+* `no_admin_merge = true`;
+* `no_force_push = true`;
+* `no_hook_bypass = true`;
+* `no_deploy = true`;
+* `no_deploy_watcher = true`;
+* `no_ledger_mutation = true`;
+* `no_second_unit_continuation = true`;
+* `no_branch_creation_outside_run_one = true`;
+* `no_pr_creation_outside_run_one = true`;
+* `no_mutation_routes = true`;
+* `no_approval_buttons = true`;
+* `no_approval_inbox_mutation = true`;
+* `no_test_weakening = true`;
+* `writes_only_autonomous_pr_runner_log = true`;
+* `writes_to_dynamic_status_ledger = false`;
+* `fail_closed_on_unsafe_unit = true`;
+* `fail_closed_on_diff_outside_expected_files = true`;
+* `fail_closed_on_forbidden_diff_path = true`;
+* `fail_closed_on_test_failure = true`;
+* `fail_closed_on_governance_lint_failure = true`;
+* `fail_closed_on_ci_failure = true`.
+
+### 11.8 Test coverage
+
+Pinned in
+[`tests/unit/test_autonomous_pr_runner.py`](../../tests/unit/test_autonomous_pr_runner.py)
+(114 tests):
+
+* import is side-effect free; `subprocess` is NOT at module top;
+* closed vocabularies (5 of them) and schema field tuple are
+  pinned exactly;
+* every gate-failure path produces the correct closed-vocab stop
+  reason;
+* NEEDS_HUMAN / PERMANENTLY_DENIED authority refused;
+* MEDIUM / HIGH / CRITICAL / UNKNOWN risk refused;
+* non-`none` operator gate refused;
+* `requires_operator_go = True` refused;
+* missing `expected_files` / `forbidden_files` / `required_tests`
+  refused;
+* every no-touch path in `expected_files` refused (17
+  parametrised cases);
+* terminal static status (`merged` / `blocked` / `skipped` /
+  `failed`) refused;
+* `max_units > 1` refused (5 parametrised cases);
+* default `implementation_strategy = "none"` refused;
+* diff outside `expected_files` refused;
+* diff touching a forbidden path refused;
+* empty diff refused;
+* required-tests failure surfaces `tests_failed`;
+* governance-lint failure surfaces `governance_lint_failed`;
+* implementation-strategy failure surfaces
+  `implementation_strategy_failed`;
+* branch-creation failure / branch-already-exists / push failure /
+  PR-create failure / CI failure / CI timeout each surface the
+  correct closed-vocab stop reason;
+* no auto-merge invocation appears in module code (AST-stripped
+  scan); no `--admin` argument list; no `--force` / `--no-verify`;
+  no deploy invocation;
+* injectable fakes for shell + implementation strategy; no real
+  git / gh / subprocess invoked by unit tests;
+* every `runner_invariants` pin asserted on every emitted report.
+
+### 11.9 Bootstrap selection on merged main
+
+When PR #255 (A21a / A20e overlay) merged, the A20e selector
+recommended `u_v3_15_17_sampling_plan_reporter_001` as the next
+eligible unit. The A21c runner, once merged and invoked with an
+operator-supplied implementation command, will create branch
+`step5-a21c/u_v3_15_17_sampling_plan_reporter_001` and attempt the
+sampling-plan reporter unit. The runner does NOT pre-pick another
+unit, does NOT escalate, and does NOT continue past one PR.
+
+### 11.10 Future Step 5 slices
+
+After A21c lands, the natural next slices are:
+
+* **A21d** — bounded auto-merge for **PRs the runner itself
+  opened**, plus a post-merge status-update step that appends a
+  `merged` record to A21a's `_STATUS_LEDGER_SEED`. Hard-capped at
+  PRs originated by the runner; never enabled for human-opened
+  PRs. Squash-merge only; no `--admin`; no force-push; no hook
+  bypass; CI-green required.
+* **A21e** — bounded post-merge deploy watcher that observes
+  `Build & Push Docker Image` + `Deploy VPS Dashboard` runs on
+  the merge commit and reports their outcome. Read-only: never
+  triggers a deploy, never re-runs a deploy, never modifies any
+  deploy workflow.
+
+Each future slice gets its own governance section in this doc and
+its own operator-approved PR.
+
+## 12. Next recommended PR
+
+**A21d — bounded auto-merge for runner-originated PRs.** Adds
+the post-PR merge step the operator currently performs manually,
+plus the A21a ledger update that flips the unit to `merged`.
+Hard-capped: only PRs the runner itself originated; only after
+CI-green; squash-merge only; no `--admin`; no force-push; no hook
+bypass; max 1 merge per run. The deploy watcher (A21e) remains a
+separate later slice.

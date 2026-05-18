@@ -77,13 +77,46 @@ def _snap_with(
 def test_dynamic_unit_status_vocab_is_closed_exact() -> None:
     assert rus.DYNAMIC_UNIT_STATUS == (
         "not_started",
+        "selected",
+        "branch_created",
         "in_progress",
+        "implementation_complete",
+        "tests_passed",
         "pr_open",
         "merged",
         "failed",
         "blocked",
         "skipped",
     )
+
+
+def test_runner_lifecycle_statuses_are_valid_for_validator() -> None:
+    """The four new runner-lifecycle statuses must pass the
+    validator when emitted with a deterministic source."""
+    for status_value in (
+        "selected",
+        "branch_created",
+        "implementation_complete",
+        "tests_passed",
+    ):
+        snap = rus.collect_snapshot(
+            seed=(
+                {
+                    "unit_id": "u_runner_synth",
+                    "status": status_value,
+                    "source": "loop_state",
+                    "updated_at_utc": "2026-05-18T18:00:00Z",
+                    "pr_number": 0,
+                    "merge_sha": "",
+                    "reason": "",
+                    "evidence": [],
+                },
+            ),
+            generated_at_utc=_FROZEN_UTC,
+        )
+        rec = snap["ledger_records"][0]
+        assert rec["valid"] is True, status_value
+        assert rec["validation_reason"] == "", status_value
 
 
 def test_dynamic_status_source_vocab_is_closed_exact() -> None:

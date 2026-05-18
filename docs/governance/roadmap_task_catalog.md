@@ -1,11 +1,14 @@
-# Roadmap Task Catalog — A20a + A20b + A20c + A20d + A20e + A21a (read-only, deterministic)
+# Roadmap Task Catalog — A20a + A20b + A20c + A20d + A20e + A21a + A21c
 
 > **Status:** A20a implemented; A20b implemented; A20c implemented;
 > A20d implemented; A20e implemented (deterministic next-buildable-unit
 > selector); A21a implemented (dynamic unit-status ledger,
-> Step 5 foundation). All six stages are read-only projections;
-> none mutates anything; the selector never executes work, opens
-> branches / PRs, merges, or deploys.
+> Step 5 foundation); A21c implemented (bounded autonomous PR
+> runner for ONE AUTO_ALLOWED + LOW-risk + gate=none unit; no
+> auto-merge, no deploy). Stages A20a-A21a are read-only
+> projections. A21c executes a bounded PR-creation slice when
+> the operator explicitly invokes ``--run-one`` with a configured
+> implementation strategy; otherwise it is read-only.
 >
 > **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
 > **A20a artefact:** `logs/roadmap_task_catalog/latest.json`
@@ -25,6 +28,11 @@
 > **A21a module:** [`reporting/roadmap_unit_status.py`](../../reporting/roadmap_unit_status.py)
 > **A21a artefact:** `logs/roadmap_unit_status/latest.json`
 > **A21a governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md)
+>
+> **A21c module:** [`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
+> **A21c artefact:** `logs/autonomous_pr_runner/latest.json`
+> **A21c governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md) §11
+> A21c is the **first real Step 5 execution slice** — it creates a real branch + PR for ONE selected safe unit. No auto-merge, no deploy, no second-unit continuation.
 >
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.
