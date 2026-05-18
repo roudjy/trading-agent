@@ -1,9 +1,10 @@
-# Roadmap Task Catalog — A20a + A20b + A20c (read-only, deterministic)
+# Roadmap Task Catalog — A20a + A20b + A20c + A20d (read-only, deterministic)
 
-> **Status:** A20a implemented; A20b implemented; A20c implemented
-> (read-only, deterministic, dry-run by default). All three modules
-> are projections; none surfaces to the AAC / dashboard, none
-> selects a next-buildable unit.
+> **Status:** A20a implemented; A20b implemented; A20c implemented;
+> A20d implemented (read-only operator visibility via the existing
+> Agent Activity Center aggregator). All four stages are
+> read-only projections; none mutates anything; none selects a
+> next-buildable unit (that remains A20e scope).
 >
 > **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
 > **A20a artefact:** `logs/roadmap_task_catalog/latest.json`
@@ -13,6 +14,9 @@
 >
 > **A20c module:** [`reporting/roadmap_unit_authority.py`](../../reporting/roadmap_unit_authority.py)
 > **A20c artefact:** `logs/roadmap_unit_authority/latest.json`
+>
+> **A20d module (extension):** [`reporting/development_agent_activity_timeline.py`](../../reporting/development_agent_activity_timeline.py)
+> **A20d artefact:** existing `logs/development_agent_activity_timeline/latest.json` envelope; three new `source_kind` values inside `work_items[]`.
 >
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.
@@ -116,10 +120,11 @@ not pre-authorize any of them.
   `generated_seed.jsonl` file.
 - No edits to the existing A17 admission-policy surface
   ([`reporting/development_queue_admission_policy.py`](../../reporting/development_queue_admission_policy.py)).
-- No edits to the AAC aggregator
+- A20a does not modify the AAC aggregator
   ([`reporting/development_agent_activity_timeline.py`](../../reporting/development_agent_activity_timeline.py))
-  or its 11-entry upstream catalog cardinality. That cardinality
-  amendment, if ever needed, is a separate operator-go PR.
+  or its upstream catalog cardinality. That cardinality
+  amendment landed under operator-approved A20d (catalog grew
+  from 11 to 14 read-only entries).
 - No flip of `step5_implementation_allowed` (stays `False`) or
   `STEP5_ENABLED_SUBSTAGE` (stays `"none"`).
 - No relaxation of the autonomy-ladder ceiling. Level 6 stays
@@ -591,14 +596,100 @@ selector) remain unimplemented. Pinned by
   remains BLOCKED; Level 6 remains permanently disabled; N5b
   Phase 4 production merge remains permanently denied for ADE.
 
-## 9. Future stages (A20d–A20e)
+## 9. A20d — Read-only Operator Visibility (implemented)
 
-The roadmap task catalog + unit decomposer + unit-authority
-projection is the foundation of the remaining staged sequence.
-Each subsequent stage requires a separate operator-go PR. None of
-them is pre-authorized by A20a, A20b, or A20c.
+A20d extends the existing read-only Agent Activity Center
+aggregator
+([`reporting/development_agent_activity_timeline.py`](../../reporting/development_agent_activity_timeline.py))
+to surface the A20a / A20b / A20c artefacts as **read-only**
+work-item rows. The aggregator's pinned upstream-catalog
+cardinality grew from 11 to 14 entries (the three new entries are
+all projectable and live under the new `roadmap` group, with
+TTL 1800 seconds matching the other loops/gates groups).
 
-- **A20d — Read-only AAC / Task-Board Visibility.** Exposes the
+### 9.1 Purpose of read-only operator visibility
+
+Before A20d, the operator had to read `logs/roadmap_*` JSON files
+directly to see the catalog, decomposition, and authority verdict
+for each Roadmap v6 implementation unit. A20d brings those rows
+into the same envelope as the rest of the development pipeline so
+the operator can scan them in one place. No new mutation route is
+introduced; no approval button is rendered; no `dashboard.py` is
+touched.
+
+### 9.2 Where the projections are surfaced
+
+A20d adds three new `source_kind` values to the AAC aggregator's
+closed `SOURCE_KINDS` enum (post-A20d cardinality: 16):
+
+| `source_kind` | Upstream artefact | Owner role | Notes |
+|---|---|---|---|
+| `roadmap_task_catalog` | `logs/roadmap_task_catalog/latest.json` | `product_owner` | One row per `RoadmapTask`; always `current_stage = "discovered"`, `human_needed = False`, `risk = "low"`. |
+| `roadmap_implementation_unit` | `logs/roadmap_task_units/latest.json` | `planner` | One row per `ImplementationUnit`. `current_stage` derives from A20b's `authority_hint` and `operator_gate` (informational only). |
+| `roadmap_unit_authority_decision` | `logs/roadmap_unit_authority/latest.json` | `architecture_guardian` | One row per `UnitAuthorityDecision`. `current_stage` derives from A20c's `permanently_denied` / `requires_operator_go` flags. |
+
+The aggregator's `UPSTREAM_CATALOG` grows from 11 to 14 entries;
+all three new entries are projectable. The `PROJECTABLE_UPSTREAM_LEN`
+constant goes from 4 to 7; `HEALTH_ONLY_UPSTREAM_LEN` stays 7. A new
+`TTL_BY_GROUP["roadmap"] = 1800` entry is added.
+
+### 9.3 Read-only semantics
+
+Every row emitted by an A20d projector carries two explicit
+markers:
+
+- `read_only = True`
+- `mutation_allowed = False`
+
+In addition, the broader AAC no-mutation doctrine continues to hold
+(no POST / PUT / PATCH / DELETE routes, no approval-inbox mutation,
+no `required_phrase` synthesis — the A20b / A20c rows that produce
+a `human_action` set `required_phrase = None` and `copy_only = True`
+as a defence-in-depth measure).
+
+### 9.4 What A20d does NOT do
+
+- **No mutation routes.** The aggregator is read-only by
+  construction per
+  [`docs/governance/agent_activity_center_no_mutation_doctrine.md`](agent_activity_center_no_mutation_doctrine.md).
+- **No approval buttons.** Human-action rows from the A20b /
+  A20c projections set `required_phrase = None`. The aggregator
+  never synthesises an operator-go phrase.
+- **No mutation of `docs/development_work_queue/*.jsonl`.** Those
+  seed files remain operator-owned.
+- **No mutation of `approval_inbox`.** A20d only reports.
+- **No new ADE-executable work items.** A20d surfaces existing
+  read-only rows; it does not create new authority surfaces.
+- **No next-buildable-unit selection.** That is A20e scope.
+- **No Step 5 / Level 6 / N5b weakening.** Step 5 implementation
+  remains BLOCKED; Level 6 remains permanently disabled; N5b
+  Phase 4 production merge remains permanently denied for ADE.
+- **No `dashboard/dashboard.py` change.** Visibility is via the
+  existing AAC artefact (`logs/development_agent_activity_timeline/latest.json`);
+  the dashboard wiring is separately operator-owned.
+
+### 9.5 Invariant flips landing under A20d
+
+A20d flips two flags in the `_DECOMPOSITION_INVARIANTS`
+(A20b) and `_BASE_AUTHORITY_INVARIANTS` (A20c) blocks from
+`False` to `True`:
+
+- `aac_visibility_present = True`
+
+The following stay `False`:
+
+- `next_buildable_selector_present = False` (A20e scope)
+
+And the following stay `True` (no weakening):
+
+- `no_runtime_trading_authority = True`
+- `no_step5_runtime = True`
+- `no_level6 = True`
+- `no_production_merge_authority = True`
+
+## 10. Future stages (A20e)
+
+- **A20e — Deterministic Next-Buildable-Unit Selector.** Exposes the
   catalog + units + authority decisions to the operator through
   the existing read-only surfaces (`reporting/task_board.py`,
   `reporting/agent_flow.py`, AAC aggregator). No mutation routes,
@@ -622,7 +713,7 @@ above. Each must justify its own scope on its own PR.
 
 ---
 
-## 8. CLI
+## 11. CLI
 
 ```sh
 # Pure inspection — write the artefact and dump JSON to stdout:
@@ -644,7 +735,7 @@ refuses every path outside `logs/roadmap_task_catalog/`.
 
 ---
 
-## 9. Determinism contract
+## 12. Determinism contract
 
 - Tasks are sorted by `(phase, id)` ascending.
 - Requirements are sorted by `(phase, id)` ascending.
@@ -657,9 +748,9 @@ refuses every path outside `logs/roadmap_task_catalog/`.
 
 ---
 
-## 10. Test coverage
+## 13. Test coverage
 
-### 10.1 A20a
+### 13.1 A20a
 
 Pinned in [`tests/unit/test_roadmap_task_catalog.py`](../../tests/unit/test_roadmap_task_catalog.py):
 
@@ -693,7 +784,7 @@ Pinned in [`tests/unit/test_roadmap_task_catalog.py`](../../tests/unit/test_road
   research.run_research, research_latest.json, strategy_matrix.csv,
   `gh`, `git`).
 
-### 10.2 A20b
+### 13.2 A20b
 
 Pinned in [`tests/unit/test_roadmap_task_units.py`](../../tests/unit/test_roadmap_task_units.py):
 
@@ -759,7 +850,7 @@ declarations and inside this governance doc. They are forbidden as
 import targets, write targets, and runtime call surfaces; they are
 **not** forbidden as forbidden-path declarations.
 
-### 10.3 A20c
+### 13.3 A20c
 
 Pinned in [`tests/unit/test_roadmap_unit_authority.py`](../../tests/unit/test_roadmap_unit_authority.py):
 
@@ -835,7 +926,55 @@ Pinned in [`tests/unit/test_roadmap_unit_authority.py`](../../tests/unit/test_ro
 
 ---
 
-## 11. Cross-references
+### 13.4 A20d
+
+Pinned in [`tests/unit/test_development_agent_activity_timeline.py`](../../tests/unit/test_development_agent_activity_timeline.py):
+
+- Catalog cardinality flip: `UPSTREAM_CATALOG_LEN == 14`,
+  `PROJECTABLE_UPSTREAM_LEN == 7`, `HEALTH_ONLY_UPSTREAM_LEN == 7`;
+  `len(SOURCE_KINDS) == 16`.
+- Three new closed `source_kind` values:
+  `roadmap_task_catalog`, `roadmap_implementation_unit`,
+  `roadmap_unit_authority_decision`.
+- Three new `UPSTREAM_CATALOG` entries, all projectable, all
+  grouped under `roadmap`; each pointing at
+  `logs/roadmap_*/latest.json`.
+- `TTL_BY_GROUP["roadmap"] == 1800`.
+- A20a catalog present → emits one `WorkItem` per `RoadmapTask`
+  with `read_only=True`, `mutation_allowed=False`,
+  `current_stage="discovered"`, `human_needed=False`,
+  `owner_role="product_owner"`, `risk="low"`.
+- A20b units present → emits one `WorkItem` per
+  `ImplementationUnit`. `AUTO_ALLOWED_CANDIDATE` hint →
+  `current_stage="discovered"`, `human_needed=False`.
+  `NEEDS_HUMAN_CANDIDATE` hint or `operator_gate != "none"` →
+  `current_stage="needs_human"`, `human_needed=True`.
+  `PERMANENTLY_DENIED_SURFACE` hint →
+  `current_stage="done_blocked"`.
+- A20c decisions present → emits one `WorkItem` per
+  `UnitAuthorityDecision`. `permanently_denied=True` →
+  `current_stage="done_blocked"`, `risk="high"`.
+  `requires_operator_go=True` →
+  `current_stage="needs_human"`, `human_needed=True`.
+  Otherwise → `current_stage="discovered"`.
+- Missing roadmap artefacts → graceful absence (no work_items
+  emitted, no crash; artefact-health rows still appear for the
+  three new entries).
+- Malformed roadmap artefact → `parse_ok=False` with bounded
+  `parse_error`; no crash.
+- A20b / A20c human_actions: `required_phrase=None`,
+  `copy_only=True`. The aggregator MUST NOT synthesise an
+  operator-go phrase for roadmap rows.
+- No mutation verb appears in any roadmap-row `next_action`
+  (`approve`, `reject`, `merge_now`, `deploy_now` all absent).
+- AAC `invariant_status` continues to pin
+  `level_6=permanently_disabled` / `danger_off`,
+  `step5_implementation_allowed=False`, `step5_substage="none"`.
+- A20d does NOT introduce a `next_buildable_unit` / `selected_next_unit`
+  / `next_unit_selection` key into the envelope; that surface
+  remains A20e scope.
+
+## 14. Cross-references
 
 - [`docs/governance/ade_development_lane_doctrine.md`](ade_development_lane_doctrine.md)
 - [`docs/governance/execution_authority.md`](execution_authority.md)

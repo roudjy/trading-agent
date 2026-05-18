@@ -128,7 +128,8 @@ def test_step5_enabled_substage_is_none_constant() -> None:
 
 def test_closed_vocab_cardinalities() -> None:
     """Pin the cardinalities of every closed vocab and the three
-    catalog cardinality constants."""
+    catalog cardinality constants. Post-A20d: 14-entry catalog,
+    7 projectable + 7 health-only, 16 source kinds."""
     assert len(aat.STAGES) == 11
     assert len(aat.SEVERITIES) == 4
     assert len(aat.DECISIONS) == 16
@@ -137,13 +138,43 @@ def test_closed_vocab_cardinalities() -> None:
     assert len(aat.ARTIFACT_HEALTH_STATES) == 5
     assert len(aat.HUMAN_ACTION_TYPES) == 4
     assert len(aat.INVARIANT_STATES) == 5
-    assert len(aat.SOURCE_KINDS) == 13
+    assert len(aat.SOURCE_KINDS) == 16
     assert len(aat.AGENT_ROLES) == 16
     assert len(aat.EVENT_TYPES) == 16
-    assert aat.UPSTREAM_CATALOG_LEN == 11
-    assert aat.PROJECTABLE_UPSTREAM_LEN == 4
+    assert aat.UPSTREAM_CATALOG_LEN == 14
+    assert aat.PROJECTABLE_UPSTREAM_LEN == 7
     assert aat.HEALTH_ONLY_UPSTREAM_LEN == 7
     assert len(aat.UPSTREAM_CATALOG) == aat.UPSTREAM_CATALOG_LEN
+
+
+def test_a20d_source_kinds_present() -> None:
+    """A20d adds three read-only roadmap source_kinds."""
+    for kind in (
+        "roadmap_task_catalog",
+        "roadmap_implementation_unit",
+        "roadmap_unit_authority_decision",
+    ):
+        assert kind in aat.SOURCE_KINDS, kind
+
+
+def test_a20d_upstream_catalog_entries_present() -> None:
+    """A20d adds three read-only roadmap UPSTREAM_CATALOG entries,
+    all projectable and grouped under ``roadmap``."""
+    roadmap_entries = [c for c in aat.UPSTREAM_CATALOG if c[0] == "roadmap"]
+    assert len(roadmap_entries) == 3
+    paths = {c[2] for c in roadmap_entries}
+    assert paths == {
+        "logs/roadmap_task_catalog/latest.json",
+        "logs/roadmap_task_units/latest.json",
+        "logs/roadmap_unit_authority/latest.json",
+    }
+    for c in roadmap_entries:
+        assert c[3] is True, c  # projectable
+
+
+def test_a20d_roadmap_group_ttl_pinned() -> None:
+    """TTL_BY_GROUP must include the new ``roadmap`` group."""
+    assert aat.TTL_BY_GROUP.get("roadmap") == 1800
 
 
 def test_upstream_catalog_partition_is_exhaustive_and_mutually_exclusive() -> None:
@@ -173,7 +204,9 @@ def test_invariant_keys_match_schema_invariant_state_vocab() -> None:
 
 
 def test_ttl_defaults_match_operator_pinned_values() -> None:
-    """TTL defaults are pinned per operator approval."""
+    """TTL defaults are pinned per operator approval. A20d adds the
+    new ``roadmap`` group with TTL 1800, matching the other
+    deterministic-projector groups."""
     assert aat.TTL_BY_GROUP == {
         "queue": 600,
         "loops": 1800,
@@ -182,6 +215,7 @@ def test_ttl_defaults_match_operator_pinned_values() -> None:
         "generated": 1800,
         "digest": 1800,
         "seed": 86400,
+        "roadmap": 1800,
     }
 
 
@@ -1139,3 +1173,483 @@ def test_cli_default_writes_to_canonical_path(
     assert canonical.is_file()
     snap = json.loads(canonical.read_text(encoding="utf-8"))
     assert snap["report_kind"] == "agent_activity_timeline"
+
+
+# ---------------------------------------------------------------------------
+# A20d — read-only roadmap visibility
+# ---------------------------------------------------------------------------
+
+
+def _write_a20a_catalog(tmp_path: Path) -> Path:
+    """Write a deterministic A20a-shape catalog artefact."""
+    return _write_upstream(
+        tmp_path,
+        "logs/roadmap_task_catalog/latest.json",
+        {
+            "schema_version": "1.0",
+            "module_version": "v3.15.16.A20a",
+            "report_kind": "roadmap_task_catalog",
+            "generated_at_utc": "2026-05-18T08:00:00Z",
+            "roadmap_tasks": [
+                {
+                    "id": "phase_v3_15_16",
+                    "title": "Intelligent Routing Layer",
+                    "phase": "v3.15.16",
+                    "source_documents": ["docs/roadmap/Roadmap v6.md"],
+                    "purpose": "Behavior-aware routing.",
+                    "status": "not_started",
+                    "prerequisites": [],
+                },
+                {
+                    "id": "addendum_1_diagnostics_intake",
+                    "title": (
+                        "Mechanistic Behavior Diagnostics and External "
+                        "Intelligence Intake"
+                    ),
+                    "phase": "addendum_1",
+                    "source_documents": [
+                        "docs/roadmap/Roadmap v6 Addendum.md"
+                    ],
+                    "purpose": "Addendum 1 cross-cutting groundwork.",
+                    "status": "not_started",
+                    "prerequisites": [],
+                },
+            ],
+        },
+    )
+
+
+def _write_a20b_units(tmp_path: Path) -> Path:
+    """Write a deterministic A20b-shape unit-decomposition artefact."""
+    return _write_upstream(
+        tmp_path,
+        "logs/roadmap_task_units/latest.json",
+        {
+            "schema_version": "1.0",
+            "module_version": "v3.15.16.A20b",
+            "report_kind": "roadmap_task_units",
+            "generated_at_utc": "2026-05-18T08:00:00Z",
+            "implementation_units": [
+                {
+                    "id": "u_v3_15_16_routing_reporter_001",
+                    "roadmap_task_id": "phase_v3_15_16",
+                    "title": "Read-only routing reporter scaffold",
+                    "phase": "v3.15.16",
+                    "unit_kind": "reporting_module",
+                    "target_layer": "campaign",
+                    "expected_files": [
+                        "reporting/synthetic_module.py",
+                    ],
+                    "forbidden_files": [
+                        ".claude/**",
+                        "broker/**",
+                    ],
+                    "forbidden_surface_reasons": [],
+                    "required_tests": [],
+                    "definition_of_done": [],
+                    "stop_conditions": [],
+                    "prerequisites": [],
+                    "risk_class": "LOW",
+                    "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+                    "operator_gate": "none",
+                    "status": "not_started",
+                },
+                {
+                    "id": "u_v3_15_19_research_module_scaffold_001",
+                    "roadmap_task_id": "phase_v3_15_19",
+                    "title": "Hypothesis discovery research scaffold",
+                    "phase": "v3.15.19",
+                    "unit_kind": "research_module",
+                    "target_layer": "hypothesis_discovery",
+                    "expected_files": [
+                        "research/hypothesis_discovery/__init__.py",
+                    ],
+                    "forbidden_files": [".claude/**"],
+                    "forbidden_surface_reasons": [],
+                    "required_tests": [],
+                    "definition_of_done": [],
+                    "stop_conditions": [],
+                    "prerequisites": [],
+                    "risk_class": "MEDIUM",
+                    "authority_hint": "NEEDS_HUMAN_CANDIDATE",
+                    "operator_gate": "operator_go_required",
+                    "status": "not_started",
+                },
+            ],
+        },
+    )
+
+
+def _write_a20c_authority(tmp_path: Path) -> Path:
+    """Write a deterministic A20c-shape authority artefact."""
+    return _write_upstream(
+        tmp_path,
+        "logs/roadmap_unit_authority/latest.json",
+        {
+            "schema_version": "1.0",
+            "module_version": "v3.15.16.A20c",
+            "report_kind": "roadmap_unit_authority",
+            "generated_at_utc": "2026-05-18T08:00:00Z",
+            "authority_decisions": [
+                {
+                    "implementation_unit_id": "u_v3_15_16_routing_reporter_001",
+                    "roadmap_task_id": "phase_v3_15_16",
+                    "phase": "v3.15.16",
+                    "final_authority_class": "AUTO_ALLOWED",
+                    "max_severity": 0,
+                    "evidence": [
+                        {
+                            "kind": "risk_class",
+                            "value": "LOW",
+                            "decision": "AUTO_ALLOWED",
+                            "reason": "non_path_evidence_baseline",
+                            "source": "reporting.roadmap_unit_authority",
+                        },
+                        {
+                            "kind": "operator_gate",
+                            "value": "none",
+                            "decision": "AUTO_ALLOWED",
+                            "reason": "non_path_evidence_baseline",
+                            "source": "reporting.roadmap_unit_authority",
+                        },
+                    ],
+                    "requires_operator_go": False,
+                    "permanently_denied": False,
+                    "deny_reasons": [],
+                    "classifier_used": True,
+                    "fail_closed": False,
+                },
+                {
+                    "implementation_unit_id": (
+                        "u_v3_15_19_research_module_scaffold_001"
+                    ),
+                    "roadmap_task_id": "phase_v3_15_19",
+                    "phase": "v3.15.19",
+                    "final_authority_class": "NEEDS_HUMAN",
+                    "max_severity": 1,
+                    "evidence": [
+                        {
+                            "kind": "risk_class",
+                            "value": "MEDIUM",
+                            "decision": "AUTO_ALLOWED",
+                            "reason": "non_path_evidence_baseline",
+                            "source": "reporting.roadmap_unit_authority",
+                        },
+                        {
+                            "kind": "operator_gate",
+                            "value": "operator_go_required",
+                            "decision": "NEEDS_HUMAN",
+                            "reason": "operator_gate_required",
+                            "source": "reporting.roadmap_unit_authority",
+                        },
+                    ],
+                    "requires_operator_go": True,
+                    "permanently_denied": False,
+                    "deny_reasons": [],
+                    "classifier_used": True,
+                    "fail_closed": False,
+                },
+            ],
+        },
+    )
+
+
+def test_a20d_catalog_present_emits_workitem_rows(tmp_path: Path) -> None:
+    _write_a20a_catalog(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    rows = [
+        w
+        for w in snap["work_items"]
+        if w["source_kind"] == "roadmap_task_catalog"
+    ]
+    assert len(rows) == 2
+    for row in rows:
+        assert row["read_only"] is True
+        assert row["mutation_allowed"] is False
+        assert row["current_stage"] == "discovered"
+        assert row["owner_role"] == "product_owner"
+        assert row["human_needed"] is False
+        assert (
+            row["source_path"] == "logs/roadmap_task_catalog/latest.json"
+        )
+
+
+def test_a20d_units_present_emits_workitem_rows(tmp_path: Path) -> None:
+    _write_a20b_units(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    rows = [
+        w
+        for w in snap["work_items"]
+        if w["source_kind"] == "roadmap_implementation_unit"
+    ]
+    assert len(rows) == 2
+    auto_row = next(
+        r for r in rows if r["authority_hint_a20b"] == "AUTO_ALLOWED_CANDIDATE"
+    )
+    nh_row = next(
+        r for r in rows if r["authority_hint_a20b"] == "NEEDS_HUMAN_CANDIDATE"
+    )
+    assert auto_row["current_stage"] == "discovered"
+    assert auto_row["human_needed"] is False
+    assert nh_row["current_stage"] == "needs_human"
+    assert nh_row["human_needed"] is True
+    for row in rows:
+        assert row["read_only"] is True
+        assert row["mutation_allowed"] is False
+
+
+def test_a20d_authority_present_emits_workitem_rows(tmp_path: Path) -> None:
+    _write_a20c_authority(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    rows = [
+        w
+        for w in snap["work_items"]
+        if w["source_kind"] == "roadmap_unit_authority_decision"
+    ]
+    assert len(rows) == 2
+    auto_row = next(r for r in rows if r["final_authority_class"] == "AUTO_ALLOWED")
+    nh_row = next(r for r in rows if r["final_authority_class"] == "NEEDS_HUMAN")
+    assert auto_row["current_stage"] == "discovered"
+    assert auto_row["human_needed"] is False
+    assert auto_row["requires_operator_go"] is False
+    assert auto_row["permanently_denied"] is False
+    assert nh_row["current_stage"] == "needs_human"
+    assert nh_row["human_needed"] is True
+    assert nh_row["requires_operator_go"] is True
+    assert nh_row["permanently_denied"] is False
+    for row in rows:
+        assert row["read_only"] is True
+        assert row["mutation_allowed"] is False
+        assert row["final_authority_class"] in aat.DECISIONS or (
+            row["final_authority_class"]
+            in ("AUTO_ALLOWED", "NEEDS_HUMAN", "PERMANENTLY_DENIED")
+        )
+
+
+def test_a20d_permanently_denied_authority_drives_done_blocked(
+    tmp_path: Path,
+) -> None:
+    _write_upstream(
+        tmp_path,
+        "logs/roadmap_unit_authority/latest.json",
+        {
+            "schema_version": "1.0",
+            "module_version": "v3.15.16.A20c",
+            "generated_at_utc": "2026-05-18T08:00:00Z",
+            "authority_decisions": [
+                {
+                    "implementation_unit_id": "u_synth_denied",
+                    "roadmap_task_id": "phase_v3_15_16",
+                    "phase": "v3.15.16",
+                    "final_authority_class": "PERMANENTLY_DENIED",
+                    "max_severity": 2,
+                    "evidence": [
+                        {
+                            "kind": "risk_class",
+                            "value": "LOW",
+                            "decision": "AUTO_ALLOWED",
+                            "reason": "non_path_evidence_baseline",
+                            "source": "reporting.roadmap_unit_authority",
+                        }
+                    ],
+                    "requires_operator_go": False,
+                    "permanently_denied": True,
+                    "deny_reasons": ["denied_live_path_modification"],
+                    "classifier_used": True,
+                    "fail_closed": False,
+                }
+            ],
+        },
+    )
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    rows = [
+        w
+        for w in snap["work_items"]
+        if w["source_kind"] == "roadmap_unit_authority_decision"
+    ]
+    assert len(rows) == 1
+    assert rows[0]["current_stage"] == "done_blocked"
+    assert rows[0]["permanently_denied"] is True
+    assert rows[0]["risk"] == "high"
+
+
+def test_a20d_missing_roadmap_artifacts_do_not_crash(tmp_path: Path) -> None:
+    """Graceful absence: no roadmap files exist; aggregator returns a
+    valid envelope with no roadmap work_items."""
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    for kind in (
+        "roadmap_task_catalog",
+        "roadmap_implementation_unit",
+        "roadmap_unit_authority_decision",
+    ):
+        assert not [
+            w for w in snap["work_items"] if w["source_kind"] == kind
+        ], kind
+    # Health rows must still exist for all three roadmap upstreams.
+    paths = {r["path"] for r in snap["artifact_health"]}
+    for p in (
+        "logs/roadmap_task_catalog/latest.json",
+        "logs/roadmap_task_units/latest.json",
+        "logs/roadmap_unit_authority/latest.json",
+    ):
+        assert p in paths, p
+
+
+def test_a20d_malformed_roadmap_artifact_does_not_crash(tmp_path: Path) -> None:
+    target = tmp_path / "logs" / "roadmap_unit_authority" / "latest.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("{not valid json", encoding="utf-8")
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    rt_health = next(
+        r
+        for r in snap["artifact_health"]
+        if r["path"] == "logs/roadmap_unit_authority/latest.json"
+    )
+    assert rt_health["parse_ok"] is False
+    assert isinstance(rt_health.get("parse_error"), str)
+
+
+def test_a20d_rows_carry_read_only_and_mutation_allowed_false(
+    tmp_path: Path,
+) -> None:
+    _write_a20a_catalog(tmp_path)
+    _write_a20b_units(tmp_path)
+    _write_a20c_authority(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    for w in snap["work_items"]:
+        if w["source_kind"] in (
+            "roadmap_task_catalog",
+            "roadmap_implementation_unit",
+            "roadmap_unit_authority_decision",
+        ):
+            assert w["read_only"] is True
+            assert w["mutation_allowed"] is False
+
+
+def test_a20d_human_actions_carry_no_required_phrase(tmp_path: Path) -> None:
+    """A20d must NOT synthesise a required_phrase. Every human_action
+    produced from the roadmap upstreams sets required_phrase=None."""
+    _write_a20b_units(tmp_path)
+    _write_a20c_authority(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    for ha in snap["human_actions"]:
+        src = ha.get("source_artifact_path", "")
+        if src.endswith("roadmap_task_units/latest.json") or src.endswith(
+            "roadmap_unit_authority/latest.json"
+        ):
+            assert ha["required_phrase"] is None
+            assert ha["copy_only"] is True
+
+
+def test_a20d_does_not_expose_mutation_routes_in_envelope(
+    tmp_path: Path,
+) -> None:
+    """Read-only invariant: there must be no mutation verb anywhere
+    in the emitted envelope coming from the roadmap projectors."""
+    _write_a20a_catalog(tmp_path)
+    _write_a20b_units(tmp_path)
+    _write_a20c_authority(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    forbidden_verbs = ("approve", "reject", "merge_now", "deploy_now")
+    for w in snap["work_items"]:
+        if w["source_kind"] not in (
+            "roadmap_task_catalog",
+            "roadmap_implementation_unit",
+            "roadmap_unit_authority_decision",
+        ):
+            continue
+        next_action = w.get("next_action", "").lower()
+        for verb in forbidden_verbs:
+            assert verb not in next_action, (w["item_id"], verb)
+
+
+def test_a20d_invariant_status_still_pins_level_6_and_step5(
+    tmp_path: Path,
+) -> None:
+    """A20d MUST NOT alter the AAC invariant pins."""
+    _write_a20a_catalog(tmp_path)
+    _write_a20b_units(tmp_path)
+    _write_a20c_authority(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    by_key = {r["key"]: r for r in snap["invariant_status"]}
+    assert by_key["level_6"]["value"] == "permanently_disabled"
+    assert by_key["level_6"]["tone"] == "danger_off"
+    assert by_key["step5_implementation_allowed"]["value"] is False
+    assert by_key["step5_substage"]["value"] == "none"
+
+
+def test_a20d_authority_class_is_displayed_not_executed(
+    tmp_path: Path,
+) -> None:
+    """A20d rows surface the authority class for operator review;
+    they MUST NOT trigger any auto-implementation. The aggregator
+    has no mutation surface — pinned globally; this test cross-pins
+    the per-row claim."""
+    _write_a20c_authority(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    rows = [
+        w
+        for w in snap["work_items"]
+        if w["source_kind"] == "roadmap_unit_authority_decision"
+    ]
+    assert rows
+    for r in rows:
+        assert r["final_authority_class"] in (
+            "AUTO_ALLOWED",
+            "NEEDS_HUMAN",
+            "PERMANENTLY_DENIED",
+        )
+        # No row is marked "execute" anywhere.
+        assert "execute" not in r.get("next_action", "").lower()
+
+
+def test_a20d_no_next_buildable_selector_in_envelope(tmp_path: Path) -> None:
+    """A20d does not pick a single 'next buildable' unit. The
+    envelope must contain no key implying a next selection."""
+    _write_a20a_catalog(tmp_path)
+    _write_a20b_units(tmp_path)
+    _write_a20c_authority(tmp_path)
+    snap = aat.collect_snapshot(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-18T09:00:00Z",
+    )
+    forbidden_keys = (
+        "next_buildable_unit",
+        "selected_next_unit",
+        "next_unit_selection",
+    )
+    for key in forbidden_keys:
+        assert key not in snap, key

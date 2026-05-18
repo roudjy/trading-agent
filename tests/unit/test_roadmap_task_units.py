@@ -467,11 +467,18 @@ def test_invariants_pin_addendum_2_3_absence(snap: dict) -> None:
 
 
 def test_invariants_pin_no_final_authority(snap: dict) -> None:
+    """A20b itself does not call the canonical classifier and does
+    not record final authority — those are A20c's responsibilities,
+    pinned by ``False`` here. A20c flips them to ``True`` in its own
+    projection's invariant block, not A20b's. The next-buildable
+    selector is A20e scope and remains ``False``. AAC visibility is
+    ``True`` post-A20d because the AAC aggregator surfaces A20b
+    rows as read-only work items."""
     inv = snap["decomposition_invariants"]
     assert inv["calls_execution_authority_classifier"] is False
     assert inv["final_authority_classified"] is False
     assert inv["next_buildable_selector_present"] is False
-    assert inv["aac_visibility_present"] is False
+    assert inv["aac_visibility_present"] is True
 
 
 def test_invariants_pin_diagnostics_do_not_trade(snap: dict) -> None:

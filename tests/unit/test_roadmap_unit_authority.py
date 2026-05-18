@@ -702,9 +702,13 @@ def test_invariants_pin_writes_only_roadmap_unit_authority_log(
     )
 
 
-def test_invariants_pin_aac_and_next_buildable_remain_false(snap: dict) -> None:
+def test_invariants_pin_aac_visibility_true_after_a20d(snap: dict) -> None:
+    """After A20d landed, the AAC aggregator surfaces A20c rows as
+    read-only work items. ``aac_visibility_present`` therefore flips
+    to ``True``. The next-buildable-unit selector (A20e) remains
+    unimplemented; its flag stays ``False``."""
     inv = snap["authority_invariants"]
-    assert inv["aac_visibility_present"] is False
+    assert inv["aac_visibility_present"] is True
     assert inv["next_buildable_selector_present"] is False
 
 
@@ -851,7 +855,7 @@ def test_cli_status_does_not_write(
     assert "calls_execution_authority_classifier=True" in out
     assert "final_authority_classified=True" in out
     assert "no_runtime_trading_authority=True" in out
-    assert "aac_visibility_present=False" in out
+    assert "aac_visibility_present=True" in out
     assert "next_buildable_selector_present=False" in out
 
 
