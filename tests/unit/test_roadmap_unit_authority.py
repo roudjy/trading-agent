@@ -119,12 +119,16 @@ def _baseline_unit(**overrides) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def test_authority_class_matches_canonical_decisions_verbatim() -> None:
-    assert rua.AUTHORITY_CLASS == ea.DECISIONS
+def test_authority_class_extends_canonical_decisions_with_strategic() -> None:
+    """A22 extends AUTHORITY_CLASS with ``STRATEGICALLY_PREAPPROVED``.
+    The canonical classifier's three values remain in order at the
+    start; the A22 promotion class is appended last."""
+    assert rua.AUTHORITY_CLASS[:3] == ea.DECISIONS
     assert rua.AUTHORITY_CLASS == (
         "AUTO_ALLOWED",
         "NEEDS_HUMAN",
         "PERMANENTLY_DENIED",
+        "STRATEGICALLY_PREAPPROVED",
     )
 
 
@@ -138,6 +142,7 @@ def test_authority_evidence_kind_is_closed_exact() -> None:
         "authority_hint",
         "unit_kind",
         "stop_conditions",
+        "strategic_mandate",
     )
 
 
@@ -182,11 +187,15 @@ def test_authority_reason_has_no_duplicates() -> None:
     assert len(rua.AUTHORITY_REASON) == len(set(rua.AUTHORITY_REASON))
 
 
-def test_severity_ordering_matches_canonical_decisions() -> None:
+def test_severity_ordering_includes_strategic_between_auto_and_needs_human() -> None:
+    """A22 inserts ``STRATEGICALLY_PREAPPROVED`` at severity 1.
+    ``NEEDS_HUMAN`` moves to 2 and ``PERMANENTLY_DENIED`` to 3, so
+    the ordering remains contiguous and monotone."""
     assert rua._SEVERITY == {
         ea.DECISION_AUTO_ALLOWED: 0,
-        ea.DECISION_NEEDS_HUMAN: 1,
-        ea.DECISION_PERMANENTLY_DENIED: 2,
+        "STRATEGICALLY_PREAPPROVED": 1,
+        ea.DECISION_NEEDS_HUMAN: 2,
+        ea.DECISION_PERMANENTLY_DENIED: 3,
     }
 
 
@@ -238,6 +247,7 @@ def test_unit_authority_decision_field_list_exact() -> None:
         "deny_reasons",
         "classifier_used",
         "fail_closed",
+        "strategic_mandate_satisfied",
     )
 
 
@@ -358,7 +368,15 @@ def test_needs_human_unit_elevates_via_canonical_policy_doc() -> None:
     """A LOW-risk reporting unit that lists a canonical_policy_doc in
     expected_files MUST elevate to NEEDS_HUMAN (the canonical
     classifier emits high_risk_canonical_policy_change for that
-    path)."""
+    path).
+
+    Under A22, NEEDS_HUMAN units are post-process candidates for
+    promotion to STRATEGICALLY_PREAPPROVED. The baseline unit's
+    target_layer ``reporting`` and risk ``LOW`` satisfy the mandate
+    if the unit also has all the required scaffolding. The default
+    ``_baseline_unit`` lacks ``stop_conditions`` / ``definition_of_done``,
+    so the post-process leaves it at NEEDS_HUMAN.
+    """
     unit = _baseline_unit(
         expected_files=[
             "reporting/synthetic_module.py",
@@ -367,7 +385,7 @@ def test_needs_human_unit_elevates_via_canonical_policy_doc() -> None:
     )
     d = rua._decide_for_unit(unit)
     assert d["final_authority_class"] == ea.DECISION_NEEDS_HUMAN
-    assert d["max_severity"] == 1
+    assert d["max_severity"] == 2
     assert d["requires_operator_go"] is True
 
 
@@ -380,7 +398,7 @@ def test_permanently_denied_unit_via_live_path() -> None:
     )
     d = rua._decide_for_unit(unit)
     assert d["final_authority_class"] == ea.DECISION_PERMANENTLY_DENIED
-    assert d["max_severity"] == 2
+    assert d["max_severity"] == 3
     assert d["permanently_denied"] is True
     assert "denied_live_path_modification" in d["deny_reasons"]
 
@@ -872,7 +890,7 @@ def test_cli_default_writes_to_allowlisted_path(
     assert sentinel.is_file()
     payload = json.loads(sentinel.read_text(encoding="utf-8"))
     assert payload["report_kind"] == "roadmap_unit_authority"
-    assert payload["module_version"].endswith("A20c")
+    assert "A20c" in payload["module_version"]
 
 
 def test_cli_indent_zero_compact(
@@ -1008,4 +1026,184 @@ def test_module_imports_cleanly() -> None:
 def test_schema_and_module_version_strings() -> None:
     assert isinstance(rua.SCHEMA_VERSION, str) and rua.SCHEMA_VERSION
     assert isinstance(rua.MODULE_VERSION, str) and rua.MODULE_VERSION
-    assert rua.MODULE_VERSION.endswith("A20c")
+    # A22 extends A20c with the strategic-mandate post-process; the
+    # version tag carries both anchors.
+    assert "A20c" in rua.MODULE_VERSION
+    assert "A22" in rua.MODULE_VERSION
+
+
+# ===========================================================================
+# A22 strategic execution mandate post-process tests
+# ===========================================================================
+
+
+def _mandate_eligible_unit(**overrides: object) -> dict:
+    """Synthetic unit that satisfies every mandate criterion: phase
+    in Roadmap v6 + Addendum 1; target_layer in the mandate set;
+    risk LOW (default) or MEDIUM (override); all scaffolding fields
+    populated. The unit's authority_hint NEEDS_HUMAN_CANDIDATE
+    ensures the aggregator returns NEEDS_HUMAN so the post-process
+    can promote it."""
+    base = _baseline_unit(
+        authority_hint="NEEDS_HUMAN_CANDIDATE",
+        risk_class="MEDIUM",
+        expected_files=["reporting/synthetic_target.py"],
+        forbidden_files=["broker/**", "dashboard/dashboard.py"],
+        required_tests=["tests/unit/test_synthetic_target.py"],
+        stop_conditions=("stop if external API access is added",),
+        definition_of_done=("synthetic module imports cleanly",),
+    )
+    base.update(overrides)
+    return base
+
+
+def test_mandate_promotes_eligible_needs_human_unit() -> None:
+    unit = _mandate_eligible_unit()
+    d = rua._decide_for_unit(unit)
+    assert d["final_authority_class"] == "STRATEGICALLY_PREAPPROVED"
+    assert d["max_severity"] == 1
+    assert d["requires_operator_go"] is False
+    assert d["strategic_mandate_satisfied"] is True
+    # Mandate evidence is recorded explicitly on the decision.
+    mandate_evidence = [
+        e for e in d["evidence"] if e["kind"] == "strategic_mandate"
+    ]
+    assert len(mandate_evidence) == 1
+    assert mandate_evidence[0]["decision"] == "STRATEGICALLY_PREAPPROVED"
+    assert mandate_evidence[0]["reason"] == "strategic_mandate_satisfied"
+
+
+def test_mandate_does_not_promote_permanently_denied_unit() -> None:
+    """A unit with a forbidden path in expected_files must STAY
+    PERMANENTLY_DENIED — the mandate never overrides hard denial."""
+    unit = _mandate_eligible_unit(
+        expected_files=[
+            "reporting/synthetic_target.py",
+            "broker/synthetic_broker.py",  # live_path -> PERMANENTLY_DENIED
+        ],
+    )
+    d = rua._decide_for_unit(unit)
+    assert d["final_authority_class"] == "PERMANENTLY_DENIED"
+    assert d["strategic_mandate_satisfied"] is False
+    mandate_evidence = [
+        e for e in d["evidence"] if e["kind"] == "strategic_mandate"
+    ]
+    assert len(mandate_evidence) == 1
+    assert mandate_evidence[0]["reason"] == (
+        "strategic_mandate_not_applicable_permanently_denied"
+    )
+
+
+def test_mandate_does_not_promote_auto_allowed_unit() -> None:
+    """An AUTO_ALLOWED unit stays AUTO_ALLOWED. The mandate only
+    promotes upward from NEEDS_HUMAN."""
+    unit = _baseline_unit(
+        authority_hint="AUTO_ALLOWED_CANDIDATE",
+        risk_class="LOW",
+    )
+    d = rua._decide_for_unit(unit)
+    assert d["final_authority_class"] == "AUTO_ALLOWED"
+    assert d["strategic_mandate_satisfied"] is False
+    mandate_evidence = [
+        e for e in d["evidence"] if e["kind"] == "strategic_mandate"
+    ]
+    assert len(mandate_evidence) == 1
+    assert mandate_evidence[0]["reason"] == (
+        "strategic_mandate_not_applicable_already_auto_allowed"
+    )
+
+
+def test_mandate_refuses_unsupported_phase() -> None:
+    unit = _mandate_eligible_unit(phase="v3.14.0")  # outside mandate
+    d = rua._decide_for_unit(unit)
+    assert d["final_authority_class"] == "NEEDS_HUMAN"
+    assert d["strategic_mandate_satisfied"] is False
+    mandate_evidence = [
+        e for e in d["evidence"] if e["kind"] == "strategic_mandate"
+    ]
+    assert mandate_evidence[0]["reason"] == (
+        "strategic_mandate_not_satisfied_unsupported_phase"
+    )
+
+
+def test_mandate_refuses_unsupported_target_layer() -> None:
+    """``broker`` is not a mandate target layer (even though most
+    broker units are PERMANENTLY_DENIED via path classification; we
+    cover the case where the layer alone is the problem)."""
+    unit = _mandate_eligible_unit(target_layer="broker")
+    d = rua._decide_for_unit(unit)
+    # broker is not in mandate target layers; aggregator returns
+    # NEEDS_HUMAN; post-process refuses.
+    assert d["strategic_mandate_satisfied"] is False
+    mandate_evidence = [
+        e for e in d["evidence"] if e["kind"] == "strategic_mandate"
+    ]
+    # Either unsupported_target_layer OR another reason fired first.
+    # Either way, satisfied must be False.
+    assert mandate_evidence[0]["reason"].startswith(
+        "strategic_mandate_not_"
+    )
+
+
+def test_mandate_refuses_unsupported_risk_class() -> None:
+    """HIGH/CRITICAL/UNKNOWN risk is never promoted by the mandate."""
+    for high_risk in ("HIGH", "CRITICAL", "UNKNOWN"):
+        unit = _mandate_eligible_unit(risk_class=high_risk)
+        d = rua._decide_for_unit(unit)
+        assert d["strategic_mandate_satisfied"] is False, high_risk
+        if d["final_authority_class"] not in {
+            "PERMANENTLY_DENIED",
+            "STRATEGICALLY_PREAPPROVED",
+        }:
+            assert d["final_authority_class"] == "NEEDS_HUMAN"
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    [
+        "expected_files",
+        "forbidden_files",
+        "required_tests",
+        "stop_conditions",
+        "definition_of_done",
+    ],
+)
+def test_mandate_refuses_missing_scaffolding(missing_field: str) -> None:
+    unit = _mandate_eligible_unit(**{missing_field: ()})
+    d = rua._decide_for_unit(unit)
+    assert d["strategic_mandate_satisfied"] is False
+    if missing_field == "expected_files":
+        # Empty expected_files makes the aggregator fail-closed.
+        assert d["final_authority_class"] in {
+            "NEEDS_HUMAN", "PERMANENTLY_DENIED"
+        }
+    else:
+        assert d["final_authority_class"] == "NEEDS_HUMAN"
+
+
+def test_mandate_invariants_pinned_on_projection() -> None:
+    snap = rua.collect_snapshot(generated_at_utc=_FROZEN_UTC)
+    inv = snap["authority_invariants"]
+    assert inv["strategic_mandate_post_process_applied"] is True
+    assert inv["strategic_mandate_never_overrides_permanently_denied"] is True
+    assert inv["strategic_mandate_never_promotes_unknown_risk"] is True
+    assert inv["strategic_mandate_requires_explicit_scaffolding"] is True
+
+
+def test_mandate_evidence_kind_is_informational_not_aggregating() -> None:
+    """``strategic_mandate`` is in the informational bucket. The
+    aggregator must NOT consider it during max-severity reduction
+    (it's a post-process)."""
+    assert "strategic_mandate" in rua._INFORMATIONAL_EVIDENCE_KINDS
+    assert "strategic_mandate" not in rua._AGGREGATING_EVIDENCE_KINDS
+
+
+def test_mandate_severity_strictly_between_auto_and_needs_human() -> None:
+    """STRATEGICALLY_PREAPPROVED severity (1) is strictly between
+    AUTO_ALLOWED (0) and NEEDS_HUMAN (2). The conveyor uses this to
+    prefer AUTO_ALLOWED over mandate-promoted units at sort time."""
+    assert (
+        rua._SEVERITY["AUTO_ALLOWED"]
+        < rua._SEVERITY["STRATEGICALLY_PREAPPROVED"]
+        < rua._SEVERITY["NEEDS_HUMAN"]
+    )

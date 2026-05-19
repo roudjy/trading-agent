@@ -1,21 +1,37 @@
-# Roadmap Task Catalog — A20a..A20e + A21a + A21c + A21d + A21e
+# Roadmap Task Catalog — A20a..A20e + A21a + A21c + A21d + A21e + A22
 
-> **Status:** A20a implemented; A20b implemented; A20c implemented;
-> A20d implemented; A20e implemented (deterministic next-buildable-unit
-> selector); A21a implemented (dynamic unit-status ledger,
-> Step 5 foundation); A21c implemented (bounded autonomous PR
-> runner for ONE AUTO_ALLOWED + LOW-risk + gate=none unit); A21d
-> implemented (bounded auto-merge for runner-originated PRs after
-> CI green + post-merge gates green); A21e implemented (continuous
-> autonomous conveyor mode that wraps the A21d cycle in a loop
-> with no artificial unit-count cap and no wall-clock budget,
-> stopping only on no-eligible-work, safety, technical, or
-> explicit operator soft-stop conditions). Stages A20a-A21a are
-> read-only projections. A21c / A21d / A21e share one runner
-> module driven by explicit CLI flags. No auto-merge for
-> non-runner-originated PRs; no ``--admin``; no force-push; no
-> hook bypass; no deploy invocation; post-merge gates remain
-> read-only-observed.
+> **Status:** A20a implemented; A20b implemented; A20c implemented
+> (extended by A22 with strategic-mandate post-process); A20d
+> implemented; A20e implemented (deterministic next-buildable-unit
+> selector, now accepts STRATEGICALLY_PREAPPROVED as eligible);
+> A21a implemented (dynamic unit-status ledger); A21c implemented
+> (bounded autonomous PR runner); A21d implemented (bounded
+> auto-merge for runner-originated PRs); A21e implemented
+> (continuous autonomous conveyor with no artificial cap); **A22
+> implemented (Strategic Roadmap Execution Mandate + Catalog
+> Expansion Policy — operator pre-approves automatic processing
+> of mandate-eligible MEDIUM / NEEDS_HUMAN research-scaffold
+> units via the new STRATEGICALLY_PREAPPROVED authority class,
+> while keeping every hard runtime / trading / paper / shadow /
+> broker / risk / live / frozen-contract / dashboard-mutation
+> boundary intact).** No auto-merge for non-runner-originated PRs;
+> no ``--admin``; no force-push; no hook bypass; no deploy
+> invocation; post-merge gates remain read-only-observed.
+
+## Current queue scope
+
+The queue is **finite**. It encodes:
+
+- Roadmap v6 phases v3.15.16 → v3.15.20;
+- Addendum 1;
+- 20 implementation units.
+
+`addendum_2` and `addendum_3` slots exist in the strategic
+mandate's phase list but are **not yet repo-resident**. Adding
+units in those phases requires a separate operator-driven
+catalog expansion PR. See
+[`docs/governance/strategic_roadmap_execution_mandate.md`](strategic_roadmap_execution_mandate.md)
+§5 for the catalog expansion policy.
 >
 > **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
 > **A20a artefact:** `logs/roadmap_task_catalog/latest.json`
@@ -35,6 +51,10 @@
 > **A21a module:** [`reporting/roadmap_unit_status.py`](../../reporting/roadmap_unit_status.py)
 > **A21a artefact:** `logs/roadmap_unit_status/latest.json`
 > **A21a governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md)
+>
+> **A22 module:** [`reporting/roadmap_unit_authority.py`](../../reporting/roadmap_unit_authority.py) (strategic-mandate post-process)
+> **A22 governance:** [`docs/governance/strategic_roadmap_execution_mandate.md`](strategic_roadmap_execution_mandate.md)
+> A22 promotes mandate-eligible NEEDS_HUMAN units to ``STRATEGICALLY_PREAPPROVED`` so the conveyor processes them automatically. The mandate never overrides PERMANENTLY_DENIED, never accepts HIGH/CRITICAL/UNKNOWN risk, and never relaxes the always-blocked runtime / trading / paper / shadow / broker / risk / execution / frozen-contract / dashboard-mutation surfaces.
 >
 > **A21c + A21d + A21e module:** [`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
 > **A21c..A21e primary artefact:** `logs/autonomous_pr_runner/latest.json`

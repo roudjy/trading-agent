@@ -236,9 +236,14 @@ def test_phase_order_matches_a20a_phase_list() -> None:
 
 def test_authority_order_does_not_include_permanently_denied() -> None:
     """PERMANENTLY_DENIED is never used as a sort tier; it is a
-    block-only verdict and is filtered out before sorting."""
+    block-only verdict and is filtered out before sorting. A22 adds
+    STRATEGICALLY_PREAPPROVED between AUTO_ALLOWED and NEEDS_HUMAN."""
     assert "PERMANENTLY_DENIED" not in rnu._AUTHORITY_ORDER
-    assert rnu._AUTHORITY_ORDER == ("AUTO_ALLOWED", "NEEDS_HUMAN")
+    assert rnu._AUTHORITY_ORDER == (
+        "AUTO_ALLOWED",
+        "STRATEGICALLY_PREAPPROVED",
+        "NEEDS_HUMAN",
+    )
 
 
 def test_risk_order_matches_classifier_enum() -> None:
@@ -1340,6 +1345,129 @@ def test_top_level_projection_carries_status_schema_version(
     )
     snap = _snap(tmp_path)
     assert snap["source_status_schema_version"] == "1.0"
+
+
+# ---------------------------------------------------------------------------
+# A22 strategic-mandate selector integration
+# ---------------------------------------------------------------------------
+
+
+def test_strategically_preapproved_unit_is_eligible(tmp_path: Path) -> None:
+    """A unit with final_authority_class STRATEGICALLY_PREAPPROVED
+    and operator_gate=none must be ELIGIBLE (not NEEDS_HUMAN_GATED)."""
+    unit = _baseline_unit()
+    _write_units_artifact(tmp_path, [unit])
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(
+                final_authority_class="STRATEGICALLY_PREAPPROVED",
+                requires_operator_go=False,
+            )
+        ],
+    )
+    snap = _snap(tmp_path)
+    cand = snap["candidates"][0]
+    assert cand["eligibility"] == "ELIGIBLE"
+    assert cand["final_authority_class"] == "STRATEGICALLY_PREAPPROVED"
+    assert snap["selection"]["selection_status"] == "OK_SELECTED"
+    assert snap["selection"]["requires_operator_go"] is False
+
+
+def test_auto_allowed_preferred_over_strategically_preapproved(
+    tmp_path: Path,
+) -> None:
+    """When both an AUTO_ALLOWED and a STRATEGICALLY_PREAPPROVED
+    candidate exist, the AUTO_ALLOWED one wins via the
+    authority-order sort key (severity 0 vs 1)."""
+    auto_unit = _baseline_unit(id="u_auto", phase="v3.15.16")
+    strat_unit = _baseline_unit(id="u_strat", phase="v3.15.16")
+    _write_units_artifact(tmp_path, [auto_unit, strat_unit])
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(implementation_unit_id="u_auto"),
+            _baseline_decision(
+                implementation_unit_id="u_strat",
+                final_authority_class="STRATEGICALLY_PREAPPROVED",
+                requires_operator_go=False,
+            ),
+        ],
+    )
+    snap = _snap(tmp_path)
+    assert snap["selection"]["selected_unit_id"] == "u_auto"
+
+
+def test_strategically_preapproved_picked_before_needs_human(
+    tmp_path: Path,
+) -> None:
+    """STRATEGICALLY_PREAPPROVED is ELIGIBLE; NEEDS_HUMAN is
+    NEEDS_HUMAN_GATED. The selector prefers ELIGIBLE so the
+    mandate-promoted unit wins over the gated one."""
+    strat_unit = _baseline_unit(id="u_strat", phase="v3.15.16")
+    gated_unit = _baseline_unit(
+        id="u_gated",
+        phase="v3.15.16",
+        authority_hint="NEEDS_HUMAN_CANDIDATE",
+        operator_gate="operator_go_required",
+    )
+    _write_units_artifact(tmp_path, [strat_unit, gated_unit])
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(
+                implementation_unit_id="u_strat",
+                final_authority_class="STRATEGICALLY_PREAPPROVED",
+                requires_operator_go=False,
+            ),
+            _baseline_decision(
+                implementation_unit_id="u_gated",
+                final_authority_class="NEEDS_HUMAN",
+                requires_operator_go=True,
+            ),
+        ],
+    )
+    snap = _snap(tmp_path)
+    assert snap["selection"]["selected_unit_id"] == "u_strat"
+    assert snap["selection"]["selection_status"] == "OK_SELECTED"
+
+
+def test_permanently_denied_still_wins_over_strategically_preapproved(
+    tmp_path: Path,
+) -> None:
+    """PERMANENTLY_DENIED units remain BLOCKED — they never get
+    selected even if STRATEGICALLY_PREAPPROVED options exist
+    (defence in depth; the post-process never overrides hard
+    denial, so this case shouldn't happen in practice but the
+    selector still handles it correctly)."""
+    strat_unit = _baseline_unit(id="u_strat", phase="v3.15.16")
+    denied_unit = _baseline_unit(id="u_denied", phase="v3.15.16")
+    _write_units_artifact(tmp_path, [strat_unit, denied_unit])
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(
+                implementation_unit_id="u_strat",
+                final_authority_class="STRATEGICALLY_PREAPPROVED",
+                requires_operator_go=False,
+            ),
+            _baseline_decision(
+                implementation_unit_id="u_denied",
+                final_authority_class="PERMANENTLY_DENIED",
+                permanently_denied=True,
+                deny_reasons=["denied_live_path_modification"],
+            ),
+        ],
+    )
+    snap = _snap(tmp_path)
+    # u_strat wins; u_denied is BLOCKED.
+    assert snap["selection"]["selected_unit_id"] == "u_strat"
+    denied_candidate = next(
+        c
+        for c in snap["candidates"]
+        if c["implementation_unit_id"] == "u_denied"
+    )
+    assert denied_candidate["eligibility"] == "BLOCKED"
 
 
 # ---------------------------------------------------------------------------

@@ -78,7 +78,7 @@ from reporting import roadmap_task_units as rtu
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[str] = "1.0"
-MODULE_VERSION: Final[str] = "v3.15.16.A20c"
+MODULE_VERSION: Final[str] = "v3.15.16.A20c+A22"
 REPORT_KIND: Final[str] = "roadmap_unit_authority"
 
 
@@ -94,19 +94,32 @@ step5_implementation_allowed: Final[bool] = False
 # Closed vocabularies
 # ---------------------------------------------------------------------------
 
-#: Closed final authority classes. Exactly the canonical classifier's
-#: ``DECISIONS`` enum, pinned to the same tuple values.
-AUTHORITY_CLASS: Final[tuple[str, ...]] = ea.DECISIONS
+#: Closed final authority classes. Extends the canonical classifier's
+#: ``DECISIONS`` enum with ``STRATEGICALLY_PREAPPROVED`` (A22). The
+#: aggregator only emits the canonical three; ``STRATEGICALLY_PREAPPROVED``
+#: is produced by the A22 post-process when a NEEDS_HUMAN unit
+#: satisfies every condition of the operator's strategic execution
+#: mandate (see :func:`_strategic_mandate_satisfied`).
+_STRATEGICALLY_PREAPPROVED: Final[str] = "STRATEGICALLY_PREAPPROVED"
+
+AUTHORITY_CLASS: Final[tuple[str, ...]] = tuple(
+    list(ea.DECISIONS) + [_STRATEGICALLY_PREAPPROVED]
+)
 
 _AUTO_ALLOWED: Final[str] = ea.DECISION_AUTO_ALLOWED
 _NEEDS_HUMAN: Final[str] = ea.DECISION_NEEDS_HUMAN
 _PERMANENTLY_DENIED: Final[str] = ea.DECISION_PERMANENTLY_DENIED
 
 #: Severity ordering. Higher value = more restrictive.
+#:
+#: ``STRATEGICALLY_PREAPPROVED`` is severity 1, between AUTO_ALLOWED
+#: and NEEDS_HUMAN. PERMANENTLY_DENIED's severity moves from 2 to 3
+#: to keep a single contiguous ordering.
 _SEVERITY: Final[dict[str, int]] = {
     _AUTO_ALLOWED: 0,
-    _NEEDS_HUMAN: 1,
-    _PERMANENTLY_DENIED: 2,
+    _STRATEGICALLY_PREAPPROVED: 1,
+    _NEEDS_HUMAN: 2,
+    _PERMANENTLY_DENIED: 3,
 }
 
 #: Closed authority reason vocabulary. The first segment mirrors
@@ -135,6 +148,14 @@ _A20C_ONLY_REASONS: Final[tuple[str, ...]] = (
     "stop_conditions_informational_only",
     "forbidden_file_informational_only",
     "non_path_evidence_baseline",
+    # A22 strategic-mandate reasons
+    "strategic_mandate_satisfied",
+    "strategic_mandate_not_satisfied_unsupported_phase",
+    "strategic_mandate_not_satisfied_unsupported_target_layer",
+    "strategic_mandate_not_satisfied_missing_scaffolding",
+    "strategic_mandate_not_satisfied_unsupported_risk_class",
+    "strategic_mandate_not_applicable_already_auto_allowed",
+    "strategic_mandate_not_applicable_permanently_denied",
 )
 AUTHORITY_REASON: Final[tuple[str, ...]] = tuple(
     dict.fromkeys(_CANONICAL_REASONS + _A20C_ONLY_REASONS)
@@ -151,6 +172,8 @@ AUTHORITY_EVIDENCE_KIND: Final[tuple[str, ...]] = (
     "authority_hint",
     "unit_kind",
     "stop_conditions",
+    # A22 post-process kind
+    "strategic_mandate",
 )
 
 #: Evidence kinds that contribute to the unit-level aggregate. The
@@ -170,6 +193,11 @@ _INFORMATIONAL_EVIDENCE_KINDS: Final[frozenset[str]] = frozenset(
     {
         "forbidden_file_classifier",
         "stop_conditions",
+        # ``strategic_mandate`` is informational at aggregation
+        # time; it is applied as a post-process AFTER aggregation.
+        # Including it in the aggregator would create a circular
+        # dependency.
+        "strategic_mandate",
     }
 )
 
@@ -216,6 +244,60 @@ UNIT_AUTHORITY_DECISION_FIELDS: Final[tuple[str, ...]] = (
     "deny_reasons",
     "classifier_used",
     "fail_closed",
+    # A22 — explicit boolean so downstream consumers (selector,
+    # runner) can introspect mandate-satisfaction without re-parsing
+    # the evidence list.
+    "strategic_mandate_satisfied",
+)
+
+
+# ---------------------------------------------------------------------------
+# A22 strategic execution mandate (constants)
+# ---------------------------------------------------------------------------
+
+#: Phases the strategic mandate covers. Any phase outside this set
+#: keeps NEEDS_HUMAN authority and the conveyor stops on it.
+_MANDATE_PHASES: Final[frozenset[str]] = frozenset({
+    "v3.15.16",
+    "v3.15.17",
+    "v3.15.18",
+    "v3.15.19",
+    "v3.15.20",
+    "addendum_1",
+    "addendum_2",
+    "addendum_3",
+})
+
+#: Target layers the strategic mandate covers. The set names the
+#: research / scaffold / docs / tests / reporting surfaces the
+#: operator pre-approved. Layers outside this set (``broker``,
+#: ``agent.risk``, ``agent.execution``, ``live``, ``paper``,
+#: ``shadow``, ``trading``, ``dashboard``) are never promoted.
+_MANDATE_TARGET_LAYERS: Final[frozenset[str]] = frozenset({
+    "reporting",
+    "research",
+    "governance",
+    "test",
+    "diagnostic",
+    "external_intelligence",
+    "preset",
+    "evidence",
+})
+
+#: Risk classes the strategic mandate covers. ``HIGH`` / ``CRITICAL``
+#: / ``UNKNOWN`` remain NEEDS_HUMAN (or PERMANENTLY_DENIED if
+#: classified so) and require explicit operator action.
+_MANDATE_RISK_CLASSES: Final[frozenset[str]] = frozenset({"LOW", "MEDIUM"})
+
+#: Required unit scaffolding. A unit lacking any of these stays
+#: NEEDS_HUMAN — the mandate requires explicit definition of intent
+#: + tests + stop conditions before automatic execution.
+_MANDATE_REQUIRED_SCAFFOLD_FIELDS: Final[tuple[str, ...]] = (
+    "expected_files",
+    "forbidden_files",
+    "required_tests",
+    "stop_conditions",
+    "definition_of_done",
 )
 
 #: Top-level projection schema.
@@ -281,6 +363,11 @@ _BASE_AUTHORITY_INVARIANTS: Final[dict[str, bool]] = {
     # authority decisions.
     "aac_visibility_present": True,
     "next_buildable_selector_present": True,
+    # A22 strategic execution mandate post-process pins.
+    "strategic_mandate_post_process_applied": True,
+    "strategic_mandate_never_overrides_permanently_denied": True,
+    "strategic_mandate_never_promotes_unknown_risk": True,
+    "strategic_mandate_requires_explicit_scaffolding": True,
 }
 
 
@@ -636,7 +723,13 @@ def _aggregate(evidence: list[dict[str, Any]]) -> tuple[str, list[str]]:
     """Reduce evidence to ``(final_class, deny_reasons)`` via
     max-severity over the aggregating-kinds subset. Fail-closed:
     if there is no aggregating evidence at all (defence in depth),
-    return ``NEEDS_HUMAN`` + ``["fail_closed_unknown_evidence"]``."""
+    return ``NEEDS_HUMAN`` + ``["fail_closed_unknown_evidence"]``.
+
+    The aggregator only emits the canonical three classes
+    (``AUTO_ALLOWED`` / ``NEEDS_HUMAN`` / ``PERMANENTLY_DENIED``).
+    ``STRATEGICALLY_PREAPPROVED`` is applied as a post-process by
+    :func:`_apply_strategic_mandate`.
+    """
     aggregating = [
         e for e in evidence if e["kind"] in _AGGREGATING_EVIDENCE_KINDS
     ]
@@ -657,6 +750,128 @@ def _aggregate(evidence: list[dict[str, Any]]) -> tuple[str, list[str]]:
         if e["decision"] == _NEEDS_HUMAN:
             return _NEEDS_HUMAN, []
     return _AUTO_ALLOWED, []
+
+
+# ---------------------------------------------------------------------------
+# A22 strategic-mandate evaluator + post-process
+# ---------------------------------------------------------------------------
+
+
+def _evaluate_strategic_mandate(
+    unit: dict[str, Any],
+) -> tuple[bool, str]:
+    """Evaluate the operator's strategic execution mandate against
+    one A20b unit. Returns ``(satisfied, reason)`` where ``reason``
+    is a closed-vocab token from
+    :data:`_A20C_ONLY_REASONS`.
+
+    The mandate is satisfied when ALL of these hold:
+
+    1. ``phase`` is in :data:`_MANDATE_PHASES` (Roadmap v6 or any
+       Addendum slot).
+    2. ``target_layer`` is in :data:`_MANDATE_TARGET_LAYERS`
+       (research / scaffold / docs / tests / reporting surfaces).
+    3. ``risk_class`` is in :data:`_MANDATE_RISK_CLASSES` (``LOW``
+       or ``MEDIUM``; ``HIGH`` / ``CRITICAL`` / ``UNKNOWN`` remain
+       NEEDS_HUMAN).
+    4. Every field in :data:`_MANDATE_REQUIRED_SCAFFOLD_FIELDS`
+       (``expected_files`` / ``forbidden_files`` / ``required_tests``
+       / ``stop_conditions`` / ``definition_of_done``) is a
+       non-empty list.
+
+    Path safety (no forbidden surface in ``expected_files``, no
+    executable strategy / order placement / broker / risk
+    surface) is enforced by the pre-existing per-path classifier
+    aggregation: any such path produces a PERMANENTLY_DENIED
+    aggregate, and this post-process never promotes
+    PERMANENTLY_DENIED.
+    """
+    phase = unit.get("phase")
+    if not isinstance(phase, str) or phase not in _MANDATE_PHASES:
+        return False, "strategic_mandate_not_satisfied_unsupported_phase"
+    target_layer = unit.get("target_layer")
+    if (
+        not isinstance(target_layer, str)
+        or target_layer not in _MANDATE_TARGET_LAYERS
+    ):
+        return (
+            False,
+            "strategic_mandate_not_satisfied_unsupported_target_layer",
+        )
+    risk = unit.get("risk_class")
+    if not isinstance(risk, str) or risk not in _MANDATE_RISK_CLASSES:
+        return (
+            False,
+            "strategic_mandate_not_satisfied_unsupported_risk_class",
+        )
+    for field in _MANDATE_REQUIRED_SCAFFOLD_FIELDS:
+        value = unit.get(field)
+        if not isinstance(value, (list, tuple)) or len(value) == 0:
+            return (
+                False,
+                "strategic_mandate_not_satisfied_missing_scaffolding",
+            )
+    return True, "strategic_mandate_satisfied"
+
+
+def _apply_strategic_mandate(
+    unit: dict[str, Any], decision: dict[str, Any]
+) -> dict[str, Any]:
+    """Apply the A22 strategic-mandate post-process to one
+    aggregated decision.
+
+    * ``AUTO_ALLOWED`` decisions are left as-is — the mandate only
+      promotes upward from NEEDS_HUMAN. AUTO_ALLOWED records still
+      get a ``strategic_mandate`` evidence record with the
+      not-applicable reason for audit transparency.
+    * ``PERMANENTLY_DENIED`` decisions are left as-is — denied
+      surfaces stay denied; the mandate never overrides a hard
+      denial.
+    * ``NEEDS_HUMAN`` decisions are promoted to
+      ``STRATEGICALLY_PREAPPROVED`` if and only if every condition
+      in :func:`_evaluate_strategic_mandate` holds.
+    """
+    final_class = decision["final_authority_class"]
+    # Default: not satisfied, with a kind-of-default reason.
+    satisfied = False
+    reason: str
+
+    if final_class == _PERMANENTLY_DENIED:
+        reason = "strategic_mandate_not_applicable_permanently_denied"
+        mandate_decision = _NEEDS_HUMAN  # informational only
+    elif final_class == _AUTO_ALLOWED:
+        reason = "strategic_mandate_not_applicable_already_auto_allowed"
+        mandate_decision = _AUTO_ALLOWED  # informational only
+    else:
+        # NEEDS_HUMAN candidate — evaluate the mandate.
+        satisfied, reason = _evaluate_strategic_mandate(unit)
+        mandate_decision = (
+            _STRATEGICALLY_PREAPPROVED if satisfied else _NEEDS_HUMAN
+        )
+
+    evidence_record = _make_evidence(
+        kind="strategic_mandate",
+        value=("satisfied" if satisfied else "not_satisfied"),
+        decision=mandate_decision,
+        reason=reason,
+        source=_SOURCE_A20C,
+    )
+    new_evidence = list(decision["evidence"]) + [evidence_record]
+
+    if satisfied:
+        promoted_class = _STRATEGICALLY_PREAPPROVED
+        new_decision = dict(decision)
+        new_decision["final_authority_class"] = promoted_class
+        new_decision["max_severity"] = _SEVERITY[promoted_class]
+        new_decision["requires_operator_go"] = False
+        new_decision["evidence"] = new_evidence
+        new_decision["strategic_mandate_satisfied"] = True
+        return new_decision
+
+    new_decision = dict(decision)
+    new_decision["evidence"] = new_evidence
+    new_decision["strategic_mandate_satisfied"] = False
+    return new_decision
 
 
 def _decide_for_unit(unit: dict[str, Any]) -> dict[str, Any]:
@@ -694,7 +909,7 @@ def _decide_for_unit(unit: dict[str, Any]) -> dict[str, Any]:
         e["reason"].startswith("fail_closed_") for e in evidence
     )
 
-    return {
+    base_decision: dict[str, Any] = {
         "implementation_unit_id": unit["id"],
         "roadmap_task_id": unit["roadmap_task_id"],
         "phase": unit["phase"],
@@ -706,7 +921,11 @@ def _decide_for_unit(unit: dict[str, Any]) -> dict[str, Any]:
         "deny_reasons": deny_reasons,
         "classifier_used": classifier_used,
         "fail_closed": fail_closed,
+        "strategic_mandate_satisfied": False,
     }
+    # A22: apply the operator's strategic execution mandate as a
+    # post-process. May promote NEEDS_HUMAN to STRATEGICALLY_PREAPPROVED.
+    return _apply_strategic_mandate(unit, base_decision)
 
 
 # ---------------------------------------------------------------------------
