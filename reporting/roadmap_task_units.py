@@ -378,8 +378,11 @@ _DECOMPOSITION_INVARIANTS: Final[dict[str, bool]] = {
     "step5_implementation_allowed": False,
     "diagnostics_do_not_trade": True,
     "external_data_is_not_alpha": True,
-    "addendum_2_not_present": True,
-    "addendum_3_not_present": True,
+    # A23 made Addendum 2 + 3 repo-resident in docs/roadmap/.
+    # Decomposition seed now carries Addendum 2 + 3 ImplementationUnit
+    # records; both absence flags flip to False.
+    "addendum_2_not_present": False,
+    "addendum_3_not_present": False,
     "grants_runtime_authority": False,
     "grants_trading_authority": False,
     "grants_paper_authority": False,
@@ -1357,6 +1360,802 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "operator_gate": "none",
         "status": "not_started",
     },
+    # =====================================================================
+    # A23 — Addendum 2 implementation units (State, Sequential,
+    # Knowledge & Retrieval). Each unit is a small, conveyor-friendly
+    # scaffold derived from the operator-provided canonical doc. No
+    # executable strategy generation. No broker / risk / execution.
+    # No live / paper / shadow. Frozen contracts untouched.
+    # =====================================================================
+    {
+        "id": "u_addendum_2_state_diagnostics_governance_doc_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "State & Sequential Diagnostics Layer governance doc "
+            "(read-only)"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (
+            "req_addendum_2_state_transition_diagnostics",
+            "req_addendum_2_hidden_markov_models",
+            "req_addendum_2_semi_markov_regime_duration",
+        ),
+        "expected_files": (
+            "docs/governance/state_sequential_diagnostics_layer.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": (),
+        "extra_required_tests": (),
+        "extra_definition_of_done": _governance_doc_dod(
+            "docs/governance/state_sequential_diagnostics_layer.md"
+        )
+        + (
+            (
+                "doc explains state-transition / HMM / semi-Markov / "
+                "higher-order / particle / martingale / random-walk "
+                "/ FSM / queueing diagnostics are read-only sidecar "
+                "context and never trade"
+            ),
+        ),
+        "extra_stop_conditions": (),
+        "prerequisites": (
+            "u_addendum_1_diagnostics_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_2_knowledge_retrieval_governance_doc_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "Research Knowledge & Retrieval Layer governance doc "
+            "(read-only)"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (
+            "req_addendum_2_knowledge_graph_memory",
+            "req_addendum_2_ontology_taxonomy",
+            "req_addendum_2_entity_resolution",
+            "req_addendum_2_hybrid_retrieval",
+            "req_addendum_2_reciprocal_rank_fusion",
+        ),
+        "expected_files": (
+            "docs/governance/research_knowledge_retrieval_layer.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": (),
+        "extra_required_tests": (),
+        "extra_definition_of_done": _governance_doc_dod(
+            "docs/governance/research_knowledge_retrieval_layer.md"
+        )
+        + (
+            (
+                "doc explains knowledge graph / ontology / entity "
+                "resolution / hybrid retrieval / rank fusion are "
+                "deterministic read-only research-routing context"
+            ),
+        ),
+        "extra_stop_conditions": (),
+        "prerequisites": (
+            "u_addendum_1_diagnostics_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_2_state_transition_schema_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "State-transition diagnostic schema + read-only projector"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "reporting_module",
+        "target_layer": "diagnostics",
+        "source_requirement_ids": (
+            "req_addendum_2_state_transition_diagnostics",
+        ),
+        "expected_files": (
+            "reporting/state_transition_diagnostic.py",
+            "tests/unit/test_state_transition_diagnostic.py",
+            "docs/governance/state_transition_diagnostic.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_state_transition_diagnostic.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.state_transition_diagnostic",
+            "logs/state_transition_diagnostic/",
+        )
+        + (
+            (
+                "schema exposes closed-vocab regimes/states and "
+                "deterministic transition statistics; no executable "
+                "strategy generation"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any attempt to mutate live risk or place a trade "
+                "from this diagnostic -> STOP"
+            ),
+        ),
+        "prerequisites": (
+            "u_addendum_2_state_diagnostics_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_2_null_process_baseline_schema_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "Null-process (martingale + random-walk) baseline "
+            "diagnostic schema + projector"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "reporting_module",
+        "target_layer": "diagnostics",
+        "source_requirement_ids": (
+            "req_addendum_2_martingale_baseline",
+            "req_addendum_2_random_walk_surrogate",
+        ),
+        "expected_files": (
+            "reporting/null_process_baseline_diagnostic.py",
+            "tests/unit/test_null_process_baseline_diagnostic.py",
+            "docs/governance/null_process_baseline_diagnostic.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_null_process_baseline_diagnostic.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.null_process_baseline_diagnostic",
+            "logs/null_process_baseline_diagnostic/",
+        )
+        + (
+            (
+                "deterministic random seeds; surrogate samples are "
+                "sidecar artefacts only"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any stochastic baseline must use a deterministic "
+                "seed; failure -> STOP"
+            ),
+        ),
+        "prerequisites": (
+            "u_addendum_2_state_diagnostics_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_2_queueing_throughput_reporter_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "Queueing / research-throughput diagnostic reporter "
+            "(read-only)"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "reporting_module",
+        "target_layer": "diagnostics",
+        "source_requirement_ids": (
+            "req_addendum_2_queueing_throughput",
+        ),
+        "expected_files": (
+            "reporting/research_throughput_diagnostic.py",
+            "tests/unit/test_research_throughput_diagnostic.py",
+            "docs/governance/research_throughput_diagnostic.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_research_throughput_diagnostic.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.research_throughput_diagnostic",
+            "logs/research_throughput_diagnostic/",
+        )
+        + (
+            (
+                "models queueing metrics deterministically over "
+                "research-pipeline scheduling artefacts; never "
+                "modifies pipeline state"
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any throughput diagnostic that schedules work -> STOP",
+        ),
+        "prerequisites": (
+            "u_addendum_2_state_diagnostics_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_2_knowledge_graph_scaffold_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "Research knowledge-graph scaffold (research-memory "
+            "graph nodes + lineage edges)"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "research_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (
+            "req_addendum_2_knowledge_graph_memory",
+        ),
+        "expected_files": (
+            "research/knowledge_graph/__init__.py",
+            "research/knowledge_graph/memory_graph_scaffold.py",
+            "tests/unit/test_research_knowledge_graph_scaffold.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_research_knowledge_graph_scaffold.py"
+        ),
+        "extra_definition_of_done": _research_module_dod(
+            "research/knowledge_graph/memory_graph_scaffold.py"
+        )
+        + (
+            (
+                "scaffold encodes deterministic node/edge schemas; "
+                "no probabilistic edges; no LLM relation extraction"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any edge sourced from an LLM / fuzzy parser / "
+                "external vendor -> STOP"
+            ),
+        ),
+        "prerequisites": (
+            "u_addendum_2_knowledge_retrieval_governance_doc_001",
+        ),
+        "risk_class": "MEDIUM",
+        "authority_hint": "NEEDS_HUMAN_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_2_ontology_entity_resolution_scaffold_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "Canonical taxonomy + entity-resolution scaffold "
+            "(closed-vocab term registry)"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "research_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (
+            "req_addendum_2_ontology_taxonomy",
+            "req_addendum_2_entity_resolution",
+        ),
+        "expected_files": (
+            "research/knowledge_graph/ontology_scaffold.py",
+            "research/knowledge_graph/entity_resolution_scaffold.py",
+            "tests/unit/test_research_ontology_scaffold.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_research_ontology_scaffold.py"
+        ),
+        "extra_definition_of_done": _research_module_dod(
+            "research/knowledge_graph/ontology_scaffold.py"
+        )
+        + (
+            (
+                "ontology is closed-vocab; entity-resolution uses "
+                "deterministic exact-match + canonical-id mapping; "
+                "no LLM"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any probabilistic tie-breaking or LLM-based "
+                "coreference -> STOP"
+            ),
+        ),
+        "prerequisites": (
+            "u_addendum_2_knowledge_graph_scaffold_001",
+        ),
+        "risk_class": "MEDIUM",
+        "authority_hint": "NEEDS_HUMAN_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_2_hybrid_retrieval_reporter_001",
+        "roadmap_task_id": (
+            "addendum_2_state_sequential_knowledge_retrieval"
+        ),
+        "title": (
+            "Hybrid retrieval + rank-fusion reporter "
+            "(deterministic, read-only)"
+        ),
+        "phase": "addendum_2",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (
+            "req_addendum_2_hybrid_retrieval",
+            "req_addendum_2_reciprocal_rank_fusion",
+        ),
+        "expected_files": (
+            "reporting/hybrid_retrieval_reporter.py",
+            "tests/unit/test_hybrid_retrieval_reporter.py",
+            "docs/governance/hybrid_retrieval_reporter.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_hybrid_retrieval_reporter.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.hybrid_retrieval_reporter",
+            "logs/hybrid_retrieval_reporter/",
+        )
+        + (
+            (
+                "ranking is deterministic closed-formula; no LLM "
+                "reranker; no fuzzy parsing"
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any LLM-based reranker introduced -> STOP",
+        ),
+        "prerequisites": (
+            "u_addendum_2_ontology_entity_resolution_scaffold_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    # =====================================================================
+    # A23 — Addendum 3 implementation units (Source Identity, Data
+    # Quality, Throughput). Each unit is a small, conveyor-friendly
+    # scaffold derived from the operator-provided canonical doc.
+    # Registry / manifest / quality-gate / cache scaffolds only —
+    # no live network ingest, no vendor credentials, no broker
+    # connections, no order placement.
+    # =====================================================================
+    {
+        "id": "u_addendum_3_source_candidate_registry_governance_doc_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Source Candidate Registry governance doc (read-only)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (
+            "req_addendum_3_source_candidate_registry",
+        ),
+        "expected_files": (
+            "docs/governance/source_candidate_registry.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": (),
+        "extra_required_tests": (),
+        "extra_definition_of_done": _governance_doc_dod(
+            "docs/governance/source_candidate_registry.md"
+        )
+        + (
+            (
+                "doc pins identity / license / access mode / "
+                "repo-resident-only / status fields; registry is "
+                "sidecar-artefact only; never grants connection "
+                "authority"
+            ),
+        ),
+        "extra_stop_conditions": (),
+        "prerequisites": (
+            "u_addendum_1_diagnostics_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_source_identity_governance_doc_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Source Identity & Symbology Layer governance doc "
+            "(read-only)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (
+            "req_addendum_3_openfigi_identity",
+        ),
+        "expected_files": (
+            "docs/governance/source_identity_symbology_layer.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": (),
+        "extra_required_tests": (),
+        "extra_definition_of_done": _governance_doc_dod(
+            "docs/governance/source_identity_symbology_layer.md"
+        )
+        + (
+            (
+                "doc describes deterministic symbology mapping; no "
+                "live OpenFIGI calls; no vendor credentials in repo"
+            ),
+        ),
+        "extra_stop_conditions": (),
+        "prerequisites": (
+            "u_addendum_3_source_candidate_registry_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_quality_gate_governance_doc_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Source Manifest & Quality Gate Layer governance doc "
+            "(read-only)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (
+            "req_addendum_3_quality_gate_reporter",
+        ),
+        "expected_files": (
+            "docs/governance/source_manifest_quality_gate_layer.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": (),
+        "extra_required_tests": (),
+        "extra_definition_of_done": _governance_doc_dod(
+            "docs/governance/source_manifest_quality_gate_layer.md"
+        )
+        + (
+            (
+                "doc pins closed-vocab verdicts "
+                "(passes_quality_gate / fails_quality_gate / "
+                "insufficient_evidence); verdicts never gate "
+                "trading; external data is not alpha"
+            ),
+        ),
+        "extra_stop_conditions": (),
+        "prerequisites": (
+            "u_addendum_3_source_candidate_registry_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_cache_throughput_governance_doc_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Local Data Cache & Throughput Layer governance doc "
+            "(read-only)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (
+            "req_addendum_3_parquet_cache",
+            "req_addendum_3_duckdb_query_catalog",
+        ),
+        "expected_files": (
+            "docs/governance/local_data_cache_throughput_layer.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": (),
+        "extra_required_tests": (),
+        "extra_definition_of_done": _governance_doc_dod(
+            "docs/governance/local_data_cache_throughput_layer.md"
+        )
+        + (
+            (
+                "doc pins Parquet + DuckDB manifest scaffolds as "
+                "read-only offline-research artefacts; never live; "
+                "never broker / risk / execution"
+            ),
+        ),
+        "extra_stop_conditions": (),
+        "prerequisites": (
+            "u_addendum_3_source_candidate_registry_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_source_usefulness_ledger_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Source Usefulness Ledger scaffold "
+            "(deterministic, read-only)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (
+            "req_addendum_3_source_usefulness_ledger",
+        ),
+        "expected_files": (
+            "reporting/source_usefulness_ledger.py",
+            "tests/unit/test_source_usefulness_ledger.py",
+            "docs/governance/source_usefulness_ledger.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_source_usefulness_ledger.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.source_usefulness_ledger",
+            "logs/source_usefulness_ledger/",
+        )
+        + (
+            (
+                "per-source usefulness verdicts recorded as sidecar "
+                "artefacts; never grants trading authority"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any attempt to feed the ledger into a live trading "
+                "decision -> STOP"
+            ),
+        ),
+        "prerequisites": (
+            "u_addendum_3_quality_gate_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_quality_gate_reporter_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Public-data quality-gate reporter "
+            "(deterministic verdicts, read-only)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "reporting_module",
+        "target_layer": "diagnostics",
+        "source_requirement_ids": (
+            "req_addendum_3_quality_gate_reporter",
+        ),
+        "expected_files": (
+            "reporting/public_data_quality_gate.py",
+            "tests/unit/test_public_data_quality_gate.py",
+            "docs/governance/public_data_quality_gate.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_public_data_quality_gate.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.public_data_quality_gate",
+            "logs/public_data_quality_gate/",
+        )
+        + (
+            (
+                "verdicts are closed-vocab "
+                "(passes_quality_gate / fails_quality_gate / "
+                "insufficient_evidence); external data is not alpha"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any verdict that promotes external data into a "
+                "trade signal -> STOP"
+            ),
+        ),
+        "prerequisites": (
+            "u_addendum_3_quality_gate_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_openfigi_identity_registry_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "OpenFIGI identity candidate-registry scaffold "
+            "(no live calls)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "external_intelligence_source",
+        "target_layer": "external_intelligence",
+        "source_requirement_ids": (
+            "req_addendum_3_openfigi_identity",
+        ),
+        "expected_files": (
+            "research/external_intelligence/openfigi_identity_scaffold.py",
+            "tests/unit/test_openfigi_identity_scaffold.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_openfigi_identity_scaffold.py"
+        ),
+        "extra_definition_of_done": _research_module_dod(
+            "research/external_intelligence/openfigi_identity_scaffold.py"
+        )
+        + (
+            (
+                "registry entry only; no live OpenFIGI HTTP calls; "
+                "no credentials in repo; no vendor SDK import"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any network call (urllib / requests / httpx / "
+                "socket) -> STOP"
+            ),
+        ),
+        "prerequisites": (
+            "u_addendum_3_source_identity_governance_doc_001",
+        ),
+        "risk_class": "MEDIUM",
+        "authority_hint": "NEEDS_HUMAN_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_binance_public_bulk_cache_manifest_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Binance public bulk-data cache manifest scaffold "
+            "(no broker / order surface)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "external_intelligence_source",
+        "target_layer": "external_intelligence",
+        "source_requirement_ids": (
+            "req_addendum_3_binance_public_bulk_cache",
+        ),
+        "expected_files": (
+            "research/external_intelligence/binance_public_bulk_cache_manifest.py",
+            "tests/unit/test_binance_public_bulk_cache_manifest.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_binance_public_bulk_cache_manifest.py"
+        ),
+        "extra_definition_of_done": _research_module_dod(
+            "research/external_intelligence/binance_public_bulk_cache_manifest.py"
+        )
+        + (
+            (
+                "manifest scaffold only; no live Binance API call; "
+                "no broker import; no order surface; no credentials"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any broker / order / risk / execution import "
+                "-> STOP"
+            ),
+            "any API key / credential / endpoint hard-coded -> STOP",
+        ),
+        "prerequisites": (
+            "u_addendum_3_cache_throughput_governance_doc_001",
+        ),
+        "risk_class": "MEDIUM",
+        "authority_hint": "NEEDS_HUMAN_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_addendum_3_parquet_duckdb_cache_manifest_001",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "title": (
+            "Parquet + DuckDB cache manifest scaffold "
+            "(offline-research read-only)"
+        ),
+        "phase": "addendum_3",
+        "unit_kind": "reporting_module",
+        "target_layer": "reporting",
+        "source_requirement_ids": (
+            "req_addendum_3_parquet_cache",
+            "req_addendum_3_duckdb_query_catalog",
+        ),
+        "expected_files": (
+            "reporting/parquet_duckdb_cache_manifest.py",
+            "tests/unit/test_parquet_duckdb_cache_manifest.py",
+            "docs/governance/parquet_duckdb_cache_manifest.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_parquet_duckdb_cache_manifest.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.parquet_duckdb_cache_manifest",
+            "logs/parquet_duckdb_cache_manifest/",
+        )
+        + (
+            (
+                "manifest scaffold only; no live cache write; no "
+                "broker / order / risk / execution surface; offline "
+                "research artefact only"
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any live cache mutation from production -> STOP",
+        ),
+        "prerequisites": (
+            "u_addendum_3_cache_throughput_governance_doc_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
 )
 
 
@@ -1552,9 +2351,14 @@ def collect_snapshot(
 
     # Read the upstream catalog to derive the known-task-id set. We
     # only use it as a closed reference; we do not invent units for
-    # tasks that the catalog has not committed. This is what keeps
-    # Addendum 2 / Addendum 3 absence from leaking into the unit
-    # projection.
+    # tasks that the catalog has not committed.
+    #
+    # A23 made Addendum 2 + 3 repo-resident and added their tasks to
+    # the catalog, so addendum_2 / addendum_3 unit seeds are now
+    # accepted. The defensive ``addendum_absence`` filter that
+    # previously dropped them has been removed; the
+    # ``known_task_ids`` / ``known_phases`` gates below still keep
+    # unit seeds from leaking through for unrecognised tasks/phases.
     catalog = rtc.collect_snapshot(generated_at_utc=ts)
     known_task_ids: set[str] = {t["id"] for t in catalog["roadmap_tasks"]}
     known_phases: set[str] = {t["phase"] for t in catalog["roadmap_tasks"]}
@@ -1571,14 +2375,6 @@ def collect_snapshot(
         if seed["phase"] not in known_phases:
             skipped_warnings.append(
                 f"unit_skipped_unknown_phase:{seed['id']}:{seed['phase']}"
-            )
-            continue
-        if seed["phase"] in ("addendum_2", "addendum_3"):
-            # Defensive: the catalog must not encode these phases as
-            # tasks, but reassert it here too so a future drift cannot
-            # smuggle invented units through.
-            skipped_warnings.append(
-                f"unit_skipped_addendum_absence:{seed['id']}:{seed['phase']}"
             )
             continue
         units.append(_normalize_unit(seed))

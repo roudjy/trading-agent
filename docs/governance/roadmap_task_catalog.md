@@ -20,18 +20,28 @@
 
 ## Current queue scope
 
-The queue is **finite**. It encodes:
+The queue encodes:
 
 - Roadmap v6 phases v3.15.16 → v3.15.20;
-- Addendum 1;
-- 20 implementation units.
+- Addendum 1 (diagnostics + external-intelligence intake);
+- Addendum 2 (state / sequential / knowledge / retrieval
+  intelligence) — repo-resident as of A23;
+- Addendum 3 (source identity / data quality / throughput
+  intelligence) — repo-resident as of A23;
+- 8 `RoadmapTask` records, 54 `RoadmapRequirement` records, 37
+  `ImplementationUnit` records.
 
-`addendum_2` and `addendum_3` slots exist in the strategic
-mandate's phase list but are **not yet repo-resident**. Adding
-units in those phases requires a separate operator-driven
-catalog expansion PR. See
+A23 made Addendum 2 + 3 repo-resident by copying the
+operator-provided canonical files into `docs/roadmap/` verbatim
+and deriving 22 new requirements + 17 new units from their
+section structure. The absence flags
+(`addendum_2_not_present`, `addendum_3_not_present`) are now
+both **False** on every projection.
+
+Further catalog expansion (new phases, new units, new
+requirements) still follows the catalog-expansion-PR pattern in
 [`docs/governance/strategic_roadmap_execution_mandate.md`](strategic_roadmap_execution_mandate.md)
-§5 for the catalog expansion policy.
+§5.
 >
 > **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
 > **A20a artefact:** `logs/roadmap_task_catalog/latest.json`

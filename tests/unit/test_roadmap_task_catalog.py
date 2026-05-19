@@ -64,18 +64,24 @@ def test_phase_vocabulary_is_closed_and_complete() -> None:
     )
 
 
-def test_source_document_vocabulary_excludes_absent_addenda() -> None:
-    # Addendum 2 and Addendum 3 files are NOT in the repo. They must
-    # NOT appear in SOURCE_DOCUMENT until those files land.
+def test_source_document_vocabulary_includes_addenda_2_and_3() -> None:
+    """A23 made Addendum 2 + 3 repo-resident. SOURCE_DOCUMENT now
+    pins both files alongside Roadmap v6 and Addendum 1."""
     assert rtc.SOURCE_DOCUMENT == (
         "docs/roadmap/Roadmap v6.md",
         "docs/roadmap/Roadmap v6 Addendum.md",
+        (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
         "docs/roadmap/qre_roadmap_v6_ade_operating_manual.md",
         "docs/roadmap/qre_roadmap_v6_phase_prompts.md",
     )
-    for entry in rtc.SOURCE_DOCUMENT:
-        assert "addendum 2" not in entry.lower()
-        assert "addendum 3" not in entry.lower()
 
 
 def test_status_vocabulary_is_closed() -> None:
@@ -286,10 +292,17 @@ def test_addendum_1_task_present(snap: dict) -> None:
     assert "External Intelligence Intake" in t["title"]
 
 
-def test_addendum_2_and_3_have_no_tasks(snap: dict) -> None:
+def test_addendum_2_and_3_have_tasks_after_a23(snap: dict) -> None:
+    """A23 made Addendum 2 + 3 repo-resident; each now has a
+    cross-cutting task entry in the catalog."""
     phases = {t["phase"] for t in snap["roadmap_tasks"]}
-    assert "addendum_2" not in phases
-    assert "addendum_3" not in phases
+    assert "addendum_2" in phases
+    assert "addendum_3" in phases
+    task_ids = {t["id"] for t in snap["roadmap_tasks"]}
+    assert "addendum_2_state_sequential_knowledge_retrieval" in task_ids
+    assert (
+        "addendum_3_source_identity_data_quality_throughput" in task_ids
+    )
 
 
 def test_v3_15_16_to_v3_15_20_all_present_in_order(snap: dict) -> None:
@@ -370,10 +383,14 @@ def test_projection_carries_step5_invariants(snap: dict) -> None:
     assert snap["step5_enabled_substage"] == "none"
 
 
-def test_discipline_invariants_have_addendum_absence_flags(snap: dict) -> None:
+def test_discipline_invariants_addendum_absence_flags_flipped_by_a23(
+    snap: dict,
+) -> None:
+    """A23 flipped both absence flags from True to False because
+    Addendum 2 + 3 are now repo-resident."""
     inv = snap["discipline_invariants"]
-    assert inv["addendum_2_not_present"] is True
-    assert inv["addendum_3_not_present"] is True
+    assert inv["addendum_2_not_present"] is False
+    assert inv["addendum_3_not_present"] is False
 
 
 def test_discipline_invariants_pin_no_runtime_authority(snap: dict) -> None:
@@ -510,8 +527,9 @@ def test_cli_status_does_not_write(
     out = capsys.readouterr().out
     assert "roadmap_task_catalog" in out
     assert "step5_implementation_allowed=False" in out
-    assert "addendum_2_not_present=True" in out
-    assert "addendum_3_not_present=True" in out
+    # A23 flipped both flags to False.
+    assert "addendum_2_not_present=False" in out
+    assert "addendum_3_not_present=False" in out
 
 
 def test_cli_default_writes_to_allowlisted_path(

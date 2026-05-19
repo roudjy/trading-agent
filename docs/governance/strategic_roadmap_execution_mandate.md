@@ -233,23 +233,47 @@ surface.
 
 ## 5. Catalog expansion policy
 
-### 5.1 Current state
+### 5.1 Current state (post A23)
 
-The current A20a / A20b queue is **finite**. It encodes only:
+The current A20a / A20b queue encodes:
 
 - Roadmap v6 phases `v3.15.16` → `v3.15.20`;
 - Addendum 1;
-- 20 implementation units total.
+- Addendum 2 — repo-resident as of A23;
+- Addendum 3 — repo-resident as of A23;
+- 8 RoadmapTasks, 54 RoadmapRequirements, 37 ImplementationUnits.
 
-`addendum_2` and `addendum_3` are represented as **absence
-flags** in
-[`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py):
+A23 made Addendum 2 + 3 repo-resident by copying the
+operator-provided canonical files verbatim into:
 
-- `addendum_2_not_present = true`
-- `addendum_3_not_present = true`
+- `docs/roadmap/Roadmap v6 Addendum 2 - State Sequential Knowledge Retrieval.md`
+- `docs/roadmap/Roadmap v6 Addendum 3 - Source Identity Data Quality and Throughput Intelligence.md`
 
-No units exist for those phases until the addendum content is
-repo-resident.
+Both absence flags now report **False** on every projection:
+
+- `addendum_2_not_present = false`
+- `addendum_3_not_present = false`
+
+The 17 new Addendum 2 + 3 implementation units split into:
+
+- Addendum 2 (8 units): 2 governance docs, 3 deterministic
+  reporting modules (state-transition, null-process baseline,
+  research throughput), 2 research scaffolds (knowledge graph,
+  ontology + entity resolution), 1 hybrid retrieval reporter.
+- Addendum 3 (9 units): 4 governance docs (source candidate
+  registry, source identity / symbology, source manifest /
+  quality gate, local data cache / throughput), 1 ledger
+  reporter, 1 quality-gate reporter, 1 parquet/duckdb cache
+  manifest, 2 external-intelligence registry scaffolds
+  (OpenFIGI, Binance public bulk cache manifest).
+
+LOW units stay AUTO_ALLOWED. MEDIUM units (knowledge graph +
+ontology + OpenFIGI + Binance cache scaffolds) satisfy the A22
+mandate (research-scaffold target layers, full
+expected_files / forbidden_files / required_tests /
+stop_conditions / definition_of_done scaffolding,
+operator_gate = none) and get promoted to
+**STRATEGICALLY_PREAPPROVED** by A20c's post-process.
 
 ### 5.2 Adding new units
 
