@@ -136,7 +136,7 @@ from reporting import roadmap_unit_status as rus
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[str] = "1.0"
-MODULE_VERSION: Final[str] = "v3.15.16.A21e"
+MODULE_VERSION: Final[str] = "v3.15.16.A21e+A22"
 REPORT_KIND: Final[str] = "autonomous_pr_runner"
 CONVEYOR_REPORT_KIND: Final[str] = "autonomous_pr_runner_conveyor"
 
@@ -573,6 +573,13 @@ _BASE_RUNNER_INVARIANTS: Final[dict[str, bool]] = {
     "conveyor_never_merges_arbitrary_prs": True,
     "conveyor_never_continues_past_same_unit_without_status_change": True,
     "conveyor_never_re_selects_already_merged_unit": True,
+    # A22 strategic-mandate runner pins
+    "accepts_strategically_preapproved_authority": True,
+    "accepts_medium_risk_only_when_strategically_preapproved": True,
+    "never_accepts_needs_human_authority_for_execution": True,
+    "never_accepts_permanently_denied_authority_for_execution": True,
+    "never_accepts_high_or_critical_risk": True,
+    "elevated_exceptions_remain_operator_driven": True,
 }
 
 
@@ -786,8 +793,12 @@ def evaluate_safety_gates(
     results.append(_gate("unit_present", "PASS", ""))
 
     # auto_allowed_authority
+    # A22: accepts AUTO_ALLOWED OR STRATEGICALLY_PREAPPROVED. The
+    # latter is the mandate-promoted class that A20c's post-process
+    # produces for NEEDS_HUMAN units meeting every condition of the
+    # operator's strategic execution mandate.
     final_class = _bounded_str(sel.get("selected_authority_class"), 32)
-    if final_class != "AUTO_ALLOWED":
+    if final_class not in {"AUTO_ALLOWED", "STRATEGICALLY_PREAPPROVED"}:
         results.append(
             _gate(
                 "auto_allowed_authority",
@@ -801,15 +812,30 @@ def evaluate_safety_gates(
         results.append(_gate("auto_allowed_authority", "PASS", ""))
 
     # low_risk
+    # A22: accepts LOW always. Accepts MEDIUM only when the unit is
+    # STRATEGICALLY_PREAPPROVED — the strategic mandate explicitly
+    # opts MEDIUM-risk research/scaffold units into auto-execution.
+    # HIGH / CRITICAL / UNKNOWN risk are never accepted here.
     risk_class = _bounded_str(sel.get("selected_risk_class"), 16)
-    if risk_class != "LOW":
+    if risk_class == "LOW":
+        results.append(_gate("low_risk", "PASS", ""))
+    elif (
+        risk_class == "MEDIUM"
+        and final_class == "STRATEGICALLY_PREAPPROVED"
+    ):
+        results.append(
+            _gate(
+                "low_risk",
+                "PASS",
+                "medium_risk_strategically_preapproved",
+            )
+        )
+    else:
         results.append(
             _gate("low_risk", "FAIL", f"risk_class={risk_class}")
         )
         if fail is None:
             fail = "unsafe_risk_class"
-    else:
-        results.append(_gate("low_risk", "PASS", ""))
 
     # no_operator_gate
     gate_val = _bounded_str(sel.get("selected_operator_gate"), 64)

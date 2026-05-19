@@ -206,11 +206,16 @@ _PHASE_ORDER: Final[tuple[str, ...]] = (
     "addendum_3",
 )
 
-#: Authority priority: AUTO_ALLOWED before NEEDS_HUMAN.
-#: ``PERMANENTLY_DENIED`` is never used in the sort key because
-#: such units are BLOCKED and never reach the eligible tier.
+#: Authority priority: AUTO_ALLOWED before STRATEGICALLY_PREAPPROVED
+#: before NEEDS_HUMAN. ``PERMANENTLY_DENIED`` is never used in the
+#: sort key because such units are BLOCKED and never reach the
+#: eligible tier. STRATEGICALLY_PREAPPROVED is the A22 promotion
+#: class for mandate-eligible NEEDS_HUMAN units; the selector
+#: treats it as ELIGIBLE (not NEEDS_HUMAN_GATED) when
+#: ``operator_gate == "none"``.
 _AUTHORITY_ORDER: Final[tuple[str, ...]] = (
     "AUTO_ALLOWED",
+    "STRATEGICALLY_PREAPPROVED",
     "NEEDS_HUMAN",
 )
 
@@ -570,6 +575,10 @@ def _build_candidate(
         # Annotate the gate reason as a non-blocking note (does not
         # appear in block_reasons because the unit is not BLOCKED).
     else:
+        # AUTO_ALLOWED and STRATEGICALLY_PREAPPROVED both reach
+        # this branch when operator_gate == "none". The A22 mandate
+        # promoted STRATEGICALLY_PREAPPROVED units to eligibility
+        # without requiring operator-go.
         eligibility = "ELIGIBLE"
 
     # --- Deterministic sort key -------------------------------------------

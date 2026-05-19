@@ -1163,7 +1163,56 @@ Pinned in
 - **Signal-handler-based hard stop** — Ctrl+C kills the process
   uncleanly. A future slice may add a SIGINT handler.
 
-## 14. Next recommended operator action
+## 14. A22 strategic mandate integration
+
+[`docs/governance/strategic_roadmap_execution_mandate.md`](strategic_roadmap_execution_mandate.md)
+adds the operator's strategic execution mandate. The A21 family
+now accepts **STRATEGICALLY_PREAPPROVED** units (mandate-promoted
+NEEDS_HUMAN units that satisfy every mandate criterion) as
+eligible for the conveyor, alongside AUTO_ALLOWED units.
+
+### 14.1 Runner safety-gate widening
+
+A22 widens two A21c / A21d / A21e safety gates:
+
+- `auto_allowed_authority` — accepts
+  `AUTO_ALLOWED` OR `STRATEGICALLY_PREAPPROVED`.
+- `low_risk` — accepts `LOW` always; accepts `MEDIUM` only when
+  the unit's authority class is `STRATEGICALLY_PREAPPROVED`.
+
+`HIGH` / `CRITICAL` / `UNKNOWN` risk is still refused everywhere.
+`NEEDS_HUMAN` / `PERMANENTLY_DENIED` authority is still refused
+for execution. Per-unit safety gates (`expected_files`,
+`forbidden_files`, `required_tests`, diff-scope,
+mergeability-clean, post-merge-gate-green) are unchanged.
+
+### 14.2 New runner invariants pinned by A22
+
+Every report (run-one, plan, status, conveyor) now pins:
+
+- `accepts_strategically_preapproved_authority = true`
+- `accepts_medium_risk_only_when_strategically_preapproved = true`
+- `never_accepts_needs_human_authority_for_execution = true`
+- `never_accepts_permanently_denied_authority_for_execution = true`
+- `never_accepts_high_or_critical_risk = true`
+- `elevated_exceptions_remain_operator_driven = true`
+
+### 14.3 Elevated exceptions remain operator-driven
+
+Two surfaces are NEVER processed by the conveyor:
+
+- **Frozen contracts**: `research/research_latest.json`,
+  `research/strategy_matrix.csv`.
+- **Dashboard / UI mutation**: `dashboard/dashboard.py`, UI
+  mutation buttons, approval buttons, mutation routes.
+
+These remain PERMANENTLY_DENIED at the classifier level. Any
+change to them requires an explicit operator-authored PR
+outside the autonomous runner — see
+[`strategic_roadmap_execution_mandate.md`](strategic_roadmap_execution_mandate.md)
+§4 for the elevated-exception policy.
+
+## 15. Next recommended operator action
 
 After PR #258 (A21e) merges, the operator can — from their local
 laptop — run the continuous conveyor against the live queue:

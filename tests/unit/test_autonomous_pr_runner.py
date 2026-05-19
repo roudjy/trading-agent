@@ -618,7 +618,10 @@ def test_step5_enabled_substage_is_a21e() -> None:
 
 
 def test_module_version_string() -> None:
-    assert apr.MODULE_VERSION.endswith("A21e")
+    # A22 extends A21e with strategic-mandate acceptance; the version
+    # tag carries both anchors.
+    assert "A21e" in apr.MODULE_VERSION
+    assert "A22" in apr.MODULE_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -3693,6 +3696,130 @@ def test_conveyor_module_code_contains_no_deploy_invocation() -> None:
         "workflow_dispatch",
     ):
         assert token not in code, token
+
+
+# ===========================================================================
+# A22 strategic-mandate runner safety-gate tests
+# ===========================================================================
+
+
+def test_runner_invariants_pin_a22_strategic_mandate(
+    tmp_path: Path,
+) -> None:
+    _write_minimal_upstreams(tmp_path)
+    report = apr.status(repo_root=tmp_path, generated_at_utc=_FROZEN_UTC)
+    inv = report["runner_invariants"]
+    assert inv["accepts_strategically_preapproved_authority"] is True
+    assert inv["accepts_medium_risk_only_when_strategically_preapproved"] is True
+    assert inv["never_accepts_needs_human_authority_for_execution"] is True
+    assert inv["never_accepts_permanently_denied_authority_for_execution"] is True
+    assert inv["never_accepts_high_or_critical_risk"] is True
+    assert inv["elevated_exceptions_remain_operator_driven"] is True
+
+
+def test_gates_pass_on_strategically_preapproved_low_risk() -> None:
+    snap = _baseline_selector_snapshot()
+    snap["selection"]["selected_authority_class"] = (
+        "STRATEGICALLY_PREAPPROVED"
+    )
+    gates, fail = apr.evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=_baseline_unit(),
+        max_units=1,
+        implementation_strategy="external_command",
+    )
+    assert fail is None
+    for g in gates:
+        assert g["result"] == "PASS", g
+
+
+def test_gates_pass_on_strategically_preapproved_medium_risk() -> None:
+    """STRATEGICALLY_PREAPPROVED + MEDIUM risk is explicitly the
+    operator's strategic mandate. The runner must accept it."""
+    snap = _baseline_selector_snapshot()
+    snap["selection"]["selected_authority_class"] = (
+        "STRATEGICALLY_PREAPPROVED"
+    )
+    snap["selection"]["selected_risk_class"] = "MEDIUM"
+    gates, fail = apr.evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=_baseline_unit(),
+        max_units=1,
+        implementation_strategy="external_command",
+    )
+    assert fail is None
+    # The low_risk gate passes with a specific detail note.
+    by_gate = {g["gate"]: g for g in gates}
+    assert by_gate["low_risk"]["result"] == "PASS"
+    assert (
+        "medium_risk_strategically_preapproved"
+        in by_gate["low_risk"]["detail"]
+    )
+
+
+def test_gates_refuse_needs_human_authority_even_at_low_risk() -> None:
+    """NEEDS_HUMAN authority is never accepted by the runner — even
+    at LOW risk. The mandate promotes to STRATEGICALLY_PREAPPROVED
+    when criteria match; un-promoted NEEDS_HUMAN stays gated."""
+    snap = _baseline_selector_snapshot()
+    snap["selection"]["selected_authority_class"] = "NEEDS_HUMAN"
+    gates, fail = apr.evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=_baseline_unit(),
+        max_units=1,
+        implementation_strategy="external_command",
+    )
+    assert fail == "unsafe_authority_class"
+
+
+def test_gates_refuse_medium_risk_without_strategic_mandate() -> None:
+    """MEDIUM risk + AUTO_ALLOWED must FAIL — the mandate is the
+    only way MEDIUM risk passes the low_risk gate."""
+    snap = _baseline_selector_snapshot()
+    snap["selection"]["selected_authority_class"] = "AUTO_ALLOWED"
+    snap["selection"]["selected_risk_class"] = "MEDIUM"
+    gates, fail = apr.evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=_baseline_unit(),
+        max_units=1,
+        implementation_strategy="external_command",
+    )
+    assert fail == "unsafe_risk_class"
+
+
+@pytest.mark.parametrize(
+    "high_risk", ["HIGH", "CRITICAL", "UNKNOWN"]
+)
+def test_gates_refuse_high_risk_even_when_strategically_preapproved(
+    high_risk: str,
+) -> None:
+    """HIGH / CRITICAL / UNKNOWN risk is ALWAYS refused, even when
+    the authority is STRATEGICALLY_PREAPPROVED. The mandate is
+    scoped to LOW and MEDIUM only."""
+    snap = _baseline_selector_snapshot()
+    snap["selection"]["selected_authority_class"] = (
+        "STRATEGICALLY_PREAPPROVED"
+    )
+    snap["selection"]["selected_risk_class"] = high_risk
+    gates, fail = apr.evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=_baseline_unit(),
+        max_units=1,
+        implementation_strategy="external_command",
+    )
+    assert fail == "unsafe_risk_class"
+
+
+def test_gates_refuse_permanently_denied_even_at_low_risk() -> None:
+    snap = _baseline_selector_snapshot()
+    snap["selection"]["selected_authority_class"] = "PERMANENTLY_DENIED"
+    gates, fail = apr.evaluate_safety_gates(
+        selector_snapshot=snap,
+        unit=_baseline_unit(),
+        max_units=1,
+        implementation_strategy="external_command",
+    )
+    assert fail == "unsafe_authority_class"
 
 
 def test_conveyor_does_not_use_real_shell_in_unit_tests() -> None:
