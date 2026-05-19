@@ -269,16 +269,22 @@ _MANDATE_PHASES: Final[frozenset[str]] = frozenset({
 })
 
 #: Target layers the strategic mandate covers. The set names the
-#: research / scaffold / docs / tests / reporting surfaces the
-#: operator pre-approved. Layers outside this set (``broker``,
-#: ``agent.risk``, ``agent.execution``, ``live``, ``paper``,
-#: ``shadow``, ``trading``, ``dashboard``) are never promoted.
+#: research-scaffold / docs / tests / reporting / evidence surfaces
+#: the operator pre-approved. Values mirror the closed-vocab
+#: TARGET_LAYER from A20a (the catalog) verbatim. Layers outside
+#: this set (``broker``, ``agent.risk``, ``agent.execution``,
+#: ``live``, ``paper``, ``shadow``, ``trading``, ``dashboard``) are
+#: never promoted.
+#:
+#: Note: "research" / "diagnostic" / "test" are NOT in A20a's
+#: TARGET_LAYER vocab today. The mandate's set intersected with
+#: TARGET_LAYER gives the actual eligible layers. Diagnostic-layer
+#: units use ``diagnostics`` (plural); research-y units use
+#: ``evidence`` or ``external_intelligence``.
 _MANDATE_TARGET_LAYERS: Final[frozenset[str]] = frozenset({
     "reporting",
-    "research",
     "governance",
-    "test",
-    "diagnostic",
+    "diagnostics",
     "external_intelligence",
     "preset",
     "evidence",

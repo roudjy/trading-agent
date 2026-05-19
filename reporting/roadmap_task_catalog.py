@@ -70,7 +70,7 @@ from reporting import execution_authority as ea
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[str] = "1.0"
-MODULE_VERSION: Final[str] = "v3.15.16.A20a"
+MODULE_VERSION: Final[str] = "v3.15.16.A20a+A23"
 REPORT_KIND: Final[str] = "roadmap_task_catalog"
 
 
@@ -106,12 +106,21 @@ PHASE: Final[tuple[str, ...]] = (
     "addendum_3",
 )
 
-#: Closed source-document vocabulary. Only Roadmap v6 and the
-#: committed Addendum 1 file are present today. The Addendum 2 / 3
-#: paths are intentionally absent until those files land in repo.
+#: Closed source-document vocabulary. Roadmap v6 + Addendum 1/2/3
+#: are now all repo-resident. A23 added the operator-provided
+#: Addendum 2 and Addendum 3 verbatim into ``docs/roadmap/``; their
+#: file paths are pinned here.
 SOURCE_DOCUMENT: Final[tuple[str, ...]] = (
     "docs/roadmap/Roadmap v6.md",
     "docs/roadmap/Roadmap v6 Addendum.md",
+    (
+        "docs/roadmap/Roadmap v6 Addendum 2 - "
+        "State Sequential Knowledge Retrieval.md"
+    ),
+    (
+        "docs/roadmap/Roadmap v6 Addendum 3 - "
+        "Source Identity Data Quality and Throughput Intelligence.md"
+    ),
     "docs/roadmap/qre_roadmap_v6_ade_operating_manual.md",
     "docs/roadmap/qre_roadmap_v6_phase_prompts.md",
 )
@@ -250,8 +259,12 @@ _DISCIPLINE_INVARIANTS: Final[dict[str, bool]] = {
     "step5_implementation_allowed": False,
     "diagnostics_do_not_trade": True,
     "external_data_is_not_alpha": True,
-    "addendum_2_not_present": True,
-    "addendum_3_not_present": True,
+    # A23 made Addendum 2 + 3 repo-resident; absence flags flip
+    # from True to False. The catalog now encodes tasks /
+    # requirements derived verbatim from the operator-provided
+    # canonical files in ``docs/roadmap/``.
+    "addendum_2_not_present": False,
+    "addendum_3_not_present": False,
     "grants_runtime_authority": False,
     "grants_trading_authority": False,
     "grants_paper_authority": False,
@@ -385,6 +398,77 @@ _ROADMAP_TASKS_SEED: Final[tuple[dict[str, Any], ...]] = (
         ),
         "status": "not_started",
         "prerequisites": (),
+    },
+    # A23 — Addendum 2: State, Sequential, Knowledge & Retrieval
+    # Intelligence. Cross-cutting task derived verbatim from the
+    # operator-provided canonical doc. Diagnostics still do not
+    # trade; knowledge graphs / retrieval / state diagnostics live
+    # in sidecar artefacts; frozen contracts remain frozen.
+    {
+        "id": "addendum_2_state_sequential_knowledge_retrieval",
+        "title": (
+            "State, Sequential, Knowledge and Retrieval Intelligence"
+        ),
+        "phase": "addendum_2",
+        "source_documents": (
+            (
+                "docs/roadmap/Roadmap v6 Addendum 2 - "
+                "State Sequential Knowledge Retrieval.md"
+            ),
+        ),
+        "purpose": (
+            "Cross-cutting Roadmap v6 Addendum 2 task. Establish the "
+            "Research Knowledge & Retrieval Layer and the State & "
+            "Sequential Diagnostics Layer as deterministic, read-only "
+            "research-routing surfaces. Knowledge graphs, ontologies, "
+            "entity resolution, hybrid retrieval, state transition / "
+            "HMM / semi-Markov / particle-filter / martingale / "
+            "random-walk / queueing diagnostics never trade, never "
+            "place orders, never allocate capital, never mutate live "
+            "risk. All new information lives in sidecar artifacts; "
+            "research_latest.json and strategy_matrix.csv remain "
+            "frozen."
+        ),
+        "status": "not_started",
+        "prerequisites": ("addendum_1_diagnostics_intake",),
+    },
+    # A23 — Addendum 3: Source Identity, Data Quality & Throughput
+    # Intelligence. Cross-cutting task derived verbatim from the
+    # operator-provided canonical doc. External / public data is
+    # not alpha; only the QRE may decide which sources are useful.
+    # Identity, manifest, quality-gate, cache, and throughput
+    # surfaces remain read-only / artefact-only.
+    {
+        "id": "addendum_3_source_identity_data_quality_throughput",
+        "title": (
+            "Source Identity, Data Quality and Throughput "
+            "Intelligence"
+        ),
+        "phase": "addendum_3",
+        "source_documents": (
+            (
+                "docs/roadmap/Roadmap v6 Addendum 3 - "
+                "Source Identity Data Quality and Throughput "
+                "Intelligence.md"
+            ),
+        ),
+        "purpose": (
+            "Cross-cutting Roadmap v6 Addendum 3 task. Establish the "
+            "Source Candidate Registry, Source Identity & Symbology "
+            "Layer, Source Manifest & Quality Gate Layer, Local Data "
+            "Cache & Throughput Layer, and Source Usefulness Ledger "
+            "as deterministic, read-only research-routing surfaces. "
+            "OpenFIGI identity, FRED/ALFRED macro, CFTC COT, EIA, "
+            "Binance public bulk data, CoinGecko, event calendars, "
+            "ETF/index constituents, options surfaces, Parquet / "
+            "DuckDB / Polars / Dask / Dagster orchestration scaffolds "
+            "never trade, never place orders, never allocate capital, "
+            "never mutate live risk. All new information lives in "
+            "sidecar artifacts; research_latest.json and "
+            "strategy_matrix.csv remain frozen."
+        ),
+        "status": "not_started",
+        "prerequisites": ("addendum_1_diagnostics_intake",),
     },
 )
 
@@ -913,6 +997,525 @@ _ROADMAP_REQUIREMENTS_SEED: Final[tuple[dict[str, Any], ...]] = (
             "suppression / cooldown only; never trade execution."
         ),
         "target_layer": "policy",
+        "status": "not_started",
+    },
+    # =====================================================================
+    # A23 — Addendum 2 requirements (State, Sequential, Knowledge,
+    # Retrieval). Each entry maps to one capability section from the
+    # operator-provided canonical doc. Statements are paraphrased from
+    # the doc into bounded-prose; the canonical doc remains the source
+    # of truth.
+    # =====================================================================
+    {
+        "id": "req_addendum_2_state_transition_diagnostics",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.2 Markov Chains / State Transition Diagnostics"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Compute deterministic state-transition statistics over "
+            "closed-vocab regimes/states and emit them as sidecar "
+            "diagnostics. Never trades, never mutates frozen "
+            "contracts, never modifies live risk. Inputs are "
+            "QRE-validated regimes/states; outputs are read-only "
+            "research-routing context."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_hidden_markov_models",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.3 Hidden Markov Models / Latent Regime "
+            "Diagnostics"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Fit deterministic Hidden Markov Models on QRE-validated "
+            "inputs and emit posterior regime probabilities as "
+            "sidecar diagnostics. Outputs are read-only research-"
+            "routing context only; never executable trade signals."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_semi_markov_regime_duration",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.4 Semi-Markov / Regime Duration Diagnostics"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Model regime-duration distributions deterministically "
+            "and emit sidecar diagnostics about how long regimes "
+            "persist. Read-only context only; no trade signals."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_higher_order_state_sequence",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.5 Higher-Order State Sequence Diagnostics"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Compute higher-order state-sequence statistics "
+            "(n-grams, mutual information across lags) and emit "
+            "them as sidecar diagnostics. Read-only context only."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_particle_filters",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.6 Particle Filters / Sequential Monte Carlo"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Sequential-Monte-Carlo / particle-filter diagnostics on "
+            "QRE-validated inputs only. Deterministic seeds. Outputs "
+            "are read-only research-routing context."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_martingale_baseline",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.7 Martingale / No-Edge Baseline Diagnostics"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Martingale / no-edge baseline diagnostics that report "
+            "whether observed structure beats a fair-game baseline. "
+            "Read-only sidecar context; no trade signals."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_random_walk_surrogate",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.8 Random Walk / Surrogate Process Diagnostics"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Random-walk and surrogate-process baseline diagnostics. "
+            "Deterministic seed sets. Read-only sidecar context."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_finite_state_machines",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.9 Finite State Machines / Deterministic "
+            "Lifecycle Governance"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Encode research-pipeline lifecycle as deterministic "
+            "finite state machines with closed-vocab transitions. "
+            "Governance scaffold only; no runtime mutation."
+        ),
+        "target_layer": "governance",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_queueing_throughput",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 6.10 Queueing / Research Throughput Diagnostics"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Research-throughput diagnostics modelled as deterministic "
+            "queueing-system metrics. Inputs and outputs are "
+            "research-pipeline scheduling artefacts; no live system "
+            "modification."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_knowledge_graph_memory",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 7.2 Knowledge Graphs / Research Memory Graph"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Knowledge-graph scaffold for research memory: nodes are "
+            "QRE-validated artefacts; edges are deterministic "
+            "lineage / dependency / contradiction relations. "
+            "Read-only retrieval context."
+        ),
+        "target_layer": "evidence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_ontology_taxonomy",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": "Section 7.3 Ontologies / Canonical Taxonomy",
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Canonical taxonomy / ontology scaffold: closed-vocab "
+            "term registry that normalises diagnostics, regimes, "
+            "behaviours, evidence kinds. Pinned by tests."
+        ),
+        "target_layer": "governance",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_entity_resolution",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 7.4 Entity Resolution / Cross-Document Coreference"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Deterministic entity-resolution scaffold: cross-document "
+            "coreference among QRE artefacts. No probabilistic "
+            "tie-breaking; closed-vocab decisions only."
+        ),
+        "target_layer": "evidence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_hybrid_retrieval",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": "Section 7.5 Hybrid Search / Research Retrieval",
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Hybrid lexical + structural retrieval scaffold over the "
+            "research-memory graph. Deterministic ranking; no LLM "
+            "ranking; no fuzzy parsing. Read-only context."
+        ),
+        "target_layer": "evidence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_2_reciprocal_rank_fusion",
+        "roadmap_task_id": "addendum_2_state_sequential_knowledge_retrieval",
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 2 - "
+            "State Sequential Knowledge Retrieval.md"
+        ),
+        "source_anchor": (
+            "Section 7.6 Reciprocal Rank Fusion / Deterministic Rank "
+            "Fusion"
+        ),
+        "phase": "addendum_2",
+        "addendum_link": "addendum_2",
+        "statement": (
+            "Deterministic rank-fusion scaffold across multiple "
+            "ranking signals. Closed-formula combinator pinned by "
+            "tests."
+        ),
+        "target_layer": "evidence",
+        "status": "not_started",
+    },
+    # =====================================================================
+    # A23 — Addendum 3 requirements (Source Identity, Data Quality,
+    # Throughput). Each entry maps to one capability section.
+    # =====================================================================
+    {
+        "id": "req_addendum_3_source_candidate_registry",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": "Section 4 Source Candidate Registry",
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "Deterministic registry of candidate data sources. "
+            "Each entry pins identity, license, access mode "
+            "(public / vendor / paid), repo-resident-only flag, "
+            "and a status. The registry is sidecar-artefact only; "
+            "it never grants connection authority."
+        ),
+        "target_layer": "external_intelligence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_openfigi_identity",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": "Section 6.2 OpenFIGI / Instrument Identity",
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "OpenFIGI instrument-identity scaffold. Read-only "
+            "symbology resolver wrapped as a deterministic "
+            "candidate-registry entry. No live connections; no "
+            "vendor credentials; no order placement."
+        ),
+        "target_layer": "external_intelligence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_fred_alfred_macro",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": (
+            "Section 6.3 FRED / ALFRED Revision-Aware Macro"
+        ),
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "FRED / ALFRED revision-aware macro source candidate "
+            "scaffold. Registry entry + manifest scaffold only; "
+            "no live ingest; no trading authority."
+        ),
+        "target_layer": "external_intelligence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_cftc_cot_positioning",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": "Section 6.4 CFTC COT / Positioning Context",
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "CFTC Commitment of Traders positioning-context source "
+            "candidate scaffold. Registry + manifest only; not "
+            "alpha; never trade."
+        ),
+        "target_layer": "external_intelligence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_binance_public_bulk_cache",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": (
+            "Section 6.8 Binance Public Bulk Data / Crypto Cache"
+        ),
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "Binance public bulk-data cache manifest scaffold. "
+            "Cache-side artefact only; no live broker connection; "
+            "no order placement; no credentials."
+        ),
+        "target_layer": "external_intelligence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_parquet_cache",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": "Section 7.2 Parquet Cache",
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "Local Parquet cache manifest scaffold for offline "
+            "research data. Read-only manifest; never live; never "
+            "broker / risk / execution path."
+        ),
+        "target_layer": "reporting",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_duckdb_query_catalog",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": (
+            "Section 7.3 DuckDB Metadata and Query Catalog"
+        ),
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "DuckDB metadata / query-catalog scaffold for offline "
+            "research data. Read-only catalog manifest; never live."
+        ),
+        "target_layer": "reporting",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_quality_gate_reporter",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": (
+            "Section 4 Source Manifest & Quality Gate Layer"
+        ),
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "Public-data quality-gate reporter scaffold. "
+            "Deterministic verdicts (passes_quality_gate / "
+            "fails_quality_gate / insufficient_evidence) emitted as "
+            "sidecar artefacts; never gates trading; never alpha."
+        ),
+        "target_layer": "diagnostics",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_source_usefulness_ledger",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": "Section 4 Source Usefulness Ledger",
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "Deterministic per-source usefulness ledger that records "
+            "QRE-validated quality verdicts and routing relevance. "
+            "Sidecar artefact only; never trading authority."
+        ),
+        "target_layer": "evidence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_addendum_3_event_calendar_scaffold",
+        "roadmap_task_id": (
+            "addendum_3_source_identity_data_quality_throughput"
+        ),
+        "source_document": (
+            "docs/roadmap/Roadmap v6 Addendum 3 - "
+            "Source Identity Data Quality and Throughput "
+            "Intelligence.md"
+        ),
+        "source_anchor": (
+            "Section 6.10 Event Calendars / Earnings, Dividends, "
+            "Splits, Macro Releases"
+        ),
+        "phase": "addendum_3",
+        "addendum_link": "addendum_3",
+        "statement": (
+            "Event-calendar source-candidate registry scaffold. "
+            "Read-only catalog of public release schedules; never "
+            "live; never trading; never alpha."
+        ),
+        "target_layer": "external_intelligence",
         "status": "not_started",
     },
 )

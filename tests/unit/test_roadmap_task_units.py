@@ -399,19 +399,41 @@ def test_addendum_1_has_multiple_units(snap: dict) -> None:
     assert len(by_phase.get("addendum_1", [])) >= 3
 
 
-def test_addendum_2_has_no_units(snap: dict) -> None:
+def test_addendum_2_has_units_after_a23(snap: dict) -> None:
+    """A23 made Addendum 2 repo-resident and added its implementation
+    units to the decomposer seed."""
     by_phase = _units_by_phase(snap)
-    assert by_phase.get("addendum_2", []) == []
+    units = by_phase.get("addendum_2", [])
+    assert len(units) >= 1
+    unit_ids = {u["id"] for u in units}
+    assert (
+        "u_addendum_2_state_diagnostics_governance_doc_001" in unit_ids
+    )
 
 
-def test_addendum_3_has_no_units(snap: dict) -> None:
+def test_addendum_3_has_units_after_a23(snap: dict) -> None:
     by_phase = _units_by_phase(snap)
-    assert by_phase.get("addendum_3", []) == []
+    units = by_phase.get("addendum_3", [])
+    assert len(units) >= 1
+    unit_ids = {u["id"] for u in units}
+    assert (
+        "u_addendum_3_source_candidate_registry_governance_doc_001"
+        in unit_ids
+    )
 
 
-def test_no_unit_targets_addendum_2_or_3(snap: dict) -> None:
+def test_addendum_2_3_units_attach_to_their_addendum_tasks(
+    snap: dict,
+) -> None:
+    """Every Addendum 2 / 3 unit's roadmap_task_id must reference
+    one of the two Addendum 2 / 3 catalog tasks."""
+    a2_task_id = "addendum_2_state_sequential_knowledge_retrieval"
+    a3_task_id = "addendum_3_source_identity_data_quality_throughput"
     for u in snap["implementation_units"]:
-        assert u["phase"] not in ("addendum_2", "addendum_3"), u["id"]
+        if u["phase"] == "addendum_2":
+            assert u["roadmap_task_id"] == a2_task_id, u["id"]
+        elif u["phase"] == "addendum_3":
+            assert u["roadmap_task_id"] == a3_task_id, u["id"]
 
 
 def test_every_unit_roadmap_task_id_matches_catalog(
@@ -460,10 +482,14 @@ def test_invariants_pin_step5_blocked(snap: dict) -> None:
     assert snap["step5_enabled_substage"] == "none"
 
 
-def test_invariants_pin_addendum_2_3_absence(snap: dict) -> None:
+def test_invariants_pin_addendum_2_3_now_present_after_a23(
+    snap: dict,
+) -> None:
+    """A23 flipped both absence flags to False because Addendum 2 +
+    3 are now repo-resident."""
     inv = snap["decomposition_invariants"]
-    assert inv["addendum_2_not_present"] is True
-    assert inv["addendum_3_not_present"] is True
+    assert inv["addendum_2_not_present"] is False
+    assert inv["addendum_3_not_present"] is False
 
 
 def test_invariants_pin_no_final_authority(snap: dict) -> None:
@@ -617,8 +643,9 @@ def test_cli_status_does_not_write(
     out = capsys.readouterr().out
     assert "roadmap_task_units" in out
     assert "step5_implementation_allowed=False" in out
-    assert "addendum_2_not_present=True" in out
-    assert "addendum_3_not_present=True" in out
+    # A23 flipped both absence flags to False.
+    assert "addendum_2_not_present=False" in out
+    assert "addendum_3_not_present=False" in out
 
 
 def test_cli_default_writes_to_allowlisted_path(
