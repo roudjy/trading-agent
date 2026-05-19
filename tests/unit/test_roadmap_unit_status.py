@@ -126,6 +126,7 @@ def test_dynamic_status_source_vocab_is_closed_exact() -> None:
         "loop_state",
         "ci_failure",
         "operator_block",
+        "runner_auto_merge",
     )
 
 
@@ -817,3 +818,349 @@ def test_schema_and_module_version_strings() -> None:
     assert isinstance(rus.SCHEMA_VERSION, str) and rus.SCHEMA_VERSION
     assert isinstance(rus.MODULE_VERSION, str) and rus.MODULE_VERSION
     assert rus.MODULE_VERSION.endswith("A21a")
+
+
+# ---------------------------------------------------------------------------
+# A21d runner-merges artefact integration
+# ---------------------------------------------------------------------------
+
+
+def _runner_merge_record(
+    *,
+    unit_id: str = "u_runner_synth",
+    pr_number: int = 999,
+    merge_sha: str = "abc1234def567890abc1234def567890abc1234d",
+    reason: str = "auto-merged by A21d runner after CI green",
+) -> dict[str, Any]:
+    return {
+        "unit_id": unit_id,
+        "status": "merged",
+        "source": "runner_auto_merge",
+        "updated_at_utc": "2026-05-18T20:00:00Z",
+        "pr_number": pr_number,
+        "merge_sha": merge_sha,
+        "reason": reason,
+        "evidence": [
+            f"github_pr_number={pr_number}",
+            f"github_merge_sha={merge_sha}",
+            "fast_pre_merge_gate=success",
+            "build_push_docker=success",
+            "deploy_vps_dashboard=success",
+        ],
+    }
+
+
+def test_runner_merges_artifact_relative_path_pinned() -> None:
+    assert rus.RUNNER_MERGES_REL_PATH == (
+        "logs/roadmap_unit_status/runner_merges.json"
+    )
+
+
+def test_collect_snapshot_without_repo_root_ignores_runner_merges(
+    tmp_path: Path,
+) -> None:
+    """``repo_root=None`` (the legacy entry point) must NOT load any
+    runner-merges overlay. Existing seed-only tests rely on this."""
+    # Create a runner_merges artefact in tmp_path; ensure it has no
+    # effect when we don't pass repo_root.
+    (tmp_path / "logs" / "roadmap_unit_status").mkdir(
+        parents=True, exist_ok=True
+    )
+    (tmp_path / rus.RUNNER_MERGES_REL_PATH).write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "module_version": "v3.15.16.A21a",
+                "report_kind": "runner_auto_merge_evidence",
+                "generated_at_utc": "2026-05-18T20:00:00Z",
+                "records": [_runner_merge_record()],
+            }
+        ),
+        encoding="utf-8",
+    )
+    snap = rus.collect_snapshot(generated_at_utc=_FROZEN_UTC)
+    seed_unit_ids = {r["unit_id"] for r in snap["ledger_records"]}
+    assert "u_runner_synth" not in seed_unit_ids
+
+
+def test_collect_snapshot_with_repo_root_reads_runner_merges(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "logs" / "roadmap_unit_status").mkdir(
+        parents=True, exist_ok=True
+    )
+    (tmp_path / rus.RUNNER_MERGES_REL_PATH).write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "module_version": "v3.15.16.A21a",
+                "report_kind": "runner_auto_merge_evidence",
+                "generated_at_utc": "2026-05-18T20:00:00Z",
+                "records": [_runner_merge_record()],
+            }
+        ),
+        encoding="utf-8",
+    )
+    snap = rus.collect_snapshot(
+        generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
+    )
+    unit_ids = {r["unit_id"] for r in snap["ledger_records"]}
+    assert "u_runner_synth" in unit_ids
+    target = next(
+        r
+        for r in snap["ledger_records"]
+        if r["unit_id"] == "u_runner_synth"
+    )
+    assert target["valid"] is True
+    assert target["status"] == "merged"
+    assert target["source"] == "runner_auto_merge"
+    assert target["pr_number"] == 999
+
+
+def test_collect_snapshot_with_repo_root_missing_artifact_is_silent(
+    tmp_path: Path,
+) -> None:
+    """Absent runner_merges artefact => no overlay, no fail-closed,
+    no extra records beyond the seed."""
+    snap = rus.collect_snapshot(
+        generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
+    )
+    # Bootstrap seed has exactly 3 records.
+    assert len(snap["ledger_records"]) == 3
+
+
+def test_collect_snapshot_with_repo_root_malformed_artifact_is_silent(
+    tmp_path: Path,
+) -> None:
+    """Malformed runner_merges artefact => empty overlay, no
+    crash. Per-record fail-closed catches bad records elsewhere."""
+    (tmp_path / "logs" / "roadmap_unit_status").mkdir(
+        parents=True, exist_ok=True
+    )
+    (tmp_path / rus.RUNNER_MERGES_REL_PATH).write_text(
+        "{not valid json", encoding="utf-8"
+    )
+    snap = rus.collect_snapshot(
+        generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
+    )
+    assert len(snap["ledger_records"]) == 3
+
+
+def test_collect_snapshot_overlay_merged_unit_is_terminal(
+    tmp_path: Path,
+) -> None:
+    """A runner_merges-sourced 'merged' record must validate as a
+    terminal evidence-backed record (positive pr_number, hex sha,
+    reason)."""
+    (tmp_path / "logs" / "roadmap_unit_status").mkdir(
+        parents=True, exist_ok=True
+    )
+    (tmp_path / rus.RUNNER_MERGES_REL_PATH).write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "records": [_runner_merge_record()],
+            }
+        ),
+        encoding="utf-8",
+    )
+    snap = rus.collect_snapshot(
+        generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
+    )
+    target = next(
+        r for r in snap["ledger_records"] if r["unit_id"] == "u_runner_synth"
+    )
+    assert target["valid"] is True
+    assert target["validation_reason"] == ""
+
+
+def test_collect_snapshot_overlay_invalid_merged_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """A runner_merges record with empty merge_sha fails closed
+    just like a seed record would."""
+    (tmp_path / "logs" / "roadmap_unit_status").mkdir(
+        parents=True, exist_ok=True
+    )
+    bad = _runner_merge_record()
+    bad["merge_sha"] = ""
+    (tmp_path / rus.RUNNER_MERGES_REL_PATH).write_text(
+        json.dumps({"records": [bad]}), encoding="utf-8"
+    )
+    snap = rus.collect_snapshot(
+        generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
+    )
+    target = next(
+        r for r in snap["ledger_records"] if r["unit_id"] == "u_runner_synth"
+    )
+    assert target["valid"] is False
+    assert target["validation_reason"] == "merged_without_merge_sha"
+
+
+def test_collect_snapshot_overlay_duplicate_with_seed_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """If a runner_merges record shadows a seed record for the same
+    unit_id, both records are marked invalid (no implicit
+    resurrection)."""
+    (tmp_path / "logs" / "roadmap_unit_status").mkdir(
+        parents=True, exist_ok=True
+    )
+    # The bootstrap seed contains the PR #250 schema unit. Add a
+    # runner_merges entry for the SAME unit_id to trigger duplicate
+    # detection.
+    shadow = _runner_merge_record(
+        unit_id="u_v3_15_16_diagnostic_routing_signals_schema_001",
+        pr_number=12345,
+    )
+    (tmp_path / rus.RUNNER_MERGES_REL_PATH).write_text(
+        json.dumps({"records": [shadow]}), encoding="utf-8"
+    )
+    snap = rus.collect_snapshot(
+        generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
+    )
+    affected = [
+        r
+        for r in snap["ledger_records"]
+        if r["unit_id"]
+        == "u_v3_15_16_diagnostic_routing_signals_schema_001"
+    ]
+    assert len(affected) == 2
+    for r in affected:
+        assert r["valid"] is False
+        assert r["validation_reason"] == "duplicate_unit_id"
+    assert (
+        "u_v3_15_16_diagnostic_routing_signals_schema_001"
+        in snap["duplicate_unit_ids"]
+    )
+    assert snap["fail_closed"] is True
+
+
+# ---------------------------------------------------------------------------
+# append_runner_merge_record helper
+# ---------------------------------------------------------------------------
+
+
+def test_append_runner_merge_record_writes_artifact(
+    tmp_path: Path,
+) -> None:
+    path = rus.append_runner_merge_record(
+        _runner_merge_record(),
+        repo_root=tmp_path,
+        generated_at_utc=_FROZEN_UTC,
+    )
+    assert path.is_file()
+    assert path.as_posix().endswith(rus.RUNNER_MERGES_REL_PATH)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["report_kind"] == "runner_auto_merge_evidence"
+    assert len(payload["records"]) == 1
+    assert payload["records"][0]["unit_id"] == "u_runner_synth"
+
+
+def test_append_runner_merge_record_is_idempotent_appender(
+    tmp_path: Path,
+) -> None:
+    """Two appends for different units => two records on disk."""
+    rus.append_runner_merge_record(
+        _runner_merge_record(unit_id="u_a", pr_number=1),
+        repo_root=tmp_path,
+        generated_at_utc=_FROZEN_UTC,
+    )
+    rus.append_runner_merge_record(
+        _runner_merge_record(unit_id="u_b", pr_number=2),
+        repo_root=tmp_path,
+        generated_at_utc=_FROZEN_UTC,
+    )
+    payload = json.loads(
+        (tmp_path / rus.RUNNER_MERGES_REL_PATH).read_text(
+            encoding="utf-8"
+        )
+    )
+    unit_ids = sorted(r["unit_id"] for r in payload["records"])
+    assert unit_ids == ["u_a", "u_b"]
+
+
+def test_append_runner_merge_record_rejects_invalid_record(
+    tmp_path: Path,
+) -> None:
+    bad = _runner_merge_record()
+    bad["pr_number"] = 0
+    with pytest.raises(ValueError, match="runner_merge_record_invalid"):
+        rus.append_runner_merge_record(
+            bad,
+            repo_root=tmp_path,
+            generated_at_utc=_FROZEN_UTC,
+        )
+
+
+def test_append_runner_merge_record_rejects_wrong_source(
+    tmp_path: Path,
+) -> None:
+    bad = _runner_merge_record()
+    bad["source"] = "pr_merge"
+    with pytest.raises(
+        ValueError,
+        match="runner_merge_record_source_must_be_runner_auto_merge",
+    ):
+        rus.append_runner_merge_record(
+            bad,
+            repo_root=tmp_path,
+            generated_at_utc=_FROZEN_UTC,
+        )
+
+
+def test_append_runner_merge_record_rejects_wrong_status(
+    tmp_path: Path,
+) -> None:
+    bad = _runner_merge_record()
+    bad["status"] = "pr_open"
+    # pr_open in dynamic vocab is valid in isolation but the runner
+    # surface only records terminal-merged evidence.
+    with pytest.raises(
+        ValueError,
+        match="runner_merge_record_status_must_be_merged",
+    ):
+        rus.append_runner_merge_record(
+            bad,
+            repo_root=tmp_path,
+            generated_at_utc=_FROZEN_UTC,
+        )
+
+
+def test_append_runner_merge_record_refuses_duplicate_unit_id(
+    tmp_path: Path,
+) -> None:
+    """No implicit resurrection: appending the same unit_id twice
+    is refused at the writer level."""
+    rus.append_runner_merge_record(
+        _runner_merge_record(),
+        repo_root=tmp_path,
+        generated_at_utc=_FROZEN_UTC,
+    )
+    with pytest.raises(
+        ValueError,
+        match="runner_merge_record_unit_id_already_present",
+    ):
+        rus.append_runner_merge_record(
+            _runner_merge_record(),
+            repo_root=tmp_path,
+            generated_at_utc=_FROZEN_UTC,
+        )
+
+
+def test_append_runner_merge_record_writes_to_allowlisted_path_only(
+    tmp_path: Path,
+) -> None:
+    """The append helper must use the atomic_write allowlist; any
+    direct call to the helper with a bogus path is rejected."""
+    rec = _runner_merge_record()
+    rus.append_runner_merge_record(
+        rec,
+        repo_root=tmp_path,
+        generated_at_utc=_FROZEN_UTC,
+    )
+    # Direct allowlist check on the underlying writer.
+    bad = tmp_path / "logs" / "elsewhere" / "runner_merges.json"
+    bad.parent.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError):
+        rus._atomic_write_json(bad, {"records": []})

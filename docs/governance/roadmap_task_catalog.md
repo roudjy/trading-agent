@@ -1,14 +1,20 @@
-# Roadmap Task Catalog — A20a + A20b + A20c + A20d + A20e + A21a + A21c
+# Roadmap Task Catalog — A20a + A20b + A20c + A20d + A20e + A21a + A21c + A21d
 
 > **Status:** A20a implemented; A20b implemented; A20c implemented;
 > A20d implemented; A20e implemented (deterministic next-buildable-unit
 > selector); A21a implemented (dynamic unit-status ledger,
 > Step 5 foundation); A21c implemented (bounded autonomous PR
-> runner for ONE AUTO_ALLOWED + LOW-risk + gate=none unit; no
-> auto-merge, no deploy). Stages A20a-A21a are read-only
-> projections. A21c executes a bounded PR-creation slice when
-> the operator explicitly invokes ``--run-one`` with a configured
-> implementation strategy; otherwise it is read-only.
+> runner for ONE AUTO_ALLOWED + LOW-risk + gate=none unit); A21d
+> implemented (bounded auto-merge for runner-originated PRs after
+> CI green + post-merge gates green; appends evidence-backed
+> ``merged`` record to ``logs/roadmap_unit_status/runner_merges.json``).
+> Stages A20a-A21a are read-only projections. A21c executes a
+> bounded PR-creation slice when the operator explicitly invokes
+> ``--run-one`` with a configured implementation strategy. A21d
+> extends the same surface with an opt-in ``--auto-merge-runner-pr``
+> phase. No auto-merge for non-runner-originated PRs; no
+> ``--admin``; no force-push; no hook bypass; no deploy
+> invocation.
 >
 > **A20a module:** [`reporting/roadmap_task_catalog.py`](../../reporting/roadmap_task_catalog.py)
 > **A20a artefact:** `logs/roadmap_task_catalog/latest.json`
@@ -29,10 +35,13 @@
 > **A21a artefact:** `logs/roadmap_unit_status/latest.json`
 > **A21a governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md)
 >
-> **A21c module:** [`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
-> **A21c artefact:** `logs/autonomous_pr_runner/latest.json`
-> **A21c governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md) §11
-> A21c is the **first real Step 5 execution slice** — it creates a real branch + PR for ONE selected safe unit. No auto-merge, no deploy, no second-unit continuation.
+> **A21c + A21d module:** [`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
+> **A21c + A21d artefact:** `logs/autonomous_pr_runner/latest.json`
+> **A21d auxiliary artefact:** `logs/roadmap_unit_status/runner_merges.json`
+> (evidence-backed merged records appended via
+> [`reporting.roadmap_unit_status.append_runner_merge_record`](../../reporting/roadmap_unit_status.py))
+> **A21c + A21d governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md) §11 (A21c) + §12 (A21d)
+> A21c is the **first real Step 5 execution slice** — it creates a real branch + PR for ONE selected safe unit. A21d extends the same surface with an opt-in auto-merge phase (`--auto-merge-runner-pr`) for runner-originated PRs only, squash-merge only, no `--admin`, no force-push, no hook bypass, max 1 merge per run, with post-merge gate watch + evidence-backed ledger update. No deploy invocation. No second-unit continuation.
 >
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.

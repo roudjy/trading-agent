@@ -1,25 +1,40 @@
-"""A21c -- Bounded Autonomous PR Runner (Step 5 / A21c slice).
+"""Autonomous PR Runner -- A21c bounded PR creation + A21d bounded
+auto-merge for runner-originated PRs.
 
 Takes exactly ONE A20e-selected unit from the queue, validates a
 closed set of safety gates, creates one branch, invokes a
 pluggable implementation strategy, verifies the resulting git diff
 is contained within the unit's ``expected_files``, runs the unit's
 required tests plus smoke and governance lint, commits, pushes,
-opens a PR, watches CI to first verdict, and stops with a
-deterministic run report at
+opens a PR, watches CI to first verdict, optionally
+squash-merges the PR (A21d, opt-in via ``--auto-merge-runner-pr``)
+with post-merge gate watch + evidence-backed ledger update, and
+stops with a deterministic run report at
 ``logs/autonomous_pr_runner/latest.json``.
 
 The runner is the **first concrete Step 5 slice**. It is bounded:
 
 * exactly one unit per invocation (``max_units_per_run = 1``);
+* exactly one merge per invocation
+  (``max_merges_per_run = 1``, A21d hard cap);
 * AUTO_ALLOWED + LOW risk + ``operator_gate = none`` only;
-* no auto-merge, no production-merge authority;
-* no deploy, no deploy watcher;
-* no ledger mutation (the dynamic unit-status ledger remains
-  seed-driven; runner emits its OWN report, separate from the
-  ledger);
-* no second-unit continuation; the runner stops after one PR;
-* no ``--admin``, no force-push, no hook bypass;
+* auto-merge is OPT-IN and only valid for the PR the runner just
+  opened in the same invocation
+  (``--auto-merge-runner-pr`` + same-invocation PR-number
+  cross-check);
+* no production-merge authority outside the bounded auto-merge
+  slice; no ``--admin``;
+* no deploy, no deploy watcher; the runner observes post-merge
+  gates only when ``--auto-merge-runner-pr`` is set and reports
+  their outcome read-only;
+* the auto-merge phase appends an evidence-backed ``merged``
+  record to ``logs/roadmap_unit_status/runner_merges.json`` (the
+  A21a auxiliary artefact). The static A20b ``_UNIT_SEED`` and
+  the A21a ``_STATUS_LEDGER_SEED`` are NEVER mutated by the
+  runner;
+* no second-unit continuation; the runner stops after one PR (or
+  one merge if auto-merge is enabled);
+* no force-push, no hook bypass;
 * no LLM, no external API calls except via the explicit
   ``external_command`` implementation strategy that the operator
   opts into via CLI flag.
@@ -103,7 +118,7 @@ from reporting import roadmap_unit_status as rus
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[str] = "1.0"
-MODULE_VERSION: Final[str] = "v3.15.16.A21c"
+MODULE_VERSION: Final[str] = "v3.15.16.A21d"
 REPORT_KIND: Final[str] = "autonomous_pr_runner"
 
 
@@ -113,7 +128,7 @@ REPORT_KIND: Final[str] = "autonomous_pr_runner"
 
 #: The A21c slice carves out a bounded PR-creation slice of Step 5.
 #: The broad Step 5 lock remains BLOCKED everywhere else.
-STEP5_ENABLED_SUBSTAGE: Final[str] = "a21c_bounded_pr_creation"
+STEP5_ENABLED_SUBSTAGE: Final[str] = "a21d_bounded_pr_creation_and_auto_merge"
 step5_implementation_allowed: Final[bool] = False
 
 
@@ -128,6 +143,7 @@ RUN_STATUS: Final[tuple[str, ...]] = (
     "plan_only",
     "refused_unsafe",
     "executed_pr_opened",
+    "executed_pr_merged",
     "executed_blocked_at_implementation",
     "executed_blocked_at_diff",
     "executed_blocked_at_tests",
@@ -136,6 +152,9 @@ RUN_STATUS: Final[tuple[str, ...]] = (
     "executed_blocked_at_push",
     "executed_blocked_at_pr_create",
     "executed_blocked_at_ci",
+    "executed_blocked_at_auto_merge",
+    "executed_blocked_at_post_merge_gates",
+    "executed_blocked_at_ledger_update",
 )
 
 #: Closed per-run stop-reason vocabulary. Exactly one value per run.
@@ -173,6 +192,26 @@ STOP_REASON: Final[tuple[str, ...]] = (
     "ci_not_clean",
     "unknown_evidence",
     "ok_pr_opened",
+    # A21d auto-merge stop reasons
+    "auto_merge_disabled",
+    "not_runner_originated",
+    "pr_branch_mismatch",
+    "pr_title_missing_unit_id",
+    "pr_body_missing_runner_signature",
+    "pr_diff_outside_expected_files",
+    "pr_diff_touches_forbidden_path",
+    "mergeability_not_clean",
+    "branch_protection_requires_admin",
+    "max_merges_exceeded",
+    "merge_failed",
+    "merge_sha_unknown",
+    "post_merge_fast_gate_failed",
+    "post_merge_docker_build_failed",
+    "post_merge_deploy_failed",
+    "post_merge_watch_timeout",
+    "status_ledger_write_failed",
+    "ok_pr_opened_no_auto_merge",
+    "ok_pr_merged",
 )
 
 #: Closed safety-gate vocabulary. Each gate evaluates PASS / FAIL.
@@ -191,6 +230,18 @@ SAFETY_GATE: Final[tuple[str, ...]] = (
     "not_terminal_status",
     "max_units_per_run_one",
     "implementation_strategy_configured",
+    # A21d auto-merge gates
+    "auto_merge_enabled",
+    "pr_runner_originated",
+    "pr_branch_matches_runner_convention",
+    "pr_title_contains_unit_id",
+    "pr_body_contains_runner_signature",
+    "pr_diff_within_expected_files",
+    "pr_diff_no_forbidden_path",
+    "ci_status_clean",
+    "mergeability_clean",
+    "no_admin_merge_required",
+    "max_merges_per_run_one",
 )
 
 #: Closed gate-result vocabulary.
@@ -267,6 +318,8 @@ RUNNER_REPORT_FIELDS: Final[tuple[str, ...]] = (
     "generated_at_utc",
     "mode",
     "max_units_per_run",
+    "max_merges_per_run",
+    "auto_merge_enabled",
     "implementation_strategy",
     "selected_unit_id",
     "selected_phase",
@@ -280,6 +333,9 @@ RUNNER_REPORT_FIELDS: Final[tuple[str, ...]] = (
     "tests_run",
     "pr_number",
     "ci_status",
+    "pr_merge_sha",
+    "post_merge_gates",
+    "ledger_update_path",
     "stop_reason",
     "final_runner_status",
     "next_required_operator_action",
@@ -288,21 +344,36 @@ RUNNER_REPORT_FIELDS: Final[tuple[str, ...]] = (
     "runner_invariants",
 )
 
+#: Pinned runner-branch prefix. The auto-merge phase verifies the PR
+#: branch name starts with this prefix as the runner-origin check.
+RUNNER_BRANCH_PREFIX: Final[str] = "step5-a21c/"
+
+#: Pinned runner-signature string. Every PR body emitted by the
+#: runner contains this verbatim. The auto-merge phase verifies the
+#: PR body contains this string before merging (defence in depth in
+#: addition to the same-invocation PR-number check).
+RUNNER_PR_SIGNATURE: Final[str] = (
+    "Auto-prepared by `reporting.autonomous_pr_runner`"
+)
+
 
 # ---------------------------------------------------------------------------
 # Bounds
 # ---------------------------------------------------------------------------
 
 MAX_UNITS_PER_RUN_HARD_CAP: Final[int] = 1
+MAX_MERGES_PER_RUN_HARD_CAP: Final[int] = 1
 MAX_BRANCH_NAME_LEN: Final[int] = 200
 MAX_COMMAND_EXCERPT_LEN: Final[int] = 4000
 MAX_DETAIL_LEN: Final[int] = 240
-MAX_COMMANDS_RECORDED: Final[int] = 32
+MAX_COMMANDS_RECORDED: Final[int] = 64
 MAX_FILES_CHANGED_RECORDED: Final[int] = 64
 MAX_TESTS_RECORDED: Final[int] = 64
 MAX_BRANCH_NAME_PREFIX_LEN: Final[int] = 64
 DEFAULT_COMMAND_TIMEOUT_SECONDS: Final[int] = 600
 DEFAULT_CI_WATCH_TIMEOUT_SECONDS: Final[int] = 1800
+DEFAULT_POST_MERGE_WATCH_TIMEOUT_SECONDS: Final[int] = 1800
+MAX_SHA_LEN_FOR_RUN: Final[int] = 64
 
 
 # ---------------------------------------------------------------------------
@@ -327,31 +398,39 @@ _BASE_RUNNER_INVARIANTS: Final[dict[str, bool]] = {
     "no_step5_broad": True,
     "no_level6": True,
     "no_production_merge_authority": True,
-    "no_auto_merge": True,
+    "no_auto_merge_outside_bounded_a21d_slice": True,
+    "no_arbitrary_pr_auto_merge": True,
+    "no_non_runner_originated_pr_merge": True,
     "no_admin_merge": True,
     "no_force_push": True,
     "no_hook_bypass": True,
-    "no_deploy": True,
-    "no_deploy_watcher": True,
-    "no_ledger_mutation": True,
+    "no_deploy_invocation": True,
+    "no_deploy_workflow_trigger": True,
+    "no_static_seed_mutation": True,
+    "no_a21a_seed_mutation": True,
+    "no_a20b_seed_mutation": True,
+    "no_work_queue_jsonl_mutation": True,
     "no_second_unit_continuation": True,
     "no_branch_creation_outside_run_one": True,
     "no_pr_creation_outside_run_one": True,
+    "no_pr_merge_outside_auto_merge_phase": True,
     "no_mutation_routes": True,
     "no_approval_buttons": True,
     "no_approval_inbox_mutation": True,
     "no_test_weakening": True,
-    "writes_only_autonomous_pr_runner_log": True,
+    "writes_only_to_allowlisted_logs": True,
     "writes_to_seed_jsonl": False,
     "writes_to_delegation_seed_jsonl": False,
     "writes_to_generated_seed_jsonl": False,
     "writes_to_work_queue_jsonl": False,
-    "writes_to_dynamic_status_ledger": False,
+    "writes_to_static_a21a_seed": False,
+    "writes_to_static_a20b_seed": False,
     "calls_llm_or_external_api": False,
     "uses_network": False,
     "uses_subprocess_outside_run_one": False,
     "calls_execution_authority_classifier": False,
     "bounded_step5_pr_creation_only": True,
+    "bounded_step5_auto_merge_only_for_runner_pr": True,
     "fail_closed_on_unsafe_unit": True,
     "fail_closed_on_diff_outside_expected_files": True,
     "fail_closed_on_forbidden_diff_path": True,
@@ -359,8 +438,18 @@ _BASE_RUNNER_INVARIANTS: Final[dict[str, bool]] = {
     "fail_closed_on_governance_lint_failure": True,
     "fail_closed_on_ci_failure": True,
     "fail_closed_on_unknown_evidence": True,
+    "fail_closed_on_non_runner_originated_pr": True,
+    "fail_closed_on_dirty_mergeability": True,
+    "fail_closed_on_post_merge_gate_failure": True,
+    "fail_closed_on_ledger_write_failure": True,
     "step5_implementation_allowed": False,
     "max_units_per_run_hard_capped_at_one": True,
+    "max_merges_per_run_hard_capped_at_one": True,
+    "auto_merge_requires_explicit_opt_in": True,
+    "auto_merge_requires_ci_green": True,
+    "auto_merge_requires_runner_origin": True,
+    "auto_merge_squash_only_no_admin": True,
+    "ledger_update_via_runner_merges_artifact_only": True,
 }
 
 
@@ -486,6 +575,7 @@ def evaluate_safety_gates(
     unit: dict[str, Any] | None,
     max_units: int,
     implementation_strategy: str,
+    max_merges: int = MAX_MERGES_PER_RUN_HARD_CAP,
 ) -> tuple[list[dict[str, Any]], str | None]:
     """Run every safety gate. Return ``(results, first_failure_reason)``.
 
@@ -493,6 +583,14 @@ def evaluate_safety_gates(
     ``None`` if every gate passed. Gates that depend on a previous
     gate's pass are recorded as ``NOT_CHECKED`` if that previous gate
     failed (defence in depth, no silent cascade).
+
+    Note: the A21d auto-merge gates (``pr_runner_originated``,
+    ``pr_diff_within_expected_files``, ``ci_status_clean``,
+    ``mergeability_clean``, etc.) are NOT evaluated here; they only
+    apply mid-execution after the runner has opened the PR. This
+    function evaluates the pre-execution gates only. The
+    ``max_merges_per_run_one`` gate IS evaluated here because it is
+    a static pre-flight invariant.
     """
     results: list[dict[str, Any]] = []
     fail: str | None = None
@@ -733,6 +831,20 @@ def evaluate_safety_gates(
     else:
         results.append(_gate("implementation_strategy_configured", "PASS", ""))
 
+    # max_merges_per_run_one (A21d pre-flight invariant)
+    if max_merges != MAX_MERGES_PER_RUN_HARD_CAP:
+        results.append(
+            _gate(
+                "max_merges_per_run_one",
+                "FAIL",
+                f"requested={max_merges}",
+            )
+        )
+        if fail is None:
+            fail = "max_merges_exceeded"
+    else:
+        results.append(_gate("max_merges_per_run_one", "PASS", ""))
+
     return results, fail
 
 
@@ -904,6 +1016,8 @@ def _empty_report(
     ts: str,
     max_units: int,
     implementation_strategy: str,
+    max_merges: int = 0,
+    auto_merge_enabled: bool = False,
 ) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
@@ -912,6 +1026,8 @@ def _empty_report(
         "generated_at_utc": ts,
         "mode": mode,
         "max_units_per_run": max_units,
+        "max_merges_per_run": max_merges,
+        "auto_merge_enabled": auto_merge_enabled,
         "implementation_strategy": implementation_strategy,
         "selected_unit_id": "",
         "selected_phase": "",
@@ -925,6 +1041,9 @@ def _empty_report(
         "tests_run": [],
         "pr_number": 0,
         "ci_status": "",
+        "pr_merge_sha": "",
+        "post_merge_gates": [],
+        "ledger_update_path": "",
         "stop_reason": "",
         "final_runner_status": "not_run",
         "next_required_operator_action": "",
@@ -1019,6 +1138,8 @@ def status(
     generated_at_utc: str | None = None,
     max_units: int = MAX_UNITS_PER_RUN_HARD_CAP,
     implementation_strategy: str = "none",
+    max_merges: int = MAX_MERGES_PER_RUN_HARD_CAP,
+    auto_merge_enabled: bool = False,
 ) -> dict[str, Any]:
     """Read-only status mode. Never executes anything."""
     root = repo_root if repo_root is not None else REPO_ROOT
@@ -1027,6 +1148,8 @@ def status(
         mode="status_only",
         ts=ts,
         max_units=max_units,
+        max_merges=max_merges,
+        auto_merge_enabled=auto_merge_enabled,
         implementation_strategy=implementation_strategy,
     )
     snap, _err = _load_selector_snapshot(repo_root=root)
@@ -1045,6 +1168,8 @@ def plan(
     generated_at_utc: str | None = None,
     max_units: int = MAX_UNITS_PER_RUN_HARD_CAP,
     implementation_strategy: str = "none",
+    max_merges: int = MAX_MERGES_PER_RUN_HARD_CAP,
+    auto_merge_enabled: bool = False,
 ) -> dict[str, Any]:
     """Plan-only mode. Evaluates safety gates but executes nothing.
 
@@ -1058,6 +1183,8 @@ def plan(
         mode="plan_only",
         ts=ts,
         max_units=max_units,
+        max_merges=max_merges,
+        auto_merge_enabled=auto_merge_enabled,
         implementation_strategy=implementation_strategy,
     )
     snap, _err = _load_selector_snapshot(repo_root=root)
@@ -1073,6 +1200,7 @@ def plan(
         unit=unit,
         max_units=max_units,
         implementation_strategy=implementation_strategy,
+        max_merges=max_merges,
     )
     report["safety_gate_results"] = gates
     report["final_runner_status"] = "plan_only"
@@ -1147,9 +1275,11 @@ def run_one(
     repo_root: Path | None = None,
     generated_at_utc: str | None = None,
     max_units: int = MAX_UNITS_PER_RUN_HARD_CAP,
+    max_merges: int = MAX_MERGES_PER_RUN_HARD_CAP,
     implementation_strategy_name: str = "none",
     external_command: str | None = None,
     external_command_timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    auto_merge_runner_pr: bool = False,
     shell: ShellRunner | None = None,
     implementation_strategy: ImplementationStrategy | None = None,
 ) -> dict[str, Any]:
@@ -1158,6 +1288,13 @@ def run_one(
     Tests inject ``shell`` and ``implementation_strategy`` so no real
     shell command is invoked. The CLI path constructs real ones from
     the operator-supplied flags.
+
+    When ``auto_merge_runner_pr=True``, after CI on the freshly-
+    created PR returns green, the runner executes the A21d
+    auto-merge phase: squash-merge (no ``--admin``, no force-push,
+    no hook bypass), capture merge SHA, update local main, watch
+    post-merge gates, and append an evidence-backed ``merged``
+    record to ``logs/roadmap_unit_status/runner_merges.json``.
     """
     root = repo_root if repo_root is not None else REPO_ROOT
     ts = generated_at_utc if generated_at_utc is not None else _utcnow()
@@ -1165,6 +1302,8 @@ def run_one(
         mode="run_one",
         ts=ts,
         max_units=max_units,
+        max_merges=max_merges,
+        auto_merge_enabled=bool(auto_merge_runner_pr),
         implementation_strategy=implementation_strategy_name,
     )
 
@@ -1182,6 +1321,7 @@ def run_one(
         unit=unit,
         max_units=max_units,
         implementation_strategy=implementation_strategy_name,
+        max_merges=max_merges,
     )
     report["safety_gate_results"] = gates
     if fail_reason is not None:
@@ -1430,12 +1570,620 @@ def run_one(
             return report
         report["ci_status"] = "PASS"
 
-    report["final_runner_status"] = "executed_pr_opened"
-    report["stop_reason"] = "ok_pr_opened"
-    report["next_required_operator_action"] = (
-        "review_pr_and_decide_merge_protocol"
+    # ---- A21d auto-merge phase (opt-in) -----------------------------------
+    if not auto_merge_runner_pr:
+        report["final_runner_status"] = "executed_pr_opened"
+        report["stop_reason"] = "ok_pr_opened_no_auto_merge"
+        report["next_required_operator_action"] = (
+            "review_pr_and_decide_merge_protocol"
+        )
+        return report
+
+    _auto_merge_phase(
+        report=report,
+        shell=shell,
+        unit=unit,
+        repo_root=root,
+        branch_name=branch_name,
+        pr_number=pr_number,
+        generated_at_utc=ts,
     )
     return report
+
+
+# ---------------------------------------------------------------------------
+# A21d auto-merge phase
+# ---------------------------------------------------------------------------
+
+
+def _evaluate_auto_merge_gates(
+    *,
+    pr_number: int,
+    branch_name: str,
+    unit: dict[str, Any],
+    pr_metadata: dict[str, Any],
+    pr_diff_paths: list[str],
+    ci_clean: bool,
+    mergeability: str,
+    merge_state_status: str,
+    auto_merge_enabled: bool,
+    max_merges: int,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Run the A21d auto-merge eligibility gates.
+
+    Returns ``(gate_results, first_failure_stop_reason)``. The gates
+    are evaluated in defence-in-depth order (origin checks first,
+    then content, then status).
+    """
+    results: list[dict[str, Any]] = []
+    fail: str | None = None
+
+    # auto_merge_enabled (operator must opt in)
+    if not auto_merge_enabled:
+        results.append(_gate("auto_merge_enabled", "FAIL", "flag absent"))
+        for g in (
+            "pr_runner_originated",
+            "pr_branch_matches_runner_convention",
+            "pr_title_contains_unit_id",
+            "pr_body_contains_runner_signature",
+            "pr_diff_within_expected_files",
+            "pr_diff_no_forbidden_path",
+            "ci_status_clean",
+            "mergeability_clean",
+            "no_admin_merge_required",
+        ):
+            results.append(_gate(g, "NOT_CHECKED", "blocked upstream"))
+        return results, "auto_merge_disabled"
+    results.append(_gate("auto_merge_enabled", "PASS", ""))
+
+    # pr_runner_originated
+    if pr_number <= 0:
+        results.append(
+            _gate(
+                "pr_runner_originated",
+                "FAIL",
+                "pr_number not captured by run-one",
+            )
+        )
+        if fail is None:
+            fail = "not_runner_originated"
+    else:
+        results.append(_gate("pr_runner_originated", "PASS", ""))
+
+    # pr_branch_matches_runner_convention
+    if not branch_name.startswith(RUNNER_BRANCH_PREFIX):
+        results.append(
+            _gate(
+                "pr_branch_matches_runner_convention",
+                "FAIL",
+                f"branch={branch_name}",
+            )
+        )
+        if fail is None:
+            fail = "pr_branch_mismatch"
+    else:
+        results.append(
+            _gate("pr_branch_matches_runner_convention", "PASS", "")
+        )
+
+    unit_id = _bounded_str(unit.get("id"), 200)
+    pr_title = _bounded_str(pr_metadata.get("title"), 480)
+    pr_body = _bounded_str(pr_metadata.get("body"), MAX_COMMAND_EXCERPT_LEN)
+
+    # pr_title_contains_unit_id
+    if not unit_id or unit_id not in pr_title:
+        results.append(
+            _gate(
+                "pr_title_contains_unit_id",
+                "FAIL",
+                "unit_id not present in PR title",
+            )
+        )
+        if fail is None:
+            fail = "pr_title_missing_unit_id"
+    else:
+        results.append(_gate("pr_title_contains_unit_id", "PASS", ""))
+
+    # pr_body_contains_runner_signature
+    if RUNNER_PR_SIGNATURE not in pr_body:
+        results.append(
+            _gate(
+                "pr_body_contains_runner_signature",
+                "FAIL",
+                "runner signature not present in PR body",
+            )
+        )
+        if fail is None:
+            fail = "pr_body_missing_runner_signature"
+    else:
+        results.append(_gate("pr_body_contains_runner_signature", "PASS", ""))
+
+    # pr_diff_no_forbidden_path (checked first so that a forbidden
+    # path produces the more specific stop reason even when the path
+    # is also outside expected_files)
+    forbidden_hits = [p for p in pr_diff_paths if _is_forbidden_path(p)]
+    if forbidden_hits:
+        results.append(
+            _gate(
+                "pr_diff_no_forbidden_path",
+                "FAIL",
+                f"forbidden={forbidden_hits[:3]}",
+            )
+        )
+        if fail is None:
+            fail = "pr_diff_touches_forbidden_path"
+    else:
+        results.append(_gate("pr_diff_no_forbidden_path", "PASS", ""))
+
+    # pr_diff_within_expected_files
+    expected = {
+        _bounded_str(p, 300).replace("\\", "/")
+        for p in (unit.get("expected_files") or [])
+        if isinstance(p, str)
+    }
+    extras = [
+        p
+        for p in pr_diff_paths
+        if p not in expected and not _is_forbidden_path(p)
+    ]
+    if extras:
+        results.append(
+            _gate(
+                "pr_diff_within_expected_files",
+                "FAIL",
+                f"unexpected={extras[:3]}",
+            )
+        )
+        if fail is None:
+            fail = "pr_diff_outside_expected_files"
+    else:
+        results.append(_gate("pr_diff_within_expected_files", "PASS", ""))
+
+    # ci_status_clean
+    if not ci_clean:
+        results.append(_gate("ci_status_clean", "FAIL", "ci not green"))
+        if fail is None:
+            fail = "ci_failed"
+    else:
+        results.append(_gate("ci_status_clean", "PASS", ""))
+
+    # no_admin_merge_required (checked first so a BLOCKED/BEHIND
+    # state produces the more specific stop reason even when
+    # mergeability is otherwise dirty)
+    if merge_state_status in {"BLOCKED", "BEHIND"}:
+        results.append(
+            _gate(
+                "no_admin_merge_required",
+                "FAIL",
+                f"merge_state={merge_state_status}",
+            )
+        )
+        if fail is None:
+            fail = "branch_protection_requires_admin"
+    else:
+        results.append(_gate("no_admin_merge_required", "PASS", ""))
+
+    # mergeability_clean
+    if mergeability != "MERGEABLE" or merge_state_status not in {
+        "CLEAN",
+        "BLOCKED",
+        "BEHIND",
+    }:
+        results.append(
+            _gate(
+                "mergeability_clean",
+                "FAIL",
+                f"mergeable={mergeability},state={merge_state_status}",
+            )
+        )
+        if fail is None:
+            fail = "mergeability_not_clean"
+    elif merge_state_status != "CLEAN":
+        # BLOCKED/BEHIND already failed above; record this gate as
+        # NOT_CHECKED here so the reader can see exactly which gate
+        # produced the stop reason.
+        results.append(
+            _gate(
+                "mergeability_clean",
+                "NOT_CHECKED",
+                "blocked by no_admin_merge_required",
+            )
+        )
+    else:
+        results.append(_gate("mergeability_clean", "PASS", ""))
+
+    _ = max_merges  # the per-run cap is enforced pre-execution; here
+    # the auto-merge phase runs exactly once per ``run_one`` call by
+    # construction, so a runtime cap is not needed.
+
+    return results, fail
+
+
+def _query_pr_metadata(
+    shell: ShellRunner,
+    *,
+    repo_root: Path,
+    pr_number: int,
+    commands: list[dict[str, Any]],
+) -> tuple[dict[str, Any], str | None]:
+    """Best-effort ``gh pr view`` returning the parsed JSON dict and
+    an optional error string."""
+    args = [
+        "gh",
+        "pr",
+        "view",
+        str(pr_number),
+        "--json",
+        "title,body,mergeable,mergeStateStatus",
+    ]
+    res = shell.run(args, cwd=repo_root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        return {}, f"gh_pr_view_exit_code={res.exit_code}"
+    try:
+        payload = json.loads(res.stdout or "")
+    except (TypeError, ValueError) as exc:
+        return {}, f"gh_pr_view_parse_error={exc}"
+    if not isinstance(payload, dict):
+        return {}, "gh_pr_view_payload_not_dict"
+    return payload, None
+
+
+def _query_pr_diff_paths(
+    shell: ShellRunner,
+    *,
+    repo_root: Path,
+    pr_number: int,
+    commands: list[dict[str, Any]],
+) -> tuple[list[str], str | None]:
+    """Best-effort ``gh pr diff --name-only`` returning the changed
+    paths and an optional error string."""
+    args = ["gh", "pr", "diff", str(pr_number), "--name-only"]
+    res = shell.run(args, cwd=repo_root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        return [], f"gh_pr_diff_exit_code={res.exit_code}"
+    paths: list[str] = []
+    for line in (res.stdout or "").splitlines():
+        cleaned = line.strip().replace("\\", "/")
+        if cleaned and cleaned not in paths:
+            paths.append(cleaned)
+    return paths, None
+
+
+def _query_merge_commit_sha(
+    shell: ShellRunner,
+    *,
+    repo_root: Path,
+    pr_number: int,
+    commands: list[dict[str, Any]],
+) -> str:
+    args = ["gh", "pr", "view", str(pr_number), "--json", "mergeCommit"]
+    res = shell.run(args, cwd=repo_root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        return ""
+    try:
+        payload = json.loads(res.stdout or "")
+    except (TypeError, ValueError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    mc = payload.get("mergeCommit")
+    if not isinstance(mc, dict):
+        return ""
+    oid = mc.get("oid")
+    return _bounded_str(oid, MAX_SHA_LEN_FOR_RUN)
+
+
+def _watch_post_merge_workflow(
+    shell: ShellRunner,
+    *,
+    repo_root: Path,
+    workflow_name: str,
+    merge_sha: str,
+    timeout_seconds: int,
+    commands: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Locate the post-merge workflow run for ``merge_sha`` and watch
+    it to completion via ``gh run watch --exit-status``. Returns one
+    dict shaped for the report's ``post_merge_gates`` list."""
+    # First, locate the latest run for this workflow on main.
+    args = [
+        "gh",
+        "run",
+        "list",
+        "--branch",
+        "main",
+        "--workflow",
+        workflow_name,
+        "--limit",
+        "10",
+        "--json",
+        "databaseId,status,conclusion,headSha",
+    ]
+    res = shell.run(args, cwd=repo_root)
+    _record_command(commands, args, res)
+    run_id = ""
+    conclusion = "unknown"
+    if res.exit_code == 0:
+        try:
+            runs = json.loads(res.stdout or "")
+        except (TypeError, ValueError):
+            runs = []
+        if isinstance(runs, list):
+            for entry in runs:
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get("headSha") == merge_sha:
+                    db_id = entry.get("databaseId")
+                    if isinstance(db_id, int) and db_id > 0:
+                        run_id = str(db_id)
+                    inline_status = entry.get("status")
+                    inline_conclusion = entry.get("conclusion")
+                    if (
+                        inline_status == "completed"
+                        and isinstance(inline_conclusion, str)
+                    ):
+                        conclusion = inline_conclusion
+                    break
+
+    if run_id and conclusion not in {"success", "failure", "cancelled"}:
+        # Watch the run to completion.
+        watch_args = ["gh", "run", "watch", run_id, "--exit-status"]
+        watch_res = shell.run(
+            watch_args, cwd=repo_root, timeout=timeout_seconds
+        )
+        _record_command(commands, watch_args, watch_res)
+        if watch_res.exit_code == 0:
+            conclusion = "success"
+        elif watch_res.exit_code == 124:
+            conclusion = "timeout"
+        else:
+            conclusion = "failure"
+    return {
+        "workflow_name": workflow_name,
+        "run_id": run_id,
+        "conclusion": conclusion,
+    }
+
+
+_POST_MERGE_WORKFLOWS: Final[tuple[str, ...]] = (
+    "Fast pre-merge gate",
+    "Build & Push Docker Image",
+    "Deploy VPS Dashboard",
+)
+
+_POST_MERGE_WORKFLOW_TO_STOP_REASON: Final[dict[str, str]] = {
+    "Fast pre-merge gate": "post_merge_fast_gate_failed",
+    "Build & Push Docker Image": "post_merge_docker_build_failed",
+    "Deploy VPS Dashboard": "post_merge_deploy_failed",
+}
+
+
+def _auto_merge_phase(
+    *,
+    report: dict[str, Any],
+    shell: ShellRunner,
+    unit: dict[str, Any],
+    repo_root: Path,
+    branch_name: str,
+    pr_number: int,
+    generated_at_utc: str,
+) -> None:
+    """Execute the A21d auto-merge phase.
+
+    Mutates ``report`` in place. The caller has already verified CI is
+    green and the PR is open.
+    """
+    commands: list[dict[str, Any]] = report["commands_run"]
+
+    # ---- Query PR metadata and PR diff (defence in depth) -----------------
+    pr_md, md_err = _query_pr_metadata(
+        shell, repo_root=repo_root, pr_number=pr_number, commands=commands
+    )
+    if md_err:
+        report["final_runner_status"] = "executed_blocked_at_auto_merge"
+        report["stop_reason"] = "unknown_evidence"
+        report["next_required_operator_action"] = (
+            "inspect_gh_pr_view_output"
+        )
+        return
+
+    pr_diff_paths, diff_err = _query_pr_diff_paths(
+        shell, repo_root=repo_root, pr_number=pr_number, commands=commands
+    )
+    if diff_err:
+        report["final_runner_status"] = "executed_blocked_at_auto_merge"
+        report["stop_reason"] = "unknown_evidence"
+        report["next_required_operator_action"] = (
+            "inspect_gh_pr_diff_output"
+        )
+        return
+
+    # ---- Run auto-merge eligibility gates ---------------------------------
+    auto_gates, auto_fail = _evaluate_auto_merge_gates(
+        pr_number=pr_number,
+        branch_name=branch_name,
+        unit=unit,
+        pr_metadata=pr_md,
+        pr_diff_paths=pr_diff_paths,
+        ci_clean=(report.get("ci_status") == "PASS"),
+        mergeability=_bounded_str(pr_md.get("mergeable"), 32),
+        merge_state_status=_bounded_str(pr_md.get("mergeStateStatus"), 32),
+        auto_merge_enabled=bool(report.get("auto_merge_enabled")),
+        max_merges=report.get("max_merges_per_run", 0),
+    )
+    # Append new auto-merge gates to the existing safety_gate_results
+    # so the report carries one unified gate list.
+    report["safety_gate_results"] = list(
+        report.get("safety_gate_results", [])
+    ) + auto_gates
+
+    if auto_fail is not None:
+        report["final_runner_status"] = "executed_blocked_at_auto_merge"
+        report["stop_reason"] = auto_fail
+        report["next_required_operator_action"] = (
+            "review_auto_merge_gate_failure_then_resolve_manually"
+        )
+        return
+
+    # ---- Squash-merge (no --admin, no force-push, no hook bypass) ---------
+    args = [
+        "gh",
+        "pr",
+        "merge",
+        str(pr_number),
+        "--squash",
+        "--delete-branch",
+    ]
+    res = shell.run(args, cwd=repo_root)
+    _record_command(commands, args, res)
+    if res.exit_code != 0:
+        report["final_runner_status"] = "executed_blocked_at_auto_merge"
+        report["stop_reason"] = "merge_failed"
+        report["next_required_operator_action"] = (
+            "inspect_gh_pr_merge_output_then_resolve"
+        )
+        return
+
+    # ---- Update local main ------------------------------------------------
+    for git_args in (
+        ["git", "checkout", "main"],
+        ["git", "pull", "--ff-only"],
+    ):
+        res = shell.run(git_args, cwd=repo_root)
+        _record_command(commands, git_args, res)
+        if res.exit_code != 0:
+            # We're past the merge; the report still records the merge
+            # but the operator must reconcile their local state.
+            report["final_runner_status"] = "executed_blocked_at_auto_merge"
+            report["stop_reason"] = "unknown_evidence"
+            report["next_required_operator_action"] = (
+                "reconcile_local_main_then_recheck_post_merge_gates"
+            )
+            return
+
+    # ---- Capture merge SHA -----------------------------------------------
+    merge_sha = _query_merge_commit_sha(
+        shell, repo_root=repo_root, pr_number=pr_number, commands=commands
+    )
+    if not merge_sha:
+        report["final_runner_status"] = "executed_blocked_at_auto_merge"
+        report["stop_reason"] = "merge_sha_unknown"
+        report["next_required_operator_action"] = (
+            "manually_capture_merge_sha_then_update_ledger"
+        )
+        return
+    report["pr_merge_sha"] = merge_sha
+
+    # ---- Watch post-merge gates ------------------------------------------
+    gate_outcomes: list[dict[str, Any]] = []
+    report["post_merge_gates"] = gate_outcomes
+    for workflow_name in _POST_MERGE_WORKFLOWS:
+        outcome = _watch_post_merge_workflow(
+            shell,
+            repo_root=repo_root,
+            workflow_name=workflow_name,
+            merge_sha=merge_sha,
+            timeout_seconds=DEFAULT_POST_MERGE_WATCH_TIMEOUT_SECONDS,
+            commands=commands,
+        )
+        gate_outcomes.append(outcome)
+        if outcome["conclusion"] == "timeout":
+            report["final_runner_status"] = (
+                "executed_blocked_at_post_merge_gates"
+            )
+            report["stop_reason"] = "post_merge_watch_timeout"
+            report["next_required_operator_action"] = (
+                "inspect_post_merge_workflow_run_manually"
+            )
+            return
+        if outcome["conclusion"] != "success":
+            report["final_runner_status"] = (
+                "executed_blocked_at_post_merge_gates"
+            )
+            report["stop_reason"] = (
+                _POST_MERGE_WORKFLOW_TO_STOP_REASON.get(
+                    workflow_name, "post_merge_fast_gate_failed"
+                )
+            )
+            report["next_required_operator_action"] = (
+                "inspect_failing_post_merge_workflow_run"
+            )
+            return
+
+    # ---- Append evidence-backed merged status to runner_merges ledger ----
+    unit_id = _bounded_str(unit.get("id"), 200)
+    evidence_entries = [
+        f"github_pr_number={pr_number}",
+        f"github_merge_sha={merge_sha}",
+    ]
+    for outcome in gate_outcomes:
+        evidence_entries.append(
+            f"{_workflow_to_evidence_key(outcome['workflow_name'])}="
+            f"{outcome['conclusion']}"
+        )
+    ledger_record = {
+        "unit_id": unit_id,
+        "status": "merged",
+        "source": "runner_auto_merge",
+        "updated_at_utc": generated_at_utc,
+        "pr_number": int(pr_number),
+        "merge_sha": merge_sha,
+        "reason": (
+            "auto-merged by A21d runner after CI green + post-merge "
+            "gates green"
+        ),
+        "evidence": evidence_entries,
+    }
+    try:
+        ledger_path = rus.append_runner_merge_record(
+            ledger_record,
+            repo_root=repo_root,
+            generated_at_utc=generated_at_utc,
+        )
+    except ValueError as exc:
+        report["final_runner_status"] = "executed_blocked_at_ledger_update"
+        report["stop_reason"] = "status_ledger_write_failed"
+        report["next_required_operator_action"] = (
+            f"resolve_ledger_write_failure:{_bounded_str(str(exc), 160)}"
+        )
+        return
+    except OSError as exc:
+        report["final_runner_status"] = "executed_blocked_at_ledger_update"
+        report["stop_reason"] = "status_ledger_write_failed"
+        report["next_required_operator_action"] = (
+            f"resolve_ledger_write_io_error:{_bounded_str(str(exc), 160)}"
+        )
+        return
+    report["ledger_update_path"] = rus.RUNNER_MERGES_REL_PATH
+    _ = ledger_path  # path is informational; relative path recorded above
+
+    # ---- Done -------------------------------------------------------------
+    report["final_runner_status"] = "executed_pr_merged"
+    report["stop_reason"] = "ok_pr_merged"
+    report["next_required_operator_action"] = (
+        "review_runner_merges_artifact_or_continue_next_run"
+    )
+
+
+def _workflow_to_evidence_key(workflow_name: str) -> str:
+    """Map a workflow display name to a stable underscored evidence
+    key (e.g. 'Fast pre-merge gate' -> 'fast_pre_merge_gate')."""
+    cleaned = workflow_name.lower().replace("&", "and").replace("-", " ")
+    out_chars: list[str] = []
+    last_was_alnum = False
+    for ch in cleaned:
+        if ch.isalnum():
+            out_chars.append(ch)
+            last_was_alnum = True
+        else:
+            if last_was_alnum:
+                out_chars.append("_")
+            last_was_alnum = False
+    key = "".join(out_chars).strip("_")
+    return key or "unknown_workflow"
 
 
 # ---------------------------------------------------------------------------
@@ -1583,20 +2331,22 @@ def _render_status(report: dict[str, Any]) -> str:
             f"{inv['no_production_merge_authority']}"
         ),
         (
-            "no_auto_merge="
-            f"{inv['no_auto_merge']} "
+            "no_auto_merge_outside_bounded_a21d_slice="
+            f"{inv['no_auto_merge_outside_bounded_a21d_slice']} "
             f"no_admin_merge={inv['no_admin_merge']} "
             f"no_force_push={inv['no_force_push']} "
             f"no_hook_bypass={inv['no_hook_bypass']} "
-            f"no_deploy={inv['no_deploy']}"
+            f"no_deploy_invocation={inv['no_deploy_invocation']}"
         ),
         (
-            "no_ledger_mutation="
-            f"{inv['no_ledger_mutation']} "
+            "no_a21a_seed_mutation="
+            f"{inv['no_a21a_seed_mutation']} "
             "no_second_unit_continuation="
             f"{inv['no_second_unit_continuation']} "
             "bounded_step5_pr_creation_only="
-            f"{inv['bounded_step5_pr_creation_only']}"
+            f"{inv['bounded_step5_pr_creation_only']} "
+            "bounded_step5_auto_merge_only_for_runner_pr="
+            f"{inv['bounded_step5_auto_merge_only_for_runner_pr']}"
         ),
     ]
     for g in gates:
@@ -1695,6 +2445,28 @@ def _build_parser() -> argparse.ArgumentParser:
             "(external_command strategy only)."
         ),
     )
+    p.add_argument(
+        "--auto-merge-runner-pr",
+        action="store_true",
+        help=(
+            "Opt in to the A21d auto-merge phase. After CI is green "
+            "on the freshly-created PR, squash-merge without admin "
+            "override, without force, without hook bypass, capture "
+            "merge SHA, update local main, watch post-merge gates, "
+            "and append an evidence-backed merged record to "
+            "logs/roadmap_unit_status/runner_merges.json. Refused "
+            "for any PR not opened in the same run-one invocation."
+        ),
+    )
+    p.add_argument(
+        "--max-merges",
+        type=int,
+        default=MAX_MERGES_PER_RUN_HARD_CAP,
+        help=(
+            "Maximum merges per run. A21d hard-caps this at 1; any "
+            "other value is rejected by the safety gates."
+        ),
+    )
     return p
 
 
@@ -1704,6 +2476,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.status:
         report = status(
             max_units=args.max_units,
+            max_merges=args.max_merges,
+            auto_merge_enabled=bool(args.auto_merge_runner_pr),
             implementation_strategy=args.implementation_strategy,
         )
         sys.stdout.write(_render_status(report))
@@ -1712,6 +2486,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.plan_only:
         report = plan(
             max_units=args.max_units,
+            max_merges=args.max_merges,
+            auto_merge_enabled=bool(args.auto_merge_runner_pr),
             implementation_strategy=args.implementation_strategy,
         )
         indent = args.indent if args.indent and args.indent > 0 else None
@@ -1724,20 +2500,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.run_one:
         report = run_one(
             max_units=args.max_units,
+            max_merges=args.max_merges,
             implementation_strategy_name=args.implementation_strategy,
             external_command=args.implementation_command,
             external_command_timeout=args.implementation_timeout,
+            auto_merge_runner_pr=bool(args.auto_merge_runner_pr),
         )
         indent = args.indent if args.indent and args.indent > 0 else None
         if not args.no_write:
             write_outputs(report)
         json.dump(report, sys.stdout, indent=indent, sort_keys=True)
         sys.stdout.write("\n")
-        return 0 if report["stop_reason"] == "ok_pr_opened" else 1
+        ok_reasons = {"ok_pr_opened", "ok_pr_opened_no_auto_merge", "ok_pr_merged"}
+        return 0 if report["stop_reason"] in ok_reasons else 1
 
     # No explicit mode flag. Default to status-only (safe).
     report = status(
         max_units=args.max_units,
+        max_merges=args.max_merges,
+        auto_merge_enabled=bool(args.auto_merge_runner_pr),
         implementation_strategy=args.implementation_strategy,
     )
     sys.stdout.write(_render_status(report))
