@@ -942,13 +942,245 @@ Pinned in
 - **Cross-invocation auto-merge.** A21d only merges PRs opened
   in the same `run_one` call.
 
-## 13. Next recommended PR
+## 13. A21e — Continuous autonomous conveyor
 
-**A21e — multi-unit conveyor loop with `max_units_per_run`
-budget.** After a successful A21d merge + post-merge gates,
-re-runs A20e against the merged-overlay-aware selector. If the
-next selected unit is still AUTO_ALLOWED / LOW / `gate=none`
-AND the per-run budget allows, continues to the next unit. Hard
-cap: ≤ 5 units per run, with per-unit timeout and max
-wall-clock budget. No `--admin`, no force-push, no hook bypass,
-no deploy automation beyond A21d's read-only post-merge watch.
+[`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
+now ships an **opt-in continuous-conveyor mode** that wraps the
+A21d cycle in a loop. The operator opts in via
+`--run-continuous --auto-merge-runner-pr`. Without those flags
+the runner behaves exactly as A21c / A21d.
+
+### 13.1 Conveyor contract
+
+The conveyor repeats the A21c → A21d cycle until ONE of the
+following fires:
+
+1. **No eligible unit** — A20e returns `NO_ELIGIBLE_UNITS`,
+   `ALL_PERMANENTLY_DENIED`, or `ALL_BLOCKED_BY_PREREQUISITES`.
+   Stops cleanly with
+   `final_stop_reason = "ok_conveyor_completed_no_eligible_unit"`.
+2. **Operator soft-stop** — `--stop-after-current` flag at
+   start, or the runtime sentinel file
+   `logs/autonomous_pr_runner/STOP_AFTER_CURRENT.signal` exists
+   when the next iteration begins. The conveyor completes the
+   current iteration (if any) and stops after its successful
+   merge.
+3. **Safety stop** — any A21c / A21d per-iteration safety stop
+   reason (`unsafe_authority_class`, `tests_failed`,
+   `governance_lint_failed`, `diff_outside_expected_files`,
+   `mergeability_not_clean`, `branch_protection_requires_admin`,
+   etc.).
+4. **Technical stop** — selector unavailable, push failed, CI
+   failed, post-merge gate failed, merge SHA unknown, selector
+   re-selected an already-merged unit, selector re-selected the
+   same unit twice without status change, status-artefact
+   refresh failed.
+
+There is **no artificial unit-count cap** and **no hard
+wall-clock budget**. The conveyor runs until one of the four
+conditions above fires.
+
+### 13.2 What A21e does NOT do
+
+- It does NOT impose a `max_units_per_run` budget on the
+  conveyor. Per-iteration caps stay at 1 (each iteration creates
+  1 PR + 1 merge), but the conveyor runs unbounded iterations
+  until a real stop fires.
+- It does NOT impose a wall-clock budget. The operator decides
+  when to stop via `--stop-after-current`, the sentinel file, or
+  Ctrl+C.
+- It does NOT impose a per-unit timeout as a queue policy.
+  Per-shell-command timeouts remain (CI watch defaults to
+  1800s) but those are per-command, not per-unit-as-queue.
+- It does NOT auto-merge any PR that the conveyor did not open
+  in the current invocation. Each iteration opens a fresh PR and
+  uses that PR's number directly for the auto-merge phase.
+- It does NOT pass `--admin`, `--force`, or `--no-verify` to any
+  shell call. Pinned by an AST-stripped module-source scan.
+- It does NOT trigger any deploy workflow. The post-merge gate
+  watch remains read-only (`gh run list` + `gh run watch
+  --exit-status`).
+- It does NOT mutate the static A20b `_UNIT_SEED` or A21a
+  `_STATUS_LEDGER_SEED`. Each successful merge appends to
+  `logs/roadmap_unit_status/runner_merges.json`; the conveyor
+  also refreshes `logs/roadmap_unit_status/latest.json` between
+  iterations so the selector picks up the overlay.
+
+### 13.3 Operator soft-stop
+
+Two equivalent mechanisms:
+
+- **Pre-start flag:** `--stop-after-current` on the CLI. The
+  conveyor completes one iteration and stops with
+  `final_stop_reason = "conveyor_operator_stop_after_current"`.
+- **Runtime sentinel file:** the operator creates
+  `logs/autonomous_pr_runner/STOP_AFTER_CURRENT.signal` (any
+  content) on the local filesystem. The conveyor checks this
+  file at the start of every iteration. If present, the
+  remainder of the run is treated as `stop_after_current = True`
+  and the conveyor exits with
+  `final_stop_reason = "conveyor_operator_stop_signal_file"`.
+
+For harder stops, the operator sends SIGINT (Ctrl+C). The
+process terminates without writing the final aggregate report.
+
+### 13.4 Pre-flight: auto-merge required
+
+The conveyor refuses to start without `--auto-merge-runner-pr`.
+Without auto-merge, iteration 2's selector would re-pick the
+same unit (status hasn't flipped to merged), the
+same-unit-without-status-change guard would trip, and the
+conveyor would stop. Refusing pre-flight is cleaner. Refusal
+stop reason: `conveyor_requires_auto_merge`.
+
+### 13.5 Status-artefact refresh between iterations
+
+After each successful auto-merge, the conveyor calls
+`reporting.roadmap_unit_status.collect_snapshot(repo_root=root)`
+and writes the result to `logs/roadmap_unit_status/latest.json`.
+This makes the next iteration's A20e selector see the freshly
+merged unit as `effective_status = "merged"` and skip it.
+
+If the refresh write fails, the conveyor stops with
+`final_stop_reason = "conveyor_status_artifact_refresh_failed"`.
+
+### 13.6 CLI
+
+```sh
+# Inspection (no execution, no writes):
+python -m reporting.autonomous_pr_runner --status
+python -m reporting.autonomous_pr_runner --plan-only
+
+# A21c single-PR cycle (no auto-merge):
+python -m reporting.autonomous_pr_runner \
+    --run-one --max-units 1 \
+    --implementation-strategy external_command \
+    --implementation-command "<cmd>"
+
+# A21d single-PR cycle + bounded auto-merge:
+python -m reporting.autonomous_pr_runner \
+    --run-one --max-units 1 --max-merges 1 \
+    --auto-merge-runner-pr \
+    --implementation-strategy external_command \
+    --implementation-command "<cmd>"
+
+# A21e continuous conveyor (run until queue empty or
+# operator-stop):
+python -m reporting.autonomous_pr_runner \
+    --run-continuous --auto-merge-runner-pr \
+    --implementation-strategy external_command \
+    --implementation-command "<cmd>"
+
+# A21e continuous conveyor + soft-stop after current iteration:
+python -m reporting.autonomous_pr_runner \
+    --run-continuous --auto-merge-runner-pr --stop-after-current \
+    --implementation-strategy external_command \
+    --implementation-command "<cmd>"
+```
+
+The operator can also create the runtime sentinel file at any
+time to stop a running conveyor cleanly:
+
+```sh
+mkdir -p logs/autonomous_pr_runner
+touch logs/autonomous_pr_runner/STOP_AFTER_CURRENT.signal
+```
+
+### 13.7 Conveyor report shape
+
+The conveyor's aggregate report is written to
+`logs/autonomous_pr_runner/latest.json` with
+`report_kind = "autonomous_pr_runner_conveyor"`. Fields are
+pinned by `CONVEYOR_REPORT_FIELDS`: `mode = "run_continuous"`,
+`started_at_utc`, `ended_at_utc`, `auto_merge_enabled`,
+`stop_after_current_requested`, `units_attempted`,
+`units_pr_opened`, `units_merged`, `units_blocked`,
+`unit_ids_processed[]`, `pr_numbers_opened[]`, `merge_shas[]`,
+`post_merge_gates_by_iteration[][]`,
+`selector_results_by_iteration[]`, `iteration_summaries[]`,
+`final_iteration_full_report`, `final_stop_reason`,
+`final_selector_status`, `final_runner_status`,
+`next_required_operator_action`, plus the standard
+`step5_enabled_substage` / `step5_implementation_allowed` /
+`runner_invariants`.
+
+### 13.8 New runner invariants pinned by A21e
+
+- `conveyor_has_no_artificial_max_units_cap = true`
+- `conveyor_has_no_wall_clock_budget_stop = true`
+- `conveyor_has_no_per_unit_timeout_as_queue_policy = true`
+- `conveyor_stops_only_on_no_eligible_or_safety_or_operator_stop = true`
+- `conveyor_re_runs_selector_between_iterations = true`
+- `conveyor_refreshes_status_artifact_between_iterations = true`
+- `conveyor_status_update_only_via_runner_merges_artifact = true`
+- `conveyor_operator_soft_stop_supported = true`
+- `conveyor_never_merges_arbitrary_prs = true`
+- `conveyor_never_continues_past_same_unit_without_status_change = true`
+- `conveyor_never_re_selects_already_merged_unit = true`
+
+### 13.9 Test coverage (33 new conveyor tests, 186 total)
+
+Pinned in
+[`tests/unit/test_autonomous_pr_runner.py`](../../tests/unit/test_autonomous_pr_runner.py):
+
+- conveyor report / iteration / selector schema field tuples
+  exactly pinned;
+- new vocab values pinned (RUN_STATUS, RUNNER_MODE, STOP_REASON
+  conveyor extensions);
+- `--status` with conveyor flags does NOT execute anything;
+- conveyor refuses to start without auto-merge;
+- happy-path: one eligible unit processed → next selector
+  returns no_eligible → conveyor completes cleanly;
+- happy-path: two eligible units processed sequentially in one
+  invocation; runner_merges artefact carries both records;
+- the conveyor's aggregate report is written with
+  `report_kind = "autonomous_pr_runner_conveyor"`;
+- `--stop-after-current` flag stops after one successful merge;
+- runtime sentinel file `STOP_AFTER_CURRENT.signal` stops after
+  the next successful merge;
+- safety stops (NEEDS_HUMAN authority, non-LOW risk, forbidden
+  diff, mergeability dirty, tests failed) refuse and surface the
+  specific stop reason from the failing iteration;
+- technical stops (CI failure, post-merge gate failure) surface
+  the specific stop reason;
+- empty selector at start completes with
+  `ok_conveyor_completed_no_eligible_unit`;
+- conveyor records selector results per iteration;
+- runner_invariants pin all A21e-specific flags;
+- AST-stripped module-source scan: no `--admin`, no `--force`,
+  no `--no-verify`, no deploy invocation, no
+  `workflow_dispatch` trigger;
+- every `apr.run_continuous` call in the unit tests explicitly
+  passes `shell=` and `implementation_strategy=` so the real
+  shell factory is never reached.
+
+### 13.10 What A21e still does NOT implement
+
+- **Cross-invocation auto-merge** — the conveyor only merges
+  PRs opened in the current invocation.
+- **Promote `runner_merges.json` into the canonical seed** —
+  the artefact remains local-only.
+- **Signal-handler-based hard stop** — Ctrl+C kills the process
+  uncleanly. A future slice may add a SIGINT handler.
+
+## 14. Next recommended operator action
+
+After PR #258 (A21e) merges, the operator can — from their local
+laptop — run the continuous conveyor against the live queue:
+
+```sh
+python -m reporting.autonomous_pr_runner \
+    --run-continuous --auto-merge-runner-pr \
+    --implementation-strategy external_command \
+    --implementation-command "<operator-supplied real command>"
+```
+
+The conveyor will process every AUTO_ALLOWED / LOW / `gate=none`
+unit in the A20e queue, stopping only when the queue is
+exhausted, a safety or technical stop fires, or the operator
+soft-stops via the flag or sentinel file. No `--admin`, no
+force-push, no hook bypass, no deploy invocation. Post-merge
+gates remain read-only-observed. Step 5 broad implementation
+remains BLOCKED, Level 6 remains permanently disabled, N5b
+Phase 4 production-merge authority remains permanently denied
+for ADE.
