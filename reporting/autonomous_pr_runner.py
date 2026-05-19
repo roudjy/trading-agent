@@ -123,6 +123,7 @@ import dataclasses
 import datetime as _dt
 import json
 import os
+import re
 import shlex
 import sys
 import tempfile
@@ -136,7 +137,7 @@ from reporting import roadmap_unit_status as rus
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[str] = "1.0"
-MODULE_VERSION: Final[str] = "v3.15.16.A21e+A22"
+MODULE_VERSION: Final[str] = "v3.15.16.A21e+A22+A24"
 REPORT_KIND: Final[str] = "autonomous_pr_runner"
 CONVEYOR_REPORT_KIND: Final[str] = "autonomous_pr_runner_conveyor"
 
@@ -407,6 +408,66 @@ CONVEYOR_STOP_SIGNAL_REL_PATH: Final[str] = (
     "logs/autonomous_pr_runner/STOP_AFTER_CURRENT.signal"
 )
 
+# ---------------------------------------------------------------------------
+# A24 — External-command template constants (closed-vocab)
+# ---------------------------------------------------------------------------
+
+#: Bounded length cap on scalar token values after stringification.
+MAX_EXTERNAL_COMMAND_SCALAR_TOKEN_LEN: Final[int] = 240
+
+#: Bounded length cap on JSON-serialised list-token values.
+MAX_EXTERNAL_COMMAND_JSON_TOKEN_LEN: Final[int] = 8000
+
+#: Closed set of scalar tokens. Each maps to one unit-dict field
+#: that must be a non-empty ``str``. Substituted verbatim into the
+#: operator-supplied template before ``shlex.split``.
+EXTERNAL_COMMAND_SCALAR_TOKENS: Final[tuple[str, ...]] = (
+    "unit_id",
+    "phase",
+    "title",
+    "risk_class",
+    "operator_gate",
+)
+
+#: Closed set of JSON-list tokens. Each maps to one unit-dict field
+#: that must be a ``list`` (or ``tuple``) of strings. The value is
+#: compact-JSON-serialised deterministically before substitution.
+EXTERNAL_COMMAND_JSON_TOKENS: Final[tuple[str, ...]] = (
+    "expected_files_json",
+    "forbidden_files_json",
+    "required_tests_json",
+    "definition_of_done_json",
+    "stop_conditions_json",
+)
+
+#: Union of allowed tokens. Any ``{token}`` in the template that is
+#: not in this set fails closed before invocation.
+EXTERNAL_COMMAND_ALLOWED_TOKENS: Final[tuple[str, ...]] = (
+    EXTERNAL_COMMAND_SCALAR_TOKENS + EXTERNAL_COMMAND_JSON_TOKENS
+)
+
+#: Map every template token to the unit-dict field it sources from.
+#: Tokens are surface names; fields are the A20b unit-record keys.
+_EXTERNAL_COMMAND_TOKEN_TO_UNIT_FIELD: Final[dict[str, str]] = {
+    "unit_id": "id",
+    "phase": "phase",
+    "title": "title",
+    "risk_class": "risk_class",
+    "operator_gate": "operator_gate",
+    "expected_files_json": "expected_files",
+    "forbidden_files_json": "forbidden_files",
+    "required_tests_json": "required_tests",
+    "definition_of_done_json": "definition_of_done",
+    "stop_conditions_json": "stop_conditions",
+}
+
+#: Pattern for the only allowed template syntax: ``{lowercase_token}``.
+#: No attribute access (``{foo.bar}``), no indexing (``{foo[0]}``),
+#: no format specs (``{foo:fmt}``), no positional refs (``{0}``).
+_EXTERNAL_COMMAND_TOKEN_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\{([a-z_]+)\}"
+)
+
 #: A21e per-iteration summary schema. Exact and ordered.
 CONVEYOR_ITERATION_SUMMARY_FIELDS: Final[tuple[str, ...]] = (
     "iteration",
@@ -580,6 +641,14 @@ _BASE_RUNNER_INVARIANTS: Final[dict[str, bool]] = {
     "never_accepts_permanently_denied_authority_for_execution": True,
     "never_accepts_high_or_critical_risk": True,
     "elevated_exceptions_remain_operator_driven": True,
+    # A24 external-command templating pins
+    "external_command_strategy_supports_unit_templating": True,
+    "external_command_template_uses_closed_vocab_tokens_only": True,
+    "external_command_template_rejects_unknown_tokens": True,
+    "external_command_template_rejects_attribute_or_index_access": True,
+    "external_command_template_uses_no_eval_or_exec": True,
+    "external_command_template_uses_no_shell_true": True,
+    "external_command_template_bounds_scalar_and_json_token_length": True,
 }
 
 
@@ -1064,6 +1133,143 @@ def _real_shell_runner_factory() -> ShellRunner:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# A24 — Unit-templated external command expansion
+# ---------------------------------------------------------------------------
+
+
+def expand_external_command_template(
+    template: str, unit: dict[str, Any]
+) -> tuple[str | None, str | None]:
+    """Substitute closed-vocab unit-aware tokens into an operator-
+    supplied ``--implementation-command`` template.
+
+    Returns ``(expanded, None)`` on success or
+    ``(None, error_reason)`` on failure. ``error_reason`` is a
+    bounded diagnostic string suitable for the
+    :attr:`ImplementationResult.reason` field; the runner maps every
+    such failure to the closed-vocab stop reason
+    ``implementation_strategy_failed``.
+
+    Allowed template tokens are pinned by
+    :data:`EXTERNAL_COMMAND_ALLOWED_TOKENS`. Scalar tokens
+    (``unit_id``, ``phase``, ``title``, ``risk_class``,
+    ``operator_gate``) substitute the unit-record string value
+    verbatim. JSON tokens (``expected_files_json`` etc.) serialise
+    the corresponding list field as compact deterministic JSON.
+
+    Fail-closed rules:
+
+    * unknown token name (not in
+      :data:`EXTERNAL_COMMAND_ALLOWED_TOKENS`);
+    * unit-dict is missing the field a token references;
+    * scalar field is not a ``str``;
+    * scalar value exceeds
+      :data:`MAX_EXTERNAL_COMMAND_SCALAR_TOKEN_LEN`;
+    * scalar value contains a newline (``\\n`` or ``\\r``);
+    * JSON field is not a list/tuple;
+    * JSON-serialised value exceeds
+      :data:`MAX_EXTERNAL_COMMAND_JSON_TOKEN_LEN`;
+    * expanded string still contains an unmatched ``{`` or ``}``
+      (defence against typos like ``{unit_id``);
+    * expanded string is empty / whitespace-only after substitution.
+
+    This function does NOT call :func:`shlex.split` itself — the
+    caller (:class:`_ExternalCommandStrategy`) does that downstream.
+    The two-step layout keeps templating logic unit-testable in
+    isolation.
+    """
+    if not isinstance(template, str):
+        return None, "template_not_a_string"
+
+    # Step 1: enumerate every {token} occurrence (preserving
+    # duplicates) and reject any unknown token before we substitute.
+    found_tokens = _EXTERNAL_COMMAND_TOKEN_PATTERN.findall(template)
+    allowed = set(EXTERNAL_COMMAND_ALLOWED_TOKENS)
+    for token in found_tokens:
+        if token not in allowed:
+            return None, _bounded_str(
+                f"template_unknown_token:{token}", MAX_DETAIL_LEN
+            )
+
+    # Step 2: build the substitution map from the unit record.
+    substitutions: dict[str, str] = {}
+    scalar_tokens = set(EXTERNAL_COMMAND_SCALAR_TOKENS)
+    json_tokens = set(EXTERNAL_COMMAND_JSON_TOKENS)
+    for token in set(found_tokens):
+        field = _EXTERNAL_COMMAND_TOKEN_TO_UNIT_FIELD[token]
+        if field not in unit:
+            return None, _bounded_str(
+                f"template_missing_field:{token}:{field}",
+                MAX_DETAIL_LEN,
+            )
+        raw_value = unit[field]
+        if token in scalar_tokens:
+            if not isinstance(raw_value, str):
+                return None, _bounded_str(
+                    f"template_scalar_not_string:{token}",
+                    MAX_DETAIL_LEN,
+                )
+            if "\n" in raw_value or "\r" in raw_value:
+                return None, _bounded_str(
+                    f"template_scalar_has_newline:{token}",
+                    MAX_DETAIL_LEN,
+                )
+            if len(raw_value) > MAX_EXTERNAL_COMMAND_SCALAR_TOKEN_LEN:
+                return None, _bounded_str(
+                    f"template_scalar_too_long:{token}",
+                    MAX_DETAIL_LEN,
+                )
+            substitutions[token] = raw_value
+        else:
+            # JSON token — must serialise a list/tuple.
+            if not isinstance(raw_value, (list, tuple)):
+                return None, _bounded_str(
+                    f"template_json_field_not_list:{token}",
+                    MAX_DETAIL_LEN,
+                )
+            # Compact, deterministic. List ordering preserved as
+            # given by the seed.
+            try:
+                serialised = json.dumps(
+                    list(raw_value),
+                    separators=(",", ":"),
+                    sort_keys=False,
+                    ensure_ascii=True,
+                )
+            except (TypeError, ValueError) as exc:
+                return None, _bounded_str(
+                    f"template_json_serialise_error:{token}:{exc}",
+                    MAX_DETAIL_LEN,
+                )
+            if len(serialised) > MAX_EXTERNAL_COMMAND_JSON_TOKEN_LEN:
+                return None, _bounded_str(
+                    f"template_json_too_long:{token}",
+                    MAX_DETAIL_LEN,
+                )
+            substitutions[token] = serialised
+
+    # Step 3: perform the substitution.
+    def _replace_one(match: re.Match[str]) -> str:
+        return substitutions[match.group(1)]
+
+    expanded = _EXTERNAL_COMMAND_TOKEN_PATTERN.sub(
+        _replace_one, template
+    )
+
+    # Step 4: defence-in-depth — any leftover {/} indicates a
+    # malformed template (e.g. ``{unit_id`` with no closing brace,
+    # or ``{Unit_ID}`` that escaped the lower-case regex).
+    if "{" in expanded or "}" in expanded:
+        return None, "template_unmatched_brace"
+
+    # Step 5: defence-in-depth — empty / whitespace-only expansion.
+    if not expanded.strip():
+        return None, "template_expanded_empty"
+
+    return expanded, None
+
+
 class _NoneStrategy:
     """Refuse-to-run strategy. The default."""
 
@@ -1084,13 +1290,22 @@ class _NoneStrategy:
 
 
 class _ExternalCommandStrategy:
-    """Shell out to an operator-supplied command.
+    """Shell out to an operator-supplied command template.
 
-    The command is parsed via :func:`shlex.split`. The command is
-    expected to mutate the filesystem under ``repo_root`` in a way
-    the diff-scope check downstream will validate. The runner does
-    not interpret the command output; it only checks the exit code
-    and the resulting git diff.
+    The template is expanded via
+    :func:`expand_external_command_template` against the selected
+    A20b unit BEFORE :func:`shlex.split`. The closed-vocab token
+    set (see :data:`EXTERNAL_COMMAND_ALLOWED_TOKENS`) lets the
+    operator parametrise one template across every iteration of
+    the continuous conveyor without giving the strategy arbitrary
+    field access. Unknown tokens, missing fields, oversize values,
+    newline-bearing scalars, or non-list JSON fields all fail
+    closed before any shell invocation.
+
+    A template with no ``{token}`` placeholders is still accepted
+    (backward-compat with A21c / A21d static-command tests). The
+    runner does not interpret the command output; it only checks
+    the exit code and the resulting git diff.
     """
 
     name = "external_command"
@@ -1108,12 +1323,27 @@ class _ExternalCommandStrategy:
         repo_root: Path,
         shell: ShellRunner,
     ) -> ImplementationResult:
+        # A24: expand operator-supplied template against the unit
+        # record before shlex.split. Returns (None, reason) on every
+        # fail-closed condition pinned by tests.
+        expanded, expand_err = expand_external_command_template(
+            self._command, unit
+        )
+        if expand_err is not None:
+            return ImplementationResult(
+                success=False,
+                reason=expand_err,
+                files_changed=(),
+            )
+        assert expanded is not None  # noqa: S101 (type-narrow only)
         try:
-            args = shlex.split(self._command)
+            args = shlex.split(expanded)
         except ValueError as exc:
             return ImplementationResult(
                 success=False,
-                reason=f"command_parse_error:{exc}",
+                reason=_bounded_str(
+                    f"command_parse_error:{exc}", MAX_DETAIL_LEN
+                ),
                 files_changed=(),
             )
         if not args:

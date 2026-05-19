@@ -351,6 +351,21 @@ retry-within-unit loop. **This PR does not implement that
 retry loop** — A22 is the policy + classification work; the
 retry loop is a separate future slice.
 
+### 6.1 How the conveyor implementation backend receives unit context
+
+After A24, the operator's `--implementation-command` is a template
+that the runner expands per iteration with the selected unit's
+closed-vocab metadata (`{unit_id}`, `{phase}`, `{title}`,
+`{risk_class}`, `{operator_gate}`, and the JSON-serialised lists
+`{expected_files_json}`, `{forbidden_files_json}`,
+`{required_tests_json}`, `{definition_of_done_json}`,
+`{stop_conditions_json}`). See
+[`step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md)
+§A24 for the full token table, fail-closed rules, and example
+command. This is what makes the continuous conveyor practically
+usable across the mandate-eligible queue — without templating, a
+static command had no per-iteration unit context.
+
 ## 7. How the mandate is implemented
 
 ### 7.1 A20c post-process

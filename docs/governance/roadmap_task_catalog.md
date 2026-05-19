@@ -1,4 +1,4 @@
-# Roadmap Task Catalog — A20a..A20e + A21a + A21c + A21d + A21e + A22
+# Roadmap Task Catalog — A20a..A20e + A21a + A21c + A21d + A21e + A22 + A24
 
 > **Status:** A20a implemented; A20b implemented; A20c implemented
 > (extended by A22 with strategic-mandate post-process); A20d
@@ -65,6 +65,9 @@ requirements) still follows the catalog-expansion-PR pattern in
 > **A22 module:** [`reporting/roadmap_unit_authority.py`](../../reporting/roadmap_unit_authority.py) (strategic-mandate post-process)
 > **A22 governance:** [`docs/governance/strategic_roadmap_execution_mandate.md`](strategic_roadmap_execution_mandate.md)
 > A22 promotes mandate-eligible NEEDS_HUMAN units to ``STRATEGICALLY_PREAPPROVED`` so the conveyor processes them automatically. The mandate never overrides PERMANENTLY_DENIED, never accepts HIGH/CRITICAL/UNKNOWN risk, and never relaxes the always-blocked runtime / trading / paper / shadow / broker / risk / execution / frozen-contract / dashboard-mutation surfaces.
+>
+> **A24 governance:** [`docs/governance/step5_bounded_autonomous_loop.md`](step5_bounded_autonomous_loop.md) §A24
+> A24 extends the A21c/A21d/A21e runner with unit-templated `--implementation-command` expansion. The operator-supplied template is expanded against the selected unit's closed-vocab metadata (`{unit_id}`, `{phase}`, `{title}`, `{risk_class}`, `{operator_gate}`, `{expected_files_json}`, `{forbidden_files_json}`, `{required_tests_json}`, `{definition_of_done_json}`, `{stop_conditions_json}`) before `shlex.split`. Unknown tokens, missing fields, oversize values, newline-bearing scalars, non-list JSON fields, and malformed braces all fail closed. No `eval`, no `exec`, no `shell=True`.
 >
 > **A21c + A21d + A21e module:** [`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
 > **A21c..A21e primary artefact:** `logs/autonomous_pr_runner/latest.json`
