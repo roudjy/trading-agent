@@ -1,16 +1,34 @@
 """Autonomous PR Runner -- A21c bounded PR creation + A21d bounded
-auto-merge for runner-originated PRs.
+auto-merge + A21e continuous conveyor.
 
-Takes exactly ONE A20e-selected unit from the queue, validates a
-closed set of safety gates, creates one branch, invokes a
-pluggable implementation strategy, verifies the resulting git diff
-is contained within the unit's ``expected_files``, runs the unit's
-required tests plus smoke and governance lint, commits, pushes,
-opens a PR, watches CI to first verdict, optionally
-squash-merges the PR (A21d, opt-in via ``--auto-merge-runner-pr``)
-with post-merge gate watch + evidence-backed ledger update, and
-stops with a deterministic run report at
-``logs/autonomous_pr_runner/latest.json``.
+Operates in three explicit modes:
+
+* ``--run-one`` (A21c): takes ONE A20e-selected unit, opens ONE
+  PR, watches CI to first verdict, stops.
+* ``--run-one --auto-merge-runner-pr`` (A21d): same as A21c plus
+  bounded squash-merge for runner-originated PRs after CI-green
+  + post-merge gate watch + evidence-backed ledger update.
+* ``--run-continuous --auto-merge-runner-pr`` (A21e): wraps the
+  A21d cycle in a loop. After each successful merge + post-merge
+  gates green + status-artefact refresh, re-runs A20e against
+  the updated overlay. If the next selection is OK_SELECTED and
+  passes every safety gate, processes the next unit. Stops only
+  when:
+
+  1. the selector returns no eligible unit
+     (``ok_conveyor_completed_no_eligible_unit``);
+  2. an explicit operator-stop signal fires
+     (``--stop-after-current`` flag or the
+     ``logs/autonomous_pr_runner/STOP_AFTER_CURRENT.signal``
+     sentinel file);
+  3. any safety or technical stop condition fires inside an
+     iteration (same closed-vocab STOP_REASON values that A21c /
+     A21d use).
+
+  There is **no artificial max_units_per_run cap**, **no hard
+  wall-clock budget**, and **no per-unit timeout as a queue
+  policy**. The conveyor stops only on no-eligible-work, a real
+  safety/technical condition, or operator interrupt.
 
 The runner is the **first concrete Step 5 slice**. It is bounded:
 
@@ -118,8 +136,9 @@ from reporting import roadmap_unit_status as rus
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[str] = "1.0"
-MODULE_VERSION: Final[str] = "v3.15.16.A21d"
+MODULE_VERSION: Final[str] = "v3.15.16.A21e"
 REPORT_KIND: Final[str] = "autonomous_pr_runner"
+CONVEYOR_REPORT_KIND: Final[str] = "autonomous_pr_runner_conveyor"
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +147,9 @@ REPORT_KIND: Final[str] = "autonomous_pr_runner"
 
 #: The A21c slice carves out a bounded PR-creation slice of Step 5.
 #: The broad Step 5 lock remains BLOCKED everywhere else.
-STEP5_ENABLED_SUBSTAGE: Final[str] = "a21d_bounded_pr_creation_and_auto_merge"
+STEP5_ENABLED_SUBSTAGE: Final[str] = (
+    "a21e_continuous_conveyor_with_bounded_auto_merge"
+)
 step5_implementation_allowed: Final[bool] = False
 
 
@@ -155,6 +176,12 @@ RUN_STATUS: Final[tuple[str, ...]] = (
     "executed_blocked_at_auto_merge",
     "executed_blocked_at_post_merge_gates",
     "executed_blocked_at_ledger_update",
+    # A21e conveyor outcomes
+    "executed_conveyor_completed_no_eligible",
+    "executed_conveyor_stopped_operator",
+    "executed_conveyor_stopped_safety",
+    "executed_conveyor_stopped_technical",
+    "executed_conveyor_refused_unsafe",
 )
 
 #: Closed per-run stop-reason vocabulary. Exactly one value per run.
@@ -212,6 +239,15 @@ STOP_REASON: Final[tuple[str, ...]] = (
     "status_ledger_write_failed",
     "ok_pr_opened_no_auto_merge",
     "ok_pr_merged",
+    # A21e conveyor stop reasons
+    "conveyor_requires_auto_merge",
+    "conveyor_selector_unavailable",
+    "conveyor_selector_repeated_merged_unit",
+    "conveyor_selector_repeated_unit_without_status_change",
+    "conveyor_operator_stop_after_current",
+    "conveyor_operator_stop_signal_file",
+    "conveyor_status_artifact_refresh_failed",
+    "ok_conveyor_completed_no_eligible_unit",
 )
 
 #: Closed safety-gate vocabulary. Each gate evaluates PASS / FAIL.
@@ -248,7 +284,12 @@ SAFETY_GATE: Final[tuple[str, ...]] = (
 GATE_RESULT: Final[tuple[str, ...]] = ("PASS", "FAIL", "NOT_CHECKED")
 
 #: Closed runner-mode vocabulary.
-RUNNER_MODE: Final[tuple[str, ...]] = ("status_only", "plan_only", "run_one")
+RUNNER_MODE: Final[tuple[str, ...]] = (
+    "status_only",
+    "plan_only",
+    "run_one",
+    "run_continuous",
+)
 
 #: Closed implementation-strategy vocabulary. ``none`` is the default
 #: and refuses to execute. ``external_command`` shells out to an
@@ -356,6 +397,76 @@ RUNNER_PR_SIGNATURE: Final[str] = (
     "Auto-prepared by `reporting.autonomous_pr_runner`"
 )
 
+#: Optional operator soft-stop sentinel file. If present at the
+#: start of a conveyor iteration, the conveyor treats the remainder
+#: of the run as ``stop_after_current = True``. The file is local-
+#: only (``logs/`` is gitignored) and the operator creates it
+#: manually to stop a running conveyor cleanly without sending
+#: SIGINT.
+CONVEYOR_STOP_SIGNAL_REL_PATH: Final[str] = (
+    "logs/autonomous_pr_runner/STOP_AFTER_CURRENT.signal"
+)
+
+#: A21e per-iteration summary schema. Exact and ordered.
+CONVEYOR_ITERATION_SUMMARY_FIELDS: Final[tuple[str, ...]] = (
+    "iteration",
+    "started_at_utc",
+    "selected_unit_id",
+    "selected_phase",
+    "branch_name",
+    "pr_number",
+    "pr_merge_sha",
+    "ci_status",
+    "stop_reason",
+    "final_runner_status",
+    "post_merge_gates",
+)
+
+#: A21e per-iteration selector snapshot fields. Exact and ordered.
+CONVEYOR_SELECTOR_RESULT_FIELDS: Final[tuple[str, ...]] = (
+    "iteration",
+    "selection_status",
+    "selected_unit_id",
+    "selected_authority_class",
+    "selected_risk_class",
+    "selected_operator_gate",
+    "requires_operator_go",
+    "candidate_count",
+    "eligible_candidate_count",
+)
+
+#: A21e conveyor report schema. Exact and ordered.
+CONVEYOR_REPORT_FIELDS: Final[tuple[str, ...]] = (
+    "schema_version",
+    "module_version",
+    "report_kind",
+    "generated_at_utc",
+    "mode",
+    "started_at_utc",
+    "ended_at_utc",
+    "auto_merge_enabled",
+    "stop_after_current_requested",
+    "implementation_strategy",
+    "units_attempted",
+    "units_pr_opened",
+    "units_merged",
+    "units_blocked",
+    "unit_ids_processed",
+    "pr_numbers_opened",
+    "merge_shas",
+    "post_merge_gates_by_iteration",
+    "selector_results_by_iteration",
+    "iteration_summaries",
+    "final_iteration_full_report",
+    "final_stop_reason",
+    "final_selector_status",
+    "final_runner_status",
+    "next_required_operator_action",
+    "step5_enabled_substage",
+    "step5_implementation_allowed",
+    "runner_invariants",
+)
+
 
 # ---------------------------------------------------------------------------
 # Bounds
@@ -450,6 +561,18 @@ _BASE_RUNNER_INVARIANTS: Final[dict[str, bool]] = {
     "auto_merge_requires_runner_origin": True,
     "auto_merge_squash_only_no_admin": True,
     "ledger_update_via_runner_merges_artifact_only": True,
+    # A21e continuous-conveyor pins
+    "conveyor_has_no_artificial_max_units_cap": True,
+    "conveyor_has_no_wall_clock_budget_stop": True,
+    "conveyor_has_no_per_unit_timeout_as_queue_policy": True,
+    "conveyor_stops_only_on_no_eligible_or_safety_or_operator_stop": True,
+    "conveyor_re_runs_selector_between_iterations": True,
+    "conveyor_refreshes_status_artifact_between_iterations": True,
+    "conveyor_status_update_only_via_runner_merges_artifact": True,
+    "conveyor_operator_soft_stop_supported": True,
+    "conveyor_never_merges_arbitrary_prs": True,
+    "conveyor_never_continues_past_same_unit_without_status_change": True,
+    "conveyor_never_re_selects_already_merged_unit": True,
 }
 
 
@@ -2187,6 +2310,459 @@ def _workflow_to_evidence_key(workflow_name: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# A21e continuous autonomous conveyor
+# ---------------------------------------------------------------------------
+
+
+def _refresh_status_artifact(
+    *, root: Path, generated_at_utc: str
+) -> str | None:
+    """Refresh ``logs/roadmap_unit_status/latest.json`` so the next
+    selector pass sees the latest A21d runner-merges overlay.
+
+    Returns ``None`` on success or a closed-vocab error tag on
+    failure. The conveyor stops with
+    ``conveyor_status_artifact_refresh_failed`` if this fails — the
+    selector's view of merged units would otherwise lag behind disk
+    state and could repeat already-merged units.
+    """
+    try:
+        snap = rus.collect_snapshot(
+            repo_root=root, generated_at_utc=generated_at_utc
+        )
+    except Exception as exc:  # defensive
+        return _bounded_str(repr(exc), MAX_DETAIL_LEN)
+    target = root / "logs" / "roadmap_unit_status" / "latest.json"
+    try:
+        rus._atomic_write_json(target, snap)
+    except (ValueError, OSError) as exc:
+        return _bounded_str(repr(exc), MAX_DETAIL_LEN)
+    return None
+
+
+def _empty_conveyor_report(
+    *,
+    ts: str,
+    started_at: str,
+    auto_merge_enabled: bool,
+    stop_after_current_requested: bool,
+    implementation_strategy: str,
+) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "module_version": MODULE_VERSION,
+        "report_kind": CONVEYOR_REPORT_KIND,
+        "generated_at_utc": ts,
+        "mode": "run_continuous",
+        "started_at_utc": started_at,
+        "ended_at_utc": "",
+        "auto_merge_enabled": bool(auto_merge_enabled),
+        "stop_after_current_requested": bool(stop_after_current_requested),
+        "implementation_strategy": implementation_strategy,
+        "units_attempted": 0,
+        "units_pr_opened": 0,
+        "units_merged": 0,
+        "units_blocked": 0,
+        "unit_ids_processed": [],
+        "pr_numbers_opened": [],
+        "merge_shas": [],
+        "post_merge_gates_by_iteration": [],
+        "selector_results_by_iteration": [],
+        "iteration_summaries": [],
+        "final_iteration_full_report": {},
+        "final_stop_reason": "",
+        "final_selector_status": "",
+        "final_runner_status": "not_run",
+        "next_required_operator_action": "",
+        "step5_enabled_substage": STEP5_ENABLED_SUBSTAGE,
+        "step5_implementation_allowed": step5_implementation_allowed,
+        "runner_invariants": dict(_BASE_RUNNER_INVARIANTS),
+    }
+
+
+def _selector_iteration_record(
+    *,
+    iteration: int,
+    sel: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "iteration": iteration,
+        "selection_status": _bounded_str(sel.get("selection_status"), 64),
+        "selected_unit_id": _bounded_str(sel.get("selected_unit_id"), 200),
+        "selected_authority_class": _bounded_str(
+            sel.get("selected_authority_class"), 32
+        ),
+        "selected_risk_class": _bounded_str(
+            sel.get("selected_risk_class"), 16
+        ),
+        "selected_operator_gate": _bounded_str(
+            sel.get("selected_operator_gate"), 64
+        ),
+        "requires_operator_go": bool(sel.get("requires_operator_go")),
+        "candidate_count": int(sel.get("candidate_count") or 0),
+        "eligible_candidate_count": int(
+            sel.get("eligible_candidate_count") or 0
+        ),
+    }
+
+
+def _iteration_summary_from_iter_report(
+    *, iteration: int, ts: str, iter_report: dict[str, Any]
+) -> dict[str, Any]:
+    return {
+        "iteration": iteration,
+        "started_at_utc": ts,
+        "selected_unit_id": _bounded_str(
+            iter_report.get("selected_unit_id"), 200
+        ),
+        "selected_phase": _bounded_str(
+            iter_report.get("selected_phase"), 64
+        ),
+        "branch_name": _bounded_str(
+            iter_report.get("branch_name"), MAX_BRANCH_NAME_LEN
+        ),
+        "pr_number": int(iter_report.get("pr_number", 0) or 0),
+        "pr_merge_sha": _bounded_str(
+            iter_report.get("pr_merge_sha"), MAX_SHA_LEN_FOR_RUN
+        ),
+        "ci_status": _bounded_str(iter_report.get("ci_status"), 32),
+        "stop_reason": _bounded_str(iter_report.get("stop_reason"), 80),
+        "final_runner_status": _bounded_str(
+            iter_report.get("final_runner_status"), 64
+        ),
+        "post_merge_gates": list(iter_report.get("post_merge_gates") or []),
+    }
+
+
+def _next_action_for_stop(stop_reason: str) -> str:
+    if stop_reason == "ok_conveyor_completed_no_eligible_unit":
+        return "review_conveyor_report_then_decide_next_phase_decomposition"
+    if stop_reason == "conveyor_operator_stop_after_current":
+        return "review_completed_units_then_resume_with_run_continuous"
+    if stop_reason == "conveyor_operator_stop_signal_file":
+        return (
+            "review_completed_units_then_remove_signal_file_then_resume"
+        )
+    if stop_reason == "conveyor_requires_auto_merge":
+        return (
+            "rerun_with_auto_merge_runner_pr_or_use_run_one_instead"
+        )
+    if stop_reason in {
+        "conveyor_selector_repeated_merged_unit",
+        "conveyor_selector_repeated_unit_without_status_change",
+        "conveyor_status_artifact_refresh_failed",
+        "conveyor_selector_unavailable",
+    }:
+        return (
+            "inspect_selector_and_status_artifact_state_then_resolve"
+        )
+    return "review_final_iteration_report_then_resolve_before_resuming"
+
+
+def run_continuous(
+    *,
+    repo_root: Path | None = None,
+    generated_at_utc: str | None = None,
+    implementation_strategy_name: str = "none",
+    external_command: str | None = None,
+    external_command_timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    auto_merge_runner_pr: bool = False,
+    stop_after_current: bool = False,
+    clock_fn: Callable[[], str] | None = None,
+    shell: ShellRunner | None = None,
+    implementation_strategy: ImplementationStrategy | None = None,
+) -> dict[str, Any]:
+    """A21e continuous autonomous conveyor.
+
+    Repeatedly calls :func:`run_one` (with ``auto_merge_runner_pr``
+    propagated) until one of these stops fires:
+
+    * the selector returns ``selection_status != OK_SELECTED``
+      (no eligible unit, upstream missing, ambiguous selection,
+      etc.);
+    * a per-iteration ``run_one`` reports anything other than
+      ``ok_pr_merged`` (every A21c / A21d safety + technical stop
+      is propagated);
+    * the selector re-selects an already-merged unit
+      (``conveyor_selector_repeated_merged_unit``);
+    * the selector re-selects the same unit twice without the unit
+      transitioning to merged in between
+      (``conveyor_selector_repeated_unit_without_status_change``);
+    * the operator's ``--stop-after-current`` flag was passed or
+      the soft-stop sentinel file exists;
+    * the between-iteration status-artefact refresh fails
+      (``conveyor_status_artifact_refresh_failed``).
+
+    No artificial unit-count or wall-clock cap.
+
+    The conveyor *requires* ``auto_merge_runner_pr = True`` because
+    without auto-merge the selected unit's status never flips to
+    merged, the selector would re-select the same unit, and the
+    same-unit-without-status-change guard would trip on iteration
+    2. To keep semantics clean, the conveyor refuses to start
+    without auto-merge enabled.
+    """
+    root = repo_root if repo_root is not None else REPO_ROOT
+    tick = clock_fn if clock_fn is not None else _utcnow
+    started_at = generated_at_utc if generated_at_utc is not None else tick()
+
+    report = _empty_conveyor_report(
+        ts=started_at,
+        started_at=started_at,
+        auto_merge_enabled=bool(auto_merge_runner_pr),
+        stop_after_current_requested=bool(stop_after_current),
+        implementation_strategy=implementation_strategy_name,
+    )
+
+    # ---- Pre-flight: auto-merge required for the conveyor -----------------
+    if not auto_merge_runner_pr:
+        report["final_stop_reason"] = "conveyor_requires_auto_merge"
+        report["final_runner_status"] = "executed_conveyor_refused_unsafe"
+        report["ended_at_utc"] = tick()
+        report["next_required_operator_action"] = _next_action_for_stop(
+            "conveyor_requires_auto_merge"
+        )
+        return report
+
+    iteration = 0
+    units_merged: set[str] = set()
+    last_unit_id: str = ""
+    last_iteration_was_merge: bool = False
+    final_iteration_full_report: dict[str, Any] = {}
+    stop_signal_path = root / CONVEYOR_STOP_SIGNAL_REL_PATH
+
+    while True:
+        iteration += 1
+
+        # ---- Operator soft-stop sentinel check (per-iteration) -----------
+        per_iter_stop_after_current = bool(stop_after_current)
+        if not per_iter_stop_after_current and stop_signal_path.is_file():
+            per_iter_stop_after_current = True
+
+        # ---- Re-run selector ---------------------------------------------
+        snap, _err = _load_selector_snapshot(repo_root=root)
+        if snap is None:
+            report["selector_results_by_iteration"].append(
+                _selector_iteration_record(iteration=iteration, sel={})
+            )
+            report["final_stop_reason"] = "conveyor_selector_unavailable"
+            report["final_runner_status"] = (
+                "executed_conveyor_stopped_technical"
+            )
+            break
+
+        sel = snap.get("selection") or {}
+        sel_status = _bounded_str(sel.get("selection_status"), 64)
+        sel_unit_id = _bounded_str(sel.get("selected_unit_id"), 200)
+        report["selector_results_by_iteration"].append(
+            _selector_iteration_record(iteration=iteration, sel=sel)
+        )
+        report["final_selector_status"] = sel_status
+
+        # ---- Per-selector-status routing ---------------------------------
+        # OK_SELECTED proceeds to run_one. ALL_NEEDS_HUMAN_GATED also
+        # proceeds (defence in depth — run_one's per-authority gate will
+        # fire the specific stop reason). The clean-completion statuses
+        # (NO_ELIGIBLE_UNITS / ALL_PERMANENTLY_DENIED /
+        # ALL_BLOCKED_BY_PREREQUISITES) end the conveyor cleanly. Other
+        # statuses are technical stops.
+        if sel_status not in {"OK_SELECTED", "ALL_NEEDS_HUMAN_GATED"}:
+            if sel_status in {
+                "NO_ELIGIBLE_UNITS",
+                "ALL_PERMANENTLY_DENIED",
+                "ALL_BLOCKED_BY_PREREQUISITES",
+            }:
+                report["final_stop_reason"] = (
+                    "ok_conveyor_completed_no_eligible_unit"
+                )
+                report["final_runner_status"] = (
+                    "executed_conveyor_completed_no_eligible"
+                )
+            elif sel_status == "UPSTREAM_UNAVAILABLE":
+                report["final_stop_reason"] = (
+                    "conveyor_selector_unavailable"
+                )
+                report["final_runner_status"] = (
+                    "executed_conveyor_stopped_technical"
+                )
+            else:
+                # FAIL_CLOSED_INVARIANT, empty, unknown, etc.
+                report["final_stop_reason"] = "ambiguous_selection"
+                report["final_runner_status"] = (
+                    "executed_conveyor_stopped_technical"
+                )
+            break
+
+        # ---- Stop: selector re-selected an already-merged unit -----------
+        if sel_unit_id in units_merged:
+            report["final_stop_reason"] = (
+                "conveyor_selector_repeated_merged_unit"
+            )
+            report["final_runner_status"] = (
+                "executed_conveyor_stopped_technical"
+            )
+            break
+
+        # ---- Stop: same unit twice without status change ------------------
+        if sel_unit_id == last_unit_id and not last_iteration_was_merge:
+            report["final_stop_reason"] = (
+                "conveyor_selector_repeated_unit_without_status_change"
+            )
+            report["final_runner_status"] = (
+                "executed_conveyor_stopped_technical"
+            )
+            break
+
+        # ---- Run one iteration via run_one (with auto-merge) -------------
+        iter_ts = tick()
+        iter_report = run_one(
+            repo_root=root,
+            generated_at_utc=iter_ts,
+            max_units=MAX_UNITS_PER_RUN_HARD_CAP,
+            max_merges=MAX_MERGES_PER_RUN_HARD_CAP,
+            implementation_strategy_name=implementation_strategy_name,
+            external_command=external_command,
+            external_command_timeout=external_command_timeout,
+            auto_merge_runner_pr=True,
+            shell=shell,
+            implementation_strategy=implementation_strategy,
+        )
+        final_iteration_full_report = iter_report
+        report["units_attempted"] += 1
+        report["iteration_summaries"].append(
+            _iteration_summary_from_iter_report(
+                iteration=iteration, ts=iter_ts, iter_report=iter_report
+            )
+        )
+        if iter_report.get("selected_unit_id"):
+            report["unit_ids_processed"].append(
+                iter_report["selected_unit_id"]
+            )
+        if int(iter_report.get("pr_number", 0) or 0) > 0:
+            report["pr_numbers_opened"].append(
+                int(iter_report["pr_number"])
+            )
+        if iter_report.get("pr_merge_sha"):
+            report["merge_shas"].append(iter_report["pr_merge_sha"])
+        report["post_merge_gates_by_iteration"].append(
+            list(iter_report.get("post_merge_gates") or [])
+        )
+
+        iter_stop = _bounded_str(iter_report.get("stop_reason"), 80)
+        last_unit_id = sel_unit_id
+        last_iteration_was_merge = iter_stop == "ok_pr_merged"
+
+        if last_iteration_was_merge:
+            units_merged.add(sel_unit_id)
+            report["units_merged"] += 1
+            report["units_pr_opened"] += 1
+
+            # Operator soft-stop after this successful merge.
+            if per_iter_stop_after_current:
+                if stop_signal_path.is_file():
+                    report["final_stop_reason"] = (
+                        "conveyor_operator_stop_signal_file"
+                    )
+                else:
+                    report["final_stop_reason"] = (
+                        "conveyor_operator_stop_after_current"
+                    )
+                report["final_runner_status"] = (
+                    "executed_conveyor_stopped_operator"
+                )
+                break
+
+            # Refresh the status artefact so the next selector pass
+            # sees the freshly merged unit. The runner_merges record
+            # has already been appended by run_one's auto-merge phase.
+            refresh_err = _refresh_status_artifact(
+                root=root, generated_at_utc=iter_ts
+            )
+            if refresh_err is not None:
+                report["final_stop_reason"] = (
+                    "conveyor_status_artifact_refresh_failed"
+                )
+                report["final_runner_status"] = (
+                    "executed_conveyor_stopped_technical"
+                )
+                break
+
+            # Continue to the next iteration.
+            continue
+
+        # ---- Iteration stopped on a non-merge reason ----------------------
+        if iter_stop in {"ok_pr_opened_no_auto_merge", "ok_pr_opened"}:
+            # Conveyor required auto-merge but the iteration didn't
+            # produce a merge. This shouldn't normally fire because we
+            # forced auto_merge_runner_pr=True above; defence in depth.
+            report["units_pr_opened"] += 1
+            report["units_blocked"] += 1
+            report["final_stop_reason"] = "conveyor_requires_auto_merge"
+            report["final_runner_status"] = (
+                "executed_conveyor_refused_unsafe"
+            )
+            break
+
+        report["units_blocked"] += 1
+        report["final_stop_reason"] = iter_stop or "unknown_evidence"
+        final_status = _bounded_str(
+            iter_report.get("final_runner_status"), 64
+        )
+        # Map the per-iteration stop to a conveyor-level final status.
+        safety_stops = {
+            "unsafe_authority_class",
+            "unsafe_risk_class",
+            "unsafe_operator_gate",
+            "requires_operator_go",
+            "missing_expected_files",
+            "missing_forbidden_files",
+            "missing_required_tests",
+            "forbidden_path_in_expected_files",
+            "terminal_status",
+            "max_units_exceeded",
+            "max_merges_exceeded",
+            "implementation_strategy_not_configured",
+            "implementation_strategy_failed",
+            "diff_outside_expected_files",
+            "diff_touches_forbidden_path",
+            "diff_empty",
+            "pr_diff_outside_expected_files",
+            "pr_diff_touches_forbidden_path",
+            "not_runner_originated",
+            "pr_branch_mismatch",
+            "pr_title_missing_unit_id",
+            "pr_body_missing_runner_signature",
+            "auto_merge_disabled",
+            "branch_protection_requires_admin",
+            # Code/CI/lint failures on the implementation itself are
+            # safety stops: they indicate the produced change is not
+            # safe to merge.
+            "tests_failed",
+            "governance_lint_failed",
+            "mergeability_not_clean",
+        }
+        if iter_stop in safety_stops:
+            report["final_runner_status"] = (
+                "executed_conveyor_stopped_safety"
+            )
+        else:
+            report["final_runner_status"] = (
+                "executed_conveyor_stopped_technical"
+            )
+        _ = final_status  # informational
+        break
+
+    # ---- Finalise report -----------------------------------------------
+    report["ended_at_utc"] = tick()
+    if final_iteration_full_report:
+        report["final_iteration_full_report"] = final_iteration_full_report
+    report["next_required_operator_action"] = _next_action_for_stop(
+        report["final_stop_reason"]
+    )
+    return report
+
+
+# ---------------------------------------------------------------------------
 # PR body / commit message helpers
 # ---------------------------------------------------------------------------
 
@@ -2411,6 +2987,30 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--run-continuous",
+        action="store_true",
+        help=(
+            "A21e continuous conveyor mode. Repeats the A21d "
+            "PR-create + CI watch + auto-merge cycle on every "
+            "A20e-selected unit until no eligible unit remains, a "
+            "safety / technical stop fires, or the operator sends "
+            "an explicit stop (--stop-after-current or sentinel "
+            "file). REQUIRES --auto-merge-runner-pr. No artificial "
+            "unit-count or wall-clock budget."
+        ),
+    )
+    p.add_argument(
+        "--stop-after-current",
+        action="store_true",
+        help=(
+            "Soft-stop for the continuous conveyor. Complete the "
+            "currently-running iteration (if any) and stop before "
+            "selecting another unit. The same effect can be "
+            "achieved at runtime by creating the sentinel file at "
+            "logs/autonomous_pr_runner/STOP_AFTER_CURRENT.signal."
+        ),
+    )
+    p.add_argument(
         "--max-units",
         type=int,
         default=1,
@@ -2496,6 +3096,26 @@ def main(argv: list[str] | None = None) -> int:
         json.dump(report, sys.stdout, indent=indent, sort_keys=True)
         sys.stdout.write("\n")
         return 0
+
+    if args.run_continuous:
+        report = run_continuous(
+            implementation_strategy_name=args.implementation_strategy,
+            external_command=args.implementation_command,
+            external_command_timeout=args.implementation_timeout,
+            auto_merge_runner_pr=bool(args.auto_merge_runner_pr),
+            stop_after_current=bool(args.stop_after_current),
+        )
+        indent = args.indent if args.indent and args.indent > 0 else None
+        if not args.no_write:
+            write_outputs(report)
+        json.dump(report, sys.stdout, indent=indent, sort_keys=True)
+        sys.stdout.write("\n")
+        ok_reasons = {
+            "ok_conveyor_completed_no_eligible_unit",
+            "conveyor_operator_stop_after_current",
+            "conveyor_operator_stop_signal_file",
+        }
+        return 0 if report["final_stop_reason"] in ok_reasons else 1
 
     if args.run_one:
         report = run_one(
