@@ -3846,3 +3846,436 @@ def test_conveyor_does_not_use_real_shell_in_unit_tests() -> None:
             "every apr.run_continuous call must pass "
             "implementation_strategy="
         )
+
+
+# ===========================================================================
+# A24 — Unit-templated external-command tests
+# ===========================================================================
+
+
+def _a24_unit(**overrides: Any) -> dict[str, Any]:
+    """Synthetic A20b-shape unit record used by the A24 templating
+    tests. Includes every field the closed-vocab tokens touch."""
+    base: dict[str, Any] = {
+        "id": "u_v3_15_17_sampling_plan_reporter_001",
+        "roadmap_task_id": "phase_v3_15_17",
+        "title": "Sampling plan reporter (read-only)",
+        "phase": "v3.15.17",
+        "unit_kind": "reporting_module",
+        "target_layer": "reporting",
+        "source_requirement_ids": (),
+        "expected_files": [
+            "reporting/sampling_plan.py",
+            "tests/unit/test_sampling_plan.py",
+        ],
+        "forbidden_files": [
+            ".claude/**",
+            "dashboard/dashboard.py",
+            "broker/**",
+        ],
+        "forbidden_surface_reasons": [],
+        "required_tests": ["tests/unit/test_sampling_plan.py"],
+        "definition_of_done": [
+            "module imports cleanly",
+            "atomic write only under logs/sampling_plan/",
+        ],
+        "stop_conditions": [
+            "any LLM-based ranker introduced -> STOP",
+            "any external API call -> STOP",
+        ],
+        "prerequisites": [],
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    }
+    base.update(overrides)
+    return base
+
+
+# ---- closed-vocab pins ----------------------------------------------------
+
+
+def test_external_command_scalar_tokens_pinned_exact() -> None:
+    assert apr.EXTERNAL_COMMAND_SCALAR_TOKENS == (
+        "unit_id",
+        "phase",
+        "title",
+        "risk_class",
+        "operator_gate",
+    )
+
+
+def test_external_command_json_tokens_pinned_exact() -> None:
+    assert apr.EXTERNAL_COMMAND_JSON_TOKENS == (
+        "expected_files_json",
+        "forbidden_files_json",
+        "required_tests_json",
+        "definition_of_done_json",
+        "stop_conditions_json",
+    )
+
+
+def test_external_command_allowed_tokens_is_union() -> None:
+    assert set(apr.EXTERNAL_COMMAND_ALLOWED_TOKENS) == (
+        set(apr.EXTERNAL_COMMAND_SCALAR_TOKENS)
+        | set(apr.EXTERNAL_COMMAND_JSON_TOKENS)
+    )
+    # No duplicates.
+    assert len(apr.EXTERNAL_COMMAND_ALLOWED_TOKENS) == len(
+        set(apr.EXTERNAL_COMMAND_ALLOWED_TOKENS)
+    )
+
+
+def test_external_command_token_pattern_only_lowercase_underscore() -> None:
+    """Token regex must NOT match attribute access ``{foo.bar}``,
+    indexing ``{foo[0]}``, format specs ``{foo:fmt}``, or
+    upper-case tokens."""
+    pat = apr._EXTERNAL_COMMAND_TOKEN_PATTERN
+    assert pat.findall("{unit_id}") == ["unit_id"]
+    assert pat.findall("{foo.bar}") == []
+    assert pat.findall("{foo[0]}") == []
+    assert pat.findall("{foo:fmt}") == []
+    assert pat.findall("{Unit_ID}") == []
+    assert pat.findall("{0}") == []
+
+
+# ---- scalar substitution --------------------------------------------------
+
+
+def test_expand_substitutes_unit_id() -> None:
+    out, err = apr.expand_external_command_template(
+        "claude {unit_id}", _a24_unit()
+    )
+    assert err is None
+    assert out == "claude u_v3_15_17_sampling_plan_reporter_001"
+
+
+def test_expand_substitutes_every_scalar_token() -> None:
+    template = (
+        "u={unit_id} p={phase} t={title} "
+        "r={risk_class} g={operator_gate}"
+    )
+    out, err = apr.expand_external_command_template(template, _a24_unit())
+    assert err is None
+    assert out == (
+        "u=u_v3_15_17_sampling_plan_reporter_001 "
+        "p=v3.15.17 t=Sampling plan reporter (read-only) "
+        "r=LOW g=none"
+    )
+
+
+def test_expand_substitutes_repeated_token() -> None:
+    """The same token appearing twice in the template substitutes
+    consistently."""
+    out, err = apr.expand_external_command_template(
+        "first={unit_id} second={unit_id}", _a24_unit()
+    )
+    assert err is None
+    assert (
+        out
+        == "first=u_v3_15_17_sampling_plan_reporter_001 "
+        "second=u_v3_15_17_sampling_plan_reporter_001"
+    )
+
+
+# ---- JSON substitution ----------------------------------------------------
+
+
+def test_expand_substitutes_expected_files_as_compact_json() -> None:
+    out, err = apr.expand_external_command_template(
+        "claude --files {expected_files_json}", _a24_unit()
+    )
+    assert err is None
+    assert out == (
+        'claude --files ["reporting/sampling_plan.py",'
+        '"tests/unit/test_sampling_plan.py"]'
+    )
+
+
+def test_expand_substitutes_every_json_token_deterministically() -> None:
+    template = (
+        "ef={expected_files_json} ff={forbidden_files_json} "
+        "rt={required_tests_json} dod={definition_of_done_json} "
+        "sc={stop_conditions_json}"
+    )
+    out, err = apr.expand_external_command_template(template, _a24_unit())
+    assert err is None
+    # Compact JSON, list ordering preserved as-given by the seed.
+    assert (
+        '"reporting/sampling_plan.py","tests/unit/test_sampling_plan.py"'
+        in out
+    )
+    assert '".claude/**","dashboard/dashboard.py","broker/**"' in out
+    assert '"tests/unit/test_sampling_plan.py"' in out
+
+
+def test_expand_repeats_json_token_deterministically() -> None:
+    """Two expansions against the same unit produce byte-identical
+    output."""
+    template = "{expected_files_json} {expected_files_json}"
+    a, err_a = apr.expand_external_command_template(template, _a24_unit())
+    b, err_b = apr.expand_external_command_template(template, _a24_unit())
+    assert err_a is None and err_b is None
+    assert a == b
+
+
+# ---- fail-closed: unknown token / malformed --------------------------------
+
+
+def test_expand_rejects_unknown_token() -> None:
+    out, err = apr.expand_external_command_template(
+        "claude {not_a_real_token}", _a24_unit()
+    )
+    assert out is None
+    assert err is not None
+    assert err.startswith("template_unknown_token:not_a_real_token")
+
+
+def test_expand_rejects_attribute_access_via_unknown_token() -> None:
+    """``{foo.bar}`` is NOT matched by the token pattern at all (no
+    dots allowed), so leftover ``{`` / ``}`` triggers
+    ``template_unmatched_brace``."""
+    out, err = apr.expand_external_command_template(
+        "claude {unit_id.upper}", _a24_unit()
+    )
+    assert out is None
+    assert err == "template_unmatched_brace"
+
+
+def test_expand_rejects_indexing_via_unmatched_brace() -> None:
+    out, err = apr.expand_external_command_template(
+        "claude {expected_files[0]}", _a24_unit()
+    )
+    assert out is None
+    assert err == "template_unmatched_brace"
+
+
+def test_expand_rejects_unmatched_open_brace() -> None:
+    out, err = apr.expand_external_command_template(
+        "claude {unit_id", _a24_unit()
+    )
+    assert out is None
+    assert err == "template_unmatched_brace"
+
+
+def test_expand_rejects_uppercase_token_via_unmatched_brace() -> None:
+    out, err = apr.expand_external_command_template(
+        "claude {Unit_ID}", _a24_unit()
+    )
+    assert out is None
+    assert err == "template_unmatched_brace"
+
+
+# ---- fail-closed: scalar checks -------------------------------------------
+
+
+def test_expand_rejects_missing_unit_field() -> None:
+    unit = _a24_unit()
+    del unit["id"]
+    out, err = apr.expand_external_command_template(
+        "claude {unit_id}", unit
+    )
+    assert out is None
+    assert err is not None
+    assert err.startswith("template_missing_field:unit_id:id")
+
+
+def test_expand_rejects_scalar_not_a_string() -> None:
+    unit = _a24_unit(phase=12345)  # not a string
+    out, err = apr.expand_external_command_template(
+        "claude {phase}", unit
+    )
+    assert out is None
+    assert err == "template_scalar_not_string:phase"
+
+
+def test_expand_rejects_scalar_with_newline() -> None:
+    unit = _a24_unit(title="hi\nthere")
+    out, err = apr.expand_external_command_template(
+        "claude {title}", unit
+    )
+    assert out is None
+    assert err == "template_scalar_has_newline:title"
+
+
+def test_expand_rejects_scalar_with_carriage_return() -> None:
+    unit = _a24_unit(title="hi\r\nthere")
+    out, err = apr.expand_external_command_template(
+        "claude {title}", unit
+    )
+    assert out is None
+    assert err == "template_scalar_has_newline:title"
+
+
+def test_expand_rejects_overly_long_scalar() -> None:
+    unit = _a24_unit(title="x" * (apr.MAX_EXTERNAL_COMMAND_SCALAR_TOKEN_LEN + 1))
+    out, err = apr.expand_external_command_template(
+        "claude {title}", unit
+    )
+    assert out is None
+    assert err == "template_scalar_too_long:title"
+
+
+# ---- fail-closed: JSON checks ---------------------------------------------
+
+
+def test_expand_rejects_json_field_not_a_list() -> None:
+    unit = _a24_unit(expected_files="not-a-list")
+    out, err = apr.expand_external_command_template(
+        "claude {expected_files_json}", unit
+    )
+    assert out is None
+    assert err == "template_json_field_not_list:expected_files_json"
+
+
+def test_expand_rejects_overly_long_json_value() -> None:
+    # Build a list whose JSON serialisation blows past the cap.
+    big = ["x" * 100] * 200  # ~ 20k bytes after JSON encoding
+    unit = _a24_unit(expected_files=big)
+    out, err = apr.expand_external_command_template(
+        "claude {expected_files_json}", unit
+    )
+    assert out is None
+    assert err == "template_json_too_long:expected_files_json"
+
+
+def test_expand_accepts_tuple_as_json_list() -> None:
+    """Seed records sometimes use tuples; both list and tuple are
+    valid JSON list inputs."""
+    unit = _a24_unit(expected_files=("a.py", "b.py"))
+    out, err = apr.expand_external_command_template(
+        "claude {expected_files_json}", unit
+    )
+    assert err is None
+    assert out == 'claude ["a.py","b.py"]'
+
+
+# ---- backward compat ------------------------------------------------------
+
+
+def test_expand_passes_through_token_free_template_unchanged() -> None:
+    """A template with no ``{token}`` placeholders expands to itself
+    (backward-compat with A21c / A21d static-command behaviour)."""
+    out, err = apr.expand_external_command_template(
+        "echo hello world", _a24_unit()
+    )
+    assert err is None
+    assert out == "echo hello world"
+
+
+# ---- integration: strategy uses expanded command --------------------------
+
+
+def test_external_command_strategy_invokes_expanded_command() -> None:
+    """Fake shell receives the EXPANDED args, not the raw template."""
+    shell = _FakeShell()
+    shell.queue(("claude",), exit_code=0)
+    strategy = apr._ExternalCommandStrategy(
+        command='claude --unit-id {unit_id} --files {expected_files_json}',
+        timeout=apr.DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    )
+    res = strategy.invoke(_a24_unit(), repo_root=Path("."), shell=shell)
+    assert res.success is True
+    assert res.reason == "external_command_ok"
+    assert len(shell.calls) == 1
+    call_args = shell.calls[0][0]
+    assert call_args[0] == "claude"
+    # The expanded unit_id and JSON list are both present somewhere
+    # in the post-shlex.split argv:
+    joined = " ".join(call_args)
+    assert "u_v3_15_17_sampling_plan_reporter_001" in joined
+    assert "reporting/sampling_plan.py" in joined
+
+
+def test_external_command_strategy_propagates_template_error() -> None:
+    """A template with an unknown token surfaces as a strategy
+    failure with the templating error reason."""
+    shell = _FakeShell()
+    strategy = apr._ExternalCommandStrategy(
+        command="claude --bad {nonexistent_token}",
+        timeout=apr.DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    )
+    res = strategy.invoke(_a24_unit(), repo_root=Path("."), shell=shell)
+    assert res.success is False
+    assert res.reason.startswith("template_unknown_token:")
+    assert shell.calls == []  # no shell invocation
+
+
+def test_external_command_strategy_runs_different_commands_per_unit() -> None:
+    """The same template against two different unit IDs produces two
+    distinct expanded commands; tests the per-iteration context flow
+    A24 was created to enable."""
+    shell = _FakeShell()
+    shell.queue(("claude",), exit_code=0)
+    shell.queue(("claude",), exit_code=0)
+    strategy = apr._ExternalCommandStrategy(
+        command="claude {unit_id}",
+        timeout=apr.DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    )
+    res1 = strategy.invoke(
+        _a24_unit(id="u_alpha"), repo_root=Path("."), shell=shell
+    )
+    res2 = strategy.invoke(
+        _a24_unit(id="u_beta"), repo_root=Path("."), shell=shell
+    )
+    assert res1.success and res2.success
+    assert len(shell.calls) == 2
+    assert "u_alpha" in " ".join(shell.calls[0][0])
+    assert "u_beta" in " ".join(shell.calls[1][0])
+    # Backward-compat sanity: the two iterations produced
+    # DIFFERENT shell args, even though the template was identical.
+    assert shell.calls[0][0] != shell.calls[1][0]
+
+
+# ---- runner_invariants pins ------------------------------------------------
+
+
+def test_runner_invariants_pin_a24_templating(tmp_path: Path) -> None:
+    _write_minimal_upstreams(tmp_path)
+    report = apr.status(repo_root=tmp_path, generated_at_utc=_FROZEN_UTC)
+    inv = report["runner_invariants"]
+    assert inv["external_command_strategy_supports_unit_templating"] is True
+    assert (
+        inv["external_command_template_uses_closed_vocab_tokens_only"]
+        is True
+    )
+    assert inv["external_command_template_rejects_unknown_tokens"] is True
+    assert (
+        inv["external_command_template_rejects_attribute_or_index_access"]
+        is True
+    )
+    assert inv["external_command_template_uses_no_eval_or_exec"] is True
+    assert inv["external_command_template_uses_no_shell_true"] is True
+    assert (
+        inv["external_command_template_bounds_scalar_and_json_token_length"]
+        is True
+    )
+
+
+# ---- module-source scan: no eval / exec / shell=True in A24 helper -------
+
+
+def test_a24_template_expansion_helper_uses_no_dynamic_eval() -> None:
+    """The A24 expansion helper must not use eval, exec, or
+    shell=True anywhere in the module source. Pinned by an AST-
+    stripped scan."""
+    code = _code_lines()
+    assert "eval(" not in code
+    assert "exec(" not in code
+    assert "shell=True" not in code
+    assert "os.system(" not in code
+
+
+def test_real_shell_runner_factory_still_lazy_after_a24() -> None:
+    """Importing reporting.autonomous_pr_runner must remain side-
+    effect free even after A24's regex/json additions. Subprocess
+    is still imported lazily inside the factory."""
+    top = _module_top_level_imports()
+    for mod in top:
+        assert not mod.startswith("subprocess"), mod
+    # ``re`` and ``json`` ARE imported at module level (stdlib only,
+    # no side effects); pinning them here so future PRs don't try to
+    # claim they were forbidden.
+    assert "re" in top
+    assert "json" in top

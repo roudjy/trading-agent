@@ -1163,6 +1163,155 @@ Pinned in
 - **Signal-handler-based hard stop** — Ctrl+C kills the process
   uncleanly. A future slice may add a SIGINT handler.
 
+## A24 — Unit-templated external implementation command
+
+[`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
+now expands the operator-supplied `--implementation-command` template
+against the selected unit before `shlex.split`. Without this, a static
+command had no per-iteration context (no way to know which unit was
+selected, which `expected_files` to write, which `required_tests` to
+satisfy), so the continuous conveyor was not practically usable across
+multiple units.
+
+### Why this exists
+
+The A21e conveyor processes one unit per iteration. Between
+iterations the selected unit changes (different `unit_id`,
+different `expected_files`, different `required_tests`). Without
+templating, a static `--implementation-command` would produce the
+same shell args every iteration and either:
+
+- do nothing → conveyor stops with `diff_empty`; or
+- produce changes outside iteration 2's `expected_files` → conveyor
+  stops with `diff_outside_expected_files`.
+
+A24 lets the operator write **one** template that the runner expands
+per iteration with the current unit's identity and scaffolding
+metadata.
+
+### Allowed template tokens (closed vocab)
+
+| Token | Source field | Type | Cap |
+|---|---|---|---|
+| `{unit_id}` | `id` | str | 240 |
+| `{phase}` | `phase` | str | 240 |
+| `{title}` | `title` | str | 240 |
+| `{risk_class}` | `risk_class` | str | 240 |
+| `{operator_gate}` | `operator_gate` | str | 240 |
+| `{expected_files_json}` | `expected_files` | list[str] → compact JSON | 8000 |
+| `{forbidden_files_json}` | `forbidden_files` | list[str] → compact JSON | 8000 |
+| `{required_tests_json}` | `required_tests` | list[str] → compact JSON | 8000 |
+| `{definition_of_done_json}` | `definition_of_done` | list[str] → compact JSON | 8000 |
+| `{stop_conditions_json}` | `stop_conditions` | list[str] → compact JSON | 8000 |
+
+Pinned in code: `EXTERNAL_COMMAND_SCALAR_TOKENS`,
+`EXTERNAL_COMMAND_JSON_TOKENS`, `EXTERNAL_COMMAND_ALLOWED_TOKENS`.
+
+### Templates are operator-supplied and explicit
+
+- The template is the operator's `--implementation-command` string.
+- The runner does NOT invent commands.
+- The runner does NOT call any LLM or external API on its own; only
+  the operator-configured command does that.
+- Per A22 the operator pre-approves bounded execution of safe
+  scaffold units only. The template inherits that pre-approval; it
+  does not unlock any new authority.
+
+### Fail-closed rules (every rule pinned by tests)
+
+The expansion helper refuses BEFORE any shell invocation when:
+
+- the template contains a token not in
+  `EXTERNAL_COMMAND_ALLOWED_TOKENS` → `template_unknown_token:<name>`;
+- the unit record is missing the field a token references →
+  `template_missing_field:<token>:<field>`;
+- a scalar field is not a `str` → `template_scalar_not_string:<token>`;
+- a scalar value contains `\n` or `\r` →
+  `template_scalar_has_newline:<token>`;
+- a scalar value exceeds 240 chars →
+  `template_scalar_too_long:<token>`;
+- a JSON field is not a list/tuple →
+  `template_json_field_not_list:<token>`;
+- the JSON-serialised value exceeds 8000 chars →
+  `template_json_too_long:<token>`;
+- the expanded string still contains an unmatched `{` or `}` →
+  `template_unmatched_brace` (catches typos like `{unit_id` and
+  uppercase tokens like `{Unit_ID}` and attribute access like
+  `{unit_id.upper}` and indexing like `{expected_files[0]}`);
+- the expanded string is empty / whitespace-only →
+  `template_expanded_empty`.
+
+Each failure surfaces as `ImplementationResult(success=False, reason=…)`
+which the runner maps to the existing closed-vocab stop reason
+`implementation_strategy_failed`.
+
+### What A24 does NOT do
+
+- It does NOT use `eval`, `exec`, `shell=True`, or any dynamic
+  Python evaluation. Pinned by an AST-stripped module-source scan.
+- It does NOT allow arbitrary unit-field access — only the
+  closed-vocab tokens map to specific unit fields.
+- It does NOT allow attribute access (`{foo.bar}`), indexing
+  (`{foo[0]}`), format specs (`{foo:fmt}`), or positional refs
+  (`{0}`) — the regex pattern is `\{[a-z_]+\}` and any leftover
+  brace after substitution fails closed.
+- It does NOT add auto-merge behaviour beyond A21d/A21e.
+- It does NOT add deploy invocation, arbitrary PR merge, or any
+  runtime / trading / paper / shadow / live authority.
+- It does NOT mutate frozen contracts or touch any forbidden path.
+- It does NOT bypass hooks; does NOT use `--admin`; does NOT
+  force-push.
+
+### Backward compatibility
+
+A template with no `{token}` placeholders expands to itself.
+Existing A21c / A21d / A21e tests that pass static commands like
+`"echo test"` continue to pass unchanged.
+
+### Example PowerShell command (post A24 merge)
+
+From `C:\Users\joery.van.rooij\trading-agent` on Windows PowerShell:
+
+```powershell
+python -m reporting.autonomous_pr_runner `
+    --run-continuous `
+    --auto-merge-runner-pr `
+    --implementation-strategy external_command `
+    --implementation-command 'claude --print "Implement Roadmap v6 unit {unit_id} ({phase}: {title}). Touch ONLY the files in {expected_files_json}. NEVER touch any file in {forbidden_files_json}. The required tests are {required_tests_json} and must pass. Definition of done: {definition_of_done_json}. Stop conditions: {stop_conditions_json}. Do not run the conveyor or any other runtime. Do not modify research/research_latest.json or research/strategy_matrix.csv. Do not modify dashboard/dashboard.py."'
+```
+
+Single quotes around the command keep PowerShell from interpolating
+`$` and similar; double quotes inside (around the prompt) keep the
+text on one logical line so `shlex.split` produces one big argv
+slot for the prompt. The conveyor will:
+
+1. read A20e for the next eligible unit;
+2. substitute the closed-vocab tokens against that unit;
+3. run the expanded `claude` command (single PR-sized prompt);
+4. verify the diff is within `expected_files` and never touches a
+   forbidden path;
+5. run required tests + smoke + governance lint;
+6. commit / push / open a runner-originated PR;
+7. watch CI to green;
+8. squash-merge (no `--admin`, no force-push, no hook bypass);
+9. append an evidence-backed merged record to
+   `logs/roadmap_unit_status/runner_merges.json`;
+10. refresh the status artefact and loop to the next eligible unit;
+11. stop on no-eligible-work, safety/technical stop, or operator
+    soft-stop.
+
+### New runner invariants pinned by A24
+
+Every emitted report carries:
+
+- `external_command_strategy_supports_unit_templating = true`
+- `external_command_template_uses_closed_vocab_tokens_only = true`
+- `external_command_template_rejects_unknown_tokens = true`
+- `external_command_template_rejects_attribute_or_index_access = true`
+- `external_command_template_uses_no_eval_or_exec = true`
+- `external_command_template_uses_no_shell_true = true`
+- `external_command_template_bounds_scalar_and_json_token_length = true`
+
 ## 14. A22 strategic mandate integration
 
 [`docs/governance/strategic_roadmap_execution_mandate.md`](strategic_roadmap_execution_mandate.md)
