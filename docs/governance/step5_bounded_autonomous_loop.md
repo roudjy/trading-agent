@@ -745,12 +745,210 @@ After A21c lands, the natural next slices are:
 Each future slice gets its own governance section in this doc and
 its own operator-approved PR.
 
-## 12. Next recommended PR
+## 12. A21d — Bounded auto-merge for runner-originated PRs
 
-**A21d — bounded auto-merge for runner-originated PRs.** Adds
-the post-PR merge step the operator currently performs manually,
-plus the A21a ledger update that flips the unit to `merged`.
-Hard-capped: only PRs the runner itself originated; only after
-CI-green; squash-merge only; no `--admin`; no force-push; no hook
-bypass; max 1 merge per run. The deploy watcher (A21e) remains a
-separate later slice.
+[`reporting/autonomous_pr_runner.py`](../../reporting/autonomous_pr_runner.py)
+now ships an **opt-in auto-merge phase** that runs only after the
+PR-create + CI-watch phase has succeeded within the same
+`run_one` invocation. The operator opts in via
+`--auto-merge-runner-pr`. Without that flag the runner behaves
+exactly as A21c did (stops at PR open + CI watch).
+
+### 12.1 Auto-merge contract
+
+When `--auto-merge-runner-pr` is passed and CI on the freshly
+opened PR is green, the runner:
+
+1. queries the PR metadata (`gh pr view --json title,body,mergeable,mergeStateStatus`);
+2. queries the PR diff (`gh pr diff --name-only`);
+3. evaluates ten auto-merge eligibility gates (§12.3);
+4. squash-merges via `gh pr merge <N> --squash --delete-branch`
+   (no admin override, no force-push, no hook bypass);
+5. captures the merge SHA via `gh pr view --json mergeCommit`;
+6. updates local main (`git checkout main && git pull --ff-only`);
+7. watches the three post-merge workflows on the merge commit:
+   Fast pre-merge gate, Build & Push Docker Image, Deploy VPS
+   Dashboard;
+8. on all-green: appends a single evidence-backed `merged`
+   record to `logs/roadmap_unit_status/runner_merges.json` via
+   `reporting.roadmap_unit_status.append_runner_merge_record`;
+9. stops with `final_runner_status = "executed_pr_merged"`,
+   `stop_reason = "ok_pr_merged"`.
+
+### 12.2 What A21d does NOT do
+
+- It does NOT auto-merge any PR that the runner did not open in
+  the same `run_one` invocation.
+- It does NOT auto-merge any PR whose branch does not start
+  with `step5-a21c/`.
+- It does NOT auto-merge any PR whose title does not contain the
+  selected unit_id.
+- It does NOT auto-merge any PR whose body does not contain the
+  pinned runner-signature string.
+- It does NOT pass `--admin` to any `gh pr merge` invocation.
+- It does NOT force-push (`--force`, `--force-with-lease`).
+- It does NOT bypass any hook (`--no-verify`, `--no-gpg-sign`).
+- It does NOT continue to a second unit after merge.
+- It does NOT trigger or rerun any deploy workflow; it observes
+  the existing Deploy VPS Dashboard workflow read-only.
+- It does NOT mutate the static A20b `_UNIT_SEED` or the static
+  A21a `_STATUS_LEDGER_SEED`. The merged record lives in the
+  auxiliary `runner_merges.json` artefact only.
+
+### 12.3 Auto-merge eligibility gates
+
+Ten closed-vocab gates, evaluated in defence-in-depth order:
+
+| # | Gate | Refusal stop reason |
+|---|---|---|
+| 1 | `auto_merge_enabled` | `auto_merge_disabled` |
+| 2 | `pr_runner_originated` | `not_runner_originated` |
+| 3 | `pr_branch_matches_runner_convention` | `pr_branch_mismatch` |
+| 4 | `pr_title_contains_unit_id` | `pr_title_missing_unit_id` |
+| 5 | `pr_body_contains_runner_signature` | `pr_body_missing_runner_signature` |
+| 6 | `pr_diff_no_forbidden_path` | `pr_diff_touches_forbidden_path` |
+| 7 | `pr_diff_within_expected_files` | `pr_diff_outside_expected_files` |
+| 8 | `ci_status_clean` | `ci_failed` |
+| 9 | `no_admin_merge_required` | `branch_protection_requires_admin` |
+| 10 | `mergeability_clean` | `mergeability_not_clean` |
+
+The pre-flight gate `max_merges_per_run_one` is pinned at the
+safety-gate evaluator and hard-caps merges at 1.
+
+### 12.4 Evidence-backed ledger update
+
+After post-merge gates are all green, the runner appends a
+record to `logs/roadmap_unit_status/runner_merges.json` shaped
+like:
+
+```json
+{
+  "unit_id": "<selected unit id>",
+  "status": "merged",
+  "source": "runner_auto_merge",
+  "updated_at_utc": "<UTC ISO-8601>",
+  "pr_number": <int>,
+  "merge_sha": "<hex SHA>",
+  "reason": "auto-merged by A21d runner after CI green + post-merge gates green",
+  "evidence": [
+    "github_pr_number=<N>",
+    "github_merge_sha=<sha>",
+    "fast_pre_merge_gate=success",
+    "build_and_push_docker_image=success",
+    "deploy_vps_dashboard=success"
+  ]
+}
+```
+
+Validation rules on the append helper:
+
+- pr_number > 0; merge_sha is hex (length 7..64); reason
+  non-empty;
+- source MUST be `"runner_auto_merge"`;
+- status MUST be `"merged"`;
+- unit_id MUST NOT already be present in the artefact (no
+  implicit resurrection).
+
+The artefact is local-only (`logs/` is gitignored). On the next
+selector run with `repo_root` provided, A21a's `collect_snapshot`
+overlays this artefact on top of the seed and the affected unit
+becomes `effective_status = "merged"` in A20e. The static
+`_UNIT_SEED` (A20b) and `_STATUS_LEDGER_SEED` (A21a) are
+unchanged.
+
+### 12.5 CLI
+
+```sh
+# Inspection (no execution; safe even with the flag):
+python -m reporting.autonomous_pr_runner --status --auto-merge-runner-pr
+python -m reporting.autonomous_pr_runner --plan-only --auto-merge-runner-pr
+
+# Real execution: A21c PR creation, no auto-merge:
+python -m reporting.autonomous_pr_runner \
+    --run-one --max-units 1 \
+    --implementation-strategy external_command \
+    --implementation-command "<cmd>"
+
+# Real execution: A21d full pipeline (PR + CI watch + auto-merge):
+python -m reporting.autonomous_pr_runner \
+    --run-one --max-units 1 --max-merges 1 \
+    --auto-merge-runner-pr \
+    --implementation-strategy external_command \
+    --implementation-command "<cmd>"
+```
+
+The runner refuses `--max-merges > 1` (A21d hard cap = 1) at the
+pre-flight safety gate.
+
+### 12.6 New runner invariants (every emitted report)
+
+A21d adds the following pins to `runner_invariants`:
+
+- `bounded_step5_auto_merge_only_for_runner_pr = true`
+- `auto_merge_requires_explicit_opt_in = true`
+- `auto_merge_requires_ci_green = true`
+- `auto_merge_requires_runner_origin = true`
+- `auto_merge_squash_only_no_admin = true`
+- `ledger_update_via_runner_merges_artifact_only = true`
+- `max_merges_per_run_hard_capped_at_one = true`
+- `no_arbitrary_pr_auto_merge = true`
+- `no_non_runner_originated_pr_merge = true`
+- `no_pr_merge_outside_auto_merge_phase = true`
+- `no_deploy_invocation = true`
+- `no_deploy_workflow_trigger = true`
+- `no_static_seed_mutation = true`
+- `no_a21a_seed_mutation = true`
+- `no_a20b_seed_mutation = true`
+- `fail_closed_on_non_runner_originated_pr = true`
+- `fail_closed_on_dirty_mergeability = true`
+- `fail_closed_on_post_merge_gate_failure = true`
+- `fail_closed_on_ledger_write_failure = true`
+
+### 12.7 Test coverage (35 new tests, 151 total)
+
+Pinned in
+[`tests/unit/test_autonomous_pr_runner.py`](../../tests/unit/test_autonomous_pr_runner.py):
+
+- default `--run-one` (without the flag) never invokes
+  `gh pr merge`;
+- happy-path auto-merge: full pipeline through PR + CI + merge +
+  post-merge gates + ledger write produces `executed_pr_merged`
+  / `ok_pr_merged`;
+- auto-merge writes the runner_merges artefact with the correct
+  record shape, PR number, merge SHA, and three post-merge gate
+  evidence entries;
+- auto-merge command uses `--squash --delete-branch` only — no
+  `--admin`, no `--force`, no `--no-verify`;
+- gate-level refusal for: flag off, missing PR number, branch
+  mismatch, title missing unit_id, body missing runner
+  signature, diff outside expected_files, diff touches
+  forbidden path, CI not green, dirty mergeability,
+  branch-protection-requires-admin;
+- pre-flight refusal for `max_merges > 1`;
+- stop paths: merge command failed, merge SHA unknown,
+  post-merge fast-gate failure, post-merge deploy failure
+  (ledger NOT written on post-merge failure);
+- runner-invariants block pins all A21d-specific posture flags.
+
+### 12.8 What A21d still does NOT implement (future slices)
+
+- **Multi-unit continuation** (A21e). After a successful merge,
+  the runner stops. It does not re-run the selector and pick a
+  second unit.
+- **Promote runner_merges into the canonical seed.** The
+  artefact remains local-only. A future operator-approved PR
+  may promote runner_merges records into the pinned
+  `_STATUS_LEDGER_SEED` to make merged status visible on CI.
+- **Cross-invocation auto-merge.** A21d only merges PRs opened
+  in the same `run_one` call.
+
+## 13. Next recommended PR
+
+**A21e — multi-unit conveyor loop with `max_units_per_run`
+budget.** After a successful A21d merge + post-merge gates,
+re-runs A20e against the merged-overlay-aware selector. If the
+next selected unit is still AUTO_ALLOWED / LOW / `gate=none`
+AND the per-run budget allows, continues to the next unit. Hard
+cap: ≤ 5 units per run, with per-unit timeout and max
+wall-clock budget. No `--admin`, no force-push, no hook bypass,
+no deploy automation beyond A21d's read-only post-merge watch.
