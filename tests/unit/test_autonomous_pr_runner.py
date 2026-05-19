@@ -1835,30 +1835,50 @@ def test_run_one_default_does_not_auto_merge(tmp_path: Path) -> None:
         assert call_args[:3] != ["gh", "pr", "merge"], call_args
 
 
-def test_cli_run_one_requires_explicit_auto_merge_flag(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """``--run-one`` alone does not enable auto-merge. The flag must
-    be opt-in."""
-    sentinel = tmp_path / "logs" / "autonomous_pr_runner" / "latest.json"
-    monkeypatch.setattr(apr, "ARTIFACT_LATEST", sentinel)
-    monkeypatch.setattr(apr, "ARTIFACT_DIR", sentinel.parent)
-    rc = apr.main([
+def test_cli_run_one_without_flag_keeps_auto_merge_disabled() -> None:
+    """The CLI parser defaults ``auto_merge_runner_pr`` to False
+    unless ``--auto-merge-runner-pr`` is explicitly passed. We test
+    this on the parser surface directly so we never invoke the real
+    shell factory inside the unit-test suite."""
+    parser = apr._build_parser()
+    ns = parser.parse_args([
         "--run-one",
         "--no-write",
         "--implementation-strategy", "external_command",
         "--implementation-command", "echo test",
     ])
-    # Non-zero because the real run_one would need a real shell; this
-    # path actually runs through the real shell factory and fails
-    # somewhere in the real git commands. The test guarantee here is
-    # only that auto-merge is NOT enabled by default.
-    _ = rc  # the CLI returns 1 on stop, which we just assert is sane
-    out_text = sentinel.read_text(encoding="utf-8") if sentinel.exists() else ""
-    if out_text:
-        payload = json.loads(out_text)
-        assert payload["auto_merge_enabled"] is False
+    assert ns.auto_merge_runner_pr is False
+    ns2 = parser.parse_args([
+        "--run-one",
+        "--auto-merge-runner-pr",
+        "--no-write",
+    ])
+    assert ns2.auto_merge_runner_pr is True
+
+
+def test_cli_max_merges_defaults_to_one() -> None:
+    parser = apr._build_parser()
+    ns = parser.parse_args([])
+    assert ns.max_merges == 1
+
+
+def test_run_one_default_no_real_shell_invocation_when_strategy_none(
+    tmp_path: Path,
+) -> None:
+    """Belt-and-braces: a ``run_one`` call with the default
+    ``implementation_strategy_name='none'`` MUST stop at the
+    pre-flight safety gate and never construct the real shell
+    runner."""
+    _write_minimal_upstreams(tmp_path)
+    report = apr.run_one(
+        repo_root=tmp_path,
+        generated_at_utc=_FROZEN_UTC,
+        implementation_strategy_name="none",
+    )
+    assert report["final_runner_status"] == "refused_unsafe"
+    assert report["stop_reason"] == "implementation_strategy_not_configured"
+    # No commands recorded because we stopped before the run phase.
+    assert report["commands_run"] == []
 
 
 def test_status_with_auto_merge_flag_does_not_execute(
