@@ -31,10 +31,10 @@ now records:
 | Minimal v3.15.19 Hypothesis Discovery Engine slice | done |
 | STOP - operator review gate after minimal v3.15.19 | done |
 | Minimal v3.15.20 Failure to Action Mapping slice | done |
-| Minimal v3.16.x Adaptive Research Learning path | ready |
+| Minimal v3.16.x Adaptive Research Learning path | done |
 
-After the v3.15.20 implementation PR lands, only v3.16.x is ready
-for the next implementation PR.
+After the v3.16.x implementation PR lands, the operator-authorized
+minimal core path is complete and there is no next active queue item.
 
 ## Preserved Boundaries
 

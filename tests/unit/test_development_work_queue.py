@@ -297,13 +297,13 @@ def test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue() -> N
         "Minimal v3.16.x Adaptive Research Learning path",
     }
     assert set(titles) == expected_titles
-    # State progression as of the v3.15.20 implementation PR:
-    # items 1-7 done; v3.16.x ready.
+    # State progression as of the v3.16.x implementation PR:
+    # all operator-authorized minimal core-path items are done.
     by_status = snap["counts"]["by_status"]
-    assert by_status["done"] == 7
+    assert by_status["done"] == 8
     assert by_status["in_progress"] == 0
     assert by_status["blocked"] == 0
-    assert by_status["ready"] == 1
+    assert by_status["ready"] == 0
     # Title-specific state assertions.
     by_title = {it["title"]: it for it in snap["items"]}
     assert (
@@ -344,7 +344,7 @@ def test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue() -> N
     )
     assert (
         by_title["Minimal v3.16.x Adaptive Research Learning path"]["status"]
-        == "ready"
+        == "done"
     )
     assert (
         by_title["Minimal v3.16.x Adaptive Research Learning path"][

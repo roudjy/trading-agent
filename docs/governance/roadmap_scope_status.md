@@ -56,9 +56,9 @@ and pinned by
 (`test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue`).
 
 The chain is sequential: each item is blocked by the previous one.
-After the v3.15.20 implementation PR, prior reset items, the STOP
-gate, and v3.15.20 are `status: done`; v3.16.x is the single
-`status: ready` item.
+After the v3.16.x implementation PR, all operator-authorized minimal
+core-path items are `status: done`. No Addendum 1/2/3 item and no
+v4/v5/v6 item is active.
 
 1. **Research-Quality Hardening Sprint** (priority 1, status: done,
    LOW risk, governance category, owner: planner). Multiplicity
@@ -117,7 +117,7 @@ gate, and v3.15.20 are `status: done`; v3.16.x is the single
    adaptive feedback loop, no strategy mutation, no executable
    strategy generation, and no paper / shadow / live behavior.
 8. **Minimal v3.16.x Adaptive Research Learning path** (priority 2,
-   status: ready, MEDIUM risk, reporting category,
+   status: done, MEDIUM risk, reporting category,
    owner: implementation_agent). Deterministic campaign feedback
    metrics and evidence-backed read-only learning context only.
    Regime intelligence, candidate clustering, robustness filtering,
@@ -371,3 +371,6 @@ operator-approved follow-up that will update those pins.
 - 2026-05-21: minimal v3.15.20 implementation PR updates the queue
   state so v3.15.20 is done and minimal v3.16.x is the single ready
   item.
+- 2026-05-21: minimal v3.16.x implementation PR completes the
+  operator-authorized minimal core path. No next active v4/v5/v6 or
+  Addendum item is introduced.
