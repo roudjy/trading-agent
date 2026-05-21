@@ -267,10 +267,12 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
 
     * Item 1 (sprint) — ``done`` (deliverables merged in PR #264 and
       PR #267).
-    * Item 2 (Minimal v3.15.16 Intelligent Routing slice) —
-      ``in_progress`` (shipping in this PR).
-    * Items 3, 4, 5 (Minimal v3.15.17, v3.15.18, v3.15.19 slices) —
-      ``blocked``.
+    * Item 2 (Minimal v3.15.16 Intelligent Routing slice) — ``done``
+      (implementation merged in PR #268 at SHA d9ad118; CI green;
+      post-merge gates green).
+    * Item 3 (Minimal v3.15.17 Sampling Intelligence slice) —
+      ``ready`` (unblocked after PR #268 merge; next active item).
+    * Items 4, 5 (Minimal v3.15.18, v3.15.19 slices) — ``blocked``.
     * Item 6 (STOP / operator review gate) — ``blocked`` and
       ``human_needed`` with reason ``architecture_crossroads``.
 
@@ -294,15 +296,15 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
         "STOP - operator review gate after minimal v3.15.19",
     }
     assert set(titles) == expected_titles
-    # State progression as of this PR:
-    # item 1 done, item 2 in_progress, items 3-6 blocked.
+    # State progression after the routing slice merged in PR #268:
+    # items 1, 2 done; item 3 ready; items 4, 5, 6 blocked.
     by_status = snap["counts"]["by_status"]
-    assert by_status["done"] == 1
-    assert by_status["in_progress"] == 1
-    assert by_status["blocked"] == 4
-    assert by_status["ready"] == 0
-    # Title-specific state assertions: the routing slice is the only
-    # item now in_progress; the sprint is the only item done.
+    assert by_status["done"] == 2
+    assert by_status["ready"] == 1
+    assert by_status["in_progress"] == 0
+    assert by_status["blocked"] == 3
+    # Title-specific state assertions: the sampling slice is the only
+    # item now ready; the sprint and the routing slice are done.
     by_title = {it["title"]: it for it in snap["items"]}
     assert (
         by_title["Research-Quality Hardening Sprint"]["status"]
@@ -310,10 +312,22 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
     )
     assert (
         by_title["Minimal v3.15.16 Intelligent Routing slice"]["status"]
-        == "in_progress"
+        == "done"
     )
     assert (
         by_title["Minimal v3.15.17 Sampling Intelligence slice"]["status"]
+        == "ready"
+    )
+    assert (
+        by_title["Minimal v3.15.18 Research Observability Expansion slice"][
+            "status"
+        ]
+        == "blocked"
+    )
+    assert (
+        by_title["Minimal v3.15.19 Hypothesis Discovery Engine slice"][
+            "status"
+        ]
         == "blocked"
     )
     assert (
