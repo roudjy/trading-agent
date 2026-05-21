@@ -263,10 +263,20 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
     carries the operator-declared minimal Roadmap v6 active queue
     rebuilt on 2026-05-21 per ADR-018 (roadmap execution reset).
 
-    Strengthened from the prior `must be empty by default` pin to
-    pin the explicit 6-item active queue (sprint -> minimal v3.15.16
-    -> v3.15.17 -> v3.15.18 -> v3.15.19 -> STOP/operator review gate)
-    declared by `docs/governance/roadmap_scope_status.md` sec 3.
+    State progression pinned by this test:
+
+    * Item 1 (sprint) — ``done`` (deliverables merged in PR #264 and
+      PR #267).
+    * Item 2 (Minimal v3.15.16 Intelligent Routing slice) —
+      ``in_progress`` (shipping in this PR).
+    * Items 3, 4, 5 (Minimal v3.15.17, v3.15.18, v3.15.19 slices) —
+      ``blocked``.
+    * Item 6 (STOP / operator review gate) — ``blocked`` and
+      ``human_needed`` with reason ``architecture_crossroads``.
+
+    Strengthened from the prior "must be empty by default" pin to
+    pin the explicit 6-item active queue declared by
+    ``docs/governance/roadmap_scope_status.md`` §3.
     """
     snap = dwq.collect_snapshot()
     assert snap["counts"]["total"] == 6
@@ -284,10 +294,34 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
         "STOP - operator review gate after minimal v3.15.19",
     }
     assert set(titles) == expected_titles
-    # Exactly one item is ready (the sprint); the other five are
-    # blocked in the dependency chain.
-    assert snap["counts"]["by_status"]["ready"] == 1
-    assert snap["counts"]["by_status"]["blocked"] == 5
+    # State progression as of this PR:
+    # item 1 done, item 2 in_progress, items 3-6 blocked.
+    by_status = snap["counts"]["by_status"]
+    assert by_status["done"] == 1
+    assert by_status["in_progress"] == 1
+    assert by_status["blocked"] == 4
+    assert by_status["ready"] == 0
+    # Title-specific state assertions: the routing slice is the only
+    # item now in_progress; the sprint is the only item done.
+    by_title = {it["title"]: it for it in snap["items"]}
+    assert (
+        by_title["Research-Quality Hardening Sprint"]["status"]
+        == "done"
+    )
+    assert (
+        by_title["Minimal v3.15.16 Intelligent Routing slice"]["status"]
+        == "in_progress"
+    )
+    assert (
+        by_title["Minimal v3.15.17 Sampling Intelligence slice"]["status"]
+        == "blocked"
+    )
+    assert (
+        by_title["STOP - operator review gate after minimal v3.15.19"][
+            "status"
+        ]
+        == "blocked"
+    )
     # Exactly one item requires explicit human action (the STOP gate).
     human_needed_items = [it for it in snap["items"] if it["human_needed"]]
     assert len(human_needed_items) == 1
