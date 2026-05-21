@@ -173,7 +173,7 @@ G8).
 - [`docs/governance/roadmap_scope_status.md`](../../governance/roadmap_scope_status.md)
 - [`docs/governance/research_quality_sprint_plan.md`](../../governance/research_quality_sprint_plan.md)
 - [`docs/governance/research_quality_kpis.md`](../../governance/research_quality_kpis.md)
-- [`docs/adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md`](ADR-019-hypothesis-discovery-doctrine.md)
+- [`docs/adr/ADR-019-hypothesis-discovery-doctrine.md`](../ADR-019-hypothesis-discovery-doctrine.md)
 - [`docs/adr/_drafts/ADR-020-paper-shadow-live-separation.md`](ADR-020-paper-shadow-live-separation.md)
 - [`docs/adr/ADR-014-truth-authority-settlement.md`](../ADR-014-truth-authority-settlement.md)
 - [`docs/adr/ADR-015-claude-agent-governance.md`](../ADR-015-claude-agent-governance.md)

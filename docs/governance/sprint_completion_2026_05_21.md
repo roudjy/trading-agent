@@ -27,7 +27,7 @@ This record covers all eleven.
 | ID | Item | Delivered by | Path |
 |---|---|---|---|
 | S1 | ADR-018 — Roadmap Execution Reset | PR #264 (`ae0a459`) | [`docs/adr/_drafts/ADR-018-roadmap-execution-reset.md`](../adr/_drafts/ADR-018-roadmap-execution-reset.md) |
-| S2 | ADR-019 — Hypothesis Discovery doctrine and scoring spec | PR #264 (`ae0a459`) | [`docs/adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md`](../adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md) |
+| S2 | ADR-019 — Hypothesis Discovery doctrine and scoring spec | PR #264 (`ae0a459`); promoted out of `_drafts/` in this governance-bootstrap PR | [`docs/adr/ADR-019-hypothesis-discovery-doctrine.md`](../adr/ADR-019-hypothesis-discovery-doctrine.md) |
 | S3 | ADR-020 — Paper/Shadow/Live separation doctrine | PR #264 (`ae0a459`) | [`docs/adr/_drafts/ADR-020-paper-shadow-live-separation.md`](../adr/_drafts/ADR-020-paper-shadow-live-separation.md) |
 | S4 | Global multiplicity ledger spec | this PR | [`multiplicity_ledger.md`](multiplicity_ledger.md) + [`multiplicity_ledger/schema.v1.md`](multiplicity_ledger/schema.v1.md) |
 | S5 | Sequestered hold-out discipline spec | this PR | [`holdout_discipline.md`](holdout_discipline.md) |

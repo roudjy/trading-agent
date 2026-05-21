@@ -170,7 +170,7 @@ future ADRs not authored here.
 - [`docs/governance/strategic_roadmap_execution_mandate.md`](../../governance/strategic_roadmap_execution_mandate.md)
 - [`docs/governance/ade_development_lane_doctrine.md`](../../governance/ade_development_lane_doctrine.md)
 - [`docs/adr/_drafts/ADR-018-roadmap-execution-reset.md`](ADR-018-roadmap-execution-reset.md)
-- [`docs/adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md`](ADR-019-hypothesis-discovery-doctrine.md)
+- [`docs/adr/ADR-019-hypothesis-discovery-doctrine.md`](../ADR-019-hypothesis-discovery-doctrine.md)
 - [`docs/adr/ADR-014-truth-authority-settlement.md`](../ADR-014-truth-authority-settlement.md)
 - [`docs/adr/ADR-015-claude-agent-governance.md`](../ADR-015-claude-agent-governance.md)
 - [`docs/adr/ADR-017-step5-autonomous-implementation-loop.md`](../ADR-017-step5-autonomous-implementation-loop.md)
