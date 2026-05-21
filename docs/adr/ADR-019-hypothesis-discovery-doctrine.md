@@ -1,6 +1,6 @@
 # ADR-019 — Hypothesis Discovery doctrine and scoring spec
 
-Status: **Draft** — 2026-05-21
+Status: **Accepted** — 2026-05-21
 Predecessor: ADR-014 (truth authority settlement), ADR-018
 (roadmap execution reset).
 Gates: v3.15.19 minimal Hypothesis Discovery slice.
@@ -40,7 +40,7 @@ promotions. A seed is a structured proposal that names:
 A seed has no execution authority, no promotion authority, and no
 capital authority. Seeds become candidates only via the funnel
 policy
-([`research/campaign_funnel_policy.py`](../../../research/campaign_funnel_policy.py)
+([`research/campaign_funnel_policy.py`](../../research/campaign_funnel_policy.py)
 and ADR-014 §A) and the existing campaign mechanics, which this
 ADR does **not** modify.
 
@@ -67,11 +67,11 @@ The score, when implemented, must satisfy all of the following.
    capital-allocation surface.
 5. **Inspectable.** The score's inputs and intermediate transforms
    are emitted to a scoring-reason record
-   ([`research_quality_sprint_plan.md`](../../governance/research_quality_sprint_plan.md)
+   ([`research_quality_sprint_plan.md`](../governance/research_quality_sprint_plan.md)
    §10).
 6. **Falsifiable on noise.** Under the null-pipeline integration
    test
-   ([`research_quality_sprint_plan.md`](../../governance/research_quality_sprint_plan.md)
+   ([`research_quality_sprint_plan.md`](../governance/research_quality_sprint_plan.md)
    §8), the score distribution on surrogate data must be
    statistically indistinguishable from the score distribution on
    random shuffles of the surrogate. The test pins this as a
@@ -85,18 +85,18 @@ The score, when implemented, must satisfy all of the following.
 ### What Discovery may consume
 
 Only the **three active diagnostics** declared in
-[`roadmap_scope_status.md`](../../governance/roadmap_scope_status.md)
+[`roadmap_scope_status.md`](../governance/roadmap_scope_status.md)
 §5.1: null-model, tail asymmetry, entropy structure. Diagnostics
 beyond those three are deferred and must not feed Discovery until
 they pass the promote-or-retire rule.
 
 Discovery may also consume:
 
-- the existing preset universe ([`research/presets.py`](../../../research/presets.py));
+- the existing preset universe ([`research/presets.py`](../../research/presets.py));
 - the existing strategy hypothesis catalog
-  ([`research/strategy_hypothesis_catalog.py`](../../../research/strategy_hypothesis_catalog.py));
+  ([`research/strategy_hypothesis_catalog.py`](../../research/strategy_hypothesis_catalog.py));
 - the multiplicity ledger
-  ([`research_quality_sprint_plan.md`](../../governance/research_quality_sprint_plan.md)
+  ([`research_quality_sprint_plan.md`](../governance/research_quality_sprint_plan.md)
   §6);
 - the diagnostic utility ledger (planned as part of the v3.15.19
   slice).
@@ -177,16 +177,19 @@ Negative / accepted:
 
 ## Promotion
 
-This ADR is in `_drafts/`. Promotion to
-`docs/adr/ADR-019-hypothesis-discovery-doctrine.md` is a separate
-operator-driven governance-bootstrap PR before the v3.15.19
-implementation PR.
+This ADR was promoted from `docs/adr/_drafts/` to
+`docs/adr/ADR-019-hypothesis-discovery-doctrine.md` on
+**2026-05-21** via the operator-driven governance-bootstrap PR
+that gates the v3.15.19 minimal Hypothesis Discovery slice.
+Status was flipped from **Draft** to **Accepted** at the same
+time; the doctrine and scoring-axiom content above is unchanged
+from the draft.
 
 ## Cross-references
 
-- [`docs/governance/roadmap_scope_status.md`](../../governance/roadmap_scope_status.md)
-- [`docs/governance/research_quality_sprint_plan.md`](../../governance/research_quality_sprint_plan.md)
-- [`docs/governance/research_quality_kpis.md`](../../governance/research_quality_kpis.md)
-- [`docs/adr/_drafts/ADR-018-roadmap-execution-reset.md`](ADR-018-roadmap-execution-reset.md)
-- [`docs/adr/_drafts/ADR-020-paper-shadow-live-separation.md`](ADR-020-paper-shadow-live-separation.md)
-- [`docs/adr/ADR-014-truth-authority-settlement.md`](../ADR-014-truth-authority-settlement.md)
+- [`docs/governance/roadmap_scope_status.md`](../governance/roadmap_scope_status.md)
+- [`docs/governance/research_quality_sprint_plan.md`](../governance/research_quality_sprint_plan.md)
+- [`docs/governance/research_quality_kpis.md`](../governance/research_quality_kpis.md)
+- [`docs/adr/_drafts/ADR-018-roadmap-execution-reset.md`](_drafts/ADR-018-roadmap-execution-reset.md)
+- [`docs/adr/_drafts/ADR-020-paper-shadow-live-separation.md`](_drafts/ADR-020-paper-shadow-live-separation.md)
+- [`docs/adr/ADR-014-truth-authority-settlement.md`](ADR-014-truth-authority-settlement.md)

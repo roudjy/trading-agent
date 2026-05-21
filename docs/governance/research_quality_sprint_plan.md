@@ -10,7 +10,7 @@
 > **Cross-refs:**
 > [`roadmap_scope_status.md`](roadmap_scope_status.md),
 > [`docs/adr/_drafts/ADR-018-roadmap-execution-reset.md`](../adr/_drafts/ADR-018-roadmap-execution-reset.md),
-> [`docs/adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md`](../adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md),
+> [`docs/adr/ADR-019-hypothesis-discovery-doctrine.md`](../adr/ADR-019-hypothesis-discovery-doctrine.md),
 > [`docs/adr/_drafts/ADR-020-paper-shadow-live-separation.md`](../adr/_drafts/ADR-020-paper-shadow-live-separation.md),
 > [`research_quality_kpis.md`](research_quality_kpis.md).
 
@@ -39,7 +39,8 @@ specs merge.
 
 ### S2. ADR-019 — Hypothesis Discovery doctrine and scoring spec
 
-- File: [`docs/adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md`](../adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md).
+- File: [`docs/adr/ADR-019-hypothesis-discovery-doctrine.md`](../adr/ADR-019-hypothesis-discovery-doctrine.md)
+  (promoted from `_drafts/` and accepted on 2026-05-21).
 - Specifies `opportunity_probability_score` axioms (deterministic,
   bounded, monotone in stated inputs, independent of execution-side
   state).

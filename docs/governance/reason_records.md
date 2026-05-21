@@ -17,7 +17,7 @@
 > §10,
 > [`multiplicity_ledger.md`](multiplicity_ledger.md),
 > [`paper_readiness_checklist.md`](paper_readiness_checklist.md),
-> [`docs/adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md`](../adr/_drafts/ADR-019-hypothesis-discovery-doctrine.md).
+> [`docs/adr/ADR-019-hypothesis-discovery-doctrine.md`](../adr/ADR-019-hypothesis-discovery-doctrine.md).
 
 ## 1. Purpose
 
