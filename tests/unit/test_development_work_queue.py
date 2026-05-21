@@ -258,12 +258,12 @@ def test_zero_byte_seed_file_yields_zero_items(tmp_path: Path) -> None:
     assert snap["note"] == dwq.NOTE_SEED_FILE_EMPTY
 
 
-def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> None:
+def test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue() -> None:
     """The committed seed file under `docs/development_work_queue/`
     carries the operator-declared minimal Roadmap v6 active queue
-    rebuilt on 2026-05-21 per ADR-018 (roadmap execution reset).
+    after the 2026-05-21 operator reactivation decision.
 
-    State progression pinned by this test (after v3.15.18 PR):
+    State progression pinned by this test:
 
     * Item 1 (sprint) — ``done`` (deliverables merged in PR #264 and
       PR #267).
@@ -281,7 +281,7 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
     Strengthened from the prior pin to track the v3.15.18 state.
     """
     snap = dwq.collect_snapshot()
-    assert snap["counts"]["total"] == 6
+    assert snap["counts"]["total"] == 8
     assert snap["note"] == dwq.NOTE_ITEMS_PRESENT
     assert snap["validation_warnings"] == []
     titles = [it["title"] for it in snap["items"]]
@@ -294,15 +294,17 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
         "Minimal v3.15.18 Research Observability Expansion slice",
         "Minimal v3.15.19 Hypothesis Discovery Engine slice",
         "STOP - operator review gate after minimal v3.15.19",
+        "Minimal v3.15.20 Failure to Action Mapping slice",
+        "Minimal v3.16.x Adaptive Research Learning path",
     }
     assert set(titles) == expected_titles
     # State progression as of this PR:
     # items 1, 2, 3 done; item 4 in_progress; items 5, 6 blocked.
     by_status = snap["counts"]["by_status"]
-    assert by_status["done"] == 3
-    assert by_status["in_progress"] == 1
-    assert by_status["blocked"] == 2
-    assert by_status["ready"] == 0
+    assert by_status["done"] == 6
+    assert by_status["in_progress"] == 0
+    assert by_status["blocked"] == 1
+    assert by_status["ready"] == 1
     # Title-specific state assertions.
     by_title = {it["title"]: it for it in snap["items"]}
     assert (
@@ -321,29 +323,45 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
         by_title["Minimal v3.15.18 Research Observability Expansion slice"][
             "status"
         ]
-        == "in_progress"
+        == "done"
     )
     assert (
         by_title["Minimal v3.15.19 Hypothesis Discovery Engine slice"][
             "status"
         ]
-        == "blocked"
+        == "done"
     )
     assert (
         by_title["STOP - operator review gate after minimal v3.15.19"][
             "status"
         ]
+        == "done"
+    )
+    assert (
+        by_title["Minimal v3.15.20 Failure to Action Mapping slice"][
+            "status"
+        ]
+        == "ready"
+    )
+    assert (
+        by_title["Minimal v3.16.x Adaptive Research Learning path"]["status"]
         == "blocked"
     )
-    # Exactly one item requires explicit human action (the STOP gate).
-    human_needed_items = [it for it in snap["items"] if it["human_needed"]]
-    assert len(human_needed_items) == 1
-    assert human_needed_items[0]["title"].startswith("STOP")
-    assert human_needed_items[0]["human_needed_reason"] == "architecture_crossroads"
+    assert (
+        by_title["Minimal v3.16.x Adaptive Research Learning path"][
+            "blocked_by"
+        ]
+        == [by_title["Minimal v3.15.20 Failure to Action Mapping slice"]["item_id"]]
+    )
+    assert [it for it in snap["items"] if it["human_needed"]] == []
     # No item touches a protected surface.
     assert all(it["protected_surface"] is False for it in snap["items"])
     # Risk is bounded to LOW / MEDIUM. No HIGH / UNKNOWN at this stage.
     assert {it["risk_level"] for it in snap["items"]} <= {"LOW", "MEDIUM"}
+    assert not any("Addendum" in title for title in titles)
+    assert not any(
+        title.startswith(("v4", "v5", "v6")) for title in titles
+    )
 
 
 def test_committed_repo_seed_file_is_strict_jsonl_no_comments() -> None:

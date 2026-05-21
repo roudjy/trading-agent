@@ -36,8 +36,9 @@ against that question until a paper-ready candidate exists.
 
 | Roadmap document | Status | Allowed use |
 |---|---|---|
-| [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — base phases v3.15.16 → v3.15.19 (minimal slices) | **ACTIVE** | Active execution scope. Minimal slices only (see §3). |
-| [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — base phases v3.15.20, v3.16.x, v4.x, v5.x, v6.x | **DEFERRED** | Reference doctrine. Not active execution scope. |
+| [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — base phases v3.15.16 → v3.15.19 (minimal slices) | **DONE** | Completed minimal slices. Historical active execution scope. |
+| [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — base phases v3.15.20 and v3.16.x (minimal slices) | **ACTIVE** | Active execution scope under [`ADR-021`](../adr/ADR-021-roadmap-v6-core-path-reactivation.md). Minimal slices only (see §3). |
+| [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — v4.x, v5.x, v6.x and non-minimal v3.16.x expansion | **DEFERRED** | Reference doctrine. Not active execution scope. |
 | [`docs/roadmap/Roadmap v6 Addendum.md`](../roadmap/Roadmap%20v6%20Addendum.md) | **DEFERRED (reference-only)** | Doctrine + §10 "Not Allowed" remain binding project-wide. Implementation sections are not active execution scope. |
 | [`docs/roadmap/Roadmap v6 Addendum 2 - State Sequential Knowledge Retrieval.md`](../roadmap/Roadmap%20v6%20Addendum%202%20-%20State%20Sequential%20Knowledge%20Retrieval.md) | **DEFERRED (reference-only)** | Same as Addendum 1. |
 | [`docs/roadmap/Roadmap v6 Addendum 3 - Source Identity Data Quality and Throughput Intelligence.md`](../roadmap/Roadmap%20v6%20Addendum%203%20-%20Source%20Identity%20Data%20Quality%20and%20Throughput%20Intelligence.md) | **DEFERRED (reference-only)** | Same as Addendum 1. |
@@ -46,19 +47,20 @@ against that question until a paper-ready candidate exists.
 
 ## 3. Active execution order (minimal Roadmap v6 path)
 
-The **active queue** is canonically declared as the six items below.
-The same six items are also seeded into
+The **active queue** is canonically declared in
 [`docs/development_work_queue/seed.jsonl`](../development_work_queue/seed.jsonl)
 under the strict JSONL schema enforced by
 [`reporting/development_work_queue.py`](../../reporting/development_work_queue.py)
 and pinned by
 [`tests/unit/test_development_work_queue.py`](../../tests/unit/test_development_work_queue.py)
-(`test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue`).
+(`test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue`).
 
 The chain is sequential: each item is blocked by the previous one.
-Only item 1 is `status: ready` at present.
+After the operator-authorized ADR-021 reactivation, prior reset
+items and the STOP gate are `status: done`, v3.15.20 is the single
+`status: ready` item, and v3.16.x is `status: blocked` by v3.15.20.
 
-1. **Research-Quality Hardening Sprint** (priority 1, status: ready,
+1. **Research-Quality Hardening Sprint** (priority 1, status: done,
    LOW risk, governance category, owner: planner). Multiplicity
    ledger spec, sequestered hold-out discipline, null-pipeline
    integration test, research-quality KPI definitions, paper-
@@ -67,19 +69,19 @@ Only item 1 is `status: ready` at present.
    draft), paper/shadow/live separation (ADR-020 draft). Docs/
    specs/ADRs only — no v3.15.16+ feature code lands here.
 2. **Minimal v3.15.16 Intelligent Routing slice** (priority 2,
-   status: blocked by item 1, MEDIUM risk, reporting category,
+   status: done, MEDIUM risk, reporting category,
    owner: implementation_agent). Routing by expected information
    gain over existing presets, dead-zone suppression, routing-
    reason records. No diagnostic-aware, state-aware, source-
    quality-aware, retrieval-aware, or knowledge-aware routing.
 3. **Minimal v3.15.17 Sampling Intelligence slice** (priority 2,
-   status: blocked by item 2, MEDIUM risk, reporting category,
+   status: done, MEDIUM risk, reporting category,
    owner: implementation_agent). Stratified sampling over existing
    coverage, null-baseline control sampling, sampling-reason
    records. No tail / entropy / phase-transition / barrier /
    resonance / network / post-shock sampling families.
 4. **Minimal v3.15.18 Research Observability Expansion slice**
-   (priority 2, status: blocked by item 3, MEDIUM risk,
+   (priority 2, status: done, MEDIUM risk,
    observability category, owner: implementation_agent). Candidate-
    quality dashboard panel exposing the seven KPIs from
    [`research_quality_kpis.md`](research_quality_kpis.md);
@@ -89,7 +91,7 @@ Only item 1 is `status: ready` at present.
    retrieval debug surfaces, no full lineage UI, no source-quality
    dashboards.
 5. **Minimal v3.15.19 Hypothesis Discovery Engine slice** (priority
-   2, status: blocked by item 4, MEDIUM risk, reporting category,
+   2, status: done, MEDIUM risk, reporting category,
    owner: implementation_agent). Begins **only after ADR-019 is
    promoted out of `_drafts/`**. `behavior_catalog`,
    `behavior_hypotheses`, `opportunity_scoring` (axiomatised per
@@ -100,7 +102,7 @@ Only item 1 is `status: ready` at present.
    no `state_hypothesis_adapter`, no `knowledge_context_adapter`,
    no `retrieval_context_adapter`, no `source_context_adapter`.
 6. **STOP — operator review gate after minimal v3.15.19** (priority
-   2, status: blocked by item 5, LOW risk, governance category,
+   2, status: done, LOW risk, governance category,
    owner: human_operator, `human_needed_reason:
    architecture_crossroads`). **Hard STOP.** Operator reviews KPIs
    (`research_quality_kpis.md` §3) and decides: proceed with staged
@@ -108,22 +110,39 @@ Only item 1 is `status: ready` at present.
    runner may not advance past this item without explicit operator
    authorisation. Reactivation of any deferred Addendum subsection
    requires an explicit operator-approved ADR per §4.
+7. **Minimal v3.15.20 Failure to Action Mapping slice** (priority 2,
+   status: ready, MEDIUM risk, reporting category, owner:
+   implementation_agent). Deterministic failure taxonomy, bounded
+   next-action recommendations, and read-only reason records. No
+   adaptive feedback loop, no strategy mutation, no executable
+   strategy generation, and no paper / shadow / live behavior.
+8. **Minimal v3.16.x Adaptive Research Learning path** (priority 2,
+   status: blocked by item 7, MEDIUM risk, reporting category,
+   owner: implementation_agent). Deterministic campaign feedback
+   metrics and evidence-backed read-only learning context only.
+   Regime intelligence, candidate clustering, robustness filtering,
+   and portfolio intelligence remain read-only context or evidence
+   gates unless a future accepted ADR expands scope.
 
-### Out of active queue at reset time
+### Out of active queue before ADR-021
 
-- v3.15.20 Failure → Action Mapping (full FSM) — **deferred**.
+- v3.15.20 Failure to Action Mapping (full FSM) was **deferred** at
+  reset time. ADR-021 reactivates only the minimal deterministic
+  mapping slice.
 - v3.16.x adaptive learning, fitness scoring, regime intelligence,
-  candidate clustering, robustness filtering (full modules) —
-  **deferred**.
+  candidate clustering, robustness filtering (full modules) were
+  **deferred** at reset time. ADR-021 reactivates only the minimal
+  deterministic, read-only Adaptive Research Learning path.
 - v3.16.5 Portfolio Intelligence — **deferred**.
 - v4.x Shadow, v5.x Paper, v6.x Live — **deferred** behind
   separate readiness ADRs (see ADR-020 draft).
 - All Addendum 1 / 2 / 3 implementation surfaces beyond the three
   active diagnostics — **deferred** per §5.
 
-### What happens after item 6 (STOP gate)
+### What happened after item 6 (STOP gate)
 
-A reactivation ADR must precede any further work. The ADR must:
+ADR-021 records the operator-authorized reactivation of the next
+minimal core path after the STOP gate. Future reactivation ADRs must:
 
 - name the specific deferred subsection being activated;
 - state the promote-or-retire criterion (e.g., "moved ≥1
@@ -311,6 +330,8 @@ operator-approved follow-up that will update those pins.
   — formal ADR for this reset.
 - [`docs/adr/ADR-019-hypothesis-discovery-doctrine.md`](../adr/ADR-019-hypothesis-discovery-doctrine.md)
   — gates v3.15.19.
+- [`docs/adr/ADR-021-roadmap-v6-core-path-reactivation.md`](../adr/ADR-021-roadmap-v6-core-path-reactivation.md)
+  — reactivates only minimal v3.15.20 and minimal v3.16.x.
 - [`docs/adr/_drafts/ADR-020-paper-shadow-live-separation.md`](../adr/_drafts/ADR-020-paper-shadow-live-separation.md)
   — makes the implicit separation a doctrinal invariant.
 - [`docs/governance/research_quality_sprint_plan.md`](research_quality_sprint_plan.md)
@@ -343,3 +364,7 @@ operator-approved follow-up that will update those pins.
   [`docs/development_work_queue/seed.jsonl`](../development_work_queue/seed.jsonl).
   Cross-reference:
   [`queue_rebuild_2026_05_21.md`](queue_rebuild_2026_05_21.md).
+- 2026-05-21: operator-authorized queue reactivation recorded in
+  ADR-021. Minimal v3.15.20 is active as the single ready item;
+  minimal v3.16.x is blocked by v3.15.20. Addendums 1/2/3 and
+  v4/v5/v6 remain deferred/reference-only.
