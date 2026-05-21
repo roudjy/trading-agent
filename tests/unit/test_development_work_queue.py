@@ -263,19 +263,22 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
     carries the operator-declared minimal Roadmap v6 active queue
     rebuilt on 2026-05-21 per ADR-018 (roadmap execution reset).
 
-    State progression pinned by this test (after v3.15.17 PR):
+    State progression pinned by this test (after v3.15.18 PR):
 
     * Item 1 (sprint) — ``done`` (deliverables merged in PR #264 and
       PR #267).
     * Item 2 (Minimal v3.15.16 Intelligent Routing slice) — ``done``
       (shipped in PR #268, merge d9ad118).
     * Item 3 (Minimal v3.15.17 Sampling Intelligence slice) —
-      ``in_progress`` (shipping in this PR).
-    * Items 4, 5 (Minimal v3.15.18, v3.15.19 slices) — ``blocked``.
+      ``done`` (shipped in PR #270, merge 7356ebb).
+    * Item 4 (Minimal v3.15.18 Research Observability Expansion
+      slice) — ``in_progress`` (shipping in this PR).
+    * Item 5 (Minimal v3.15.19 Hypothesis Discovery Engine slice) —
+      ``blocked``.
     * Item 6 (STOP / operator review gate) — ``blocked`` and
       ``human_needed`` with reason ``architecture_crossroads``.
 
-    Strengthened from the prior pin to track the v3.15.17 state.
+    Strengthened from the prior pin to track the v3.15.18 state.
     """
     snap = dwq.collect_snapshot()
     assert snap["counts"]["total"] == 6
@@ -294,11 +297,11 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
     }
     assert set(titles) == expected_titles
     # State progression as of this PR:
-    # items 1, 2 done; item 3 in_progress; items 4-6 blocked.
+    # items 1, 2, 3 done; item 4 in_progress; items 5, 6 blocked.
     by_status = snap["counts"]["by_status"]
-    assert by_status["done"] == 2
+    assert by_status["done"] == 3
     assert by_status["in_progress"] == 1
-    assert by_status["blocked"] == 3
+    assert by_status["blocked"] == 2
     assert by_status["ready"] == 0
     # Title-specific state assertions.
     by_title = {it["title"]: it for it in snap["items"]}
@@ -312,13 +315,13 @@ def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> Non
     )
     assert (
         by_title["Minimal v3.15.17 Sampling Intelligence slice"]["status"]
-        == "in_progress"
+        == "done"
     )
     assert (
         by_title["Minimal v3.15.18 Research Observability Expansion slice"][
             "status"
         ]
-        == "blocked"
+        == "in_progress"
     )
     assert (
         by_title["Minimal v3.15.19 Hypothesis Discovery Engine slice"][
