@@ -20,7 +20,6 @@ import pytest
 from reporting import development_work_queue as dwq
 from reporting import execution_authority as ea
 
-
 # ---------------------------------------------------------------------------
 # Fixture helpers
 # ---------------------------------------------------------------------------
@@ -298,12 +297,12 @@ def test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue() -> N
         "Minimal v3.16.x Adaptive Research Learning path",
     }
     assert set(titles) == expected_titles
-    # State progression as of this PR:
-    # items 1, 2, 3 done; item 4 in_progress; items 5, 6 blocked.
+    # State progression as of the v3.15.20 implementation PR:
+    # items 1-7 done; v3.16.x ready.
     by_status = snap["counts"]["by_status"]
-    assert by_status["done"] == 6
+    assert by_status["done"] == 7
     assert by_status["in_progress"] == 0
-    assert by_status["blocked"] == 1
+    assert by_status["blocked"] == 0
     assert by_status["ready"] == 1
     # Title-specific state assertions.
     by_title = {it["title"]: it for it in snap["items"]}
@@ -341,11 +340,11 @@ def test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue() -> N
         by_title["Minimal v3.15.20 Failure to Action Mapping slice"][
             "status"
         ]
-        == "ready"
+        == "done"
     )
     assert (
         by_title["Minimal v3.16.x Adaptive Research Learning path"]["status"]
-        == "blocked"
+        == "ready"
     )
     assert (
         by_title["Minimal v3.16.x Adaptive Research Learning path"][

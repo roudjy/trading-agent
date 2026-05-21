@@ -30,10 +30,11 @@ now records:
 | Minimal v3.15.18 Research Observability Expansion slice | done |
 | Minimal v3.15.19 Hypothesis Discovery Engine slice | done |
 | STOP - operator review gate after minimal v3.15.19 | done |
-| Minimal v3.15.20 Failure to Action Mapping slice | ready |
-| Minimal v3.16.x Adaptive Research Learning path | blocked by v3.15.20 |
+| Minimal v3.15.20 Failure to Action Mapping slice | done |
+| Minimal v3.16.x Adaptive Research Learning path | ready |
 
-Only v3.15.20 is ready for the next implementation PR.
+After the v3.15.20 implementation PR lands, only v3.16.x is ready
+for the next implementation PR.
 
 ## Preserved Boundaries
 

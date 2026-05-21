@@ -56,9 +56,9 @@ and pinned by
 (`test_default_seed_file_in_repo_carries_reactivated_minimal_core_queue`).
 
 The chain is sequential: each item is blocked by the previous one.
-After the operator-authorized ADR-021 reactivation, prior reset
-items and the STOP gate are `status: done`, v3.15.20 is the single
-`status: ready` item, and v3.16.x is `status: blocked` by v3.15.20.
+After the v3.15.20 implementation PR, prior reset items, the STOP
+gate, and v3.15.20 are `status: done`; v3.16.x is the single
+`status: ready` item.
 
 1. **Research-Quality Hardening Sprint** (priority 1, status: done,
    LOW risk, governance category, owner: planner). Multiplicity
@@ -111,13 +111,13 @@ items and the STOP gate are `status: done`, v3.15.20 is the single
    authorisation. Reactivation of any deferred Addendum subsection
    requires an explicit operator-approved ADR per §4.
 7. **Minimal v3.15.20 Failure to Action Mapping slice** (priority 2,
-   status: ready, MEDIUM risk, reporting category, owner:
+   status: done, MEDIUM risk, reporting category, owner:
    implementation_agent). Deterministic failure taxonomy, bounded
    next-action recommendations, and read-only reason records. No
    adaptive feedback loop, no strategy mutation, no executable
    strategy generation, and no paper / shadow / live behavior.
 8. **Minimal v3.16.x Adaptive Research Learning path** (priority 2,
-   status: blocked by item 7, MEDIUM risk, reporting category,
+   status: ready, MEDIUM risk, reporting category,
    owner: implementation_agent). Deterministic campaign feedback
    metrics and evidence-backed read-only learning context only.
    Regime intelligence, candidate clustering, robustness filtering,
@@ -365,6 +365,9 @@ operator-approved follow-up that will update those pins.
   Cross-reference:
   [`queue_rebuild_2026_05_21.md`](queue_rebuild_2026_05_21.md).
 - 2026-05-21: operator-authorized queue reactivation recorded in
-  ADR-021. Minimal v3.15.20 is active as the single ready item;
-  minimal v3.16.x is blocked by v3.15.20. Addendums 1/2/3 and
+  ADR-021. Minimal v3.15.20 became active as the single ready item;
+  minimal v3.16.x was blocked by v3.15.20. Addendums 1/2/3 and
   v4/v5/v6 remain deferred/reference-only.
+- 2026-05-21: minimal v3.15.20 implementation PR updates the queue
+  state so v3.15.20 is done and minimal v3.16.x is the single ready
+  item.
