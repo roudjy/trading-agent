@@ -46,53 +46,93 @@ against that question until a paper-ready candidate exists.
 
 ## 3. Active execution order (minimal Roadmap v6 path)
 
-After the research-quality hardening sprint
-([`research_quality_sprint_plan.md`](research_quality_sprint_plan.md))
-completes, work proceeds in this order:
+The **active queue** is canonically declared as the six items below.
+The same six items are also seeded into
+[`docs/development_work_queue/seed.jsonl`](../development_work_queue/seed.jsonl)
+under the strict JSONL schema enforced by
+[`reporting/development_work_queue.py`](../../reporting/development_work_queue.py)
+and pinned by
+[`tests/unit/test_development_work_queue.py`](../../tests/unit/test_development_work_queue.py)
+(`test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue`).
 
-1. **Research-Quality Hardening Sprint** — multiplicity ledger spec,
-   sequestered hold-out discipline, null-pipeline test, research-
-   quality KPI definitions, paper-readiness checklist artifact spec,
-   routing/sampling/scoring reason-record specs, Hypothesis Discovery
-   doctrine (ADR-019 draft), paper/shadow/live separation (ADR-020
-   draft). Docs-only sprint.
-2. **Minimal v3.15.16 Intelligent Routing slice** — routing by
-   expected information gain over existing presets, dead-zone
-   suppression, routing-reason records. No diagnostic-aware,
-   state-aware, source-quality-aware, retrieval-aware, or
-   knowledge-aware routing.
-3. **Minimal v3.15.17 Sampling slice** — stratified sampling over
-   existing coverage, null-baseline control sampling,
-   sampling-reason records. No tail/entropy/phase-transition/barrier/
-   resonance/network/post-shock sampling families.
-4. **Minimal v3.15.18 Observability slice** — candidate-quality
-   dashboard panel, operator-attention-budget enforcement, surfaces
-   for routing/sampling/scoring reason records, multiplicity-ledger
-   summary surface, hold-out lineage surface. No KG visualisation,
-   no retrieval debug surfaces, no full lineage UI, no
-   source-quality dashboards.
-5. **Foundational implementations** (per sprint specs) — multiplicity
-   ledger, hold-out hook, null-pipeline integration test,
-   reason-record append-only writers, paper-readiness checklist
-   writer.
-6. **Minimal v3.15.19 Hypothesis Discovery slice** — only after
-   ADR-019 is accepted and the foundational implementations land.
-   `behavior_catalog`, `behavior_hypotheses`, `opportunity_scoring`
-   (axiomatised per ADR-019), `preset_feasibility`,
-   `campaign_seed_proposer`. Three diagnostics (null-model, tail,
-   entropy) used as **filters**, not seeds. No
-   `external_intelligence_catalog`, no `physics_behavior_catalog`,
-   no `mechanistic_behavior_catalog`, no `state_hypothesis_adapter`,
-   no `knowledge_context_adapter`, no `retrieval_context_adapter`,
-   no `source_context_adapter`.
-7. **Staged diagnostic rollout** under promote-or-retire — one
-   diagnostic per release, gated by "moved ≥1 survivor's status
-   within 30 days".
-8. **First paper-readiness assessment** of any survivor against the
-   paper-readiness checklist.
-9. **Reactivation review of Addendums 1/2/3** — only if measurable
-   survivor-quality improvement exists and ≥1 paper-ready candidate
-   has cleared the checklist.
+The chain is sequential: each item is blocked by the previous one.
+Only item 1 is `status: ready` at present.
+
+1. **Research-Quality Hardening Sprint** (priority 1, status: ready,
+   LOW risk, governance category, owner: planner). Multiplicity
+   ledger spec, sequestered hold-out discipline, null-pipeline
+   integration test, research-quality KPI definitions, paper-
+   readiness checklist artifact spec, routing/sampling/scoring
+   reason-record specs, Hypothesis Discovery doctrine (ADR-019
+   draft), paper/shadow/live separation (ADR-020 draft). Docs/
+   specs/ADRs only — no v3.15.16+ feature code lands here.
+2. **Minimal v3.15.16 Intelligent Routing slice** (priority 2,
+   status: blocked by item 1, MEDIUM risk, reporting category,
+   owner: implementation_agent). Routing by expected information
+   gain over existing presets, dead-zone suppression, routing-
+   reason records. No diagnostic-aware, state-aware, source-
+   quality-aware, retrieval-aware, or knowledge-aware routing.
+3. **Minimal v3.15.17 Sampling Intelligence slice** (priority 2,
+   status: blocked by item 2, MEDIUM risk, reporting category,
+   owner: implementation_agent). Stratified sampling over existing
+   coverage, null-baseline control sampling, sampling-reason
+   records. No tail / entropy / phase-transition / barrier /
+   resonance / network / post-shock sampling families.
+4. **Minimal v3.15.18 Research Observability Expansion slice**
+   (priority 2, status: blocked by item 3, MEDIUM risk,
+   observability category, owner: implementation_agent). Candidate-
+   quality dashboard panel exposing the seven KPIs from
+   [`research_quality_kpis.md`](research_quality_kpis.md);
+   operator-attention-budget enforcement; surfaces for routing /
+   sampling / scoring reason records; multiplicity-ledger summary
+   surface; hold-out lineage surface. No KG visualisation, no
+   retrieval debug surfaces, no full lineage UI, no source-quality
+   dashboards.
+5. **Minimal v3.15.19 Hypothesis Discovery Engine slice** (priority
+   2, status: blocked by item 4, MEDIUM risk, reporting category,
+   owner: implementation_agent). Begins **only after ADR-019 is
+   promoted out of `_drafts/`**. `behavior_catalog`,
+   `behavior_hypotheses`, `opportunity_scoring` (axiomatised per
+   ADR-019), `preset_feasibility`, `campaign_seed_proposer`. Three
+   active diagnostics (null-model, tail, entropy) used as
+   **filters**, not seeds. No `external_intelligence_catalog`, no
+   `physics_behavior_catalog`, no `mechanistic_behavior_catalog`,
+   no `state_hypothesis_adapter`, no `knowledge_context_adapter`,
+   no `retrieval_context_adapter`, no `source_context_adapter`.
+6. **STOP — operator review gate after minimal v3.15.19** (priority
+   2, status: blocked by item 5, LOW risk, governance category,
+   owner: human_operator, `human_needed_reason:
+   architecture_crossroads`). **Hard STOP.** Operator reviews KPIs
+   (`research_quality_kpis.md` §3) and decides: proceed with staged
+   diagnostic rollout, simplify further, or halt. The autonomous PR
+   runner may not advance past this item without explicit operator
+   authorisation. Reactivation of any deferred Addendum subsection
+   requires an explicit operator-approved ADR per §4.
+
+### Out of active queue at reset time
+
+- v3.15.20 Failure → Action Mapping (full FSM) — **deferred**.
+- v3.16.x adaptive learning, fitness scoring, regime intelligence,
+  candidate clustering, robustness filtering (full modules) —
+  **deferred**.
+- v3.16.5 Portfolio Intelligence — **deferred**.
+- v4.x Shadow, v5.x Paper, v6.x Live — **deferred** behind
+  separate readiness ADRs (see ADR-020 draft).
+- All Addendum 1 / 2 / 3 implementation surfaces beyond the three
+  active diagnostics — **deferred** per §5.
+
+### What happens after item 6 (STOP gate)
+
+A reactivation ADR must precede any further work. The ADR must:
+
+- name the specific deferred subsection being activated;
+- state the promote-or-retire criterion (e.g., "moved ≥1
+  survivor's status within 30 days");
+- state the definition of done;
+- show evidence that all reactivation gates in §4 are satisfied.
+
+The ADR is operator-driven. ADE/planner/product-owner may **not**
+author it without operator initiation.
 
 ## 4. Reactivation gates
 
@@ -293,6 +333,13 @@ operator-approved follow-up that will update those pins.
 
 ## 9. Update history
 
-- 2026-05-21: initial version. Reclassification of Addendum 1/2/3
-  to DEFERRED reference-only. Active execution scope reset to the
-  minimal Roadmap v6 path in §3.
+- 2026-05-21: initial version (PR #264, merge SHA `ae0a459`).
+  Reclassification of Addendum 1/2/3 to DEFERRED reference-only.
+  Active execution scope reset to the minimal Roadmap v6 path
+  in §3.
+- 2026-05-21: queue rebuild follow-up. §3 expanded to the explicit
+  6-item active queue with sequential `blocked_by` chain; STOP /
+  operator review gate added as item 6. Six items seeded into
+  [`docs/development_work_queue/seed.jsonl`](../development_work_queue/seed.jsonl).
+  Cross-reference:
+  [`queue_rebuild_2026_05_21.md`](queue_rebuild_2026_05_21.md).

@@ -258,14 +258,45 @@ def test_zero_byte_seed_file_yields_zero_items(tmp_path: Path) -> None:
     assert snap["note"] == dwq.NOTE_SEED_FILE_EMPTY
 
 
-def test_default_seed_file_in_repo_yields_zero_items_by_default() -> None:
+def test_default_seed_file_in_repo_carries_minimal_v3_15_x_active_queue() -> None:
     """The committed seed file under `docs/development_work_queue/`
-    is intentionally empty. Default behaviour must therefore be
-    zero items."""
+    carries the operator-declared minimal Roadmap v6 active queue
+    rebuilt on 2026-05-21 per ADR-018 (roadmap execution reset).
+
+    Strengthened from the prior `must be empty by default` pin to
+    pin the explicit 6-item active queue (sprint -> minimal v3.15.16
+    -> v3.15.17 -> v3.15.18 -> v3.15.19 -> STOP/operator review gate)
+    declared by `docs/governance/roadmap_scope_status.md` sec 3.
+    """
     snap = dwq.collect_snapshot()
-    assert snap["counts"]["total"] == 0
-    assert snap["items"] == []
-    assert snap["note"] in {dwq.NOTE_SEED_FILE_EMPTY, dwq.NOTE_SEED_FILE_ABSENT}
+    assert snap["counts"]["total"] == 6
+    assert snap["note"] == dwq.NOTE_ITEMS_PRESENT
+    assert snap["validation_warnings"] == []
+    titles = [it["title"] for it in snap["items"]]
+    # Ordering is by item_id ascending (deterministic), so assert
+    # membership rather than position.
+    expected_titles = {
+        "Research-Quality Hardening Sprint",
+        "Minimal v3.15.16 Intelligent Routing slice",
+        "Minimal v3.15.17 Sampling Intelligence slice",
+        "Minimal v3.15.18 Research Observability Expansion slice",
+        "Minimal v3.15.19 Hypothesis Discovery Engine slice",
+        "STOP - operator review gate after minimal v3.15.19",
+    }
+    assert set(titles) == expected_titles
+    # Exactly one item is ready (the sprint); the other five are
+    # blocked in the dependency chain.
+    assert snap["counts"]["by_status"]["ready"] == 1
+    assert snap["counts"]["by_status"]["blocked"] == 5
+    # Exactly one item requires explicit human action (the STOP gate).
+    human_needed_items = [it for it in snap["items"] if it["human_needed"]]
+    assert len(human_needed_items) == 1
+    assert human_needed_items[0]["title"].startswith("STOP")
+    assert human_needed_items[0]["human_needed_reason"] == "architecture_crossroads"
+    # No item touches a protected surface.
+    assert all(it["protected_surface"] is False for it in snap["items"])
+    # Risk is bounded to LOW / MEDIUM. No HIGH / UNKNOWN at this stage.
+    assert {it["risk_level"] for it in snap["items"]} <= {"LOW", "MEDIUM"}
 
 
 def test_committed_repo_seed_file_is_strict_jsonl_no_comments() -> None:
