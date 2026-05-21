@@ -1,6 +1,33 @@
 # Roadmap v6 Addendum 2
 ## State, Sequential, Knowledge & Retrieval Intelligence
 
+## Execution Status (as of 2026-05-21)
+
+Status: **DEFERRED — REFERENCE-ONLY**
+
+Implementation-scope sections: **NOT ACTIVE**
+
+Doctrine and §9 "Not Allowed" sections: **ACTIVE PROJECT-WIDE**
+
+This addendum is preserved verbatim as architectural reference. It is
+not active execution scope. No queue item, planner task, product-owner
+backlog entry, or autonomous PR runner unit may be derived from this
+addendum unless an explicit operator-approved ADR reactivates the
+specific subsection. See
+[`docs/governance/roadmap_scope_status.md`](../governance/roadmap_scope_status.md)
+and
+[`docs/adr/_drafts/ADR-018-roadmap-execution-reset.md`](../adr/_drafts/ADR-018-roadmap-execution-reset.md)
+for the reset record and reactivation gates.
+
+Doctrine that remains binding regardless of execution status:
+
+- State models do not trade.
+- Retrieval is context, not authority.
+- Knowledge graphs are lineage, not truth.
+- The §9 "Not Allowed" list remains project-wide invariant.
+
+---
+
 ## 1. Purpose
 
 This addendum extends:
