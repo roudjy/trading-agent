@@ -48,7 +48,6 @@ SCAFFOLD_ONLY_TARGETS = (
     REPO_ROOT / "packages" / "qre_research",
     REPO_ROOT / "packages" / "qre_data",
     REPO_ROOT / "packages" / "qre_artifacts",
-    REPO_ROOT / "packages" / "qre_diagnostics",
     REPO_ROOT / "packages" / "qre_policy",
     REPO_ROOT / "packages" / "qre_execution_sim",
     REPO_ROOT / "packages" / "qre_shadow",
@@ -91,8 +90,23 @@ def test_package_migration_001_future_and_disabled_packages_stay_inactive() -> N
 
 def test_package_migration_001_scaffold_targets_do_not_contain_runtime_modules() -> None:
     for target in SCAFFOLD_ONLY_TARGETS:
-        files = sorted(path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file())
+        files = sorted(
+            path.relative_to(target).as_posix()
+            for path in target.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        )
         assert files == ["README.md"], target
+
+
+def test_package_migration_001_qre_diagnostics_has_only_bounded_read_only_seed() -> None:
+    target = REPO_ROOT / "packages" / "qre_diagnostics"
+    files = sorted(
+        path.relative_to(target).as_posix()
+        for path in target.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    )
+
+    assert files == ["README.md", "__init__.py", "paths.py"], target
 
 
 def test_package_migration_001_scanner_classifies_target_paths() -> None:

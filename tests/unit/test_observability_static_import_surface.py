@@ -90,6 +90,7 @@ FORBIDDEN_PREFIXES = (
 
 # Modules from inside the project that ARE allowed. Tightly enumerated.
 ALLOWED_PROJECT_IMPORTS = {
+    "packages.qre_diagnostics.paths",
     "research._sidecar_io",
 }
 
@@ -192,6 +193,7 @@ def test_only_whitelisted_project_imports(module_path: Path):
         "reporting",
         "config",
         "ops",
+        "packages",
     }
     imports = _imports_in(module_path)
     project_imports = [
