@@ -12,9 +12,9 @@ import ast
 import json
 import subprocess
 from collections import Counter
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from packages.ade_governance.architecture_import_contracts import (
     DOMAIN_ADAPTER_CONTRACT,
@@ -30,6 +30,27 @@ from packages.ade_governance.architecture_import_contracts import (
     BoundaryReport,
     ImportEdge,
     LegacyEdgeAllowlistEntry,
+)
+
+QRE_PACKAGE_MODULE_PREFIXES = (
+    "packages.qre_artifacts",
+    "packages.qre_data",
+    "packages.qre_diagnostics",
+    "packages.qre_policy",
+    "packages.qre_research",
+)
+EXECUTION_SENSITIVE_PACKAGE_MODULE_PREFIXES = (
+    "packages.qre_execution_sim",
+    "packages.qre_live",
+    "packages.qre_paper",
+    "packages.qre_shadow",
+)
+QRE_PACKAGE_PATH_PREFIXES = tuple(
+    module.replace(".", "/") + "/" for module in QRE_PACKAGE_MODULE_PREFIXES
+)
+EXECUTION_SENSITIVE_PACKAGE_PATH_PREFIXES = tuple(
+    module.replace(".", "/") + "/"
+    for module in EXECUTION_SENSITIVE_PACKAGE_MODULE_PREFIXES
 )
 
 
@@ -283,10 +304,16 @@ def classify_path(path: Path | str) -> str:
         return DOMAIN_TESTS
     if normalized.startswith(".claude/hooks/") or first == "scripts":
         return DOMAIN_GOVERNANCE_TOOLING
+    if normalized.startswith("apps/control-plane/"):
+        return DOMAIN_CONTROL_PLANE
     if normalized.startswith("packages/ade_governance/"):
         return DOMAIN_ADE
     if normalized.startswith("packages/control_plane_qre_adapter_contract/"):
         return DOMAIN_ADAPTER_CONTRACT
+    if normalized.startswith(QRE_PACKAGE_PATH_PREFIXES):
+        return DOMAIN_QRE
+    if normalized.startswith(EXECUTION_SENSITIVE_PACKAGE_PATH_PREFIXES):
+        return DOMAIN_EXECUTION
     if first == "dashboard" or first == "frontend":
         return DOMAIN_CONTROL_PLANE
     if first == "reporting":
@@ -322,6 +349,10 @@ def classify_module(module_name: str, module_index: dict[str, Path] | None = Non
         or module_name.startswith("packages.control_plane_qre_adapter_contract.")
     ):
         return DOMAIN_ADAPTER_CONTRACT
+    if _matches_prefix(module_name, QRE_PACKAGE_MODULE_PREFIXES):
+        return DOMAIN_QRE
+    if _matches_prefix(module_name, EXECUTION_SENSITIVE_PACKAGE_MODULE_PREFIXES):
+        return DOMAIN_EXECUTION
     if module_name.startswith(("agent.execution", "agent.risk")):
         return DOMAIN_EXECUTION
     if top in {"automation", "broker", "execution", "live", "paper", "risk", "shadow"}:
@@ -488,13 +519,13 @@ def _targets_from_import_from(
     if node.level:
         base = _resolve_relative_base(source_module, source_path, node.level)
         if base is None:
-            return tuple()
+            return ()
         module_base = ".".join(part for part in (base, node.module or "") if part)
     else:
         module_base = node.module or ""
 
     if not module_base:
-        return tuple()
+        return ()
 
     targets = {
         _resolve_import_from_target(module_base, alias.name, module_index)
