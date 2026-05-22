@@ -8,15 +8,18 @@ run-domain contracts.
 
 ## Current Status
 
-Status: scaffold-only. Current QRE research runtime remains in `research/`,
-`agent/backtesting/`, `strategies/`, and `registry.py`.
+Status: active read-only boundary seed. The canonical research universe
+contract now lives in `packages.qre_research.universe`; current QRE research
+orchestration remains in `research/`, `agent/backtesting/`, `strategies/`,
+and `registry.py`.
 
 ## Source of Truth / Authority Boundary
 
 `registry.py` remains the single source of truth for strategy registration,
 strategy implementations remain in `agent/backtesting/strategies.py`, and
 research orchestration remains in `research/run_research.py` until explicitly
-migrated.
+migrated. The universe contract is canonical in `packages.qre_research.universe`
+with `research.universe` retained as the compatibility import path.
 
 ## Allowed Future Contents
 
@@ -42,8 +45,12 @@ migrated.
 ## Current Compatibility Policy
 
 Existing QRE imports under `research/`, `agent/backtesting/`, `strategies/`,
-and `registry.py` remain authoritative. This scaffold exports no runtime API.
+and `registry.py` remain authoritative except for the bounded universe contract,
+which is now canonical at `packages.qre_research.universe`. The historical
+`research.universe` path remains a compatibility shim and must preserve the
+public API.
 
 ## Activation Status
 
-Activation status: scaffold-only.
+Activation status: read-only universe boundary active; research orchestration
+and strategy authority remain unmigrated.
