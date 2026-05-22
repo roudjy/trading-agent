@@ -45,7 +45,6 @@ README_REQUIRED_SECTIONS = (
 )
 
 SCAFFOLD_ONLY_TARGETS = (
-    REPO_ROOT / "apps" / "control-plane",
     REPO_ROOT / "packages" / "qre_research",
     REPO_ROOT / "packages" / "qre_data",
     REPO_ROOT / "packages" / "qre_artifacts",
