@@ -464,6 +464,8 @@ def _target_root(module_name: str, target_path: Path | None) -> str:
 def _closed_forbidden_rule(edge: ImportEdge) -> str | None:
     if edge.source_domain == DOMAIN_TESTS:
         return None
+    if edge.target_domain == DOMAIN_TESTS:
+        return "production-to-tests"
     if edge.source_domain == DOMAIN_CONTROL_PLANE and edge.target_domain == DOMAIN_QRE:
         return "control-plane-to-qre"
     if edge.source_domain == DOMAIN_ADE and edge.target_domain == DOMAIN_QRE:
