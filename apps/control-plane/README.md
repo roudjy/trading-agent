@@ -7,8 +7,18 @@ control-plane UI and API surfaces.
 
 ## Current Status
 
-Status: scaffold-only. Current runtime dashboard and frontend code remains in
-`dashboard/` and `frontend/`.
+Status: package-boundary skeleton. Current runtime dashboard and frontend code
+remains in `dashboard/` and `frontend/`.
+
+PACKAGE-MIGRATION-003 adds one non-routed read-only adapter boundary module:
+
+```text
+apps/control-plane/read_only_adapter_boundary.py
+```
+
+The module consumes only the canonical
+`packages.control_plane_qre_adapter_contract` package and exposes no Flask
+route, dashboard wiring, mutation surface, or QRE runtime import.
 
 ## Source of Truth / Authority Boundary
 
@@ -40,8 +50,10 @@ behavior.
 ## Current Compatibility Policy
 
 Existing `dashboard/` and `frontend/` imports remain authoritative. This
-directory provides no compatibility import and no executable runtime surface.
+directory provides no dashboard route compatibility import and no executable
+runtime surface. The read-only adapter boundary exists only to pin the target
+control-plane package boundary against the canonical adapter contract.
 
 ## Activation Status
 
-Activation status: scaffold-only.
+Activation status: boundary-only; not runtime-wired.
