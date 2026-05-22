@@ -124,6 +124,10 @@ def classify_paths(paths: list[str]) -> dict[str, bool]:
                 "execution/",
                 "live/",
                 "paper/",
+                "packages/qre_execution_sim/",
+                "packages/qre_live/",
+                "packages/qre_paper/",
+                "packages/qre_shadow/",
                 "shadow/",
                 "trading/",
             )

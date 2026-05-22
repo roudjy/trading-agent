@@ -9,6 +9,8 @@ research-only execution simulation contracts.
 
 Status: future-only and inactive. Current execution-adjacent simulation code
 remains in existing `execution/`, `research/`, and legacy `agent/` paths.
+This package is intentionally README-only until a separately approved migration
+unit authorizes a specific read-only contract.
 
 ## Source of Truth / Authority Boundary
 
@@ -39,7 +41,10 @@ separate execution-simulation migration unit is approved.
 ## Current Compatibility Policy
 
 Existing execution simulation imports remain authoritative. This scaffold
-exports no runtime API.
+exports no runtime API. Adding importable Python modules under
+`packages/qre_execution_sim` requires a named package-migration unit and tests
+proving no broker, live, paper, shadow, risk, or order-execution behavior was
+activated.
 
 ## Activation Status
 

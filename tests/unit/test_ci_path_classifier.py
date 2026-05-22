@@ -77,3 +77,20 @@ def test_deployment_sensitive_runtime_files_trigger_build_and_deploy() -> None:
     assert result["deployment_sensitive"] is True
     assert result["run_docker_build"] is True
     assert result["run_dashboard_deploy"] is True
+
+
+def test_future_execution_packages_are_execution_sensitive() -> None:
+    result = classify_paths(
+        [
+            "packages/qre_execution_sim/README.md",
+            "packages/qre_shadow/README.md",
+            "packages/qre_paper/README.md",
+            "packages/qre_live/README.md",
+        ]
+    )
+
+    assert result["packages"] is True
+    assert result["execution_sensitive"] is True
+    assert result["run_frontend"] is True
+    assert result["run_docker_build"] is True
+    assert result["run_dashboard_deploy"] is True
