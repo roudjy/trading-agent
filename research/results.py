@@ -7,52 +7,18 @@ import csv
 import json
 from datetime import datetime, timezone
 
-
-# Frozen public output contracts. Do NOT edit without an approved
-# contract change. These tuples are consumed by the guards below.
-ROW_SCHEMA: tuple[str, ...] = (
-    "timestamp_utc",
-    "strategy_name",
-    "family",
-    "hypothesis",
-    "asset",
-    "interval",
-    "params_json",
-    "success",
-    "error",
-    "win_rate",
-    "sharpe",
-    "deflated_sharpe",
-    "max_drawdown",
-    "trades_per_maand",
-    "consistentie",
-    "totaal_trades",
-    "goedgekeurd",
-    "criteria_checks_json",
-    "reden",
-)
-
-JSON_TOP_LEVEL_SCHEMA: tuple[str, ...] = (
-    "generated_at_utc",
-    "count",
-    "summary",
-    "results",
-)
-
-JSON_SUMMARY_SCHEMA: tuple[str, ...] = (
-    "success",
-    "failed",
-    "goedgekeurd",
+from packages.qre_artifacts.public_outputs import (
+    CSV_PATH,
+    JSON_PATH,
+    JSON_SUMMARY_SCHEMA,
+    JSON_TOP_LEVEL_SCHEMA,
+    ROW_SCHEMA,
 )
 
 
 class SchemaDriftError(RuntimeError):
     """Raised when a research output row or payload drifts from the
     frozen contract. Never catch broadly - drift must surface."""
-
-
-CSV_PATH = "research/strategy_matrix.csv"
-JSON_PATH = "research/research_latest.json"
 
 
 def utc_now():

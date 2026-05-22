@@ -47,7 +47,6 @@ README_REQUIRED_SECTIONS = (
 SCAFFOLD_ONLY_TARGETS = (
     REPO_ROOT / "packages" / "qre_research",
     REPO_ROOT / "packages" / "qre_data",
-    REPO_ROOT / "packages" / "qre_artifacts",
     REPO_ROOT / "packages" / "qre_policy",
     REPO_ROOT / "packages" / "qre_execution_sim",
     REPO_ROOT / "packages" / "qre_shadow",
@@ -109,12 +108,24 @@ def test_package_migration_001_qre_diagnostics_has_only_bounded_read_only_seed()
     assert files == ["README.md", "__init__.py", "paths.py"], target
 
 
+def test_package_migration_001_qre_artifacts_has_only_bounded_read_only_seed() -> None:
+    target = REPO_ROOT / "packages" / "qre_artifacts"
+    files = sorted(
+        path.relative_to(target).as_posix()
+        for path in target.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    )
+
+    assert files == ["README.md", "__init__.py", "public_outputs.py"], target
+
+
 def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_path("apps/control-plane/README.md") == DOMAIN_CONTROL_PLANE
     assert classify_path("packages/ade_governance/README.md") == DOMAIN_ADE
     assert classify_path("packages/qre_research/README.md") == DOMAIN_QRE
     assert classify_path("packages/qre_data/README.md") == DOMAIN_QRE
     assert classify_path("packages/qre_artifacts/README.md") == DOMAIN_QRE
+    assert classify_path("packages/qre_artifacts/public_outputs.py") == DOMAIN_QRE
     assert classify_path("packages/qre_diagnostics/README.md") == DOMAIN_QRE
     assert classify_path("packages/qre_policy/README.md") == DOMAIN_QRE
     assert classify_path("packages/qre_execution_sim/README.md") == DOMAIN_EXECUTION
@@ -123,6 +134,7 @@ def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_path("packages/qre_live/README.md") == DOMAIN_EXECUTION
 
     assert classify_module("packages.qre_research.contracts") == DOMAIN_QRE
+    assert classify_module("packages.qre_artifacts.public_outputs") == DOMAIN_QRE
     assert classify_module("packages.qre_live.contracts") == DOMAIN_EXECUTION
 
 
