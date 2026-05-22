@@ -6,14 +6,17 @@ from pathlib import Path
 
 import pytest
 
+import packages.control_plane_qre_adapter_contract as canonical_contract
+import reporting.control_plane_qre_adapter_contract as compatibility_contract
 from reporting.architecture_import_scan import (
+    DOMAIN_ADAPTER_CONTRACT,
     DOMAIN_ADE,
     DOMAIN_CONTROL_PLANE,
     DOMAIN_QRE,
     ImportEdge,
     evaluate_edges,
 )
-from reporting.control_plane_qre_adapter_contract import (
+from packages.control_plane_qre_adapter_contract import (
     CONTRACT_NAME,
     CONTRACT_VERSION,
     FORBIDDEN_CAPABILITIES,
@@ -25,7 +28,12 @@ from reporting.control_plane_qre_adapter_contract import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONTRACT_PATH = REPO_ROOT / "reporting" / "control_plane_qre_adapter_contract.py"
+CANONICAL_CONTRACT_PATH = (
+    REPO_ROOT / "packages" / "control_plane_qre_adapter_contract" / "__init__.py"
+)
+COMPATIBILITY_CONTRACT_PATH = (
+    REPO_ROOT / "reporting" / "control_plane_qre_adapter_contract.py"
+)
 
 FORBIDDEN_IMPORT_PREFIXES = (
     "agent.execution",
@@ -60,6 +68,17 @@ MUTATION_VERBS = (
     "write",
 )
 
+PUBLIC_CONTRACT_NAMES = (
+    "AdapterContractDescription",
+    "CONTRACT_NAME",
+    "CONTRACT_VERSION",
+    "ControlPlaneQREReadAdapter",
+    "FORBIDDEN_CAPABILITIES",
+    "READ_ONLY_METHODS",
+    "ReadModelContract",
+    "describe_contract",
+)
+
 
 class _StubReadAdapter:
     def list_read_models(self) -> tuple[ReadModelContract, ...]:
@@ -90,6 +109,16 @@ def test_adapter_contract_is_runtime_checkable_and_read_only() -> None:
     assert adapter.describe_contract() == describe_contract()
 
 
+def test_canonical_and_compatibility_imports_expose_same_public_contract() -> None:
+    assert canonical_contract.__all__ == list(PUBLIC_CONTRACT_NAMES)
+    assert compatibility_contract.__all__ == list(PUBLIC_CONTRACT_NAMES)
+    for name in PUBLIC_CONTRACT_NAMES:
+        assert getattr(compatibility_contract, name) is getattr(
+            canonical_contract,
+            name,
+        )
+
+
 def test_adapter_contract_metadata_is_stable_and_frozen() -> None:
     description = describe_contract()
     read_model = ReadModelContract(
@@ -116,14 +145,7 @@ def test_adapter_contract_metadata_is_stable_and_frozen() -> None:
 
 
 def test_adapter_contract_is_stdlib_only_and_has_no_domain_imports() -> None:
-    tree = ast.parse(CONTRACT_PATH.read_text(encoding="utf-8"))
-    imported_modules: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imported_modules.extend(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imported_modules.append(node.module)
-
+    imported_modules = _imported_modules(CANONICAL_CONTRACT_PATH)
     violations = [
         module
         for module in imported_modules
@@ -141,8 +163,26 @@ def test_adapter_contract_is_stdlib_only_and_has_no_domain_imports() -> None:
     ]
 
 
+def test_reporting_compatibility_import_only_reexports_canonical_contract() -> None:
+    imported_modules = _imported_modules(COMPATIBILITY_CONTRACT_PATH)
+    violations = [
+        module
+        for module in imported_modules
+        if any(
+            module == prefix or module.startswith(prefix + ".")
+            for prefix in FORBIDDEN_IMPORT_PREFIXES
+        )
+    ]
+
+    assert violations == []
+    assert sorted(imported_modules) == [
+        "__future__",
+        "packages.control_plane_qre_adapter_contract",
+    ]
+
+
 def test_adapter_contract_exposes_no_mutation_or_route_surface() -> None:
-    tree = ast.parse(CONTRACT_PATH.read_text(encoding="utf-8"))
+    tree = ast.parse(CANONICAL_CONTRACT_PATH.read_text(encoding="utf-8"))
     public_functions = [
         node.name
         for node in ast.walk(tree)
@@ -173,7 +213,38 @@ def test_adapter_contract_exposes_no_mutation_or_route_surface() -> None:
     )
 
 
-def test_adapter_path_import_is_allowed_for_future_control_plane_code() -> None:
+def _imported_modules(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    imported_modules: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported_modules.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_modules.append(node.module)
+    return imported_modules
+
+
+def test_canonical_adapter_import_is_allowed_for_future_control_plane_code() -> None:
+    edge = ImportEdge(
+        source_module="dashboard.api_future_read_model",
+        target_module="packages.control_plane_qre_adapter_contract",
+        source_path="dashboard/api_future_read_model.py",
+        source_domain=DOMAIN_CONTROL_PLANE,
+        target_domain=DOMAIN_ADAPTER_CONTRACT,
+        target_root="packages",
+        line=4,
+        import_kind="from",
+    )
+
+    report = evaluate_edges((edge,))
+
+    assert report.forbidden_edges == ()
+    assert [(finding.rule, finding.source_module) for finding in report.legacy_edges] == [
+        ("mixed-domain", "dashboard.api_future_read_model")
+    ]
+
+
+def test_compatibility_adapter_import_is_allowed_for_future_control_plane_code() -> None:
     edge = ImportEdge(
         source_module="dashboard.api_future_read_model",
         target_module="reporting.control_plane_qre_adapter_contract",
