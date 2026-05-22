@@ -7,12 +7,19 @@ market-data access abstractions, and deterministic data-source metadata.
 
 ## Current Status
 
-Status: scaffold-only. Current data modules remain under `data/`.
+Status: active read-only seed. The package owns the immutable market and macro
+data contract types in `packages.qre_data.contracts`. Current data
+repositories, adapters, fetchers, cache behavior, and dashboard consumers
+remain in their existing paths.
 
 ## Source of Truth / Authority Boundary
 
-Existing `data/` contracts, repositories, adapters, and fetchers remain the
-source of truth until a bounded data-package migration is authorized.
+`packages.qre_data.contracts` is the canonical namespace for immutable data
+contract types historically exposed by `data.contracts`.
+
+Existing `data/` repositories, adapters, fetchers, cache files, and dashboard
+consumers remain the source of truth until each surface is migrated by a
+bounded unit.
 
 ## Allowed Future Contents
 
@@ -37,9 +44,13 @@ source of truth until a bounded data-package migration is authorized.
 
 ## Current Compatibility Policy
 
-Existing `data/` imports remain authoritative. This scaffold exports no runtime
-API.
+Existing imports from `data.contracts` remain compatible for the immutable
+data contract types. The compatibility module imports and re-exports the
+canonical package classes.
+
+Other existing `data/` imports remain authoritative until migrated by a
+separate bounded unit.
 
 ## Activation Status
 
-Activation status: scaffold-only.
+Activation status: read-only data contract seed only.
