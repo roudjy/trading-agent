@@ -15,6 +15,7 @@ from reporting.architecture_import_scan import (
     classify_path,
     evaluate_edges,
     report_to_dict,
+    report_to_summary_dict,
     report_to_text,
     scan_files,
     scan_repo,
@@ -242,6 +243,51 @@ def test_report_surfaces_are_deterministic_json_and_text() -> None:
     assert rendered_json == json.dumps(report_to_dict(report), indent=2, sort_keys=True)
     assert rendered_text == report_to_text(report)
     assert "ARCH-001 domain import scan" in rendered_text
+
+
+def test_arch_002_summary_report_is_deterministic_and_compact() -> None:
+    edges = (
+        ImportEdge(
+            source_module="dashboard.api",
+            target_module="research.run_state",
+            source_path="dashboard/api.py",
+            source_domain=DOMAIN_CONTROL_PLANE,
+            target_domain=DOMAIN_QRE,
+            target_root="research",
+            line=1,
+            import_kind="from",
+        ),
+        ImportEdge(
+            source_module="reporting.intelligent_routing",
+            target_module="research.presets",
+            source_path="reporting/intelligent_routing.py",
+            source_domain=DOMAIN_ADE,
+            target_domain=DOMAIN_QRE,
+            target_root="research",
+            line=955,
+            import_kind="from",
+        ),
+    )
+    first = report_to_summary_dict(evaluate_edges(edges))
+    second = report_to_summary_dict(evaluate_edges(tuple(reversed(edges))))
+
+    assert first == second
+    assert "edges" not in first
+    assert first["edge_count"] == 2
+    assert first["forbidden_edge_count"] == 1
+    assert first["legacy_edge_count"] == 1
+    assert first["domain_edge_categories"] == [
+        {
+            "edge_count": 1,
+            "source_domain": DOMAIN_ADE,
+            "target_domain": DOMAIN_QRE,
+        },
+        {
+            "edge_count": 1,
+            "source_domain": DOMAIN_CONTROL_PLANE,
+            "target_domain": DOMAIN_QRE,
+        },
+    ]
 
 
 def _git(cwd: Path, *args: str) -> None:
