@@ -8,6 +8,7 @@ Verifies that the path literals in
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -15,6 +16,8 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RESEARCH_DIR = PROJECT_ROOT / "research"
+CANONICAL_PATHS_PY = PROJECT_ROOT / "packages" / "qre_diagnostics" / "paths.py"
+COMPATIBILITY_PATHS_PY = PROJECT_ROOT / "research" / "diagnostics" / "paths.py"
 
 # Each entry: (filename_to_find, writer_module_filename)
 #
@@ -47,9 +50,7 @@ DRIFT_CHECKS = [
     ids=[f"{c[0]}-vs-{c[1]}" for c in DRIFT_CHECKS],
 )
 def test_writer_module_still_uses_filename(filename: str, writer_filename: str):
-    paths_py = (
-        PROJECT_ROOT / "research" / "diagnostics" / "paths.py"
-    ).read_text(encoding="utf-8")
+    paths_py = CANONICAL_PATHS_PY.read_text(encoding="utf-8")
     assert filename in paths_py, (
         f"paths.py no longer mentions {filename!r}; "
         f"observability path constants are out of date."
@@ -65,9 +66,7 @@ def test_writer_module_still_uses_filename(filename: str, writer_filename: str):
 
 def test_paths_module_does_not_import_other_research_modules():
     """paths.py must import nothing from research.* — single source of truth."""
-    text = (
-        PROJECT_ROOT / "research" / "diagnostics" / "paths.py"
-    ).read_text(encoding="utf-8")
+    text = CANONICAL_PATHS_PY.read_text(encoding="utf-8")
     forbidden = re.findall(
         r"^\s*(?:from|import)\s+research\.(?!diagnostics|_sidecar_io)\S+",
         text,
@@ -104,13 +103,17 @@ def test_no_pre_v3_15_15_7_wrong_ledger_path_anywhere_in_diagnostics():
     literal alongside ``campaign_evidence_ledger`` (the prefix). Allowed: the
     correct full filename ``campaign_evidence_ledger_latest.v1.jsonl``.
     """
-    diagnostics_dir = PROJECT_ROOT / "research" / "diagnostics"
+    diagnostics_dirs = (
+        PROJECT_ROOT / "research" / "diagnostics",
+        PROJECT_ROOT / "packages" / "qre_diagnostics",
+    )
     bad_literal = '"campaign_evidence_ledger.jsonl"'
     offenders: list[str] = []
-    for py_path in sorted(diagnostics_dir.glob("*.py")):
-        text = py_path.read_text(encoding="utf-8")
-        if bad_literal in text:
-            offenders.append(py_path.name)
+    for diagnostics_dir in diagnostics_dirs:
+        for py_path in sorted(diagnostics_dir.glob("*.py")):
+            text = py_path.read_text(encoding="utf-8")
+            if bad_literal in text:
+                offenders.append(py_path.relative_to(PROJECT_ROOT).as_posix())
     assert not offenders, (
         f"v3.15.15.7 regression: the pre-fix filename "
         f"'campaign_evidence_ledger.jsonl' (no '_latest.v1' suffix) "
@@ -141,3 +144,27 @@ def test_campaign_evidence_ledger_path_constant_uses_latest_v1_suffix():
         str(CAMPAIGN_EVIDENCE_LEDGER_PATH).replace("\\", "/")
         == "research/campaign_evidence_ledger_latest.v1.jsonl"
     )
+
+
+def test_compatibility_path_reexports_canonical_public_contract():
+    import packages.qre_diagnostics.paths as canonical_paths
+    import research.diagnostics.paths as compatibility_paths
+
+    assert compatibility_paths.__all__ == canonical_paths.__all__
+    for name in canonical_paths.__all__:
+        assert getattr(compatibility_paths, name) is getattr(canonical_paths, name)
+
+
+def test_compatibility_paths_module_only_imports_canonical_contract():
+    tree = ast.parse(
+        COMPATIBILITY_PATHS_PY.read_text(encoding="utf-8"),
+        filename=str(COMPATIBILITY_PATHS_PY),
+    )
+    imports: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.append(node.module)
+
+    assert imports == ["__future__", "packages.qre_diagnostics.paths"]

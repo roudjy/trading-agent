@@ -7,13 +7,16 @@ read models, health evidence, and research observability helpers.
 
 ## Current Status
 
-Status: scaffold-only. Current diagnostics remain under `research/diagnostics/`
-and related research observability modules.
+Status: active read-only boundary seed. The canonical diagnostics path contract
+lives in `packages/qre_diagnostics/paths.py`. Other diagnostics remain under
+`research/diagnostics/` and related research observability modules.
 
 ## Source of Truth / Authority Boundary
 
-Existing diagnostics modules remain authoritative. Diagnostics are read-only
-evidence surfaces and do not own trade decisions or execution behavior.
+The canonical diagnostics path contract is authoritative under
+`packages.qre_diagnostics.paths`. Existing diagnostics builders remain
+authoritative in `research/diagnostics/`. Diagnostics are read-only evidence
+surfaces and do not own trade decisions or execution behavior.
 
 ## Allowed Future Contents
 
@@ -36,9 +39,9 @@ evidence surfaces and do not own trade decisions or execution behavior.
 
 ## Current Compatibility Policy
 
-Existing `research/diagnostics/` imports remain authoritative. This scaffold
-exports no runtime API.
+`research.diagnostics.paths` remains a compatibility import path that re-exports
+the canonical `packages.qre_diagnostics.paths` public contract.
 
 ## Activation Status
 
-Activation status: scaffold-only.
+Activation status: active read-only path-contract seed only.

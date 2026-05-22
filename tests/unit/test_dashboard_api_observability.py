@@ -411,11 +411,13 @@ def test_api_module_only_imports_safe_modules():
 def test_paths_module_does_not_pull_in_forbidden_modules():
     """``research.diagnostics.paths`` is the ONLY project module the API imports.
 
-    This test ensures paths.py itself is still stdlib-only by re-running
-    the same AST check on it.
+    The compatibility shim may import only the canonical package contract. The
+    canonical contract must remain stdlib-only.
     """
-    src_path = Path(diag_paths.__file__)
-    tree = ast.parse(src_path.read_text(encoding="utf-8"), filename=str(src_path))
+    compatibility_path = Path(diag_paths.__file__)
+    canonical_path = (
+        compatibility_path.parents[2] / "packages" / "qre_diagnostics" / "paths.py"
+    )
     project_roots = {
         "agent",
         "strategies",
@@ -429,17 +431,37 @@ def test_paths_module_does_not_pull_in_forbidden_modules():
         "config",
         "ops",
         "dashboard",
+        "packages",
     }
-    for node in ast.walk(tree):
+
+    compatibility_tree = ast.parse(
+        compatibility_path.read_text(encoding="utf-8"),
+        filename=str(compatibility_path),
+    )
+    compatibility_imports = [
+        node.module
+        for node in ast.walk(compatibility_tree)
+        if isinstance(node, ast.ImportFrom) and node.module
+    ]
+    assert compatibility_imports == [
+        "__future__",
+        "packages.qre_diagnostics.paths",
+    ]
+
+    canonical_tree = ast.parse(
+        canonical_path.read_text(encoding="utf-8"),
+        filename=str(canonical_path),
+    )
+    for node in ast.walk(canonical_tree):
         if isinstance(node, ast.ImportFrom):
             if node.level:
                 continue
             module = node.module or ""
             assert module.split(".", 1)[0] not in project_roots, (
-                f"research/diagnostics/paths.py imports project module {module}"
+                f"packages/qre_diagnostics/paths.py imports project module {module}"
             )
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 assert alias.name.split(".", 1)[0] not in project_roots, (
-                    f"research/diagnostics/paths.py imports project module {alias.name}"
+                    f"packages/qre_diagnostics/paths.py imports project module {alias.name}"
                 )
