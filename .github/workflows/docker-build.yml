@@ -24,12 +24,39 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success')
+    outputs:
+      run_docker_build: ${{ steps.decision.outputs.run_docker_build }}
     steps:
-      - run: echo "Fast gate passed; proceeding to build."
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 2
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+      - name: Classify workflow_run merge commit
+        id: classify
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: python scripts/ci_path_classifier.py --base HEAD^ --head HEAD --github-output "${GITHUB_OUTPUT}"
+      - name: Decide build eligibility
+        id: decision
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_docker_build=true" >> "${GITHUB_OUTPUT}"
+            echo "Manual dispatch: proceeding to build."
+          elif [ "${{ steps.classify.outputs.run_docker_build }}" = "true" ]; then
+            echo "run_docker_build=true" >> "${GITHUB_OUTPUT}"
+            echo "Deployment-relevant paths changed; proceeding to build."
+          else
+            echo "run_docker_build=false" >> "${GITHUB_OUTPUT}"
+            echo "No deployment-relevant paths changed; skipping Docker build."
+          fi
 
   build-grep-push:
     name: build-grep-push
     needs: [guard]
+    if: ${{ needs.guard.outputs.run_docker_build == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}

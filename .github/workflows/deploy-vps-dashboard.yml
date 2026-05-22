@@ -63,17 +63,56 @@ permissions:
   contents: read
 
 jobs:
+  path-guard:
+    name: path-guard (deploy eligibility)
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success')
+    outputs:
+      run_dashboard_deploy: ${{ steps.decision.outputs.run_dashboard_deploy }}
+    steps:
+      - name: Checkout repo for path classification
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 2
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+      - name: Classify workflow_run merge commit
+        id: classify
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: python scripts/ci_path_classifier.py --base HEAD^ --head HEAD --github-output "${GITHUB_OUTPUT}"
+      - name: Decide deploy eligibility
+        id: decision
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_dashboard_deploy=true" >> "${GITHUB_OUTPUT}"
+            echo "Manual dispatch: proceeding to deploy."
+          elif [ "${{ steps.classify.outputs.run_dashboard_deploy }}" = "true" ]; then
+            echo "run_dashboard_deploy=true" >> "${GITHUB_OUTPUT}"
+            echo "Deployment-relevant paths changed; proceeding to deploy."
+          else
+            echo "run_dashboard_deploy=false" >> "${GITHUB_OUTPUT}"
+            echo "No deployment-relevant paths changed; skipping VPS deploy."
+          fi
+
   deploy:
     name: Deploy dashboard + nginx
+    needs: [path-guard]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Fire on a successful gate run, OR on a manual operator
     # dispatch. We deliberately do NOT fire on failed gate runs
     # (which would otherwise deploy a commit the gate rejected).
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success')
+      needs.path-guard.outputs.run_dashboard_deploy == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success'))
 
     steps:
       - name: Checkout repo (for runner-side context only)

@@ -32,6 +32,42 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
+  # path-classifier - deterministic changed-path categories for path-aware jobs.
+  # This job never replaces safety gates; it only controls explicitly
+  # path-aware expensive jobs below.
+  # ---------------------------------------------------------------------------
+  path-classifier:
+    name: path-classifier
+    runs-on: ubuntu-latest
+    outputs:
+      architecture_only: ${{ steps.classify.outputs.architecture_only }}
+      ci_or_governance: ${{ steps.classify.outputs.ci_or_governance }}
+      dashboard_or_control_plane: ${{ steps.classify.outputs.dashboard_or_control_plane }}
+      deployment_sensitive: ${{ steps.classify.outputs.deployment_sensitive }}
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      execution_sensitive: ${{ steps.classify.outputs.execution_sensitive }}
+      frontend: ${{ steps.classify.outputs.frontend }}
+      packages: ${{ steps.classify.outputs.packages }}
+      qre_research: ${{ steps.classify.outputs.qre_research }}
+      run_docker_build: ${{ steps.classify.outputs.run_docker_build }}
+      run_dashboard_deploy: ${{ steps.classify.outputs.run_dashboard_deploy }}
+      run_frontend: ${{ steps.classify.outputs.run_frontend }}
+      tests: ${{ steps.classify.outputs.tests }}
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: python scripts/ci_path_classifier.py --base "${BASE_SHA}" --head "${HEAD_SHA}" --github-output "${GITHUB_OUTPUT}"
+
+  # ---------------------------------------------------------------------------
   # lint — ruff, fast (<30s)
   # ---------------------------------------------------------------------------
   lint:
@@ -134,6 +170,25 @@ jobs:
         run: pytest tests/regression -q -k "pin or deterministic or digest or invariant"
 
   # ---------------------------------------------------------------------------
+  # architecture-boundary - always-on architecture boundary enforcement.
+  # ---------------------------------------------------------------------------
+  architecture-boundary:
+    name: architecture-boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v5.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run architecture boundary tests
+        run: pytest tests/architecture -q
+
+  # ---------------------------------------------------------------------------
   # hook-tests — required gate for the governance hook layer (v3.15.15.12.3).
   # If hooks are bypassed or weakened, this job fails and merge is blocked.
   # ---------------------------------------------------------------------------
@@ -158,6 +213,8 @@ jobs:
   # ---------------------------------------------------------------------------
   frontend:
     name: frontend (vitest)
+    needs: [path-classifier]
+    if: ${{ needs.path-classifier.outputs.run_frontend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
