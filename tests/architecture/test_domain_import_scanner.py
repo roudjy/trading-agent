@@ -198,6 +198,36 @@ def test_tests_classification_is_required_for_boundary_exemption() -> None:
     ]
 
 
+def test_production_modules_must_not_import_test_modules() -> None:
+    prod_edge = ImportEdge(
+        source_module="research.new_policy",
+        target_module="tests._harness_helpers",
+        source_path="research/new_policy.py",
+        source_domain=DOMAIN_QRE,
+        target_domain=DOMAIN_TESTS,
+        target_root="tests",
+        line=6,
+        import_kind="from",
+    )
+    test_edge = ImportEdge(
+        source_module="tests.unit.test_new_policy",
+        target_module="tests._harness_helpers",
+        source_path="tests/unit/test_new_policy.py",
+        source_domain=DOMAIN_TESTS,
+        target_domain=DOMAIN_TESTS,
+        target_root="tests",
+        line=4,
+        import_kind="from",
+    )
+
+    report = evaluate_edges((prod_edge, test_edge))
+
+    assert [
+        (finding.rule, finding.source_module) for finding in report.forbidden_edges
+    ] == [("production-to-tests", "research.new_policy")]
+    assert report.legacy_edges == ()
+
+
 def test_scanner_does_not_import_or_execute_target_modules(tmp_path: Path) -> None:
     _git(tmp_path, "init")
     source = tmp_path / "source.py"
@@ -222,6 +252,17 @@ def test_repo_scan_has_no_closed_forbidden_edges_and_reports_legacy() -> None:
 
     assert report.forbidden_edges == ()
     assert report.legacy_edges
+
+
+def test_arch_003_repo_scan_has_no_production_to_tests_imports() -> None:
+    report = scan_repo(REPO_ROOT)
+
+    production_to_tests = [
+        finding
+        for finding in report.forbidden_edges
+        if finding.rule == "production-to-tests"
+    ]
+    assert production_to_tests == []
 
 
 def test_report_surfaces_are_deterministic_json_and_text() -> None:
