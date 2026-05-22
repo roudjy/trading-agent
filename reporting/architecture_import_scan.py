@@ -38,41 +38,6 @@ EXECUTION_PATH_ROOTS = frozenset(
     }
 )
 
-# Existing mixed-domain imports observed by ARCH-000. These remain visible in
-# legacy reports, but they do not block ARCH-001 while package boundaries are
-# still being prepared.
-KNOWN_LEGACY_EDGE_ALLOWLIST = frozenset(
-    {
-        ("dashboard.api_campaigns", "research.campaign_digest"),
-        ("dashboard.api_campaigns", "research.campaign_budget"),
-        ("dashboard.api_campaigns", "research.campaign_family_policy"),
-        ("dashboard.api_campaigns", "research.campaign_followup"),
-        ("dashboard.api_campaigns", "research.campaign_launcher"),
-        ("dashboard.api_campaigns", "research.campaign_policy"),
-        ("dashboard.api_campaigns", "research.campaign_preset_policy"),
-        ("dashboard.api_campaigns", "research.campaign_queue"),
-        ("dashboard.api_campaigns", "research.campaign_registry"),
-        ("dashboard.api_campaigns", "research.campaign_templates"),
-        ("dashboard.api_observability", "research.diagnostics.paths"),
-        ("dashboard.api_research_intelligence", "research.dead_zone_detection"),
-        ("dashboard.api_research_intelligence", "research.funnel_spawn_proposer"),
-        ("dashboard.api_research_intelligence", "research.information_gain"),
-        ("dashboard.api_research_intelligence", "research.research_evidence_ledger"),
-        ("dashboard.api_research_intelligence", "research.stop_condition_engine"),
-        ("dashboard.api_research_intelligence", "research.viability_metrics"),
-        ("dashboard.dashboard", "data.contracts"),
-        ("dashboard.dashboard", "data.repository"),
-        ("dashboard.dashboard", "research.presets"),
-        ("dashboard.research_runner", "research.run_state"),
-        ("reporting.hypothesis_discovery_summary", "research.hypothesis_discovery"),
-        (
-            "reporting.hypothesis_discovery_summary",
-            "research.hypothesis_discovery.campaign_seed_proposer",
-        ),
-        ("reporting.intelligent_routing", "research.presets"),
-    }
-)
-
 
 @dataclass(frozen=True)
 class ImportEdge:
@@ -104,6 +69,203 @@ class BoundaryReport:
     edges: tuple[ImportEdge, ...]
     forbidden_edges: tuple[BoundaryFinding, ...]
     legacy_edges: tuple[BoundaryFinding, ...]
+
+
+@dataclass(frozen=True)
+class LegacyEdgeAllowlistEntry:
+    source_module: str
+    target_module: str
+    rule: str
+    status: str
+    reason: str
+    sunset: str
+
+
+LEGACY_EDGE_ALLOWLIST: tuple[LegacyEdgeAllowlistEntry, ...] = (
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_campaigns",
+        "research.campaign_budget",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Campaign dashboard reads the QRE budget artifact path.",
+        "Replace with read-only campaign artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_campaigns",
+        "research.campaign_digest",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Campaign dashboard reads the QRE digest artifact path.",
+        "Replace with read-only campaign artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_campaigns",
+        "research.campaign_family_policy",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Campaign dashboard reads the QRE family policy artifact path.",
+        "Replace with read-only campaign artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_campaigns",
+        "research.campaign_policy",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Campaign dashboard reads the QRE policy decision artifact path.",
+        "Replace with read-only campaign artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_campaigns",
+        "research.campaign_preset_policy",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Campaign dashboard reads the QRE preset policy artifact path.",
+        "Replace with read-only campaign artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_campaigns",
+        "research.campaign_queue",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Campaign dashboard reads the QRE queue artifact path.",
+        "Replace with read-only campaign artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_campaigns",
+        "research.campaign_registry",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Campaign dashboard reads the QRE registry artifact path.",
+        "Replace with read-only campaign artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_observability",
+        "research.diagnostics.paths",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Observability API reads QRE diagnostics artifact locations.",
+        "Replace with read-only diagnostics artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_research_intelligence",
+        "research.dead_zone_detection",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Research intelligence API reads dead-zone artifact location.",
+        "Replace with read-only intelligence artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_research_intelligence",
+        "research.funnel_spawn_proposer",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Research intelligence API reads funnel proposal artifact location.",
+        "Replace with read-only intelligence artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_research_intelligence",
+        "research.information_gain",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Research intelligence API reads information-gain artifact location.",
+        "Replace with read-only intelligence artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_research_intelligence",
+        "research.research_evidence_ledger",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Research intelligence API reads evidence ledger artifact location.",
+        "Replace with read-only intelligence artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_research_intelligence",
+        "research.stop_condition_engine",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Research intelligence API reads stop-condition artifact location.",
+        "Replace with read-only intelligence artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.api_research_intelligence",
+        "research.viability_metrics",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Research intelligence API reads viability artifact location.",
+        "Replace with read-only intelligence artifact facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.dashboard",
+        "data.contracts",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Dashboard reads market data contract types for display paths.",
+        "Replace with read-only market metadata facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.dashboard",
+        "data.repository",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Dashboard reads market repository types for display paths.",
+        "Replace with read-only market metadata facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.dashboard",
+        "research.presets",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Dashboard reads QRE preset metadata for operator display.",
+        "Replace with read-only preset metadata facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "dashboard.research_runner",
+        "research.run_state",
+        "control-plane-to-qre",
+        "legacy/report-only",
+        "Dashboard runner reads QRE run-state persistence helpers.",
+        "Replace with read-only run-state facade contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "reporting.hypothesis_discovery_summary",
+        "research.hypothesis_discovery.campaign_seed_proposer",
+        "ade-to-qre",
+        "legacy/report-only",
+        "ADE summary reports on QRE hypothesis-discovery output.",
+        "Replace with QRE summary adapter contract.",
+    ),
+    LegacyEdgeAllowlistEntry(
+        "reporting.intelligent_routing",
+        "research.presets",
+        "ade-to-qre",
+        "legacy/report-only",
+        "ADE advisory routing reads QRE preset metadata.",
+        "Replace with QRE preset metadata adapter contract.",
+    ),
+)
+
+KNOWN_LEGACY_EDGE_ALLOWLIST = frozenset(
+    (entry.source_module, entry.target_module) for entry in LEGACY_EDGE_ALLOWLIST
+)
+
+
+def legacy_edge_allowlist_entries(
+    rule: str | None = None,
+) -> tuple[LegacyEdgeAllowlistEntry, ...]:
+    """Return exact legacy import exceptions in deterministic order."""
+    entries = LEGACY_EDGE_ALLOWLIST
+    if rule is not None:
+        entries = tuple(entry for entry in entries if entry.rule == rule)
+    return tuple(
+        sorted(
+            entries,
+            key=lambda entry: (
+                entry.rule,
+                entry.source_module,
+                entry.target_module,
+            ),
+        )
+    )
 
 
 def tracked_python_files(repo_root: Path) -> tuple[Path, ...]:

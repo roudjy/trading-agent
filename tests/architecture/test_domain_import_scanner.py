@@ -14,6 +14,7 @@ from reporting.architecture_import_scan import (
     ImportEdge,
     classify_path,
     evaluate_edges,
+    legacy_edge_allowlist_entries,
     report_to_dict,
     report_to_summary_dict,
     report_to_text,
@@ -226,6 +227,69 @@ def test_production_modules_must_not_import_test_modules() -> None:
         (finding.rule, finding.source_module) for finding in report.forbidden_edges
     ] == [("production-to-tests", "research.new_policy")]
     assert report.legacy_edges == ()
+
+
+def test_control_plane_qre_allowlist_is_exact_current_report_only_boundary() -> None:
+    report = scan_repo(REPO_ROOT)
+
+    control_plane_qre_edges = {
+        (finding.source_module, finding.target_module)
+        for finding in report.legacy_edges
+        if finding.rule == "control-plane-to-qre"
+    }
+    allowed_control_plane_qre_edges = {
+        (entry.source_module, entry.target_module)
+        for entry in legacy_edge_allowlist_entries("control-plane-to-qre")
+    }
+
+    assert control_plane_qre_edges == allowed_control_plane_qre_edges
+    assert len(control_plane_qre_edges) == 18
+    assert all(
+        entry.status == "legacy/report-only" and entry.reason and entry.sunset
+        for entry in legacy_edge_allowlist_entries("control-plane-to-qre")
+    )
+
+
+def test_control_plane_qre_allowlist_uses_exact_edges_without_wildcards() -> None:
+    entries = legacy_edge_allowlist_entries()
+
+    assert entries
+    for entry in entries:
+        assert "*" not in entry.source_module
+        assert "*" not in entry.target_module
+        assert entry.source_module
+        assert entry.target_module
+        assert entry.reason
+        assert entry.sunset
+
+
+def test_new_control_plane_qre_edge_fails_with_source_target_and_domain() -> None:
+    edge = ImportEdge(
+        source_module="dashboard.api_new_read_model",
+        target_module="research.new_read_model",
+        source_path="dashboard/api_new_read_model.py",
+        source_domain=DOMAIN_CONTROL_PLANE,
+        target_domain=DOMAIN_QRE,
+        target_root="research",
+        line=12,
+        import_kind="from",
+    )
+
+    report = evaluate_edges((edge,))
+    rendered = report_to_text(report)
+
+    assert [
+        (finding.rule, finding.source_module, finding.target_module)
+        for finding in report.forbidden_edges
+    ] == [
+        (
+            "control-plane-to-qre",
+            "dashboard.api_new_read_model",
+            "research.new_read_model",
+        )
+    ]
+    assert "dashboard.api_new_read_model:12 -> research.new_read_model" in rendered
+    assert "(control-plane -> QRE)" in rendered
 
 
 def test_scanner_does_not_import_or_execute_target_modules(tmp_path: Path) -> None:
