@@ -12,74 +12,25 @@ import ast
 import json
 import subprocess
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from pathlib import Path
 from typing import Iterable, Sequence
 
-DOMAIN_ADE = "ADE"
-DOMAIN_QRE = "QRE"
-DOMAIN_CONTROL_PLANE = "control-plane"
-DOMAIN_EXECUTION = "execution"
-DOMAIN_ADAPTER_CONTRACT = "adapter-contract"
-DOMAIN_TESTS = "tests"
-DOMAIN_GOVERNANCE_TOOLING = "governance tooling"
-DOMAIN_UNKNOWN = "unknown"
-
-EXECUTION_PATH_ROOTS = frozenset(
-    {
-        "agent.execution",
-        "agent.risk",
-        "automation.live_gate",
-        "broker",
-        "execution",
-        "live",
-        "paper",
-        "risk",
-        "shadow",
-    }
+from packages.ade_governance.architecture_import_contracts import (
+    DOMAIN_ADAPTER_CONTRACT,
+    DOMAIN_ADE,
+    DOMAIN_CONTROL_PLANE,
+    DOMAIN_EXECUTION,
+    DOMAIN_GOVERNANCE_TOOLING,
+    DOMAIN_QRE,
+    DOMAIN_TESTS,
+    DOMAIN_UNKNOWN,
+    EXECUTION_PATH_ROOTS,
+    BoundaryFinding,
+    BoundaryReport,
+    ImportEdge,
+    LegacyEdgeAllowlistEntry,
 )
-
-
-@dataclass(frozen=True)
-class ImportEdge:
-    source_module: str
-    target_module: str
-    source_path: str
-    source_domain: str
-    target_domain: str
-    target_root: str
-    line: int
-    import_kind: str
-    target_path: str | None = None
-
-
-@dataclass(frozen=True)
-class BoundaryFinding:
-    source_module: str
-    target_module: str
-    source_path: str
-    source_domain: str
-    target_domain: str
-    target_root: str
-    line: int
-    rule: str
-
-
-@dataclass(frozen=True)
-class BoundaryReport:
-    edges: tuple[ImportEdge, ...]
-    forbidden_edges: tuple[BoundaryFinding, ...]
-    legacy_edges: tuple[BoundaryFinding, ...]
-
-
-@dataclass(frozen=True)
-class LegacyEdgeAllowlistEntry:
-    source_module: str
-    target_module: str
-    rule: str
-    status: str
-    reason: str
-    sunset: str
 
 
 LEGACY_EDGE_ALLOWLIST: tuple[LegacyEdgeAllowlistEntry, ...] = (
@@ -332,6 +283,8 @@ def classify_path(path: Path | str) -> str:
         return DOMAIN_TESTS
     if normalized.startswith(".claude/hooks/") or first == "scripts":
         return DOMAIN_GOVERNANCE_TOOLING
+    if normalized.startswith("packages/ade_governance/"):
+        return DOMAIN_ADE
     if normalized.startswith("packages/control_plane_qre_adapter_contract/"):
         return DOMAIN_ADAPTER_CONTRACT
     if first == "dashboard" or first == "frontend":
@@ -359,6 +312,10 @@ def classify_module(module_name: str, module_index: dict[str, Path] | None = Non
     if top == "dashboard":
         return DOMAIN_CONTROL_PLANE
     if top == "reporting":
+        return DOMAIN_ADE
+    if module_name == "packages.ade_governance" or module_name.startswith(
+        "packages.ade_governance."
+    ):
         return DOMAIN_ADE
     if (
         module_name == "packages.control_plane_qre_adapter_contract"

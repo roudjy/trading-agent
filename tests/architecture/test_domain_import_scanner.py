@@ -94,8 +94,16 @@ def test_domain_classifier_assigns_expected_domains() -> None:
         == DOMAIN_ADAPTER_CONTRACT
     )
     assert (
+        classify_path("packages/ade_governance/architecture_import_contracts.py")
+        == DOMAIN_ADE
+    )
+    assert (
         classify_module("packages.control_plane_qre_adapter_contract")
         == DOMAIN_ADAPTER_CONTRACT
+    )
+    assert (
+        classify_module("packages.ade_governance.architecture_import_contracts")
+        == DOMAIN_ADE
     )
     assert classify_path("tests/architecture/test_x.py") == DOMAIN_TESTS
     assert classify_path(".claude/hooks/deny_no_touch.py") == DOMAIN_GOVERNANCE_TOOLING
