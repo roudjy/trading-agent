@@ -3,7 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import packages.ade_governance.architecture_import_contracts as canonical_contracts
+import packages.ade_governance.architecture_import_contracts as legacy_contracts
+import packages.ade_governance.import_contracts.architecture_import as canonical_contracts
 import reporting.architecture_import_scan as compatibility_scanner
 from reporting.architecture_import_scan import (
     DOMAIN_ADE,
@@ -20,6 +21,13 @@ from reporting.architecture_import_scan import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_CONTRACT_PATH = (
+    REPO_ROOT
+    / "packages"
+    / "ade_governance"
+    / "import_contracts"
+    / "architecture_import.py"
+)
+LEGACY_CONTRACT_PATH = (
     REPO_ROOT / "packages" / "ade_governance" / "architecture_import_contracts.py"
 )
 
@@ -58,7 +66,7 @@ FORBIDDEN_IMPORT_PREFIXES = (
 def test_architecture_import_contracts_have_canonical_package_path() -> None:
     edge = ImportEdge(
         source_module="reporting.future_architecture_tool",
-        target_module="packages.ade_governance.architecture_import_contracts",
+        target_module="packages.ade_governance.import_contracts.architecture_import",
         source_path="reporting/future_architecture_tool.py",
         source_domain=DOMAIN_ADE,
         target_domain=DOMAIN_ADE,
@@ -71,15 +79,25 @@ def test_architecture_import_contracts_have_canonical_package_path() -> None:
 
     assert classify_path(CANONICAL_CONTRACT_PATH.relative_to(REPO_ROOT)) == DOMAIN_ADE
     assert (
+        classify_module("packages.ade_governance.import_contracts.architecture_import")
+        == DOMAIN_ADE
+    )
+    assert classify_path(LEGACY_CONTRACT_PATH.relative_to(REPO_ROOT)) == DOMAIN_ADE
+    assert (
         classify_module("packages.ade_governance.architecture_import_contracts")
         == DOMAIN_ADE
     )
     assert report_to_summary_dict(report)["forbidden_edge_count"] == 0
 
 
-def test_reporting_scanner_reexports_same_public_contract_objects() -> None:
+def test_legacy_and_reporting_paths_reexport_same_public_contract_objects() -> None:
     assert canonical_contracts.__all__ == list(PUBLIC_CONTRACT_NAMES)
+    assert legacy_contracts.__all__ == list(PUBLIC_CONTRACT_NAMES)
     for name in PUBLIC_CONTRACT_NAMES:
+        assert getattr(legacy_contracts, name) is getattr(
+            canonical_contracts,
+            name,
+        )
         assert getattr(compatibility_scanner, name) is getattr(
             canonical_contracts,
             name,
@@ -107,19 +125,19 @@ def test_architecture_import_contracts_introduce_no_runtime_or_dashboard_edges()
         edge
         for edge in report.edges
         if edge.source_module
-        == "packages.ade_governance.architecture_import_contracts"
+        == "packages.ade_governance.import_contracts.architecture_import"
     ]
     contract_forbidden = [
         finding
         for finding in report.forbidden_edges
         if finding.source_module
-        == "packages.ade_governance.architecture_import_contracts"
+        == "packages.ade_governance.import_contracts.architecture_import"
     ]
     contract_legacy = [
         finding
         for finding in report.legacy_edges
         if finding.source_module
-        == "packages.ade_governance.architecture_import_contracts"
+        == "packages.ade_governance.import_contracts.architecture_import"
     ]
 
     assert [(edge.target_module, edge.target_domain) for edge in contract_edges] == [

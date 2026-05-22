@@ -1,8 +1,4 @@
-"""ADE governance support contracts.
-
-The package is stdlib-only and contains governance support surfaces that can be
-shared before broader package migration.
-"""
+"""Read-only ADE governance import contracts."""
 
 from __future__ import annotations
 
