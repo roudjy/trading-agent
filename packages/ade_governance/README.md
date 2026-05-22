@@ -8,9 +8,10 @@ deterministic governance support surfaces.
 
 ## Current Status
 
-Status: active extracted seed content. EXTRACT-002 placed immutable architecture
-import scan contracts in this package while scanner execution remains in
-`reporting/architecture_import_scan.py`.
+Status: active extracted seed content. PACKAGE-MIGRATION-002 re-homed the
+immutable architecture import scan contracts under
+`packages.ade_governance.import_contracts.architecture_import` while scanner
+execution remains in `reporting/architecture_import_scan.py`.
 
 ## Source of Truth / Authority Boundary
 
@@ -43,7 +44,9 @@ until each surface is migrated by a bounded package-migration unit.
 
 Existing `reporting/` paths remain compatible surfaces unless a future unit
 explicitly replaces them. Current seed content is importable as
-`packages.ade_governance`.
+`packages.ade_governance`. The EXTRACT-002 module path
+`packages.ade_governance.architecture_import_contracts` remains a compatibility
+shim.
 
 ## Activation Status
 

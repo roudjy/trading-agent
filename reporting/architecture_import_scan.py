@@ -16,7 +16,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
-from packages.ade_governance.architecture_import_contracts import (
+from packages.ade_governance.import_contracts.architecture_import import (
     DOMAIN_ADAPTER_CONTRACT,
     DOMAIN_ADE,
     DOMAIN_CONTROL_PLANE,
