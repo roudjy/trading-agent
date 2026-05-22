@@ -15,6 +15,7 @@ import subprocess  # nosec B404 - fixed argv subprocess wrapper
 import sys
 import time
 from collections import Counter
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,12 +24,16 @@ from typing import Any, Final
 from research import discovery_sprint as ds
 from research._sidecar_io import write_sidecar_atomic
 from research.campaign_evidence_ledger import load_events
+from research.campaign_policy import POLICY_DECISION_PATH
+from research.campaign_queue import (
+    ACTIVE_QUEUE_STATES,
+    QUEUE_ARTIFACT_PATH,
+    load_queue,
+)
 from research.campaign_registry import REGISTRY_ARTIFACT_PATH, load_registry
 
 CONTROLLED_EVAL_SCHEMA_VERSION: Final[str] = "1.0"
-DEFAULT_REPORT_JSON_PATH: Final[Path] = Path(
-    "research/controlled_eval_latest.v1.json"
-)
+DEFAULT_REPORT_JSON_PATH: Final[Path] = Path("research/controlled_eval_latest.v1.json")
 DEFAULT_REPORT_MD_PATH: Final[Path] = Path("research/controlled_eval_latest.md")
 DEFAULT_TIMEOUT_SECONDS_PER_CAMPAIGN: Final[int] = 3600
 DEFAULT_POLL_SECONDS: Final[int] = 5
@@ -38,22 +43,24 @@ MIN_TIMEOUT_SECONDS_PER_CAMPAIGN: Final[int] = 60
 MAX_TIMEOUT_SECONDS_PER_CAMPAIGN: Final[int] = 21_600
 MAX_POLL_SECONDS: Final[int] = 300
 
-LEDGER_PATH: Final[Path] = Path(
-    "research/campaign_evidence_ledger_latest.v1.jsonl"
-)
+LEDGER_PATH: Final[Path] = Path("research/campaign_evidence_ledger_latest.v1.jsonl")
 RUN_CAMPAIGN_PATH: Final[Path] = Path("research/run_campaign_latest.v1.json")
 INFORMATION_GAIN_PATH: Final[Path] = Path(
     "research/campaigns/evidence/information_gain_latest.v1.json"
 )
-VIABILITY_PATH: Final[Path] = Path(
-    "research/campaigns/evidence/viability_latest.v1.json"
-)
+VIABILITY_PATH: Final[Path] = Path("research/campaigns/evidence/viability_latest.v1.json")
 STOP_CONDITIONS_PATH: Final[Path] = Path(
     "research/campaigns/evidence/stop_conditions_latest.v1.json"
 )
 SPAWN_PROPOSALS_PATH: Final[Path] = Path(
     "research/campaigns/evidence/spawn_proposals_latest.v1.json"
 )
+
+ACTIVE_CAMPAIGN_STATES: Final[frozenset[str]] = frozenset({"pending", "leased", "running"})
+TERMINAL_CAMPAIGN_STATES: Final[frozenset[str]] = frozenset(
+    {"completed", "failed", "canceled", "archived"}
+)
+MAX_ACTIVE_CAMPAIGN_IDS: Final[int] = 10
 
 MEANINGFUL_CLASSIFICATIONS: Final[frozenset[str]] = frozenset(
     {
@@ -126,7 +133,7 @@ def _profile_name_from_sprint(registry_payload: dict[str, Any] | None) -> str | 
 
 
 def _plan_presets(registry_payload: dict[str, Any] | None) -> frozenset[str]:
-    entries = (((registry_payload or {}).get("plan") or {}).get("entries") or [])
+    entries = ((registry_payload or {}).get("plan") or {}).get("entries") or []
     names: set[str] = set()
     for entry in entries:
         if not isinstance(entry, dict):
@@ -141,9 +148,7 @@ def _parse_dt(value: Any) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
-            UTC
-        )
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
     except ValueError:
         return None
 
@@ -213,9 +218,7 @@ def summarize_campaign_records(
             continue
         if not _record_matches_sprint(record, sprint_registry=sprint_registry):
             continue
-        meaningful = meaningful_by_campaign.get(str(cid)) or record.get(
-            "meaningful_classification"
-        )
+        meaningful = meaningful_by_campaign.get(str(cid)) or record.get("meaningful_classification")
         records.append(
             {
                 "campaign_id": str(record.get("campaign_id") or cid),
@@ -244,11 +247,7 @@ def summarize_latest_run(run_campaign_payload: dict[str, Any] | None) -> dict[st
     summary = run_campaign_payload.get("summary") or {}
     batches = run_campaign_payload.get("batches") or []
     failed_batch = next(
-        (
-            batch
-            for batch in batches
-            if isinstance(batch, dict) and batch.get("error_type")
-        ),
+        (batch for batch in batches if isinstance(batch, dict) and batch.get("error_type")),
         {},
     )
     screening_rejected = summary.get("screening_rejected_count")
@@ -262,10 +261,81 @@ def summarize_latest_run(run_campaign_payload: dict[str, Any] | None) -> dict[st
         "status": run_campaign_payload.get("status"),
         "screening_rejected_count": int(screening_rejected or 0),
         "validation_candidate_count": int(validation_count or 0),
-        "error_type": run_campaign_payload.get("error_type")
-        or failed_batch.get("error_type"),
+        "error_type": run_campaign_payload.get("error_type") or failed_batch.get("error_type"),
         "error_message": run_campaign_payload.get("error_message")
         or failed_batch.get("reason_detail"),
+    }
+
+
+def summarize_latest_policy_decision(
+    payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not payload:
+        return {
+            "latest_policy_decision_present": False,
+            "latest_policy_action": None,
+            "latest_policy_reason": None,
+            "latest_policy_candidates_considered_count": 0,
+            "latest_policy_rules_summary": {},
+        }
+
+    decision = payload.get("decision") if isinstance(payload.get("decision"), dict) else {}
+    candidates = payload.get("candidates_considered")
+    candidate_count = len(candidates) if isinstance(candidates, list) else 0
+    rules_summary: dict[str, dict[str, Any]] = {}
+    rules = payload.get("rules_evaluated")
+    if isinstance(rules, list):
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            rule_id = rule.get("rule_id")
+            if not rule_id:
+                continue
+            rules_summary[str(rule_id)] = {str(k): v for k, v in rule.items() if k != "rule_id"}
+
+    return {
+        "latest_policy_decision_present": True,
+        "latest_policy_action": decision.get("action"),
+        "latest_policy_reason": decision.get("reason"),
+        "latest_policy_candidates_considered_count": candidate_count,
+        "latest_policy_rules_summary": rules_summary,
+    }
+
+
+def summarize_active_campaigns(registry: dict[str, Any]) -> dict[str, Any]:
+    active_ids: list[str] = []
+    for cid, record in (registry.get("campaigns") or {}).items():
+        if not isinstance(record, dict):
+            continue
+        state = str(record.get("state") or "")
+        if state not in ACTIVE_CAMPAIGN_STATES:
+            continue
+        active_ids.append(str(record.get("campaign_id") or cid))
+    active_ids.sort()
+    return {
+        "active_campaign_count": len(active_ids),
+        "active_campaign_ids": active_ids[:MAX_ACTIVE_CAMPAIGN_IDS],
+    }
+
+
+def summarize_queue_state(queue_payload: dict[str, Any] | None) -> dict[str, Any]:
+    entries = (queue_payload or {}).get("queue")
+    if not isinstance(entries, list):
+        entries = []
+    active_count = 0
+    terminal_count = 0
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        state = str(entry.get("state") or "")
+        if state in ACTIVE_QUEUE_STATES:
+            active_count += 1
+        elif state in TERMINAL_CAMPAIGN_STATES:
+            terminal_count += 1
+    return {
+        "queue_item_count": len(entries),
+        "queue_active_count": active_count,
+        "queue_terminal_count": terminal_count,
     }
 
 
@@ -293,6 +363,7 @@ def _classify_verdict(
     campaign_records: list[dict[str, Any]],
     ticks: list[LauncherTick],
     intelligence_artifact_status: dict[str, str],
+    latest_policy_summary: dict[str, Any],
 ) -> tuple[dict[str, Any], str]:
     reason_codes: list[str] = []
     timed_out = any(tick.timed_out for tick in ticks)
@@ -321,6 +392,22 @@ def _classify_verdict(
         )
     if not completed:
         reason_codes.append("no_campaign_completed")
+        if (
+            latest_policy_summary.get("latest_policy_action") == "idle_noop"
+            and latest_policy_summary.get("latest_policy_reason") == "no_candidates"
+        ):
+            reason_codes.append("no_candidates_policy_block")
+            return (
+                {
+                    "status": "no_campaign_completed",
+                    "reason_codes": reason_codes,
+                    "human_summary": (
+                        "No campaign completed because the latest launcher "
+                        "policy decision idled with no candidates."
+                    ),
+                },
+                "inspect_campaign_policy_filters",
+            )
         return (
             {
                 "status": "no_campaign_completed",
@@ -331,13 +418,9 @@ def _classify_verdict(
         )
 
     outcomes = {str(r.get("outcome") or "") for r in completed}
-    meaningful = {
-        str(r.get("meaningful_classification") or "") for r in completed
-    }
+    meaningful = {str(r.get("meaningful_classification") or "") for r in completed}
     missing_intelligence = [
-        name
-        for name, status in intelligence_artifact_status.items()
-        if status != "present"
+        name for name, status in intelligence_artifact_status.items() if status != "present"
     ]
     has_meaningful_failure = bool(outcomes & MEANINGFUL_FAILURE_OUTCOMES) or bool(
         meaningful & MEANINGFUL_CLASSIFICATIONS
@@ -408,6 +491,8 @@ def build_report_payload(
     registry: dict[str, Any],
     ledger_events: list[dict[str, Any]],
     run_campaign_payload: dict[str, Any] | None,
+    latest_policy_decision_payload: dict[str, Any] | None,
+    queue_payload: dict[str, Any] | None,
     intelligence_artifact_status: dict[str, str],
     ticks: list[LauncherTick],
     generated_at_utc: datetime | None = None,
@@ -418,19 +503,17 @@ def build_report_payload(
         sprint_registry=sprint_registry,
         ledger_events=ledger_events,
     )
-    completed_records = [
-        r for r in campaign_records if r.get("state") == "completed"
-    ]
-    by_preset = Counter(
-        str(r.get("preset_name") or "unknown") for r in completed_records
-    )
-    by_outcome = Counter(
-        str(r.get("outcome") or "unknown") for r in completed_records
-    )
+    completed_records = [r for r in campaign_records if r.get("state") == "completed"]
+    by_preset = Counter(str(r.get("preset_name") or "unknown") for r in completed_records)
+    by_outcome = Counter(str(r.get("outcome") or "unknown") for r in completed_records)
+    latest_policy_summary = summarize_latest_policy_decision(latest_policy_decision_payload)
+    active_campaign_summary = summarize_active_campaigns(registry)
+    queue_summary = summarize_queue_state(queue_payload)
     verdict, next_action = _classify_verdict(
         campaign_records=campaign_records,
         ticks=ticks,
         intelligence_artifact_status=intelligence_artifact_status,
+        latest_policy_summary=latest_policy_summary,
     )
     return {
         "schema_version": CONTROLLED_EVAL_SCHEMA_VERSION,
@@ -450,6 +533,9 @@ def build_report_payload(
         "campaigns_by_outcome": dict(sorted(by_outcome.items())),
         "campaign_records": campaign_records,
         "latest_run_summary": summarize_latest_run(run_campaign_payload),
+        **latest_policy_summary,
+        **active_campaign_summary,
+        **queue_summary,
         "intelligence_artifact_status": intelligence_artifact_status,
         "launcher_ticks": [tick.to_payload() for tick in ticks],
         "verdict": verdict,
@@ -463,9 +549,10 @@ def render_markdown_report(report: dict[str, Any]) -> str:
     verdict = report.get("verdict") or {}
     artifacts = report.get("intelligence_artifact_status") or {}
     by_outcome = report.get("campaigns_by_outcome") or {}
-    missing_artifacts = [
-        name for name, status in artifacts.items() if status != "present"
-    ]
+    missing_artifacts = [name for name, status in artifacts.items() if status != "present"]
+    rules_summary = report.get("latest_policy_rules_summary") or {}
+    filtering = rules_summary.get("R4_R7_filtering") or {}
+    idle = rules_summary.get("R8_idle") or {}
     lines = [
         "# Controlled Evaluation Report",
         "",
@@ -487,6 +574,20 @@ def render_markdown_report(report: dict[str, Any]) -> str:
         "",
         "## Bottleneck",
         (
+            "- Latest launcher decision: "
+            f"{report.get('latest_policy_action') or 'missing'} / "
+            f"{report.get('latest_policy_reason') or 'missing'}"
+        ),
+        ("- Candidates considered: " f"{report.get('latest_policy_candidates_considered_count')}"),
+        f"- R4_R7 surviving: {filtering.get('surviving', 'unknown')}",
+        f"- R4_R7 rejected: {filtering.get('rejected', 'unknown')}",
+        f"- R8 idle: {idle.get('result', 'unknown')}",
+        f"- Active campaigns: {report.get('active_campaign_count')}",
+        (
+            "- Policy/no-candidate condition, not a running campaign: "
+            f"{_is_policy_no_candidate_condition(report)}"
+        ),
+        (
             "- Missing intelligence artifacts: "
             + (", ".join(missing_artifacts) if missing_artifacts else "none")
         ),
@@ -497,6 +598,15 @@ def render_markdown_report(report: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+def _is_policy_no_candidate_condition(report: dict[str, Any]) -> bool:
+    return (
+        report.get("campaigns_completed") == 0
+        and report.get("latest_policy_action") == "idle_noop"
+        and report.get("latest_policy_reason") == "no_candidates"
+        and int(report.get("active_campaign_count") or 0) == 0
+    )
 
 
 def _write_text_atomic(path: Path, content: str) -> None:
@@ -542,14 +652,10 @@ def _run_launcher_tick(
             else exc.stderr
         )
     elapsed = int((_now_utc() - started).total_seconds())
-    try:
+    with suppress(Exception):
         ds.update_sprint_progress()
-    except Exception:
-        pass
     after_registry = load_registry(REGISTRY_ARTIFACT_PATH)
-    after_completed_ids = _completed_campaign_ids(
-        after_registry, sprint_registry=sprint_registry
-    )
+    after_completed_ids = _completed_campaign_ids(after_registry, sprint_registry=sprint_registry)
     new_completed = tuple(sorted(after_completed_ids - before_completed_ids))
     return LauncherTick(
         tick_index=tick_index,
@@ -590,18 +696,14 @@ def run_controlled_eval(
     out=sys.stdout,
 ) -> int:
     if max_campaigns < 1 or max_campaigns > MAX_CAMPAIGNS_HARD_LIMIT:
-        raise ValueError(
-            f"max_campaigns must be between 1 and {MAX_CAMPAIGNS_HARD_LIMIT}"
-        )
+        raise ValueError(f"max_campaigns must be between 1 and {MAX_CAMPAIGNS_HARD_LIMIT}")
     sprint_started, sprint_reused = _ensure_active_sprint(profile)
     ds.update_sprint_progress()
     initial_progress = ds.load_sprint_progress() or {}
     observed_before = int(initial_progress.get("observed_total") or 0)
     sprint_registry = ds.load_sprint_registry()
     registry_before = load_registry(REGISTRY_ARTIFACT_PATH)
-    completed_ids = _completed_campaign_ids(
-        registry_before, sprint_registry=sprint_registry
-    )
+    completed_ids = _completed_campaign_ids(registry_before, sprint_registry=sprint_registry)
 
     ticks: list[LauncherTick] = []
     for tick_index in range(1, max_campaigns + 1):
@@ -613,9 +715,7 @@ def run_controlled_eval(
         )
         ticks.append(tick)
         registry_now = load_registry(REGISTRY_ARTIFACT_PATH)
-        completed_ids = _completed_campaign_ids(
-            registry_now, sprint_registry=sprint_registry
-        )
+        completed_ids = _completed_campaign_ids(registry_now, sprint_registry=sprint_registry)
         out.write(
             f"tick {tick_index}/{max_campaigns}: "
             f"rc={tick.returncode if tick.returncode is not None else 'timeout'} "
@@ -644,6 +744,8 @@ def run_controlled_eval(
         registry=campaign_registry,
         ledger_events=ledger_events,
         run_campaign_payload=_read_json(RUN_CAMPAIGN_PATH),
+        latest_policy_decision_payload=_read_json(POLICY_DECISION_PATH),
+        queue_payload=load_queue(QUEUE_ARTIFACT_PATH),
         intelligence_artifact_status=build_intelligence_artifact_status(),
         ticks=ticks,
     )
@@ -670,9 +772,7 @@ def _bounded_int(
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f"{name} must be an integer") from exc
     if parsed < minimum or parsed > maximum:
-        raise argparse.ArgumentTypeError(
-            f"{name} must be between {minimum} and {maximum}"
-        )
+        raise argparse.ArgumentTypeError(f"{name} must be between {minimum} and {maximum}")
     return parsed
 
 
@@ -715,9 +815,7 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
         default=DEFAULT_POLL_SECONDS,
     )
-    parser.add_argument(
-        "--report-json", type=Path, default=DEFAULT_REPORT_JSON_PATH
-    )
+    parser.add_argument("--report-json", type=Path, default=DEFAULT_REPORT_JSON_PATH)
     parser.add_argument("--report-md", type=Path, default=DEFAULT_REPORT_MD_PATH)
     return parser
 
@@ -753,6 +851,9 @@ __all__ = [
     "main",
     "render_markdown_report",
     "run_controlled_eval",
+    "summarize_active_campaigns",
     "summarize_campaign_records",
     "summarize_latest_run",
+    "summarize_latest_policy_decision",
+    "summarize_queue_state",
 ]
