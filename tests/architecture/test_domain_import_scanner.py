@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from reporting.architecture_import_scan import (
+    DOMAIN_ADAPTER_CONTRACT,
     DOMAIN_ADE,
     DOMAIN_CONTROL_PLANE,
     DOMAIN_EXECUTION,
@@ -12,6 +13,7 @@ from reporting.architecture_import_scan import (
     DOMAIN_QRE,
     DOMAIN_TESTS,
     ImportEdge,
+    classify_module,
     classify_path,
     evaluate_edges,
     legacy_edge_allowlist_entries,
@@ -87,6 +89,14 @@ def test_domain_classifier_assigns_expected_domains() -> None:
     assert classify_path("research/run_research.py") == DOMAIN_QRE
     assert classify_path("dashboard/api_campaigns.py") == DOMAIN_CONTROL_PLANE
     assert classify_path("execution/protocols.py") == DOMAIN_EXECUTION
+    assert (
+        classify_path("packages/control_plane_qre_adapter_contract/__init__.py")
+        == DOMAIN_ADAPTER_CONTRACT
+    )
+    assert (
+        classify_module("packages.control_plane_qre_adapter_contract")
+        == DOMAIN_ADAPTER_CONTRACT
+    )
     assert classify_path("tests/architecture/test_x.py") == DOMAIN_TESTS
     assert classify_path(".claude/hooks/deny_no_touch.py") == DOMAIN_GOVERNANCE_TOOLING
     assert classify_path("scripts/governance_lint.py") == DOMAIN_GOVERNANCE_TOOLING

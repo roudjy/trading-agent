@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from reporting.architecture_import_scan import (
+    DOMAIN_ADAPTER_CONTRACT,
     DOMAIN_ADE,
     DOMAIN_CONTROL_PLANE,
     DOMAIN_EXECUTION,
@@ -82,23 +83,23 @@ def test_arch_006_readiness_gates_are_represented_in_scanner_summary() -> None:
     assert legacy_by_source_root[("reporting", "research", "ade-to-qre")] == 2
 
 
-def test_arch_006_first_candidate_has_no_domain_or_forbidden_edges() -> None:
+def test_arch_006_extracted_candidate_has_no_domain_or_forbidden_edges() -> None:
     report = scan_repo(REPO_ROOT)
 
     candidate_edges = [
         edge
         for edge in report.edges
-        if edge.source_module == "reporting.control_plane_qre_adapter_contract"
+        if edge.source_module == "packages.control_plane_qre_adapter_contract"
     ]
     candidate_forbidden = [
         finding
         for finding in report.forbidden_edges
-        if finding.source_module == "reporting.control_plane_qre_adapter_contract"
+        if finding.source_module == "packages.control_plane_qre_adapter_contract"
     ]
     candidate_legacy = [
         finding
         for finding in report.legacy_edges
-        if finding.source_module == "reporting.control_plane_qre_adapter_contract"
+        if finding.source_module == "packages.control_plane_qre_adapter_contract"
     ]
 
     assert [(edge.target_module, edge.target_domain) for edge in candidate_edges] == [
@@ -108,3 +109,37 @@ def test_arch_006_first_candidate_has_no_domain_or_forbidden_edges() -> None:
     ]
     assert candidate_forbidden == []
     assert candidate_legacy == []
+
+
+def test_arch_006_reporting_candidate_path_is_compatibility_only() -> None:
+    report = scan_repo(REPO_ROOT)
+
+    compatibility_edges = [
+        edge
+        for edge in report.edges
+        if edge.source_module == "reporting.control_plane_qre_adapter_contract"
+    ]
+    compatibility_forbidden = [
+        finding
+        for finding in report.forbidden_edges
+        if finding.source_module == "reporting.control_plane_qre_adapter_contract"
+    ]
+    compatibility_legacy = [
+        finding
+        for finding in report.legacy_edges
+        if finding.source_module == "reporting.control_plane_qre_adapter_contract"
+    ]
+
+    assert [
+        (edge.target_module, edge.target_domain) for edge in compatibility_edges
+    ] == [
+        ("__future__", "unknown"),
+        ("packages.control_plane_qre_adapter_contract", DOMAIN_ADAPTER_CONTRACT),
+    ]
+    assert compatibility_forbidden == []
+    assert [
+        (finding.rule, finding.target_module)
+        for finding in compatibility_legacy
+    ] == [
+        ("mixed-domain", "packages.control_plane_qre_adapter_contract"),
+    ]

@@ -20,6 +20,7 @@ DOMAIN_ADE = "ADE"
 DOMAIN_QRE = "QRE"
 DOMAIN_CONTROL_PLANE = "control-plane"
 DOMAIN_EXECUTION = "execution"
+DOMAIN_ADAPTER_CONTRACT = "adapter-contract"
 DOMAIN_TESTS = "tests"
 DOMAIN_GOVERNANCE_TOOLING = "governance tooling"
 DOMAIN_UNKNOWN = "unknown"
@@ -331,6 +332,8 @@ def classify_path(path: Path | str) -> str:
         return DOMAIN_TESTS
     if normalized.startswith(".claude/hooks/") or first == "scripts":
         return DOMAIN_GOVERNANCE_TOOLING
+    if normalized.startswith("packages/control_plane_qre_adapter_contract/"):
+        return DOMAIN_ADAPTER_CONTRACT
     if first == "dashboard" or first == "frontend":
         return DOMAIN_CONTROL_PLANE
     if first == "reporting":
@@ -357,6 +360,11 @@ def classify_module(module_name: str, module_index: dict[str, Path] | None = Non
         return DOMAIN_CONTROL_PLANE
     if top == "reporting":
         return DOMAIN_ADE
+    if (
+        module_name == "packages.control_plane_qre_adapter_contract"
+        or module_name.startswith("packages.control_plane_qre_adapter_contract.")
+    ):
+        return DOMAIN_ADAPTER_CONTRACT
     if module_name.startswith(("agent.execution", "agent.risk")):
         return DOMAIN_EXECUTION
     if top in {"automation", "broker", "execution", "live", "paper", "risk", "shadow"}:
