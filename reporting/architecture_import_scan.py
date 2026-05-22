@@ -11,6 +11,7 @@ import argparse
 import ast
 import json
 import subprocess
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -216,6 +217,63 @@ def report_to_dict(report: BoundaryReport) -> dict[str, object]:
     }
 
 
+def report_to_summary_dict(report: BoundaryReport) -> dict[str, object]:
+    """Return compact deterministic counts for architecture baseline docs."""
+    domain_edge_categories = Counter(
+        (edge.source_domain, edge.target_domain) for edge in report.edges
+    )
+    legacy_finding_categories = Counter(
+        (finding.rule, finding.source_domain, finding.target_domain)
+        for finding in report.legacy_edges
+    )
+    legacy_source_target_roots = Counter(
+        (
+            finding.source_path.split("/", 1)[0],
+            finding.target_root,
+            finding.rule,
+        )
+        for finding in report.legacy_edges
+    )
+
+    return {
+        "edge_count": len(report.edges),
+        "forbidden_edge_count": len(report.forbidden_edges),
+        "legacy_edge_count": len(report.legacy_edges),
+        "domain_edge_categories": [
+            {
+                "source_domain": source_domain,
+                "target_domain": target_domain,
+                "edge_count": count,
+            }
+            for (source_domain, target_domain), count in sorted(
+                domain_edge_categories.items()
+            )
+        ],
+        "legacy_finding_categories": [
+            {
+                "rule": rule,
+                "source_domain": source_domain,
+                "target_domain": target_domain,
+                "finding_count": count,
+            }
+            for (rule, source_domain, target_domain), count in sorted(
+                legacy_finding_categories.items()
+            )
+        ],
+        "legacy_source_target_roots": [
+            {
+                "source_root": source_root,
+                "target_root": target_root,
+                "rule": rule,
+                "finding_count": count,
+            }
+            for (source_root, target_root, rule), count in sorted(
+                legacy_source_target_roots.items()
+            )
+        ],
+    }
+
+
 def report_to_text(report: BoundaryReport) -> str:
     lines = [
         "ARCH-001 domain import scan",
@@ -237,7 +295,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--repo-root", default=".", help="Repository root to scan.")
     parser.add_argument(
         "--format",
-        choices=("json", "text"),
+        choices=("json", "summary", "text"),
         default="json",
         help="Deterministic report format.",
     )
@@ -246,6 +304,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = scan_repo(Path(args.repo_root).resolve())
     if args.format == "json":
         print(json.dumps(report_to_dict(report), indent=2, sort_keys=True))
+    elif args.format == "summary":
+        print(json.dumps(report_to_summary_dict(report), indent=2, sort_keys=True))
     else:
         print(report_to_text(report), end="")
     return 1 if report.forbidden_edges else 0
