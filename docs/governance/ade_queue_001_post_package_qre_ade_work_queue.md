@@ -387,7 +387,7 @@
 ### ADE-QRE-014B - Reason-Record Evidence Density
 
 - queue id: `ADE-QRE-014B`
-- status: `blocked until ADE-QRE-014A done`
+- status: `in_progress`
 - title: Reason-Record Evidence Density.
 - purpose: improve trusted-loop reason-record evidence density so ADE/QRE
   decisions are more inspectable, measurable, and operator-readable before
@@ -413,6 +413,10 @@
 - allowed changes:
   - deterministic read-only reason-record inventory, schema completion, density
     metrics, fail-closed missing evidence status, and focused tests.
+- active implementation note:
+  - 014A is done on `main`; 014B implementation is limited to read-only
+    reporting sidecars, reason/evidence density inspection, focused tests, and
+    this queue status update.
 - forbidden changes:
   - campaign mutation, routing mutation, strategy generation, registry edits,
     research output mutation, Addendum activation, dashboard mutation routes,

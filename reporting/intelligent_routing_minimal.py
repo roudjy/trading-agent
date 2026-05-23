@@ -139,6 +139,7 @@ INPUT_CANDIDATE_KEYS: Final[tuple[str, ...]] = (
 OUTPUT_CANDIDATE_KEYS: Final[tuple[str, ...]] = (
     "campaign_id",
     "decision",
+    "evidence_refs",
     "priority_score",
     "rank",
     "reason_codes",
@@ -199,6 +200,19 @@ def _rel(p: Path) -> str:
         return str(p.relative_to(REPO_ROOT)).replace("\\", "/")
     except ValueError:
         return str(p).replace("\\", "/")
+
+
+def _evidence_refs_for_candidate() -> list[str]:
+    """Stable sidecar references that explain the routing decision inputs."""
+    return [
+        "candidate.campaign_id",
+        "candidate.info_gain_estimate",
+        "candidate.dead_zone_dwell",
+        "candidate.dependency_unmet",
+        "candidate.multiplicity_budget_remaining",
+        "thresholds.dead_zone_dwell_threshold",
+        "thresholds.low_info_gain_threshold",
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -379,6 +393,8 @@ def collect_snapshot(
             "dead_zone_threshold": dead_zone_threshold,
             "low_info_threshold": low_info_threshold,
         }
+        evidence_refs = _evidence_refs_for_candidate()
+        inputs_payload["evidence_refs"] = evidence_refs
         record = _rr.build_record(
             decision_kind=_rr.DECISION_KIND_ROUTING,
             subject_id=str(c["campaign_id"]),
@@ -396,6 +412,7 @@ def collect_snapshot(
             {
                 "campaign_id": str(c["campaign_id"]),
                 "decision": decision,
+                "evidence_refs": evidence_refs,
                 "priority_score": round(score, 6),
                 "rank": -1,
                 "reason_codes": list(reason_codes),

@@ -77,6 +77,7 @@ def test_output_candidate_keys_are_closed() -> None:
     assert sim.OUTPUT_CANDIDATE_KEYS == (
         "stratum_id",
         "decision",
+        "evidence_refs",
         "priority_score",
         "rank",
         "reason_codes",
@@ -158,6 +159,7 @@ def test_stratify_when_coverage_within_threshold(tmp_path: Path) -> None:
     assert snap["items"][0]["reason_codes"] == [
         "multiplicity_budget_remaining"
     ]
+    assert "candidate.coverage_actual" in snap["items"][0]["evidence_refs"]
     assert snap["counts"]["by_decision"]["stratify"] == 1
     assert snap["counts"]["actionable"] == 1
     assert snap["final_recommendation"] == "ready_for_sampling"
@@ -467,6 +469,7 @@ def test_each_candidate_emits_exactly_one_sampling_reason_record(
     snapshot_ids = {it["record_id"] for it in snap["items"]}
     ledger_ids = {r["record_id"] for r in records}
     assert snapshot_ids == ledger_ids
+    assert all(it["evidence_refs"] for it in snap["items"])
 
 
 def test_emitted_records_use_sampling_kind_only(tmp_path: Path) -> None:

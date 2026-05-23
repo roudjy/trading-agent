@@ -139,6 +139,7 @@ INPUT_CANDIDATE_KEYS: Final[tuple[str, ...]] = (
 OUTPUT_CANDIDATE_KEYS: Final[tuple[str, ...]] = (
     "stratum_id",
     "decision",
+    "evidence_refs",
     "priority_score",
     "rank",
     "reason_codes",
@@ -199,6 +200,19 @@ def _rel(p: Path) -> str:
         return str(p.relative_to(REPO_ROOT)).replace("\\", "/")
     except ValueError:
         return str(p).replace("\\", "/")
+
+
+def _evidence_refs_for_candidate() -> list[str]:
+    """Stable sidecar references that explain the sampling decision inputs."""
+    return [
+        "candidate.stratum_id",
+        "candidate.coverage_actual",
+        "candidate.coverage_target",
+        "candidate.regime_match",
+        "candidate.null_baseline_required",
+        "candidate.multiplicity_budget_remaining",
+        "thresholds.coverage_imbalance_threshold",
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -405,6 +419,8 @@ def collect_snapshot(
             ),
             "coverage_imbalance_threshold": coverage_imbalance_threshold,
         }
+        evidence_refs = _evidence_refs_for_candidate()
+        inputs_payload["evidence_refs"] = evidence_refs
         record = _rr.build_record(
             decision_kind=_rr.DECISION_KIND_SAMPLING,
             subject_id=str(c["stratum_id"]),
@@ -422,6 +438,7 @@ def collect_snapshot(
             {
                 "stratum_id": str(c["stratum_id"]),
                 "decision": decision,
+                "evidence_refs": evidence_refs,
                 "priority_score": round(score, 6),
                 "rank": -1,
                 "reason_codes": list(reason_codes),
