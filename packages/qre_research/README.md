@@ -8,10 +8,12 @@ run-domain contracts.
 
 ## Current Status
 
-Status: active read-only boundary seed. The canonical research universe
-contract now lives in `packages.qre_research.universe`; current QRE research
-orchestration remains in `research/`, `agent/backtesting/`, `strategies/`,
-and `registry.py`.
+Status: active read-only boundary seed plus ADE-QRE-005 research memory helper.
+The canonical research universe contract now lives in
+`packages.qre_research.universe`; deterministic local artifact indexing and
+retrieval live in `packages.qre_research.research_memory`; current QRE
+research orchestration remains in `research/`, `agent/backtesting/`,
+`strategies/`, and `registry.py`.
 
 ## Source of Truth / Authority Boundary
 
@@ -21,9 +23,15 @@ research orchestration remains in `research/run_research.py` until explicitly
 migrated. The universe contract is canonical in `packages.qre_research.universe`
 with `research.universe` retained as the compatibility import path.
 
+`packages.qre_research.research_memory` is a read-only local artifact index and
+retrieval helper. It does not use embeddings, LLM authority, graph databases,
+network calls, subprocess calls, campaign mutation, routing mutation, or
+strategy generation.
+
 ## Allowed Future Contents
 
 - Bounded QRE research contracts and read-only facades.
+- Deterministic read-only research memory over existing local artifacts.
 - Research orchestration modules only after frozen-output compatibility gates.
 - Hypothesis lifecycle code selected by a named migration unit.
 
@@ -52,5 +60,5 @@ public API.
 
 ## Activation Status
 
-Activation status: read-only universe boundary active; research orchestration
-and strategy authority remain unmigrated.
+Activation status: read-only universe boundary and read-only research memory
+active; research orchestration and strategy authority remain unmigrated.
