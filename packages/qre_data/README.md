@@ -7,10 +7,12 @@ market-data access abstractions, and deterministic data-source metadata.
 
 ## Current Status
 
-Status: active read-only seed. The package owns the immutable market and macro
-data contract types in `packages.qre_data.contracts`. Current data
-repositories, adapters, fetchers, cache behavior, and dashboard consumers
-remain in their existing paths.
+Status: active read-only seed plus ADE-QRE-003 local cache manifest helper. The
+package owns the immutable market and macro data contract types in
+`packages.qre_data.contracts` and the deterministic read-only cache manifest in
+`packages.qre_data.cache_manifest`. Current data repositories, adapters,
+fetchers, cache behavior, and dashboard consumers remain in their existing
+paths.
 
 ## Source of Truth / Authority Boundary
 
@@ -21,11 +23,16 @@ Existing `data/` repositories, adapters, fetchers, cache files, and dashboard
 consumers remain the source of truth until each surface is migrated by a
 bounded unit.
 
+`packages.qre_data.cache_manifest` is a read-only reporter over existing local
+cache files only. It does not fetch, backfill, modify cache files, or change
+research output contracts.
+
 ## Allowed Future Contents
 
 - Data contract types and metadata.
 - Read-only repository abstractions and adapter interfaces.
 - Deterministic data validation helpers.
+- Read-only local cache manifests and coverage summaries.
 
 ## Forbidden Contents
 
@@ -53,4 +60,5 @@ separate bounded unit.
 
 ## Activation Status
 
-Activation status: read-only data contract seed only.
+Activation status: read-only data contract seed and read-only local cache
+manifest only.
