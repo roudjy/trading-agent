@@ -21,25 +21,19 @@ SCREENING_FAILURE_ATTRIBUTION_SCHEMA_VERSION: Final[str] = "1.0"
 DEFAULT_REPORT_JSON_PATH: Final[Path] = Path(
     "research/screening_failure_attribution_latest.v1.json"
 )
-DEFAULT_REPORT_MD_PATH: Final[Path] = Path(
-    "research/screening_failure_attribution_latest.md"
-)
+DEFAULT_REPORT_MD_PATH: Final[Path] = Path("research/screening_failure_attribution_latest.md")
 
 ARTIFACT_PATHS: Final[dict[str, Path]] = {
     "screening_evidence": Path("research/screening_evidence_latest.v1.json"),
     "run_filter_summary": Path("research/run_filter_summary_latest.v1.json"),
-    "run_screening_candidates": Path(
-        "research/run_screening_candidates_latest.v1.json"
-    ),
+    "run_screening_candidates": Path("research/run_screening_candidates_latest.v1.json"),
     "empty_run_diagnostics": Path("research/empty_run_diagnostics_latest.v1.json"),
     "run_campaign": Path("research/run_campaign_latest.v1.json"),
     "controlled_eval": Path("research/controlled_eval_latest.v1.json"),
     "campaign_registry": Path("research/campaign_registry_latest.v1.json"),
     "campaign_evidence_ledger": Path("research/campaign_evidence_ledger_latest.v1.jsonl"),
     "research_state": Path("research/research_state_latest.v1.json"),
-    "policy_filter_diagnostics": Path(
-        "research/policy_filter_diagnostics_latest.v1.json"
-    ),
+    "policy_filter_diagnostics": Path("research/policy_filter_diagnostics_latest.v1.json"),
 }
 
 CLASSIFICATIONS: Final[tuple[str, ...]] = (
@@ -151,6 +145,103 @@ BLOCKED_SYNTHESIS_STATES: Final[frozenset[str]] = frozenset(
         "blocked_no_preset_space_exhaustion",
     }
 )
+ACTION_HINT_BY_CLASSIFICATION: Final[dict[str, dict[str, Any]]] = {
+    "insufficient_trades": {
+        "action": "increase_timeframe_or_extend_sample_window",
+        "reason": "Observed candidates do not carry enough trades for reliable screening evidence.",
+    },
+    "no_oos_returns": {
+        "action": "inspect_oos_return_coverage",
+        "reason": "Observed artifacts show missing out-of-sample return evidence.",
+    },
+    "timeout": {
+        "action": "inspect_screening_budget_and_worker_health",
+        "reason": "Observed screening evidence points to timeout or budget exhaustion.",
+    },
+    "cost_sensitivity": {
+        "action": "review_cost_assumptions",
+        "reason": "Observed screening evidence is cost-assumption sensitive.",
+    },
+    "parameter_instability": {
+        "action": "preserve_negative_result_for_unstable_parameter_region",
+        "reason": "Observed evidence points to unstable neighboring parameters.",
+    },
+    "data_coverage_gap": {
+        "action": "repair_data_coverage_before_research_action",
+        "reason": "Observed artifacts show unavailable or incomplete market data coverage.",
+    },
+    "missing_screening_evidence": {
+        "action": "repair_screening_evidence_instrumentation",
+        "reason": "Attribution depends on missing screening evidence sidecars or drop reasons.",
+    },
+    "incomplete_policy_trace": {
+        "action": "repair_policy_trace_instrumentation",
+        "reason": "Policy diagnostics do not expose a complete read-only decision trace.",
+    },
+    "no_candidate_after_policy_filter": {
+        "action": "inspect_policy_filter_inputs",
+        "reason": "Policy evidence shows no candidate survived the read-only policy filter.",
+    },
+    "no_survivor_after_eval": {
+        "action": "inspect_evaluation_survivor_gate",
+        "reason": "Campaign or evaluation evidence completed without surviving candidates.",
+    },
+    "insufficient_oos_window": {
+        "action": "collect_more_oos_window_evidence",
+        "reason": "Observed artifacts show the out-of-sample window is too short.",
+    },
+    "missing_metric_field": {
+        "action": "repair_metric_emission",
+        "reason": "Existing screening records are missing required diagnostic metrics.",
+    },
+    "unsupported_failure_shape": {
+        "action": "operator_review_unsupported_failure_shape",
+        "reason": "The observed failure shape is explicit but not yet actionable by this taxonomy.",
+    },
+    "synthesis_gate_blocked": {
+        "action": "inspect_synthesis_gate_evidence",
+        "reason": "Existing research state reports a blocked synthesis gate.",
+    },
+    "data_coverage_unknown": {
+        "action": "resolve_data_coverage_status",
+        "reason": "Artifacts expose unknown data coverage rather than a deterministic pass/fail state.",
+    },
+    "identity_unresolved": {
+        "action": "resolve_source_identity",
+        "reason": "Artifacts indicate unresolved or fallback source identity.",
+    },
+    "policy_trace_inconsistent": {
+        "action": "repair_policy_trace_consistency",
+        "reason": "Policy counts in existing diagnostics are internally inconsistent.",
+    },
+    "strict_gate_rejection": {
+        "action": "preserve_negative_result",
+        "reason": "Observed metrics failed the current screening gate; no strategy change is implied.",
+    },
+    "missing_diagnostics": {
+        "action": "inspect_screening_instrumentation",
+        "reason": "No usable screening diagnostics were present for attribution.",
+    },
+    "unknown_screening_failure": {
+        "action": "hold_no_action_until_evidence_improves",
+        "reason": "Existing evidence is insufficient for a deterministic failure class.",
+    },
+}
+
+
+def action_hint_for_classification(classification: str) -> dict[str, Any]:
+    hint = ACTION_HINT_BY_CLASSIFICATION.get(
+        classification,
+        ACTION_HINT_BY_CLASSIFICATION["unknown_screening_failure"],
+    )
+    return {
+        "classification": classification,
+        "action": hint["action"],
+        "reason": hint["reason"],
+        "read_only": True,
+        "mutates_routing": False,
+        "mutates_strategy": False,
+    }
 
 
 def _now_utc() -> datetime:
@@ -267,9 +358,7 @@ def _metric_gap_observations(
     metrics: dict[str, Any],
     subject: dict[str, Any],
 ) -> None:
-    missing = sorted(
-        field for field in SCREENING_METRIC_FIELDS if field not in metrics
-    )
+    missing = sorted(field for field in SCREENING_METRIC_FIELDS if field not in metrics)
     if missing:
         _observe(
             observations,
@@ -423,9 +512,10 @@ def _empty_run_observations(payload: dict[str, Any]) -> list[dict[str, Any]]:
             source="empty_run_diagnostics.summary.primary_drop_reasons",
             raw_reason=str(reason),
         )
-    if _safe_int(summary.get("evaluations_with_oos_daily_returns")) == 0 and _safe_int(
-        summary.get("evaluations_count")
-    ) > 0:
+    if (
+        _safe_int(summary.get("evaluations_with_oos_daily_returns")) == 0
+        and _safe_int(summary.get("evaluations_count")) > 0
+    ):
         _observe(
             observations,
             source="empty_run_diagnostics.summary.evaluations_with_oos_daily_returns",
@@ -485,11 +575,7 @@ def _policy_filter_observations(payload: dict[str, Any]) -> list[dict[str, Any]]
             raw_reason="no_policy_candidates",
             subject={"action": action, "reason": reason, "candidates": candidate_count},
         )
-    primary = {
-        str(item)
-        for item in _list_value(payload.get("primary_explanations"))
-        if str(item)
-    }
+    primary = {str(item) for item in _list_value(payload.get("primary_explanations")) if str(item)}
     if "no_eligible_template" in primary:
         _observe(
             observations,
@@ -497,11 +583,7 @@ def _policy_filter_observations(payload: dict[str, Any]) -> list[dict[str, Any]]
             raw_reason="no_eligible_template",
             subject={"primary_explanations": sorted(primary)},
         )
-    diagnostics = [
-        row
-        for row in _list_value(payload.get("diagnostics"))
-        if isinstance(row, dict)
-    ]
+    diagnostics = [row for row in _list_value(payload.get("diagnostics")) if isinstance(row, dict)]
     for row in diagnostics:
         diagnostic_id = row.get("diagnostic_id")
         if (
@@ -603,13 +685,10 @@ def _campaign_outcome_observations(
             legacy_classification="missing_diagnostics",
         )
     policy = _dict_value(research_state.get("policy_summary"))
-    if (
-        research_state.get("policy_state") == "blocked_no_candidates"
-        or (
-            policy.get("action") == "idle_noop"
-            and policy.get("reason") == "no_candidates"
-            and _safe_int(policy.get("candidates_considered")) == 0
-        )
+    if research_state.get("policy_state") == "blocked_no_candidates" or (
+        policy.get("action") == "idle_noop"
+        and policy.get("reason") == "no_candidates"
+        and _safe_int(policy.get("candidates_considered")) == 0
     ):
         _observe(
             observations,
@@ -639,27 +718,19 @@ def collect_observations(
 ) -> list[dict[str, Any]]:
     observations: list[dict[str, Any]] = []
     if isinstance(artifacts.get("screening_evidence"), dict):
-        observations.extend(
-            _screening_evidence_observations(artifacts["screening_evidence"])
-        )
+        observations.extend(_screening_evidence_observations(artifacts["screening_evidence"]))
     if isinstance(artifacts.get("run_filter_summary"), dict):
-        observations.extend(
-            _filter_summary_observations(artifacts["run_filter_summary"])
-        )
+        observations.extend(_filter_summary_observations(artifacts["run_filter_summary"]))
     if isinstance(artifacts.get("run_screening_candidates"), dict):
         observations.extend(
-            _run_screening_candidate_observations(
-                artifacts["run_screening_candidates"]
-            )
+            _run_screening_candidate_observations(artifacts["run_screening_candidates"])
         )
     if isinstance(artifacts.get("empty_run_diagnostics"), dict):
         observations.extend(_empty_run_observations(artifacts["empty_run_diagnostics"]))
     if isinstance(artifacts.get("run_campaign"), dict):
         observations.extend(_run_campaign_observations(artifacts["run_campaign"]))
     if isinstance(artifacts.get("policy_filter_diagnostics"), dict):
-        observations.extend(
-            _policy_filter_observations(artifacts["policy_filter_diagnostics"])
-        )
+        observations.extend(_policy_filter_observations(artifacts["policy_filter_diagnostics"]))
     observations.extend(
         _campaign_outcome_observations(
             artifacts=artifacts,
@@ -695,9 +766,7 @@ def _classification_rows(observations: list[dict[str, Any]]) -> list[dict[str, A
     counts = Counter(str(item["classification"]) for item in observations)
     raw_by_class: dict[str, Counter[str]] = {name: Counter() for name in CLASSIFICATIONS}
     sources_by_class: dict[str, set[str]] = {name: set() for name in CLASSIFICATIONS}
-    examples_by_class: dict[str, list[dict[str, Any]]] = {
-        name: [] for name in CLASSIFICATIONS
-    }
+    examples_by_class: dict[str, list[dict[str, Any]]] = {name: [] for name in CLASSIFICATIONS}
     for item in observations:
         classification = str(item["classification"])
         if classification not in raw_by_class:
@@ -716,6 +785,7 @@ def _classification_rows(observations: list[dict[str, Any]]) -> list[dict[str, A
                 "raw_reasons": dict(sorted(raw_by_class[classification].items())),
                 "sources": sorted(sources_by_class[classification]),
                 "examples": examples_by_class[classification],
+                "action_hint": action_hint_for_classification(classification),
             }
         )
     return rows
@@ -749,21 +819,19 @@ def build_screening_failure_attribution_payload(
     )
     rows = _classification_rows(observations)
     primary = _primary_classification(rows)
-    counts = {
-        row["classification"]: row["count"]
-        for row in rows
-        if int(row["count"]) > 0
-    }
+    counts = {row["classification"]: row["count"] for row in rows if int(row["count"]) > 0}
     legacy_unknown_count = sum(
         1
         for item in observations
         if item.get("legacy_classification") == "unknown_screening_failure"
     )
     unknown_count = sum(
-        1
-        for item in observations
-        if item.get("classification") == "unknown_screening_failure"
+        1 for item in observations if item.get("classification") == "unknown_screening_failure"
     )
+    primary_action_hint = action_hint_for_classification(primary)
+    observed_action_hints = [
+        row["action_hint"] | {"count": row["count"]} for row in rows if int(row["count"]) > 0
+    ]
     return {
         "schema_version": SCREENING_FAILURE_ATTRIBUTION_SCHEMA_VERSION,
         "generated_at_utc": _iso_utc(generated),
@@ -776,16 +844,13 @@ def build_screening_failure_attribution_payload(
             "legacy_unknown_observation_count": legacy_unknown_count,
             "unknown_observation_count": unknown_count,
             "unknown_observation_reduction": legacy_unknown_count - unknown_count,
-            "attributed": primary
-            not in {"missing_diagnostics", "unknown_screening_failure"},
+            "attributed": primary not in {"missing_diagnostics", "unknown_screening_failure"},
+            "primary_action_hint": primary_action_hint,
         },
         "classifications": rows,
         "observations": observations,
-        "recommended_next_action": (
-            "inspect_gate_diagnostics"
-            if primary != "missing_diagnostics"
-            else "inspect_screening_instrumentation"
-        ),
+        "action_hints": observed_action_hints,
+        "recommended_next_action": primary_action_hint["action"],
         "safety_invariants": {
             "runs_research": False,
             "runs_campaign_launcher": False,
@@ -817,21 +882,28 @@ def render_markdown_report(payload: dict[str, Any]) -> str:
             f"reduction {summary.get('unknown_observation_reduction')})"
         ),
         f"- Classification counts: {json.dumps(summary.get('classification_counts') or {}, sort_keys=True)}",
+        f"- Recommended next action: `{payload.get('recommended_next_action')}`",
         "",
         "## Classifications",
         *[
-            f"- `{row['classification']}`: {row['status']} (count {row['count']})"
+            (
+                f"- `{row['classification']}`: {row['status']} "
+                f"(count {row['count']}, action `{row['action_hint']['action']}`)"
+            )
             for row in payload.get("classifications") or []
+        ],
+        "",
+        "## Action Hints",
+        *[
+            (f"- `{hint['classification']}` -> `{hint['action']}`: " f"{hint['reason']}")
+            for hint in payload.get("action_hints") or []
         ],
         "",
         "## Evidence Sources",
         *[
             f"- `{source}`"
             for source in sorted(
-                {
-                    str(obs.get("source"))
-                    for obs in payload.get("observations") or []
-                }
+                {str(obs.get("source")) for obs in payload.get("observations") or []}
             )
         ],
         "",
@@ -912,6 +984,8 @@ __all__ = [
     "DEFAULT_REPORT_JSON_PATH",
     "DEFAULT_REPORT_MD_PATH",
     "SCREENING_FAILURE_ATTRIBUTION_SCHEMA_VERSION",
+    "ACTION_HINT_BY_CLASSIFICATION",
+    "action_hint_for_classification",
     "build_from_current_artifacts",
     "build_screening_failure_attribution_payload",
     "collect_observations",

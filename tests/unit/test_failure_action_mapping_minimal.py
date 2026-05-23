@@ -50,6 +50,12 @@ def test_closed_taxonomies_are_pinned() -> None:
         "review_cost_assumptions",
         "hold_no_action",
     )
+    assert fam.SCREENING_CLASSIFICATION_TO_FAILURE_CODE["data_coverage_gap"] == (
+        "technical_failure"
+    )
+    assert fam.SCREENING_CLASSIFICATION_TO_FAILURE_CODE["unknown_screening_failure"] == (
+        "unknown_failure"
+    )
 
 
 def test_schema_keys_are_pinned() -> None:
@@ -87,9 +93,7 @@ def test_failures_must_be_list_or_tuple() -> None:
 
 
 def test_too_many_failures_rejected() -> None:
-    failures = [
-        _f(subject_id=f"s_{i:04d}") for i in range(fam.MAX_FAILURES + 1)
-    ]
+    failures = [_f(subject_id=f"s_{i:04d}") for i in range(fam.MAX_FAILURES + 1)]
     with pytest.raises(ValueError, match="too many"):
         fam.validate_failures(failures)
 
@@ -103,9 +107,7 @@ def test_missing_field_rejected() -> None:
 
 def test_unknown_failure_code_rejected() -> None:
     with pytest.raises(ValueError, match="closed taxonomy"):
-        fam.validate_failures(
-            [_f(subject_id="x", failure_code="not_canonical")]
-        )
+        fam.validate_failures([_f(subject_id="x", failure_code="not_canonical")])
 
 
 def test_unknown_severity_rejected() -> None:
@@ -134,9 +136,7 @@ def test_duplicate_subject_rejected() -> None:
         ("unknown_failure", "hold_no_action"),
     ],
 )
-def test_failure_codes_map_to_bounded_actions(
-    failure_code: str, expected_action: str
-) -> None:
+def test_failure_codes_map_to_bounded_actions(failure_code: str, expected_action: str) -> None:
     snap = fam.collect_snapshot(
         [_f(subject_id="s1", failure_code=failure_code)],
         frozen_utc="2026-05-21T00:00:00Z",
@@ -160,9 +160,7 @@ def test_low_evidence_adds_insufficient_reason() -> None:
         [_f(subject_id="s1", evidence_count=1)],
         frozen_utc="2026-05-21T00:00:00Z",
     )
-    assert "evidence_insufficient" in snap["items"][0]["reason_record"][
-        "reason_codes"
-    ]
+    assert "evidence_insufficient" in snap["items"][0]["reason_record"]["reason_codes"]
 
 
 def test_negative_result_preservation_is_explicit() -> None:
@@ -200,8 +198,7 @@ def test_reason_record_ids_are_deterministic() -> None:
     b = fam.collect_snapshot(inputs, frozen_utc="2026-05-21T00:00:00Z")
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
     assert (
-        a["items"][0]["reason_record"]["record_id"]
-        == b["items"][0]["reason_record"]["record_id"]
+        a["items"][0]["reason_record"]["record_id"] == b["items"][0]["reason_record"]["record_id"]
     )
 
 
@@ -215,8 +212,7 @@ def test_record_ids_change_when_inputs_change() -> None:
         frozen_utc="2026-05-21T00:00:00Z",
     )
     assert (
-        a["items"][0]["reason_record"]["record_id"]
-        != b["items"][0]["reason_record"]["record_id"]
+        a["items"][0]["reason_record"]["record_id"] != b["items"][0]["reason_record"]["record_id"]
     )
 
 
@@ -226,6 +222,69 @@ def test_empty_snapshot_is_safe_and_not_actionable() -> None:
     assert snap["safe_to_execute"] is False
     assert snap["mode"] == "dry-run"
     assert snap["final_recommendation"] == "nothing_actionable"
+
+
+def test_screening_attribution_adapter_maps_non_strategy_classes_only() -> None:
+    payload = {
+        "summary": {"primary_classification": "data_coverage_gap"},
+        "classifications": [
+            {
+                "classification": "data_coverage_gap",
+                "status": "observed",
+                "count": 2,
+            },
+            {
+                "classification": "strict_gate_rejection",
+                "status": "observed",
+                "count": 3,
+            },
+            {
+                "classification": "unknown_screening_failure",
+                "status": "observed",
+                "count": 1,
+            },
+        ],
+    }
+
+    failures = fam.screening_attribution_failures(payload)
+
+    assert failures == [
+        {
+            "subject_id": "screening:data_coverage_gap",
+            "failure_code": "technical_failure",
+            "severity": "medium",
+            "evidence_count": 2,
+        },
+        {
+            "subject_id": "screening:unknown_screening_failure",
+            "failure_code": "unknown_failure",
+            "severity": "high",
+            "evidence_count": 1,
+        },
+    ]
+
+
+def test_collect_from_screening_attribution_preserves_read_only_action_snapshot() -> None:
+    payload = {
+        "summary": {"primary_classification": "missing_metric_field"},
+        "classifications": [
+            {
+                "classification": "missing_metric_field",
+                "status": "observed",
+                "count": 4,
+            }
+        ],
+    }
+
+    snap = fam.collect_from_screening_attribution(
+        payload,
+        frozen_utc="2026-05-22T00:00:00Z",
+    )
+
+    assert snap["source_report_kind"] == "screening_failure_attribution"
+    assert snap["source_primary_classification"] == "missing_metric_field"
+    assert snap["items"][0]["recommended_action"] == "review_data_pipeline"
+    assert snap["safe_to_execute"] is False
 
 
 def test_write_outputs_into_allowlisted_path(tmp_path: Path) -> None:

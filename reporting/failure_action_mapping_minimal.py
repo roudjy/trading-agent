@@ -119,15 +119,32 @@ ACTION_BY_FAILURE_CODE: Final[Mapping[str, str]] = {
     "unknown_failure": "hold_no_action",
 }
 
+SCREENING_CLASSIFICATION_TO_FAILURE_CODE: Final[Mapping[str, str]] = {
+    "data_coverage_gap": "technical_failure",
+    "data_coverage_unknown": "technical_failure",
+    "identity_unresolved": "technical_failure",
+    "incomplete_policy_trace": "technical_failure",
+    "insufficient_oos_window": "no_oos_samples",
+    "missing_diagnostics": "technical_failure",
+    "missing_metric_field": "technical_failure",
+    "missing_screening_evidence": "technical_failure",
+    "no_candidate_after_policy_filter": "technical_failure",
+    "no_oos_returns": "no_oos_samples",
+    "no_survivor_after_eval": "technical_failure",
+    "policy_trace_inconsistent": "technical_failure",
+    "synthesis_gate_blocked": "technical_failure",
+    "timeout": "technical_failure",
+    "unsupported_failure_shape": "unknown_failure",
+    "unknown_screening_failure": "unknown_failure",
+}
+
 
 # ---------------------------------------------------------------------------
 # Artifact paths
 # ---------------------------------------------------------------------------
 
 
-ARTIFACT_DIR: Final[Path] = (
-    REPO_ROOT / "logs" / "failure_action_mapping_minimal"
-)
+ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "failure_action_mapping_minimal"
 ARTIFACT_LATEST: Final[Path] = ARTIFACT_DIR / "latest.json"
 HISTORY: Final[Path] = ARTIFACT_DIR / "history.jsonl"
 _WRITE_PREFIX: Final[str] = "logs/failure_action_mapping_minimal/"
@@ -139,20 +156,14 @@ _WRITE_PREFIX: Final[str] = "logs/failure_action_mapping_minimal/"
 
 
 def _utcnow() -> str:
-    return (
-        _dt.datetime.now(_dt.UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _validate_write_target(path: Path) -> None:
     normalised = str(path).replace("\\", "/")
     if _WRITE_PREFIX not in normalised:
         raise ValueError(
-            "failure_action_mapping_minimal: refusing write outside "
-            f"allowlist: {path!r}"
+            "failure_action_mapping_minimal: refusing write outside " f"allowlist: {path!r}"
         )
 
 
@@ -207,9 +218,7 @@ def compute_record_id(
 
 def validate_failures(failures: Sequence[Mapping[str, Any]]) -> None:
     if not isinstance(failures, list | tuple):
-        raise ValueError(
-            "failure_action_mapping_minimal: failures must be a list/tuple"
-        )
+        raise ValueError("failure_action_mapping_minimal: failures must be a list/tuple")
     if len(failures) > MAX_FAILURES:
         raise ValueError(
             "failure_action_mapping_minimal: too many failures "
@@ -218,15 +227,11 @@ def validate_failures(failures: Sequence[Mapping[str, Any]]) -> None:
     seen: set[str] = set()
     for i, failure in enumerate(failures):
         if not isinstance(failure, Mapping):
-            raise ValueError(
-                "failure_action_mapping_minimal: "
-                f"failure[{i}] must be a mapping"
-            )
+            raise ValueError("failure_action_mapping_minimal: " f"failure[{i}] must be a mapping")
         missing = set(INPUT_FAILURE_KEYS) - set(failure.keys())
         if missing:
             raise ValueError(
-                "failure_action_mapping_minimal: "
-                f"failure[{i}] missing fields: {sorted(missing)}"
+                "failure_action_mapping_minimal: " f"failure[{i}] missing fields: {sorted(missing)}"
             )
         subject_id = failure["subject_id"]
         if not isinstance(subject_id, str) or not subject_id:
@@ -236,8 +241,7 @@ def validate_failures(failures: Sequence[Mapping[str, Any]]) -> None:
             )
         if subject_id in seen:
             raise ValueError(
-                "failure_action_mapping_minimal: "
-                f"duplicate subject_id {subject_id!r}"
+                "failure_action_mapping_minimal: " f"duplicate subject_id {subject_id!r}"
             )
         seen.add(subject_id)
         if failure["failure_code"] not in FAILURE_CODES:
@@ -282,10 +286,7 @@ def _reason_for(
             "evidence records; recommendation is bounded and advisory."
         )
     else:
-        text = (
-            f"Failure code {failure_code} maps deterministically to "
-            f"{recommended_action}."
-        )
+        text = f"Failure code {failure_code} maps deterministically to " f"{recommended_action}."
     return reason_codes, text
 
 
@@ -312,9 +313,7 @@ def _build_reason_record(
         evidence_count=evidence_count,
     )
     return {
-        "record_id": compute_record_id(
-            subject_id, failure_code, recommended_action, digest
-        ),
+        "record_id": compute_record_id(subject_id, failure_code, recommended_action, digest),
         "record_kind": "failure_action_mapping_reason",
         "schema_version": SCHEMA_VERSION,
         "subject_id": subject_id,
@@ -398,9 +397,7 @@ def collect_snapshot(
             "actionable_recommendations": actionable_count,
         },
         "items": items,
-        "final_recommendation": (
-            "actions_available" if actionable_count else "nothing_actionable"
-        ),
+        "final_recommendation": ("actions_available" if actionable_count else "nothing_actionable"),
         "note": (
             "Minimal v3.15.20 slice. Deterministic Failure to Action "
             "Mapping only; no adaptive feedback loop, no strategy mutation, "
@@ -408,6 +405,58 @@ def collect_snapshot(
             "behavior."
         ),
     }
+
+
+def screening_attribution_failures(
+    payload: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Convert observed non-strategy screening classes into mapper inputs.
+
+    The adapter is intentionally lossy and read-only: strategy/performance
+    screening classes stay in the attribution report, while non-strategy
+    diagnostics get mapped into the existing minimal closed taxonomy.
+    """
+
+    failures: list[dict[str, Any]] = []
+    classifications = payload.get("classifications")
+    if not isinstance(classifications, Sequence) or isinstance(classifications, str | bytes):
+        return failures
+    for row in classifications:
+        if not isinstance(row, Mapping):
+            continue
+        classification = str(row.get("classification") or "")
+        failure_code = SCREENING_CLASSIFICATION_TO_FAILURE_CODE.get(classification)
+        if failure_code is None:
+            continue
+        count = _bounded_int(row.get("count"))
+        if count <= 0:
+            continue
+        severity = "high" if failure_code == "unknown_failure" else "medium"
+        failures.append(
+            {
+                "subject_id": f"screening:{classification}",
+                "failure_code": failure_code,
+                "severity": severity,
+                "evidence_count": count,
+            }
+        )
+    return failures
+
+
+def collect_from_screening_attribution(
+    payload: Mapping[str, Any],
+    *,
+    frozen_utc: str | None = None,
+) -> dict[str, Any]:
+    failures = screening_attribution_failures(payload)
+    snapshot = collect_snapshot(failures, frozen_utc=frozen_utc)
+    snapshot["source_report_kind"] = "screening_failure_attribution"
+    snapshot["source_primary_classification"] = (
+        payload.get("summary", {}).get("primary_classification")
+        if isinstance(payload.get("summary"), Mapping)
+        else None
+    )
+    return snapshot
 
 
 def write_outputs(
@@ -446,9 +495,7 @@ def write_outputs(
     }
 
 
-def read_latest_snapshot(
-    *, artifact_dir: Path | None = None
-) -> dict[str, Any] | None:
+def read_latest_snapshot(*, artifact_dir: Path | None = None) -> dict[str, Any] | None:
     base = artifact_dir or ARTIFACT_DIR
     path = base / ARTIFACT_LATEST.name
     if not path.is_file():

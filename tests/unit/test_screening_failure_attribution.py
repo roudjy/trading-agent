@@ -181,10 +181,17 @@ def test_no_candidate_after_policy_filter_is_classified_from_policy_diagnostics(
     )
 
     assert _row(payload, "no_candidate_after_policy_filter")["count"] == 2
-    assert payload["summary"]["primary_classification"] == (
-        "no_candidate_after_policy_filter"
-    )
+    assert payload["summary"]["primary_classification"] == ("no_candidate_after_policy_filter")
     assert payload["summary"]["unknown_observation_reduction"] == 2
+    assert payload["summary"]["primary_action_hint"] == {
+        "classification": "no_candidate_after_policy_filter",
+        "action": "inspect_policy_filter_inputs",
+        "reason": "Policy evidence shows no candidate survived the read-only policy filter.",
+        "read_only": True,
+        "mutates_routing": False,
+        "mutates_strategy": False,
+    }
+    assert payload["recommended_next_action"] == "inspect_policy_filter_inputs"
 
 
 def test_incomplete_and_inconsistent_policy_trace_are_classified() -> None:
@@ -293,6 +300,34 @@ def test_unknown_screening_failure_is_preserved_when_no_evidence_matches() -> No
 
     assert _row(payload, "unknown_screening_failure")["count"] == 1
     assert payload["summary"]["unknown_observation_count"] == 1
+    assert payload["recommended_next_action"] == ("hold_no_action_until_evidence_improves")
+    assert _row(payload, "unknown_screening_failure")["action_hint"]["read_only"] is True
+
+
+def test_action_hints_are_emitted_only_from_observed_classifications() -> None:
+    payload = _payload(
+        _base_artifacts(
+            screening_evidence={
+                "summary": {"dominant_failure_reasons": ["coverage_unknown"]},
+                "candidates": [],
+            }
+        )
+    )
+
+    assert payload["action_hints"] == [
+        {
+            "classification": "data_coverage_unknown",
+            "action": "resolve_data_coverage_status",
+            "reason": (
+                "Artifacts expose unknown data coverage rather than a deterministic "
+                "pass/fail state."
+            ),
+            "read_only": True,
+            "mutates_routing": False,
+            "mutates_strategy": False,
+            "count": 1,
+        }
+    ]
 
 
 def test_missing_all_screening_artifacts_is_handled_gracefully_with_cli(
