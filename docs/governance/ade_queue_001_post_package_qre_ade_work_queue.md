@@ -80,7 +80,7 @@
 
 - queue id: `ADE-QRE-004`
 - status: `done`
-- completion evidence: implemented read-only manifest-derived source identity and quality readiness with fail-closed missing-report status, deterministic sidecar writer, identity confidence fields, source summaries, and operator-readable explanations; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
+- completion evidence: PR #312, merge SHA `a075dee1a1a8e7d5ae7a8101ffd45d6c6e6847e8`; Fast pre-merge gate, Docker build/push, and VPS deploy post-merge gates green; frozen contracts unchanged; protected paths untouched; live/paper/shadow/risk/broker/execution inactive.
 - doel: make source identity and source quality visible enough to explain data-related research failures.
 - bron uit target-state roadmap: fase 2 `v3.data.2` and `v3.data.3`; sections 9.5-9.7; lessons learned "Eerst data als productlaag".
 - scope: deterministic source-quality checks over existing manifest data, identity confidence fields, fail-closed readiness statuses, and operator-readable sidecar summary.
@@ -94,7 +94,8 @@
 ### ADE-QRE-005 - Research Memory v1
 
 - queue id: `ADE-QRE-005`
-- status: `ready`
+- status: `done`
+- completion evidence: implemented deterministic read-only research memory over existing local artifacts with keyword/metadata retrieval, related-failure lookup, no-network/no-subprocess guard tests, fail-closed missing-memory status, and deterministic sidecar writer; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
 - doel: make prior hypotheses, failures, campaigns, and policy actions retrievable before new research is proposed or routed.
 - bron uit target-state roadmap: fase 3 "Research Memory en Retrieval"; prompt 12.4 "Research Memory v1"; section 10 "Research memory ontwerp".
 - scope: deterministic artifact index, simple ontology, keyword/metadata retrieval over existing local artifacts, related-failure lookup, and read-only sidecar output.
@@ -108,7 +109,7 @@
 ### ADE-QRE-006 - Research Diagnostics Loop
 
 - queue id: `ADE-QRE-006`
-- status: `deferred`
+- status: `ready`
 - doel: close the read-only loop from failure classification to next diagnostic recommendation without mutating campaigns.
 - bron uit target-state roadmap: fase 5 "Observability operator-grade maken"; fase 7 "Failure -> Action -> Reroute sluiten"; trusted loop criteria.
 - scope: aggregate current attribution, failure-action mapping, data readiness, and research memory evidence into a single deterministic diagnostics-loop digest.

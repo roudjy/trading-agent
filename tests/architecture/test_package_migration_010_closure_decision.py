@@ -31,7 +31,12 @@ EXPECTED_MIGRATION_DOCS = (
     "PACKAGE-MIGRATION-010-package-migration-closure-decision.md",
 )
 BOUNDED_PACKAGE_CONTENTS = {
-    "qre_research": ["README.md", "__init__.py", "universe.py"],
+    "qre_research": [
+        "README.md",
+        "__init__.py",
+        "research_memory.py",
+        "universe.py",
+    ],
     "qre_data": [
         "README.md",
         "__init__.py",
