@@ -110,7 +110,7 @@
 
 - queue id: `ADE-QRE-006`
 - status: `done`
-- completion evidence: implemented deterministic read-only diagnostics-loop digest over existing screening attribution, failure-action mapping, data readiness, and research memory sidecars with missing-source fail-closed behavior and bounded operator next-diagnostic explanations; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
+- completion evidence: PR #314, merge SHA `b772c0172d5786343a4c4bf45aae854c84726b62`; Fast pre-merge gate, Docker build/push, and VPS deploy post-merge gates green; frozen contracts unchanged; protected paths untouched; live/paper/shadow/risk/broker/execution inactive.
 - doel: close the read-only loop from failure classification to next diagnostic recommendation without mutating campaigns.
 - bron uit target-state roadmap: fase 5 "Observability operator-grade maken"; fase 7 "Failure -> Action -> Reroute sluiten"; trusted loop criteria.
 - scope: aggregate current attribution, failure-action mapping, data readiness, and research memory evidence into a single deterministic diagnostics-loop digest.
@@ -124,7 +124,8 @@
 ### ADE-QRE-007 - Operator-Grade Observability
 
 - queue id: `ADE-QRE-007`
-- status: `ready`
+- status: `done`
+- completion evidence: implemented read-only operator-grade observability summary over unknown failure rate, actionable failure rate, attribution depth, data readiness, prior similar failures, diagnostics-loop state, and queue-governance blockers; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded if a later operator-approved queue item continues from this gate.
 - doel: make QRE/ADE state understandable to the operator without reading code.
 - bron uit target-state roadmap: fase 5 "Observability operator-grade maken"; target operator state; research observability minimal runbook.
 - scope: read-only operator summary over unknown failure rate, actionable failure rate, attribution depth, data readiness, prior similar failures, and governance blockers.

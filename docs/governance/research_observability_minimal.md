@@ -17,7 +17,8 @@
 ## TL;DR
 
 A pure, deterministic, read-only aggregator over the
-currently-shipping research observability surfaces. The module
+currently-shipping research observability surfaces. ADE-QRE-007 adds an
+operator-grade QRE summary over the post-package sidecars. The module
 joins:
 
 | Source | Artefact |
@@ -26,6 +27,13 @@ joins:
 | Sampling minimal digest | `logs/sampling_intelligence_minimal/latest.json` |
 | Unified reason-records manifest | `logs/reason_records/manifest.v1.json` |
 | Research-quality KPI doctrine | `docs/governance/research_quality_kpis.md` |
+| Screening failure attribution | `research/screening_failure_attribution_latest.v1.json` |
+| Failure-action mapping | `logs/failure_action_mapping_minimal/latest.json` |
+| Data manifest/readiness | `logs/qre_data_cache_manifest/latest.json` |
+| Source quality readiness | `logs/qre_data_source_quality_readiness/latest.json` |
+| Research memory | `logs/qre_research_memory/latest.json` |
+| Research diagnostics loop | `logs/qre_research_diagnostics_loop/latest.json` |
+| ADE/QRE queue state | `docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md` |
 
 into one operator-readable digest at
 `logs/research_observability_minimal/latest.json` and a JSONL
@@ -90,6 +98,24 @@ pointer to the doctrine document. Numeric KPI values are
 **not** computed by this slice — they require a canonical KPI
 artefact that ships in a separate operator-driven PR.
 
+### ADE-QRE-007 operator-grade summary
+
+The additive `qre_operator_summary` block surfaces:
+
+- unknown failure rate from the screening attribution sidecar;
+- actionable failure rate from failure-action mapping;
+- attribution depth score from observed classifications, evidence sources,
+  raw reasons, action hints, and available next-action evidence;
+- data readiness from the data manifest and source-quality sidecars;
+- prior similar failure counts from research memory;
+- diagnostics-loop status and recommended operator step;
+- governance blockers from the ADE/QRE queue document.
+
+The summary is read-only. It exposes operator state such as
+`operator_gate_visible` when a downstream queue item is in
+`operator_review`; it does not add dashboard mutation routes, approval
+buttons, or auto-execute controls.
+
 ## Hard guarantees (pinned by tests)
 
 | Guarantee | Test pin |
@@ -104,6 +130,8 @@ artefact that ships in a separate operator-driven PR.
 | No `dashboard/dashboard.py` mutation (CQD-I2) | `test_module_does_not_modify_dashboard_dashboard_py_source` |
 | All four upstream sources are surfaced (closed source-ids set) | `test_sources_block_carries_closed_source_id_set` |
 | Source-id set is pinned at `SOURCE_IDS` | `test_source_ids_are_pinned` |
+| ADE-QRE operator summary source-id set is pinned | `test_qre_operator_summary_source_ids_are_pinned` |
+| ADE-QRE rates/readiness/governance blockers are surfaced read-only | `test_qre_operator_summary_reports_rates_readiness_and_gate` |
 
 ## Output
 
@@ -113,7 +141,7 @@ timestamped copy + a JSONL history). Schema:
 ```json
 {
   "schema_version": 1,
-  "module_version": "v3.15.18-minimal-reset-2026-05-21",
+  "module_version": "v3.15.18-ade-qre-007-operator-grade-2026-05-23",
   "report_kind": "research_observability_minimal_digest",
   "generated_at_utc": "<rfc3339-utc-seconds>",
   "mode": "dry-run",
@@ -160,6 +188,29 @@ timestamped copy + a JSONL history). Schema:
       "note": "<framing string>"
     }
   },
+  "qre_operator_summary": {
+    "unknown_failure_rate": "<float|null>",
+    "actionable_failure_rate": "<float|null>",
+    "attribution_depth_score": "<float|null>",
+    "data_readiness": {
+      "status": "ready|not_ready",
+      "research_ready": "<bool>"
+    },
+    "prior_similar_failures": {
+      "research_memory_ready": "<bool>",
+      "prior_similar_failure_count": "<int>"
+    },
+    "diagnostics_loop": {
+      "status": "ready|not_ready|missing|invalid",
+      "diagnostic_count": "<int>",
+      "recommended_operator_step": "<str|null>"
+    },
+    "governance_blockers": {
+      "status": "clear|blocked",
+      "blockers": [{"queue_item": "<id>", "status": "<status>"}]
+    },
+    "operator_state": "missing_upstream_evidence|operator_gate_visible|operator_review_available|operator_review_limited_by_missing_diagnostics"
+  },
   "cross_family_subjects": {
     "total": <int>,
     "top_by_surface_count": { "<subject_id>": <int> }
@@ -187,7 +238,9 @@ timestamped copy + a JSONL history). Schema:
   canonical / derived artefacts.
 - Not state-aware / retrieval-aware / knowledge-aware
   (Addendum 2 — DEFERRED).
-- Not source-quality-aware (Addendum 3 — DEFERRED).
+- Not an Addendum 3 source activation path. ADE-QRE-007 reads only the existing
+  source-quality readiness sidecar; it does not fetch, activate, or backfill
+  external data sources.
 - Not adaptive. The aggregator does not modify routing,
   sampling, scoring, or any other surface based on what it reads.
 
