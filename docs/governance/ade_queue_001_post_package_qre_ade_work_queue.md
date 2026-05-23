@@ -8,6 +8,7 @@
 > `docs/architecture/PACKAGE-MIGRATION-010-package-migration-closure-decision.md`.
 >
 > This document does not activate Addendum 1, Addendum 2, Addendum 3,
+> Addendum 4,
 > v4.x Shadow, v5.x Paper, v6.x Live, or any live/paper/shadow/risk/broker/
 > execution behavior. It also does not update `docs/development_work_queue/seed.jsonl`.
 
@@ -16,7 +17,7 @@
 - Work starts from the post-package QRE Feature Build Track.
 - `QRE_ADE_How_To_Target_State_Roadmap.md` is the queue's primary product/research source.
 - The first executable item must improve research evidence or diagnostics before any strategy synthesis.
-- Addendum 1, Addendum 2, and Addendum 3 remain reference-only unless a future operator-approved ADR activates a specific subsection.
+- Addendum 1, Addendum 2, Addendum 3, and Addendum 4 remain reference-only unless a future operator-approved ADR activates a specific subsection.
 - Frozen contracts stay unchanged: `research/research_latest.json`, `research/strategy_matrix.csv`, frozen schemas, and regression pins.
 - The architecture scanner must keep `forbidden_edge_count = 0`.
 - Transcript and weekly files remain untracked and out of commits.
@@ -235,5 +236,61 @@
   - ADE-QRE-011 defined with explicit allowed scope, forbidden scope,
     promote/defer/block criteria, stop conditions, tests, and merge criteria.
   - validation commands pass, with scanner `forbidden_edge_count=0`.
+- expected next queue item: `ADE-QRE-013`.
+
+### ADE-QRE-013 - Trusted Loop Maturity Matrix and Roadmap v6 Addendum 4
+
+- queue id: `ADE-QRE-013`
+- status: `ready`
+- goal: document that the trusted-loop foundation exists, but is still
+  scaffold/readiness evidence rather than operator-trusted research capability.
+- addendum record:
+  `docs/roadmap/Roadmap v6 Addendum 4 - Trusted Loop Readiness and Operator Trust.md`.
+- sequencing note: the local work queue has no committed `ADE-QRE-012` entry at
+  the time this docs-only item is added. `ADE-QRE-013` is therefore appended as
+  the next available queue entry without backfilling or inventing `ADE-QRE-012`
+  scope.
+- allowed scope: documentation only; maturity matrix; readiness taxonomy;
+  operator-trust gates; missing-evidence inventory; safe next docs/readiness
+  queue candidates.
+- forbidden scope: runtime functionality, strategy synthesis, strategy
+  implementations, `registry.py`, research output mutation, tests unless docs
+  lint requires them, logs, generated artifacts, frozen contracts,
+  paper/shadow/live, broker/risk/execution, Addendum runtime activation, and
+  broad refactors.
+- current maturity finding:
+  - ADE-QRE-001 through ADE-QRE-007 established trusted-loop scaffolding and
+    read-only diagnostics/observability surfaces.
+  - ADE-QRE-008 and ADE-QRE-011 established readiness decisions and gates, not
+    strategy authority.
+  - ADE-QRE-012 has no committed queue record in this branch and contributes no
+    maturity credit.
+  - strategy synthesis remains blocked.
+- missing evidence:
+  - reason records are 0.
+  - routing snapshot has 0 ready items.
+  - sampling snapshot has 0 ready items.
+  - KPI numeric values are incomplete.
+  - `failure_action_mapping` has no actionable failures.
+  - approved strategies are 0.
+  - no paper-ready candidate exists.
+- safe next queue candidates: docs/readiness-only evidence inventory,
+  operator-trust checklist, KPI completeness decision record, and
+  reason-record/routing/sampling readiness audit. None may implement runtime
+  behavior or activate strategy synthesis.
+- tests/validation:
+  - `git diff --check`
+  - `python -m reporting.architecture_import_scan --format summary`
+  - `git status --short`
+- merge criteria:
+  - exactly docs-only diff for this item.
+  - Addendum 4 is marked `DEFERRED / REFERENCE-ONLY`.
+  - Addendum 1, Addendum 2, Addendum 3, and Addendum 4 remain inactive.
+  - no strategy synthesis, registry, strategy, frozen contract, research output,
+    paper/shadow/live, broker/risk/execution, log, or generated artifact file is
+    changed.
+  - validation commands pass, with scanner `forbidden_edge_count=0`.
+- operator review required: yes. This item documents readiness limits and must
+  not be used as implementation authorization.
 - expected next queue item: none unless the operator explicitly approves a
-  future scoped item.
+  future docs/readiness-only item.
