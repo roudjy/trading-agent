@@ -500,8 +500,7 @@ def write_outputs(
 def read_latest_snapshot(
     *, artifact_dir: Path | None = None
 ) -> dict[str, Any] | None:
-    base = artifact_dir or ARTIFACT_DIR
-    p = base / ARTIFACT_LATEST.name
+    p = (artifact_dir / ARTIFACT_LATEST.name) if artifact_dir else ARTIFACT_LATEST
     if not p.is_file():
         return None
     try:

@@ -502,6 +502,29 @@ def collect_manifest(
     }
 
 
+def write_manifest(
+    *,
+    artifact_dir: Path | None = None,
+    frozen_utc: str | None = None,
+) -> dict[str, Any]:
+    """Materialise ``manifest.v1.json`` from existing JSONL records.
+
+    This does not create or append reason records. It is intentionally
+    safe for empty evidence directories so callers can make the
+    absence of records explicit without inventing records.
+    """
+    base = artifact_dir or ARTIFACT_DIR
+    manifest_path = base / MANIFEST_PATH.name
+    _validate_write_target(manifest_path)
+    base.mkdir(parents=True, exist_ok=True)
+    manifest = collect_manifest(artifact_dir=base, frozen_utc=frozen_utc)
+    payload = json.dumps(manifest, sort_keys=True, indent=2)
+    tmp = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    os.replace(tmp, manifest_path)
+    return manifest
+
+
 # ---------------------------------------------------------------------------
 # Write API (RR-I1 append-only, RR-I2 idempotent)
 # ---------------------------------------------------------------------------

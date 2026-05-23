@@ -427,6 +427,23 @@ def test_collect_manifest_empty_returns_no_records_note(tmp_path: Path) -> None:
     assert m["by_kind"] == {"routing": 0, "sampling": 0, "scoring": 0}
 
 
+def test_write_manifest_materialises_empty_manifest_without_records(
+    tmp_path: Path,
+) -> None:
+    base = tmp_path / "logs" / "reason_records"
+    manifest = rr.write_manifest(
+        artifact_dir=base,
+        frozen_utc="2026-05-21T01:00:00Z",
+    )
+    manifest_path = base / "manifest.v1.json"
+    assert manifest_path.is_file()
+    assert manifest["total_records"] == 0
+    assert manifest["note"] == "no_records"
+    assert not (base / "routing_v1.jsonl").exists()
+    persisted = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert persisted == manifest
+
+
 # ---------------------------------------------------------------------------
 # Reader purity + execution-import deny (RR-I7, RR-I9)
 # ---------------------------------------------------------------------------
