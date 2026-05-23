@@ -139,7 +139,12 @@
 ### ADE-QRE-008 - Strategy Synthesis Readiness Gate
 
 - queue id: `ADE-QRE-008`
-- status: `operator_review`
+- status: `done`
+- completion evidence: operator reviewed the ADE-QRE-008 reassessment and selected
+  `PROMOTE_TO_BOUNDED_NEXT_QUEUE_ITEM`; see
+  `docs/governance/ade_qre_011_bounded_strategy_synthesis_readiness_decision.md`.
+  The decision promotes only a docs/governance readiness item and does not
+  authorize strategy synthesis implementation.
 - doel: decide whether strategy synthesis or new research capability is eligible after evidence, data, memory, diagnostics, and observability mature.
 - bron uit target-state roadmap: phase order "Pas daarna"; lessons "Hypothesis first, strategy second"; section 18 "Wat voorlopig bewust niet doen".
 - scope: operator review of KPIs and evidence only; define whether a future strategy/research capability queue item is allowed.
@@ -148,4 +153,87 @@
 - tests/validation: evidence pack references prior queue outputs and scanner summary; no code tests unless a later scoped implementation is approved.
 - merge/deploy criteria: explicit operator decision with promote/retire criteria and bounded follow-up scope.
 - stop condition: unknown failure/data/memory/observability evidence is still insufficient.
-- expected next queue item: no eligible implementation item until operator approval.
+- expected next queue item: `ADE-QRE-011`.
+
+### ADE-QRE-011 - Bounded Strategy Synthesis Readiness Item
+
+- queue id: `ADE-QRE-011`
+- status: `ready`
+- goal: define minimum evidence-gated conditions for future strategy synthesis
+  consideration without implementing strategy behavior.
+- operator decision: approved as a docs/governance-only queue item. This approval
+  does not authorize strategy synthesis implementation.
+- decision record:
+  `docs/governance/ade_qre_011_bounded_strategy_synthesis_readiness_decision.md`.
+- current evidence state:
+  - data cache manifest: ready; `research_ready=true`.
+  - source quality readiness: ready; `research_ready=true`.
+  - research memory: ready.
+  - diagnostics loop: ready.
+  - observability: `operator_review_available`.
+  - `unknown_failure_rate=0.0`.
+  - `attribution_depth_score=1.0`.
+  - architecture scanner `forbidden_edge_count=0`.
+- remaining gaps:
+  - `failure_action_mapping.status=not_ready` because `total_failures=0` and
+    there is nothing actionable to map.
+  - reason-records manifest is not materialized.
+  - `routing_minimal` latest snapshot is missing.
+  - `sampling_minimal` latest snapshot is missing.
+  - KPI numeric values are unavailable; only KPI doctrine identifiers exist.
+- allowed scope: governance docs, queue entry, operator decision record, and
+  read-only evidence references.
+- forbidden scope: strategy implementations, `registry.py`, research output
+  mutation, paper/shadow/live, broker/risk/execution, source adapter activation,
+  dashboard mutation routes, Addendum activation, broad refactors, runtime logs,
+  and frozen contract changes.
+- likely files:
+  - `docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md`
+  - `docs/governance/ade_qre_011_bounded_strategy_synthesis_readiness_decision.md`
+- tests/validation:
+  - `git diff --check`
+  - `python -m reporting.architecture_import_scan --format summary`
+  - `python -m reporting.research_observability_minimal --status`
+  - verify architecture scanner `forbidden_edge_count` remains `0`
+  - verify no frozen contracts changed
+- promote criteria for a later strategy synthesis implementation item:
+  - reason-records manifest is materialized, or the operator explicitly declares
+    it not required with rationale.
+  - `routing_minimal` latest snapshot is materialized, or the operator explicitly
+    declares it not required with rationale.
+  - `sampling_minimal` latest snapshot is materialized, or the operator explicitly
+    declares it not required with rationale.
+  - KPI numeric values are available, or the operator approves substitute
+    criteria in writing.
+  - no frozen contract mutation is required.
+  - no `registry.py` changes are included unless separately and explicitly
+    approved by the operator.
+  - no paper/shadow/live or execution behavior is included.
+  - bounded hypothesis/research capability scope is documented before any
+    executable strategy code is proposed.
+- defer criteria:
+  - required evidence is absent but can be materialized by a bounded read-only
+    diagnostics, observability, or governance item.
+  - KPI substitute criteria are plausible but not yet operator approved.
+  - the proposed implementation scope is not narrow enough to review safely.
+- block criteria:
+  - the next item would introduce strategy code before evidence gates are met.
+  - the next item would modify `registry.py` without separate explicit operator
+    approval.
+  - the next item would mutate frozen contracts or research outputs.
+  - the next item would activate paper/shadow/live, broker/risk/execution,
+    source adapters, dashboard mutation routes, or Addendum scope.
+- stop conditions:
+  - any implementation file outside docs/governance becomes necessary.
+  - validation reports architecture scanner forbidden edges.
+  - frozen contracts or protected research outputs appear in the diff.
+  - the future strategy synthesis criteria cannot be stated without inventing
+    strategy behavior.
+- merge criteria:
+  - docs/governance-only diff.
+  - ADE-QRE-008 marked done/operator-reviewed.
+  - ADE-QRE-011 defined with explicit allowed scope, forbidden scope,
+    promote/defer/block criteria, stop conditions, tests, and merge criteria.
+  - validation commands pass, with scanner `forbidden_edge_count=0`.
+- expected next queue item: none unless the operator explicitly approves a
+  future scoped item.
