@@ -34,7 +34,8 @@
 ### ADE-QRE-001 - Unknown Failure Reduction
 
 - queue id: `ADE-QRE-001`
-- status: `ready`
+- status: `done`
+- completion evidence: PR #309, merge SHA `d35e9d85f2ffccb102e4b3257cffd8b747283d51`; post-merge gates green; frozen contracts unchanged; protected paths untouched; live/paper/shadow/risk/broker/execution inactive.
 - doel: reduceer `unknown_screening_failure` naar deterministische, evidence-backed subklassen.
 - bron uit target-state roadmap: fase 1 "Unknown Failure Reduction Sprint"; prompt 12.1; trusted loop metrics `unknown_failure_rate`, `actionable_failure_rate`, `attribution_depth_score`.
 - scope: inspecteer bestaande screening/no-candidate evidence, voeg alleen deterministische classificatie toe voor reeds observeerbare failure shapes, en rapporteer before/after unknown counts.
@@ -48,7 +49,8 @@
 ### ADE-QRE-002 - Screening Failure Attribution Depth
 
 - queue id: `ADE-QRE-002`
-- status: `deferred`
+- status: `done`
+- completion evidence: implemented deterministic read-only action hints for existing screening attribution classes and a read-only failure-action mapping adapter; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
 - doel: make screening failures more actionable after unknown reduction by mapping classes to stable failure-to-action recommendations.
 - bron uit target-state roadmap: current weakness "Attribution depth"; fase 7 "Failure -> Action -> Reroute sluiten"; prompt 12.1 follow-up.
 - scope: enrich existing attribution output with deterministic action hints for known non-strategy failure classes and keep them read-only.
@@ -62,7 +64,7 @@
 ### ADE-QRE-003 - Data Foundation Manifest and Coverage
 
 - queue id: `ADE-QRE-003`
-- status: `deferred`
+- status: `ready`
 - doel: introduce a read-only local research cache manifest and coverage reporter before data-aware routing or hypothesis discovery depends on data readiness.
 - bron uit target-state roadmap: fase 2 "Data Foundation als productlaag"; prompt 12.2 "Data Foundation v3.data.1"; data-throughput sections 9.4-9.6.
 - scope: manifest schema, coverage report by source/instrument/timeframe, row counts, min/max timestamps, schema version, content hash, and deterministic sidecar output.
