@@ -3,7 +3,7 @@
 ## 1. Purpose
 
 This project builds an automated research platform to discover which strategies work across 
-asset × timeframe × regime.
+asset Ãƒâ€” timeframe Ãƒâ€” regime.
 
 The system must remain:
 
@@ -33,7 +33,7 @@ The system must enforce a clear and modular structure aligned with the defined l
 - `registry.py` is the single source of truth for strategy registration
 - Strategy implementations live in `agent/backtesting/strategies.py`
 - Research orchestration lives in `research/run_research.py`
-- See `docs/adr/ADR-014-truth-authority-settlement.md` for the canonical authority map across registry, presets, hypothesis catalog, candidate lifecycle, campaign registry, and paper readiness — and for the formal definitions of `enabled`, `bundle_active`, `active_discovery`, and `live_eligible`.
+- See `docs/adr/ADR-014-truth-authority-settlement.md` for the canonical authority map across registry, presets, hypothesis catalog, candidate lifecycle, campaign registry, and paper readiness Ã¢â‚¬â€ and for the formal definitions of `enabled`, `bundle_active`, `active_discovery`, and `live_eligible`.
 
 ### Output Contracts
 
@@ -63,14 +63,14 @@ Agent role separation has moved from the original "Claude / Codex CLI
 sixteen-role model, plus the eight canonical handoff roles defined in
 `reporting.roadmap_execution_protocol`. The full mapping lives in:
 
-- `docs/governance/agent_handoff_protocol.md` — eight canonical
+- `docs/governance/agent_handoff_protocol.md` Ã¢â‚¬â€ eight canonical
   handoff roles (product_owner, strategic_advisor, planner,
   implementation_agent, architecture_guardian, ci_guardian,
   security/governance_guardian, human_operator).
-- `docs/governance/autonomy_ladder.md` — six autonomy levels (L0–L6).
+- `docs/governance/autonomy_ladder.md` Ã¢â‚¬â€ six autonomy levels (L0Ã¢â‚¬â€œL6).
   Level 6 is permanently disabled.
-- `docs/adr/ADR-015-claude-agent-governance.md` — authority chain.
-- `.claude/agents/` — per-agent frontmatter with `allowed_roots`,
+- `docs/adr/ADR-015-claude-agent-governance.md` Ã¢â‚¬â€ authority chain.
+- `.claude/agents/` Ã¢â‚¬â€ per-agent frontmatter with `allowed_roots`,
   `tools`, and `max_autonomy_level`.
 
 Agent capability is bounded at every layer (policy, hooks,
@@ -89,18 +89,18 @@ The original "Claude / Codex CLI / Claude Code" three-actor model is
 
 The canonical execution workflow is defined in:
 
-- `docs/governance/roadmap_item_execution_protocol.md` — protocol
+- `docs/governance/roadmap_item_execution_protocol.md` Ã¢â‚¬â€ protocol
   per roadmap item.
-- `docs/governance/agent_flow.md` — closed `next_action_proposed`
+- `docs/governance/agent_flow.md` Ã¢â‚¬â€ closed `next_action_proposed`
   vocabulary.
-- `docs/governance/task_board.md` — read-only state-machine
+- `docs/governance/task_board.md` Ã¢â‚¬â€ read-only state-machine
   projection.
-- `docs/governance/github_pr_lifecycle.md` — branch → PR → CI →
-  squash-merge → post-merge protocol.
+- `docs/governance/github_pr_lifecycle.md` Ã¢â‚¬â€ branch Ã¢â€ â€™ PR Ã¢â€ â€™ CI Ã¢â€ â€™
+  squash-merge Ã¢â€ â€™ post-merge protocol.
 
 No agent may bypass `reporting.execution_authority.classify(...)`
 or skip the GitHub PR lifecycle. The previous prose ("Claude
-designs → Codex implements → Human validates") is superseded.
+designs Ã¢â€ â€™ Codex implements Ã¢â€ â€™ Human validates") is superseded.
 
 ---
 
@@ -130,21 +130,49 @@ Current direction:
 
 ## 8. Engineering Direction (Current Phase)
 
-Focus on architecture, not alpha expansion.
+Current phase: **Post-package QRE Feature Build Track**.
+
+The dedicated architecture sequence is closed:
+
+* ARCH-000 through ARCH-006 are complete.
+* EXTRACT-001 through EXTRACT-002 are complete.
+* PACKAGE-MIGRATION-001 through PACKAGE-MIGRATION-010 are complete.
+* `PACKAGE-MIGRATION-010` selected `PACKAGE_MIGRATION_READY_FOR_QRE_FEATURE_TRACK`.
+
+Feature work may resume, but only inside the new package-boundary discipline.
+
+Canonical post-package layout:
+
+* `apps/control-plane/` — control-plane / dashboard-facing read surfaces.
+* `packages/ade_governance/` — ADE governance and development-control contracts.
+* `packages/control_plane_qre_adapter_contract/` — read-only adapter contract between control-plane and QRE.
+* `packages/qre_research/` — QRE research boundary.
+* `packages/qre_data/` — QRE data boundary.
+* `packages/qre_artifacts/` — QRE artifacts boundary.
+* `packages/qre_diagnostics/` — QRE diagnostics boundary.
+* `packages/qre_policy/` — QRE policy/read-only policy boundary.
+* `packages/qre_execution_sim/` — execution-simulation boundary only.
+* `packages/qre_shadow/` — future-only; inactive until the appropriate roadmap phase.
+* `packages/qre_paper/` — future-only; inactive until the appropriate roadmap phase.
+* `packages/qre_live/` — hard-disabled until Roadmap v6 live-governance approval.
 
 Priorities:
 
-* extract asset universe into `research/universe.py`
-* introduce structured asset metadata
-* prepare for multi-asset-type support
-* keep runner simple and deterministic
+* resume QRE feature work from a concrete product/research goal;
+* keep changes bounded and hypothesis-driven;
+* reduce legacy/report-only edges only when tied to concrete feature or cleanup scope;
+* preserve deterministic research outputs and package-boundary tests;
+* use the package boundaries above as the default import direction for new work.
 
 Do not:
 
-* add new strategies during architecture work
-* refactor beyond the smallest viable change
-
----
+* restart ARCH, EXTRACT, or PACKAGE-MIGRATION without a concrete blocker;
+* perform broad file moves or broad refactors;
+* bypass the architecture scanner or PR lifecycle;
+* activate shadow, paper, live, broker, risk, or execution behavior;
+* add live-trading capability;
+* change frozen contracts without explicit scope and tests;
+* weaken tests or hide legacy/report-only findings with broad allowlists.
 
 ## 9. Session Start Protocol
 

@@ -1,10 +1,49 @@
 # Changelog
 
+## [Unreleased] — Post-package architecture alignment
+
+Date: 2026-05-23
+Scope: documentation/governance alignment only.
+
+### Added
+
+- Documented that ARCH-000 through ARCH-006, EXTRACT-001 through EXTRACT-002, and PACKAGE-MIGRATION-001 through PACKAGE-MIGRATION-010 are complete.
+- Documented that `PACKAGE-MIGRATION-010` selected `PACKAGE_MIGRATION_READY_FOR_QRE_FEATURE_TRACK`.
+- Documented the post-package target layout:
+  - `apps/control-plane/`
+  - `packages/ade_governance/`
+  - `packages/control_plane_qre_adapter_contract/`
+  - `packages/qre_research/`
+  - `packages/qre_data/`
+  - `packages/qre_artifacts/`
+  - `packages/qre_diagnostics/`
+  - `packages/qre_policy/`
+  - `packages/qre_execution_sim/`
+  - `packages/qre_shadow/`
+  - `packages/qre_paper/`
+  - `packages/qre_live/`
+
+### Changed
+
+- Updated top-level governance docs to reflect the current lane: QRE Feature Build Track.
+- Clarified that future QRE feature work must respect package boundaries and architecture scanner gates.
+- Replaced the old simple live-toggle guidance with the current live-governance rule: no live trading by config flip alone.
+
+### Not changed
+
+- No runtime code.
+- No package migration.
+- No QRE feature behavior.
+- No dashboard mutation routes.
+- No `.claude/**` changes.
+- No frozen contracts.
+- No live, paper, shadow, risk, broker, or execution behavior activation.
+
 All notable changes to the trading-agent research and backtesting
 stack are documented here. Live trading / orchestration surfaces
 outside the research path are not tracked in this file.
 
-## [v3.15.15.9] — Sprint Progress Freshness Repair
+## [v3.15.15.9] â€” Sprint Progress Freshness Repair
 
 Date: 2026-04-29
 Branch: `feat/sprint-progress-launcher-hook-v3-15-15-9`
@@ -30,18 +69,18 @@ block the launcher tick.
 |---|---|---|
 | `research/discovery_sprint.py` | extracted `update_sprint_progress()` from `cmd_status`; `cmd_status` becomes a thin shim | +112 / -55 |
 | `research/campaign_launcher.py` | imported `update_sprint_progress`; added the post-tick hook | +18 |
-| `tests/unit/test_sprint_progress_launcher_hook.py` | new file — 9 unit tests for the contract | +220 |
-| `VERSION` | `3.15.15.8` → `3.15.15.9` | 1 |
+| `tests/unit/test_sprint_progress_launcher_hook.py` | new file â€” 9 unit tests for the contract | +220 |
+| `VERSION` | `3.15.15.8` â†’ `3.15.15.9` | 1 |
 | `CHANGELOG.md` | this entry | ~115 |
 
 ### Files explicitly NOT touched
 
 - `research/campaign_registry.py`, `research/campaign_queue.py`
-- `research/diagnostics/*` — unchanged. The aggregator's existing
+- `research/diagnostics/*` â€” unchanged. The aggregator's existing
   `sprint_progress_stale_relative_to_registry` warning is now expected
   to clear naturally on the next tick after deploy.
 - `dashboard/`, `frontend/`, `agent/`, `strategies/`, `orchestration/`
-- `ops/systemd/*` — no timer install/enable/start
+- `ops/systemd/*` â€” no timer install/enable/start
 - All frozen contracts
 
 ### Contract: `update_sprint_progress(now_utc=None) -> dict | None`
@@ -64,7 +103,7 @@ Side effects, in order:
    `expired` thresholds (state transition).
 
 The returned dict, when non-`None`, carries every key the legacy
-`cmd_status` JSON output emitted — so the CLI shim is byte-equivalent
+`cmd_status` JSON output emitted â€” so the CLI shim is byte-equivalent
 to the v3.15.15.8 surface.
 
 ### Launcher-tick safety analysis
@@ -73,17 +112,17 @@ to the v3.15.15.8 surface.
 |---|---|
 | Sprint sidecar corruption blocks the tick | hook is wrapped in try/except + the function itself never raises |
 | Disk-full during sprint write blocks campaign artifact persistence | hook fires AFTER `assert_invariants`, so registry / queue / ledger / digest are ALREADY persisted; sprint write failure is contained |
-| Stale registry → confusing observed counts | sprint progress is descriptive, not prescriptive — a stale count just under-reports observations until the next tick |
+| Stale registry â†’ confusing observed counts | sprint progress is descriptive, not prescriptive â€” a stale count just under-reports observations until the next tick |
 | Sprint registry transition writes after a tick crash | a tick that crashes mid-state-transition leaves the progress sidecar fresh and the registry unchanged; on the NEXT tick the hook re-evaluates the same transition and (idempotently) re-issues it |
-| Hook becomes a hidden coupling between launcher and sprint module | already present from v3.15.14: `load_active_sprint_constraints`, `apply_sprint_routing`, `sprint_extra_for_record`. This release adds **one more** callable from the same module — no new module dependency |
+| Hook becomes a hidden coupling between launcher and sprint module | already present from v3.15.14: `load_active_sprint_constraints`, `apply_sprint_routing`, `sprint_extra_for_record`. This release adds **one more** callable from the same module â€” no new module dependency |
 
 ### Cleanup / canonicalization (v3.15.15.9)
 
 | Item | Location | Classification | Action |
 |---|---|---|---|
-| `cmd_status` body duplicated logic with `cmd_run` | `discovery_sprint.py:1336-1383` and `:1402-1485` | dead-code-ish (acceptable) | KEEP — `cmd_run` is sprint-creation, not sprint-progress; merging would tangle two concerns. The shared `build_progress_payload` already factors out the inner write. |
-| `_write_ledger`, `_record_digest` patterns in launcher | `campaign_launcher.py:407-424` | canonical | KEEP — same try/except safety pattern applied to the new sprint hook |
-| `sprint_progress_stale_relative_to_registry` warning | `aggregator.py + paths.py` | canonical, transitional | KEEP — still useful as a diagnostic during the soak window; once the hook is proven on live VPS, a future release may drop the warning entirely |
+| `cmd_status` body duplicated logic with `cmd_run` | `discovery_sprint.py:1336-1383` and `:1402-1485` | dead-code-ish (acceptable) | KEEP â€” `cmd_run` is sprint-creation, not sprint-progress; merging would tangle two concerns. The shared `build_progress_payload` already factors out the inner write. |
+| `_write_ledger`, `_record_digest` patterns in launcher | `campaign_launcher.py:407-424` | canonical | KEEP â€” same try/except safety pattern applied to the new sprint hook |
+| `sprint_progress_stale_relative_to_registry` warning | `aggregator.py + paths.py` | canonical, transitional | KEEP â€” still useful as a diagnostic during the soak window; once the hook is proven on live VPS, a future release may drop the warning entirely |
 | CLI vs launcher invocation paths | `cmd_status` and `update_sprint_progress` | canonical now | the legacy CLI invocation `python -m research.discovery_sprint status` continues to work; AGENTS / docs keep both paths |
 
 No destructive cleanup performed.
@@ -116,7 +155,7 @@ $ pytest tests/unit/ -q
                        2276 passed, 3 skipped          (gate 3; +9 from v3.15.15.8)
 
 $ pytest tests/functional --run-functional -q
-                       23 passed                       (gate 4 — harness untouched)
+                       23 passed                       (gate 4 â€” harness untouched)
 ```
 
 Frozen contract md5s unchanged (canonical LF):
@@ -139,7 +178,7 @@ progress sidecar shape is identical to the legacy shape (the same
 `build_progress_payload` produces it), so revert leaves on-disk
 artifacts intact.
 
-## [v3.15.15.8] — Registry Metadata Enrichment
+## [v3.15.15.8] â€” Registry Metadata Enrichment
 
 Date: 2026-04-29
 Branch: `feat/registry-metadata-enrichment-v3-15-15-8`
@@ -164,7 +203,7 @@ at spawn time but never resolved it back to its hypothesis catalog row.
 Boundary rule per the v3.15.15.8 audit: each addition is (a) known at
 spawn time, (b) stable for the campaign's lifetime, (c) needed for
 failure clustering / dead-zone detection. Per-run / per-candidate /
-per-screening detail does NOT live on the registry record — it lives
+per-screening detail does NOT live on the registry record â€” it lives
 in evidence sidecars.
 
 Explicit non-additions (deferred to later releases or never):
@@ -180,19 +219,19 @@ decision blobs.
 | `research/discovery_sprint.py` | added public alias `infer_asset_class = _infer_asset_class` (canonicalization, non-destructive) | +5 |
 | `research/campaign_launcher.py` | new `_resolve_metadata_for_preset()` resolver; `_build_record` populates the four new keys | +44 |
 | `tests/unit/test_campaign_registry.py` | six v3.15.15.8 unit tests (defaults, populated, mixed-registry, byte-reproducible writes, transition+outcome preservation) | +95 |
-| `tests/unit/test_campaign_launcher_metadata_resolver.py` | new file — nine resolver-purity tests | +95 |
+| `tests/unit/test_campaign_launcher_metadata_resolver.py` | new file â€” nine resolver-purity tests | +95 |
 | `tests/unit/test_observability_failure_modes.py` | two v3.15.15.8 diagnostics tests (limitations clear when populated; persist for legacy-only registries) | +75 |
-| `VERSION` | `3.15.15.7` → `3.15.15.8` | 1 |
+| `VERSION` | `3.15.15.7` â†’ `3.15.15.8` | 1 |
 | `CHANGELOG.md` | this entry | ~125 |
 
 ### Files explicitly NOT touched
 
 - `research/screening_evidence.py`, `research/run_research.py`
-- `research/diagnostics/*` — diagnostics read surface unchanged; the
+- `research/diagnostics/*` â€” diagnostics read surface unchanged; the
   same code now sees populated values for new records
 - `dashboard/`, `frontend/`, `agent/`, `strategies/`, `orchestration/`,
   `execution/`, `automation/`, `state/`
-- `ops/systemd/*` — no timer install/enable/start
+- `ops/systemd/*` â€” no timer install/enable/start
 - All frozen contracts (`research_latest.json`, `strategy_matrix.csv`)
 
 ### Backward compatibility
@@ -201,12 +240,12 @@ The 20 live VPS registry records lack `hypothesis_id` and `universe`
 entirely and carry `strategy_family=null` / `asset_class=null`. All
 consumers of these fields use `dict.get()` with null-tolerance:
 
-- `campaign_digest._compute_by_candidate_family` — `if not family or not asset: continue`
-- `campaign_launcher` family-state derivation — `if family and asset: families.append(...)`
-- `campaign_policy._guess_family_key` — falls through to `"unknown|unknown"`
-- `campaign_queue.queue_entry_from_record` — does NOT pass through the new keys at all
-- `dead_zone_detection` — reads ledger events, not the registry
-- `research/diagnostics/failure_modes.py` — already reports limitations
+- `campaign_digest._compute_by_candidate_family` â€” `if not family or not asset: continue`
+- `campaign_launcher` family-state derivation â€” `if family and asset: families.append(...)`
+- `campaign_policy._guess_family_key` â€” falls through to `"unknown|unknown"`
+- `campaign_queue.queue_entry_from_record` â€” does NOT pass through the new keys at all
+- `dead_zone_detection` â€” reads ledger events, not the registry
+- `research/diagnostics/failure_modes.py` â€” already reports limitations
   when these are missing; will simply stop reporting them once
   populated records exist
 
@@ -229,12 +268,12 @@ surface for stale/dead/duplicate constructs:
 
 | Item | Location | Classification | Action |
 |---|---|---|---|
-| `_infer_asset_class` private helper | `research/discovery_sprint.py:275` | canonical, but private | added public alias `infer_asset_class` (non-destructive — both names reference the same function object); avoids cross-module dependency on a private symbol |
-| `worker_crashed` outcome literal | `research/campaign_registry.py:71-72,85` | compat-shim (DEPRECATED v3.15.5; historical records only) | KEEP — actively documented as backward-compat for legacy ledger entries; removal would invalidate the live ledger |
-| `hypothesis_id_missing_from_source_artifact` limitation | `research/diagnostics/paths.py:255` + `failure_modes.py:570` | canonical, transitional | KEEP — drops naturally from emission once populated records exist; mixed-registry safety preserved |
-| `strategy_family_field_present_but_unpopulated_by_writer` | `paths.py:256` | canonical, transitional | KEEP — same rationale |
-| `asset_class_field_present_but_unpopulated_by_writer` | `paths.py:257` | canonical, transitional | KEEP — same rationale |
-| `FUTURE_WRITER_FIELDS` list | `failure_modes.py:70-81` | canonical | KEEP unchanged this release — entries pin diagnostic intent; once the live registry has only post-v3.15.15.8 records, a future release can shrink the list |
+| `_infer_asset_class` private helper | `research/discovery_sprint.py:275` | canonical, but private | added public alias `infer_asset_class` (non-destructive â€” both names reference the same function object); avoids cross-module dependency on a private symbol |
+| `worker_crashed` outcome literal | `research/campaign_registry.py:71-72,85` | compat-shim (DEPRECATED v3.15.5; historical records only) | KEEP â€” actively documented as backward-compat for legacy ledger entries; removal would invalidate the live ledger |
+| `hypothesis_id_missing_from_source_artifact` limitation | `research/diagnostics/paths.py:255` + `failure_modes.py:570` | canonical, transitional | KEEP â€” drops naturally from emission once populated records exist; mixed-registry safety preserved |
+| `strategy_family_field_present_but_unpopulated_by_writer` | `paths.py:256` | canonical, transitional | KEEP â€” same rationale |
+| `asset_class_field_present_but_unpopulated_by_writer` | `paths.py:257` | canonical, transitional | KEEP â€” same rationale |
+| `FUTURE_WRITER_FIELDS` list | `failure_modes.py:70-81` | canonical | KEEP unchanged this release â€” entries pin diagnostic intent; once the live registry has only post-v3.15.15.8 records, a future release can shrink the list |
 
 No destructive cleanup performed. No file deleted. No constant renamed.
 No frozen-contract impact.
@@ -270,10 +309,10 @@ $ pytest tests/unit/ -q
                        2267 passed, 3 skipped      (gate 3; +17 from v3.15.15.7)
 
 $ pytest tests/functional --run-functional -q
-                       23 passed in 4.04s          (gate 4 — harness untouched)
+                       23 passed in 4.04s          (gate 4 â€” harness untouched)
 
 $ pytest tests/unit/test_observability_static_import_surface.py tests/unit/test_observability_no_other_artifacts_mutated.py -q
-                       24 passed                    (gate 5 — diagnostics import surface still isolated)
+                       24 passed                    (gate 5 â€” diagnostics import surface still isolated)
 ```
 
 Frozen contract md5s unchanged:
@@ -300,13 +339,13 @@ remain in their pre-v3.15.15.8 shape (no destructive migration).
 
 ### Not changed (intentional, deferred)
 
-- v3.15.15.9 — sprint-progress writer hook (separate audit + release)
-- v3.15.16+ — dormant evidence cluster activation (separate audit)
-- `timeframe` field on registry — requires preset-side schema work
-- `market_regime` field — requires runtime emission
+- v3.15.15.9 â€” sprint-progress writer hook (separate audit + release)
+- v3.15.16+ â€” dormant evidence cluster activation (separate audit)
+- `timeframe` field on registry â€” requires preset-side schema work
+- `market_regime` field â€” requires runtime emission
 - candidate counts / screening reason histograms / policy decision
-  blobs on the registry — wrong layer; belong in evidence sidecars
-- per-spawn `proposal_fingerprint`, `causal_chain` — out of scope
+  blobs on the registry â€” wrong layer; belong in evidence sidecars
+- per-spawn `proposal_fingerprint`, `causal_chain` â€” out of scope
 
 ### Roll-back
 
@@ -316,7 +355,7 @@ revert because consumers tolerate both shapes; new records carry the
 extra keys but those keys decay gracefully when `_build_record`
 returns to its pre-v3.15.15.8 signature.
 
-## [v3.15.15.7] — Evidence Path Hotfix + Diagnostics Re-read
+## [v3.15.15.7] â€” Evidence Path Hotfix + Diagnostics Re-read
 
 Date: 2026-04-29
 Branch: `feat/diagnostics-path-hotfix-v3-15-15-7`
@@ -362,7 +401,7 @@ file ensures ``artifact_health`` reads the same canonical filename.
 
 - ``tests/unit/test_observability_paths.py``:
   - extended ``DRIFT_CHECKS`` with
-    ``("campaign_evidence_ledger_latest.v1.jsonl", "campaign_launcher.py")`` —
+    ``("campaign_evidence_ledger_latest.v1.jsonl", "campaign_launcher.py")`` â€”
     a text-only drift assertion that pins both ``paths.py`` and the writer
     constant in the launcher (no module imports of the launcher; the test
     parses it as plain text).
@@ -406,7 +445,7 @@ $ pytest tests/unit/ -q
                        2250 passed, 3 skipped    (gate 5; was 2244 pre-patch; +6 from this release)
 
 $ pytest tests/unit/test_observability_static_import_surface.py -q
-                       23 passed in 0.21s        (gate 7 — static import surface still green)
+                       23 passed in 0.21s        (gate 7 â€” static import surface still green)
 ```
 
 Frozen contract md5s unchanged (gate 6):
@@ -426,26 +465,26 @@ Frozen contract md5s unchanged (gate 6):
 
 ### Not changed (intentional)
 
-- ``research/campaign_launcher.py`` — read as text only by the path-drift test, never imported, never modified
-- ``research/campaign_registry.py``, ``research/discovery_sprint.py``, ``research/run_research.py``, ``research/screening_evidence.py``, ``research/presets.py``, ``research/strategy_hypothesis_catalog.py`` — entirely untouched
-- ``dashboard/``, ``frontend/`` — entirely untouched
-- ``ops/systemd/`` — no timer install/enable/start
+- ``research/campaign_launcher.py`` â€” read as text only by the path-drift test, never imported, never modified
+- ``research/campaign_registry.py``, ``research/discovery_sprint.py``, ``research/run_research.py``, ``research/screening_evidence.py``, ``research/presets.py``, ``research/strategy_hypothesis_catalog.py`` â€” entirely untouched
+- ``dashboard/``, ``frontend/`` â€” entirely untouched
+- ``ops/systemd/`` â€” no timer install/enable/start
 - All other diagnostics modules (``aggregator.py``, ``failure_modes.py``,
   ``throughput.py``, ``system_integrity.py``, ``artifact_health.py``,
-  ``cli.py``, ``clock.py``, ``io.py``) — entirely untouched
+  ``cli.py``, ``clock.py``, ``io.py``) â€” entirely untouched
 - All frozen contracts
 
 ### Deferred
 
 The wider Phase 1 audit findings remain open and are slated for separate releases:
 
-- **v3.15.15.8** — Registry metadata enrichment (``hypothesis_id`` field;
+- **v3.15.15.8** â€” Registry metadata enrichment (``hypothesis_id`` field;
   populate ``strategy_family``, ``asset_class``; add ``universe`` only after
   backward-compat proven). Requires its own audit + migration plan.
-- **v3.15.15.9** — Sprint-progress freshness fix (refactor ``cmd_status``
+- **v3.15.15.9** â€” Sprint-progress freshness fix (refactor ``cmd_status``
   body into a callable; invoke from launcher post-tick). Requires its own
   launcher-tick safety analysis.
-- **v3.15.16+** — Dormant evidence cluster activation (screening_evidence
+- **v3.15.16+** â€” Dormant evidence cluster activation (screening_evidence
   degenerate skeleton, rolled-up evidence ledger, spawn proposals, dead
   zones, information gain, stop conditions).
 
@@ -454,7 +493,7 @@ The wider Phase 1 audit findings remain open and are slated for separate release
 ``git revert -m 1`` of the merge commit reverts the constant value plus the
 test additions. Single-line code change; revert is trivial.
 
-## [v3.15.15.6] — Diagnostics Evidence Completeness & Failure-Modes Enrichment
+## [v3.15.15.6] â€” Diagnostics Evidence Completeness & Failure-Modes Enrichment
 
 Date: 2026-04-29
 Branch: `feat/diagnostics-evidence-completeness-v3-15-15-6`
@@ -465,45 +504,45 @@ failure analysis honest in registry-only mode and reporting evidence
 limitations explicitly. **No edits to runtime / launcher / policy /
 sprint / strategy / dashboard / frontend code.**
 
-### Phase 1 — Audit findings
+### Phase 1 â€” Audit findings
 
 Snapshotted the live VPS artifact set on 2026-04-29T08:54Z and
 compared against the diagnostics parser:
 
 * The launcher emits ``reason_code`` (not ``failure_reason``);
-  diagnostics looked for ``failure_reason`` only → ``top_failure_reasons``
+  diagnostics looked for ``failure_reason`` only â†’ ``top_failure_reasons``
   was empty for every campaign.
 * ``worker_id`` lives nested in ``lease.worker_id`` only;
-  diagnostics looked at the top level → ``by_worker_id`` was empty.
+  diagnostics looked at the top level â†’ ``by_worker_id`` was empty.
 * ``campaign_type`` was extracted only from the narrow failed-records
-  filter (which excluded degenerate runs) → ``by_campaign_type`` was
+  filter (which excluded degenerate runs) â†’ ``by_campaign_type`` was
   empty.
 * ``hypothesis_id``, ``timeframe``, ``asset``, ``universe`` are not
-  emitted by the writer at all today → diagnostics had no way to
+  emitted by the writer at all today â†’ diagnostics had no way to
   populate those breakdowns. Reported as
   ``future_writer_enrichment_required`` rather than guessed.
 * ``strategy_family`` and ``asset_class`` keys are present in the
-  record but always null in production → reported as
+  record but always null in production â†’ reported as
   ``field_present_but_unpopulated_by_writer``.
 * The campaign digest exposes ``top_failure_reasons``,
-  ``meaningful_by_classification``, and ``campaigns_by_type`` — none
-  consumed by diagnostics → became fallback inputs in this release.
+  ``meaningful_by_classification``, and ``campaigns_by_type`` â€” none
+  consumed by diagnostics â†’ became fallback inputs in this release.
 * Sprint progress sidecar runs ~18 hours stale relative to the
-  registry on the live VPS — never surfaced as a warning.
+  registry on the live VPS â€” never surfaced as a warning.
 
-### Phase 2 — Patch (additive, behavior-pure)
+### Phase 2 â€” Patch (additive, behavior-pure)
 
 Files modified:
 
 * ``research/diagnostics/paths.py``: new constants
   ``SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS`` (default 1 hour),
   ``DIAGNOSTIC_MODES``, ``DIAGNOSTIC_EVIDENCE_STATUSES``,
-  ``DIAGNOSTIC_LIMITATION_CODES`` — single source of truth for the
+  ``DIAGNOSTIC_LIMITATION_CODES`` â€” single source of truth for the
   vocabulary used by failure_modes / aggregator / tests.
 * ``research/diagnostics/failure_modes.py``:
-  - ``_enrich_record(...)`` extracts ``reason_code → failure_reason``
-    alias, ``preset_name → preset`` alias, ``lease.worker_id →
-    worker_id`` alias, ``strategy_family → family`` alias. Original
+  - ``_enrich_record(...)`` extracts ``reason_code â†’ failure_reason``
+    alias, ``preset_name â†’ preset`` alias, ``lease.worker_id â†’
+    worker_id`` alias, ``strategy_family â†’ family`` alias. Original
     record is not mutated.
   - ``_effective_failure_reason(...)`` resolves the effective
     failure-reason and reports a conflict when ``failure_reason`` and
@@ -520,7 +559,7 @@ Files modified:
     strategy_family, timeframe, asset, cluster_key_quality, source}``.
   - ``by_campaign_type`` and ``by_meaningful_classification`` now
     aggregate across ALL campaigns (not the narrow failed-records
-    subset) — populated in registry-only mode.
+    subset) â€” populated in registry-only mode.
   - ``technical_vs_research_failure_counts`` ranges over ALL campaigns
     and adds ``degenerate_no_survivors`` + ``paper_blocked`` as
     first-class buckets.
@@ -541,11 +580,11 @@ Files modified:
   absent). Names explicitly tagged ``_from_digest`` so they cannot be
   confused with recomputed truth.
 * ``research/diagnostics/aggregator.py``:
-  - New ``infrastructure_status`` field — same enum semantics as
+  - New ``infrastructure_status`` field â€” same enum semantics as
     ``overall_status`` (legacy field kept identical for backward-compat).
-  - New ``diagnostic_evidence_status`` field — sourced from
+  - New ``diagnostic_evidence_status`` field â€” sourced from
     ``failure_modes.diagnostic_context.diagnostic_evidence_status``.
-  - New ``diagnostic_mode`` field — sourced likewise.
+  - New ``diagnostic_mode`` field â€” sourced likewise.
   - Limitation strings from failure_modes propagated into
     ``warnings`` so an operator on ``/observability`` sees them.
   - Aggregate-level "diagnostic evidence partial/insufficient"
@@ -554,9 +593,9 @@ Files modified:
   - New ``sprint_progress_freshness`` block compares sprint-progress
     mtime against campaign-registry mtime; emits a WARNING ONLY
     when the delta exceeds
-    ``SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS`` (default 1h) —
+    ``SPRINT_PROGRESS_STALE_VS_REGISTRY_SECONDS`` (default 1h) â€”
     NEVER flips ``infrastructure_status`` to degraded.
-* ``research/diagnostics/artifact_health.py``: minimal — added
+* ``research/diagnostics/artifact_health.py``: minimal â€” added
   ``failure_stage`` to ``LINKED_ID_KEYS`` so
   ``public_artifact_status_latest.v1.json``'s
   ``last_attempted_run.failure_stage`` ("screening_no_survivors") is
@@ -583,7 +622,7 @@ Tests added (107 new cases, 168 total in observability suites):
 | Field | Pre-v3.15.15.6 | Post-v3.15.15.6 |
 |---|---|---|
 | ``top_failure_reasons`` | ``[]`` | ``[degenerate_no_evaluable_pairs: 15, worker_crash: 4]`` |
-| ``repeated_failure_clusters`` | ``[]`` | 5 entries (all partial-quality), e.g. ``trend_pullback_crypto_1h × 4 degenerate`` |
+| ``repeated_failure_clusters`` | ``[]`` | 5 entries (all partial-quality), e.g. ``trend_pullback_crypto_1h Ã— 4 degenerate`` |
 | ``by_worker_id`` | ``[]`` | 19 entries (extracted from ``lease.worker_id``) |
 | ``by_campaign_type`` | ``[]`` | ``[daily_primary: 15, daily_control: 5]`` |
 | ``by_meaningful_classification`` | not present | ``[meaningful_failure_confirmed: 15, uninformative_technical_failure: 4]`` |
@@ -591,21 +630,21 @@ Tests added (107 new cases, 168 total in observability suites):
 | ``technical_vs_research_failure_counts`` (degenerate / paper_blocked) | absent / absent | ``15`` / ``0`` |
 | ``summary.infrastructure_status`` | not present | ``healthy`` |
 | ``summary.diagnostic_evidence_status`` | not present | ``partial`` |
-| ``summary.warnings`` (evidence) | not present | 10 ``diagnostic_evidence_limitation: …`` warnings + sprint-stale warning |
-| ``summary.sprint_progress_freshness`` | not present | block populated, ``stale_relative_to_campaign_registry=true``, ``age_delta_seconds≈66752`` |
+| ``summary.warnings`` (evidence) | not present | 10 ``diagnostic_evidence_limitation: â€¦`` warnings + sprint-stale warning |
+| ``summary.sprint_progress_freshness`` | not present | block populated, ``stale_relative_to_campaign_registry=true``, ``age_delta_secondsâ‰ˆ66752`` |
 
 ### Hard guarantees verified
 
-* **Frozen contracts unchanged** — md5 ``5250ffa1…`` /
-  ``fb879837…`` identical pre/post.
-* **No edits to runtime files** — ``git status`` filter covers
+* **Frozen contracts unchanged** â€” md5 ``5250ffa1â€¦`` /
+  ``fb879837â€¦`` identical pre/post.
+* **No edits to runtime files** â€” ``git status`` filter covers
   ``research/`` (other than ``research/diagnostics/``),
   ``agent/``, ``strategies/``, ``orchestration/``, ``execution/``,
   ``automation/``, ``state/``, ``dashboard/``, ``frontend/``: all
   untouched.
-* **Backward compat** — ``overall_status`` retains legacy enum values
+* **Backward compat** â€” ``overall_status`` retains legacy enum values
   + semantics; pre-v3.15.15.6 consumers continue to work without change.
-* **All existing tests pass** — 2244 unit + 23 functional all green.
+* **All existing tests pass** â€” 2244 unit + 23 functional all green.
 
 ### Not done in this release (intentional)
 
@@ -617,15 +656,15 @@ Tests added (107 new cases, 168 total in observability suites):
   today (``hypothesis_id``, ``timeframe``, ``asset``, ``universe``)
   are reported as ``future_writer_enrichment_required`` but not
   inferred or back-filled.
-* **No systemd timer install** — unit files remain shipped-but-not-installed.
+* **No systemd timer install** â€” unit files remain shipped-but-not-installed.
 
 ### Rollback
 
 ``git revert -m 1 <merge-commit>`` removes the patch. The patch is
-purely additive — pre-v3.15.15.6 consumers don't depend on the new
+purely additive â€” pre-v3.15.15.6 consumers don't depend on the new
 fields, so the revert is clean.
 
-## [v3.15.15.5] — Synthetic Artifact Contract Harness (functional, opt-in)
+## [v3.15.15.5] â€” Synthetic Artifact Contract Harness (functional, opt-in)
 
 Date: 2026-04-28
 Branch: `feat/synthetic-artifact-contract-harness`
@@ -638,7 +677,7 @@ Release A (v3.15.15.4) shipped first.
 
 ### Added
 
-- ``tests/functional/`` — new test suite, opt-in via
+- ``tests/functional/`` â€” new test suite, opt-in via
   ``--run-functional``. Default ``pytest -q`` invocations
   collect-and-skip the suite (23 tests skipped instantly) so VPS
   smoke / CI default behavior is unaffected.
@@ -650,13 +689,13 @@ Release A (v3.15.15.4) shipped first.
     ``research/strategy_matrix.csv`` at session boundaries.
   - ``sandbox`` fixture that builds a synthetic ``research/`` tree
     under ``workspace_tmp_path`` and re-binds every diagnostics
-    PATH constant — mirrors the canonical pattern from
+    PATH constant â€” mirrors the canonical pattern from
     ``tests/unit/test_observability_no_other_artifacts_mutated.py``.
   - ``run_diagnostics_build`` helper: orchestrates the diagnostics
     artifact build via the pure ``compute_*`` / ``inspect_*`` /
     ``build_*_snapshot`` APIs with explicit sandbox paths. cmd_build
     itself is unit-tested separately.
-- ``tests/functional/_funnel_artifact_builders.py`` — pure
+- ``tests/functional/_funnel_artifact_builders.py`` â€” pure
   synthetic-shape builders for launcher-emitted artifacts:
   - ``make_campaign_record(...)``, ``make_ledger_event(...)``,
     ``write_registry(...)``, ``write_ledger_jsonl(...)``,
@@ -665,18 +704,18 @@ Release A (v3.15.15.4) shipped first.
     do NOT import any funnel/runtime module; they reproduce the
     launcher's on-disk shape from the v3.15.5+ schema documentation.
 - Scenarios:
-  - ``test_a_degenerate_no_survivor.py`` — Scenario A
+  - ``test_a_degenerate_no_survivor.py`` â€” Scenario A
     (``outcome="degenerate_no_survivors"``, 2 cases).
-  - ``test_b_technical_failure.py`` — Scenarios B + B2
+  - ``test_b_technical_failure.py`` â€” Scenarios B + B2
     (``outcome="technical_failure"`` with reason worker_crash and
-    timeout, plus the legacy ``outcome="worker_crashed"`` literal —
+    timeout, plus the legacy ``outcome="worker_crashed"`` literal â€”
     3 cases total).
-  - ``test_f_observability_lite.py`` — Scenario F-lite
+  - ``test_f_observability_lite.py`` â€” Scenario F-lite
     (parametrised diagnostics build over the three scenarios + the
-    aggregator healthy→degraded transition under deliberate
+    aggregator healthyâ†’degraded transition under deliberate
     artifact corruption + the paper_blocked taxonomy presence
-    check — 5 cases).
-- ``tests/functional/test_static_import_surface.py`` — mandatory
+    check â€” 5 cases).
+- ``tests/functional/test_static_import_surface.py`` â€” mandatory
   contractual guard: parses every ``.py`` file under
   ``tests/functional/`` AS TEXT (no import) and rejects any
   forbidden import (campaign / sprint / strategy / runtime / agent
@@ -694,15 +733,15 @@ Release A (v3.15.15.4) shipped first.
 
 ### Hard guarantees verified
 
-- **Zero xfails** — all 23 functional tests pass cleanly with
+- **Zero xfails** â€” all 23 functional tests pass cleanly with
   ``--run-functional`` because the v3.15.15.4 taxonomy patch shipped
   first.
-- **Default pytest skips** — `pytest tests/functional -q` (no flag)
+- **Default pytest skips** â€” `pytest tests/functional -q` (no flag)
   reports `23 skipped in 0.06s`. The flag is the sole opt-in.
-- **Frozen contracts unchanged** — md5 sentinel verifies
+- **Frozen contracts unchanged** â€” md5 sentinel verifies
   ``research_latest.json`` and ``strategy_matrix.csv`` are
   byte-identical at session start and end.
-- **Static import surface clean** — 13/13 cases pass; no forbidden
+- **Static import surface clean** â€” 13/13 cases pass; no forbidden
   imports anywhere in the harness.
 - **No edits to research/, agent/, strategies/, orchestration/,
   execution/, automation/, state/, dashboard/, frontend/**.
@@ -717,7 +756,7 @@ Release A (v3.15.15.4) shipped first.
   during development and are documented inline in the tests as
   scope-deferred enhancements:
   1. ``failure_modes._ledger_failure_events`` filters ledger events
-     on ``outcome=="failed"`` or event_type containing "fail" — it
+     on ``outcome=="failed"`` or event_type containing "fail" â€” it
      does not yet recognise launcher-literal outcome literals
      (``technical_failure``, ``degenerate_no_survivors``, etc.) as
      failure events. The harness asserts current behavior; the
@@ -733,7 +772,7 @@ Release A (v3.15.15.4) shipped first.
 the VERSION bump, and the CHANGELOG entry. No other module is
 touched.
 
-## [v3.15.15.4] — Diagnostics Taxonomy Patch (additive, behavior-pure)
+## [v3.15.15.4] â€” Diagnostics Taxonomy Patch (additive, behavior-pure)
 
 Date: 2026-04-28
 Branch: `feat/diagnostics-taxonomy-v3-15-15-4`
@@ -749,7 +788,7 @@ mappings are preserved byte-for-byte; the patch is additive only.
 ### Changed
 
 - `research/diagnostics/failure_modes.py`:
-  - ``OUTCOME_CLASSES`` extended from 8 to 9 entries — adds
+  - ``OUTCOME_CLASSES`` extended from 8 to 9 entries â€” adds
     ``"paper_blocked"`` as a dedicated class. Folding paper_blocked
     into ``completed_no_survivor`` would have been misleading because
     a candidate was found (paper-readiness blocked promotion, not the
@@ -761,7 +800,7 @@ mappings are preserved byte-for-byte; the patch is additive only.
     ``integrity_failed``, ``aborted``, ``canceled_duplicate``,
     ``canceled_upstream_stale``, plus pre-v3.15.5 backward-compat
     ``worker_crashed``.
-  - All pre-existing entries preserved verbatim — pinned by a new
+  - All pre-existing entries preserved verbatim â€” pinned by a new
     parametrised regression test
     ``test_pre_patch_classification_unchanged``.
 - `research/diagnostics/throughput.py`:
@@ -771,47 +810,47 @@ mappings are preserved byte-for-byte; the patch is additive only.
     ``paper_blocked`` are meaningful. ``technical_failure``,
     ``worker_crashed``, ``integrity_failed`` and the four cancellation
     literals are not. Pre-existing semantics for ``no_signal`` /
-    ``near_pass`` / ``completed`` / ``failed`` are unchanged — pinned
+    ``near_pass`` / ``completed`` / ``failed`` are unchanged â€” pinned
     by ``test_pre_patch_meaningful_unchanged``.
 
 ### Added (tests only)
 
 - `tests/unit/test_observability_failure_modes.py`:
-  - ``test_pre_patch_classification_unchanged`` — pins every
+  - ``test_pre_patch_classification_unchanged`` â€” pins every
     historical (outcome, failure_reason) pair (14 cases).
-  - ``test_launcher_literal_outcome_classifies_correctly`` — verifies
+  - ``test_launcher_literal_outcome_classifies_correctly`` â€” verifies
     each launcher literal lands in its dedicated class (13 cases).
-  - ``test_paper_blocked_is_a_dedicated_outcome_class`` — verifies the
+  - ``test_paper_blocked_is_a_dedicated_outcome_class`` â€” verifies the
     ``paper_blocked`` literal does NOT collapse into
     ``completed_no_survivor``.
-  - ``test_known_launcher_outcomes_never_land_in_unknown`` —
+  - ``test_known_launcher_outcomes_never_land_in_unknown`` â€”
     comprehensive guarantee that every recognised literal classifies
     cleanly.
-  - ``test_unknown_outcome_still_lands_in_unknown`` — pins the
+  - ``test_unknown_outcome_still_lands_in_unknown`` â€” pins the
     catch-all behavior for genuinely unrecognised values.
-  - ``test_outcome_classes_taxonomy_includes_paper_blocked_v3_15_15_4`` —
+  - ``test_outcome_classes_taxonomy_includes_paper_blocked_v3_15_15_4`` â€”
     pins the new taxonomy size (9 entries) and ``paper_blocked``
     membership.
 - `tests/unit/test_observability_throughput.py`:
-  - ``test_pre_patch_meaningful_unchanged`` — pins every historical
+  - ``test_pre_patch_meaningful_unchanged`` â€” pins every historical
     meaningful classification (13 cases).
-  - ``test_launcher_literal_meaningful_classification`` — covers each
+  - ``test_launcher_literal_meaningful_classification`` â€” covers each
     launcher literal (11 cases).
-  - ``test_meaningful_per_day_counts_launcher_literals`` — end-to-end
+  - ``test_meaningful_per_day_counts_launcher_literals`` â€” end-to-end
     via ``compute_throughput_metrics``.
-  - ``test_paper_blocked_is_meaningful`` — pins the meaningful
+  - ``test_paper_blocked_is_meaningful`` â€” pins the meaningful
     classification of paper_blocked.
 
 ### Not changed
 
-- `research/campaign_launcher.py` — launcher emits the same outcome
+- `research/campaign_launcher.py` â€” launcher emits the same outcome
   literals as before; this patch only teaches the diagnostics layer
   to read them.
-- `research/diagnostics/aggregator.py` — taxonomy-agnostic; operates
+- `research/diagnostics/aggregator.py` â€” taxonomy-agnostic; operates
   over component status, not outcome strings.
-- `research/diagnostics/artifact_health.py` — does not classify
+- `research/diagnostics/artifact_health.py` â€” does not classify
   outcomes.
-- `research/diagnostics/paths.py`, `system_integrity.py`, `cli.py` —
+- `research/diagnostics/paths.py`, `system_integrity.py`, `cli.py` â€”
   unaffected.
 - All frozen contracts (`research_latest.json`,
   `strategy_matrix.csv`).
@@ -832,7 +871,7 @@ mappings are preserved byte-for-byte; the patch is additive only.
 the new tests. Existing v3.15.15.2/3 unit tests continue to pass on
 the reverted code (the taxonomy patch is purely additive).
 
-## [v3.15.15.3] — Observability Frontend Integration (thin surface)
+## [v3.15.15.3] â€” Observability Frontend Integration (thin surface)
 
 Date: 2026-04-28
 Branch: `feat/observability-frontend-v3-15-15-3`
@@ -882,7 +921,7 @@ the QRE Control Room without changing any runtime behavior.
     ``artifact_health`` when present.
   - Failures appends a single observability summary card from
     ``failure_modes`` (technical / research / degenerate / unknown
-    counts) — does NOT replace the existing evidence-derived table.
+    counts) â€” does NOT replace the existing evidence-derived table.
   - Health appends a single ``system_integrity`` card.
   - Version appends a single ``system_integrity`` sidecar card.
 - ``frontend/src/test/Observability.test.tsx`` (NEW, 5 tests):
@@ -934,7 +973,7 @@ SPA fallback, the VERSION bump, and the CHANGELOG entry. The
 v3.15.15.2 observability artifacts under ``research/observability/``
 are untouched and continue to be produced by manual CLI runs.
 
-## [v3.15.15.2] — Discovery Observability & Instrumentation (MVP)
+## [v3.15.15.2] â€” Discovery Observability & Instrumentation (MVP)
 
 Date: 2026-04-28
 Branch: `feat/observability-v3-15-15-2`
@@ -970,15 +1009,15 @@ sampling, screening, or strategy code is modified or imported.
 - ``ops/systemd/trading-agent-observability.service`` +
   ``.timer`` (15-min cadence). **Shipped but NOT auto-installed**;
   operator decides when to enable per ``ops/systemd/README.md``.
-- ``docs/qre_observability_runbook.md`` — install / disable /
+- ``docs/qre_observability_runbook.md`` â€” install / disable /
   rollback procedure.
-- ``tests/unit/test_observability_*`` — 38 unit tests covering the
+- ``tests/unit/test_observability_*`` â€” 38 unit tests covering the
   modules, CLI, path drift, static import surface, and the end-to-end
   "no other artifacts mutated" guarantee.
 
 ### Hard guarantees verified by tests
 
-- ``test_observability_static_import_surface.py`` — every module under
+- ``test_observability_static_import_surface.py`` â€” every module under
   ``research/diagnostics/`` is parsed AS TEXT (no import) and
   rejected if it imports any campaign / sprint / strategy / runtime
   module. Allowed project imports are limited to
@@ -986,11 +1025,11 @@ sampling, screening, or strategy code is modified or imported.
   explicitly includes the legacy ``research.observability`` runtime
   module so we cannot accidentally pull in its
   ``research.run_state`` dependency.
-- ``test_observability_no_other_artifacts_mutated.py`` — snapshots
+- ``test_observability_no_other_artifacts_mutated.py`` â€” snapshots
   mtime+size of every file under a synthetic ``research/`` tree
   before/after a CLI build, asserts that ONLY files under
   ``research/observability/`` were created or modified.
-- ``test_observability_paths.py`` — drift test parses writer modules
+- ``test_observability_paths.py`` â€” drift test parses writer modules
   AS TEXT and verifies they still produce the filenames the
   observability layer reads.
 - Determinism: every aggregation module accepts ``now_utc=`` for
@@ -1005,7 +1044,7 @@ sampling, screening, or strategy code is modified or imported.
 - sprint orchestrator, screening runtime, screening evidence,
   candidate pipeline, strategy code
 - existing dashboard endpoints + auth surface
-- VERSION schema (the bump from ``3.15.15`` → ``3.15.15.2`` follows
+- VERSION schema (the bump from ``3.15.15`` â†’ ``3.15.15.2`` follows
   PEP 440 sub-patch ordering)
 
 ### Bounded reads
@@ -1021,7 +1060,7 @@ sampling, screening, or strategy code is modified or imported.
 plus the systemd unit files. The systemd unit being absent does not
 break anything because v3.15.15.2 does not auto-install it.
 
-## [v3.15.15] — Vol Compression Breakout: 4h preset + template wiring + observability safeguards
+## [v3.15.15] â€” Vol Compression Breakout: 4h preset + template wiring + observability safeguards
 
 Date: 2026-04-27
 Branch: `feature/v3.15.15-vol-compression-templates`
@@ -1045,28 +1084,28 @@ candidates; `campaign_policy.decide()` is unchanged.
   registry change).
 - `research/campaign_templates.py`: extends `_HYPOTHESIS_AWARE_PRESETS`
   from one entry to three. `CAMPAIGN_TEMPLATES` grows from 20 to 30
-  (6 presets × 5 template types). Existing v3.15.2 baseline 15 rows
+  (6 presets Ã— 5 template types). Existing v3.15.2 baseline 15 rows
   remain byte-identical (covered by existing regression).
 - `research/discovery_sprint.py`: observability-only safeguard
   helpers + sidecar emission surface.
-  - `compute_4h_insufficient_trades_observations(...)` — read-only
+  - `compute_4h_insufficient_trades_observations(...)` â€” read-only
     rate calculation per 4h candidate preset; emits tags
     (`4h_insufficient_trades_high`, `..._ok`, `..._cold_start`).
     **Never filters.**
-  - `compute_parameter_coverage(...)` — static
+  - `compute_parameter_coverage(...)` â€” static
     `parameter_sample_count / total_grid_size / coverage_ratio` per
     plan preset. Sampling behavior unchanged.
   - `compute_throughput_snapshot(...)` + `ensure_throughput_baseline(...)`
-    + `detect_throughput_regressions(...)` — rolling-window per-preset
+    + `detect_throughput_regressions(...)` â€” rolling-window per-preset
     spawn-count check with a `THROUGHPUT_MIN_BASELINE_RATE = 0.1`
     floor that prevents divide-by-zero / false-positive warnings on
     presets that were idle pre-deploy. Baseline auto-captured on
     first launcher tick post-deploy and never overwritten.
-  - `check_preset_orthogonality(...)` — pure helper; warns when two
+  - `check_preset_orthogonality(...)` â€” pure helper; warns when two
     presets share both `hypothesis_id` AND `timeframe`. The 4h variant
     passes (different timeframe from the 1h variant).
   - `build_safeguards_decision_payload(...)` +
-    `write_safeguards_decision_artifact(...)` — single aggregate sidecar
+    `write_safeguards_decision_artifact(...)` â€” single aggregate sidecar
     `research/discovery_sprints/sprint_safeguards_decision_latest.v1.json`
     carrying all four signals plus baseline + current snapshots, with
     `observability_only: true` stamped at the top.
@@ -1081,7 +1120,7 @@ candidates; `campaign_policy.decide()` is unchanged.
   immediately after the v3.15.14 sprint-routing sidecar. Wrapped in
   `try/except` (with `# nosec B110`) so the safeguards path can
   never fail a tick.
-- `tests/unit/test_discovery_sprint_safeguards.py` — new file,
+- `tests/unit/test_discovery_sprint_safeguards.py` â€” new file,
   covers plan determinism, observation tags, parameter coverage
   ratios, baseline auto-capture + idempotency, throughput-regression
   floor (zero-baseline + non-zero-baseline cases), orthogonality on
@@ -1091,13 +1130,13 @@ candidates; `campaign_policy.decide()` is unchanged.
 
 ### Changed
 
-- `VERSION`: `3.15.14 → 3.15.15`.
+- `VERSION`: `3.15.14 â†’ 3.15.15`.
 - `tests/regression/test_v3_15_2_campaign_templates_byte_identity.py`:
-  count assertion `20 → 30`; comment lineage updated to
+  count assertion `20 â†’ 30`; comment lineage updated to
   `15 baseline + 5 v3.15.3 + 10 v3.15.15`.
 - `tests/unit/test_discovery_sprint_routing.py`: routing assertion
-  for `templates_filtered` shifts `5 → 15` (5 standard template types
-  × 3 wired sprint presets); comment updated to reflect v3.15.15
+  for `templates_filtered` shifts `5 â†’ 15` (5 standard template types
+  Ã— 3 wired sprint presets); comment updated to reflect v3.15.15
   closing the v3.15.4 wiring gap.
 - `tests/unit/test_campaign_policy_hypothesis_status.py:134`: pin
   comment softens "the only v3.15.3 active_discovery preset" to
@@ -1105,17 +1144,17 @@ candidates; `campaign_policy.decide()` is unchanged.
 
 ### Not changed (verified)
 
-- `research/campaign_policy.py` — `decide()` signature, body, and
+- `research/campaign_policy.py` â€” `decide()` signature, body, and
   byte-identity invariant unchanged (v3.15.11 regression pin intact).
-- `research/research_latest.json`, `research/strategy_matrix.csv` —
+- `research/research_latest.json`, `research/strategy_matrix.csv` â€”
   frozen contracts, untouched.
-- `research/strategy_hypothesis_catalog.py` — no new catalog rows;
+- `research/strategy_hypothesis_catalog.py` â€” no new catalog rows;
   `validate_active_discovery_preset_bridges()` already accepts
   multiple presets per hypothesis_id.
-- `research/registry.py` — no new strategy code.
+- `research/registry.py` â€” no new strategy code.
 - COL queue / lease / admission / cooldown / per-template daily cap /
-  budget enforcement — all unchanged.
-- v3.15.14 sprint-routing path — only its candidate set widens.
+  budget enforcement â€” all unchanged.
+- v3.15.14 sprint-routing path â€” only its candidate set widens.
 
 ### Migration / deploy notes
 
@@ -1128,7 +1167,7 @@ candidates; `campaign_policy.decide()` is unchanged.
   once on the first post-deploy tick from current registry state.
   Subsequent ticks re-use it without overwriting.
 
-## [v3.15.14] — Sprint-aware COL Routing
+## [v3.15.14] â€” Sprint-aware COL Routing
 
 Date: 2026-04-27
 Branch: `feature/v3.15.14-sprint-aware-col-routing`
@@ -1140,27 +1179,27 @@ candidate set to the sprint's plan presets BEFORE
 (v3.15.11 regression pin intact); the routing happens by shrinking
 the launcher's input.
 
-When no sprint is active — including when state is `completed`,
-`expired`, or `canceled` — COL behavior is identical to v3.15.13
+When no sprint is active â€” including when state is `completed`,
+`expired`, or `canceled` â€” COL behavior is identical to v3.15.13
 (passthrough).
 
 ### Added
 
 - `research/discovery_sprint.py`:
-  - `ActiveSprintConstraints` (frozen dataclass) — read-only summary of
+  - `ActiveSprintConstraints` (frozen dataclass) â€” read-only summary of
     plan_preset_names / plan_hypothesis_ids / target / window.
-  - `load_active_sprint_constraints()` — reads sprint registry, returns
-    `None` when state ≠ active OR window expired OR (registry given AND
+  - `load_active_sprint_constraints()` â€” reads sprint registry, returns
+    `None` when state â‰  active OR window expired OR (registry given AND
     target met). Recognises `canceled` as a non-active terminal state
     (`INACTIVE_SPRINT_STATES`).
-  - `apply_sprint_routing()` — pure filter over `(templates,
+  - `apply_sprint_routing()` â€” pure filter over `(templates,
     follow_up_specs, weekly_control_specs)` to plan preset names.
   - `build_routing_decision_payload()` + `write_routing_decision_artifact()`
-    — read-only audit sidecar at
+    â€” read-only audit sidecar at
     `research/discovery_sprints/sprint_routing_decision_latest.v1.json`
     capturing `(routing_active, sprint_id, profile_name, counts,
     decision)` per launcher tick.
-  - `sprint_extra_for_record()` — returns the extra-keys to stamp on
+  - `sprint_extra_for_record()` â€” returns the extra-keys to stamp on
     spawned campaigns: `sprint_id`, `sprint_profile_name`,
     `sprint_routing="v3.15.14"`.
 - `research/campaign_launcher.py`:
@@ -1170,7 +1209,7 @@ When no sprint is active — including when state is `completed`,
   - `_apply_decision()` accepts `sprint_constraints` and stamps the
     new `CampaignRecord.extra` with sprint metadata at spawn time
     (additive nullable fields under existing `extra: dict[str, Any]`).
-- `tests/unit/test_discovery_sprint_routing.py` — 23 tests covering
+- `tests/unit/test_discovery_sprint_routing.py` â€” 23 tests covering
   loader matrix (no-registry / canceled / completed / expired /
   target-met / happy-path), routing-helper behavior (passthrough /
   templates filter / equities exclusion / promotion_grade exclusion /
@@ -1181,23 +1220,23 @@ When no sprint is active — including when state is `completed`,
 - `docker-compose.yml`: added `./research:/app/research` bind mount to
   the `agent` service. Required so the campaign launcher (running in
   the agent container) can read the sprint registry written by the
-  dashboard container — without this, sprint routing silently
+  dashboard container â€” without this, sprint routing silently
   remains inactive on the VPS.
 
 ### Changed
 
-- `VERSION`: `3.15.13` → `3.15.14`.
+- `VERSION`: `3.15.13` â†’ `3.15.14`.
 
 ### Not changed (verified)
 
-- `research/campaign_policy.decide()` — signature, body, and
+- `research/campaign_policy.decide()` â€” signature, body, and
   byte-identity invariant (I6) all preserved. v3.15.11 regression pin
   intact.
-- `research/research_latest.json`, `research/strategy_matrix.csv` —
+- `research/research_latest.json`, `research/strategy_matrix.csv` â€”
   frozen contracts, untouched.
 - No new strategies, presets, or hypothesis catalog rows.
 - COL queue / lease / admission control / cooldown / per-template
-  daily cap / budget enforcement — unchanged. v3.15.14 routes by
+  daily cap / budget enforcement â€” unchanged. v3.15.14 routes by
   shrinking the candidate set; every other gate fires verbatim.
 
 ### Known limitations (not blocking the release)
@@ -1208,11 +1247,11 @@ When no sprint is active — including when state is `completed`,
   hypothesis-aware presets). Until the second preset is wired into
   CAMPAIGN_TEMPLATES (a separate v3.15.4-style mechanical fix),
   sprint routing will only spawn `trend_pullback_crypto_1h`
-  campaigns. The launcher correctly filters by plan ∩ catalog, so
-  no spurious campaigns fire — the sprint just makes partial
+  campaigns. The launcher correctly filters by plan âˆ© catalog, so
+  no spurious campaigns fire â€” the sprint just makes partial
   progress against its target.
 
-## [v3.15.13] — Discovery Sprint Orchestrator (artifact-only)
+## [v3.15.13] â€” Discovery Sprint Orchestrator (artifact-only)
 
 Date: 2026-04-27
 Branch: `feature/v3.15.13-discovery-sprint-orchestrator`
@@ -1220,7 +1259,7 @@ Branch: `feature/v3.15.13-discovery-sprint-orchestrator`
 Adds a **bounded observation-window controller** on top of the v3.15.2
 Campaign Operating Layer. A discovery sprint snapshots a closed
 profile, derives a deterministic plan from the existing
-`research.strategy_hypothesis_catalog` × `research.presets` binding,
+`research.strategy_hypothesis_catalog` Ã— `research.presets` binding,
 and tracks how many COL-completed campaigns matching the plan land
 inside `[started_at, started_at + max_days]`.
 
@@ -1231,7 +1270,7 @@ Hard positioning:
   and cannot bypass COL.
 - **Idempotent `run`.** Refuses to start a second sprint while another
   is `state="active"` and within its window.
-- **Deterministic `plan`.** Same inputs → byte-identical plan output.
+- **Deterministic `plan`.** Same inputs â†’ byte-identical plan output.
 - **One built-in profile this release:** `crypto_exploratory_v1`
   (target 50 campaigns / 5 days, asset_class=crypto, timeframes=1h/4h,
   screening_phase=exploratory, hypotheses=trend_pullback_v1 +
@@ -1240,7 +1279,7 @@ Hard positioning:
 
 ### Added
 
-- `research/discovery_sprint.py` — pure profile/plan/payload builders
+- `research/discovery_sprint.py` â€” pure profile/plan/payload builders
   + thin IO wrappers + CLI dispatcher.
   - `BUILTIN_PROFILES` closed dict (only `crypto_exploratory_v1`).
   - `derive_plan()` filters on hypothesis_id / timeframe /
@@ -1248,14 +1287,14 @@ Hard positioning:
     asset_class.
   - `count_observations()` over `campaign_registry_latest.v1.json`
     (read-only).
-  - `compute_sprint_id()` — deterministic
+  - `compute_sprint_id()` â€” deterministic
     `sprt-<utc_compact>-<sha256[:10]>`.
   - CLI subcommands: `plan`, `run`, `status`, `report`.
 - `research/discovery_sprints/` artifact directory:
   - `sprint_registry_latest.v1.json`
   - `discovery_sprint_progress_latest.v1.json`
   - `discovery_sprint_report_latest.v1.json`
-- `tests/unit/test_discovery_sprint.py` — 27 tests covering profile
+- `tests/unit/test_discovery_sprint.py` â€” 27 tests covering profile
   validation, plan determinism, equities/promotion_grade exclusion,
   hypothesis allowlist, sprint id determinism, active-sprint guard,
   artifact writes, status transitions to `completed` (target met) and
@@ -1264,21 +1303,21 @@ Hard positioning:
 
 ### Changed
 
-- `VERSION`: bump `3.15.12` → `3.15.13`.
+- `VERSION`: bump `3.15.12` â†’ `3.15.13`.
 
 ### Not changed (verified)
 
-- `research/research_latest.json` — frozen contract, untouched.
-- `research/strategy_matrix.csv` — frozen contract, untouched.
+- `research/research_latest.json` â€” frozen contract, untouched.
+- `research/strategy_matrix.csv` â€” frozen contract, untouched.
 - `research/campaign_registry_latest.v1.json`,
   `research/campaign_queue_latest.v1.json`,
-  `research/campaign_evidence_ledger_latest.v1.jsonl` — read-only by
+  `research/campaign_evidence_ledger_latest.v1.jsonl` â€” read-only by
   the orchestrator.
-- `research.campaign_policy.decide()` — still pinned by v3.15.11
+- `research.campaign_policy.decide()` â€” still pinned by v3.15.11
   regression.
 - No new strategies, presets, or campaign templates.
 
-## [v3.15.12] — Funnel Spawn Proposer (advisory shadow mode)
+## [v3.15.12] â€” Funnel Spawn Proposer (advisory shadow mode)
 
 Date: 2026-04-27
 Branch: `feature/v3.15.12-funnel-spawn-proposer`
@@ -1293,7 +1332,7 @@ Hard positioning: advisory shadow mode only. Top-level
 `enforcement_state="advisory_only"` + `mode="shadow"`. Per-build
 `proposal_mode in {"normal", "diagnostic_only"}` switches behavior
 based on viability verdict. `campaign_policy.decide()` remains
-unchanged — pinned by extended regression test that re-asserts the
+unchanged â€” pinned by extended regression test that re-asserts the
 boundary now that another advisory sidecar exists.
 
 Six operator-review hardenings vs the original sketch:
@@ -1304,9 +1343,9 @@ Six operator-review hardenings vs the original sketch:
 2. Per-fingerprint cooldown (`FINGERPRINT_COOLDOWN_DAYS = 7`) via
    append-only `spawn_proposal_history.jsonl`.
 3. Exploration coverage enforced over BOTH percentage AND scope spread
-   (≥3 families, ≥3 assets, ≥2 timeframes; shortfalls reported in
+   (â‰¥3 families, â‰¥3 assets, â‰¥2 timeframes; shortfalls reported in
    `summary.exploration_coverage.shortfall_reason_codes`).
-4. Dead-zone suppression decays after `DEAD_ZONE_DECAY_DAYS = 14` —
+4. Dead-zone suppression decays after `DEAD_ZONE_DECAY_DAYS = 14` â€”
    never permanent on low data.
 5. `viability == "stop_or_pivot"` toggles `proposal_mode =
    "diagnostic_only"`, drops HIGH-tier proposals, caps total at
@@ -1316,8 +1355,8 @@ Six operator-review hardenings vs the original sketch:
 
 ### Added
 
-- `research/funnel_spawn_proposer.py` — pure builder + thin IO wrapper
-  with eleven deterministic rules (R1–R11), per-fingerprint cooldown
+- `research/funnel_spawn_proposer.py` â€” pure builder + thin IO wrapper
+  with eleven deterministic rules (R1â€“R11), per-fingerprint cooldown
   via append-only history JSONL, and constants
   `EXPLORATION_RESERVATION_PCT = 0.20`,
   `EXPLORATION_MIN_DISTINCT_FAMILIES = 3`,
@@ -1327,39 +1366,39 @@ Six operator-review hardenings vs the original sketch:
   `MAX_PROPOSALS_PER_RUN_DIAGNOSTIC = 3`,
   `FINGERPRINT_COOLDOWN_DAYS = 7`,
   `DEAD_ZONE_DECAY_DAYS = 14`.
-- `dashboard/api_research_intelligence.py` — new endpoint
+- `dashboard/api_research_intelligence.py` â€” new endpoint
   `GET /api/research/spawn-proposals` (passthrough) and a new
   `spawn_proposals` block in `/api/research/intelligence-summary`
   (combined card-friendly view).
-- `frontend/src/components/ResearchIntelligenceCard.tsx` — extended
+- `frontend/src/components/ResearchIntelligenceCard.tsx` â€” extended
   with proposal mode row (warn-tinted in diagnostic_only),
   spawn proposal count, suppressed zone count, optional review-required
   row, and top-3 proposals.
-- `docs/funnel_spawn_proposer_design.md` — design doc with all six
+- `docs/funnel_spawn_proposer_design.md` â€” design doc with all six
   hardenings and the 10-item MUST HAVE checklist.
-- `docs/handoffs/v3.15.12.md` — handoff.
+- `docs/handoffs/v3.15.12.md` â€” handoff.
 
 ### Changed
 
-- `research/run_research.py` — finalisation block now calls
+- `research/run_research.py` â€” finalisation block now calls
   `write_spawn_proposals_artifact(...)` after `write_viability_artifact`.
   Wrapped in its own try/except + `tracker_event`. Promoted four
   payload variables (`ig_payload`, `stop_payload`, `dz_payload`,
   `via_payload`) to defaulted Optional locals so the proposer can
   read them safely or degrade to `None` when their owning try block
   failed.
-- `frontend/src/api/client.ts` — `ResearchIntelligenceSummary` type
+- `frontend/src/api/client.ts` â€” `ResearchIntelligenceSummary` type
   extended with optional `spawn_proposals` field.
 
 ### Tests
 
 53 new tests across 1 unit + 1 integration + 3 endpoint + 2 frontend.
-All v3.15.5–v3.15.12 regression tests remain green. The regression
+All v3.15.5â€“v3.15.12 regression tests remain green. The regression
 test `test_campaign_policy_decide_signature_still_pinned_after_v3_15_12`
 re-pins the policy boundary now that another consumable advisory
 sidecar exists.
 
-## [v3.15.11] — Research Intelligence Layer (advisory observability)
+## [v3.15.11] â€” Research Intelligence Layer (advisory observability)
 
 Date: 2026-04-27
 Branch: `feature/v3.15.x-research-intelligence-layer`
@@ -1367,8 +1406,8 @@ Branch: `feature/v3.15.x-research-intelligence-layer`
 Adds five deterministic, advisory-only sidecars under
 `research/campaigns/evidence/` plus six read-only `/api/research/*`
 endpoints and a render-only `ResearchIntelligenceCard`. The layer
-turns the v3.15.5–v3.15.10 funnel evidence into operator-facing
-signal — what was learned, where compute is being burned, whether
+turns the v3.15.5â€“v3.15.10 funnel evidence into operator-facing
+signal â€” what was learned, where compute is being burned, whether
 the project remains viable within the current hypothesis space.
 
 Hard positioning: advisory observability, NOT autonomous control.
@@ -1387,13 +1426,13 @@ Handoff: `docs/handoffs/v3.15.11.md`.
 
 ### Added
 
-- `research/research_evidence_ledger.py` — pure builder + thin IO
+- `research/research_evidence_ledger.py` â€” pure builder + thin IO
   wrapper for `research/campaigns/evidence/evidence_ledger_latest.v1.json`.
   Aggregates `campaign_evidence_ledger.jsonl` joined with
   `screening_evidence_latest.v1.json` and
   `candidate_registry_latest.v1.json`. Degenerate outcomes route to
   `degenerate_count`, never `technical_failure_count`.
-- `research/information_gain.py` — deterministic per-campaign score
+- `research/information_gain.py` â€” deterministic per-campaign score
   in `[0.0, 1.0]` with named buckets (`none`/`low`/`medium`/`high`).
   Constants: `IG_TECHNICAL_FAILURE`, `IG_DUPLICATE_REJECTION`,
   `IG_NEW_FAILURE_MODE`, `IG_NEAR_CANDIDATE`, `IG_EXPLORATORY_PASS`,
@@ -1401,50 +1440,50 @@ Handoff: `docs/handoffs/v3.15.11.md`.
   `IG_COVERAGE_BONUS_FLOOR`. Coverage bonus is additive and capped
   so coverage alone cannot push a duplicate-rejection campaign past
   the medium floor.
-- `research/stop_condition_engine.py` — advisory recommender. Constants:
+- `research/stop_condition_engine.py` â€” advisory recommender. Constants:
   `STOP_INSUFFICIENT_TRADES_COOLDOWN=3`, `STOP_REPEAT_REJECTION_FREEZE=5`,
   `STOP_REPEAT_REJECTION_RETIRE=10`, `STOP_TECHNICAL_FAILURE_REVIEW=3`,
   `STOP_NO_INFO_REVIEW=10`. Technical failures route to
   `REVIEW_REQUIRED`, never `RETIRE_*`. Existing candidate evidence
   protects scopes from `FREEZE_PRESET` and `RETIRE_*`.
-- `research/dead_zone_detection.py` — `(asset × timeframe × family)`
+- `research/dead_zone_detection.py` â€” `(asset Ã— timeframe Ã— family)`
   zone classifier with status `insufficient_data`/`unknown`/`alive`/
   `weak`/`dead`. Conservative thresholds. Timeframe is currently
   `"unknown"` until v4 ledger-event enrichment fills it in.
-- `research/viability_metrics.py` — verdict `insufficient_data`/
+- `research/viability_metrics.py` â€” verdict `insufficient_data`/
   `promising`/`weak`/`commercially_questionable`/`stop_or_pivot` plus
-  cost-per-X metrics with `_safe_div` (zero denominators → null).
-- `dashboard/api_research_intelligence.py` — five `/api/research/*`
+  cost-per-X metrics with `_safe_div` (zero denominators â†’ null).
+- `dashboard/api_research_intelligence.py` â€” five `/api/research/*`
   passthrough endpoints + `/api/research/intelligence-summary`
   combined view.
-- `frontend/src/components/ResearchIntelligenceCard.tsx` — render-only
+- `frontend/src/components/ResearchIntelligenceCard.tsx` â€” render-only
   dashboard card.
-- `docs/research_intelligence_layer.md` — operator guide.
-- `docs/handoffs/v3.15.11.md` — handoff.
+- `docs/research_intelligence_layer.md` â€” operator guide.
+- `docs/handoffs/v3.15.11.md` â€” handoff.
 
 ### Changed
 
-- `research/run_research.py` — finalisation block now writes the
+- `research/run_research.py` â€” finalisation block now writes the
   five v3.15.11 sidecars in deterministic order
-  (`evidence_ledger → information_gain → stop_conditions →
-  dead_zones → viability`) after the v3.15.9 `screening_evidence`
+  (`evidence_ledger â†’ information_gain â†’ stop_conditions â†’
+  dead_zones â†’ viability`) after the v3.15.9 `screening_evidence`
   write. Each is wrapped in its own try/except + `tracker_event`.
   `screening_evidence_payload` is captured into a defaulted local
   in the v3.15.9 block so the v3.15.11 block can read it safely or
   degrade to empty inputs when v3.15.9 itself failed.
-- `frontend/src/api/client.ts` — adds `ResearchIntelligenceSummary`
+- `frontend/src/api/client.ts` â€” adds `ResearchIntelligenceSummary`
   type and `api.researchIntelligenceSummary()` fetcher.
-- `dashboard/dashboard.py` — registers the new API blueprint via
+- `dashboard/dashboard.py` â€” registers the new API blueprint via
   `register_research_intelligence_routes(app)`.
 
 ### Tests
 
 89 new tests across 7 unit + 1 integration + 1 frontend file. All
-v3.15.5–v3.15.11 regression tests remain green. The
+v3.15.5â€“v3.15.11 regression tests remain green. The
 `test_campaign_policy_decide_signature_unchanged` regression pins
 that this release does not consume advisory output in policy.
 
-## [v3.15.10] — Funnel Completion (combined: v3.15.8 + v3.15.9 + v3.15.10)
+## [v3.15.10] â€” Funnel Completion (combined: v3.15.8 + v3.15.9 + v3.15.10)
 
 Date: 2026-04-26
 Branch: `feature/v3.15.8-15.10-funnel-completion`
@@ -1455,15 +1494,15 @@ release.
 
 Closes the three remaining funnel layers after v3.15.7:
 
-  Sampling   — coverage calibration for small grids.
-  Evidence   — non-frozen ``screening_evidence_latest.v1.json``.
-  Policy     — campaign funnel policy reacts to evidence.
+  Sampling   â€” coverage calibration for small grids.
+  Evidence   â€” non-frozen ``screening_evidence_latest.v1.json``.
+  Policy     â€” campaign funnel policy reacts to evidence.
 
 No threshold changes, no new strategies, no taxonomy changes,
 no frozen-contract mutation. Operator guide and limitations
 documented in ``docs/handoffs/v3.15.8-15.10.md``.
 
-### v3.15.8 — Parameter Sampling Calibration
+### v3.15.8 â€” Parameter Sampling Calibration
 
 #### Added
 
@@ -1492,7 +1531,7 @@ documented in ``docs/handoffs/v3.15.8-15.10.md``.
 - ``screening_param_samples()`` is preserved as a backward-
   compatible thin shim. **Intentional behavioural shift**:
   the shim now ignores ``max_samples`` for grid_size in
-  ``[1..MAX_STRATIFIED_GRID_SIZE]`` — this is the deliberate
+  ``[1..MAX_STRATIFIED_GRID_SIZE]`` â€” this is the deliberate
   fix for the v3.15.7 under-sampling defect. ``max_samples``
   is still honoured for grid_size > 16 (legacy
   first/middle/last cap).
@@ -1504,7 +1543,7 @@ documented in ``docs/handoffs/v3.15.8-15.10.md``.
   level exception block now carry the plan-derived sampling
   block on their synthetic outcome dicts.
 
-### v3.15.9 — Funnel Evidence Artifacts
+### v3.15.9 â€” Funnel Evidence Artifacts
 
 #### Added
 
@@ -1548,7 +1587,7 @@ documented in ``docs/handoffs/v3.15.8-15.10.md``.
   ``paper_readiness_latest.v1.json`` yields ``{}``; the
   evidence artifact still writes.
 
-### v3.15.10 — Campaign Policy Alignment
+### v3.15.10 â€” Campaign Policy Alignment
 
 #### Added
 
@@ -1657,16 +1696,16 @@ Full pytest suite: 2092 passed, 1 skipped.
 - Execution-side override of
   ``extra.requested_screening_phase`` (v3.15.11 scope).
 - Frontend (existing dashboard digest endpoint continues to
-  serve the dict via ``.get(...)`` — no schema-aware code
+  serve the dict via ``.get(...)`` â€” no schema-aware code
   change needed).
 - ``run_meta_latest.v1.json`` schema_version stays ``"1.2"``.
 - ``CampaignType`` Literal (``daily_primary``,
   ``daily_control``, ``survivor_confirmation``,
-  ``paper_followup``, ``weekly_retest``) — funnel
+  ``paper_followup``, ``weekly_retest``) â€” funnel
   confirmation requests reuse ``survivor_confirmation`` with
   funnel-specific subtype + extra metadata.
 
-## [v3.15.7] — Exploratory Screening Criteria
+## [v3.15.7] â€” Exploratory Screening Criteria
 
 Date: 2026-04-26
 Branch: `fix/v3.15.7-exploratory-screening-criteria`
@@ -1705,7 +1744,7 @@ Funnel discipline:
   ``research_rejection``.
 - Outcome dict (non-frozen screening sidecar surface) gains:
   ``pass_kind`` (None / "standard" / "promotion_grade" /
-  "exploratory"; set ONLY on screening pass — rejections carry
+  "exploratory"; set ONLY on screening pass â€” rejections carry
   ``None``), ``screening_criteria_set`` ("legacy" or
   "exploratory"), ``diagnostic_metrics`` (JSON-safe finite
   floats: expectancy, profit_factor, win_rate, max_drawdown).
@@ -1720,10 +1759,10 @@ Funnel discipline:
   ``pass_kind`` is consumed but NEVER serialised into the v1
   candidate registry row.
 - ``research/run_research.py``: builds the
-  ``{strategy_id → pass_kind}`` index from candidate runtime
+  ``{strategy_id â†’ pass_kind}`` index from candidate runtime
   records and forwards it to promotion reporting. Emits
   ``exploratory_screening_pass`` tracker event when
-  ``outcome["pass_kind"] == "exploratory"`` — emit-site lives
+  ``outcome["pass_kind"] == "exploratory"`` â€” emit-site lives
   exclusively in run_research.
 
 ### Changed
@@ -1740,33 +1779,33 @@ Funnel discipline:
   subprocess and into both inner runners.
 - ``batch_execution`` candidate-update's ``screening`` sub-dict
   carries ``pass_kind`` from the outcome dict (no preset / no
-  tracker — same v3.15.6 discipline; pass_kind comes straight
+  tracker â€” same v3.15.6 discipline; pass_kind comes straight
   from the runtime record).
 - Two v3.15.6 tests reformulated (NOT deleted) with explicit
-  supersession docstrings — the v3.15.6 no-branching invariants
+  supersession docstrings â€” the v3.15.6 no-branching invariants
   are intentionally superseded by v3.15.7. Signature-binding
   test preserved verbatim.
 
 ### Deliberately not changed
 
-- ``engine.CRITERIA`` and ``_goedkeuren()`` — promotion-grade
+- ``engine.CRITERIA`` and ``_goedkeuren()`` â€” promotion-grade
   gates byte-identical.
 - Strategy logic (``agent/backtesting/strategies.py``, registry,
   bundles, parameters).
 - Parameter sampling (v3.15.8 scope).
-- Campaign launcher / v3.15.5 outcome semantics —
+- Campaign launcher / v3.15.5 outcome semantics â€”
   ``worker_crashed`` still never emitted; the v3.15.5
   invariant tests stay green.
 - Frozen contracts: ``research_latest.json``,
   ``strategy_matrix.csv``,
-  ``candidate_registry_latest.v1.json`` schema — bytewise
+  ``candidate_registry_latest.v1.json`` schema â€” bytewise
   unchanged.
 - ``run_meta_latest.v1.json`` schema_version stays "1.2" (no
   v3.15.7 fields at run level).
 - ``preset_to_card`` / dashboard API / frontend.
 - v3.15.6 preset assignments.
 - ``screening_phase`` annotation remains ``str | None`` (not
-  Literal) — v3.15.6 seam contract.
+  Literal) â€” v3.15.6 seam contract.
 - v3.15.6 ``screening_phase`` key forbidden in outcome dict.
 - ``screening_runtime.py`` and ``screening_process.py`` do not
   contain phase-specific threshold constants; those live
@@ -1780,7 +1819,7 @@ Funnel discipline:
   positive expectancy + healthy profit_factor + bounded drawdown
   even when the engine ``goedgekeurd`` AND-gate (which includes
   ``win_rate > 0.50``) fails. Those passes downgrade to
-  ``needs_investigation`` in promotion — they are NOT
+  ``needs_investigation`` in promotion â€” they are NOT
   auto-promoted to candidate / paper.
 - Operators who previously expected
   ``screening_criteria_not_met`` as the dominant exploratory
@@ -1794,7 +1833,7 @@ If exploratory pass count remains zero after v3.15.7 deploy,
 **inspect sampling coverage in v3.15.8 before further loosening
 criteria**. Lowering exploratory thresholds without first
 addressing a sampling bottleneck would mask the actual problem.
-See ``docs/handoffs/v3.15.7.md`` §10 for indicators.
+See ``docs/handoffs/v3.15.7.md`` Â§10 for indicators.
 
 ### Tests
 
@@ -1806,14 +1845,14 @@ unchanged, paper readiness filters ``needs_investigation``, the
 tracker event lives only in run_research, and the trend-case
 fixture passes exploratory + fails promotion_grade.
 
-## [v3.15.6] — Screening Mode Activation
+## [v3.15.6] â€” Screening Mode Activation
 
 Date: 2026-04-26
 Branch: `fix/v3.15.6-screening-mode-activation`
 
 Activates the funnel-stage classification (``screening_phase``)
 end-to-end as plumbing. No threshold or screening-criteria change
-ships in v3.15.6 — the seam is laid for v3.15.7 to dispatch
+ships in v3.15.6 â€” the seam is laid for v3.15.7 to dispatch
 phase-aware criteria. ``screening_phase`` and the legacy
 ``screening_mode`` coexist: distinct concepts, distinct
 vocabularies, no rename, no vocab replacement.
@@ -1837,14 +1876,14 @@ vocabularies, no rename, no vocab replacement.
 - ``research/screening_process.execute_screening_candidate_isolated``
   accepts a new ``screening_phase: str | None = None`` keyword-
   only parameter. The function discards the kwarg via
-  ``del screening_phase`` — no branching, no result-dict
+  ``del screening_phase`` â€” no branching, no result-dict
   expansion. The annotation is intentionally ``str | None`` (not
   Literal) so v3.15.7 may extend the vocabulary in-place without
   an API break.
 - ``research/run_research``: tracker events
   ``screening_phase_active`` (run-level) and
   ``screening_phase_observed`` (per-candidate, run_research only).
-- ``research/run_meta_latest.v1.json`` schema bump 1.1 → 1.2 with
+- ``research/run_meta_latest.v1.json`` schema bump 1.1 â†’ 1.2 with
   additive nullable ``screening_phase`` field. File path unchanged.
 - ``researchctl run --dry-run`` listing surfaces ``screening_phase``
   next to the legacy ``screening_mode``. Operator visibility
@@ -1852,7 +1891,7 @@ vocabularies, no rename, no vocab replacement.
 - 14 new test files pinning the v3.15.6 contract end-to-end:
   type, preset assignments, AST explicitness, legacy
   ``screening_mode`` unchanged, default+strict validation paths,
-  invalid-phase end-to-end → technical_failure (no catalog
+  invalid-phase end-to-end â†’ technical_failure (no catalog
   pollution), run_research / screening_process / batch_execution
   propagation, v3.15.7 compatibility seam, behavior equivalence,
   run_meta schema, ``preset_to_card`` unchanged, researchctl
@@ -1866,37 +1905,37 @@ vocabularies, no rename, no vocab replacement.
   ``preset_validation_warning`` tracker event without raising;
   strict mode (``QRE_STRICT_PRESET_VALIDATION=1``) raises
   ``PresetValidationError``.
-- Preset assignments (classification change only — same screening
+- Preset assignments (classification change only â€” same screening
   criteria as today until v3.15.7):
-  - `trend_pullback_crypto_1h`           → `exploratory`
-  - `vol_compression_breakout_crypto_1h` → `exploratory`
-  - `crypto_diagnostic_1h`               → `exploratory`
-  - all other presets                    → `promotion_grade`
+  - `trend_pullback_crypto_1h`           â†’ `exploratory`
+  - `vol_compression_breakout_crypto_1h` â†’ `exploratory`
+  - `crypto_diagnostic_1h`               â†’ `exploratory`
+  - all other presets                    â†’ `promotion_grade`
 
 ### Deliberately not changed
 
-- Bestaand ``screening_mode`` field — every preset's value is
+- Bestaand ``screening_mode`` field â€” every preset's value is
   byte-identical pre-v3.15.6 (test pinned). The legacy Literal
   remains exactly ``("strict", "lenient", "diagnostic")``.
-- ``preset_to_card`` (frontend / dashboard API) — byte-identical
+- ``preset_to_card`` (frontend / dashboard API) â€” byte-identical
   pre-v3.15.6. Visibility for v3.15.6 lives in tracker events,
   run_meta, and the CLI listing.
 - ``research/screening_runtime.py``, ``candidate_pipeline.py``,
   ``rejection_taxonomy.py``, ``campaign_launcher.py``,
-  ``dashboard/dashboard.py``, ``frontend/`` — unchanged.
+  ``dashboard/dashboard.py``, ``frontend/`` â€” unchanged.
 - ``execute_screening_candidate_isolated`` returned outcome dict
-  — NOT extended. The function discards the kwarg via
+  â€” NOT extended. The function discards the kwarg via
   ``del screening_phase`` to prevent stealth schema drift via
   ``runtime_record.update(outcome)`` on
   ``research/batch_execution.py:191``.
-- ``research/batch_execution.py`` — no preset/tracker context;
+- ``research/batch_execution.py`` â€” no preset/tracker context;
   passes ``screening_phase=None`` literally; no inference from
   ``screening_mode`` / ``preset_class`` / ``hypothesis_id`` /
   diagnostic flags.
 - Frozen contracts: ``research_latest.json``,
   ``strategy_matrix.csv``,
-  ``candidate_registry_latest.v1.json`` schema — byte-identical.
-- v3.15.5 outcome semantics — fully preserved. All `v3_15_5`
+  ``candidate_registry_latest.v1.json`` schema â€” byte-identical.
+- v3.15.5 outcome semantics â€” fully preserved. All `v3_15_5`
   pattern tests remain green.
 
 ### Behavioral shift (intentional)
@@ -1904,7 +1943,7 @@ vocabularies, no rename, no vocab replacement.
 - Three production presets are now classified as ``exploratory``
   (`trend_pullback_crypto_1h`, `vol_compression_breakout_crypto_1h`,
   `crypto_diagnostic_1h`). This is a **classification change
-  only** — same screening criteria as today. v3.15.7 may
+  only** â€” same screening criteria as today. v3.15.7 may
   introduce phase-aware thresholds, at which point the
   exploratory presets will see different gating from the
   promotion_grade presets.
@@ -1916,7 +1955,7 @@ vocabularies, no rename, no vocab replacement.
 
 Full suite: 1755 + ~57 new tests = ~1812 expected.
 
-## [v3.15.5] — Outcome Semantics Fix
+## [v3.15.5] â€” Outcome Semantics Fix
 
 Date: 2026-04-26
 Branch: `fix/v3.15.5-outcome-semantics`
@@ -1941,13 +1980,13 @@ no v3.15.2 build.
   - ``degenerate_no_survivors``
   - ``research_rejection``
   - ``technical_failure``
-- ``research/campaign_registry.LAUNCHER_EMITTABLE_OUTCOMES`` —
+- ``research/campaign_registry.LAUNCHER_EMITTABLE_OUTCOMES`` â€”
   frozenset enumerating the post-v3.15.5 launcher emission set.
   ``worker_crashed`` is deliberately absent. The launcher's
-  runtime invariant asserts ``outcome ∈
+  runtime invariant asserts ``outcome âˆˆ
   LAUNCHER_EMITTABLE_OUTCOMES`` and ``outcome != "worker_crashed"``
   before ``record_outcome``.
-- ``research/rejection_taxonomy.SCREENING_REASON_CODES`` —
+- ``research/rejection_taxonomy.SCREENING_REASON_CODES`` â€”
   frozenset of the per-candidate rejection codes that classify a
   rejection as a screening-layer failure (vs. promotion / paper).
   Pinned by a unit test that asserts every code appears in the
@@ -1960,31 +1999,31 @@ no v3.15.2 build.
   version unchanged (``"1.0"``); the field is additive and
   nullable.
 - New tests:
-  - ``tests/unit/test_v3_15_5_outcome_classification.py`` — pure
+  - ``tests/unit/test_v3_15_5_outcome_classification.py`` â€” pure
     helpers for paper / candidate-registry / rc=2 classification.
-  - ``tests/unit/test_v3_15_5_outcome_invariant.py`` — static AST
+  - ``tests/unit/test_v3_15_5_outcome_invariant.py`` â€” static AST
     guard: launcher production path never assigns ``outcome =
     "worker_crashed"``; the runtime invariant + the
     ``LAUNCHER_EMITTABLE_OUTCOMES`` import are present.
-  - ``tests/unit/test_v3_15_5_run_research_exit_code.py`` —
+  - ``tests/unit/test_v3_15_5_run_research_exit_code.py`` â€”
     ``__main__`` exits rc=2 on ``DegenerateResearchRunError``;
     other exceptions fall through (rc=1); callable
     ``run_research(...)`` still raises the exception so the
     library contract is byte-identical.
-  - ``tests/unit/test_v3_15_5_screening_reason_codes.py`` —
+  - ``tests/unit/test_v3_15_5_screening_reason_codes.py`` â€”
     frozenset shape + repo-presence pin.
-  - ``tests/unit/test_v3_15_5_policy_regression.py`` — 5×
+  - ``tests/unit/test_v3_15_5_policy_regression.py`` â€” 5Ã—
     consecutive ``degenerate_no_survivors`` or
-    ``research_rejection`` triggers preset freeze; 5×
+    ``research_rejection`` triggers preset freeze; 5Ã—
     ``technical_failure`` does **not**; mixed streaks reset
     correctly.
 
 ### Changed
 
 - ``research/campaign_launcher.py`` outcome dispatch is now strict
-  and hierarchical (rc=2 → degenerate; rc≠0 → technical; rc=0 →
+  and hierarchical (rc=2 â†’ degenerate; rcâ‰ 0 â†’ technical; rc=0 â†’
   paper-ready / paper-blocked / research_rejection /
-  completed_no_survivor — exhaustive mutually exclusive paths).
+  completed_no_survivor â€” exhaustive mutually exclusive paths).
   Ownership for ``research_rejection`` is hard-anchored on
   ``paper_readiness.col_campaign_id`` (v3.15.4 stamp); mtime is
   not used as ownership.
@@ -1998,7 +2037,7 @@ no v3.15.2 build.
 - ``research/campaign_preset_policy._NON_TECHNICAL_REJECT_OUTCOMES``
   extended with ``degenerate_no_survivors`` and
   ``research_rejection``. ``technical_failure`` deliberately
-  excluded — technical failures must not freeze a preset.
+  excluded â€” technical failures must not freeze a preset.
 
 ### Deprecated
 
@@ -2020,9 +2059,9 @@ no v3.15.2 build.
   ``DegenerateResearchRunError`` runs were classified as technical
   and therefore excluded from the
   ``_non_technical_reject_streak`` counter. Post-v3.15.5 they
-  count toward freeze (5+ in a row → preset freeze). Presets with
+  count toward freeze (5+ in a row â†’ preset freeze). Presets with
   repeated degenerate runs may now freeze / cooldown earlier than
-  before. This is the intended correction — repeated degenerate
+  before. This is the intended correction â€” repeated degenerate
   runs are a real family-falsification signal.
 - **Digest / dashboards.** ``top_failure_reasons`` will surface
   ``degenerate_no_evaluable_pairs`` where pre-v3.15.5 it surfaced
@@ -2031,9 +2070,9 @@ no v3.15.2 build.
 
 ### Deliberately not changed
 
-- ``research/research_latest.json`` — frozen. Byte-identical.
-- ``research/strategy_matrix.csv`` — frozen. Byte-identical.
-- ``research/candidate_registry_latest.v1.json`` schema — frozen.
+- ``research/research_latest.json`` â€” frozen. Byte-identical.
+- ``research/strategy_matrix.csv`` â€” frozen. Byte-identical.
+- ``research/candidate_registry_latest.v1.json`` schema â€” frozen.
   Schema unchanged. Ownership is anchored via
   ``paper_readiness.col_campaign_id``, not via a new
   ``run_id``/``campaign_id`` field on the v1 registry.
@@ -2056,7 +2095,7 @@ no v3.15.2 build.
 Full suite: 1755 passed, 1 skipped after this release. Forty-plus
 new tests pin the v3.15.5 contract.
 
-## [v3.15.4] — Second controlled candidate + finalization patch
+## [v3.15.4] â€” Second controlled candidate + finalization patch
 
 Date: 2026-04-26
 Branch: `chore/v3.15.4-finalize` (after the v3.15.4 working set on
@@ -2065,7 +2104,7 @@ Branch: `chore/v3.15.4-finalize` (after the v3.15.4 working set on
 Closes the v3.15.x line. Adds the second controlled
 ``active_discovery`` candidate
 (``volatility_compression_breakout_v0``), tightens the
-catalog ↔ preset ↔ registry bridge into a startup gate, and applies
+catalog â†” preset â†” registry bridge into a startup gate, and applies
 a narrow finalization patch (release-integrity + campaign ownership
 auditability) before v3.16 work begins. No strategy logic, no
 campaign policy redesign, no shadow / live work, no frozen-contract
@@ -2108,7 +2147,7 @@ changes.
 - ``research/paper_validation_sidecars.py``:
   ``PaperValidationBuildContext.col_campaign_id`` (default
   ``None``) plumbs the breadcrumb into the readiness sidecar
-  through the existing façade.
+  through the existing faÃ§ade.
 - ``research/campaign_launcher.py``: ``_classify_outcome_from_paper``
   takes ``expected_campaign_id`` and rejects mismatched / missing
   ownership stamps. Caller passes ``cid`` so a stale sidecar from a
@@ -2121,12 +2160,12 @@ changes.
   whether the binding is missing entirely or merely flipped to
   ``enabled=False``.
 - ``docs/handoffs/v3.15.4.md``: documents the
-  ``max_concurrent_campaigns=1`` ↔ launcher-holds-lock-across-
+  ``max_concurrent_campaigns=1`` â†” launcher-holds-lock-across-
   subprocess coupling so a future operator who raises the limit
   understands why hourly ticks would suddenly serialise.
 - Tests:
   ``tests/unit/test_paper_readiness_col_ownership.py`` (5 tests:
-  payload + façade ownership stamp on success and default-null
+  payload + faÃ§ade ownership stamp on success and default-null
   paths); ``tests/unit/test_campaign_launcher_paper_ownership.py``
   (7 tests: missing sidecar, owner-match, owner-mismatch (the
   defining stale-sidecar case), missing-owner-when-expected,
@@ -2137,7 +2176,7 @@ changes.
 
 ### Changed
 
-- ``VERSION``: ``3.15.3.1`` → ``3.15.4``. Catches up the release
+- ``VERSION``: ``3.15.3.1`` â†’ ``3.15.4``. Catches up the release
   identity to the working set on ``main`` (gap acknowledged in the
   v3.15.3 CHANGELOG entry).
 
@@ -2157,7 +2196,7 @@ changes.
   v3.15.2 ``campaign_templates_latest.v1.json`` byte-identity for
   the 3 baseline preset templates is preserved.
 - Paper-readiness sidecar schema version stays at
-  ``PAPER_READINESS_SCHEMA_VERSION="1.0"`` — ``col_campaign_id``
+  ``PAPER_READINESS_SCHEMA_VERSION="1.0"`` â€” ``col_campaign_id``
   is an additive nullable field, not a schema-breaking change.
 
 ### Tests
@@ -2175,7 +2214,7 @@ changes.
   releasing the lock at the spawn boundary. See
   ``docs/handoffs/v3.15.4.md``.
 
-## [v3.15.3.1] — Audit-sidecar hotfix on degenerate runs
+## [v3.15.3.1] â€” Audit-sidecar hotfix on degenerate runs
 
 Date: 2026-04-25
 Branch: `fix/v3.15.3.1-audit-sidecar-on-degenerate`
@@ -2193,14 +2232,14 @@ of the rejection.
   both v3.15.3 sidecars before re-raising
   ``DegenerateResearchRunError``. Mirrors the existing
   ``_write_public_artifact_status_sidecar`` pattern in the same
-  function — best-effort with ``tracker.emit_event(
+  function â€” best-effort with ``tracker.emit_event(
   "v3_15_3_hypothesis_catalog_sidecars_failed", ...)`` on failure,
   never blocks the original degenerate-run exception.
 
 ### Deliberately not changed
 
 - No policy changes. ``campaign_policy._check_template_eligibility``
-  still reads the in-memory catalog tuple, not the sidecar file —
+  still reads the in-memory catalog tuple, not the sidecar file â€”
   the hotfix only fills an audit-trail gap, never alters a
   selection decision.
 - No strategy changes. ``trend_pullback_v1`` and the legacy
@@ -2224,7 +2263,7 @@ of the rejection.
   tracker event, sidecar carries the v3.15.3 pin block invariants
   on the degenerate path, sidecar records run_id.
 
-## [v3.15.3] — Strategy Hypothesis Catalog + First Controlled Strategy Candidate
+## [v3.15.3] â€” Strategy Hypothesis Catalog + First Controlled Strategy Candidate
 
 Date: 2026-04-25
 Branch: `feature/v3.15.3-hypothesis-catalog`
@@ -2271,7 +2310,7 @@ explicitly blocked (`disabled`), or enrichment-only (`diagnostic`).
 - **`pullback_distance` feature primitive** (`agent/backtesting/features.py`)
   registered in `FEATURE_REGISTRY`. Composite of `ema(close, span)` +
   `rolling_volatility(log_returns(close), window)`. Explicit
-  zero-volatility guard returns NaN rather than ±inf.
+  zero-volatility guard returns NaN rather than Â±inf.
 - **`trend_pullback_v1_strategie`** (`agent/backtesting/strategies.py`)
   thin-contract long-only strategy. Max 3 parameters
   (`ema_fast_window, ema_slow_window, entry_k`); declares four
@@ -2316,7 +2355,7 @@ explicitly blocked (`disabled`), or enrichment-only (`diagnostic`).
   and `trend_pullback_tp_sl` (8 params) are unchanged.
 - `research/presets.py`: appended `trend_pullback_crypto_1h` between
   `trend_regime_filtered_equities_4h` and `crypto_diagnostic_1h`.
-- `VERSION`: `3.15.1` → `3.15.3`. (v3.15.2 was deployed via the
+- `VERSION`: `3.15.1` â†’ `3.15.3`. (v3.15.2 was deployed via the
   campaign operating layer cutover but did not bump the file in
   the local repo.)
 
@@ -2328,7 +2367,7 @@ explicitly blocked (`disabled`), or enrichment-only (`diagnostic`).
 - `research/candidate_registry_latest.v2.json` schema + writer.
 - `research/rejection_taxonomy.py` v3.11 canonical codes (the new
   `strategy_failure_taxonomy` is an adjacent module).
-- `research/regime_diagnostics.py` behavior — never gates trade
+- `research/regime_diagnostics.py` behavior â€” never gates trade
   signals, only registered in catalog as `diagnostic`.
 - All v3.12 / v3.13 / v3.14 / v3.15 / v3.15.1 / v3.15.2 sidecar
   schemas + writers.
@@ -2341,11 +2380,11 @@ explicitly blocked (`disabled`), or enrichment-only (`diagnostic`).
 
 ### Known limitations
 
-- Auto-status transitions (`active_discovery → cooldown / negated /
+- Auto-status transitions (`active_discovery â†’ cooldown / negated /
   deprioritized`) are not implemented. The catalog ships with
   hand-curated initial statuses; future versions will let the
   campaign launcher mutate status based on accumulated evidence.
-- The hypothesis bridge uses `preset.bundle[0]` — multi-strategy
+- The hypothesis bridge uses `preset.bundle[0]` â€” multi-strategy
   bundles (e.g. `trend_equities_4h_baseline` with sma_crossover +
   breakout_momentum) are intentionally NOT hypothesis-aware in
   v3.15.3; their templates carry `require_hypothesis_status=()`
@@ -2354,10 +2393,10 @@ explicitly blocked (`disabled`), or enrichment-only (`diagnostic`).
   v3.15.3 (the existing `regime_diagnostics_latest.v1.json`
   already exists from earlier versions; v3.15.3 only registers
   the diagnostic hypothesis row in the catalog).
-- The five v3.15.2 verification carry-overs (C1–C5) recorded in
+- The five v3.15.2 verification carry-overs (C1â€“C5) recorded in
   the v3.15.2 closeout remain explicitly out of scope.
 
-## [v3.15.2] — Autonomous Campaign Operating Layer
+## [v3.15.2] â€” Autonomous Campaign Operating Layer
 
 Date: 2026-04-25 (production cutover; merged via
 `feat/v3.15.2-campaign-operating-layer` + hotfix
@@ -2405,9 +2444,9 @@ v3.15.3 has a clean continuation.
 
 ### Production-cutover verification (2026-04-25)
 
-- 08:00 UTC tick — R0 reclaimed stale lease.
-- 09:00 UTC tick — R1 cancelled upstream-stale candidate.
-- 10:00 UTC tick — autonomous spawn of
+- 08:00 UTC tick â€” R0 reclaimed stale lease.
+- 09:00 UTC tick â€” R1 cancelled upstream-stale candidate.
+- 10:00 UTC tick â€” autonomous spawn of
   `trend_regime_filtered_equities_4h`; eligibility filter blocked
   `crypto_diagnostic_1h` correctly; subprocess ran the trend-equities
   research subprocess. All 7 campaign API endpoints HTTP 200; pin
@@ -2421,20 +2460,20 @@ v3.15.3 has a clean continuation.
 - C4: GHA `docker-build` workflow lag for `:latest` tag.
 - C5: lock-contention error visibility.
 
-## [v3.15.1] — Stale Artifact Banner + Pairs Decision Surface
+## [v3.15.1] â€” Stale Artifact Banner + Pairs Decision Surface
 
 Date: 2026-04-24
 Branch: `fix/v3.15.1-stale-artifact-banner-and-pairs-decision`
 
 Kleine operationele / product-verduidelijking bovenop v3.15. Geen
-alpha-uitbreiding, geen nieuwe strategieën, geen engine-contract
+alpha-uitbreiding, geen nieuwe strategieÃ«n, geen engine-contract
 wijziging. Twee gaten gesloten:
 
 1. Stale public artifacts bij degenerate / no-survivor runs zijn nu
    zichtbaar in API + UI; `research_latest.json` en
    `strategy_matrix.csv` blijven frozen en onaangeraakt.
 2. `pairs_equities_daily_baseline` is expliciet als
-   product-/roadmapbeslissing gevisualiseerd — geen kapotte
+   product-/roadmapbeslissing gevisualiseerd â€” geen kapotte
    placeholder, maar een gedocumenteerde disabled/planned preset met
    rationale, verwacht gedrag, falsificatiecriteria en
    enablement-criteria.
@@ -2444,7 +2483,7 @@ wijziging. Twee gaten gesloten:
 - **Public artifact status sidecar** (`research/public_artifact_status.py`,
   schema v1.0, `PUBLIC_ARTIFACT_STATUS_VERSION="v0.1"`). Adjacent
   artifact `research/public_artifact_status_latest.v1.json` geschreven
-  na **elke** run-poging (success én degenerate). Velden:
+  na **elke** run-poging (success Ã©n degenerate). Velden:
   `last_attempted_run` (run_id, attempted_at_utc, preset, outcome,
   failure_stage), `last_public_artifact_write` (run_id, written_at_utc,
   preset), `last_public_write_age_seconds`, `public_artifacts_stale`,
@@ -2461,19 +2500,19 @@ wijziging. Twee gaten gesloten:
 - **Frontend banner** `frontend/src/components/StaleArtifactBanner.tsx`.
   Rendert alleen bij `state="valid"` + `public_artifacts_stale=true`.
   Getoond op `/` (Dashboard), `/reports`, `/candidates`. Absent-state
-  rendert niets — onbekend is niet onveilig, maar het is ook geen
+  rendert niets â€” onbekend is niet onveilig, maar het is ook geen
   impliciete fresh.
 - **Preset `enablement_criteria`**: nieuw veld op `ResearchPreset`
   (`tuple[str, ...] = ()`, backward-compatible).
 - **Gevulde hypothesis-metadata voor `pairs_equities_daily_baseline`**:
   `rationale`, `expected_behavior`, `falsification`,
-  `enablement_criteria` zijn nu gedocumenteerd — van lege placeholder
+  `enablement_criteria` zijn nu gedocumenteerd â€” van lege placeholder
   naar first-class productbeslissing.
 - **Backend-side preset decision inference**: `preset_to_card()`
   exposeert een `decision` dict met gesloten `kind` vocabulary
   (`disabled_planned`, `diagnostic_only`, `scheduler_excluded`, null)
   + `is_product_decision` + `summary` + `requires_enablement`.
-  Frontend rendert op basis hiervan — geen business-logic in de UI.
+  Frontend rendert op basis hiervan â€” geen business-logic in de UI.
 - **Frontend preset decision surface**: `Presets.tsx` toont
   `preset_class` badge + rationale/expected_behavior/falsification
   secties + een dedicated decision-block met backlog_reason en
@@ -2489,7 +2528,7 @@ wijziging. Twee gaten gesloten:
   `postrun_no_oos_daily_returns`) schrijft de stale-versie. Fouten
   op de sidecar-write worden gemeld via
   `public_artifact_status_sidecar_failed` tracker-event maar blokkeren
-  nooit de run — dit is een observability artifact.
+  nooit de run â€” dit is een observability artifact.
 - `research/presets.py`: `ResearchPreset.enablement_criteria` toegevoegd,
   `preset_to_card()` exposeert `enablement_criteria` + `decision`.
 - `dashboard/research_artifacts.py`: `load_public_artifact_status()`
@@ -2518,7 +2557,7 @@ wijziging. Twee gaten gesloten:
 - `candidate_registry_latest.v1.json` / `.v2.json`: onveranderd.
 - Engine / strategy registry / orchestration layer: onveranderd.
 - `pairs_equities_daily_baseline`: blijft `enabled=False`,
-  `status="planned"`. Deze release activeert géén pairs-logic —
+  `status="planned"`. Deze release activeert gÃ©Ã©n pairs-logic â€”
   documenteert alleen de bestaande beslissing als first-class surface.
 - `SCORING_FORMULA_VERSION`: blijft `v0.1-experimental`.
 
@@ -2526,7 +2565,7 @@ wijziging. Twee gaten gesloten:
 
 - `tests/unit/test_public_artifact_status.py` (16): version pins,
   outcome handling (success / degenerate / error), stale_reason
-  vocabulary, stale_since_utc preservation, stale→fresh transition,
+  vocabulary, stale_since_utc preservation, staleâ†’fresh transition,
   atomic write round-trip, schema validation.
 - `tests/unit/test_dashboard_api_public_artifact_status.py` (5): auth
   gate, explicit absent-state (`public_artifacts_stale=null`),
@@ -2537,9 +2576,9 @@ wijziging. Twee gaten gesloten:
   card exposes new fields, decision inference on pairs / baseline /
   diagnostic presets, JSON safety.
 - `tests/integration/test_public_artifact_status_end_to_end.py` (5):
-  success → fresh, degenerate-without-prior →
+  success â†’ fresh, degenerate-without-prior â†’
   `public_write_never_occurred`, degenerate-after-success preserves
-  write block, stale → fresh transition after later success, sidecar
+  write block, stale â†’ fresh transition after later success, sidecar
   write failure still emits tracker event + raises degenerate error.
 - `frontend/src/components/__tests__/StaleArtifactBanner.test.tsx` (4):
   absent / fresh / stale / api-error rendering behavior.
@@ -2549,17 +2588,17 @@ wijziging. Twee gaten gesloten:
 
 ### Known limitations
 
-- Geen bar-level freshness — de sidecar is run-granulariteit.
+- Geen bar-level freshness â€” de sidecar is run-granulariteit.
 - Geen per-sidecar freshness (elk v3.12+ sidecar apart). v3.15.1
   dekt alleen de twee publieke frozen contracts.
-- `enablement_criteria` voor pairs zijn indicatief — de formele
+- `enablement_criteria` voor pairs zijn indicatief â€” de formele
   v3.11 equity-pairs ADR blijft de gate voor een latere enablement.
 - Error-outcome (`STALE_REASON_ERROR`) is geschikt voor toekomstige
   outer try/except wrapper rond `run_research`; wordt in v3.15.1 niet
   automatisch geschreven bij onverwachte exceptions buiten de
   degenerate / success paden.
 
-## [v3.15] — Paper Validation Engine
+## [v3.15] â€” Paper Validation Engine
 
 Date: 2026-04-24
 Branch: `feature/v3.15-paper-validation-engine`
@@ -2572,30 +2611,30 @@ v3.15 schrijft nooit naar hun paths.
 
 v3.15 beantwoordt drie vragen per kandidaat:
 
-1. **Ledger** — welke signal/order/fill/reject/skip/position events
+1. **Ledger** â€” welke signal/order/fill/reject/skip/position events
    genereert deze kandidaat onder paper-semantiek?
-2. **Divergence** — hoe wijkt paper af van de engine baseline
+2. **Divergence** â€” hoe wijkt paper af van de engine baseline
    (metrics delta, venue-cost delta, timestamp-aligned coverage)?
-3. **Readiness** — is deze kandidaat klaar voor een eventuele v3.16+
+3. **Readiness** â€” is deze kandidaat klaar voor een eventuele v3.16+
    paper-promotion, of is er een blocking reason? `live_eligible`
    is in v3.15 altijd `False`, hard gepind.
 
 ### Added
 
-- **Venue mapping** (`research/paper_venues.py`). `asset_type →
+- **Venue mapping** (`research/paper_venues.py`). `asset_type â†’
   ScenarioSpec` mapping voor `crypto` (Bitvavo: 0.25% per kant +
-  10 bps slippage), `equity` (IBKR: €1/€2000 notional = 5 bps per
+  10 bps slippage), `equity` (IBKR: â‚¬1/â‚¬2000 notional = 5 bps per
   kant + 10 bps slippage; `VENUE_IBKR_EQUITY_ASSUMED_NOTIONAL_EUR`
-  geëxposeerd in elk artifact dat IBKR gebruikt), en
-  `polymarket_binary` (2% spread + 10 bps — **gedefinieerd, niet
+  geÃ«xposeerd in elk artifact dat IBKR gebruikt), en
+  `polymarket_binary` (2% spread + 10 bps â€” **gedefinieerd, niet
   toegepast** in v3.15). `unknown` / `futures` / `index_like`
-  krijgen geen fallback — `venue_name_for_asset_type` returnt
+  krijgen geen fallback â€” `venue_name_for_asset_type` returnt
   `None` en readiness vertaalt dat naar een
   `insufficient_venue_mapping` blocking reason.
   `PAPER_VENUES_VERSION = "v0.1"`.
 - **Timestamped returns bridge**
   (`research/candidate_timestamped_returns_feed.py`). Closes v3.14
-  handoff §8.1. Consumeert de al-bestaande
+  handoff Â§8.1. Consumeert de al-bestaande
   `evaluation_report.evaluation_streams.oos_daily_returns` typed
   stream van de engine zonder engine-contract uitbreiding. Nieuwe
   `TimestampedCandidateReturnsRecord` dataclass draagt parallel
@@ -2606,7 +2645,7 @@ v3.15 beantwoordt drie vragen per kandidaat:
   Extracted uit `portfolio_reporting._normalize_stream` zodat
   `candidate_timestamped_returns_feed` en `paper_divergence`
   dezelfde implementatie hergebruiken. Gedrag byte-identical met
-  pre-extraction — v3.12+ artifacts blijven byte-identical.
+  pre-extraction â€” v3.12+ artifacts blijven byte-identical.
 - **Paper ledger** (`research/paper_ledger.py`). First-class
   lifecycle projectie. Gesloten event-taxonomy (`signal`, `order`,
   `fill`, `reject`, `skip`, `position`) en gesloten
@@ -2614,7 +2653,7 @@ v3.15 beantwoordt drie vragen per kandidaat:
   `projected_insufficient`). Elk event draagt expliciete `lineage`
   pointers naar `oos_execution_events`. Signal + position events
   zijn `projected_minimal` omdat de engine ze niet apart
-  serialiseert — v3.15 vindt nooit bron-evidence uit. Unmapped
+  serialiseert â€” v3.15 vindt nooit bron-evidence uit. Unmapped
   venues krijgen alleen `signal` + `reject(reason=
   insufficient_venue_mapping)`. Deterministic ordering via
   `(timestamp_utc, lifecycle_index, event_id)`.
@@ -2641,24 +2680,24 @@ v3.15 beantwoordt drie vragen per kandidaat:
   `malformed_return_stream`, `no_candidate_returns`. Gesloten
   warning taxonomy: `negative_paper_sharpe` (warning by default,
   niet blocking), `projected_insufficient_events_ratio_high`,
-  `medium_divergence`. Status ∈ `{ready_for_paper_promotion,
+  `medium_divergence`. Status âˆˆ `{ready_for_paper_promotion,
   blocked, insufficient_evidence}`. Thresholds named:
   `MIN_PAPER_OOS_DAYS=60`, `MIN_PAPER_SHARPE_FOR_READY=0.3`,
   `WARN_PROJECTED_INSUFFICIENT_RATIO=0.20`. `live_eligible=False`
-  is top-level hard-pinned in de payload — geen enkel codepath
+  is top-level hard-pinned in de payload â€” geen enkel codepath
   zet het op `True`. `PAPER_READINESS_VERSION = "v0.1"`.
-- **Parallel façade** (`research/paper_validation_sidecars.py`).
-  Mirrors v3.14 façade exactly. Frozen
+- **Parallel faÃ§ade** (`research/paper_validation_sidecars.py`).
+  Mirrors v3.14 faÃ§ade exactly. Frozen
   `PaperValidationBuildContext` + single
   `build_and_write_paper_validation_sidecars(ctx)` entry. All
   writes gaan door `_sidecar_io.write_sidecar_atomic` zodat elke
   artifact canonical en byte-reproducible is.
-- **Runner hook** (`research/run_research.py`). Één additieve block
+- **Runner hook** (`research/run_research.py`). Ã‰Ã©n additieve block
   na de v3.14 portfolio-sleeve hook. Leest
   `sleeve_registry_latest.v1.json` voor sleeve membership lookup,
   construeert `PaperValidationBuildContext` uit de al-bestaande
   `evaluations` accumulator + registry_v2 payload, en roept de
-  façade aan. Try/except zodat v3.15 falen nooit de v3.14 run
+  faÃ§ade aan. Try/except zodat v3.15 falen nooit de v3.14 run
   maskeert.
 - **Report extension** (`research/report_agent.py`).
   `_paper_layer_summary()` helper + optionele top-level
@@ -2668,7 +2707,7 @@ v3.15 beantwoordt drie vragen per kandidaat:
   `schema_version` blijft `"1.1"`.
 - **Dashboard endpoints** (`dashboard/dashboard.py`). Vier read-only
   `@requires_auth` endpoints:
-  - `GET /api/registry/paper` — summary (readiness counts +
+  - `GET /api/registry/paper` â€” summary (readiness counts +
     divergence severity distribution + ledger event counts +
     artifact states)
   - `GET /api/registry/paper/ledger`
@@ -2689,19 +2728,19 @@ v3.15 beantwoordt drie vragen per kandidaat:
 - `research/portfolio_reporting.py`: `_normalize_stream` is nu een
   thin delegate naar `research._oos_stream.normalize_oos_daily_return_stream`.
   Gedrag byte-identical; v3.12 artifacts blijven byte-identical.
-- `research/run_research.py`: één nieuwe try/except block met
+- `research/run_research.py`: Ã©Ã©n nieuwe try/except block met
   `build_and_write_paper_validation_sidecars` direct na de v3.14
   hook. Runner blijft dun.
-- `research/report_agent.py`: additief — `paper_layer_summary` top-
+- `research/report_agent.py`: additief â€” `paper_layer_summary` top-
   level key + markdown sectie. `schema_version` blijft `"1.1"`.
 - `dashboard/dashboard.py`: vier nieuwe routes; bestaande routes
   onveranderd.
-- `VERSION`: `3.14.1` → `3.15.0`.
+- `VERSION`: `3.14.1` â†’ `3.15.0`.
 
 ### Deliberately NOT changed
 
 - `research/candidate_returns_feed.py` (v3.14 frozen). De v3.15
-  precision-upgrade is een *nieuwe* sidecar — v3.14's shape en
+  precision-upgrade is een *nieuwe* sidecar â€” v3.14's shape en
   bytes blijven onaangetast.
 - `research/candidate_scoring.py`. `SCORING_FORMULA_VERSION` blijft
   `"v0.1-experimental"`, `composite_status` blijft `"provisional"`,
@@ -2744,7 +2783,7 @@ flake8, bandit) schoon op alle v3.15 modules.
 - **Polymarket venue** gedefinieerd, niet toegepast. Wacht op
   Polymarket candidates in de research pipeline via Bot /
   DataArbitrage agent integratie.
-- **Scoring bump** `v0.1-experimental → v0.2-experimental` blijft
+- **Scoring bump** `v0.1-experimental â†’ v0.2-experimental` blijft
   uitgesteld. `regime_breadth_signal` als composite-component is
   pas gerechtvaardigd na meerdere runs met consistent bewijs.
 - **Allocator / Kelly / vol-targeting** expliciet buiten scope.
@@ -2752,13 +2791,13 @@ flake8, bandit) schoon op alle v3.15 modules.
 - **Frontend UI**: geen paper-tab; consumptie via 4 endpoints +
   markdown report. v3.16+ kan een read-only paper-tab toevoegen
   wanneer operationele behoefte bevestigd is.
-- **Paper-to-live promotion** niet geïmplementeerd.
+- **Paper-to-live promotion** niet geÃ¯mplementeerd.
   `live_eligible=False` is hard gepind en v3.15 levert geen
   codepath die dit verandert.
 
 ---
 
-## [v3.14.1] — Runtime budget + preset universe hotfix
+## [v3.14.1] â€” Runtime budget + preset universe hotfix
 
 Date: 2026-04-24
 Branch: `fix/v3.14.1-runtime-budget-and-preset-universe`
@@ -2771,14 +2810,14 @@ changes. `research/research_latest.json` and
 
 ### Fixed
 
-- **Screening candidate budget default** — raised from 60s to
+- **Screening candidate budget default** â€” raised from 60s to
   300s (`research/run_research.py::DEFAULT_SCREENING_CANDIDATE_BUDGET_SECONDS`).
   The 60s default was too aggressive for warm-start screening on
   Hetzner CX22 and caused frequent unwanted candidate interrupts.
   Config override via `research.screening.candidate_budget_seconds`
-  remains authoritative — explicit values (including `0` =
+  remains authoritative â€” explicit values (including `0` =
   no budget) are respected verbatim.
-- **Candidate-level timeout on screening interrupt** —
+- **Candidate-level timeout on screening interrupt** â€”
   `execute_screening_candidate_isolated` returning
   `execution_state="interrupted"` no longer raises
   `KeyboardInterrupt`. That `BaseException` bypassed the enclosing
@@ -2798,9 +2837,9 @@ changes. `research/research_latest.json` and
   `run_research.py:2313` continues to tally
   `batch["timed_out_count"]`. The run proceeds to the next
   candidate. A real user `Ctrl-C` from outside still raises
-  `BaseException` and propagates unchanged — the enclosing handler
+  `BaseException` and propagates unchanged â€” the enclosing handler
   was never widened.
-- **Preset universe is load-bearing for preset-runs** — new helper
+- **Preset universe is load-bearing for preset-runs** â€” new helper
   `research.universe.build_research_universe_from_preset`. Before
   v3.14.1, preset-runs first resolved assets via
   `build_research_universe(research_config)`, which reads
@@ -2824,7 +2863,7 @@ changes. `research/research_latest.json` and
 - `research/universe.py`: new public function
   `build_research_universe_from_preset` +
   `_infer_asset_type_from_symbol` helper.
-- `VERSION`: `3.14.0` → `3.14.1`.
+- `VERSION`: `3.14.0` â†’ `3.14.1`.
 
 ### Deliberately **not** changed
 
@@ -2848,7 +2887,7 @@ changes. `research/research_latest.json` and
 - `tests/unit/test_run_research_preset_universe_v3_14_1.py` (10):
   trend_equities_4h_baseline resolves to its preset universe (not
   crypto_major), crypto preset resolves to crypto asset_type,
-  intervals = [preset.timeframe], empty preset.universe → clear
+  intervals = [preset.timeframe], empty preset.universe â†’ clear
   ValueError, None preset rejected, preset path ignores config
   `research.universe.source`, lookback config still honoured,
   non-preset runs still use `build_research_universe`, default
@@ -2859,7 +2898,7 @@ All 19 green. Full suite: green (delta documented in handoff).
 
 ---
 
-## [v3.14] — Portfolio / Sleeve Research
+## [v3.14] â€” Portfolio / Sleeve Research
 
 Date: 2026-04-23
 Branch: `feature/v3.14-portfolio-sleeve-research`
@@ -2872,7 +2911,7 @@ change is additive; `research/research_latest.json`,
 and the shape / values of every v3.12 field on
 `research/candidate_registry_latest.v2.json` remain byte-identical.
 All v3.14 data lands in four new adjacent sidecars joined on
-`candidate_id` / `sleeve_id` — no in-place v2/v3.13 mutation.
+`candidate_id` / `sleeve_id` â€” no in-place v2/v3.13 mutation.
 
 The v3.14 layer answers "how do these candidates *compose*?" rather
 than "is this candidate good?". It is diagnostic-first and explicitly
@@ -2895,16 +2934,16 @@ every payload).
   in-memory `evaluations` list populated in
   `research.run_research.run_research`. Returns are read from the
   engine's public `last_evaluation_report.evaluation_samples.daily_returns`
-  accessor — no engine contract widening. Every record carries an
+  accessor â€” no engine contract widening. Every record carries an
   explicit `alignment = "utc_daily_close"` and
   `timestamp_semantics = "engine_window_close_utc"` so consumers can
   reason about the data lineage.
 - **Width-axis feed** (`research/regime_width_feed.py`). Closes the
-  v3.13 §8.1 gap. For every `(asset, interval)` pair in the v2
+  v3.13 Â§8.1 gap. For every `(asset, interval)` pair in the v2
   registry the feed reuses the cached OHLCV response produced by the
   backtest's own `data.repository.MarketRepository.get_bars` call,
   runs `research.regime_classifier.classify_bars`, and produces a
-  per-candidate `width_distributions` dict. The v3.13 façade now
+  per-candidate `width_distributions` dict. The v3.13 faÃ§ade now
   consumes this dict so `regime_dependency_score_width`,
   `regime_tags_summary.width`, and the `trend_expansion` gate can
   emit real evidence-backed values. Per-source lineage (asset,
@@ -2925,18 +2964,18 @@ every payload).
   `INTRA_SLEEVE_CORR_WARN_THRESHOLD=0.7`,
   `MAX_DRAWDOWN_CONTRIBUTION_WARN_THRESHOLD=0.5`,
   `MIN_SAMPLES_FOR_STATS=5`. `DIAGNOSTICS_LAYER_VERSION = "v0.1"`.
-- **Parallel façade** (`research/portfolio_sleeve_sidecars.py`).
-  Mirrors the v3.12 and v3.13 façade pattern exactly. One
+- **Parallel faÃ§ade** (`research/portfolio_sleeve_sidecars.py`).
+  Mirrors the v3.12 and v3.13 faÃ§ade pattern exactly. One
   `PortfolioSleeveBuildContext` dataclass + single
   `build_and_write_portfolio_sleeve_sidecars(ctx)` entry point
-  invoked once from `run_research.py` after the v3.13 façade.
+  invoked once from `run_research.py` after the v3.13 faÃ§ade.
   Canonical atomic writes reuse `_sidecar_io.write_sidecar_atomic`.
 - **New sidecars** (overlay-first, all `schema_version="1.0"`):
   - `research/sleeve_registry_latest.v1.json`
   - `research/candidate_returns_latest.v1.json`
   - `research/portfolio_diagnostics_latest.v1.json`
   - `research/regime_width_distributions_latest.v1.json`
-- **API endpoint** — `GET /api/registry/portfolio`. Read-only,
+- **API endpoint** â€” `GET /api/registry/portfolio`. Read-only,
   `@requires_auth`, mirrors `/api/registry/regime` verbatim. Stable
   missing-state payload with
   `artifact_state="missing"`, `authoritative=false`,
@@ -2946,9 +2985,9 @@ every payload).
 ### Changed (additive only)
 
 - `research/run_research.py`: three new thin additions after the
-  v3.12/v3.13 façade block — (1) width feed driver, (2) in-place
+  v3.12/v3.13 faÃ§ade block â€” (1) width feed driver, (2) in-place
   wiring of `width_distributions=...` into the existing v3.13
-  context, (3) single call to the v3.14 façade with registry v2 +
+  context, (3) single call to the v3.14 faÃ§ade with registry v2 +
   regime overlay + in-memory evaluations. No engine-contract change.
 - `research/report_agent.py`: new `_portfolio_layer_summary()` helper
   + new optional top-level key `portfolio_layer_summary` + one
@@ -2957,18 +2996,18 @@ every payload).
 
 ### Deliberately **not** changed in v3.14
 
-- `research/candidate_scoring.py` — untouched. `regime_breadth` is
+- `research/candidate_scoring.py` â€” untouched. `regime_breadth` is
   exposed only as a diagnostic in the portfolio artifacts and the
   sleeve registry. No scoring-formula bump in v3.14;
   `SCORING_FORMULA_VERSION = "v0.1-experimental"`,
   `composite_status = "provisional"`, `authoritative = False` are all
   preserved.
-- `research/candidate_registry_v2.py` — untouched. Overlay join is
+- `research/candidate_registry_v2.py` â€” untouched. Overlay join is
   preserved as the canonical pattern.
-- `research/regime_sidecars.py` — signature untouched.
+- `research/regime_sidecars.py` â€” signature untouched.
   `width_distributions` is now populated via the new feed instead of
   `None`; no API change.
-- `agent/backtesting/*` — untouched. No engine-contract widening.
+- `agent/backtesting/*` â€” untouched. No engine-contract widening.
 - No new strategies, no new presets, no frontend work, no
   execution / paper / live surfaces, no allocator, no optimizer, no
   Kelly overlay.
@@ -3008,7 +3047,7 @@ mypy / flake8 / bandit clean on every new and modified v3.14 module.
 ### Known v3.14 limitations (v3.15 pickup)
 
 - Correlation matrix uses suffix-alignment on aggregated daily
-  returns rather than timestamp alignment — honest for the current
+  returns rather than timestamp alignment â€” honest for the current
   engine output shape, but loses precision when candidates run on
   non-overlapping windows. A typed timestamped returns stream in
   v3.15 would upgrade this.
@@ -3016,14 +3055,14 @@ mypy / flake8 / bandit clean on every new and modified v3.14 module.
   `trend_low_vol` continues to use the conservative intersection
   documented in v3.13.
 - `regime_breadth_signal` is a diagnostic on portfolio artifacts
-  only — `candidate_scoring.py` remains at `v0.1-experimental` and
+  only â€” `candidate_scoring.py` remains at `v0.1-experimental` and
   non-authoritative. Promoting breadth into the composite is v3.15+.
 - No frontend surface. Consumption via `/api/registry/portfolio` and
   the markdown report.
 - Equal-weight only. Volatility-targeted and capped-concentration
   research portfolios deferred.
 
-## [v3.13] — Regime Intelligence & Gating
+## [v3.13] â€” Regime Intelligence & Gating
 
 Date: 2026-04-23
 Branch: `feature/v3.13-regime-intelligence`
@@ -3035,7 +3074,7 @@ v3.11/v3.12 public contracts (`research_latest.json`,
 `strategy_matrix.csv`, `candidate_registry_latest.v1.json`, and the
 shape/values of every v3.12 field on
 `candidate_registry_latest.v2.json`) remain byte-identical. All v3.13
-data lands in two new adjacent sidecars joined on `candidate_id` —
+data lands in two new adjacent sidecars joined on `candidate_id` â€”
 no in-place v2-registry enrichment.
 
 ### Added
@@ -3055,23 +3094,23 @@ no in-place v2-registry enrichment.
   scores (`regime_dependency_score_trend|vol|width`) plus an
   explicit aggregate (`overall`). Hard sufficiency gates
   (`MIN_TRADES_PER_AXIS=10`, `MIN_REGIMES_WITH_EVIDENCE=2`) produce
-  `regime_assessment_status ∈ {sufficient,
+  `regime_assessment_status âˆˆ {sufficient,
   insufficient_regime_evidence}`. Silence is preferred over
-  fabricated precision — missing or thin axes emit `null` metrics,
+  fabricated precision â€” missing or thin axes emit `null` metrics,
   never crash. `REGIME_CONCENTRATED_THRESHOLD = 0.7`.
 - **Multi-rule gating framework** (`research/regime_gating.py`).
-  Three fixed predefined rules — `trend_only`, `trend_low_vol`,
-  `trend_expansion` — each reported with baseline / filtered /
+  Three fixed predefined rules â€” `trend_only`, `trend_low_vol`,
+  `trend_expansion` â€” each reported with baseline / filtered /
   delta for every sufficient candidate. No gate search, no
-  optimization loop, no winner-picking (no `best_rule` field — it
+  optimization loop, no winner-picking (no `best_rule` field â€” it
   is always `null` in v3.13). Width-dependent rules mark
   `insufficient_axis_evidence` rather than fabricate a filter.
   Conjunctions with vol use an explicitly documented conservative
   intersection (joint bar tagging is deferred to v3.14).
-- **Parallel façade** (`research/regime_sidecars.py`). One
+- **Parallel faÃ§ade** (`research/regime_sidecars.py`). One
   `RegimeSidecarBuildContext` + `build_and_write_regime_sidecars()`
   call is the sole new hook in `run_research.py`. Canonical atomic
-  writes reuse `_sidecar_io.write_sidecar_atomic`. v3.12 façade
+  writes reuse `_sidecar_io.write_sidecar_atomic`. v3.12 faÃ§ade
   stays untouched.
 - **New sidecars** (overlay-first):
   - `research/regime_intelligence_latest.v1.json`
@@ -3084,7 +3123,7 @@ no in-place v2-registry enrichment.
     `regime_dependency_scores`, `regime_concentrated_status`
     (`emitted | below_threshold | insufficient_evidence |
     absent_sidecar`), `regime_gating_summary.best_rule = null`.
-- **API endpoint** — `GET /api/registry/regime`. Read-only,
+- **API endpoint** â€” `GET /api/registry/regime`. Read-only,
   `@requires_auth`, mirrors the v3.12 endpoint pattern. Stable
   missing-state payload with `schema_version="1.0"`,
   `classifier_version=null`, `generated_at_utc=null`,
@@ -3096,31 +3135,31 @@ no in-place v2-registry enrichment.
   optional `regime_intelligence=` and
   `regime_concentrated_threshold=` kwargs. When the intelligence
   sidecar carries a matching entry with sufficient evidence and any
-  per-axis score ≥ threshold, `regime_concentrated` is emitted with
+  per-axis score â‰¥ threshold, `regime_concentrated` is emitted with
   `derivation_method="classifier_output"` and
   `observed_sources` lists the triggering axis
   (e.g. `regime_dependency_score_trend`). Sidecar absent for the
-  candidate → legacy `flag_source` path unchanged. Sidecar present
-  but evidence insufficient → silence (no overclaiming). Positional
+  candidate â†’ legacy `flag_source` path unchanged. Sidecar present
+  but evidence insufficient â†’ silence (no overclaiming). Positional
   v3.12 signature stays byte-compatible.
 - `research/report_agent.py`: new `_enrich_with_regime_fields()`
   additive helper and new optional top-level key
   `regime_layer_summary`. Report `schema_version` stays `"1.1"`.
 - `research/run_research.py`: one new thin call after the v3.12
-  façade. In v3.13 `width_distributions=None` so the width axis is
+  faÃ§ade. In v3.13 `width_distributions=None` so the width axis is
   marked insufficient until v3.14 wires a per-asset OHLCV feed.
 - `dashboard/dashboard.py`: `/api/registry/regime` added.
 
 ### Deliberately **not** changed in v3.13
 
-- `research/candidate_scoring.py` — untouched to keep every v3.12
+- `research/candidate_scoring.py` â€” untouched to keep every v3.12
   field on the v2 registry byte-identical in shape and value.
   Regime-breadth integration into the composite is deferred to
   v3.14 with a proper `SCORING_FORMULA_VERSION` bump and regression
   golden update.
-- `research/candidate_registry_v2.py` — untouched. Overlay join
+- `research/candidate_registry_v2.py` â€” untouched. Overlay join
   replaces in-place enrichment.
-- `agent/backtesting/*` — untouched. No engine-contract widening.
+- `agent/backtesting/*` â€” untouched. No engine-contract widening.
 - No new strategies, no new presets, no frontend refactor, no
   execution/paper/live surfaces, no dynamic allocation.
 
@@ -3163,7 +3202,7 @@ mypy / flake8 / bandit clean on every new and modified v3.13 module.
 - Composite scoring is unchanged; regime-breadth integration is
   v3.14 work.
 
-## [v3.12] — Candidate Promotion Framework 2.0
+## [v3.12] â€” Candidate Promotion Framework 2.0
 
 Date: 2026-04-23
 Branch: `feature/v3.12-candidate-promotion-framework`
@@ -3178,17 +3217,17 @@ their own `schema_version` pins.
 ### Added
 
 - **Candidate lifecycle status model** (`research/candidate_lifecycle.py`).
-  Durable 8-status enum spanning v3.12–v3.17:
+  Durable 8-status enum spanning v3.12â€“v3.17:
   `rejected | exploratory | candidate | paper_ready | paper_validated
   | live_shadow_ready | live_enabled | retired`. Two-layer validation:
-  - `FULL_LIFECYCLE_GRAPH` — the complete reference graph for
+  - `FULL_LIFECYCLE_GRAPH` â€” the complete reference graph for
     downstream phases.
-  - `ACTIVE_TRANSITIONS_V3_12` — strict runtime subset
-    (`exploratory → candidate | rejected`, `candidate → rejected`).
+  - `ACTIVE_TRANSITIONS_V3_12` â€” strict runtime subset
+    (`exploratory â†’ candidate | rejected`, `candidate â†’ rejected`).
     Transitions into reserved statuses raise `ReservedStatusError`
     so later-phase slots cannot be entered accidentally.
   - `map_legacy_verdict()` returns `(lifecycle_status, mapping_reason)`,
-    preserving `needs_investigation → exploratory` as
+    preserving `needs_investigation â†’ exploratory` as
     `legacy_needs_investigation_mapped_to_exploratory`.
   - `STATUS_MODEL_VERSION = "v3.12.0"`.
 - **Unified rejection taxonomy** (`research/rejection_taxonomy.py`).
@@ -3197,15 +3236,15 @@ their own `schema_version` pins.
   `unstable_parameter_neighborhood`, `regime_concentrated`,
   `single_asset_dependency`, `low_statistical_defensibility`.
   Observed vs derived split:
-  - `collect_observed_reason_codes()` — raw v3.11 reasoning codes,
+  - `collect_observed_reason_codes()` â€” raw v3.11 reasoning codes,
     unchanged.
-  - `derive_taxonomy()` — only emits codes with defensible
+  - `derive_taxonomy()` â€” only emits codes with defensible
     derivation (direct mapping from promotion codes,
     flag_source from regime/cost sidecars).
   - `DEFERRED_TAXONOMY_CODES`: `unstable_parameter_neighborhood`,
-    `single_asset_dependency`, `no_oos_samples` — deliberately not
+    `single_asset_dependency`, `no_oos_samples` â€” deliberately not
     derived in v3.12.
-  - No per-entry timestamps — per-entry byte-reproducibility.
+  - No per-entry timestamps â€” per-entry byte-reproducibility.
 - **Deterministic candidate scoring** (`research/candidate_scoring.py`).
   Components (each 0..1, `None` when source missing): `dsr_signal`,
   `psr_signal`, `drawdown_signal`, `stability_signal`,
@@ -3242,9 +3281,9 @@ their own `schema_version` pins.
   `lifecycle_status in {exploratory, candidate}`. AST test asserts
   no imports from `agent.execution`, `execution.paper`, `ccxt`,
   `yfinance`, `polymarket`, or `alchemy`.
-- **Single candidate-sidecars façade** (`research/candidate_sidecars.py`).
+- **Single candidate-sidecars faÃ§ade** (`research/candidate_sidecars.py`).
   `build_and_write_all(ctx)` is the only new call-site in
-  `run_research.py`, orchestrating registry-v2 → status-history →
+  `run_research.py`, orchestrating registry-v2 â†’ status-history â†’
   agent-definitions through the shared
   `_sidecar_io.write_sidecar_atomic` helper.
 - **Canonical sidecar IO helper** (`research/_sidecar_io.py`).
@@ -3257,7 +3296,7 @@ their own `schema_version` pins.
   `taxonomy_rejection_codes`, and `scores` fields pulled from the
   v2 sidecar. Top-level `lifecycle_breakdown` counter and optional
   "Candidate Lifecycle Breakdown (v3.12)" markdown section.
-  Report `schema_version` unchanged ("1.1") — consumers read with
+  Report `schema_version` unchanged ("1.1") â€” consumers read with
   `.get()`; no breaking change.
 - **Read-only API endpoints** (`dashboard/dashboard.py`).
   `GET /api/registry/v2` and `GET /api/registry/status-history`
@@ -3267,60 +3306,60 @@ their own `schema_version` pins.
 
 ### Preserved / frozen
 
-- `research/research_latest.json` — 19-column schema, byte-identical.
-- `research/strategy_matrix.csv` — column order, byte-identical.
-- `research/candidate_registry_latest.v1.json` — structure + summary
+- `research/research_latest.json` â€” 19-column schema, byte-identical.
+- `research/strategy_matrix.csv` â€” column order, byte-identical.
+- `research/candidate_registry_latest.v1.json` â€” structure + summary
   keys byte-identical (regression test
   `tests/regression/test_candidate_registry_v1_immutable.py` pins
   this).
-- `research/run_meta_latest.v1.json` — v1.1 unchanged.
-- `research/report_latest.{md,json}` — v1.1 schema_version unchanged.
-- Frontend components — untouched. React Reports.tsx primitive
+- `research/run_meta_latest.v1.json` â€” v1.1 unchanged.
+- `research/report_latest.{md,json}` â€” v1.1 schema_version unchanged.
+- Frontend components â€” untouched. React Reports.tsx primitive
   filter already tolerates new nested v3.12 keys.
 
 ### Tests added (v3.12)
 
-- `tests/unit/test_sidecar_io.py` — 12 tests, canonical serialization.
-- `tests/unit/test_candidate_lifecycle.py` — 21 tests, graph +
+- `tests/unit/test_sidecar_io.py` â€” 12 tests, canonical serialization.
+- `tests/unit/test_candidate_lifecycle.py` â€” 21 tests, graph +
   transitions + legacy mapping.
-- `tests/unit/test_rejection_taxonomy.py` — 16 tests, observed vs
+- `tests/unit/test_rejection_taxonomy.py` â€” 16 tests, observed vs
   derived split, no per-entry timestamps.
-- `tests/unit/test_candidate_scoring.py` — 14 tests, deterministic
+- `tests/unit/test_candidate_scoring.py` â€” 14 tests, deterministic
   unit signals + provisional composite.
-- `tests/unit/test_candidate_status_history.py` — 16 tests,
+- `tests/unit/test_candidate_status_history.py` â€” 16 tests,
   event_id determinism, idempotent merge, stable sort.
-- `tests/unit/test_candidate_registry_v2.py` — 14 tests.
-- `tests/unit/test_agent_definition_bridge.py` — 13 tests incl.
+- `tests/unit/test_candidate_registry_v2.py` â€” 14 tests.
+- `tests/unit/test_agent_definition_bridge.py` â€” 13 tests incl.
   AST-based import isolation.
-- `tests/unit/test_candidate_sidecars_facade.py` — 7 tests.
-- `tests/unit/test_report_agent_v312_enrichment.py` — 7 tests.
-- `tests/unit/test_dashboard_api_v312.py` — 7 tests.
-- `tests/integration/test_v312_sidecars_e2e.py` — 5 end-to-end
+- `tests/unit/test_candidate_sidecars_facade.py` â€” 7 tests.
+- `tests/unit/test_report_agent_v312_enrichment.py` â€” 7 tests.
+- `tests/unit/test_dashboard_api_v312.py` â€” 7 tests.
+- `tests/integration/test_v312_sidecars_e2e.py` â€” 5 end-to-end
   scenarios incl. rerun byte-identity.
-- `tests/regression/test_candidate_registry_v1_immutable.py` — 6
+- `tests/regression/test_candidate_registry_v1_immutable.py` â€” 6
   tests pinning v1 contract.
-- `tests/regression/test_v312_sidecar_schema_stability.py` — 14
+- `tests/regression/test_v312_sidecar_schema_stability.py` â€” 14
   tests pinning key sets and schema_version values for all three
   v3.12 artifacts.
 
 ### Explicitly out of scope (deferred)
 
 - Execution preview with replay / fees / slippage / synthetic PnL
-  → **v3.15 Paper Validation Engine**.
-- Runnable paper path → **v3.15**.
-- Regime classifier and gating → **v3.13 Regime Intelligence**.
-- Portfolio / sleeves → **v3.14**.
-- Kill switches, shadow mode, monitoring → **v3.16**.
-- Controlled live enablement → **v3.17**.
-- ML or optimizer-heavy scoring — permanently out of roadmap scope.
-- Frontend component changes — deferred; additive report schema
+  â†’ **v3.15 Paper Validation Engine**.
+- Runnable paper path â†’ **v3.15**.
+- Regime classifier and gating â†’ **v3.13 Regime Intelligence**.
+- Portfolio / sleeves â†’ **v3.14**.
+- Kill switches, shadow mode, monitoring â†’ **v3.16**.
+- Controlled live enablement â†’ **v3.17**.
+- ML or optimizer-heavy scoring â€” permanently out of roadmap scope.
+- Frontend component changes â€” deferred; additive report schema
   is enough for v3.12.
 - `unstable_parameter_neighborhood` and `single_asset_dependency`
-  taxonomy derivation — both remain `DEFERRED_TAXONOMY_CODES` in
+  taxonomy derivation â€” both remain `DEFERRED_TAXONOMY_CODES` in
   v3.12, scheduled for v3.13+ when breadth and neighborhood context
   become first-class.
 
-## [v3.11] — Research Quality Engine
+## [v3.11] â€” Research Quality Engine
 
 Date: 2026-04-22
 Branch: `feature/v3.11-research-quality-engine`
@@ -3337,7 +3376,7 @@ The bottleneck after v3.10 was input + interpretation quality, not
 throughput. v3.11 formalises hypothesis metadata per preset, separates
 screening (mild, observability) from promotion (strict, DSR/PSR/
 stability) in report output, and wires per-candidate diagnostics that
-explain **why** each row survived, stalled, or failed — without the
+explain **why** each row survived, stalled, or failed â€” without the
 engine growing a single new threshold or metric.
 
 ### Added
@@ -3345,8 +3384,8 @@ engine growing a single new threshold or metric.
 - **Preset Quality Layer.** `ResearchPreset` dataclass extended with
   four fields:
   - `preset_class: Literal["baseline", "diagnostic", "experimental"]`
-    — orthogonal to the existing `status` lifecycle label.
-  - `rationale`, `expected_behavior`, `falsification` — structured
+    â€” orthogonal to the existing `status` lifecycle label.
+  - `rationale`, `expected_behavior`, `falsification` â€” structured
     hypothesis metadata. All three enabled presets
     (`trend_equities_4h_baseline`, `trend_regime_filtered_equities_4h`,
     `crypto_diagnostic_1h`) ship with the fields filled. Planned
@@ -3359,7 +3398,7 @@ engine growing a single new threshold or metric.
   falsification for enabled presets. The runner emits
   `preset_validation_warning` tracker events. Setting
   `QRE_STRICT_PRESET_VALIDATION=1` elevates to hard failure via a
-  new `PresetValidationError`. Default is soft — v3.11 never
+  new `PresetValidationError`. Default is soft â€” v3.11 never
   self-blocks.
 - **run_meta schema v1.1** (additive). New fields on
   `research/run_meta_latest.v1.json`: `preset_class`,
@@ -3368,7 +3407,7 @@ engine growing a single new threshold or metric.
   `is_run_excluded_from_promotion` and all v1.0 keys are unchanged.
   v1.0-shaped sidecars remain readable bytewise.
 - **`research/report_candidate_diagnostics.py`** (new module). Pure
-  join functions — no IO, no new metrics, no threshold derivation.
+  join functions â€” no IO, no new metrics, no threshold derivation.
   Returns `(per_candidate_diagnostics, join_stats)`.
   - Verdict enum pinned at four values:
     `promoted | needs_investigation | rejected_promotion | rejected_screening`.
@@ -3451,7 +3490,7 @@ engine growing a single new threshold or metric.
 - `cost_sensitivity_flag` and `regime_suspicion_flag` stay `null` in
   the current pipeline because no upstream sidecar writer emits a
   pre-computed boolean. They go live the moment the writers choose
-  to expose one — no v3.11 code change needed.
+  to expose one â€” no v3.11 code change needed.
 - Falsification criteria quality is subjective on the initial fill
   of the 3 enabled presets. Iteration happens via runs + feedback
   loop, not via engine changes.
@@ -3459,7 +3498,7 @@ engine growing a single new threshold or metric.
   warning at >1000 rows is a visibility aid, not a guard. Retention
   discipline arrives with v3.12's candidate registry.
 
-## [v3.10] — Research Ops & Frontend Migration
+## [v3.10] â€” Research Ops & Frontend Migration
 
 Date: 2026-04-22
 Branch: `feature/v3.10-research-ops-react`
@@ -3492,7 +3531,7 @@ the engine approval-override audit outcome.
   `research/run_meta_latest.v1.json` (schema v1.0) carrying preset
   metadata, candidate summary, top rejection reasons, and artifact
   paths. Safe-default promotion-exclusion when the sidecar is missing
-  or diagnostic (ADR-011 §9).
+  or diagnostic (ADR-011 Â§9).
 - `research/report_agent.py`: post-run analysis that composes
   `research/report_latest.md` + `research/report_latest.json` from
   the existing reporting modules. Verdicts:
@@ -3501,7 +3540,7 @@ the engine approval-override audit outcome.
   candidate planning, writes the run_meta sidecar, and invokes the
   report agent at the end of each run (best-effort, never fails the run).
 - `researchctl.py` CLI at the repo root with subcommands
-  `run / report / history / doctor` (no `deploy` — ADR-011 §4).
+  `run / report / history / doctor` (no `deploy` â€” ADR-011 Â§4).
 - Dashboard endpoints: `/api/presets`, `/api/presets/<name>/run`,
   `/api/report/latest`, `/api/report/history`, `/api/candidates/latest`,
   `/api/health`, `/api/session/login`, `/api/session/logout`.
@@ -3511,7 +3550,7 @@ the engine approval-override audit outcome.
   Python runtime image.
 - `ops/nginx/nginx.conf` + `robots.txt`: reverse proxy with
   `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`, AI/crawler
-  UA block (20+ agents → 403), cookie/auth pass-through to Flask.
+  UA block (20+ agents â†’ 403), cookie/auth pass-through to Flask.
 - `ops/systemd/trading-agent-daily-research.{service,timer}` + README:
   host-level systemd-timer that calls
   `docker exec jvr_dashboard python /app/researchctl.py run
@@ -3523,7 +3562,7 @@ the engine approval-override audit outcome.
 - `docs/adr/ADR-011-v3.10-architecture.md`: architecture record for the
   whole v3.10 shape.
 - `docs/adr/ADR-012-v3.10-approval-override-audit.md`: audit of
-  engine.py / promotion.py / run_research.py for gate-bypass logic —
+  engine.py / promotion.py / run_research.py for gate-bypass logic â€”
   outcome A, no production bypass exists.
 - Regression / smoke coverage: `test_make_result_row_strategy_name.py`,
   `test_execution_event_roundtrip.py`,
@@ -3534,8 +3573,8 @@ the engine approval-override audit outcome.
 
 ### Changed
 
-- `VERSION`: `0.1.0` → `3.10.0`.
-- `Dockerfile` is now multi-stage (node builder → python runtime copies
+- `VERSION`: `0.1.0` â†’ `3.10.0`.
+- `Dockerfile` is now multi-stage (node builder â†’ python runtime copies
   `frontend/dist`).
 - `docker-compose.yml`: dashboard no longer binds the host port; nginx
   binds `8050:80` and proxies to `dashboard:8050` internally. New
@@ -3553,9 +3592,9 @@ the engine approval-override audit outcome.
 - `research/results.py::make_result_row` now raises `ValueError` when
   `strategy["name"]` is None or empty, closing the strategy-None leak
   in `strategy_matrix.csv` / `research_latest.json`. The frozen
-  ROW_SCHEMA tuple is untouched — only a precondition was added.
+  ROW_SCHEMA tuple is untouched â€” only a precondition was added.
 - `researchctl doctor` detects stale `strategy_matrix.csv` headers
-  (the v3.x legacy `strategy_family,asset_type,…` header class) and
+  (the v3.x legacy `strategy_family,asset_type,â€¦` header class) and
   fails the check instead of letting it slide.
 
 ### Security
@@ -3576,9 +3615,9 @@ the engine approval-override audit outcome.
   (`research/run_meta_latest.v1.json`, `research/report_latest.md`,
   `research/report_latest.json`).
 - Existing `/api/research/run-status` remains the canonical run-status
-  endpoint (ADR-011 §12). No `/api/run-status` introduced.
+  endpoint (ADR-011 Â§12). No `/api/run-status` introduced.
 
-## [v3.8] — Execution Realism & Evaluation Hardening
+## [v3.8] â€” Execution Realism & Evaluation Hardening
 
 Date: 2026-04-21
 Branch: `feature/v3.7-fitted-feature-abstraction`
@@ -3646,12 +3685,12 @@ semantics, and deferred items.
 - `tests/unit/test_exit_diagnostics.py` (v3.8 step 4, 26 tests).
 - `docs/adr/ADR-008-execution-realism-and-evaluation-hardening.md`
   (v3.8 step 5).
-- `docs/orchestrator_brief.md` §Addendum: v3.8 scope, layer
+- `docs/orchestrator_brief.md` Â§Addendum: v3.8 scope, layer
   placement, execution-event / cost-sensitivity / exit-quality
   semantics, deferred items, preserved bytewise invariants, phase
   character.
 
-### Unchanged — explicitly pinned
+### Unchanged â€” explicitly pinned
 
 - `research_latest.json` row schema and top-level schema
   (bytewise).
@@ -3711,7 +3750,7 @@ respect to baseline results, and gated behind opt-in hooks or
 flags that default off. Tier 1 digests, public artifacts, and
 promotion inputs are pinned at their v3.7 values.
 
-## [v3.7] — Fitted Feature Abstraction
+## [v3.7] â€” Fitted Feature Abstraction
 
 Date: 2026-04-21
 Branch: `feature/v3.7-fitted-feature-abstraction`
@@ -3740,7 +3779,7 @@ Branch: `feature/v3.7-fitted-feature-abstraction`
 - `agent/backtesting/engine.py`:
   `BacktestEngine._evaluate_windows` materializes each fold's
   training slice (and `train_reference_frame` when multi-asset)
-  and forwards them through `_simuleer_detailed → _invoke_strategy`.
+  and forwards them through `_simuleer_detailed â†’ _invoke_strategy`.
   New `_resolve_fitted_features` helper routes fitted requirements
   through the train/test helpers; loud-fails when `train_frame` /
   `train_reference_frame` is missing. Non-fitted strategies ignore
@@ -3749,18 +3788,18 @@ Branch: `feature/v3.7-fitted-feature-abstraction`
   explicit `use_fitted_hedge_ratio: bool = False` opt-in. Default
   emits the v3.6 `spread_zscore` requirement byte-identically;
   `True` swaps to `spread_zscore_ols` (fitted).
-- `tests/unit/test_fitted_features.py` (33 tests — v3.7 step 1),
+- `tests/unit/test_fitted_features.py` (33 tests â€” v3.7 step 1),
   `tests/unit/test_fitted_hedge_ratio_ols.py` (v3.7 step 2),
   `tests/unit/test_feature_kind_discriminator.py` and
   `tests/unit/test_fold_aware_builders.py` (v3.7 step 3),
-  `tests/unit/test_fitted_pairs_engine.py` (19 tests — v3.7 step 4).
+  `tests/unit/test_fitted_pairs_engine.py` (19 tests â€” v3.7 step 4).
 - `docs/adr/ADR-007-fitted-feature-abstraction.md`.
-- `docs/orchestrator_brief.md` §Addendum: v3.7 fitted feature
+- `docs/orchestrator_brief.md` Â§Addendum: v3.7 fitted feature
   scope, layer placement, walk-forward semantics, param safety,
   pairs strategy behavior, explicit deferrals, roadmap relationship,
   thin contract maturity statement.
 
-### Unchanged — explicitly pinned
+### Unchanged â€” explicitly pinned
 
 - `research_latest.json` row schema and top-level schema (bytewise).
 - 19-column CSV row schema (bytewise).
@@ -3774,7 +3813,7 @@ Branch: `feature/v3.7-fitted-feature-abstraction`
 - Walk-forward `FoldLeakageError` semantics.
 - Resume-integrity gate.
 - `FEATURE_REGISTRY`, `FEATURE_VERSION = "1.0"`,
-  `build_features_for`, `build_features_for_multi` — the plain
+  `build_features_for`, `build_features_for_multi` â€” the plain
   feature path is unchanged.
 
 ### Deferred
@@ -3795,7 +3834,7 @@ Branch: `feature/v3.7-fitted-feature-abstraction`
 - Config-level exposure of the fitted path at the research
   pipeline. Opt-in lives at the strategy factory call site today.
 - Evaluation hardening, exit diagnostics, regime / portfolio work.
-- Promotion of `use_fitted_hedge_ratio=True` to the pairs default —
+- Promotion of `use_fitted_hedge_ratio=True` to the pairs default â€”
   requires evidence and would drift the Tier 1 bytewise pin; a
   separate single-purpose change.
 
@@ -3806,7 +3845,7 @@ Branch: `feature/v3.7-fitted-feature-abstraction`
   triggers without performing the migration.
 - Fitted feature abstraction is production for opt-in callers.
 
-## [v3.6] — Multi-Asset Loader & Feature-Purity Progression
+## [v3.6] â€” Multi-Asset Loader & Feature-Purity Progression
 
 Date: 2026-04-21
 Branch: `feature/v3.6-multi-asset-loader-and-feature-purity`
@@ -3826,7 +3865,7 @@ Branch: `feature/v3.6-multi-asset-loader-and-feature-purity`
   `AssetContext.reference_frame`, `_invoke_strategy` multi-asset
   routing, keyword-only `grid_search(reference_asset=...)`.
 - `research/candidate_pipeline.py`: `reference_asset` plumbing from
-  registry → candidate metadata → engine. Included in
+  registry â†’ candidate metadata â†’ engine. Included in
   `candidate_id` hashing **only when non-None** so SMA / z-score
   hashes stay byte-identical to v3.5.
 - `research/registry.py`: `pairs_zscore.enabled = True` with
@@ -3840,24 +3879,24 @@ Branch: `feature/v3.6-multi-asset-loader-and-feature-purity`
   `tests/unit/test_walk_forward_framework.py::
   test_multi_asset_fold_slices_match_direct_alignment_per_fold`.
 - `docs/adr/ADR-006-v2-contract-deferred.md`.
-- `docs/orchestrator_brief.md` §Addendum: v3.6 multi-asset scope,
+- `docs/orchestrator_brief.md` Â§Addendum: v3.6 multi-asset scope,
   loader contract, feature contract extension, engine routing,
   candidate pipeline plumbing, public output contract invariant,
   thin contract maturity statement.
 - `CHANGELOG.md` (this file).
 
-### Unchanged — explicitly pinned
+### Unchanged â€” explicitly pinned
 
 - `research_latest.json` row schema and top-level schema (bytewise).
 - 19-column CSV row schema (bytewise).
 - Integrity (`integrity_report_latest.v1.json`) and falsification
   (`falsification_gates_latest.v1.json`) sidecar schemas.
-- Integrity D4 boundary — no `status` field added to sidecars.
-- Public `asset` column semantics — single symbol string, never
+- Integrity D4 boundary â€” no `status` field added to sidecars.
+- Public `asset` column semantics â€” single symbol string, never
   concatenated, never reinterpreted. `reference_asset` lives only on
   internal surfaces.
 - Tier 1 bytewise digests (`sma_crossover`,
-  `zscore_mean_reversion`, `pairs_zscore`) — including pairs, whose
+  `zscore_mean_reversion`, `pairs_zscore`) â€” including pairs, whose
   digest through the multi-asset engine path equals the single-frame
   v3.5 pin exactly.
 - Walk-forward `FoldLeakageError` semantics.
@@ -3865,11 +3904,11 @@ Branch: `feature/v3.6-multi-asset-loader-and-feature-purity`
 
 ### Deferred
 
-- Static / full-series OLS hedge ratio — requires fit/transform
+- Static / full-series OLS hedge ratio â€” requires fit/transform
   abstraction; tracked for v3.7
   (`feature/v3.7-fitted-feature-abstraction`).
 - N > 2 multi-asset (triplets, portfolios).
-- Mixed asset-class pairs (crypto × equity).
+- Mixed asset-class pairs (crypto Ã— equity).
 - Intraday multi-asset alignment (DST / session boundary policy).
 - Thin contract v2.0 (`func(features)` purity). See
   `docs/adr/ADR-006-v2-contract-deferred.md` for trigger conditions
@@ -3882,7 +3921,7 @@ Branch: `feature/v3.6-multi-asset-loader-and-feature-purity`
 v1.0 is production for all Tier 1 strategies, including pairs.
 v2.0 is deferred to v3.7+ pending a concrete triggering use case.
 
-## [v3.5] — Canonical Feature Primitives & Thin Strategy Contract v1.0
+## [v3.5] â€” Canonical Feature Primitives & Thin Strategy Contract v1.0
 
 Date: earlier in 2026, pre-v3.6.
 Branch: merged to `main` at `72e70aa`.

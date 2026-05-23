@@ -1,20 +1,20 @@
-# JvR Trading Agent — Master Context
+# JvR Trading Agent Ã¢â‚¬â€ Master Context
 
 ## Project
 Eigenaar: Joery van Rooij
 Doel: Volledig autonoom trading systeem
-Startkapitaal: €1.000 | Max drawdown: 50%
-Financieel resultaat is een GEVOLG — nooit een sturing
+Startkapitaal: Ã¢â€šÂ¬1.000 | Max drawdown: 50%
+Financieel resultaat is een GEVOLG Ã¢â‚¬â€ nooit een sturing
 De agent mag NOOIT risico verhogen om een doel te halen
 
-Authority doctrine: `docs/adr/ADR-014-truth-authority-settlement.md` — canonical mapping of which subsystem owns truth for each domain (registry / presets / catalog / candidate lifecycle / paper readiness / live governance).
+Authority doctrine: `docs/adr/ADR-014-truth-authority-settlement.md` Ã¢â‚¬â€ canonical mapping of which subsystem owns truth for each domain (registry / presets / catalog / candidate lifecycle / paper readiness / live governance).
 
 Agent governance doctrine: `docs/adr/ADR-015-claude-agent-governance.md`
-— authority chain for Claude / agent code-modification capability
-(no-touch paths, autonomy ladder L0–L6, audit ledger). Level 6
+Ã¢â‚¬â€ authority chain for Claude / agent code-modification capability
+(no-touch paths, autonomy ladder L0Ã¢â‚¬â€œL6, audit ledger). Level 6
 (autonomous merge / deploy) is permanently disabled.
 
-Session-start protocol for any branch → PR → CI → squash-merge →
+Session-start protocol for any branch Ã¢â€ â€™ PR Ã¢â€ â€™ CI Ã¢â€ â€™ squash-merge Ã¢â€ â€™
 post-merge work: `docs/governance/github_pr_lifecycle.md`.
 GitHub CLI portable: `C:\Users\joery.van.rooij\tools\gh\bin\gh.exe`.
 No `--admin` merges, no force push, no direct push to `main`, no
@@ -22,19 +22,72 @@ hook bypass, no test weakening, no `.claude/**` writes.
 
 Project split:
 
-- **QRE** (Quant Research Engine) — research execution platform
+- **QRE** (Quant Research Engine) Ã¢â‚¬â€ research execution platform
   under `research/`. Roadmap: `docs/roadmap/Roadmap v6.md`.
-- **ADE** (Autonomous Development Engine) — governance + work queue
+- **ADE** (Autonomous Development Engine) Ã¢â‚¬â€ governance + work queue
   + release gate + bugfix loop + delegation + operational digest +
   E2E proof under `reporting/development_*.py`. Roadmap:
   `docs/roadmap/autonomous_development.txt`.
 
-ADE A1–A13 are complete. Step 5 design is complete
+
+## Post-package architecture status
+
+The dedicated architecture preparation track is complete:
+
+- ARCH-000 through ARCH-006: complete.
+- EXTRACT-001 through EXTRACT-002: complete.
+- PACKAGE-MIGRATION-001 through PACKAGE-MIGRATION-010: complete.
+- `PACKAGE-MIGRATION-010` selected `PACKAGE_MIGRATION_READY_FOR_QRE_FEATURE_TRACK`.
+
+The current lane is:
+
+- **QRE Feature Build Track â€” first post-package feature phase**
+
+Do not create `ARCH-007`, `EXTRACT-003`, or `PACKAGE-MIGRATION-011` unless a concrete blocker requires it and the operator explicitly authorises that lane.
+
+### Current package boundaries
+
+Use these boundaries as the default target structure for new work:
+
+- `apps/control-plane/`
+- `packages/ade_governance/`
+- `packages/control_plane_qre_adapter_contract/`
+- `packages/qre_research/`
+- `packages/qre_data/`
+- `packages/qre_artifacts/`
+- `packages/qre_diagnostics/`
+- `packages/qre_policy/`
+- `packages/qre_execution_sim/`
+- `packages/qre_shadow/`
+- `packages/qre_paper/`
+- `packages/qre_live/`
+
+Boundary meanings:
+
+- ADE owns development governance, architecture checks, release gates, and work-control contracts.
+- QRE owns research, diagnostics, data, artifacts, policy read surfaces, and research-product behavior.
+- Execution is not active as live trading. `qre_execution_sim` is simulation-only, `qre_shadow` and `qre_paper` are future-only, and `qre_live` is hard-disabled until Roadmap v6 live-governance approval.
+
+### Post-package work rules
+
+- New QRE feature work must be product/research-goal driven.
+- Do not perform broad refactors or broad file moves.
+- Preserve compatibility shims unless a scoped PR removes them with tests.
+- Keep architecture scanner failures at zero hard forbidden edges.
+- Legacy/report-only edges may remain visible; do not hide them with broad wildcard allowlists.
+- Do not activate Addendum 1, Addendum 2, Addendum 3, shadow, paper, live, broker, risk, or execution work unless explicitly scoped.
+- Do not change `research_latest.json`, `strategy_matrix.csv`, frozen schemas, or regression pins without explicit scope and validation.
+
+### Autonomy clarification
+
+The ban on permanently enabled Level 6 autonomy remains in force. Operator-authorised branch â†’ PR â†’ CI â†’ squash-merge â†’ deploy runs are allowed only when the operator explicitly requests that lifecycle and the repository governance gates pass. This does not authorise open-ended autonomous live trading, force-pushes, admin merges, hook bypasses, or unreviewed protected-path changes.
+
+ADE A1Ã¢â‚¬â€œA13 are complete. Step 5 design is complete
 (`docs/governance/step5_design.md`,
 `docs/adr/_drafts/ADR-017-step5-autonomous-implementation-loop.md`).
 **Step 5 implementation remains blocked** behind explicit operator
 authorisation, the autonomy-ladder ceiling, and the readiness gate
-(`docs/governance/step5_design.md` §12).
+(`docs/governance/step5_design.md` Ã‚Â§12).
 
 Allowed surfaces and forbidden surfaces are listed in
 `docs/governance/no_touch_paths.md`. Per-action authority decisions
@@ -50,7 +103,7 @@ Dashboard: http://23.88.110.92:8050
 
 ## Claude Code Optimalisatie Protocol
 
-SESSIE START — altijd:
+SESSIE START Ã¢â‚¬â€ altijd:
 - Lees eerst CLAUDE.md volledig
 - Analyseer alleen bestanden relevant voor de taak
 - Ga direct over tot actie zonder uitleg vooraf
@@ -62,7 +115,7 @@ TIJDENS SESSIE:
 - Meld als context boven 60% komt
 - Splits grote refactors in kleine stappen
 - Test na elke stap voordat je doorgaat
-- Gebruik claude-3-5-sonnet — alleen Opus na 2 mislukte pogingen
+- Gebruik claude-3-5-sonnet Ã¢â‚¬â€ alleen Opus na 2 mislukte pogingen
 
 SESSIE EINDE:
 - Gebruik /clear bij nieuw onderdeel
@@ -72,25 +125,25 @@ SESSIE EINDE:
 
 ## Architectuur
 
-Multi-agent systeem onder één orchestrator.
-Elke agent heeft één edge en maximaal 3 parameters.
+Multi-agent systeem onder ÃƒÂ©ÃƒÂ©n orchestrator.
+Elke agent heeft ÃƒÂ©ÃƒÂ©n edge en maximaal 3 parameters.
 Nieuwe edge = nieuwe agent, nooit meer parameters.
-Backtest eerst — win rate >52% en Sharpe >1.0 vereist.
+Backtest eerst Ã¢â‚¬â€ win rate >52% en Sharpe >1.0 vereist.
 
 ## Agents
 
 | Agent | Edge | Kapitaal | Parameters |
 |---|---|---|---|
-| RSI Agent | RSI extremen crypto | €300 | RSI drempel, stop-loss, cooldown |
-| EMA Agent | Trend crossover aandelen | €300 | EMA periodes, volume, cooldown |
-| Bot Agent | Bot patronen Polymarket | €200 | Max inzet, force exit, cooldown |
-| Sentiment Agent | Nieuws sentiment | €100 | Sentiment drempel, RSI filter, cooldown |
-| Data Arbitrage | Publieke data vs marktprijs | €100 | Zekerheid, mispricing%, max inzet |
+| RSI Agent | RSI extremen crypto | Ã¢â€šÂ¬300 | RSI drempel, stop-loss, cooldown |
+| EMA Agent | Trend crossover aandelen | Ã¢â€šÂ¬300 | EMA periodes, volume, cooldown |
+| Bot Agent | Bot patronen Polymarket | Ã¢â€šÂ¬200 | Max inzet, force exit, cooldown |
+| Sentiment Agent | Nieuws sentiment | Ã¢â€šÂ¬100 | Sentiment drempel, RSI filter, cooldown |
+| Data Arbitrage | Publieke data vs marktprijs | Ã¢â€šÂ¬100 | Zekerheid, mispricing%, max inzet |
 
 Kapitaalregels:
-- Min per agent: €30 | Max per agent: €400
-- Totaal altijd: €1.000
-- Dagelijkse herbalancering: ±5% op prestaties
+- Min per agent: Ã¢â€šÂ¬30 | Max per agent: Ã¢â€šÂ¬400
+- Totaal altijd: Ã¢â€šÂ¬1.000
+- Dagelijkse herbalancering: Ã‚Â±5% op prestaties
 - UCB1 formule bepaalt verdeling
 
 ## Assets
@@ -103,38 +156,38 @@ Polymarket: sport, weer, economie, politiek
 
 ---
 
-## Kernprincipes — NOOIT SCHENDEN
+## Kernprincipes Ã¢â‚¬â€ NOOIT SCHENDEN
 
 1. Simpliciteit: max 3 parameters per agent
-2. Één edge per agent
-3. Nooit Martingale — nooit positie vergroten na verlies
+2. Ãƒâ€°ÃƒÂ©n edge per agent
+3. Nooit Martingale Ã¢â‚¬â€ nooit positie vergroten na verlies
 4. Geen stop-loss op Polymarket (binaire markten)
-5. Force exit bij 75% winst — geen verdere checks
-6. Stop-loss maximaal 8% — nooit hoger
-7. Paper trading aan — Joery beslist over live
-8. Drawdown limiet 50% — agent stopt zichzelf
-9. Backtest eerst — Deflated Sharpe >1.0 vereist
-10. Nooit hardcoded prijzen — altijd marktdata
-11. Financieel doel is gevolg — nooit sturing
+5. Force exit bij 75% winst Ã¢â‚¬â€ geen verdere checks
+6. Stop-loss maximaal 8% Ã¢â‚¬â€ nooit hoger
+7. Paper trading aan Ã¢â‚¬â€ Joery beslist over live
+8. Drawdown limiet 50% Ã¢â‚¬â€ agent stopt zichzelf
+9. Backtest eerst Ã¢â‚¬â€ Deflated Sharpe >1.0 vereist
+10. Nooit hardcoded prijzen Ã¢â‚¬â€ altijd marktdata
+11. Financieel doel is gevolg Ã¢â‚¬â€ nooit sturing
 12. Nieuwe edge = nieuwe agent, nooit meer parameters
 
 ---
 
-## Geleerde Lessen — Eigen Bugs
+## Geleerde Lessen Ã¢â‚¬â€ Eigen Bugs
 
-KRITIEK — nooit meer:
-- Hardcoded prijzen → phantom verliezen van 43-52%
-- Cooldown in memory → reset bij Docker herstart
-- str(None) slaat "None" op als tekst → gebruik _fmt_dt()
-- if trade.pnl faalt bij pnl=0.0 → gebruik is not None
+KRITIEK Ã¢â‚¬â€ nooit meer:
+- Hardcoded prijzen Ã¢â€ â€™ phantom verliezen van 43-52%
+- Cooldown in memory Ã¢â€ â€™ reset bij Docker herstart
+- str(None) slaat "None" op als tekst Ã¢â€ â€™ gebruik _fmt_dt()
+- if trade.pnl faalt bij pnl=0.0 Ã¢â€ â€™ gebruik is not None
 - SignalAggregator mag nooit lege lijst teruggeven
 - Stop-loss te groot ingesteld (was 43%, max is 8%)
 - Drawdown limiet moet triggeren voor 56%
 - Trades elke 60 seconden herhalen zonder positie check
-- Dockerfile CMD verkeerd → altijd python run.py
-- Executor gebruikt globale kapitaal ipv agent-pool → geef max_bedrag mee
+- Dockerfile CMD verkeerd Ã¢â€ â€™ altijd python run.py
+- Executor gebruikt globale kapitaal ipv agent-pool Ã¢â€ â€™ geef max_bedrag mee
 
-FIXES GEÏMPLEMENTEERD:
+FIXES GEÃƒÂMPLEMENTEERD:
 - WAL mode + busy_timeout=5000 voor database
 - _fmt_dt() helper voor datetime naar SQL
 - Cooldown persistent in database
@@ -156,7 +209,7 @@ FIXES GEÏMPLEMENTEERD:
 - yfinance voor marktdata (auto_adjust=True)
 - pytest voor tests
 
-## ta Library — altijd zo gebruiken
+## ta Library Ã¢â‚¬â€ altijd zo gebruiken
 
 RSI: ta.momentum.RSIIndicator(close, window=14).rsi()
 MACD: ta.trend.MACD(close, window_slow=26,
@@ -187,7 +240,7 @@ Database regels:
 
 ## Test Framework
 
-pytest — 5 suites: smoke, unit, regressie,
+pytest Ã¢â‚¬â€ 5 suites: smoke, unit, regressie,
 integratie, resilience
 Altijd draaien: bash tests/run_tests.sh
 Alle tests moeten slagen voor elke deployment
@@ -199,8 +252,8 @@ Statische analyse: mypy, flake8, bandit
 
 - Max 50 regels per functie
 - Max 300 regels per bestand
-- Elke functie heeft één verantwoordelijkheid
-- Geen magic numbers — altijd constanten met naam
+- Elke functie heeft ÃƒÂ©ÃƒÂ©n verantwoordelijkheid
+- Geen magic numbers Ã¢â‚¬â€ altijd constanten met naam
 - Elke nieuwe functie heeft een docstring
 - Typed hints altijd gebruiken
 - Geen TODO comments in productie code
@@ -235,9 +288,9 @@ VERWERP data als:
 YAHOO FINANCE:
 - Gebruik altijd auto_adjust=True
 - Adjusted close, nooit gewone close
-- Weekend data aandelen is altijd nul — skip
+- Weekend data aandelen is altijd nul Ã¢â‚¬â€ skip
 
-## Backtesting Valkuilen — Altijd Vermijden
+## Backtesting Valkuilen Ã¢â‚¬â€ Altijd Vermijden
 
 LOOK-AHEAD BIAS:
 Gebruik slotkoers dag X-1 om te handelen op dag X
@@ -247,9 +300,9 @@ SURVIVORSHIP BIAS:
 Yahoo toont alleen bestaande bedrijven
 Gebruik brede indices als benchmark
 
-TRANSACTION COSTS — altijd includeren:
+TRANSACTION COSTS Ã¢â‚¬â€ altijd includeren:
 - Bitvavo: 0.25% per kant = 0.5% round trip
-- IBKR: €1 per order
+- IBKR: Ã¢â€šÂ¬1 per order
 - Polymarket: 2% spread gemiddeld
 - Slippage simulatie: 0.1% extra
 
@@ -259,7 +312,7 @@ TRANSACTION COSTS — altijd includeren:
 
 CORRELATIE:
 - Max 40% kapitaal in assets met correlatie >0.7
-- BTC en ETH tellen als één positie
+- BTC en ETH tellen als ÃƒÂ©ÃƒÂ©n positie
 
 CONCENTRATIE:
 - Max 50% kapitaal in crypto
@@ -267,7 +320,7 @@ CONCENTRATIE:
 - Max 30% per sector (bijv. semiconductors)
 
 POSITIEGROOTTE:
-positie = (doel_risico / asset_volatiliteit) × kapitaal
+positie = (doel_risico / asset_volatiliteit) Ãƒâ€” kapitaal
 doel_risico = 0.01 (1% van kapitaal per trade)
 
 ---
@@ -278,7 +331,7 @@ CRYPTO:
 - Handelt 24/7
 - Weekend volumes 40% lager dan weekdagen
 - Asia sessie 02:00-08:00 NL andere patronen
-- Funding rates beïnvloeden spotprijs
+- Funding rates beÃƒÂ¯nvloeden spotprijs
 
 AANDELEN:
 - Handelsuren: 15:30-22:00 NL tijd
@@ -299,9 +352,9 @@ POLYMARKET:
 
 ---
 
-## Wiskundige Principes — Zelfleren
+## Wiskundige Principes Ã¢â‚¬â€ Zelfleren
 
-PRIORITEIT 1 — Dag 1-7:
+PRIORITEIT 1 Ã¢â‚¬â€ Dag 1-7:
 Fractional Kelly:
   f_safe = f* x (1 - 1/aantal_trades^0.5)
   Voorzichtig bij weinig data, zekerder bij meer
@@ -318,7 +371,7 @@ Bayesiaans updaten:
   Prior uit backtest, update op elke live trade
   Agent houdt onzekerheid bij, niet alleen win rate
 
-PRIORITEIT 2 — Dag 7-14:
+PRIORITEIT 2 Ã¢â‚¬â€ Dag 7-14:
 ATR stop-loss:
   stop = entry - (ATR x 1.5)
   Automatisch groter bij volatiele markt
@@ -333,7 +386,7 @@ Deflated Sharpe:
   Corrigeert voor aantal geteste strategieen
   Alleen Deflated Sharpe >1.0 wordt goedgekeurd
 
-PRIORITEIT 3 — Dag 21-30 (min 500 trades):
+PRIORITEIT 3 Ã¢â‚¬â€ Dag 21-30 (min 500 trades):
 Hurst Exponent:
   H >0.5 trending, H <0.5 mean-reverting, H=0.5 random
 
@@ -352,16 +405,16 @@ VADER sentiment:
   Speciaal getraind op financiele teksten
 
 KERNREGEL ZELFLEREN:
-- Max 3 parameters per agent — altijd
+- Max 3 parameters per agent Ã¢â‚¬â€ altijd
 - Optimaliseer op drie metrics: win rate + Sortino + Calmar
-- Walk-forward validatie — nooit trainen en testen op zelfde data
+- Walk-forward validatie Ã¢â‚¬â€ nooit trainen en testen op zelfde data
 - Meer trades = meer zekerheid = hogere Kelly factor
 - Nieuwe edge = nieuwe agent, nooit meer parameters
-- Simpler is always better — Minimum Description Length
+- Simpler is always better Ã¢â‚¬â€ Minimum Description Length
 
 ---
 
-## API Keys (in config/config.yaml — nooit in code)
+## API Keys (in config/config.yaml Ã¢â‚¬â€ nooit in code)
 
 - Bitvavo: actief en bevestigd
 - Anthropic: actief, $10 credit, cap $5/maand
@@ -373,20 +426,20 @@ KERNREGEL ZELFLEREN:
 
 ---
 
-## Historical (pre-v3.15) — superseded by Roadmap v6 + autonomous_development.txt
+## Historical (pre-v3.15) Ã¢â‚¬â€ superseded by Roadmap v6 + autonomous_development.txt
 
-## ROADMAP — Maximaal 1 maand
+## ROADMAP Ã¢â‚¬â€ Maximaal 1 maand
 
-WEEK 1 — Fundament (Dag 1-7):
+WEEK 1 Ã¢â‚¬â€ Fundament (Dag 1-7):
 
 Dag 1-2: Agent stabiel zonder bugs
-  - Cooldown persistent in database ✓
-  - Orphan trades verwijderd ✓
-  - Dashboard data laadt correct ✓
-  - Sub-agents zichtbaar in logs ✓
-  - Dockerfile CMD correct (run.py) ✓
-  - executor.voer_uit met max_bedrag ✓
-  - DataArbitrage prijs injectie ✓
+  - Cooldown persistent in database Ã¢Å“â€œ
+  - Orphan trades verwijderd Ã¢Å“â€œ
+  - Dashboard data laadt correct Ã¢Å“â€œ
+  - Sub-agents zichtbaar in logs Ã¢Å“â€œ
+  - Dockerfile CMD correct (run.py) Ã¢Å“â€œ
+  - executor.voer_uit met max_bedrag Ã¢Å“â€œ
+  - DataArbitrage prijs injectie Ã¢Å“â€œ
   - PWA op iPhone werkend
   - Statische analyse: mypy, flake8, bandit
   - Canary trade 08:00 actief
@@ -422,13 +475,13 @@ Dag 4-7: Backtesting + bewezen strategieen
   - Calmar Ratio toegevoegd
   - Chaos testing module
 
-WEEK 2 — Uitbreiding (Dag 7-14):
+WEEK 2 Ã¢â‚¬â€ Uitbreiding (Dag 7-14):
 
 Dag 6-8: Data Arbitrage Agent
-  - Agent gebouwd ✓
-  - Databronnen gekoppeld ✓
-  - Kelly Criterion per trade ✓
-  - Geintegreerd in orchestrator ✓
+  - Agent gebouwd Ã¢Å“â€œ
+  - Databronnen gekoppeld Ã¢Å“â€œ
+  - Kelly Criterion per trade Ã¢Å“â€œ
+  - Geintegreerd in orchestrator Ã¢Å“â€œ
 
 Dag 7-10: Eerste analyse
   - 50+ trades bereikt
@@ -445,7 +498,7 @@ Dag 10-14: Zelfleren verfijnd
   - VADER sentiment analyse
   - Anomalie detectie actief
 
-WEEK 3-4 — Geavanceerd (Dag 14-30):
+WEEK 3-4 Ã¢â‚¬â€ Geavanceerd (Dag 14-30):
 
 Dag 14-21: Diep leren
   - 200+ trades bereikt
