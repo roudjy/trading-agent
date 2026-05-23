@@ -81,7 +81,7 @@ from typing import Any, Final
 from reporting import reason_records as _rr
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-MODULE_VERSION: Final[str] = "v3.15.18-minimal-reset-2026-05-21"
+MODULE_VERSION: Final[str] = "v3.15.18-ade-qre-007-operator-grade-2026-05-23"
 SCHEMA_VERSION: Final[int] = 1
 REPORT_KIND: Final[str] = "research_observability_minimal_digest"
 
@@ -155,6 +155,39 @@ REASON_RECORDS_MANIFEST: Final[Path] = (
 )
 RESEARCH_QUALITY_KPIS_DOC: Final[Path] = (
     REPO_ROOT / "docs" / "governance" / "research_quality_kpis.md"
+)
+SCREENING_FAILURE_ATTRIBUTION_LATEST: Final[Path] = (
+    REPO_ROOT / "research" / "screening_failure_attribution_latest.v1.json"
+)
+FAILURE_ACTION_MAPPING_LATEST: Final[Path] = (
+    REPO_ROOT / "logs" / "failure_action_mapping_minimal" / "latest.json"
+)
+QRE_DATA_MANIFEST_LATEST: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_data_cache_manifest" / "latest.json"
+)
+QRE_SOURCE_QUALITY_LATEST: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_data_source_quality_readiness" / "latest.json"
+)
+QRE_RESEARCH_MEMORY_LATEST: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_research_memory" / "latest.json"
+)
+QRE_RESEARCH_DIAGNOSTICS_LOOP_LATEST: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_research_diagnostics_loop" / "latest.json"
+)
+ADE_QUEUE_DOC: Final[Path] = (
+    REPO_ROOT
+    / "docs"
+    / "governance"
+    / "ade_queue_001_post_package_qre_ade_work_queue.md"
+)
+QRE_OPERATOR_SUMMARY_SOURCE_IDS: Final[tuple[str, ...]] = (
+    "screening_failure_attribution",
+    "failure_action_mapping",
+    "data_manifest",
+    "source_quality",
+    "research_memory",
+    "research_diagnostics_loop",
+    "ade_queue",
 )
 
 
@@ -364,6 +397,387 @@ def _enforce_oab(
 
 
 # ---------------------------------------------------------------------------
+# ADE-QRE operator-grade summary
+# ---------------------------------------------------------------------------
+
+
+def _read_qre_json_source(source_id: str, path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {
+            "source_id": source_id,
+            "available": False,
+            "status": "missing",
+            "path": _rel(path),
+            "fails_closed": True,
+        }
+    data = _read_json(path)
+    if data is None:
+        return {
+            "source_id": source_id,
+            "available": False,
+            "status": "invalid",
+            "path": _rel(path),
+            "fails_closed": True,
+        }
+    return {
+        "source_id": source_id,
+        "available": True,
+        "status": "present",
+        "path": _rel(path),
+        "fails_closed": False,
+        "schema_version": data.get("schema_version"),
+        "generated_at_utc": data.get("generated_at_utc"),
+        "payload": data,
+    }
+
+
+def _ratio(numerator: int, denominator: int) -> float | None:
+    if denominator <= 0:
+        return None
+    return round(numerator / denominator, 6)
+
+
+def _screening_metrics(source: Mapping[str, Any]) -> dict[str, Any]:
+    payload = source.get("payload")
+    if not isinstance(payload, Mapping):
+        return {
+            "status": source.get("status", "missing"),
+            "observation_count": 0,
+            "unknown_observation_count": 0,
+            "unknown_failure_rate": None,
+            "attribution_depth_score": None,
+            "primary_classification": None,
+        }
+    summary = payload.get("summary")
+    summary = summary if isinstance(summary, Mapping) else {}
+    observation_count = _int(summary.get("observation_count"))
+    unknown_count = _int(summary.get("unknown_observation_count"))
+    return {
+        "status": "ready" if observation_count else "not_ready",
+        "observation_count": observation_count,
+        "unknown_observation_count": unknown_count,
+        "unknown_failure_rate": _ratio(unknown_count, observation_count),
+        "attribution_depth_score": _attribution_depth_score(payload),
+        "primary_classification": summary.get("primary_classification"),
+        "recommended_next_action": payload.get("recommended_next_action"),
+    }
+
+
+def _attribution_depth_score(payload: Mapping[str, Any]) -> float | None:
+    classifications = payload.get("classifications")
+    if not isinstance(classifications, list):
+        return None
+    weighted_score = 0
+    weighted_total = 0
+    failure_actions_available = bool(payload.get("recommended_next_action"))
+    for row in classifications:
+        if not isinstance(row, Mapping):
+            continue
+        count = _int(row.get("count"))
+        if count <= 0:
+            continue
+        classification = str(row.get("classification") or "")
+        action_hint = row.get("action_hint")
+        points = 0
+        points += int(classification not in {"", "missing_diagnostics", "unknown_screening_failure"})
+        points += int(bool(row.get("sources")))
+        points += int(bool(row.get("raw_reasons")))
+        points += int(isinstance(action_hint, Mapping) and bool(action_hint.get("action")))
+        points += int(failure_actions_available)
+        weighted_score += count * points
+        weighted_total += count * 5
+    return _ratio(weighted_score, weighted_total)
+
+
+def _failure_action_metrics(source: Mapping[str, Any]) -> dict[str, Any]:
+    payload = source.get("payload")
+    if not isinstance(payload, Mapping):
+        return {
+            "status": source.get("status", "missing"),
+            "total_failures": 0,
+            "actionable_failure_count": 0,
+            "actionable_failure_rate": None,
+            "final_recommendation": None,
+        }
+    counts = payload.get("counts")
+    counts = counts if isinstance(counts, Mapping) else {}
+    total = _int(counts.get("total"))
+    actionable = _int(counts.get("actionable_recommendations"))
+    return {
+        "status": "ready" if total else "not_ready",
+        "total_failures": total,
+        "actionable_failure_count": actionable,
+        "actionable_failure_rate": _ratio(actionable, total),
+        "final_recommendation": payload.get("final_recommendation"),
+    }
+
+
+def _readiness_metrics(
+    manifest_source: Mapping[str, Any],
+    source_quality_source: Mapping[str, Any],
+) -> dict[str, Any]:
+    manifest_ready = _summary_bool(manifest_source, "research_ready")
+    source_quality_ready = _summary_bool(source_quality_source, "research_ready")
+    ready = manifest_ready and source_quality_ready
+    return {
+        "status": "ready" if ready else "not_ready",
+        "research_ready": ready,
+        "manifest": {
+            "status": _readiness_status(manifest_source, manifest_ready),
+            "research_ready": manifest_ready,
+            "path": manifest_source.get("path"),
+        },
+        "source_quality": {
+            "status": _readiness_status(source_quality_source, source_quality_ready),
+            "research_ready": source_quality_ready,
+            "path": source_quality_source.get("path"),
+        },
+    }
+
+
+def _readiness_status(source: Mapping[str, Any], ready: bool) -> str:
+    if not source.get("available"):
+        return str(source.get("status") or "missing")
+    return "ready" if ready else "not_ready"
+
+
+def _summary_bool(source: Mapping[str, Any], key: str) -> bool:
+    payload = source.get("payload")
+    summary = payload.get("summary") if isinstance(payload, Mapping) else None
+    return bool(isinstance(summary, Mapping) and summary.get(key))
+
+
+def _memory_metrics(source: Mapping[str, Any]) -> dict[str, Any]:
+    payload = source.get("payload")
+    if not isinstance(payload, Mapping):
+        return {
+            "status": source.get("status", "missing"),
+            "research_memory_ready": False,
+            "prior_similar_failure_count": 0,
+        }
+    summary = payload.get("summary")
+    summary = summary if isinstance(summary, Mapping) else {}
+    related = payload.get("related_failures")
+    related_matches = (
+        related.get("matches")
+        if isinstance(related, Mapping) and isinstance(related.get("matches"), list)
+        else []
+    )
+    failure_entries = [
+        row
+        for row in payload.get("entries", [])
+        if isinstance(row, Mapping) and "failure" in (row.get("ontology_tags") or [])
+    ]
+    return {
+        "status": "ready" if bool(summary.get("research_memory_ready")) else "not_ready",
+        "research_memory_ready": bool(summary.get("research_memory_ready")),
+        "entry_count": _int(summary.get("entry_count")),
+        "prior_similar_failure_count": max(len(related_matches), len(failure_entries)),
+        "related_failure_match_count": len(related_matches),
+    }
+
+
+def _diagnostics_loop_metrics(source: Mapping[str, Any]) -> dict[str, Any]:
+    payload = source.get("payload")
+    if not isinstance(payload, Mapping):
+        return {
+            "status": source.get("status", "missing"),
+            "diagnostic_count": 0,
+            "recommended_operator_step": "stop_collect_upstream_sidecars",
+            "blocking_reasons": ["missing_research_diagnostics_loop"],
+        }
+    summary = payload.get("summary")
+    summary = summary if isinstance(summary, Mapping) else {}
+    return {
+        "status": str(summary.get("status") or "not_ready"),
+        "diagnostic_count": _int(summary.get("diagnostic_count")),
+        "recommended_operator_step": summary.get("recommended_operator_step"),
+        "blocking_reasons": list(summary.get("blocking_reasons") or []),
+        "primary_failure_classification": summary.get("primary_failure_classification"),
+    }
+
+
+def _read_queue_source(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {
+            "source_id": "ade_queue",
+            "available": False,
+            "status": "missing",
+            "path": _rel(path),
+            "fails_closed": True,
+            "items": {},
+        }
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {
+            "source_id": "ade_queue",
+            "available": False,
+            "status": "invalid",
+            "path": _rel(path),
+            "fails_closed": True,
+            "items": {},
+        }
+    return {
+        "source_id": "ade_queue",
+        "available": True,
+        "status": "present",
+        "path": _rel(path),
+        "fails_closed": False,
+        "items": _parse_queue_statuses(text),
+    }
+
+
+def _parse_queue_statuses(text: str) -> dict[str, str]:
+    statuses: dict[str, str] = {}
+    current: str | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("- queue id: `") and line.endswith("`"):
+            current = line.removeprefix("- queue id: `").removesuffix("`")
+            continue
+        if current and line.startswith("- status: `") and line.endswith("`"):
+            statuses[current] = line.removeprefix("- status: `").removesuffix("`")
+            current = None
+    return statuses
+
+
+def _governance_blockers(queue_source: Mapping[str, Any]) -> dict[str, Any]:
+    items = queue_source.get("items")
+    items = items if isinstance(items, Mapping) else {}
+    blocking_statuses = {"blocked", "operator_review"}
+    blockers = [
+        {"queue_item": queue_id, "status": status}
+        for queue_id, status in sorted(items.items())
+        if status in blocking_statuses
+    ]
+    return {
+        "status": "blocked" if blockers else "clear",
+        "blocker_count": len(blockers),
+        "blockers": blockers,
+    }
+
+
+def _qre_source_summary(source: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        key: source.get(key)
+        for key in (
+            "source_id",
+            "available",
+            "status",
+            "path",
+            "fails_closed",
+            "schema_version",
+            "generated_at_utc",
+        )
+        if key in source
+    }
+
+
+def _int(value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return 0
+    return max(0, int(value))
+
+
+def _collect_qre_operator_summary(
+    *,
+    screening_failure_attribution_path: Path | None = None,
+    failure_action_mapping_path: Path | None = None,
+    data_manifest_path: Path | None = None,
+    source_quality_path: Path | None = None,
+    research_memory_path: Path | None = None,
+    research_diagnostics_loop_path: Path | None = None,
+    ade_queue_doc_path: Path | None = None,
+) -> dict[str, Any]:
+    sources = {
+        "screening_failure_attribution": _read_qre_json_source(
+            "screening_failure_attribution",
+            screening_failure_attribution_path or SCREENING_FAILURE_ATTRIBUTION_LATEST,
+        ),
+        "failure_action_mapping": _read_qre_json_source(
+            "failure_action_mapping",
+            failure_action_mapping_path or FAILURE_ACTION_MAPPING_LATEST,
+        ),
+        "data_manifest": _read_qre_json_source(
+            "data_manifest",
+            data_manifest_path or QRE_DATA_MANIFEST_LATEST,
+        ),
+        "source_quality": _read_qre_json_source(
+            "source_quality",
+            source_quality_path or QRE_SOURCE_QUALITY_LATEST,
+        ),
+        "research_memory": _read_qre_json_source(
+            "research_memory",
+            research_memory_path or QRE_RESEARCH_MEMORY_LATEST,
+        ),
+        "research_diagnostics_loop": _read_qre_json_source(
+            "research_diagnostics_loop",
+            research_diagnostics_loop_path or QRE_RESEARCH_DIAGNOSTICS_LOOP_LATEST,
+        ),
+        "ade_queue": _read_queue_source(ade_queue_doc_path or ADE_QUEUE_DOC),
+    }
+    screening = _screening_metrics(sources["screening_failure_attribution"])
+    actions = _failure_action_metrics(sources["failure_action_mapping"])
+    data = _readiness_metrics(sources["data_manifest"], sources["source_quality"])
+    memory = _memory_metrics(sources["research_memory"])
+    diagnostics = _diagnostics_loop_metrics(sources["research_diagnostics_loop"])
+    governance = _governance_blockers(sources["ade_queue"])
+    available_count = sum(1 for source in sources.values() if source.get("available"))
+    missing = [
+        source_id
+        for source_id, source in sorted(sources.items())
+        if not bool(source.get("available"))
+    ]
+    return {
+        "source_ids": list(QRE_OPERATOR_SUMMARY_SOURCE_IDS),
+        "available_source_count": available_count,
+        "missing_sources": missing,
+        "unknown_failure_rate": screening["unknown_failure_rate"],
+        "actionable_failure_rate": actions["actionable_failure_rate"],
+        "attribution_depth_score": screening["attribution_depth_score"],
+        "screening_failure_attribution": screening,
+        "failure_action_mapping": actions,
+        "data_readiness": data,
+        "prior_similar_failures": memory,
+        "diagnostics_loop": diagnostics,
+        "governance_blockers": governance,
+        "operator_state": _operator_state(
+            available_count=available_count,
+            governance=governance,
+            diagnostics=diagnostics,
+        ),
+        "sources": {source_id: _qre_source_summary(source) for source_id, source in sources.items()},
+        "safety_invariants": {
+            "read_only": True,
+            "dashboard_mutation_routes": False,
+            "approval_buttons": False,
+            "auto_execute_controls": False,
+            "mutates_campaign_queue": False,
+            "mutates_routing": False,
+            "mutates_strategy_or_presets": False,
+            "paper_shadow_live_forbidden": True,
+            "broker_risk_execution_forbidden": True,
+        },
+    }
+
+
+def _operator_state(
+    *,
+    available_count: int,
+    governance: Mapping[str, Any],
+    diagnostics: Mapping[str, Any],
+) -> str:
+    if available_count <= 1:
+        return "missing_upstream_evidence"
+    if governance.get("status") == "blocked":
+        return "operator_gate_visible"
+    if diagnostics.get("status") == "ready":
+        return "operator_review_available"
+    return "operator_review_limited_by_missing_diagnostics"
+
+
+# ---------------------------------------------------------------------------
 # Snapshot
 # ---------------------------------------------------------------------------
 
@@ -374,6 +788,13 @@ def collect_snapshot(
     sampling_minimal_path: Path | None = None,
     reason_records_artifact_dir: Path | None = None,
     kpi_doc_path: Path | None = None,
+    screening_failure_attribution_path: Path | None = None,
+    failure_action_mapping_path: Path | None = None,
+    data_manifest_path: Path | None = None,
+    source_quality_path: Path | None = None,
+    research_memory_path: Path | None = None,
+    research_diagnostics_loop_path: Path | None = None,
+    ade_queue_doc_path: Path | None = None,
     visible_surfaces_per_campaign_cap: int = (
         DEFAULT_VISIBLE_SURFACES_PER_CAMPAIGN_CAP
     ),
@@ -400,6 +821,15 @@ def collect_snapshot(
     oab = _enforce_oab(
         surface_counts, cap=visible_surfaces_per_campaign_cap
     )
+    qre_operator_summary = _collect_qre_operator_summary(
+        screening_failure_attribution_path=screening_failure_attribution_path,
+        failure_action_mapping_path=failure_action_mapping_path,
+        data_manifest_path=data_manifest_path,
+        source_quality_path=source_quality_path,
+        research_memory_path=research_memory_path,
+        research_diagnostics_loop_path=research_diagnostics_loop_path,
+        ade_queue_doc_path=ade_queue_doc_path,
+    )
 
     # Top-N subjects by surface count (deterministic order).
     top_subjects = sorted(
@@ -425,9 +855,10 @@ def collect_snapshot(
             "reason_records": reason_records,
             "research_quality_kpis_doc": kpi,
         },
+        "qre_operator_summary": qre_operator_summary,
         "cross_family_subjects": {
             "total": len(surface_counts),
-            "top_by_surface_count": {sid: cnt for sid, cnt in top_subjects},
+            "top_by_surface_count": dict(top_subjects),
         },
         "final_recommendation": (
             "operator_review_available"

@@ -31,7 +31,6 @@ import pytest
 from reporting import reason_records as rr
 from reporting import research_observability_minimal as rom
 
-
 # ---------------------------------------------------------------------------
 # Fixture helpers
 # ---------------------------------------------------------------------------
@@ -92,6 +91,11 @@ def _seed_reason_records(
             rr.append(rec, artifact_dir=base)
 
 
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, sort_keys=True, indent=2), encoding="utf-8")
+
+
 # ---------------------------------------------------------------------------
 # Pinned constants
 # ---------------------------------------------------------------------------
@@ -128,7 +132,7 @@ def test_top_subjects_n_is_pinned() -> None:
 
 
 def test_module_version_is_pinned() -> None:
-    assert rom.MODULE_VERSION == "v3.15.18-minimal-reset-2026-05-21"
+    assert rom.MODULE_VERSION == "v3.15.18-ade-qre-007-operator-grade-2026-05-23"
 
 
 def test_report_kind_is_pinned() -> None:
@@ -157,6 +161,7 @@ def test_snapshot_top_level_keys_when_sources_absent(tmp_path: Path) -> None:
         "safe_to_execute",
         "operator_attention_budget",
         "sources",
+        "qre_operator_summary",
         "cross_family_subjects",
         "final_recommendation",
         "note",
@@ -166,6 +171,7 @@ def test_snapshot_top_level_keys_when_sources_absent(tmp_path: Path) -> None:
     assert snap["mode"] == "dry-run"
     assert snap["safe_to_execute"] is False
     assert snap["final_recommendation"] == "nothing_to_review"
+    assert snap["qre_operator_summary"]["operator_state"] == "missing_upstream_evidence"
 
 
 def test_sources_block_carries_closed_source_id_set(tmp_path: Path) -> None:
@@ -180,6 +186,134 @@ def test_sources_block_carries_closed_source_id_set(tmp_path: Path) -> None:
     # Each source carries the matching source_id.
     for sid in rom.SOURCE_IDS:
         assert snap["sources"][sid]["source_id"] == sid
+
+
+def test_qre_operator_summary_source_ids_are_pinned() -> None:
+    assert rom.QRE_OPERATOR_SUMMARY_SOURCE_IDS == (
+        "screening_failure_attribution",
+        "failure_action_mapping",
+        "data_manifest",
+        "source_quality",
+        "research_memory",
+        "research_diagnostics_loop",
+        "ade_queue",
+    )
+
+
+def test_qre_operator_summary_reports_rates_readiness_and_gate(
+    tmp_path: Path,
+) -> None:
+    screening_path = tmp_path / "research" / "screening_failure_attribution_latest.v1.json"
+    action_path = tmp_path / "logs" / "failure_action_mapping_minimal" / "latest.json"
+    manifest_path = tmp_path / "logs" / "qre_data_cache_manifest" / "latest.json"
+    source_quality_path = (
+        tmp_path / "logs" / "qre_data_source_quality_readiness" / "latest.json"
+    )
+    memory_path = tmp_path / "logs" / "qre_research_memory" / "latest.json"
+    diagnostics_path = tmp_path / "logs" / "qre_research_diagnostics_loop" / "latest.json"
+    queue_path = tmp_path / "docs" / "governance" / "queue.md"
+    _write_json(
+        screening_path,
+        {
+            "summary": {
+                "observation_count": 4,
+                "unknown_observation_count": 1,
+                "primary_classification": "data_coverage_gap",
+            },
+            "recommended_next_action": "repair_data_coverage_before_research_action",
+            "classifications": [
+                {
+                    "classification": "data_coverage_gap",
+                    "count": 3,
+                    "sources": ["screening_evidence.summary"],
+                    "raw_reasons": {"coverage_gap": 3},
+                    "action_hint": {"action": "repair_data_coverage_before_research_action"},
+                },
+                {
+                    "classification": "unknown_screening_failure",
+                    "count": 1,
+                    "sources": [],
+                    "raw_reasons": {},
+                    "action_hint": {"action": "hold_no_action_until_evidence_improves"},
+                },
+            ],
+        },
+    )
+    _write_json(
+        action_path,
+        {
+            "counts": {
+                "total": 4,
+                "actionable_recommendations": 3,
+            },
+            "final_recommendation": "actions_available",
+        },
+    )
+    _write_json(manifest_path, {"summary": {"research_ready": True}})
+    _write_json(source_quality_path, {"summary": {"research_ready": True}})
+    _write_json(
+        memory_path,
+        {
+            "summary": {"research_memory_ready": True, "entry_count": 2},
+            "entries": [
+                {"ontology_tags": ["failure", "data_coverage_gap"]},
+                {"ontology_tags": ["hypothesis"]},
+            ],
+        },
+    )
+    _write_json(
+        diagnostics_path,
+        {
+            "summary": {
+                "status": "ready",
+                "diagnostic_count": 1,
+                "recommended_operator_step": "inspect_next_diagnostic",
+                "blocking_reasons": [],
+                "primary_failure_classification": "data_coverage_gap",
+            }
+        },
+    )
+    queue_path.parent.mkdir(parents=True, exist_ok=True)
+    queue_path.write_text(
+        "\n".join(
+            [
+                "- queue id: `ADE-QRE-007`",
+                "- status: `done`",
+                "- queue id: `ADE-QRE-008`",
+                "- status: `operator_review`",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    snap = rom.collect_snapshot(
+        routing_minimal_path=tmp_path / "no_routing.json",
+        sampling_minimal_path=tmp_path / "no_sampling.json",
+        reason_records_artifact_dir=tmp_path / "no_reason_records",
+        kpi_doc_path=tmp_path / "no_kpi.md",
+        screening_failure_attribution_path=screening_path,
+        failure_action_mapping_path=action_path,
+        data_manifest_path=manifest_path,
+        source_quality_path=source_quality_path,
+        research_memory_path=memory_path,
+        research_diagnostics_loop_path=diagnostics_path,
+        ade_queue_doc_path=queue_path,
+        frozen_utc="2026-05-23T00:00:00Z",
+    )
+    summary = snap["qre_operator_summary"]
+
+    assert summary["available_source_count"] == 7
+    assert summary["unknown_failure_rate"] == 0.25
+    assert summary["actionable_failure_rate"] == 0.75
+    assert summary["attribution_depth_score"] == 0.85
+    assert summary["data_readiness"]["research_ready"] is True
+    assert summary["prior_similar_failures"]["prior_similar_failure_count"] == 1
+    assert summary["diagnostics_loop"]["diagnostic_count"] == 1
+    assert summary["governance_blockers"]["blockers"] == [
+        {"queue_item": "ADE-QRE-008", "status": "operator_review"}
+    ]
+    assert summary["operator_state"] == "operator_gate_visible"
+    assert summary["safety_invariants"]["dashboard_mutation_routes"] is False
 
 
 def test_missing_sources_never_raise(tmp_path: Path) -> None:
