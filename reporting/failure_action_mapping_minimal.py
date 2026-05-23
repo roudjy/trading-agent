@@ -93,6 +93,7 @@ REASON_RECORD_KEYS: Final[tuple[str, ...]] = (
     "record_kind",
     "schema_version",
     "subject_id",
+    "evidence_refs",
     "failure_code",
     "recommended_action",
     "reason_codes",
@@ -211,6 +212,17 @@ def compute_record_id(
     return "fam_" + h.hexdigest()[:16]
 
 
+def _evidence_refs_for_failure() -> list[str]:
+    return [
+        "failure_input.subject_id",
+        "failure_input.failure_code",
+        "failure_input.severity",
+        "failure_input.evidence_count",
+        "policy.min_evidence_for_research_action",
+        "mapping.action_by_failure_code",
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
@@ -298,6 +310,7 @@ def _build_reason_record(
     evidence_count: int,
     recommended_action: str,
 ) -> dict[str, Any]:
+    evidence_refs = _evidence_refs_for_failure()
     inputs_payload = {
         "subject_id": subject_id,
         "failure_code": failure_code,
@@ -305,6 +318,7 @@ def _build_reason_record(
         "evidence_count": evidence_count,
         "recommended_action": recommended_action,
         "min_evidence_for_research_action": MIN_EVIDENCE_FOR_RESEARCH_ACTION,
+        "evidence_refs": evidence_refs,
     }
     digest = compute_inputs_digest(inputs_payload)
     reason_codes, reason_text = _reason_for(
@@ -317,6 +331,7 @@ def _build_reason_record(
         "record_kind": "failure_action_mapping_reason",
         "schema_version": SCHEMA_VERSION,
         "subject_id": subject_id,
+        "evidence_refs": evidence_refs,
         "failure_code": failure_code,
         "recommended_action": recommended_action,
         "reason_codes": reason_codes,
@@ -496,8 +511,7 @@ def write_outputs(
 
 
 def read_latest_snapshot(*, artifact_dir: Path | None = None) -> dict[str, Any] | None:
-    base = artifact_dir or ARTIFACT_DIR
-    path = base / ARTIFACT_LATEST.name
+    path = (artifact_dir / ARTIFACT_LATEST.name) if artifact_dir else ARTIFACT_LATEST
     if not path.is_file():
         return None
     try:

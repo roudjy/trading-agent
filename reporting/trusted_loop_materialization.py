@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from reporting import intelligent_routing_minimal as _routing
+from reporting import reason_record_evidence_density as _rr_density
 from reporting import reason_records as _rr
 from reporting import research_observability_minimal as _observability
 from reporting import sampling_intelligence_minimal as _sampling
@@ -209,6 +210,13 @@ def collect_snapshot(
         artifact_dir=rr_dir,
         frozen_utc=ts,
     )
+    reason_density = _rr_density.collect_snapshot(
+        frozen_utc=ts,
+        reason_records_artifact_dir=rr_dir,
+        routing_minimal_path=routing_dir / _routing.ARTIFACT_LATEST.name,
+        sampling_minimal_path=sampling_dir / _sampling.ARTIFACT_LATEST.name,
+        failure_action_mapping_path=_observability.FAILURE_ACTION_MAPPING_LATEST,
+    )
     routing_snapshot = _routing.collect_snapshot(
         candidates=[],
         frozen_utc=ts,
@@ -241,6 +249,13 @@ def collect_snapshot(
                 "total_records": reason_manifest["total_records"],
                 "note": reason_manifest["note"],
             },
+            "reason_record_evidence_density": {
+                "record_count": reason_density["metrics"]["record_count"],
+                "records_with_evidence_refs": reason_density["metrics"][
+                    "records_with_evidence_refs"
+                ],
+                "final_recommendation": reason_density["final_recommendation"],
+            },
             "routing_minimal_latest": {
                 "path": _rel(routing_dir / _routing.ARTIFACT_LATEST.name),
                 "total": routing_snapshot["counts"]["total"],
@@ -257,6 +272,7 @@ def collect_snapshot(
             },
         },
         "trusted_loop_metric_values": metrics,
+        "reason_record_evidence_density": reason_density,
         "research_quality_kpi_readiness": kpis,
         "failure_action_mapping": (
             observability_snapshot.get("qre_operator_summary", {})

@@ -79,6 +79,7 @@ def test_schema_keys_are_pinned() -> None:
         "record_kind",
         "schema_version",
         "subject_id",
+        "evidence_refs",
         "failure_code",
         "recommended_action",
         "reason_codes",
@@ -153,6 +154,7 @@ def test_technical_failure_reason_is_not_research_action() -> None:
     record = snap["items"][0]["reason_record"]
     assert snap["items"][0]["recommended_action"] == "review_data_pipeline"
     assert "technical_not_research" in record["reason_codes"]
+    assert "failure_input.evidence_count" in record["evidence_refs"]
 
 
 def test_low_evidence_adds_insufficient_reason() -> None:

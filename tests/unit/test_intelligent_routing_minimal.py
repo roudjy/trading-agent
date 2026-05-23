@@ -74,6 +74,7 @@ def test_output_candidate_keys_are_closed() -> None:
     assert irm.OUTPUT_CANDIDATE_KEYS == (
         "campaign_id",
         "decision",
+        "evidence_refs",
         "priority_score",
         "rank",
         "reason_codes",
@@ -141,6 +142,7 @@ def test_prioritize_when_info_gain_high(tmp_path: Path) -> None:
     )
     assert snap["items"][0]["decision"] == "prioritize"
     assert snap["items"][0]["reason_codes"] == ["info_gain_high"]
+    assert "candidate.info_gain_estimate" in snap["items"][0]["evidence_refs"]
     assert snap["counts"]["by_decision"]["prioritize"] == 1
     assert snap["final_recommendation"] == "ready_for_implementation"
 
@@ -346,6 +348,7 @@ def test_each_candidate_emits_exactly_one_routing_reason_record(
     snapshot_ids = {it["record_id"] for it in snap["items"]}
     ledger_ids = {r["record_id"] for r in records}
     assert snapshot_ids == ledger_ids
+    assert all(it["evidence_refs"] for it in snap["items"])
 
 
 def test_record_ids_are_deterministic_across_runs(tmp_path: Path) -> None:
