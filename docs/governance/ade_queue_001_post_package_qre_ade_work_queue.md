@@ -241,7 +241,15 @@
 ### ADE-QRE-013 - Trusted Loop Maturity Matrix and Roadmap v6 Addendum 4
 
 - queue id: `ADE-QRE-013`
-- status: `ready`
+- status: `done`
+- completion evidence: PR #318, merge SHA
+  `cd036fc194a39a631559bab66ffb1ddd690590ca`; Fast pre-merge gate
+  succeeded on branch commit `e4ddf9cfb23948eda30819fa3d7f2548c1c1186d`;
+  the branch commit was superseded by squash merge `cd036fc`; no Actions runs
+  are attached directly to `cd036fc`, which is recorded as a non-blocking
+  docs-only post-merge absence because the merge touched only this queue
+  document and the Addendum 4 reference document; frozen contracts unchanged;
+  protected/execution paths untouched; strategy synthesis remains blocked.
 - goal: document that the trusted-loop foundation exists, but is still
   scaffold/readiness evidence rather than operator-trusted research capability.
 - addendum record:
@@ -294,3 +302,340 @@
   not be used as implementation authorization.
 - expected next queue item: none unless the operator explicitly approves a
   future docs/readiness-only item.
+
+### ADE-QRE-014A - Main/PR/Run Reconciliation Preflight
+
+- queue id: `ADE-QRE-014A`
+- status: `done`
+- title: Main/PR/Run Reconciliation Preflight.
+- purpose: reconcile PR #318, branch commit `e4ddf9c`, squash merge
+  `cd036fc`, origin/main, and GitHub Actions evidence before any new build
+  work.
+- risk class: LOW.
+- target layer: governance queue / PR lifecycle evidence.
+- expected files or file families:
+  - `docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md`.
+- forbidden files or file families:
+  - `research/research_latest.json`, `research/strategy_matrix.csv`,
+    `registry.py`, strategy implementations, paper/shadow/live, broker, risk,
+    execution, runtime logs, generated artifacts, frozen contracts, and
+    Addendum runtime activation paths.
+- prerequisites:
+  - clean working tree before branch creation.
+  - origin/main fetched.
+  - GitHub CLI auth and repo view succeed.
+- allowed changes:
+  - docs/governance queue update only.
+  - reconciliation evidence and next queue decomposition only.
+- forbidden changes:
+  - implementation work.
+  - strategy synthesis.
+  - Addendum 1, Addendum 2, Addendum 3, or Addendum 4 runtime activation.
+  - mutation of research outputs or protected/execution paths.
+- reconciliation evidence:
+  - local branch before queue work: `main`.
+  - local HEAD before queue work:
+    `cd036fc194a39a631559bab66ffb1ddd690590ca`.
+  - `origin/main`:
+    `cd036fc194a39a631559bab66ffb1ddd690590ca`.
+  - PR #318 state: `MERGED`.
+  - PR #318 merge commit:
+    `cd036fc194a39a631559bab66ffb1ddd690590ca`.
+  - PR #318 head branch: `docs/ade-qre-013-trusted-loop-maturity`.
+  - Fast pre-merge run `26336444135`: `completed/success`, event `push`,
+    branch `docs/ade-qre-013-trusted-loop-maturity`, head SHA
+    `e4ddf9cfb23948eda30819fa3d7f2548c1c1186d`.
+  - `e4ddf9c` is not an ancestor of `cd036fc` because PR #318 was
+    squash-merged.
+  - `e4ddf9c` remains the remote branch head at
+    `origin/docs/ade-qre-013-trusted-loop-maturity`.
+  - no Actions runs were listed directly for commit `cd036fc`.
+  - latest main-branch Actions runs were earlier than PR #318 merge time.
+  - `cd036fc` touched only this queue document and
+    `docs/roadmap/Roadmap v6 Addendum 4 - Trusted Loop Readiness and Operator Trust.md`.
+- tests required:
+  - `git diff --check`.
+  - `python -m reporting.architecture_import_scan --format summary`.
+  - `python -m pytest tests/smoke -q`.
+- validation required:
+  - GitHub PR metadata confirms PR #318 is merged.
+  - local main and origin/main agree on `cd036fc`.
+  - docs-only post-merge Actions absence is recorded as non-blocking.
+  - frozen contracts unchanged.
+  - protected/execution paths untouched.
+  - strategy synthesis remains blocked.
+  - Addendum 4 remains `DEFERRED / REFERENCE-ONLY`.
+- merge criteria:
+  - docs/governance-only diff for the queue update.
+  - Fast pre-merge gate green on the 014A PR.
+  - no protected or frozen path diff.
+  - squash merge only.
+- done criteria:
+  - queue decomposition is committed.
+  - 014A reconciliation evidence is recorded.
+  - 014B is the next eligible item only after 014A PR merge, green CI, and
+    acceptable post-merge validation.
+- stop conditions:
+  - remote auth failure.
+  - local git state is not clean or cannot be reconciled.
+  - PR #318 is not merged.
+  - `cd036fc` is not `origin/main`.
+  - non-docs changes appear in PR #318 or the 014A diff.
+  - protected/frozen/execution path changes are required.
+- next dependency: `ADE-QRE-014B`.
+
+### ADE-QRE-014B - Reason-Record Evidence Density
+
+- queue id: `ADE-QRE-014B`
+- status: `blocked until ADE-QRE-014A done`
+- title: Reason-Record Evidence Density.
+- purpose: improve trusted-loop reason-record evidence density so ADE/QRE
+  decisions are more inspectable, measurable, and operator-readable before
+  routing, sampling, KPI maturity, or strategy synthesis work.
+- risk class: LOW unless code discovery proves otherwise.
+- target layer: read-only reporting, diagnostics, and QRE artifacts evidence.
+- expected files or file families:
+  - read-only `reporting/**.py`, `packages/qre_artifacts/**`,
+    `packages/qre_diagnostics/**`, `packages/qre_research/**`,
+    `tests/unit/**`, `tests/architecture/**`, and narrow docs/governance
+    runbook updates.
+- forbidden files or file families:
+  - `research/research_latest.json`, `research/strategy_matrix.csv`,
+    `registry.py`, strategy implementations, frozen schemas, regression pins,
+    paper/shadow/live, broker, risk, execution, automation, orchestration,
+    runtime logs, generated artifacts unless explicitly deterministic
+    sidecars are already established.
+- prerequisites:
+  - 014A merged and post-merge validation acceptable.
+  - existing reason-record producers and consumers inspected.
+  - no implementation starts until the file-level authority remains LOW and
+    auto-allowed.
+- allowed changes:
+  - deterministic read-only reason-record inventory, schema completion, density
+    metrics, fail-closed missing evidence status, and focused tests.
+- forbidden changes:
+  - campaign mutation, routing mutation, strategy generation, registry edits,
+    research output mutation, Addendum activation, dashboard mutation routes,
+    and execution behavior.
+- tests required:
+  - targeted unit tests for changed reason-record/reporting modules.
+  - relevant architecture/package-boundary tests.
+  - `git diff --check`.
+  - `python -m reporting.architecture_import_scan --format summary`.
+- validation required:
+  - reason records are countable and explainable from existing artifacts.
+  - missing/empty evidence fails closed.
+  - frozen contracts unchanged.
+  - protected/execution paths untouched.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - focused read-only/reporting diff.
+  - tests and Fast pre-merge gate green.
+  - no strategy, registry, frozen contract, or execution path changes.
+- done criteria:
+  - PR merged by squash.
+  - CI green.
+  - post-merge gates green or explicitly non-blocking.
+  - queue status can advance 014C.
+- stop conditions:
+  - evidence density requires new research execution, artifact mutation outside
+    scoped sidecars, protected paths, approval mutation, or HIGH/UNKNOWN
+    authority.
+- next dependency: `ADE-QRE-014C`.
+
+### ADE-QRE-014C - KPI Numeric Readiness Completion
+
+- queue id: `ADE-QRE-014C`
+- status: `blocked until ADE-QRE-014B done`
+- title: KPI Numeric Readiness Completion.
+- purpose: make trusted-loop readiness KPIs numerically complete and
+  fail-closed where values are missing, unknown, or not derivable from
+  evidence.
+- risk class: LOW unless code discovery proves otherwise.
+- target layer: read-only reporting, diagnostics, policy/readiness surfaces,
+  and tests.
+- expected files or file families:
+  - `reporting/**.py`, `packages/qre_diagnostics/**`,
+    `packages/qre_policy/**`, `tests/unit/**`, `tests/architecture/**`, and
+    narrow docs/governance notes.
+- forbidden files or file families:
+  - frozen contracts, `registry.py`, strategy implementations, research output
+    artifacts, live/paper/shadow/risk/broker/execution, automation,
+    orchestration, Addendum runtime activation paths, regression pins.
+- prerequisites:
+  - 014B evidence is merged and available.
+  - KPI doctrine and current numeric gaps are mapped to existing evidence.
+- allowed changes:
+  - deterministic KPI calculations over existing evidence.
+  - explicit unavailable/unknown handling that fails closed.
+  - operator-readable missing-evidence reasons.
+  - focused tests for numeric completeness and fail-closed behavior.
+- forbidden changes:
+  - substitute KPI thresholds without documented basis.
+  - make unknown values pass.
+  - strategy synthesis, routing mutation, campaign mutation, or runtime
+    activation.
+- tests required:
+  - targeted KPI unit tests.
+  - relevant observability/readiness tests.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - all reported readiness KPIs are numeric or explicitly fail-closed.
+  - no hidden defaults convert unknown to ready.
+  - frozen contracts unchanged.
+  - protected/execution paths untouched.
+- merge criteria:
+  - tests and CI green.
+  - KPI readiness remains read-only/reporting-oriented.
+- done criteria:
+  - PR merged by squash.
+  - post-merge validation acceptable.
+  - queue status can advance 014D.
+- stop conditions:
+  - KPI completion requires protected paths, source activation, research output
+    mutation, or operator-defined thresholds not present in the repo.
+- next dependency: `ADE-QRE-014D`.
+
+### ADE-QRE-014D - Routing/Sampling Readiness Density
+
+- queue id: `ADE-QRE-014D`
+- status: `blocked until ADE-QRE-014C done`
+- title: Routing/Sampling Readiness Density.
+- purpose: increase `routing_ready` and `sampling_ready` evidence density
+  using existing artifacts and read-only readiness evaluation only.
+- risk class: LOW unless code discovery proves otherwise.
+- target layer: read-only routing/sampling diagnostics and readiness reports.
+- expected files or file families:
+  - `reporting/**.py`, `packages/qre_diagnostics/**`,
+    `packages/qre_policy/**`, `tests/unit/**`, `tests/architecture/**`, and
+    narrow docs/governance notes.
+- forbidden files or file families:
+  - routing mutation queues, campaign mutation, source activation, strategies,
+    `registry.py`, frozen contracts, live/paper/shadow/risk/broker/execution,
+    automation, orchestration, generated runtime logs.
+- prerequisites:
+  - 014C KPI readiness is merged and fail-closed.
+  - existing routing and sampling diagnostic artifacts are inspected.
+- allowed changes:
+  - read-only readiness derivation from existing artifacts.
+  - deterministic density summaries and missing-evidence explanations.
+  - tests for ready/not-ready/unknown paths.
+- forbidden changes:
+  - enqueueing, rerouting, sampling mutation, strategy selection, campaign
+    mutation, execution behavior, or Addendum activation.
+- tests required:
+  - targeted routing/sampling readiness unit tests.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - ready counts are derived from existing evidence only.
+  - missing evidence fails closed.
+  - no runtime mutation path is introduced.
+  - protected/frozen/execution paths untouched.
+- merge criteria:
+  - tests and CI green.
+  - read-only/reporting diff only.
+- done criteria:
+  - PR merged by squash.
+  - post-merge validation acceptable.
+  - queue status can advance 014E.
+- stop conditions:
+  - required change mutates campaigns, routing state, sampling state,
+    strategies, registry, frozen contracts, or execution paths.
+- next dependency: `ADE-QRE-014E`.
+
+### ADE-QRE-014E - Trusted-Loop Maturity Follow-up
+
+- queue id: `ADE-QRE-014E`
+- status: `blocked until ADE-QRE-014D done`
+- title: Trusted-Loop Maturity Follow-up.
+- purpose: update the maturity matrix/status based on 014B-D evidence while
+  keeping the result docs/reporting only.
+- risk class: LOW.
+- target layer: governance docs and read-only reporting status.
+- expected files or file families:
+  - `docs/governance/**`, `docs/roadmap/*Addendum 4*` if needed only to
+    preserve reference-only status, `reporting/**.py` only if a read-only
+    status summary needs a narrow update, and focused tests if reporting code
+    changes.
+- forbidden files or file families:
+  - canonical roadmap `docs/roadmap/Roadmap v6.md`, canonical policy docs,
+    frozen contracts, strategy code, `registry.py`, paper/shadow/live,
+    broker/risk/execution, automation, orchestration, generated artifacts.
+- prerequisites:
+  - 014B, 014C, and 014D merged with acceptable post-merge validation.
+- allowed changes:
+  - maturity matrix/status updates grounded in merged evidence.
+  - operator-readable promote/defer/block status.
+- forbidden changes:
+  - runtime behavior, strategy synthesis, Addendum runtime activation, or
+    readiness promotion without evidence.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - targeted tests only if reporting code changes.
+- validation required:
+  - maturity claims cite 014B-D evidence.
+  - Addendum 4 remains `DEFERRED / REFERENCE-ONLY`.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - docs/reporting-only diff.
+  - CI green.
+- done criteria:
+  - PR merged by squash.
+  - post-merge validation acceptable.
+  - 014F remains deferred unless no operator gate exists.
+- stop conditions:
+  - maturity promotion would require operator review, HIGH/UNKNOWN authority,
+    protected paths, or runtime activation.
+- next dependency: `ADE-QRE-014F`.
+
+### ADE-QRE-014F - Addendum 4 Implementation Planning Docs Only
+
+- queue id: `ADE-QRE-014F`
+- status: `deferred unless ADE-QRE-014B through ADE-QRE-014E are done and no operator gate exists`
+- title: Addendum 4 Implementation Planning Docs Only.
+- purpose: document future implementation planning for Addendum 4 without
+  activating it.
+- risk class: LOW if docs-only; escalate to operator gate if canonical roadmap,
+  policy, runtime, or protected paths are needed.
+- target layer: docs-only implementation planning reference.
+- expected files or file families:
+  - narrow docs/governance planning note, or the existing Addendum 4 reference
+    document only if preserving `DEFERRED / REFERENCE-ONLY` status.
+- forbidden files or file families:
+  - `docs/roadmap/Roadmap v6.md` unless operator-approved, canonical policy
+    docs, frozen contracts, strategy code, `registry.py`, paper/shadow/live,
+    broker/risk/execution, automation, orchestration, source adapters, runtime
+    behavior, generated artifacts.
+- prerequisites:
+  - 014B-E done.
+  - no unresolved operator gate from maturity follow-up.
+  - Addendum 4 remains deferred/reference-only.
+- allowed changes:
+  - future planning documentation, prerequisites, explicit non-activation
+    language, operator-gate inventory.
+- forbidden changes:
+  - implementation, runtime activation, authority expansion, strategy
+    synthesis, source activation, paper/shadow/live activation, registry edits.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - docs/status checks if available.
+- validation required:
+  - Addendum 4 runtime remains inactive.
+  - no protected/frozen/execution paths touched.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - docs-only diff.
+  - CI green.
+  - no operator-gated path modified.
+- done criteria:
+  - PR merged by squash.
+  - post-merge validation acceptable.
+  - no further eligible queue item remains unless operator authorizes one.
+- stop conditions:
+  - any implementation detail requires protected paths, runtime authority,
+    canonical roadmap edits, or operator approval.
+- next dependency: none.
