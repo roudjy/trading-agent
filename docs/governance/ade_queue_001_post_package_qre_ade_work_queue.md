@@ -65,7 +65,7 @@
 
 - queue id: `ADE-QRE-003`
 - status: `done`
-- completion evidence: implemented read-only local cache manifest schema and coverage reporter with row counts, min/max timestamps, content hashes, deterministic sidecar writer, and fail-closed missing-manifest status; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
+- completion evidence: PR #311, merge SHA `dabd393ad2297eb4b1833b2a2b42b2f77f6b6a8f`; Fast pre-merge gate, Docker build/push, and VPS deploy post-merge gates green; frozen contracts unchanged; protected paths untouched; live/paper/shadow/risk/broker/execution inactive.
 - doel: introduce a read-only local research cache manifest and coverage reporter before data-aware routing or hypothesis discovery depends on data readiness.
 - bron uit target-state roadmap: fase 2 "Data Foundation als productlaag"; prompt 12.2 "Data Foundation v3.data.1"; data-throughput sections 9.4-9.6.
 - scope: manifest schema, coverage report by source/instrument/timeframe, row counts, min/max timestamps, schema version, content hash, and deterministic sidecar output.
@@ -79,7 +79,8 @@
 ### ADE-QRE-004 - Source Identity and Quality Readiness
 
 - queue id: `ADE-QRE-004`
-- status: `ready`
+- status: `done`
+- completion evidence: implemented read-only manifest-derived source identity and quality readiness with fail-closed missing-report status, deterministic sidecar writer, identity confidence fields, source summaries, and operator-readable explanations; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
 - doel: make source identity and source quality visible enough to explain data-related research failures.
 - bron uit target-state roadmap: fase 2 `v3.data.2` and `v3.data.3`; sections 9.5-9.7; lessons learned "Eerst data als productlaag".
 - scope: deterministic source-quality checks over existing manifest data, identity confidence fields, fail-closed readiness statuses, and operator-readable sidecar summary.
@@ -93,7 +94,7 @@
 ### ADE-QRE-005 - Research Memory v1
 
 - queue id: `ADE-QRE-005`
-- status: `deferred`
+- status: `ready`
 - doel: make prior hypotheses, failures, campaigns, and policy actions retrievable before new research is proposed or routed.
 - bron uit target-state roadmap: fase 3 "Research Memory en Retrieval"; prompt 12.4 "Research Memory v1"; section 10 "Research memory ontwerp".
 - scope: deterministic artifact index, simple ontology, keyword/metadata retrieval over existing local artifacts, related-failure lookup, and read-only sidecar output.
