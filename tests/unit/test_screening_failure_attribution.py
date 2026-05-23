@@ -157,9 +157,142 @@ def test_missing_diagnostics_is_reported_when_state_needs_drop_reasons() -> None
         _statuses(screening_status="missing"),
     )
 
-    assert _row(payload, "missing_diagnostics")["count"] >= 1
-    assert payload["summary"]["primary_classification"] == "missing_diagnostics"
-    assert payload["summary"]["attributed"] is False
+    assert _row(payload, "missing_screening_evidence")["count"] >= 1
+    assert payload["summary"]["primary_classification"] == "missing_screening_evidence"
+    assert payload["summary"]["attributed"] is True
+    assert payload["summary"]["legacy_unknown_observation_count"] == 0
+
+
+def test_no_candidate_after_policy_filter_is_classified_from_policy_diagnostics() -> None:
+    payload = _payload(
+        _base_artifacts(
+            policy_filter_diagnostics={
+                "policy_summary": {
+                    "action": "idle_noop",
+                    "reason": "no_candidates",
+                    "candidates_considered_count": 0,
+                    "r4_r7": {"present": True, "surviving": 0, "rejected": 0},
+                    "r8_idle": {"present": True, "result": "fire"},
+                },
+                "primary_explanations": ["no_eligible_template"],
+                "diagnostics": [],
+            }
+        )
+    )
+
+    assert _row(payload, "no_candidate_after_policy_filter")["count"] == 2
+    assert payload["summary"]["primary_classification"] == (
+        "no_candidate_after_policy_filter"
+    )
+    assert payload["summary"]["unknown_observation_reduction"] == 2
+
+
+def test_incomplete_and_inconsistent_policy_trace_are_classified() -> None:
+    payload = _payload(
+        _base_artifacts(
+            policy_filter_diagnostics={
+                "policy_summary": {
+                    "action": "idle_noop",
+                    "reason": "no_candidates",
+                    "candidates_considered_count": 3,
+                    "r4_r7": {"present": False, "surviving": 1, "rejected": 1},
+                    "r8_idle": {"present": False},
+                },
+                "diagnostics": [
+                    {
+                        "diagnostic_id": "r4_r7_filtering_counts",
+                        "status": "unknown",
+                    }
+                ],
+                "primary_explanations": [],
+            }
+        )
+    )
+
+    assert _row(payload, "incomplete_policy_trace")["count"] == 2
+    assert _row(payload, "policy_trace_inconsistent")["count"] == 1
+
+
+def test_no_survivor_after_eval_and_synthesis_gate_block_are_classified() -> None:
+    payload = _payload(
+        _base_artifacts(
+            campaign_registry={
+                "campaigns": {
+                    "col-1": {
+                        "campaign_id": "col-1",
+                        "state": "completed",
+                        "outcome": "completed_no_survivor",
+                    }
+                }
+            },
+            research_state={"synthesis_gate": "blocked_insufficient_attribution"},
+        )
+    )
+
+    assert _row(payload, "no_survivor_after_eval")["count"] == 1
+    assert _row(payload, "synthesis_gate_blocked")["count"] == 1
+
+
+def test_identity_metric_and_unsupported_shapes_are_classified_from_screening_evidence() -> None:
+    payload = _payload(
+        _base_artifacts(
+            screening_evidence={
+                "summary": {"dominant_failure_reasons": []},
+                "candidates": [
+                    {
+                        "candidate_id": "fb_abc",
+                        "identity_fallback_used": True,
+                        "stage_result": "screening_reject",
+                        "failure_reasons": [],
+                        "metrics": {"expectancy": -0.1},
+                    },
+                    {
+                        "candidate_id": "c2",
+                        "stage_result": "unknown",
+                        "failure_reasons": [],
+                    },
+                ],
+            }
+        )
+    )
+
+    assert _row(payload, "identity_unresolved")["count"] == 1
+    assert _row(payload, "missing_metric_field")["count"] == 1
+    assert _row(payload, "unsupported_failure_shape")["count"] == 1
+    assert payload["summary"]["unknown_observation_count"] == 0
+
+
+def test_oos_window_and_data_coverage_unknown_are_supported_without_guessing() -> None:
+    payload = _payload(
+        _base_artifacts(
+            screening_evidence={
+                "summary": {
+                    "dominant_failure_reasons": [
+                        "insufficient_oos_days",
+                        "coverage_unknown",
+                    ]
+                },
+                "candidates": [],
+            }
+        )
+    )
+
+    assert _row(payload, "insufficient_oos_window")["count"] == 1
+    assert _row(payload, "data_coverage_unknown")["count"] == 1
+
+
+def test_unknown_screening_failure_is_preserved_when_no_evidence_matches() -> None:
+    payload = _payload(
+        _base_artifacts(
+            screening_evidence={
+                "summary": {"dominant_failure_reasons": ["future_unmapped_reason"]},
+                "candidates": [],
+            }
+        )
+    )
+
+    assert _row(payload, "unknown_screening_failure")["count"] == 1
+    assert payload["summary"]["unknown_observation_count"] == 1
 
 
 def test_missing_all_screening_artifacts_is_handled_gracefully_with_cli(

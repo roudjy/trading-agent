@@ -160,6 +160,30 @@ def test_evaluability_primary_blocks_synthesis() -> None:
     assert "evaluable_candidate_evidence" in payload["required_missing_evidence"]
 
 
+def test_refined_evaluability_attribution_classes_block_synthesis() -> None:
+    payload = _payload(
+        _eligible_artifacts(
+            research_state={
+                "hypothesis_state": "active_but_blocked_by_evaluability",
+                "failure_attribution": {
+                    "state": "screening_failure_attributed",
+                    "attributed": True,
+                    "primary_blocker": "screening_or_evaluability",
+                },
+            },
+            screening_failure_attribution={
+                "summary": {
+                    "primary_classification": "missing_screening_evidence",
+                    "attributed": True,
+                }
+            },
+        )
+    )
+
+    assert payload["synthesis_gate_state"] == "blocked_evaluability_primary"
+    assert payload["allowed"] is False
+
+
 def test_missing_market_context_blocks_synthesis() -> None:
     artifacts = _eligible_artifacts(information_gain={"preset_space_exhausted": True})
 
