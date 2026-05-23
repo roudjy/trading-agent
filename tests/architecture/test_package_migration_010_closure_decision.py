@@ -32,7 +32,7 @@ EXPECTED_MIGRATION_DOCS = (
 )
 BOUNDED_PACKAGE_CONTENTS = {
     "qre_research": ["README.md", "__init__.py", "universe.py"],
-    "qre_data": ["README.md", "__init__.py", "contracts.py"],
+    "qre_data": ["README.md", "__init__.py", "cache_manifest.py", "contracts.py"],
     "qre_artifacts": ["README.md", "__init__.py", "public_outputs.py"],
     "qre_diagnostics": ["README.md", "__init__.py", "paths.py"],
     "qre_policy": ["README.md", "__init__.py", "authority_views.py"],

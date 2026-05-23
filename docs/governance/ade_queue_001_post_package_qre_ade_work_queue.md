@@ -50,7 +50,7 @@
 
 - queue id: `ADE-QRE-002`
 - status: `done`
-- completion evidence: implemented deterministic read-only action hints for existing screening attribution classes and a read-only failure-action mapping adapter; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
+- completion evidence: PR #310, merge SHA `d4fc1d35362262ab59f23a3734c4fe5ba2910f6d`; Fast pre-merge gate, Docker build/push, and VPS deploy post-merge gates green; frozen contracts unchanged; protected paths untouched; live/paper/shadow/risk/broker/execution inactive.
 - doel: make screening failures more actionable after unknown reduction by mapping classes to stable failure-to-action recommendations.
 - bron uit target-state roadmap: current weakness "Attribution depth"; fase 7 "Failure -> Action -> Reroute sluiten"; prompt 12.1 follow-up.
 - scope: enrich existing attribution output with deterministic action hints for known non-strategy failure classes and keep them read-only.
@@ -64,7 +64,8 @@
 ### ADE-QRE-003 - Data Foundation Manifest and Coverage
 
 - queue id: `ADE-QRE-003`
-- status: `ready`
+- status: `done`
+- completion evidence: implemented read-only local cache manifest schema and coverage reporter with row counts, min/max timestamps, content hashes, deterministic sidecar writer, and fail-closed missing-manifest status; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
 - doel: introduce a read-only local research cache manifest and coverage reporter before data-aware routing or hypothesis discovery depends on data readiness.
 - bron uit target-state roadmap: fase 2 "Data Foundation als productlaag"; prompt 12.2 "Data Foundation v3.data.1"; data-throughput sections 9.4-9.6.
 - scope: manifest schema, coverage report by source/instrument/timeframe, row counts, min/max timestamps, schema version, content hash, and deterministic sidecar output.
@@ -78,7 +79,7 @@
 ### ADE-QRE-004 - Source Identity and Quality Readiness
 
 - queue id: `ADE-QRE-004`
-- status: `deferred`
+- status: `ready`
 - doel: make source identity and source quality visible enough to explain data-related research failures.
 - bron uit target-state roadmap: fase 2 `v3.data.2` and `v3.data.3`; sections 9.5-9.7; lessons learned "Eerst data als productlaag".
 - scope: deterministic source-quality checks over existing manifest data, identity confidence fields, fail-closed readiness statuses, and operator-readable sidecar summary.
