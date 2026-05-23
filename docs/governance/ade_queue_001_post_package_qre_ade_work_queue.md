@@ -95,7 +95,7 @@
 
 - queue id: `ADE-QRE-005`
 - status: `done`
-- completion evidence: implemented deterministic read-only research memory over existing local artifacts with keyword/metadata retrieval, related-failure lookup, no-network/no-subprocess guard tests, fail-closed missing-memory status, and deterministic sidecar writer; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
+- completion evidence: PR #313, merge SHA `47015313362a44d84e216da30181985cae1947f2`; Fast pre-merge gate, Docker build/push, and VPS deploy post-merge gates green; frozen contracts unchanged; protected paths untouched; live/paper/shadow/risk/broker/execution inactive.
 - doel: make prior hypotheses, failures, campaigns, and policy actions retrievable before new research is proposed or routed.
 - bron uit target-state roadmap: fase 3 "Research Memory en Retrieval"; prompt 12.4 "Research Memory v1"; section 10 "Research memory ontwerp".
 - scope: deterministic artifact index, simple ontology, keyword/metadata retrieval over existing local artifacts, related-failure lookup, and read-only sidecar output.
@@ -109,7 +109,8 @@
 ### ADE-QRE-006 - Research Diagnostics Loop
 
 - queue id: `ADE-QRE-006`
-- status: `ready`
+- status: `done`
+- completion evidence: implemented deterministic read-only diagnostics-loop digest over existing screening attribution, failure-action mapping, data readiness, and research memory sidecars with missing-source fail-closed behavior and bounded operator next-diagnostic explanations; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded by the next queue item after merge.
 - doel: close the read-only loop from failure classification to next diagnostic recommendation without mutating campaigns.
 - bron uit target-state roadmap: fase 5 "Observability operator-grade maken"; fase 7 "Failure -> Action -> Reroute sluiten"; trusted loop criteria.
 - scope: aggregate current attribution, failure-action mapping, data readiness, and research memory evidence into a single deterministic diagnostics-loop digest.
@@ -123,7 +124,7 @@
 ### ADE-QRE-007 - Operator-Grade Observability
 
 - queue id: `ADE-QRE-007`
-- status: `deferred`
+- status: `ready`
 - doel: make QRE/ADE state understandable to the operator without reading code.
 - bron uit target-state roadmap: fase 5 "Observability operator-grade maken"; target operator state; research observability minimal runbook.
 - scope: read-only operator summary over unknown failure rate, actionable failure rate, attribution depth, data readiness, prior similar failures, and governance blockers.

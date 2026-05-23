@@ -45,7 +45,12 @@ BOUNDED_PACKAGE_CONTENTS = {
         "source_quality_readiness.py",
     ],
     "qre_artifacts": ["README.md", "__init__.py", "public_outputs.py"],
-    "qre_diagnostics": ["README.md", "__init__.py", "paths.py"],
+    "qre_diagnostics": [
+        "README.md",
+        "__init__.py",
+        "paths.py",
+        "research_diagnostics_loop.py",
+    ],
     "qre_policy": ["README.md", "__init__.py", "authority_views.py"],
     "qre_execution_sim": ["README.md"],
     "qre_shadow": ["README.md"],
