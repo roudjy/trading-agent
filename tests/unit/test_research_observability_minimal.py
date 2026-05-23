@@ -150,6 +150,13 @@ def test_snapshot_top_level_keys_when_sources_absent(tmp_path: Path) -> None:
         sampling_minimal_path=tmp_path / "no_sampling.json",
         reason_records_artifact_dir=tmp_path / "no_reason_records",
         kpi_doc_path=tmp_path / "no_kpi.md",
+        screening_failure_attribution_path=tmp_path / "no_screening.json",
+        failure_action_mapping_path=tmp_path / "no_actions.json",
+        data_manifest_path=tmp_path / "no_manifest.json",
+        source_quality_path=tmp_path / "no_quality.json",
+        research_memory_path=tmp_path / "no_memory.json",
+        research_diagnostics_loop_path=tmp_path / "no_diagnostics.json",
+        ade_queue_doc_path=tmp_path / "no_queue.md",
         frozen_utc="2026-05-21T00:00:00Z",
     )
     expected = {
