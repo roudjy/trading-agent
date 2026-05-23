@@ -24,11 +24,23 @@ response.
 
 ---
 
+
+## Post-package live/execution package boundaries
+
+The repository now contains explicit future execution package boundaries:
+
+- packages/qre_execution_sim/ - simulation-only boundary.
+- packages/qre_shadow/ - future-only; inactive until the relevant roadmap phase.
+- packages/qre_paper/ - future-only; inactive until the relevant roadmap phase.
+- packages/qre_live/ - hard-disabled until Roadmap v6 live-governance approval.
+
+These directories do not authorise live trading, broker mutation, capital allocation, paper promotion, or shadow execution. Any change that attempts to activate live/paper/shadow/risk/broker/execution behavior must go through the live-governance process, credential-rotation requirements, explicit operator approval, CI, CODEOWNERS/guardian review where applicable, and post-merge deployment gates.
+
 ## Trust boundaries
 
 - The only barrier between paper and live trading is
   [`automation/live_gate.py`](automation/live_gate.py). Treat this file as
-  sacred — it is no-touch for agents and changes only via a human-authored
+  sacred â€” it is no-touch for agents and changes only via a human-authored
   CODEOWNERS-reviewed PR.
 - Credentials live in `config/config.yaml`, which is **not** tracked in Git
   (see `.gitignore`) and **not** present in the Docker build context (see
@@ -59,13 +71,13 @@ rollback path exists for that release.
 When rotation becomes necessary (e.g. before live trading is enabled, or after a
 suspected leak), rotate **in this order**:
 
-1. **Anthropic API key** — low-blast-radius. Replace and verify with a `models`
+1. **Anthropic API key** â€” low-blast-radius. Replace and verify with a `models`
    list call.
-2. **Bitvavo API key + secret** — paper trading continues to work; rotation is
+2. **Bitvavo API key + secret** â€” paper trading continues to work; rotation is
    safe to perform any time the agent is in paper mode.
-3. **Alchemy RPC URL** (Polygon) — the URL itself contains the API key. Rotate
+3. **Alchemy RPC URL** (Polygon) â€” the URL itself contains the API key. Rotate
    the key, update the URL, restart any process that holds it.
-4. **Polymarket private key** — this controls wallet `0xc9F8323e5124cd09B907abd744Df455482F7807B`.
+4. **Polymarket private key** â€” this controls wallet `0xc9F8323e5124cd09B907abd744Df455482F7807B`.
    Before rotation:
    - Confirm the wallet contains zero funds, **or**
    - Move all funds to a fresh wallet (manual MetaMask transaction; not via
@@ -74,11 +86,11 @@ suspected leak), rotate **in this order**:
    be considered compromised and rotated.
    Per current decision (v3.15.15.12.0): wallet has no funds, so no fund-move
    step is required. Rotate when live trading approaches.
-5. **IBKR account credentials** — verify scope (read-only vs trading). Rotate if
+5. **IBKR account credentials** â€” verify scope (read-only vs trading). Rotate if
    the credentials grant trade-placement scope.
 
 Each rotation is logged in [`docs/governance/key_rotation_log.md`](docs/governance/key_rotation_log.md)
-with timestamp + service + version-id only — **never the credential value**.
+with timestamp + service + version-id only â€” **never the credential value**.
 
 ---
 
@@ -89,7 +101,7 @@ The Git history still contains pre-containment commits with credentials inside
 (no live trading, no funds at risk). When it becomes appropriate (e.g. before
 making the repo public, or after a confirmed leak), the procedure is:
 
-1. Coordinate a window with all collaborators (currently single-author — low
+1. Coordinate a window with all collaborators (currently single-author â€” low
    blast radius).
 2. Run on a fresh clone:
    ```bash
@@ -120,13 +132,13 @@ operation.
   records paths and content hashes only, never file contents.
 - Agent run summaries committed under
   [`docs/governance/agent_run_summaries/`](docs/governance/agent_run_summaries/)
-  are redacted by template — only decisions, paths, counts, and gate outcomes.
+  are redacted by template â€” only decisions, paths, counts, and gate outcomes.
 
 ---
 
 ## See also
 
-- [`docs/governance/manual_blockers.md`](docs/governance/manual_blockers.md) — items that must be done outside Claude.
-- [`docs/governance/key_rotation_log.md`](docs/governance/key_rotation_log.md) — append-only rotation log.
-- [`docs/governance/branch_protection_checklist.md`](docs/governance/branch_protection_checklist.md) — GitHub UI settings for `main`.
-- [`docs/adr/ADR-015-claude-agent-governance.md`](docs/adr/ADR-015-claude-agent-governance.md) — formal authority chain.
+- [`docs/governance/manual_blockers.md`](docs/governance/manual_blockers.md) â€” items that must be done outside Claude.
+- [`docs/governance/key_rotation_log.md`](docs/governance/key_rotation_log.md) â€” append-only rotation log.
+- [`docs/governance/branch_protection_checklist.md`](docs/governance/branch_protection_checklist.md) â€” GitHub UI settings for `main`.
+- [`docs/adr/ADR-015-claude-agent-governance.md`](docs/adr/ADR-015-claude-agent-governance.md) â€” formal authority chain.
