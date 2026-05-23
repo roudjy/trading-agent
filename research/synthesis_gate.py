@@ -82,8 +82,14 @@ HYPOTHESIS_KEYS: Final[frozenset[str]] = frozenset(
 EVALUABILITY_CLASSIFICATIONS: Final[frozenset[str]] = frozenset(
     {
         "data_coverage_gap",
+        "data_coverage_unknown",
+        "missing_screening_evidence",
+        "no_survivor_after_eval",
         "no_oos_returns",
+        "insufficient_oos_window",
         "insufficient_trades",
+        "missing_metric_field",
+        "identity_unresolved",
         "missing_diagnostics",
     }
 )

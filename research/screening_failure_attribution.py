@@ -49,12 +49,35 @@ CLASSIFICATIONS: Final[tuple[str, ...]] = (
     "cost_sensitivity",
     "parameter_instability",
     "data_coverage_gap",
+    "missing_screening_evidence",
+    "incomplete_policy_trace",
+    "no_candidate_after_policy_filter",
+    "no_survivor_after_eval",
+    "insufficient_oos_window",
+    "missing_metric_field",
+    "unsupported_failure_shape",
+    "synthesis_gate_blocked",
+    "data_coverage_unknown",
+    "identity_unresolved",
+    "policy_trace_inconsistent",
     "strict_gate_rejection",
     "missing_diagnostics",
     "unknown_screening_failure",
 )
 
-REASON_TO_CLASSIFICATION: Final[dict[str, str]] = {
+LEGACY_CLASSIFICATIONS: Final[tuple[str, ...]] = (
+    "insufficient_trades",
+    "no_oos_returns",
+    "timeout",
+    "cost_sensitivity",
+    "parameter_instability",
+    "data_coverage_gap",
+    "strict_gate_rejection",
+    "missing_diagnostics",
+    "unknown_screening_failure",
+)
+
+LEGACY_REASON_TO_CLASSIFICATION: Final[dict[str, str]] = {
     "insufficient_trades": "insufficient_trades",
     "no_oos_samples": "no_oos_returns",
     "no_oos_returns": "no_oos_returns",
@@ -80,6 +103,54 @@ REASON_TO_CLASSIFICATION: Final[dict[str, str]] = {
     "profit_factor_below_floor": "strict_gate_rejection",
     "drawdown_above_exploratory_limit": "strict_gate_rejection",
 }
+
+REASON_TO_CLASSIFICATION: Final[dict[str, str]] = {
+    **LEGACY_REASON_TO_CLASSIFICATION,
+    "missing_screening_evidence": "missing_screening_evidence",
+    "missing_screening_drop_reasons": "missing_screening_evidence",
+    "screening_evidence_missing": "missing_screening_evidence",
+    "incomplete_policy_trace": "incomplete_policy_trace",
+    "missing_policy_rules_trace": "incomplete_policy_trace",
+    "missing_r4_r7_policy_trace": "incomplete_policy_trace",
+    "missing_r8_idle_policy_trace": "incomplete_policy_trace",
+    "no_candidate_after_policy_filter": "no_candidate_after_policy_filter",
+    "no_eligible_template": "no_candidate_after_policy_filter",
+    "no_policy_candidates": "no_candidate_after_policy_filter",
+    "no_survivor_after_eval": "no_survivor_after_eval",
+    "completed_no_survivor": "no_survivor_after_eval",
+    "degenerate_no_survivors": "no_survivor_after_eval",
+    "insufficient_oos_window": "insufficient_oos_window",
+    "insufficient_oos_days": "insufficient_oos_window",
+    "oos_window_too_short": "insufficient_oos_window",
+    "missing_metric_field": "missing_metric_field",
+    "unsupported_failure_shape": "unsupported_failure_shape",
+    "unknown_stage_result": "unsupported_failure_shape",
+    "missing_screening_reason_code": "unsupported_failure_shape",
+    "synthesis_gate_blocked": "synthesis_gate_blocked",
+    "data_coverage_unknown": "data_coverage_unknown",
+    "coverage_unknown": "data_coverage_unknown",
+    "identity_unresolved": "identity_unresolved",
+    "identity_fallback_used": "identity_unresolved",
+    "policy_trace_inconsistent": "policy_trace_inconsistent",
+}
+
+SCREENING_METRIC_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "expectancy",
+        "profit_factor",
+        "max_drawdown",
+        "totaal_trades",
+    }
+)
+BLOCKED_SYNTHESIS_STATES: Final[frozenset[str]] = frozenset(
+    {
+        "blocked_insufficient_attribution",
+        "blocked_policy_only_failure",
+        "blocked_evaluability_primary",
+        "blocked_missing_market_context",
+        "blocked_no_preset_space_exhaustion",
+    }
+)
 
 
 def _now_utc() -> datetime:
@@ -166,19 +237,46 @@ def _observe(
     source: str,
     raw_reason: str,
     classification: str | None = None,
+    legacy_classification: str | None = None,
     subject: dict[str, Any] | None = None,
 ) -> None:
     classification = classification or REASON_TO_CLASSIFICATION.get(raw_reason)
     if classification is None:
         classification = "unknown_screening_failure"
+    if legacy_classification is None:
+        legacy_classification = LEGACY_REASON_TO_CLASSIFICATION.get(raw_reason)
+    if legacy_classification is None and classification in LEGACY_CLASSIFICATIONS:
+        legacy_classification = classification
+    if legacy_classification is None:
+        legacy_classification = "unknown_screening_failure"
     observations.append(
         {
             "source": source,
             "raw_reason": raw_reason,
             "classification": classification,
+            "legacy_classification": legacy_classification,
             "subject": subject or {},
         }
     )
+
+
+def _metric_gap_observations(
+    observations: list[dict[str, Any]],
+    *,
+    source: str,
+    metrics: dict[str, Any],
+    subject: dict[str, Any],
+) -> None:
+    missing = sorted(
+        field for field in SCREENING_METRIC_FIELDS if field not in metrics
+    )
+    if missing:
+        _observe(
+            observations,
+            source=source,
+            raw_reason="missing_metric_field",
+            subject={**subject, "missing_metric_fields": missing},
+        )
 
 
 def _screening_evidence_observations(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -201,6 +299,21 @@ def _screening_evidence_observations(payload: dict[str, Any]) -> list[dict[str, 
                 raw_reason=str(reason),
                 subject=subject,
             )
+        if candidate.get("identity_fallback_used") is True:
+            _observe(
+                observations,
+                source="screening_evidence.candidates.identity_fallback_used",
+                raw_reason="identity_fallback_used",
+                subject=subject,
+            )
+        metrics = candidate.get("metrics")
+        if isinstance(metrics, dict):
+            _metric_gap_observations(
+                observations,
+                source="screening_evidence.candidates.metrics",
+                metrics=metrics,
+                subject=subject,
+            )
         sampling = _dict_value(candidate.get("sampling"))
         if sampling.get("coverage_warning"):
             _observe(
@@ -216,7 +329,6 @@ def _screening_evidence_observations(payload: dict[str, Any]) -> list[dict[str, 
                 observations,
                 source="screening_evidence.candidates.stage_result",
                 raw_reason="unknown_stage_result",
-                classification="unknown_screening_failure",
                 subject=subject,
             )
     summary = _dict_value(payload.get("summary"))
@@ -259,6 +371,34 @@ def _run_screening_candidate_observations(payload: dict[str, Any]) -> list[dict[
         reason = candidate.get("reason_code")
         if not reason and candidate.get("final_status") == "timed_out":
             reason = "timed_out"
+        metrics = candidate.get("diagnostic_metrics")
+        if isinstance(metrics, dict):
+            _metric_gap_observations(
+                observations,
+                source="run_screening_candidates.candidates.diagnostic_metrics",
+                metrics=metrics,
+                subject={
+                    "candidate_id": candidate.get("candidate_id"),
+                    "strategy": candidate.get("strategy"),
+                    "final_status": candidate.get("final_status"),
+                },
+            )
+        if not reason and candidate.get("final_status") in {
+            "rejected",
+            "errored",
+            "skipped",
+        }:
+            _observe(
+                observations,
+                source="run_screening_candidates.candidates.final_status",
+                raw_reason="missing_screening_reason_code",
+                subject={
+                    "candidate_id": candidate.get("candidate_id"),
+                    "strategy": candidate.get("strategy"),
+                    "final_status": candidate.get("final_status"),
+                },
+            )
+            continue
         if not reason:
             continue
         _observe(
@@ -330,6 +470,81 @@ def _run_campaign_observations(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return observations
 
 
+def _policy_filter_observations(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    observations: list[dict[str, Any]] = []
+    policy = _dict_value(payload.get("policy_summary"))
+    action = policy.get("action")
+    reason = policy.get("reason")
+    candidate_count = _safe_int(policy.get("candidates_considered_count"))
+    r4_r7 = _dict_value(policy.get("r4_r7"))
+    r8_idle = _dict_value(policy.get("r8_idle"))
+    if action == "idle_noop" and reason == "no_candidates" and candidate_count == 0:
+        _observe(
+            observations,
+            source="policy_filter_diagnostics.policy_summary",
+            raw_reason="no_policy_candidates",
+            subject={"action": action, "reason": reason, "candidates": candidate_count},
+        )
+    primary = {
+        str(item)
+        for item in _list_value(payload.get("primary_explanations"))
+        if str(item)
+    }
+    if "no_eligible_template" in primary:
+        _observe(
+            observations,
+            source="policy_filter_diagnostics.primary_explanations",
+            raw_reason="no_eligible_template",
+            subject={"primary_explanations": sorted(primary)},
+        )
+    diagnostics = [
+        row
+        for row in _list_value(payload.get("diagnostics"))
+        if isinstance(row, dict)
+    ]
+    for row in diagnostics:
+        diagnostic_id = row.get("diagnostic_id")
+        if (
+            diagnostic_id in {"r4_r7_filtering_counts", "r8_idle_status"}
+            and row.get("status") == "unknown"
+        ):
+            _observe(
+                observations,
+                source="policy_filter_diagnostics.diagnostics",
+                raw_reason=f"missing_{diagnostic_id}",
+                classification="incomplete_policy_trace",
+                subject={
+                    "diagnostic_id": diagnostic_id,
+                    "status": row.get("status"),
+                },
+            )
+    surviving = _safe_int(r4_r7.get("surviving"))
+    rejected = _safe_int(r4_r7.get("rejected"))
+    if candidate_count and candidate_count != surviving + rejected:
+        _observe(
+            observations,
+            source="policy_filter_diagnostics.policy_summary",
+            raw_reason="policy_trace_inconsistent",
+            subject={
+                "candidates_considered_count": candidate_count,
+                "r4_r7_surviving": surviving,
+                "r4_r7_rejected": rejected,
+            },
+        )
+    if (
+        action == "idle_noop"
+        and reason == "no_candidates"
+        and (not r4_r7.get("present") or not r8_idle.get("present"))
+    ):
+        _observe(
+            observations,
+            source="policy_filter_diagnostics.policy_summary",
+            raw_reason="incomplete_policy_trace",
+            subject={"r4_r7": r4_r7, "r8_idle": r8_idle},
+        )
+    return observations
+
+
 def _campaign_outcome_observations(
     artifacts: dict[str, Any],
     artifact_status: dict[str, dict[str, str]],
@@ -339,6 +554,14 @@ def _campaign_outcome_observations(
     for cid, record in _dict_value(registry.get("campaigns")).items():
         if not isinstance(record, dict):
             continue
+        outcome = record.get("outcome")
+        if outcome in {"completed_no_survivor", "degenerate_no_survivors"}:
+            _observe(
+                observations,
+                source="campaign_registry.campaigns.outcome",
+                raw_reason=str(outcome),
+                subject={"campaign_id": record.get("campaign_id") or cid},
+            )
         for key in ("reason_code", "dominant_failure_mode"):
             reason = record.get(key)
             if reason and reason != "none":
@@ -377,7 +600,34 @@ def _campaign_outcome_observations(
             observations,
             source="research_state.failure_attribution",
             raw_reason="missing_screening_drop_reasons",
-            classification="missing_diagnostics",
+            legacy_classification="missing_diagnostics",
+        )
+    policy = _dict_value(research_state.get("policy_summary"))
+    if (
+        research_state.get("policy_state") == "blocked_no_candidates"
+        or (
+            policy.get("action") == "idle_noop"
+            and policy.get("reason") == "no_candidates"
+            and _safe_int(policy.get("candidates_considered")) == 0
+        )
+    ):
+        _observe(
+            observations,
+            source="research_state.policy_summary",
+            raw_reason="no_candidate_after_policy_filter",
+            subject={
+                "policy_state": research_state.get("policy_state"),
+                "action": policy.get("action"),
+                "reason": policy.get("reason"),
+            },
+        )
+    synthesis_gate = research_state.get("synthesis_gate")
+    if synthesis_gate in BLOCKED_SYNTHESIS_STATES:
+        _observe(
+            observations,
+            source="research_state.synthesis_gate",
+            raw_reason="synthesis_gate_blocked",
+            subject={"synthesis_gate": synthesis_gate},
         )
     return observations
 
@@ -406,6 +656,10 @@ def collect_observations(
         observations.extend(_empty_run_observations(artifacts["empty_run_diagnostics"]))
     if isinstance(artifacts.get("run_campaign"), dict):
         observations.extend(_run_campaign_observations(artifacts["run_campaign"]))
+    if isinstance(artifacts.get("policy_filter_diagnostics"), dict):
+        observations.extend(
+            _policy_filter_observations(artifacts["policy_filter_diagnostics"])
+        )
     observations.extend(
         _campaign_outcome_observations(
             artifacts=artifacts,
@@ -500,6 +754,16 @@ def build_screening_failure_attribution_payload(
         for row in rows
         if int(row["count"]) > 0
     }
+    legacy_unknown_count = sum(
+        1
+        for item in observations
+        if item.get("legacy_classification") == "unknown_screening_failure"
+    )
+    unknown_count = sum(
+        1
+        for item in observations
+        if item.get("classification") == "unknown_screening_failure"
+    )
     return {
         "schema_version": SCREENING_FAILURE_ATTRIBUTION_SCHEMA_VERSION,
         "generated_at_utc": _iso_utc(generated),
@@ -509,6 +773,9 @@ def build_screening_failure_attribution_payload(
             "primary_classification": primary,
             "classification_counts": counts,
             "observation_count": len(observations),
+            "legacy_unknown_observation_count": legacy_unknown_count,
+            "unknown_observation_count": unknown_count,
+            "unknown_observation_reduction": legacy_unknown_count - unknown_count,
             "attributed": primary
             not in {"missing_diagnostics", "unknown_screening_failure"},
         },
@@ -543,6 +810,12 @@ def render_markdown_report(payload: dict[str, Any]) -> str:
         f"- Primary classification: `{summary.get('primary_classification')}`",
         f"- Attributed: {summary.get('attributed')}",
         f"- Observation count: {summary.get('observation_count')}",
+        (
+            "- Unknown observations: "
+            f"{summary.get('unknown_observation_count')} "
+            f"(legacy {summary.get('legacy_unknown_observation_count')}, "
+            f"reduction {summary.get('unknown_observation_reduction')})"
+        ),
         f"- Classification counts: {json.dumps(summary.get('classification_counts') or {}, sort_keys=True)}",
         "",
         "## Classifications",
