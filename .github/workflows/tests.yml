@@ -118,7 +118,7 @@ jobs:
           set -euo pipefail
           if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "0000000000000000000000000000000000000000" ]; then
             base_ref="origin/${DEFAULT_BRANCH}"
-            base_sha="$(git merge-base HEAD "${base_ref}")"
+            base_sha="$(git show-branch --merge-base HEAD "${base_ref}")"
             log_opts="${base_sha}..${HEAD_SHA}"
           else
             log_opts="${BASE_SHA}..${HEAD_SHA}"
