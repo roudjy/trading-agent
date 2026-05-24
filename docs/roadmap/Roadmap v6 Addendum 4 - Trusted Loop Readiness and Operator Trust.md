@@ -1,7 +1,7 @@
 # Roadmap v6 Addendum 4
 ## Trusted Loop Readiness and Operator Trust
 
-## Execution Status (as of 2026-05-23)
+## Execution Status (as of 2026-05-24)
 
 Status: **DEFERRED / REFERENCE-ONLY**
 
@@ -71,9 +71,14 @@ operator decision after the promotion gates in this addendum are satisfied.
 | ADE-QRE-010 | No maturity credit | No committed queue item is present in the current work queue. |
 | ADE-QRE-011 - Bounded Strategy Synthesis Readiness Item | Scaffold | Docs/governance readiness criteria exist, but they do not authorize strategy synthesis. |
 | ADE-QRE-012 | No maturity credit | No committed queue item is present in the current work queue. |
+| ADE-QRE-013 - Trusted Loop Maturity Matrix and Roadmap v6 Addendum 4 | Scaffold | This addendum records maturity gates and reference-only status; it does not implement runtime capability. |
+| ADE-QRE-014B - Reason-Record Evidence Density | Scaffold | PR #321 added a read-only density reporter and PR #322 recorded completion, but current reason-record inventory still fails closed when records are absent. |
+| ADE-QRE-014C - KPI Numeric Readiness Completion | Working capability | PR #327 made KPI readiness rows complete as numeric-or-fail-closed evidence, but current KPI values still fail closed where evidence is absent or partial. |
+| ADE-QRE-014D - Routing/Sampling Readiness Density | Working capability | PR #329 added read-only routing/sampling readiness density and PR #330 recorded completion, but current routing and sampling readiness still fail closed at 0 ready items. |
 
-ADE-QRE-013 adds this maturity matrix and readiness addendum only. It does not
-move any prior item to operator-trusted capability.
+ADE-QRE-013 adds this maturity matrix and readiness addendum only. ADE-QRE-014B
+through ADE-QRE-014D improve evidence density and fail-closed readiness
+reporting, but they do not move any item to operator-trusted capability.
 
 ## 4. Promotion Gates
 
@@ -105,14 +110,34 @@ following are true:
 - the capability remains read-only unless a separate operator-approved ADR grants
   narrower runtime authority.
 
-## 5. Missing Evidence
+## 5. ADE-QRE-014B-D Evidence Update
+
+ADE-QRE-014B through ADE-QRE-014D closed three readiness-reporting gaps without
+changing runtime authority:
+
+- ADE-QRE-014B made reason-record evidence density inspectable and
+  deterministic. Empty or missing reason-record evidence still fails closed.
+- ADE-QRE-014C made KPI readiness rows numerically complete in the strict sense
+  that every reported KPI is either evidence-backed numeric or explicitly
+  fail-closed. Missing or partial KPI values do not pass.
+- ADE-QRE-014D made routing and sampling readiness density explicit. Existing
+  artifacts are inspected read-only; empty, missing, unknown, or non-ready
+  routing/sampling evidence fails closed.
+
+The maturity effect is limited to read-only evidence quality. Strategy
+synthesis, Addendum 4 runtime scope, paper/shadow/live, broker/risk/execution,
+registry changes, and strategy implementation remain blocked.
+
+## 6. Missing Evidence
 
 The following evidence is still missing or incomplete:
 
-- reason records are 0;
-- routing snapshot has 0 ready items;
-- sampling snapshot has 0 ready items;
-- KPI numeric values are incomplete;
+- reason records are 0, even though reason-record evidence density now reports
+  the gap explicitly;
+- routing readiness has 0 ready items and fails closed;
+- sampling readiness has 0 ready items and fails closed;
+- KPI readiness rows are complete as numeric-or-fail-closed, but current KPI
+  values remain absent or partial and therefore do not support promotion;
 - `failure_action_mapping` has no actionable failures;
 - approved strategies are 0;
 - no paper-ready candidate exists.
@@ -120,7 +145,7 @@ The following evidence is still missing or incomplete:
 These gaps mean the trusted-loop foundation has not yet reached
 operator-trusted research capability.
 
-## 6. Safe Next Queue Candidates
+## 7. Safe Next Queue Candidates
 
 The only safe next queue candidates are docs/readiness items. Examples:
 
@@ -129,12 +154,14 @@ The only safe next queue candidates are docs/readiness items. Examples:
 - KPI numeric completeness decision record;
 - operator-trust checklist for a single read-only capability;
 - paper-readiness gap inventory confirming that no candidate is paper-ready.
+- synthesis-blocker explanation density grounded only in current read-only
+  evidence.
 
 These candidates must not implement runtime functionality, mutate artifacts, add
 strategy code, change `registry.py`, activate deferred addendums, or open
 paper/shadow/live/risk/broker/execution paths.
 
-## 7. Invariants
+## 8. Invariants
 
 - Addendum 4 is deferred/reference-only.
 - Addendum 1, Addendum 2, and Addendum 3 remain deferred/reference-only unless
