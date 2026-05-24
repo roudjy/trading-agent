@@ -50,6 +50,12 @@ def test_closed_taxonomies_are_pinned() -> None:
         "review_cost_assumptions",
         "hold_no_action",
     )
+    assert fam.ACTIONABILITY_STATUSES == ("actionable", "non_actionable")
+    assert fam.NON_ACTIONABLE_REASON_CODES == (
+        "insufficient_evidence",
+        "hold_action",
+        "negative_result_preservation",
+    )
     assert fam.SCREENING_CLASSIFICATION_TO_FAILURE_CODE["data_coverage_gap"] == (
         "technical_failure"
     )
@@ -71,6 +77,7 @@ def test_schema_keys_are_pinned() -> None:
         "severity",
         "evidence_count",
         "recommended_action",
+        "actionability",
         "rank",
         "reason_record",
     )
@@ -163,6 +170,10 @@ def test_low_evidence_adds_insufficient_reason() -> None:
         frozen_utc="2026-05-21T00:00:00Z",
     )
     assert "evidence_insufficient" in snap["items"][0]["reason_record"]["reason_codes"]
+    assert snap["items"][0]["actionability"]["status"] == "non_actionable"
+    assert snap["items"][0]["actionability"]["reason_codes"] == ["insufficient_evidence"]
+    assert snap["counts"]["actionable_recommendations"] == 0
+    assert snap["actionability"]["fail_closed"] is True
 
 
 def test_negative_result_preservation_is_explicit() -> None:
@@ -173,6 +184,84 @@ def test_negative_result_preservation_is_explicit() -> None:
     record = snap["items"][0]["reason_record"]
     assert snap["items"][0]["recommended_action"] == "preserve_negative_result"
     assert "negative_result_preserved" in record["reason_codes"]
+    assert snap["items"][0]["actionability"]["status"] == "non_actionable"
+    assert snap["items"][0]["actionability"]["reason_codes"] == [
+        "negative_result_preservation"
+    ]
+
+
+def test_actionability_density_counts_only_evidence_backed_actions() -> None:
+    snap = fam.collect_snapshot(
+        [
+            _f(subject_id="a", failure_code="high_drawdown", evidence_count=3),
+            _f(subject_id="b", failure_code="weak_stability", evidence_count=4),
+            _f(subject_id="c", failure_code="insufficient_trades", evidence_count=1),
+            _f(subject_id="d", failure_code="unknown_failure", evidence_count=8),
+            _f(subject_id="e", failure_code="low_win_rate", evidence_count=8),
+        ],
+        frozen_utc="2026-05-21T00:00:00Z",
+    )
+
+    assert snap["counts"]["total"] == 5
+    assert snap["counts"]["actionable_recommendations"] == 2
+    assert snap["counts"]["non_actionable_recommendations"] == 3
+    assert snap["counts"]["non_actionable_by_reason"] == {
+        "insufficient_evidence": 1,
+        "hold_action": 1,
+        "negative_result_preservation": 1,
+    }
+    assert snap["actionability"] == {
+        "status": "ready",
+        "fail_closed": False,
+        "total_mappings": 5,
+        "actionable_mappings": 2,
+        "non_actionable_mappings": 3,
+        "actionability_density": 0.4,
+        "minimum_evidence_count": fam.MIN_EVIDENCE_FOR_RESEARCH_ACTION,
+        "non_actionable_by_reason": {
+            "insufficient_evidence": 1,
+            "hold_action": 1,
+            "negative_result_preservation": 1,
+        },
+        "operator_summary": "2/5 failure-action mappings are actionable (density=0.4).",
+    }
+    assert [
+        item["subject_id"] for item in snap["items"] if item["actionability"]["is_actionable"]
+    ] == [
+        "a",
+        "b",
+    ]
+
+
+def test_missing_or_thin_evidence_fails_closed_without_inventing_cause() -> None:
+    snap = fam.collect_snapshot(
+        [
+            _f(subject_id="unknown", failure_code="unknown_failure", evidence_count=0),
+            _f(subject_id="thin", failure_code="high_drawdown", evidence_count=1),
+        ],
+        frozen_utc="2026-05-21T00:00:00Z",
+    )
+
+    assert snap["final_recommendation"] == "nothing_actionable"
+    assert snap["actionability"]["status"] == "not_ready"
+    assert snap["actionability"]["fail_closed"] is True
+    assert snap["actionability"]["actionability_density"] == 0.0
+    by_subject = {item["subject_id"]: item for item in snap["items"]}
+    assert by_subject["unknown"]["failure_code"] == "unknown_failure"
+    assert by_subject["unknown"]["recommended_action"] == "hold_no_action"
+    assert by_subject["unknown"]["actionability"]["reason_codes"] == [
+        "insufficient_evidence",
+        "hold_action",
+    ]
+    assert by_subject["thin"]["failure_code"] == "high_drawdown"
+    assert by_subject["thin"]["recommended_action"] == "apply_volatility_filter"
+    assert by_subject["thin"]["actionability"]["reason_codes"] == [
+        "insufficient_evidence"
+    ]
+    rendered = json.dumps(snap, sort_keys=True).lower()
+    assert "root_cause" not in rendered
+    assert "inferred_cause" not in rendered
+    assert "probable_cause" not in rendered
 
 
 def test_ranking_orders_by_severity_then_failure_then_subject() -> None:
@@ -221,6 +310,9 @@ def test_record_ids_change_when_inputs_change() -> None:
 def test_empty_snapshot_is_safe_and_not_actionable() -> None:
     snap = fam.collect_snapshot([], frozen_utc="2026-05-21T00:00:00Z")
     assert snap["counts"]["total"] == 0
+    assert snap["counts"]["non_actionable_recommendations"] == 0
+    assert snap["actionability"]["actionability_density"] is None
+    assert snap["actionability"]["fail_closed"] is True
     assert snap["safe_to_execute"] is False
     assert snap["mode"] == "dry-run"
     assert snap["final_recommendation"] == "nothing_actionable"

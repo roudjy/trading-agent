@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Final
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-MODULE_VERSION: Final[str] = "v3.15.20-minimal-reactivated-2026-05-21"
+MODULE_VERSION: Final[str] = "v3.15.20-ade-qre-014h-actionability-density-2026-05-24"
 SCHEMA_VERSION: Final[int] = 1
 REPORT_KIND: Final[str] = "failure_action_mapping_minimal_digest"
 
@@ -61,6 +61,14 @@ NEXT_ACTIONS: Final[tuple[str, ...]] = (
     "hold_no_action",
 )
 
+ACTIONABILITY_STATUSES: Final[tuple[str, ...]] = ("actionable", "non_actionable")
+
+NON_ACTIONABLE_REASON_CODES: Final[tuple[str, ...]] = (
+    "insufficient_evidence",
+    "hold_action",
+    "negative_result_preservation",
+)
+
 SEVERITIES: Final[tuple[str, ...]] = ("low", "medium", "high")
 
 REASON_CODES: Final[tuple[str, ...]] = (
@@ -84,6 +92,7 @@ OUTPUT_ITEM_KEYS: Final[tuple[str, ...]] = (
     "severity",
     "evidence_count",
     "recommended_action",
+    "actionability",
     "rank",
     "reason_record",
 )
@@ -178,6 +187,12 @@ def _bounded_int(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return 0
     return max(0, int(value))
+
+
+def _ratio(numerator: int, denominator: int) -> float | None:
+    if denominator <= 0:
+        return None
+    return round(numerator / denominator, 6)
 
 
 def _canonical_json(value: Mapping[str, Any]) -> str:
@@ -295,7 +310,8 @@ def _reason_for(
     elif evidence_count < MIN_EVIDENCE_FOR_RESEARCH_ACTION:
         text = (
             f"Failure code {failure_code} has only {evidence_count} "
-            "evidence records; recommendation is bounded and advisory."
+            "evidence records; recommendation is not actionable until "
+            "evidence meets the minimum threshold."
         )
     else:
         text = f"Failure code {failure_code} maps deterministically to " f"{recommended_action}."
@@ -340,6 +356,43 @@ def _build_reason_record(
     }
 
 
+def _actionability_for(
+    *,
+    failure_code: str,
+    evidence_count: int,
+    recommended_action: str,
+) -> dict[str, Any]:
+    reason_codes: list[str] = []
+    if evidence_count < MIN_EVIDENCE_FOR_RESEARCH_ACTION:
+        reason_codes.append("insufficient_evidence")
+    if recommended_action == "hold_no_action" or failure_code == "unknown_failure":
+        reason_codes.append("hold_action")
+    if recommended_action == "preserve_negative_result":
+        reason_codes.append("negative_result_preservation")
+
+    is_actionable = not reason_codes
+    status = "actionable" if is_actionable else "non_actionable"
+    if is_actionable:
+        explanation = (
+            f"{failure_code} has {evidence_count} evidence records and maps "
+            f"to operator action {recommended_action}."
+        )
+    else:
+        explanation = (
+            f"{failure_code} maps to {recommended_action} but remains "
+            f"non-actionable because {', '.join(reason_codes)}."
+        )
+    return {
+        "status": status,
+        "is_actionable": is_actionable,
+        "reason_codes": reason_codes,
+        "evidence_count": evidence_count,
+        "minimum_evidence_count": MIN_EVIDENCE_FOR_RESEARCH_ACTION,
+        "evidence_refs": _evidence_refs_for_failure(),
+        "operator_explanation": explanation,
+    }
+
+
 def collect_snapshot(
     failures: Sequence[Mapping[str, Any]] | None = None,
     *,
@@ -363,6 +416,11 @@ def collect_snapshot(
             evidence_count=evidence_count,
             recommended_action=recommended_action,
         )
+        actionability = _actionability_for(
+            failure_code=failure_code,
+            evidence_count=evidence_count,
+            recommended_action=recommended_action,
+        )
         items.append(
             {
                 "subject_id": subject_id,
@@ -370,6 +428,7 @@ def collect_snapshot(
                 "severity": severity,
                 "evidence_count": evidence_count,
                 "recommended_action": recommended_action,
+                "actionability": actionability,
                 "rank": -1,
                 "reason_record": record,
             }
@@ -392,11 +451,25 @@ def collect_snapshot(
         counts_by_action[item["recommended_action"]] += 1
         counts_by_failure[item["failure_code"]] += 1
 
-    actionable_count = sum(
-        count
-        for action, count in counts_by_action.items()
-        if action not in {"hold_no_action", "preserve_negative_result"}
-    )
+    actionable_count = sum(1 for item in items if item["actionability"]["is_actionable"])
+    non_actionable_by_reason = {code: 0 for code in NON_ACTIONABLE_REASON_CODES}
+    for item in items:
+        for code in item["actionability"]["reason_codes"]:
+            non_actionable_by_reason[code] += 1
+    non_actionable_count = len(items) - actionable_count
+    density = _ratio(actionable_count, len(items))
+    if not items:
+        operator_summary = "No failure evidence is available; actionability fails closed."
+    elif actionable_count:
+        operator_summary = (
+            f"{actionable_count}/{len(items)} failure-action mappings are actionable "
+            f"(density={density})."
+        )
+    else:
+        operator_summary = (
+            "No failure-action mappings are actionable with current evidence; "
+            "non-actionable mappings remain explicit."
+        )
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -410,6 +483,19 @@ def collect_snapshot(
             "by_failure_code": counts_by_failure,
             "by_recommended_action": counts_by_action,
             "actionable_recommendations": actionable_count,
+            "non_actionable_recommendations": non_actionable_count,
+            "non_actionable_by_reason": non_actionable_by_reason,
+        },
+        "actionability": {
+            "status": "ready" if actionable_count else "not_ready",
+            "fail_closed": actionable_count == 0,
+            "total_mappings": len(items),
+            "actionable_mappings": actionable_count,
+            "non_actionable_mappings": non_actionable_count,
+            "actionability_density": density,
+            "minimum_evidence_count": MIN_EVIDENCE_FOR_RESEARCH_ACTION,
+            "non_actionable_by_reason": non_actionable_by_reason,
+            "operator_summary": operator_summary,
         },
         "items": items,
         "final_recommendation": ("actions_available" if actionable_count else "nothing_actionable"),
