@@ -778,7 +778,15 @@
 
 - queue id: `ADE-QRE-014H`
 - title: Failure-to-Action Actionability Density.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #335, merge SHA
+  `1be8bbcc9b3142e7d17f6f70b10f294391bad812`; Fast pre-merge gate
+  run `26368474272`, Docker build/push run `26368596439`, and VPS
+  deploy run `26368596459` completed/success; local targeted
+  actionability tests, architecture tests, governance lint, ruff, mypy,
+  regression-fast, hook tests, `git diff --check`, and architecture
+  scanner passed; frozen contracts unchanged; protected/execution paths
+  untouched; strategy synthesis remained blocked.
 - purpose: improve measurable density of actionable failure-to-action mappings
   from existing evidence without inventing causes.
 - depends on: `ADE-QRE-014G done`.
@@ -849,7 +857,7 @@
 
 - queue id: `ADE-QRE-014I`
 - title: Operator Decision Surface Readiness.
-- status: `blocked until ADE-QRE-014H done`
+- status: `ready`
 - purpose: make operator-facing decision outputs clearer: why next, why
   blocked, why deferred, and why no synthesis.
 - depends on: `ADE-QRE-014H done`.
