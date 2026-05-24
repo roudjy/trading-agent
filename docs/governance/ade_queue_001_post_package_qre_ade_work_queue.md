@@ -391,7 +391,9 @@
 - completion evidence: PR #321, merge SHA
   `25aaddbc48b50cac78797dac694ec7a777970606`; Fast pre-merge checks green
   on the PR; main post-merge Fast pre-merge gate, Docker build/push, and VPS
-  deploy runs green for `25aaddb`; local validation passed
+  deploy runs green for `25aaddb`; PR #322, merge SHA
+  `ad0a54dc87096265511bd647e3b5cfd61837d271`, marked ADE-QRE-014B done and
+  made ADE-QRE-014C the next eligible item; local validation passed
   `python -m pytest tests/unit/test_reason_record_evidence_density.py -q`,
   `python -m reporting.architecture_import_scan --format summary`, and
   `python -m reporting.reason_record_evidence_density --no-write --frozen-utc
@@ -459,11 +461,12 @@
 ### ADE-QRE-014C - KPI Numeric Readiness Completion
 
 - queue id: `ADE-QRE-014C`
-- status: `blocked until ADE-QRE-014B done`
+- status: `ready`
 - title: KPI Numeric Readiness Completion.
 - purpose: make trusted-loop readiness KPIs numerically complete and
   fail-closed where values are missing, unknown, or not derivable from
   evidence.
+- depends on: `ADE-QRE-014B done`.
 - risk class: LOW unless code discovery proves otherwise.
 - target layer: read-only reporting, diagnostics, policy/readiness surfaces,
   and tests.
@@ -478,6 +481,11 @@
 - prerequisites:
   - 014B evidence is merged and available.
   - KPI doctrine and current numeric gaps are mapped to existing evidence.
+- Addendum references allowed:
+  - Addendum 1 diagnostic readiness labels.
+  - Addendum 2 memory/retrieval coverage labels.
+  - Addendum 3 data/source/identity readiness labels.
+  - runtime activation is forbidden.
 - allowed changes:
   - deterministic KPI calculations over existing evidence.
   - explicit unavailable/unknown handling that fails closed.
@@ -517,6 +525,7 @@
 - title: Routing/Sampling Readiness Density.
 - purpose: increase `routing_ready` and `sampling_ready` evidence density
   using existing artifacts and read-only readiness evaluation only.
+- depends on: `ADE-QRE-014C done`.
 - risk class: LOW unless code discovery proves otherwise.
 - target layer: read-only routing/sampling diagnostics and readiness reports.
 - expected files or file families:
@@ -530,6 +539,11 @@
 - prerequisites:
   - 014C KPI readiness is merged and fail-closed.
   - existing routing and sampling diagnostic artifacts are inspected.
+- Addendum references allowed:
+  - diagnostic-readiness reasons from Addendum 1.
+  - memory/retrieval-readiness reasons from Addendum 2.
+  - data/source-readiness reasons from Addendum 3.
+  - runtime activation is forbidden.
 - allowed changes:
   - read-only readiness derivation from existing artifacts.
   - deterministic density summaries and missing-evidence explanations.
@@ -565,6 +579,7 @@
 - title: Trusted-Loop Maturity Follow-up.
 - purpose: update the maturity matrix/status based on 014B-D evidence while
   keeping the result docs/reporting only.
+- depends on: `ADE-QRE-014D done`.
 - risk class: LOW.
 - target layer: governance docs and read-only reporting status.
 - expected files or file families:
@@ -599,6 +614,7 @@
   - PR merged by squash.
   - post-merge validation acceptable.
   - 014F remains deferred unless no operator gate exists.
+  - 014G can become eligible for synthesis-blocker explanation work.
 - stop conditions:
   - maturity promotion would require operator review, HIGH/UNKNOWN authority,
     protected paths, or runtime activation.
@@ -607,10 +623,11 @@
 ### ADE-QRE-014F - Addendum 4 Implementation Planning Docs Only
 
 - queue id: `ADE-QRE-014F`
-- status: `deferred unless ADE-QRE-014B through ADE-QRE-014E are done and no operator gate exists`
+- status: `deferred unless ADE-QRE-014E done and no operator gate exists`
 - title: Addendum 4 Implementation Planning Docs Only.
 - purpose: document future implementation planning for Addendum 4 without
   activating it.
+- depends on: `ADE-QRE-014E done`.
 - risk class: LOW if docs-only; escalate to operator gate if canonical roadmap,
   policy, runtime, or protected paths are needed.
 - target layer: docs-only implementation planning reference.
@@ -647,8 +664,666 @@
 - done criteria:
   - PR merged by squash.
   - post-merge validation acceptable.
-  - no further eligible queue item remains unless operator authorizes one.
+  - Addendum 4 remains `DEFERRED / REFERENCE-ONLY`.
+  - no runtime implementation authorization is created.
 - stop conditions:
   - any implementation detail requires protected paths, runtime authority,
     canonical roadmap edits, or operator approval.
+- next dependency: none; ADE-QRE-014G is a separate read-only follow-up that
+  depends on ADE-QRE-014E, not Addendum 4 planning completion.
+
+### ADE-QRE-014G - Synthesis Blocker Explanation Density
+
+- queue id: `ADE-QRE-014G`
+- title: Synthesis Blocker Explanation Density.
+- status: `blocked until ADE-QRE-014E done`
+- purpose: improve operator-readable explanation of why strategy synthesis
+  remains blocked, using current readiness evidence only.
+- depends on: `ADE-QRE-014E done`.
+- risk class: LOW if read-only reporting/docs/tests only; escalate to
+  UNKNOWN and stop if synthesis authority, strategy files, registry changes, or
+  mutation paths are required.
+- target layer: read-only reporting, governance docs, sidecar/reporting
+  summaries, and tests.
+- expected files or file families:
+  - `reporting/**.py`, `packages/qre_diagnostics/**`,
+    `packages/qre_policy/**`, `packages/qre_artifacts/**`, `tests/unit/**`,
+    `tests/architecture/**`, and narrow `docs/governance/**` notes.
+- forbidden files or file families:
+  - `registry.py`, strategy implementations, campaign mutation paths,
+    routing mutation paths, frozen contracts, frozen schemas, research output
+    contracts, paper/shadow/live, broker/risk/execution, dashboard mutation
+    routes, approval mutation paths, and Addendum runtime activation paths.
+- allowed changes:
+  - read-only reporting.
+  - docs.
+  - tests.
+  - sidecar/reporting summaries.
+  - blocker reason taxonomy using Addendum 1, Addendum 2, and Addendum 3
+    reference labels only.
+- forbidden changes:
+  - enabling strategy synthesis.
+  - executable strategy code.
+  - `registry.py` edits.
+  - campaign mutation.
+  - routing mutation.
+  - frozen contract mutation.
+  - live/paper/shadow/risk/broker/execution paths.
+  - Addendum runtime activation.
+- tests required:
+  - targeted blocker-explanation reporting tests.
+  - missing-evidence fail-closed tests.
+  - relevant architecture/package-boundary tests.
+  - `git diff --check`.
+- validation required:
+  - blocker explanations are derived from current readiness evidence only.
+  - missing evidence remains fail-closed.
+  - strategy synthesis remains blocked.
+  - protected, frozen, and execution paths are untouched.
+  - `python -m reporting.architecture_import_scan --format summary` reports
+    `forbidden_edge_count = 0`.
+- merge criteria:
+  - focused read-only reporting/docs/tests diff.
+  - Fast pre-merge gate and relevant validation green.
+  - no strategy, registry, frozen contract, mutation, or execution path
+    changes.
+- done criteria:
+  - synthesis blockers are more specific and operator-readable.
+  - missing evidence remains fail-closed.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014H`.
+
+### ADE-QRE-014H - Failure-to-Action Actionability Density
+
+- queue id: `ADE-QRE-014H`
+- title: Failure-to-Action Actionability Density.
+- status: `blocked until ADE-QRE-014G done`
+- purpose: improve measurable density of actionable failure-to-action mappings
+  from existing evidence without inventing causes.
+- depends on: `ADE-QRE-014G done`.
+- risk class: LOW if deterministic classification/reporting remains
+  read-only; escalate to UNKNOWN and stop if routing, campaign, synthesis, or
+  execution authority is required.
+- target layer: deterministic reporting, diagnostics summaries,
+  sidecar/reporting artifacts, docs, and tests.
+- expected files or file families:
+  - `reporting/**.py`, `packages/qre_diagnostics/**`,
+    `packages/qre_artifacts/**`, `tests/unit/**`, `tests/architecture/**`,
+    and narrow `docs/governance/**` notes.
+- forbidden files or file families:
+  - strategy generation files, campaign mutation paths, routing mutation paths,
+    live/paper/shadow/risk/broker/execution, frozen contracts, hidden ML/RL
+    selector surfaces, stochastic mutation paths, dashboard mutation routes,
+    and approval mutation paths.
+- allowed changes:
+  - deterministic classification/reporting.
+  - docs.
+  - tests.
+  - sidecar/reporting summaries.
+  - actionability metrics.
+- forbidden changes:
+  - strategy generation.
+  - campaign mutation.
+  - routing mutation.
+  - live/paper/shadow/risk/broker/execution paths.
+  - hidden ML/RL selector.
+  - stochastic mutation.
+  - frozen contract mutation.
+- tests required:
+  - targeted actionability metric tests.
+  - no-invented-cause tests for missing/thin evidence.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - actionability density is deterministic and evidence-backed.
+  - non-actionable failures remain explicit.
+  - no causes are invented without evidence.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused read-only reporting/docs/tests diff.
+  - tests and CI green.
+  - no mutation, strategy, frozen contract, or execution path changes.
+- done criteria:
+  - actionability density is measured.
+  - non-actionable failures remain explicit.
+  - no causes are invented without evidence.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014I`.
+
+### ADE-QRE-014I - Operator Decision Surface Readiness
+
+- queue id: `ADE-QRE-014I`
+- title: Operator Decision Surface Readiness.
+- status: `blocked until ADE-QRE-014H done`
+- purpose: make operator-facing decision outputs clearer: why next, why
+  blocked, why deferred, and why no synthesis.
+- depends on: `ADE-QRE-014H done`.
+- risk class: LOW if confined to read-only reporting/docs/tests and existing
+  safe reporting surfaces; escalate to UNKNOWN and stop if mutation routes or
+  approval behavior are required.
+- target layer: operator-facing read-only reporting, governance docs, tests,
+  and bounded existing safe reporting surfaces if already present.
+- expected files or file families:
+  - `reporting/**.py`, existing read-only control-plane adapter/reporting
+    surfaces if already present, `packages/qre_diagnostics/**`,
+    `packages/qre_policy/**`, `tests/unit/**`, `tests/architecture/**`, and
+    narrow `docs/governance/**` notes.
+- forbidden files or file families:
+  - dashboard mutation routes, approval mutation paths, frontend business
+    logic, strategy synthesis enablement paths, frozen contracts,
+    live/paper/shadow/risk/broker/execution, registry, strategy
+    implementations, campaign mutation paths, and routing mutation paths.
+- allowed changes:
+  - read-only reporting.
+  - docs.
+  - tests.
+  - bounded existing safe reporting surfaces if already present.
+- forbidden changes:
+  - dashboard mutation routes.
+  - approval mutation.
+  - frontend business logic.
+  - live/paper/shadow/risk/broker/execution paths.
+  - strategy synthesis enablement.
+  - frozen contract mutation.
+- tests required:
+  - targeted decision-surface reporting tests.
+  - no-mutation-route source checks where applicable.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - operator-readable outputs explain next, blocked, deferred, and no-synthesis
+    states.
+  - no mutation routes are added.
+  - protected, frozen, and execution paths are untouched.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - focused read-only reporting/docs/tests diff.
+  - tests and CI green.
+  - no dashboard mutation, approval mutation, frontend business logic, frozen
+    contract, or execution path changes.
+- done criteria:
+  - operator can read next/blocked/deferred/no-synthesis reasons.
+  - no mutation routes added.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014J`.
+
+### ADE-QRE-014J - Research Memory Retrieval Coverage
+
+- queue id: `ADE-QRE-014J`
+- title: Research Memory Retrieval Coverage.
+- status: `blocked until ADE-QRE-014I done`
+- purpose: measure whether prior trusted-loop reasons, failures, blockers, and
+  actions are retrievable and linked enough for later routing/sampling
+  calibration.
+- depends on: `ADE-QRE-014I done`.
+- risk class: LOW if retrieval remains deterministic, local, and no-authority;
+  escalate to UNKNOWN and stop if a vector database, hidden ML, or retrieval
+  authority is required.
+- target layer: deterministic retrieval coverage reporting, docs, tests,
+  sidecar/reporting artifacts, and no-authority retrieval summaries.
+- expected files or file families:
+  - `packages/qre_research/**`, `packages/qre_artifacts/**`,
+    `packages/qre_diagnostics/**`, `reporting/**.py`, `tests/unit/**`,
+    `tests/architecture/**`, and narrow `docs/governance/**` notes.
+- forbidden files or file families:
+  - vector database integration, hidden ML or embedding/reranker authority,
+    strategy synthesis, runtime Addendum activation paths, execution paths,
+    frozen contracts, campaign mutation paths, routing mutation paths,
+    approval mutation paths, and dashboard mutation routes.
+- Addendum references allowed:
+  - Addendum 2 may be used as the primary reference taxonomy only.
+  - retrieval remains context, not authority.
+  - runtime Addendum activation is forbidden.
+- allowed changes:
+  - deterministic retrieval coverage reporting.
+  - docs.
+  - tests.
+  - sidecar/reporting artifacts.
+  - no-authority retrieval summaries.
+- forbidden changes:
+  - vector database.
+  - hidden ML.
+  - retrieval as authority.
+  - strategy synthesis.
+  - runtime Addendum activation.
+  - execution paths.
+  - frozen contract mutation.
+- tests required:
+  - targeted retrieval coverage tests.
+  - missing-link explicitness tests.
+  - no-authority/no-network tests where applicable.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - retrieval coverage is measured deterministically.
+  - missing retrieval links are explicit.
+  - retrieval remains context, not authority.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused deterministic reporting/docs/tests diff.
+  - tests and CI green.
+  - no vector database, hidden ML, authority expansion, strategy, frozen
+    contract, or execution path changes.
+- done criteria:
+  - retrieval coverage is measured.
+  - missing retrieval links are explicit.
+  - retrieval remains context, not authority.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014K`.
+
+### ADE-QRE-014K - Trusted Loop Regression Fixtures
+
+- queue id: `ADE-QRE-014K`
+- title: Trusted Loop Regression Fixtures.
+- status: `blocked until ADE-QRE-014J done`
+- purpose: add stable regression fixtures for complete, thin, missing,
+  contradictory, blocked, and non-actionable trusted-loop evidence cases.
+- depends on: `ADE-QRE-014J done`.
+- risk class: LOW for tests/fixtures/deterministic reporting checks; escalate
+  to UNKNOWN and stop if production behavior, mutation paths, execution paths,
+  or frozen contracts are required.
+- target layer: tests, fixtures, deterministic reporting checks, and minimal
+  production changes only if directly required for testable reporting
+  correctness.
+- expected files or file families:
+  - `tests/unit/**`, `tests/regression/**` only if existing patterns support
+    it, `tests/fixtures/**` or existing fixture directories, `reporting/**.py`
+    only for directly required reporting correctness, and narrow
+    `docs/governance/**` notes.
+- forbidden files or file families:
+  - strategy generation, campaign mutation paths, routing mutation paths,
+    runtime Addendum activation paths, execution paths, frozen contracts,
+    registry, strategy implementations, live/paper/shadow/risk/broker, and
+    generated runtime artifacts.
+- allowed changes:
+  - tests.
+  - fixtures.
+  - deterministic reporting checks.
+  - minimal production changes only if directly required for testable reporting
+    correctness.
+- forbidden changes:
+  - strategy generation.
+  - campaign/routing mutation.
+  - runtime Addendum activation.
+  - execution paths.
+  - frozen contract mutation.
+- tests required:
+  - fixture-backed tests covering complete, thin, missing, contradictory,
+    blocked, and non-actionable evidence.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - fixtures are deterministic and stable.
+  - fixture cases do not mutate research outputs or frozen contracts.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - tests/fixtures/reporting-correctness diff only.
+  - tests and CI green.
+  - no strategy, mutation, frozen contract, or execution path changes.
+- done criteria:
+  - fixtures cover complete/thin/missing/contradictory/blocked/non-actionable
+    evidence.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014L`.
+
+### ADE-QRE-014L - Data/Source Readiness Blocker Coverage
+
+- queue id: `ADE-QRE-014L`
+- title: Data/Source Readiness Blocker Coverage.
+- status: `blocked until ADE-QRE-014K done`
+- purpose: improve read-only coverage of data/source/identity readiness
+  blockers using Addendum 3 as reference taxonomy only.
+- depends on: `ADE-QRE-014K done`.
+- risk class: LOW if confined to readiness blocker labels, docs, tests, and
+  reporting summaries; escalate to UNKNOWN and stop if source runtime,
+  external adapters, data lake rollout, promotion authority, or execution paths
+  are required.
+- target layer: readiness blocker labels, docs, tests, reporting/sidecar
+  summaries.
+- expected files or file families:
+  - `packages/qre_data/**`, `packages/qre_policy/**`,
+    `packages/qre_diagnostics/**`, `reporting/**.py`, `tests/unit/**`,
+    `tests/architecture/**`, and narrow `docs/governance/**` notes.
+- forbidden files or file families:
+  - new external source adapters, new datafeeds, Parquet/DuckDB data lake
+    rollout paths, source-quality alpha/promotion authority paths, runtime
+    Addendum 3 activation paths, frozen contracts, execution paths,
+    live/paper/shadow/risk/broker, campaign mutation paths, and routing
+    mutation paths.
+- Addendum references allowed:
+  - Addendum 3 may be used as a reference taxonomy only.
+  - runtime Addendum 3 activation is forbidden.
+- allowed changes:
+  - readiness blocker labels.
+  - docs.
+  - tests.
+  - reporting/sidecar summaries.
+- forbidden changes:
+  - new external source adapters.
+  - new datafeeds.
+  - Parquet/DuckDB data lake rollout.
+  - source quality as alpha.
+  - source quality as promotion authority.
+  - runtime Addendum 3 activation.
+  - frozen contract mutation.
+  - execution paths.
+- tests required:
+  - targeted data/source/identity blocker tests.
+  - fail-closed missing/unknown evidence tests.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - data/source/identity blockers are explicit and fail-closed.
+  - no new source runtime is activated.
+  - protected, frozen, and execution paths are untouched.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - focused readiness reporting/docs/tests diff.
+  - tests and CI green.
+  - no source runtime, external adapter, frozen contract, mutation, or
+    execution path changes.
+- done criteria:
+  - data/source/identity readiness blockers are explicit and fail-closed.
+  - no new source runtime is activated.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014M`.
+
+### ADE-QRE-014M - Diagnostic Readiness Blocker Coverage
+
+- queue id: `ADE-QRE-014M`
+- title: Diagnostic Readiness Blocker Coverage.
+- status: `blocked until ADE-QRE-014L done`
+- purpose: improve read-only coverage of missing diagnostic/quorum/null-model
+  blockers using Addendum 1 as reference taxonomy only.
+- depends on: `ADE-QRE-014L done`.
+- risk class: LOW if confined to diagnostic blocker labels, docs, tests, and
+  reporting summaries; escalate to UNKNOWN and stop if diagnostics become a
+  runtime layer, synthesis authority, routing/sampling controller, or
+  execution path.
+- target layer: diagnostic blocker labels, docs, tests, reporting/sidecar
+  summaries.
+- expected files or file families:
+  - `packages/qre_diagnostics/**`, `packages/qre_policy/**`,
+    `reporting/**.py`, `tests/unit/**`, `tests/architecture/**`, and narrow
+    `docs/governance/**` notes.
+- forbidden files or file families:
+  - full Behavior Diagnostics Library implementation, diagnostics strategy-seed
+    generation, routing/sampling runtime control paths, synthesis authority
+    paths, execution paths, frozen contracts, live/paper/shadow/risk/broker,
+    campaign mutation paths, and routing mutation paths.
+- Addendum references allowed:
+  - Addendum 1 may be used as a reference taxonomy only.
+  - diagnostic runtime layer activation is forbidden.
+- allowed changes:
+  - diagnostic blocker labels.
+  - docs.
+  - tests.
+  - reporting/sidecar summaries.
+- forbidden changes:
+  - full Behavior Diagnostics Library implementation.
+  - diagnostics auto-generating strategy seeds.
+  - diagnostics controlling routing/sampling runtime behavior.
+  - diagnostics authorizing synthesis.
+  - execution paths.
+  - frozen contract mutation.
+- tests required:
+  - targeted diagnostic blocker tests.
+  - fail-closed missing diagnostic/quorum/null-model evidence tests.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - diagnostic readiness blockers are explicit and fail-closed.
+  - no diagnostic runtime layer is activated.
+  - protected, frozen, and execution paths are untouched.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - focused readiness reporting/docs/tests diff.
+  - tests and CI green.
+  - no diagnostics runtime, strategy seed, synthesis authority, frozen
+    contract, mutation, or execution path changes.
+- done criteria:
+  - diagnostic readiness blockers are explicit and fail-closed.
+  - no diagnostic runtime layer is activated.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014N`.
+
+### ADE-QRE-014N - Queue/Status Self-Audit Coverage
+
+- queue id: `ADE-QRE-014N`
+- title: Queue/Status Self-Audit Coverage.
+- status: `blocked until ADE-QRE-014M done`
+- purpose: improve read-only self-audit of queue statuses, dependencies, done
+  evidence, and blocked/deferred reasons.
+- depends on: `ADE-QRE-014M done`.
+- risk class: LOW if read-only queue/status validation only; escalate to
+  UNKNOWN and stop if approval mutation, autonomous authority expansion,
+  dashboard mutation, execution paths, or frozen contracts are required.
+- target layer: docs, tests, read-only queue/status validation, and reporting
+  summaries.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` for read-only status validation,
+    `tests/unit/**`, `tests/architecture/**`, and existing queue/status
+    validation docs.
+- forbidden files or file families:
+  - approval mutation paths, autonomous authority expansion paths, dashboard
+    mutation routes, execution paths, frozen contracts, live/paper/shadow/risk/
+    broker, strategy synthesis enablement, campaign mutation paths, routing
+    mutation paths, and Addendum runtime activation paths.
+- allowed changes:
+  - docs.
+  - tests.
+  - read-only queue/status validation.
+  - reporting summaries.
+- forbidden changes:
+  - approval mutation.
+  - autonomous authority expansion.
+  - dashboard mutation routes.
+  - execution paths.
+  - frozen contract mutation.
+- tests required:
+  - targeted queue/status consistency tests.
+  - missing done-evidence tests.
+  - blocked/deferred reason explicitness tests.
+  - architecture scanner summary.
+  - `git diff --check`.
+- validation required:
+  - queue status consistency is checkable.
+  - missing done evidence is flagged.
+  - blocked/deferred reasons are explicit.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused read-only docs/reporting/tests diff.
+  - tests and CI green.
+  - no approval mutation, authority expansion, dashboard mutation, frozen
+    contract, or execution path changes.
+- done criteria:
+  - queue status consistency is checkable.
+  - missing done evidence is flagged.
+  - blocked/deferred reasons are explicit.
+  - tests/validation green.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-014O`.
+
+### ADE-QRE-014O - Final Trusted-Loop Queue Readiness Review
+
+- queue id: `ADE-QRE-014O`
+- title: Final Trusted-Loop Queue Readiness Review.
+- status: `blocked until ADE-QRE-014N done`
+- purpose: produce a final read-only review of ADE-QRE-014 maturity and
+  recommend exactly one next queue direction.
+- depends on: `ADE-QRE-014N done`.
+- risk class: LOW if docs/reporting review only; escalate to UNKNOWN and stop
+  if runtime activation, synthesis enablement, execution paths, or frozen
+  contract mutation are required.
+- target layer: read-only maturity review, governance docs, reporting summary,
+  and applicable tests/validation.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for read-only review
+    summaries, `tests/unit/**` only if reporting code changes, and
+    `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - Addendum 4 runtime activation paths, strategy synthesis enablement,
+    shadow/paper/live, broker/risk/execution, frozen contracts, registry,
+    strategy implementations, campaign mutation paths, routing mutation paths,
+    approval mutation paths, and dashboard mutation routes.
+- allowed next directions:
+  - continue trusted-loop maturity sprint.
+  - return to QRE Feature Build Track.
+  - operator review required.
+  - no eligible work remains.
+- allowed changes:
+  - read-only evidence-backed maturity review.
+  - docs.
+  - reporting summaries.
+  - tests where applicable.
+- forbidden changes:
+  - activating Addendum 4 runtime.
+  - enabling strategy synthesis.
+  - starting shadow/paper/live.
+  - execution paths.
+  - frozen contract mutation.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - targeted tests if reporting code changes.
+- validation required:
+  - final recommendation selects exactly one allowed next direction.
+  - recommendation is evidence-backed.
+  - unsupported trust claims are avoided.
+  - protected, frozen, and execution paths are untouched.
+  - Addendum 4 remains `DEFERRED / REFERENCE-ONLY`.
+- merge criteria:
+  - focused read-only docs/reporting/tests diff.
+  - tests and CI green where applicable.
+  - no synthesis, Addendum runtime, shadow/paper/live, execution, frozen
+    contract, approval mutation, or dashboard mutation changes.
+- done criteria:
+  - final recommendation is evidence-backed.
+  - unsupported trust claims are avoided.
+  - tests/validation green where applicable.
+  - PR merged.
+  - queue status updated to done.
+- stop conditions:
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
 - next dependency: none.
