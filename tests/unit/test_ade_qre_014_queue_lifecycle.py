@@ -15,6 +15,7 @@ _QUEUE_DOC = (
 @dataclass(frozen=True)
 class QueueItem:
     item_id: str
+    order: int
     status: str
     body: str
     dependencies: tuple[str, ...]
@@ -43,6 +44,7 @@ def _parse_queue_items(text: str) -> dict[str, QueueItem]:
         )
         items[item_id] = QueueItem(
             item_id=item_id,
+            order=index,
             status=status_match.group(1),
             body=body,
             dependencies=dependencies,
@@ -85,6 +87,37 @@ def _dependencies_done(item: QueueItem, items: dict[str, QueueItem]) -> bool:
     return all(items[dep].status == "done" for dep in item.dependencies)
 
 
+def _auto_selectable_status(item: QueueItem) -> bool:
+    return item.status == "ready"
+
+
+def _stale_historical_ready_items(items: dict[str, QueueItem]) -> tuple[str, ...]:
+    max_done_order = max(
+        (item.order for item in items.values() if item.status == "done"),
+        default=-1,
+    )
+    stale = sorted(
+        item.item_id
+        for item in items.values()
+        if item.status == "ready" and item.order < max_done_order
+    )
+    return tuple(stale)
+
+
+def _next_eligible_ready_item(items: dict[str, QueueItem]) -> QueueItem | None:
+    stale_items = set(_stale_historical_ready_items(items))
+    candidates = [
+        item
+        for item in items.values()
+        if _auto_selectable_status(item)
+        and item.item_id not in stale_items
+        and _dependencies_done(item, items)
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda item: item.order)
+
+
 def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     """Pin the ADE-QRE-014 done -> ready -> blocked lifecycle.
 
@@ -111,6 +144,14 @@ def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     assert item_d.status == "blocked until ADE-QRE-014C done"
     assert item_d.dependencies == ("ADE-QRE-014C",)
     assert _dependencies_done(item_d, items) is False
+    assert _auto_selectable_status(item_d) is False
+
+    assert "ADE-QRE-011" in _stale_historical_ready_items(items)
+    assert _next_eligible_ready_item(items) == item_c
+
+    item_f = items["ADE-QRE-014F"]
+    assert item_f.status.startswith("deferred")
+    assert _auto_selectable_status(item_f) is False
 
 
 def test_done_queue_item_without_merge_evidence_is_rejected() -> None:
@@ -146,3 +187,87 @@ def test_done_queue_item_without_merge_evidence_is_rejected() -> None:
     assert _dependencies_done(items["ITEM-B"], items) is True
     assert _dependencies_done(items["ITEM-C"], items) is False
     assert _done_evidence_is_complete(items["ITEM-D"]) is False
+
+
+def test_done_queue_item_without_validation_evidence_is_rejected() -> None:
+    fixture = """
+### ITEM-A - Completed Item Without Validation
+
+- queue id: `ITEM-A`
+- status: `done`
+- completion evidence: PR #1, merge SHA `abc1234`; frozen contracts unchanged; protected/execution paths untouched.
+"""
+    items = _parse_queue_items(fixture)
+
+    assert _done_evidence_is_complete(items["ITEM-A"]) is False
+
+
+def test_done_queue_item_with_explicit_non_blocking_rationale_is_accepted() -> None:
+    fixture = """
+### ITEM-A - Completed Item With Non Blocking Rationale
+
+- queue id: `ITEM-A`
+- status: `done`
+- completion evidence: PR #1, merge SHA `abc1234`; post-merge absence recorded as non-blocking; frozen contracts unchanged; protected/execution paths untouched.
+"""
+    items = _parse_queue_items(fixture)
+
+    assert _done_evidence_is_complete(items["ITEM-A"]) is True
+
+
+def test_deferred_and_operator_review_items_are_not_auto_selected() -> None:
+    fixture = """
+### ITEM-A - Completed Item
+
+- queue id: `ITEM-A`
+- status: `done`
+- completion evidence: PR #1, merge SHA `abc1234`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+
+### ITEM-B - Deferred Item
+
+- queue id: `ITEM-B`
+- status: `deferred unless ITEM-A done and no operator gate exists`
+- depends on: `ITEM-A done`
+
+### ITEM-C - Operator Review Item
+
+- queue id: `ITEM-C`
+- status: `operator_review`
+- depends on: `ITEM-A done`
+
+### ITEM-D - Ready Item
+
+- queue id: `ITEM-D`
+- status: `ready`
+- depends on: `ITEM-A done`
+"""
+    items = _parse_queue_items(fixture)
+
+    assert _auto_selectable_status(items["ITEM-B"]) is False
+    assert _auto_selectable_status(items["ITEM-C"]) is False
+    assert _next_eligible_ready_item(items) == items["ITEM-D"]
+
+
+def test_stale_historical_ready_item_does_not_override_new_dependency_chain() -> None:
+    fixture = """
+### ITEM-A - Old Ready Item
+
+- queue id: `ITEM-A`
+- status: `ready`
+
+### ITEM-B - Later Completed Item
+
+- queue id: `ITEM-B`
+- status: `done`
+- completion evidence: PR #1, merge SHA `abc1234`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+
+### ITEM-C - New Ready Item
+
+- queue id: `ITEM-C`
+- status: `ready`
+- depends on: `ITEM-B done`
+"""
+    items = _parse_queue_items(fixture)
+
+    assert _stale_historical_ready_items(items) == ("ITEM-A",)
+    assert _next_eligible_ready_item(items) == items["ITEM-C"]
