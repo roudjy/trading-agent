@@ -1371,4 +1371,554 @@
   - CI failure outside scope.
   - remote auth failure.
   - local git unsafe state.
+- next dependency: `ADE-QRE-015A`.
+
+## ADE-QRE-015 - Post-Trusted-Loop-Maturity Transition Preparation Queue
+
+Purpose: prepare the post-trusted-loop-maturity transition after
+`ADE-QRE-014O`, so a later run can decide safely whether to continue the
+trusted-loop maturity sprint, return to the QRE Feature Build Track, require
+operator review, or stop because no eligible work remains.
+
+Scope constraints:
+
+- queue planning only until each item becomes eligible through its dependency.
+- `ADE-QRE-015A` remains blocked until `ADE-QRE-014O done`.
+- strategy synthesis remains blocked.
+- Addendum 1, 2, 3, and 4 remain reference-only and not runtime activated.
+- Addendum 4 remains `DEFERRED / REFERENCE-ONLY`.
+- shadow, paper, live, broker, risk, and execution paths remain inactive.
+- no dashboard mutation routes or approval mutation behavior may be added.
+
+### ADE-QRE-015A - Post-014 Final Evidence Inventory
+
+- queue id: `ADE-QRE-015A`
+- title: Post-014 Final Evidence Inventory.
+- status: `blocked until ADE-QRE-014O done`
+- purpose: inventory all evidence produced by `ADE-QRE-014B` through
+  `ADE-QRE-014O` and identify what is still scaffold, working capability, or
+  operator-trusted capability.
+- depends on: `ADE-QRE-014O done`.
+- risk class: LOW.
+- target layer: governance docs, read-only reporting, and tests if needed.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for read-only evidence
+    inventory or summaries, `tests/unit/**` only if reporting code changes,
+    and `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - strategy synthesis enablement paths, runtime Addendum activation paths,
+    strategy code, `registry.py`, campaign/routing mutation paths,
+    live/paper/shadow/risk/broker/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths,
+    `research/research_latest.json`, and `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs.
+  - read-only evidence inventory.
+  - reporting summaries.
+  - tests if reporting code changes.
+- forbidden changes:
+  - strategy synthesis enablement.
+  - runtime Addendum activation.
+  - strategy code.
+  - `registry.py`.
+  - campaign/routing mutation.
+  - live/paper/shadow/risk/broker/execution paths.
+  - frozen contract mutation.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - targeted tests if reporting code changes.
+- validation required:
+  - evidence inventory is deterministic and read-only.
+  - unsupported trust claims are avoided.
+  - gaps are explicit.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused docs/read-only reporting/tests diff.
+  - tests and CI green where applicable.
+  - no synthesis, Addendum runtime, strategy, registry, mutation, frozen
+    contract, research output, or execution path changes.
+- done criteria:
+  - evidence inventory exists.
+  - unsupported trust claims are avoided.
+  - gaps are explicit.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-014O` is not done.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-015B`.
+
+### ADE-QRE-015B - Trusted-Loop Gap Prioritization
+
+- queue id: `ADE-QRE-015B`
+- title: Trusted-Loop Gap Prioritization.
+- status: `blocked until ADE-QRE-015A done`
+- purpose: rank remaining trusted-loop gaps by operator value, safety,
+  evidence impact, and implementation risk.
+- depends on: `ADE-QRE-015A done`.
+- risk class: LOW.
+- target layer: governance docs and read-only scoring/reporting.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for deterministic read-only
+    gap scoring or summaries, `tests/unit/**` only if scoring/reporting code
+    changes, and `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - roadmap activation/mutation paths, strategy synthesis enablement paths,
+    runtime behavior mutation paths, runtime Addendum activation paths,
+    live/paper/shadow/risk/broker/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths, `registry.py`,
+    strategy implementations, `research/research_latest.json`, and
+    `research/strategy_matrix.csv`.
+- allowed changes:
+  - deterministic gap prioritization.
+  - docs.
+  - read-only reporting.
+  - tests if scoring/reporting code changes.
+- forbidden changes:
+  - automatic roadmap activation.
+  - strategy synthesis.
+  - runtime behavior mutation.
+  - Addendum runtime activation.
+  - execution paths.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - targeted scoring/reporting tests if code changes.
+- validation required:
+  - gaps are ranked deterministically.
+  - ranking is evidence-backed.
+  - operator can see why a gap is high/medium/low priority.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused docs/read-only scoring/reporting/tests diff.
+  - tests and CI green where applicable.
+  - no automatic activation, synthesis, runtime mutation, Addendum runtime,
+    frozen contract, research output, or execution path changes.
+- done criteria:
+  - gaps are ranked deterministically.
+  - ranking is evidence-backed.
+  - operator can see why a gap is high/medium/low priority.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-015A` is not done.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-015C`.
+
+### ADE-QRE-015C - QRE Feature Track Return Readiness Check
+
+- queue id: `ADE-QRE-015C`
+- title: QRE Feature Track Return Readiness Check.
+- status: `blocked until ADE-QRE-015B done`
+- purpose: determine whether the project is ready to return to the QRE
+  Feature Build Track after the trusted-loop sprint.
+- depends on: `ADE-QRE-015B done`.
+- risk class: LOW.
+- target layer: governance docs and read-only readiness report.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for read-only readiness
+    reporting if needed, `tests/unit/**` only if reporting code changes, and
+    `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - Roadmap v6 v3.15.16 implementation paths, product roadmap mutation paths,
+    strategy synthesis enablement paths, paper/shadow/live paths,
+    broker/risk/execution paths, frozen contracts, dashboard mutation routes,
+    approval mutation paths, `registry.py`, strategy implementations,
+    `research/research_latest.json`, and `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs.
+  - read-only readiness checklist.
+  - evidence-backed recommendation.
+- forbidden changes:
+  - starting v3.15.16 implementation.
+  - changing product roadmap.
+  - strategy synthesis.
+  - paper/shadow/live.
+  - execution paths.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - targeted tests if readiness reporting code changes.
+- validation required:
+  - readiness recommendation is explicit.
+  - allowed outputs are exactly `return_to_qre_feature_track`,
+    `continue_trusted_loop_maturity`, `operator_review_required`, and
+    `no_eligible_work_remains`.
+  - recommendation is evidence-backed.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused docs/read-only readiness diff.
+  - tests and CI green where applicable.
+  - no roadmap mutation, v3.15.16 implementation, synthesis, paper/shadow/live,
+    frozen contract, research output, or execution path changes.
+- done criteria:
+  - readiness recommendation is explicit.
+  - allowed outputs are exactly:
+    1. `return_to_qre_feature_track`.
+    2. `continue_trusted_loop_maturity`.
+    3. `operator_review_required`.
+    4. `no_eligible_work_remains`.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-015B` is not done.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - product roadmap mutation required.
+  - v3.15.16 implementation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-015D`.
+
+### ADE-QRE-015D - v3.15.16 Intelligent Routing Re-entry Planning Docs Only
+
+- queue id: `ADE-QRE-015D`
+- title: v3.15.16 Intelligent Routing Re-entry Planning Docs Only.
+- status: `blocked until ADE-QRE-015C done and recommendation is return_to_qre_feature_track`
+- purpose: prepare a docs-only re-entry plan for Roadmap v6 v3.15.16
+  Intelligent Routing Layer without implementing it.
+- depends on: `ADE-QRE-015C done`.
+- risk class: LOW if docs-only; operator_review if canonical roadmap edits
+  are needed.
+- target layer: `docs/governance` planning.
+- expected files or file families:
+  - `docs/governance/**`, and narrow planning prompts or governance notes only.
+- forbidden files or file families:
+  - routing implementation paths, campaign mutation paths, strategy code,
+    `registry.py`, shadow/paper/live paths, broker/risk/execution paths,
+    runtime Addendum activation paths, frozen contracts, dashboard mutation
+    routes, approval mutation paths, `research/research_latest.json`, and
+    `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs-only phase plan.
+  - scope boundaries.
+  - risk map.
+  - validation expectations.
+  - prompt draft for later implementation.
+- forbidden changes:
+  - implementation of routing.
+  - campaign mutation.
+  - strategy code.
+  - `registry.py`.
+  - shadow/paper/live.
+  - execution paths.
+  - Addendum runtime activation.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - re-entry plan remains docs-only.
+  - v3.15.16 implementation has not started.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused docs-only planning diff.
+  - tests and CI green where applicable.
+  - no routing implementation, campaign mutation, strategy, registry,
+    Addendum runtime, frozen contract, research output, or execution path
+    changes.
+- done criteria:
+  - v3.15.16 re-entry plan exists.
+  - no implementation started.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-015C` is not done.
+  - `ADE-QRE-015C` recommendation is not `return_to_qre_feature_track`.
+  - canonical roadmap edits are required without operator review.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - routing implementation required.
+  - campaign mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-015E`.
+
+### ADE-QRE-015E - Trusted-Loop Continuation Planning Docs Only
+
+- queue id: `ADE-QRE-015E`
+- title: Trusted-Loop Continuation Planning Docs Only.
+- status: `blocked until ADE-QRE-015C done and recommendation is continue_trusted_loop_maturity`
+- purpose: prepare a docs-only next trusted-loop maturity sprint if returning
+  to QRE Feature Track is not yet safe.
+- depends on: `ADE-QRE-015C done`.
+- risk class: LOW.
+- target layer: governance docs.
+- expected files or file families:
+  - `docs/governance/**`, and narrow planning prompts or governance notes only.
+- forbidden files or file families:
+  - runtime behavior paths, strategy synthesis enablement paths, runtime
+    Addendum activation paths, live/paper/shadow/risk/broker/execution paths,
+    frozen contracts, dashboard mutation routes, approval mutation paths,
+    `registry.py`, strategy implementations, `research/research_latest.json`,
+    and `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs-only planning.
+  - bounded next sprint candidates.
+  - operator-review checklist.
+- forbidden changes:
+  - runtime changes.
+  - strategy synthesis.
+  - Addendum runtime activation.
+  - execution paths.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - continuation plan remains docs-only.
+  - items are bounded and dependency-gated.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused docs-only planning diff.
+  - tests and CI green where applicable.
+  - no runtime, synthesis, Addendum runtime, frozen contract, research output,
+    or execution path changes.
+- done criteria:
+  - continuation plan exists.
+  - items are bounded and dependency-gated.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-015C` is not done.
+  - `ADE-QRE-015C` recommendation is not `continue_trusted_loop_maturity`.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime changes required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-015F`.
+
+### ADE-QRE-015F - Operator Review Packet
+
+- queue id: `ADE-QRE-015F`
+- title: Operator Review Packet.
+- status: `blocked until ADE-QRE-015C done and recommendation is operator_review_required`
+- purpose: produce a concise operator review packet when the next direction
+  cannot be selected safely by evidence alone.
+- depends on: `ADE-QRE-015C done`.
+- risk class: LOW.
+- target layer: `docs/governance`.
+- expected files or file families:
+  - `docs/governance/**`, and narrow operator-review planning notes only.
+- forbidden files or file families:
+  - option implementation paths, approval mutation paths, dashboard mutation
+    routes, runtime behavior paths, strategy synthesis enablement paths,
+    runtime Addendum activation paths, live/paper/shadow/risk/broker/execution
+    paths, frozen contracts, `registry.py`, strategy implementations,
+    `research/research_latest.json`, and `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs-only review packet.
+  - explicit decision options.
+  - evidence links.
+  - risks and tradeoffs.
+- forbidden changes:
+  - implementing any reviewed option.
+  - automatic approval.
+  - approval mutation.
+  - dashboard mutation routes.
+  - runtime changes.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - operator decision options are clear.
+  - no option is auto-executed.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused docs-only review-packet diff.
+  - tests and CI green where applicable.
+  - no option implementation, approval mutation, dashboard mutation, runtime,
+    frozen contract, research output, or execution path changes.
+- done criteria:
+  - operator decision options are clear.
+  - no option is auto-executed.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-015C` is not done.
+  - `ADE-QRE-015C` recommendation is not `operator_review_required`.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - implementation of any reviewed option required.
+  - approval mutation required.
+  - dashboard mutation route required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-015G`.
+
+### ADE-QRE-015G - No-Eligible-Work Closure Note
+
+- queue id: `ADE-QRE-015G`
+- title: No-Eligible-Work Closure Note.
+- status: `blocked until ADE-QRE-015C done and recommendation is no_eligible_work_remains`
+- purpose: document closure if no safe eligible work remains after
+  `ADE-QRE-014O`.
+- depends on: `ADE-QRE-015C done`.
+- risk class: LOW.
+- target layer: `docs/governance`.
+- expected files or file families:
+  - `docs/governance/**`, and narrow closure/status notes only.
+- forbidden files or file families:
+  - new-scope implementation paths, runtime behavior paths, strategy synthesis
+    enablement paths, runtime Addendum activation paths,
+    live/paper/shadow/risk/broker/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths, `registry.py`,
+    strategy implementations, `research/research_latest.json`, and
+    `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs-only closure note.
+  - final status matrix.
+  - next operator action.
+- forbidden changes:
+  - inventing new scope.
+  - runtime changes.
+  - strategy synthesis.
+  - execution paths.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - closure note remains docs-only.
+  - next operator action is explicit.
+  - protected, frozen, and execution paths are untouched.
+- merge criteria:
+  - focused docs-only closure diff.
+  - tests and CI green where applicable.
+  - no invented scope, runtime, synthesis, frozen contract, research output, or
+    execution path changes.
+- done criteria:
+  - closure note exists.
+  - next operator action is explicit.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-015C` is not done.
+  - `ADE-QRE-015C` recommendation is not `no_eligible_work_remains`.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - invented new scope required.
+  - runtime changes required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-015H`.
+
+### ADE-QRE-015H - Queue Direction Finalization
+
+- queue id: `ADE-QRE-015H`
+- title: Queue Direction Finalization.
+- status: `blocked until one of ADE-QRE-015D, ADE-QRE-015E, ADE-QRE-015F, or ADE-QRE-015G is done`
+- purpose: finalize exactly one next queue direction after the `ADE-QRE-015`
+  branching decision.
+- depends on: one selected branch path done.
+- risk class: LOW.
+- target layer: `docs/governance`.
+- expected files or file families:
+  - `docs/governance/**`, and narrow queue-direction finalization notes only.
+- forbidden files or file families:
+  - strategy synthesis enablement paths, runtime Addendum activation paths,
+    shadow/paper/live paths, broker/risk/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths, `registry.py`,
+    strategy implementations, campaign mutation paths, routing mutation paths,
+    `research/research_latest.json`, and `research/strategy_matrix.csv`.
+- allowed next directions:
+  1. start QRE Feature Build Track v3.15.16 implementation prompt.
+  2. start next trusted-loop maturity sprint.
+  3. wait for operator decision.
+  4. stop because no eligible work remains.
+- allowed changes:
+  - docs-only queue direction finalization.
+  - evidence-backed selection of exactly one allowed next direction.
+  - blocked/deferred notes for unsupported directions.
+- forbidden changes:
+  - enabling strategy synthesis.
+  - activating Addendum runtime.
+  - starting shadow/paper/live.
+  - touching broker/risk/execution.
+  - frozen contract mutation.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - exactly one next direction is selected.
+  - unsupported directions remain blocked/deferred.
+  - protected, frozen, and execution paths are untouched.
+  - Addendum runtime remains inactive.
+- merge criteria:
+  - focused docs-only finalization diff.
+  - tests and CI green where applicable.
+  - no synthesis, Addendum runtime, shadow/paper/live, broker/risk/execution,
+    frozen contract, research output, campaign mutation, or routing mutation
+    changes.
+- done criteria:
+  - exactly one next direction is selected.
+  - unsupported directions remain blocked/deferred.
+  - PR merged and validated.
+- stop conditions:
+  - none of `ADE-QRE-015D`, `ADE-QRE-015E`, `ADE-QRE-015F`, or
+    `ADE-QRE-015G` is done.
+  - more than one branch path is selected.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - shadow/paper/live required.
+  - broker/risk/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
 - next dependency: none.
