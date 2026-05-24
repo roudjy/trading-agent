@@ -589,7 +589,14 @@
 ### ADE-QRE-014E - Trusted-Loop Maturity Follow-up
 
 - queue id: `ADE-QRE-014E`
-- status: `ready`
+- status: `done`
+- completion evidence: PR #331, merge SHA
+  `c413603a6b5f04888385b83c0d66607e932ffdfd`; Fast pre-merge gate
+  run `26356885660`, Docker build/push run `26357012641`, and VPS
+  deploy run `26357012575` completed/success; local post-merge
+  governance lint and architecture scanner passed; Addendum 4 remained
+  `DEFERRED / REFERENCE-ONLY`; frozen contracts unchanged;
+  protected/execution paths untouched; strategy synthesis remained blocked.
 - title: Trusted-Loop Maturity Follow-up.
 - purpose: update the maturity matrix/status based on 014B-D evidence while
   keeping the result docs/reporting only.
@@ -690,7 +697,7 @@
 
 - queue id: `ADE-QRE-014G`
 - title: Synthesis Blocker Explanation Density.
-- status: `blocked until ADE-QRE-014E done`
+- status: `ready`
 - purpose: improve operator-readable explanation of why strategy synthesis
   remains blocked, using current readiness evidence only.
 - depends on: `ADE-QRE-014E done`.
