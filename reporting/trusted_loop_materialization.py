@@ -24,7 +24,7 @@ from reporting import research_observability_minimal as _observability
 from reporting import sampling_intelligence_minimal as _sampling
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-MODULE_VERSION: Final[str] = "ade-qre-014c-2026-05-24"
+MODULE_VERSION: Final[str] = "ade-qre-014d-2026-05-24"
 SCHEMA_VERSION: Final[int] = 1
 REPORT_KIND: Final[str] = "trusted_loop_materialization_digest"
 
@@ -301,6 +301,128 @@ def _research_quality_kpi_readiness(
     }
 
 
+def _readiness_evidence_score(
+    required_evidence: tuple[str, ...],
+    missing_evidence: list[str],
+) -> float:
+    ready_count = len(required_evidence) - len(missing_evidence)
+    return round(ready_count / len(required_evidence), 6)
+
+
+def _routing_sampling_readiness_row(
+    *,
+    kind: str,
+    snapshot: Mapping[str, Any],
+    artifact_path: Path,
+) -> dict[str, Any]:
+    counts = _mapping_or_empty(snapshot.get("counts"))
+    by_decision = _mapping_or_empty(counts.get("by_decision"))
+    total = _numeric_or_none(counts.get("total"))
+    recommendation = snapshot.get("final_recommendation")
+    recommendation = recommendation if isinstance(recommendation, str) else "unknown"
+
+    if kind == "routing":
+        ready_recommendation = "ready_for_implementation"
+        ready_count_key = "prioritize_count"
+        ready_count = _numeric_or_none(by_decision.get("prioritize"))
+        ready_decision = "prioritize"
+    elif kind == "sampling":
+        ready_recommendation = "ready_for_sampling"
+        ready_count_key = "actionable_count"
+        ready_count = _numeric_or_none(counts.get("actionable"))
+        ready_decision = "actionable_sampling_decision"
+    else:
+        raise ValueError(f"unknown readiness kind: {kind!r}")
+
+    required_evidence = (
+        "latest_artifact_present",
+        "final_recommendation_ready",
+        "total_count_positive",
+        f"{ready_count_key}_positive",
+    )
+    missing_evidence: list[str] = []
+    artifact_exists = artifact_path.is_file()
+    if not artifact_exists:
+        missing_evidence.append("latest_artifact_present")
+    if recommendation != ready_recommendation:
+        missing_evidence.append("final_recommendation_ready")
+    if total is None or total <= 0:
+        missing_evidence.append("total_count_positive")
+    if ready_count is None or ready_count <= 0:
+        missing_evidence.append(f"{ready_count_key}_positive")
+
+    ready = not missing_evidence
+    return {
+        "status": "ready" if ready else "fail_closed",
+        "ready": ready,
+        "fail_closed": not ready,
+        "artifact_path": _rel(artifact_path),
+        "artifact_present": artifact_exists,
+        "final_recommendation": recommendation,
+        "expected_final_recommendation": ready_recommendation,
+        "total": total,
+        ready_count_key: ready_count,
+        "ready_decision": ready_decision,
+        "required_evidence": list(required_evidence),
+        "missing_evidence": missing_evidence,
+        "readiness_score": 1.0 if ready else 0.0,
+        "evidence_density_score": _readiness_evidence_score(
+            required_evidence,
+            missing_evidence,
+        ),
+        "source": "existing_read_only_artifact_snapshot",
+    }
+
+
+def _routing_sampling_readiness_density(
+    *,
+    routing_snapshot: Mapping[str, Any],
+    sampling_snapshot: Mapping[str, Any],
+    routing_artifact_path: Path,
+    sampling_artifact_path: Path,
+) -> dict[str, Any]:
+    """Fail-closed read-only readiness over routing/sampling artifacts."""
+    rows = {
+        "routing_ready": _routing_sampling_readiness_row(
+            kind="routing",
+            snapshot=routing_snapshot,
+            artifact_path=routing_artifact_path,
+        ),
+        "sampling_ready": _routing_sampling_readiness_row(
+            kind="sampling",
+            snapshot=sampling_snapshot,
+            artifact_path=sampling_artifact_path,
+        ),
+    }
+    ready_count = sum(1 for row in rows.values() if row["ready"] is True)
+    fail_closed_count = len(rows) - ready_count
+    missing_evidence_count = sum(
+        len(row["missing_evidence"]) for row in rows.values()
+    )
+    required_evidence_count = sum(
+        len(row["required_evidence"]) for row in rows.values()
+    )
+    return {
+        "values": rows,
+        "ready_count": ready_count,
+        "fail_closed_count": fail_closed_count,
+        "missing_evidence_count": missing_evidence_count,
+        "required_evidence_count": required_evidence_count,
+        "overall_status": "ready" if fail_closed_count == 0 else "fail_closed",
+        "overall_evidence_density_score": round(
+            (required_evidence_count - missing_evidence_count)
+            / required_evidence_count,
+            6,
+        ),
+        "all_reported_readiness_numeric_or_fail_closed": True,
+        "note": (
+            "Routing and sampling readiness become ready only when existing "
+            "read-only artifacts contain positive ready evidence; missing, "
+            "empty, unknown, or non-ready evidence fails closed."
+        ),
+    }
+
+
 def collect_snapshot(
     *,
     frozen_utc: str | None = None,
@@ -344,6 +466,27 @@ def collect_snapshot(
     )
     metrics = _trusted_loop_metric_values(observability_snapshot)
     kpis = _research_quality_kpi_readiness(observability_snapshot)
+    routing_sampling_readiness = _routing_sampling_readiness_density(
+        routing_snapshot=routing_snapshot,
+        sampling_snapshot=sampling_snapshot,
+        routing_artifact_path=routing_dir / _routing.ARTIFACT_LATEST.name,
+        sampling_artifact_path=sampling_dir / _sampling.ARTIFACT_LATEST.name,
+    )
+    block_reasons = [
+        "failure_action_mapping_not_ready_when_total_failures_zero",
+        "no_complete_research_quality_kpi_values",
+        "no_strategy_synthesis_scope_authorized",
+    ]
+    if (
+        routing_sampling_readiness["values"]["routing_ready"]["fail_closed"]
+        is True
+    ):
+        block_reasons.append("routing_ready_evidence_missing_or_not_ready")
+    if (
+        routing_sampling_readiness["values"]["sampling_ready"]["fail_closed"]
+        is True
+    ):
+        block_reasons.append("sampling_ready_evidence_missing_or_not_ready")
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -383,16 +526,13 @@ def collect_snapshot(
         "trusted_loop_metric_values": metrics,
         "reason_record_evidence_density": reason_density,
         "research_quality_kpi_readiness": kpis,
+        "routing_sampling_readiness_density": routing_sampling_readiness,
         "failure_action_mapping": (
             observability_snapshot.get("qre_operator_summary", {})
             .get("failure_action_mapping", {})
         ),
         "synthesis_remains_blocked": True,
-        "block_reasons": [
-            "failure_action_mapping_not_ready_when_total_failures_zero",
-            "no_complete_research_quality_kpi_values",
-            "no_strategy_synthesis_scope_authorized",
-        ],
+        "block_reasons": block_reasons,
         "safety_invariants": {
             "read_only": True,
             "emits_reason_records": False,

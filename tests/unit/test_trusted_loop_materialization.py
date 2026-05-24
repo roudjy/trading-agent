@@ -149,6 +149,10 @@ def test_materialize_writes_empty_evidence_artifacts_without_reason_records(
     assert snapshot["materialized_artifacts"]["sampling_minimal_latest"]["total"] == 0
     assert snapshot["failure_action_mapping"]["status"] == "not_ready"
     assert snapshot["failure_action_mapping"]["total_failures"] == 0
+    density = snapshot["routing_sampling_readiness_density"]
+    assert density["overall_status"] == "fail_closed"
+    assert density["values"]["routing_ready"]["status"] == "fail_closed"
+    assert density["values"]["sampling_ready"]["status"] == "fail_closed"
     assert snapshot["synthesis_remains_blocked"] is True
 
 
@@ -277,6 +281,125 @@ def test_research_quality_kpis_fail_closed_on_unknown_non_numeric_evidence() -> 
     assert kpis["values"]["TTFPRC"]["source"] == "fixture"
     assert kpis["values"]["NMBR"]["status"] == "fail_closed"
     assert kpis["values"]["NMBR"]["source"] == "fixture"
+
+
+def test_routing_sampling_readiness_density_ready_with_existing_ready_artifacts(
+    tmp_path: Path,
+) -> None:
+    routing_path = tmp_path / "logs" / "intelligent_routing_minimal" / "latest.json"
+    sampling_path = tmp_path / "logs" / "sampling_intelligence_minimal" / "latest.json"
+    routing_snapshot = tlm._routing.collect_snapshot(
+        [
+            {
+                "campaign_id": "c1",
+                "info_gain_estimate": 0.8,
+                "dead_zone_dwell": 0,
+                "dependency_unmet": False,
+                "multiplicity_budget_remaining": 1,
+            }
+        ],
+        frozen_utc=FROZEN,
+        emit_reason_records=False,
+    )
+    sampling_snapshot = tlm._sampling.collect_snapshot(
+        [
+            {
+                "stratum_id": "s1",
+                "coverage_actual": 0.1,
+                "coverage_target": 0.3,
+                "regime_match": True,
+                "null_baseline_required": False,
+                "multiplicity_budget_remaining": 1,
+            }
+        ],
+        frozen_utc=FROZEN,
+        emit_reason_records=False,
+    )
+    _write_json(routing_path, routing_snapshot)
+    _write_json(sampling_path, sampling_snapshot)
+
+    density = tlm._routing_sampling_readiness_density(
+        routing_snapshot=routing_snapshot,
+        sampling_snapshot=sampling_snapshot,
+        routing_artifact_path=routing_path,
+        sampling_artifact_path=sampling_path,
+    )
+
+    assert density["overall_status"] == "ready"
+    assert density["ready_count"] == 2
+    assert density["fail_closed_count"] == 0
+    assert density["overall_evidence_density_score"] == 1.0
+    assert density["values"]["routing_ready"]["status"] == "ready"
+    assert density["values"]["routing_ready"]["prioritize_count"] == 1
+    assert density["values"]["sampling_ready"]["status"] == "ready"
+    assert density["values"]["sampling_ready"]["actionable_count"] == 1
+
+
+def test_routing_sampling_readiness_density_fails_closed_on_empty_artifacts(
+    tmp_path: Path,
+) -> None:
+    routing_path = tmp_path / "logs" / "intelligent_routing_minimal" / "latest.json"
+    sampling_path = tmp_path / "logs" / "sampling_intelligence_minimal" / "latest.json"
+    routing_snapshot = tlm._routing.collect_snapshot(
+        [],
+        frozen_utc=FROZEN,
+        emit_reason_records=False,
+    )
+    sampling_snapshot = tlm._sampling.collect_snapshot(
+        [],
+        frozen_utc=FROZEN,
+        emit_reason_records=False,
+    )
+    _write_json(routing_path, routing_snapshot)
+    _write_json(sampling_path, sampling_snapshot)
+
+    density = tlm._routing_sampling_readiness_density(
+        routing_snapshot=routing_snapshot,
+        sampling_snapshot=sampling_snapshot,
+        routing_artifact_path=routing_path,
+        sampling_artifact_path=sampling_path,
+    )
+
+    assert density["overall_status"] == "fail_closed"
+    assert density["ready_count"] == 0
+    assert density["fail_closed_count"] == 2
+    assert density["missing_evidence_count"] == 6
+    assert density["values"]["routing_ready"]["missing_evidence"] == [
+        "final_recommendation_ready",
+        "total_count_positive",
+        "prioritize_count_positive",
+    ]
+    assert density["values"]["sampling_ready"]["missing_evidence"] == [
+        "final_recommendation_ready",
+        "total_count_positive",
+        "actionable_count_positive",
+    ]
+
+
+def test_routing_sampling_readiness_density_fails_closed_on_missing_or_unknown(
+    tmp_path: Path,
+) -> None:
+    density = tlm._routing_sampling_readiness_density(
+        routing_snapshot={"counts": {"total": "unknown"}},
+        sampling_snapshot={"counts": {"total": None, "actionable": "unknown"}},
+        routing_artifact_path=(
+            tmp_path / "logs" / "intelligent_routing_minimal" / "latest.json"
+        ),
+        sampling_artifact_path=(
+            tmp_path / "logs" / "sampling_intelligence_minimal" / "latest.json"
+        ),
+    )
+
+    assert density["overall_status"] == "fail_closed"
+    assert density["fail_closed_count"] == 2
+    assert density["values"]["routing_ready"]["final_recommendation"] == "unknown"
+    assert density["values"]["sampling_ready"]["final_recommendation"] == "unknown"
+    assert "latest_artifact_present" in density["values"]["routing_ready"][
+        "missing_evidence"
+    ]
+    assert "latest_artifact_present" in density["values"]["sampling_ready"][
+        "missing_evidence"
+    ]
 
 
 def test_write_outputs_refuses_outside_allowlist(tmp_path: Path) -> None:
