@@ -24,7 +24,7 @@ from reporting import research_observability_minimal as _observability
 from reporting import sampling_intelligence_minimal as _sampling
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-MODULE_VERSION: Final[str] = "ade-qre-014d-2026-05-24"
+MODULE_VERSION: Final[str] = "ade-qre-014g-2026-05-24"
 SCHEMA_VERSION: Final[int] = 1
 REPORT_KIND: Final[str] = "trusted_loop_materialization_digest"
 
@@ -423,6 +423,192 @@ def _routing_sampling_readiness_density(
     }
 
 
+def _synthesis_blocker_explanation_density(
+    *,
+    block_reasons: list[str],
+    failure_action_mapping: Mapping[str, Any],
+    kpi_readiness: Mapping[str, Any],
+    routing_sampling_readiness: Mapping[str, Any],
+    reason_density: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Explain active synthesis blockers from read-only readiness evidence."""
+    kpi_total = len(_mapping_or_empty(kpi_readiness.get("values")))
+    kpi_complete = int(kpi_readiness.get("complete_value_count") or 0)
+    kpi_partial = int(kpi_readiness.get("partial_value_count") or 0)
+    kpi_fail_closed = int(kpi_readiness.get("fail_closed_count") or 0)
+
+    failure_status = str(failure_action_mapping.get("status") or "unknown")
+    failure_total = _numeric_or_none(failure_action_mapping.get("total_failures"))
+    failure_actionable = _numeric_or_none(
+        failure_action_mapping.get("actionable_failure_count")
+    )
+
+    reason_metrics = _mapping_or_empty(reason_density.get("metrics"))
+    reason_record_count = _numeric_or_none(reason_metrics.get("record_count"))
+    reason_with_refs = _numeric_or_none(
+        reason_metrics.get("records_with_evidence_refs")
+    )
+    reason_final = str(reason_density.get("final_recommendation") or "unknown")
+
+    routing_values = _mapping_or_empty(routing_sampling_readiness.get("values"))
+    routing_ready = _mapping_or_empty(routing_values.get("routing_ready"))
+    sampling_ready = _mapping_or_empty(routing_values.get("sampling_ready"))
+
+    source_refs = {
+        "failure_action_mapping": "logs/failure_action_mapping_minimal/latest.json",
+        "research_quality_kpi_readiness": (
+            "logs/research_observability_minimal/latest.json"
+        ),
+        "reason_record_evidence_density": (
+            "logs/reason_record_evidence_density/latest.json"
+        ),
+        "routing_sampling_readiness_density": (
+            "logs/intelligent_routing_minimal/latest.json"
+        ),
+        "strategy_synthesis_authority": (
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md"
+        ),
+    }
+
+    templates: dict[str, dict[str, Any]] = {
+        "failure_action_mapping_not_ready_when_total_failures_zero": {
+            "source": "failure_action_mapping",
+            "evidence_status": failure_status,
+            "readiness_score": 0.0 if failure_status != "ready" else 1.0,
+            "missing_evidence": (
+                ["positive_failure_count", "actionable_failure_mapping"]
+                if not failure_total
+                else []
+            ),
+            "operator_explanation": (
+                "Failure-to-action evidence is not yet actionable: "
+                f"status={failure_status}, total_failures={failure_total or 0}, "
+                f"actionable_failure_count={failure_actionable or 0}."
+            ),
+        },
+        "no_complete_research_quality_kpi_values": {
+            "source": "research_quality_kpi_readiness",
+            "evidence_status": ("fail_closed" if kpi_fail_closed else "ready"),
+            "readiness_score": (
+                round(kpi_complete / kpi_total, 6) if kpi_total else 0.0
+            ),
+            "missing_evidence": (
+                ["complete_numeric_research_quality_kpis"]
+                if kpi_complete == 0
+                else ["all_research_quality_kpis_numeric"]
+                if kpi_fail_closed
+                else []
+            ),
+            "operator_explanation": (
+                "Research quality KPI readiness is numerically incomplete: "
+                f"{kpi_complete}/{kpi_total} complete, {kpi_partial} partial, "
+                f"{kpi_fail_closed} fail-closed."
+            ),
+        },
+        "reason_record_evidence_density_not_ready": {
+            "source": "reason_record_evidence_density",
+            "evidence_status": reason_final,
+            "readiness_score": (
+                round(reason_with_refs / reason_record_count, 6)
+                if reason_record_count
+                else 0.0
+            ),
+            "missing_evidence": (
+                ["reason_records_with_evidence_refs"]
+                if reason_final != "evidence_density_ready"
+                else []
+            ),
+            "operator_explanation": (
+                "Reason-record evidence density is not ready: "
+                f"final_recommendation={reason_final}, "
+                f"record_count={reason_record_count or 0}, "
+                f"records_with_evidence_refs={reason_with_refs or 0}."
+            ),
+        },
+        "routing_ready_evidence_missing_or_not_ready": {
+            "source": "routing_sampling_readiness_density",
+            "evidence_status": str(routing_ready.get("status") or "unknown"),
+            "readiness_score": _numeric_or_none(
+                routing_ready.get("evidence_density_score")
+            )
+            or 0.0,
+            "missing_evidence": list(routing_ready.get("missing_evidence") or []),
+            "operator_explanation": (
+                "Routing readiness is not implementation-ready: "
+                f"final_recommendation={routing_ready.get('final_recommendation') or 'unknown'}, "
+                f"total={routing_ready.get('total')}, "
+                f"prioritize_count={routing_ready.get('prioritize_count')}."
+            ),
+        },
+        "sampling_ready_evidence_missing_or_not_ready": {
+            "source": "routing_sampling_readiness_density",
+            "evidence_status": str(sampling_ready.get("status") or "unknown"),
+            "readiness_score": _numeric_or_none(
+                sampling_ready.get("evidence_density_score")
+            )
+            or 0.0,
+            "missing_evidence": list(sampling_ready.get("missing_evidence") or []),
+            "operator_explanation": (
+                "Sampling readiness is not sampling-ready: "
+                f"final_recommendation={sampling_ready.get('final_recommendation') or 'unknown'}, "
+                f"total={sampling_ready.get('total')}, "
+                f"actionable_count={sampling_ready.get('actionable_count')}."
+            ),
+        },
+        "no_strategy_synthesis_scope_authorized": {
+            "source": "strategy_synthesis_authority",
+            "evidence_status": "blocked_by_governance",
+            "readiness_score": 0.0,
+            "missing_evidence": ["operator_approved_strategy_synthesis_scope"],
+            "operator_explanation": (
+                "Strategy synthesis remains outside the approved runtime scope; "
+                "this report is read-only and does not authorize strategy, "
+                "registry, routing, or execution mutation."
+            ),
+        },
+    }
+
+    active_rows: dict[str, dict[str, Any]] = {}
+    unexplained: list[str] = []
+    for reason in sorted(dict.fromkeys(block_reasons)):
+        template = templates.get(reason)
+        if template is None:
+            unexplained.append(reason)
+            continue
+        source = str(template["source"])
+        active_rows[reason] = {
+            "status": "explained_blocker",
+            "active": True,
+            "source": source,
+            "source_ref": source_refs[source],
+            "evidence_status": template["evidence_status"],
+            "readiness_score": template["readiness_score"],
+            "missing_evidence": template["missing_evidence"],
+            "operator_explanation": template["operator_explanation"],
+            "read_only": True,
+            "enables_strategy_synthesis": False,
+        }
+
+    explained_count = len(active_rows)
+    active_count = explained_count + len(unexplained)
+    return {
+        "values": active_rows,
+        "active_blocker_count": active_count,
+        "explained_blocker_count": explained_count,
+        "unexplained_blocker_count": len(unexplained),
+        "unexplained_block_reasons": unexplained,
+        "overall_status": (
+            "blocked_explained" if active_count and not unexplained else "fail_closed"
+        ),
+        "operator_summary": (
+            f"{explained_count}/{active_count} active synthesis blockers have "
+            "operator-readable, evidence-derived explanations."
+        ),
+        "read_only": True,
+        "synthesis_remains_blocked": True,
+    }
+
+
 def collect_snapshot(
     *,
     frozen_utc: str | None = None,
@@ -487,6 +673,18 @@ def collect_snapshot(
         is True
     ):
         block_reasons.append("sampling_ready_evidence_missing_or_not_ready")
+    if reason_density["final_recommendation"] != "evidence_density_ready":
+        block_reasons.append("reason_record_evidence_density_not_ready")
+    blocker_explanation_density = _synthesis_blocker_explanation_density(
+        block_reasons=block_reasons,
+        failure_action_mapping=(
+            observability_snapshot.get("qre_operator_summary", {})
+            .get("failure_action_mapping", {})
+        ),
+        kpi_readiness=kpis,
+        routing_sampling_readiness=routing_sampling_readiness,
+        reason_density=reason_density,
+    )
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -533,6 +731,7 @@ def collect_snapshot(
         ),
         "synthesis_remains_blocked": True,
         "block_reasons": block_reasons,
+        "synthesis_blocker_explanation_density": blocker_explanation_density,
         "safety_invariants": {
             "read_only": True,
             "emits_reason_records": False,

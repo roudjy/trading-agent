@@ -7,7 +7,6 @@ from pathlib import Path
 
 from reporting import trusted_loop_materialization as tlm
 
-
 FROZEN = "2026-05-23T00:00:00Z"
 
 
@@ -154,6 +153,15 @@ def test_materialize_writes_empty_evidence_artifacts_without_reason_records(
     assert density["values"]["routing_ready"]["status"] == "fail_closed"
     assert density["values"]["sampling_ready"]["status"] == "fail_closed"
     assert snapshot["synthesis_remains_blocked"] is True
+    explanation_density = snapshot["synthesis_blocker_explanation_density"]
+    assert explanation_density["overall_status"] == "blocked_explained"
+    assert explanation_density["unexplained_blocker_count"] == 0
+    assert (
+        explanation_density["values"]["no_strategy_synthesis_scope_authorized"][
+            "enables_strategy_synthesis"
+        ]
+        is False
+    )
 
 
 def test_collect_snapshot_surfaces_only_evidence_backed_numeric_values(
@@ -400,6 +408,96 @@ def test_routing_sampling_readiness_density_fails_closed_on_missing_or_unknown(
     assert "latest_artifact_present" in density["values"]["sampling_ready"][
         "missing_evidence"
     ]
+
+
+def test_synthesis_blocker_explanation_density_explains_current_blockers() -> None:
+    kpis = tlm._research_quality_kpi_readiness({})
+    routing_sampling = {
+        "values": {
+            "routing_ready": {
+                "status": "fail_closed",
+                "final_recommendation": "nothing_ready",
+                "total": 0,
+                "prioritize_count": 0,
+                "evidence_density_score": 0.25,
+                "missing_evidence": [
+                    "final_recommendation_ready",
+                    "total_count_positive",
+                    "prioritize_count_positive",
+                ],
+            },
+            "sampling_ready": {
+                "status": "fail_closed",
+                "final_recommendation": "nothing_ready",
+                "total": 0,
+                "actionable_count": 0,
+                "evidence_density_score": 0.25,
+                "missing_evidence": [
+                    "final_recommendation_ready",
+                    "total_count_positive",
+                    "actionable_count_positive",
+                ],
+            },
+        }
+    }
+    density = tlm._synthesis_blocker_explanation_density(
+        block_reasons=[
+            "failure_action_mapping_not_ready_when_total_failures_zero",
+            "no_complete_research_quality_kpi_values",
+            "no_strategy_synthesis_scope_authorized",
+            "reason_record_evidence_density_not_ready",
+            "routing_ready_evidence_missing_or_not_ready",
+            "sampling_ready_evidence_missing_or_not_ready",
+        ],
+        failure_action_mapping={
+            "status": "not_ready",
+            "total_failures": 0,
+            "actionable_failure_count": 0,
+        },
+        kpi_readiness=kpis,
+        routing_sampling_readiness=routing_sampling,
+        reason_density={
+            "final_recommendation": "not_ready_no_reason_records",
+            "metrics": {
+                "record_count": 0,
+                "records_with_evidence_refs": 0,
+            },
+        },
+    )
+
+    assert density["overall_status"] == "blocked_explained"
+    assert density["active_blocker_count"] == 6
+    assert density["explained_blocker_count"] == 6
+    assert density["unexplained_blocker_count"] == 0
+    assert density["synthesis_remains_blocked"] is True
+    assert density["values"]["no_complete_research_quality_kpi_values"][
+        "missing_evidence"
+    ] == ["complete_numeric_research_quality_kpis"]
+    assert density["values"]["reason_record_evidence_density_not_ready"][
+        "readiness_score"
+    ] == 0.0
+    assert all(row["read_only"] is True for row in density["values"].values())
+    assert all(
+        row["enables_strategy_synthesis"] is False
+        for row in density["values"].values()
+    )
+
+
+def test_synthesis_blocker_explanation_density_fails_closed_on_unknown_reason() -> None:
+    density = tlm._synthesis_blocker_explanation_density(
+        block_reasons=["unknown_future_blocker"],
+        failure_action_mapping={},
+        kpi_readiness={},
+        routing_sampling_readiness={},
+        reason_density={},
+    )
+
+    assert density["overall_status"] == "fail_closed"
+    assert density["active_blocker_count"] == 1
+    assert density["explained_blocker_count"] == 0
+    assert density["unexplained_blocker_count"] == 1
+    assert density["unexplained_block_reasons"] == ["unknown_future_blocker"]
+    assert density["synthesis_remains_blocked"] is True
 
 
 def test_write_outputs_refuses_outside_allowlist(tmp_path: Path) -> None:
