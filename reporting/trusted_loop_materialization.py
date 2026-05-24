@@ -24,7 +24,7 @@ from reporting import research_observability_minimal as _observability
 from reporting import sampling_intelligence_minimal as _sampling
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-MODULE_VERSION: Final[str] = "ade-qre-012-2026-05-23"
+MODULE_VERSION: Final[str] = "ade-qre-014c-2026-05-24"
 SCHEMA_VERSION: Final[int] = 1
 REPORT_KIND: Final[str] = "trusted_loop_materialization_digest"
 
@@ -65,6 +65,154 @@ def _is_number(value: Any) -> bool:
 
 def _numeric_or_none(value: Any) -> int | float | None:
     return value if _is_number(value) else None
+
+
+_KPI_READINESS_SPECS: Final[dict[str, dict[str, Any]]] = {
+    "TTFPRC": {
+        "direction": "minimise",
+        "required_evidence": (
+            "sprint_exit_merge_timestamp",
+            "paper_readiness_checklist_overall_yes_timestamp",
+        ),
+    },
+    "OOS_DSR": {
+        "direction": "maximise",
+        "required_evidence": (
+            "oos_survivor_deflated_sharpe_distribution",
+            "multiplicity_ledger_n_eff",
+        ),
+    },
+    "MASQ": {
+        "direction": "maximise",
+        "required_evidence": (
+            "active_survivor_multiplicity_adjusted_sharpe_distribution",
+            "multiplicity_ledger_n_eff",
+        ),
+    },
+    "NMBR": {
+        "direction": "maximise",
+        "required_evidence": (
+            "promotion_candidate_count",
+            "promotion_candidate_null_model_yes_count",
+        ),
+    },
+    "DZCR": {
+        "direction": "minimise",
+        "required_evidence": (
+            "dead_zone_flagged_compute",
+            "total_campaign_compute",
+            "quarter_prior_reset_baseline",
+        ),
+    },
+    "OAB": {
+        "direction": "minimise",
+        "required_evidence": (
+            "visible_surface_count",
+            "operator_decisions_per_week",
+        ),
+    },
+    "CRSR": {
+        "direction": "maximise",
+        "required_evidence": (
+            "promotion_candidate_count",
+            "multi_asset_timeframe_regime_survivor_count",
+        ),
+    },
+}
+
+
+def _mapping_or_empty(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
+
+
+def _kpi_evidence_source(
+    observability_snapshot: Mapping[str, Any],
+    kpi_id: str,
+) -> Mapping[str, Any]:
+    evidence = _mapping_or_empty(
+        observability_snapshot.get("research_quality_kpi_evidence")
+    )
+    return _mapping_or_empty(evidence.get(kpi_id))
+
+
+def _available_kpi_components(
+    *,
+    kpi_id: str,
+    observability_snapshot: Mapping[str, Any],
+    evidence: Mapping[str, Any],
+) -> dict[str, int | float]:
+    components = {
+        key: value
+        for key, value in evidence.items()
+        if _is_number(value) and key != "value"
+    }
+    if kpi_id == "OAB":
+        oab = _mapping_or_empty(observability_snapshot.get("operator_attention_budget"))
+        for key in (
+            "visible_surfaces_per_campaign_cap",
+            "subjects_observed",
+            "attention_overflow_count",
+            "near_cap_count",
+        ):
+            numeric = _numeric_or_none(oab.get(key))
+            if numeric is not None:
+                components.setdefault(key, numeric)
+    return dict(sorted(components.items()))
+
+
+def _derive_kpi_numeric_value(
+    *,
+    kpi_id: str,
+    evidence: Mapping[str, Any],
+) -> int | float | None:
+    direct_value = _numeric_or_none(evidence.get("value"))
+    if direct_value is not None:
+        return direct_value
+    if kpi_id == "OAB":
+        visible_surface_count = _numeric_or_none(evidence.get("visible_surface_count"))
+        operator_decisions = _numeric_or_none(evidence.get("operator_decisions_per_week"))
+        if visible_surface_count is not None and operator_decisions is not None:
+            return visible_surface_count * operator_decisions
+    return None
+
+
+def _kpi_readiness_row(
+    *,
+    kpi_id: str,
+    observability_snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    spec = _KPI_READINESS_SPECS[kpi_id]
+    evidence = _kpi_evidence_source(observability_snapshot, kpi_id)
+    value = _derive_kpi_numeric_value(kpi_id=kpi_id, evidence=evidence)
+    components = _available_kpi_components(
+        kpi_id=kpi_id,
+        observability_snapshot=observability_snapshot,
+        evidence=evidence,
+    )
+    numeric_ready = value is not None
+    row: dict[str, Any] = {
+        "status": "ready" if numeric_ready else "fail_closed",
+        "value": value,
+        "numeric_value_ready": numeric_ready,
+        "fail_closed": not numeric_ready,
+        "readiness_score": 1.0 if numeric_ready else 0.0,
+        "direction": spec["direction"],
+        "required_evidence": list(spec["required_evidence"]),
+        "missing_evidence": [] if numeric_ready else list(spec["required_evidence"]),
+        "source": (
+            str(evidence.get("source"))
+            if isinstance(evidence.get("source"), str)
+            else "research_quality_kpi_evidence"
+            if evidence
+            else "not_available"
+        ),
+    }
+    if components:
+        row["available_components"] = components
+        row["partial_evidence_count"] = len(components)
+    else:
+        row["partial_evidence_count"] = 0
+    return row
 
 
 def _trusted_loop_metric_values(
@@ -117,77 +265,38 @@ def _trusted_loop_metric_values(
 def _research_quality_kpi_readiness(
     observability_snapshot: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Surface KPI numeric readiness without inventing values.
-
-    Of the seven pinned research-quality KPIs, ADE-QRE-012 can only
-    expose OAB components from the current observability snapshot.
-    The other KPI values require paper-readiness, survivor, null,
-    dead-zone-compute, or robustness evidence that is not present in
-    the current trusted-loop artifacts.
-    """
-    oab = observability_snapshot.get("operator_attention_budget")
-    oab = oab if isinstance(oab, Mapping) else {}
-    oab_components = {
-        key: oab.get(key)
-        for key in (
-            "visible_surfaces_per_campaign_cap",
-            "subjects_observed",
-            "attention_overflow_count",
-            "near_cap_count",
-        )
-        if _is_number(oab.get(key))
-    }
+    """Surface KPI numeric readiness without inventing values."""
     readiness = {
-        "TTFPRC": {
-            "status": "not_ready",
-            "value": None,
-            "missing_evidence": "paper_readiness_checklist_overall_yes",
-        },
-        "OOS_DSR": {
-            "status": "not_ready",
-            "value": None,
-            "missing_evidence": "oos_survivor_deflated_sharpe_distribution",
-        },
-        "MASQ": {
-            "status": "not_ready",
-            "value": None,
-            "missing_evidence": "active_survivor_multiplicity_adjusted_sharpe",
-        },
-        "NMBR": {
-            "status": "not_ready",
-            "value": None,
-            "missing_evidence": "promotion_candidate_null_model_results",
-        },
-        "DZCR": {
-            "status": "not_ready",
-            "value": None,
-            "missing_evidence": "dead_zone_compute_telemetry_baseline",
-        },
-        "OAB": {
-            "status": "partial",
-            "value": None,
-            "numeric_components": oab_components,
-            "missing_evidence": "operator_decisions_per_week_component",
-        },
-        "CRSR": {
-            "status": "not_ready",
-            "value": None,
-            "missing_evidence": "promotion_candidate_robustness_checks",
-        },
+        kpi_id: _kpi_readiness_row(
+            kpi_id=kpi_id,
+            observability_snapshot=observability_snapshot,
+        )
+        for kpi_id in _observability.RESEARCH_QUALITY_KPI_IDS
     }
+    complete_count = sum(
+        1 for row in readiness.values() if row.get("numeric_value_ready") is True
+    )
+    fail_closed_count = sum(
+        1 for row in readiness.values() if row.get("fail_closed") is True
+    )
+    partial_count = sum(
+        1
+        for row in readiness.values()
+        if row.get("fail_closed") is True
+        and _numeric_or_none(row.get("partial_evidence_count"))
+    )
     return {
         "kpi_ids": list(_observability.RESEARCH_QUALITY_KPI_IDS),
         "values": readiness,
-        "complete_value_count": sum(
-            1 for row in readiness.values() if row.get("status") == "ready"
-        ),
-        "partial_value_count": sum(
-            1 for row in readiness.values() if row.get("status") == "partial"
+        "complete_value_count": complete_count,
+        "partial_value_count": partial_count,
+        "fail_closed_count": fail_closed_count,
+        "all_reported_kpis_numeric_or_fail_closed": (
+            complete_count + fail_closed_count == len(readiness)
         ),
         "note": (
-            "No complete seven-KPI numeric value is created without its "
-            "required evidence. OAB components are surfaced because the "
-            "observability snapshot already computes them."
+            "KPI rows are ready only when numeric values are evidence-backed; "
+            "missing, partial, unknown, or non-numeric evidence fails closed."
         ),
     }
 
