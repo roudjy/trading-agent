@@ -528,7 +528,14 @@
 ### ADE-QRE-014D - Routing/Sampling Readiness Density
 
 - queue id: `ADE-QRE-014D`
-- status: `ready`
+- status: `done`
+- completion evidence: PR #329, merge SHA
+  `586606d88e88373eb580d3b76ab48bd22c3cc3e6`; Fast pre-merge gate
+  run `26356277317`, Docker build/push run `26356382172`, and VPS
+  deploy run `26356382164` completed/success; local post-merge
+  targeted tests and architecture scanner passed; frozen contracts
+  unchanged; protected/execution paths untouched; strategy synthesis
+  remained blocked.
 - title: Routing/Sampling Readiness Density.
 - purpose: increase `routing_ready` and `sampling_ready` evidence density
   using existing artifacts and read-only readiness evaluation only.
@@ -582,7 +589,7 @@
 ### ADE-QRE-014E - Trusted-Loop Maturity Follow-up
 
 - queue id: `ADE-QRE-014E`
-- status: `blocked until ADE-QRE-014D done`
+- status: `ready`
 - title: Trusted-Loop Maturity Follow-up.
 - purpose: update the maturity matrix/status based on 014B-D evidence while
   keeping the result docs/reporting only.
