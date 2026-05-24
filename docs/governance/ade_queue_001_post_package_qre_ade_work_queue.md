@@ -857,7 +857,17 @@
 
 - queue id: `ADE-QRE-014I`
 - title: Operator Decision Surface Readiness.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #337, merge SHA
+  `010d2ca652141bb4d304aad59820d51fdc5435ed`; post-merge Fast
+  pre-merge gate run `26371365964`, Docker build/push run
+  `26371490198`, and VPS deploy run `26371490206` completed/success;
+  local targeted decision-surface tests, queue lifecycle tests,
+  trusted-loop materialization tests, architecture tests, governance lint,
+  ruff, mypy, regression-fast, hook tests, `git diff --check`, and
+  architecture scanner passed; frozen contracts unchanged;
+  protected/execution paths untouched; strategy synthesis remained blocked;
+  Addendum runtime remained inactive.
 - purpose: make operator-facing decision outputs clearer: why next, why
   blocked, why deferred, and why no synthesis.
 - depends on: `ADE-QRE-014H done`.
@@ -928,7 +938,7 @@
 
 - queue id: `ADE-QRE-014J`
 - title: Research Memory Retrieval Coverage.
-- status: `blocked until ADE-QRE-014I done`
+- status: `ready`
 - purpose: measure whether prior trusted-loop reasons, failures, blockers, and
   actions are retrievable and linked enough for later routing/sampling
   calibration.
