@@ -461,7 +461,14 @@
 ### ADE-QRE-014C - KPI Numeric Readiness Completion
 
 - queue id: `ADE-QRE-014C`
-- status: `ready`
+- status: `done`
+- completion evidence: PR #327, merge SHA
+  `9e7380451ea4866f10cba298e05e897e3a284a48`; Fast pre-merge gate
+  run `26355563454`, Docker build/push run `26355688905`, and VPS
+  deploy run `26355688895` completed/success; local post-merge
+  targeted tests and architecture scanner passed; frozen contracts
+  unchanged; protected/execution paths untouched; strategy synthesis
+  remained blocked.
 - title: KPI Numeric Readiness Completion.
 - purpose: make trusted-loop readiness KPIs numerically complete and
   fail-closed where values are missing, unknown, or not derivable from
@@ -521,7 +528,7 @@
 ### ADE-QRE-014D - Routing/Sampling Readiness Density
 
 - queue id: `ADE-QRE-014D`
-- status: `blocked until ADE-QRE-014C done`
+- status: `ready`
 - title: Routing/Sampling Readiness Density.
 - purpose: increase `routing_ready` and `sampling_ready` evidence density
   using existing artifacts and read-only readiness evaluation only.

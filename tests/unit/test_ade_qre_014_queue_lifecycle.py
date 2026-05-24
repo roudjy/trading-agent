@@ -131,23 +131,30 @@ def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     item_b = items["ADE-QRE-014B"]
     item_c = items["ADE-QRE-014C"]
     item_d = items["ADE-QRE-014D"]
+    item_e = items["ADE-QRE-014E"]
 
     assert item_a.status == "done"
     assert _done_evidence_is_complete(item_a)
     assert item_b.status == "done"
     assert _done_evidence_is_complete(item_b)
 
-    assert item_c.status == "ready"
+    assert item_c.status == "done"
+    assert _done_evidence_is_complete(item_c)
     assert item_c.dependencies == ("ADE-QRE-014B",)
     assert _dependencies_done(item_c, items) is True
 
-    assert item_d.status == "blocked until ADE-QRE-014C done"
+    assert item_d.status == "ready"
     assert item_d.dependencies == ("ADE-QRE-014C",)
-    assert _dependencies_done(item_d, items) is False
-    assert _auto_selectable_status(item_d) is False
+    assert _dependencies_done(item_d, items) is True
+    assert _auto_selectable_status(item_d) is True
+
+    assert item_e.status == "blocked until ADE-QRE-014D done"
+    assert item_e.dependencies == ("ADE-QRE-014D",)
+    assert _dependencies_done(item_e, items) is False
+    assert _auto_selectable_status(item_e) is False
 
     assert "ADE-QRE-011" in _stale_historical_ready_items(items)
-    assert _next_eligible_ready_item(items) == item_c
+    assert _next_eligible_ready_item(items) == item_d
 
     item_f = items["ADE-QRE-014F"]
     assert item_f.status.startswith("deferred")
