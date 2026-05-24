@@ -53,7 +53,7 @@ def _parse_queue_items(text: str) -> dict[str, QueueItem]:
 
 
 def _done_evidence_is_complete(item: QueueItem) -> bool:
-    text = item.body.lower()
+    text = re.sub(r"\s+", " ", item.body.lower())
     has_pr = re.search(r"\bpr #\d+\b", item.body, re.I) is not None
     has_merge_sha = "merge" in text and (
         re.search(r"\b[0-9a-f]{7,40}\b", item.body) is not None
@@ -143,18 +143,19 @@ def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     assert item_c.dependencies == ("ADE-QRE-014B",)
     assert _dependencies_done(item_c, items) is True
 
-    assert item_d.status == "ready"
+    assert item_d.status == "done"
+    assert _done_evidence_is_complete(item_d)
     assert item_d.dependencies == ("ADE-QRE-014C",)
     assert _dependencies_done(item_d, items) is True
-    assert _auto_selectable_status(item_d) is True
+    assert _auto_selectable_status(item_d) is False
 
-    assert item_e.status == "blocked until ADE-QRE-014D done"
+    assert item_e.status == "ready"
     assert item_e.dependencies == ("ADE-QRE-014D",)
-    assert _dependencies_done(item_e, items) is False
-    assert _auto_selectable_status(item_e) is False
+    assert _dependencies_done(item_e, items) is True
+    assert _auto_selectable_status(item_e) is True
 
     assert "ADE-QRE-011" in _stale_historical_ready_items(items)
-    assert _next_eligible_ready_item(items) == item_d
+    assert _next_eligible_ready_item(items) == item_e
 
     item_f = items["ADE-QRE-014F"]
     assert item_f.status.startswith("deferred")
