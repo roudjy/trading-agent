@@ -366,6 +366,7 @@ describe("AgentActivity Pipeline", () => {
   it("renders 11 stage chips in closed-vocab order", async () => {
     mount("/agent-control/activity/pipeline");
     await screen.findByTestId("aac-section-pipeline");
+    await screen.findByTestId("aac-pipeline-chip-discovered");
     const expectedStages = [
       "discovered",
       "queued",

@@ -697,7 +697,13 @@
 
 - queue id: `ADE-QRE-014G`
 - title: Synthesis Blocker Explanation Density.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #333, merge SHA
+  `51c5c033e7339ebfd6bf23bd4fa8ef4894f8d63d`; Fast pre-merge gate
+  run `26357671265`, Docker build/push run `26357791138`, and VPS
+  deploy run `26357791137` completed/success; local post-merge targeted
+  test and architecture scanner passed; frozen contracts unchanged;
+  protected/execution paths untouched; strategy synthesis remained blocked.
 - purpose: improve operator-readable explanation of why strategy synthesis
   remains blocked, using current readiness evidence only.
 - depends on: `ADE-QRE-014E done`.
@@ -772,7 +778,7 @@
 
 - queue id: `ADE-QRE-014H`
 - title: Failure-to-Action Actionability Density.
-- status: `blocked until ADE-QRE-014G done`
+- status: `ready`
 - purpose: improve measurable density of actionable failure-to-action mappings
   from existing evidence without inventing causes.
 - depends on: `ADE-QRE-014G done`.
