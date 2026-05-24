@@ -205,9 +205,78 @@ def test_collect_snapshot_surfaces_only_evidence_backed_numeric_values(
     assert metrics["actionable_failure_rate"]["value"] is None
 
     kpis = snapshot["research_quality_kpi_readiness"]
-    assert kpis["values"]["OAB"]["status"] == "partial"
-    assert kpis["values"]["TTFPRC"]["status"] == "not_ready"
+    assert kpis["values"]["OAB"]["status"] == "fail_closed"
+    assert kpis["values"]["OAB"]["value"] is None
+    assert kpis["values"]["OAB"]["fail_closed"] is True
+    assert kpis["values"]["OAB"]["partial_evidence_count"] == 4
+    assert kpis["values"]["TTFPRC"]["status"] == "fail_closed"
+    assert kpis["values"]["TTFPRC"]["readiness_score"] == 0.0
     assert kpis["complete_value_count"] == 0
+    assert kpis["partial_value_count"] == 1
+    assert kpis["fail_closed_count"] == 7
+    assert kpis["all_reported_kpis_numeric_or_fail_closed"] is True
+
+
+def test_research_quality_kpis_are_ready_with_complete_numeric_evidence() -> None:
+    evidence = {
+        "TTFPRC": {"value": 12.0, "source": "fixture"},
+        "OOS_DSR": {"value": 0.7, "source": "fixture"},
+        "MASQ": {"value": 1.2, "source": "fixture"},
+        "NMBR": {"value": 0.75, "source": "fixture"},
+        "DZCR": {"value": 0.18, "source": "fixture"},
+        "OAB": {
+            "visible_surface_count": 4,
+            "operator_decisions_per_week": 2,
+            "source": "fixture",
+        },
+        "CRSR": {"value": 0.4, "source": "fixture"},
+    }
+
+    kpis = tlm._research_quality_kpi_readiness(
+        {"research_quality_kpi_evidence": evidence}
+    )
+
+    assert kpis["complete_value_count"] == 7
+    assert kpis["fail_closed_count"] == 0
+    assert kpis["partial_value_count"] == 0
+    assert kpis["all_reported_kpis_numeric_or_fail_closed"] is True
+    assert kpis["values"]["OAB"]["value"] == 8
+    assert all(row["status"] == "ready" for row in kpis["values"].values())
+    assert all(row["readiness_score"] == 1.0 for row in kpis["values"].values())
+
+
+def test_research_quality_kpis_fail_closed_on_missing_evidence() -> None:
+    kpis = tlm._research_quality_kpi_readiness({})
+
+    assert kpis["complete_value_count"] == 0
+    assert kpis["partial_value_count"] == 0
+    assert kpis["fail_closed_count"] == 7
+    assert kpis["all_reported_kpis_numeric_or_fail_closed"] is True
+    for row in kpis["values"].values():
+        assert row["status"] == "fail_closed"
+        assert row["value"] is None
+        assert row["numeric_value_ready"] is False
+        assert row["fail_closed"] is True
+        assert row["readiness_score"] == 0.0
+        assert row["missing_evidence"]
+
+
+def test_research_quality_kpis_fail_closed_on_unknown_non_numeric_evidence() -> None:
+    kpis = tlm._research_quality_kpi_readiness(
+        {
+            "research_quality_kpi_evidence": {
+                "TTFPRC": {"value": "unknown", "source": "fixture"},
+                "NMBR": {"value": None, "source": "fixture"},
+            }
+        }
+    )
+
+    assert kpis["complete_value_count"] == 0
+    assert kpis["fail_closed_count"] == 7
+    assert kpis["values"]["TTFPRC"]["status"] == "fail_closed"
+    assert kpis["values"]["TTFPRC"]["source"] == "fixture"
+    assert kpis["values"]["NMBR"]["status"] == "fail_closed"
+    assert kpis["values"]["NMBR"]["source"] == "fixture"
 
 
 def test_write_outputs_refuses_outside_allowlist(tmp_path: Path) -> None:
