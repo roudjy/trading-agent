@@ -137,6 +137,7 @@ def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     item_i = items["ADE-QRE-014I"]
     item_j = items["ADE-QRE-014J"]
     item_k = items["ADE-QRE-014K"]
+    item_l = items["ADE-QRE-014L"]
 
     assert item_a.status == "done"
     assert _done_evidence_is_complete(item_a)
@@ -188,11 +189,17 @@ def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     assert _dependencies_done(item_j, items) is True
     assert _auto_selectable_status(item_j) is False
 
-    assert item_k.status == "ready"
+    assert item_k.status == "done"
+    assert _done_evidence_is_complete(item_k)
     assert item_k.dependencies == ("ADE-QRE-014J",)
     assert _dependencies_done(item_k, items) is True
-    assert _auto_selectable_status(item_k) is True
-    assert _next_eligible_ready_item(items) == item_k
+    assert _auto_selectable_status(item_k) is False
+
+    assert item_l.status == "ready"
+    assert item_l.dependencies == ("ADE-QRE-014K",)
+    assert _dependencies_done(item_l, items) is True
+    assert _auto_selectable_status(item_l) is True
+    assert _next_eligible_ready_item(items) == item_l
 
 
 def test_done_queue_item_without_merge_evidence_is_rejected() -> None:

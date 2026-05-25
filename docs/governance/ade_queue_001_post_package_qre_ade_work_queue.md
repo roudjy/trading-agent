@@ -1109,7 +1109,7 @@
 
 - queue id: `ADE-QRE-014L`
 - title: Data/Source Readiness Blocker Coverage.
-- status: `blocked until ADE-QRE-014K done`
+- status: `ready`
 - purpose: improve read-only coverage of data/source/identity readiness
   blockers using Addendum 3 as reference taxonomy only.
 - depends on: `ADE-QRE-014K done`.
