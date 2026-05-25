@@ -8,7 +8,8 @@ run-domain contracts.
 
 ## Current Status
 
-Status: active read-only boundary seed plus ADE-QRE-005 research memory helper.
+Status: active read-only boundary seed plus ADE-QRE-005 research memory helper
+and ADE-QRE-014J retrieval-coverage reporter.
 The canonical research universe contract now lives in
 `packages.qre_research.universe`; deterministic local artifact indexing and
 retrieval live in `packages.qre_research.research_memory`; current QRE
@@ -27,6 +28,11 @@ with `research.universe` retained as the compatibility import path.
 retrieval helper. It does not use embeddings, LLM authority, graph databases,
 network calls, subprocess calls, campaign mutation, routing mutation, or
 strategy generation.
+
+`packages.qre_research.retrieval_coverage` measures whether trusted-loop
+reasons, failures, blockers, and actions can be retrieved with explicit local
+links. It is an operator-readable coverage report only; retrieval remains
+context, not authority.
 
 ## Allowed Future Contents
 

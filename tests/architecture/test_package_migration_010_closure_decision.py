@@ -35,6 +35,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "README.md",
         "__init__.py",
         "research_memory.py",
+        "retrieval_coverage.py",
         "universe.py",
     ],
     "qre_data": [
