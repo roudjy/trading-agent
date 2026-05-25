@@ -938,7 +938,19 @@
 
 - queue id: `ADE-QRE-014J`
 - title: Research Memory Retrieval Coverage.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #350, merge SHA
+  `ec9509e17f87bf2fe377144e1d8fde6ee7436e1b`; post-merge Fast
+  pre-merge gate run `26395054419`, Docker build/push run
+  `26395274477`, and VPS deploy run `26395274476` completed/success;
+  targeted retrieval coverage and research-memory tests, architecture tests,
+  architecture scanner, ruff, mypy, regression-fast, hook tests, governance
+  lint, `git diff --check`, and PR Fast pre-merge gate passed; frozen
+  contracts unchanged; protected/execution paths untouched; retrieval remains
+  context only, not authority; no vector database, hidden ML, strategy
+  synthesis, Addendum runtime activation, routing/campaign mutation, dashboard
+  mutation, approval mutation, paper/shadow/live/risk/broker/execution, or
+  dependency PR changes.
 - purpose: measure whether prior trusted-loop reasons, failures, blockers, and
   actions are retrievable and linked enough for later routing/sampling
   calibration.
@@ -1016,7 +1028,7 @@
 
 - queue id: `ADE-QRE-014K`
 - title: Trusted Loop Regression Fixtures.
-- status: `blocked until ADE-QRE-014J done`
+- status: `ready`
 - purpose: add stable regression fixtures for complete, thin, missing,
   contradictory, blocked, and non-actionable trusted-loop evidence cases.
 - depends on: `ADE-QRE-014J done`.
