@@ -1028,7 +1028,19 @@
 
 - queue id: `ADE-QRE-014K`
 - title: Trusted Loop Regression Fixtures.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #352, merge SHA
+  `5dd223249f8b5c9251c27e70a43a0521a966de54`; post-merge Fast
+  pre-merge gate run `26407877873`, Docker build/push run `26408118046`,
+  and VPS deploy run `26408118045` completed/success; fixture-backed tests
+  cover complete, thin, missing, contradictory, blocked, and non-actionable
+  trusted-loop evidence cases; targeted trusted-loop tests, architecture
+  tests, architecture scanner, ruff, mypy, regression-fast, hook tests,
+  governance lint, `git diff --check`, and PR Fast pre-merge gate passed;
+  frozen contracts unchanged; protected/execution paths untouched; no
+  production behavior, strategy, registry, research output, Addendum runtime,
+  routing/campaign mutation, dashboard mutation, approval mutation,
+  paper/shadow/live/risk/broker/execution, or dependency PR changes.
 - purpose: add stable regression fixtures for complete, thin, missing,
   contradictory, blocked, and non-actionable trusted-loop evidence cases.
 - depends on: `ADE-QRE-014J done`.
@@ -1097,7 +1109,7 @@
 
 - queue id: `ADE-QRE-014L`
 - title: Data/Source Readiness Blocker Coverage.
-- status: `blocked until ADE-QRE-014K done`
+- status: `ready`
 - purpose: improve read-only coverage of data/source/identity readiness
   blockers using Addendum 3 as reference taxonomy only.
 - depends on: `ADE-QRE-014K done`.
