@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "fixture_kind": "trusted_loop_regression_evidence_cases",
+  "generated_at_utc": "2026-05-25T00:00:00Z",
+  "safety_invariants": {
+    "read_only": true,
+    "mutates_research_outputs": false,
+    "mutates_frozen_contracts": false,
+    "enables_strategy_synthesis": false,
+    "activates_addendum_runtime": false,
+    "paper_shadow_live_forbidden": true,
+    "broker_risk_execution_forbidden": true
+  },
+  "cases": [
+    {
+      "case_id": "complete",
+      "description": "All numeric KPI, routing, sampling, reason-density, and failure-action evidence is present; synthesis remains governance-blocked only.",
+      "kpi_evidence": {
+        "TTFPRC": {"value": 10.0, "source": "fixture_complete"},
+        "OOS_DSR": {"value": 0.8, "source": "fixture_complete"},
+        "MASQ": {"value": 1.25, "source": "fixture_complete"},
+        "NMBR": {"value": 0.7, "source": "fixture_complete"},
+        "DZCR": {"value": 0.1, "source": "fixture_complete"},
+        "OAB": {
+          "visible_surface_count": 3,
+          "operator_decisions_per_week": 2,
+          "source": "fixture_complete"
+        },
+        "CRSR": {"value": 0.5, "source": "fixture_complete"}
+      },
+      "routing_snapshot": {
+        "final_recommendation": "ready_for_implementation",
+        "counts": {
+          "total": 2,
+          "by_decision": {"prioritize": 1, "defer": 1}
+        }
+      },
+      "sampling_snapshot": {
+        "final_recommendation": "ready_for_sampling",
+        "counts": {"total": 2, "actionable": 1}
+      },
+      "artifact_present": {"routing": true, "sampling": true},
+      "failure_action_mapping": {
+        "status": "ready",
+        "total_failures": 2,
+        "actionable_failure_count": 2
+      },
+      "reason_density": {
+        "final_recommendation": "evidence_density_ready",
+        "metrics": {"record_count": 2, "records_with_evidence_refs": 2}
+      },
+      "block_reasons": ["no_strategy_synthesis_scope_authorized"],
+      "expected": {
+        "kpi_complete_value_count": 7,
+        "kpi_fail_closed_count": 0,
+        "routing_status": "ready",
+        "sampling_status": "ready",
+        "routing_missing_evidence": [],
+        "sampling_missing_evidence": [],
+        "blocker_overall_status": "blocked_explained",
+        "explained_blocker_count": 1,
+        "unexplained_blocker_count": 0
+      }
+    },
+    {
+      "case_id": "thin",
+      "description": "Only partial KPI and partial routing evidence is present; every incomplete surface fails closed with explicit missing evidence.",
+      "kpi_evidence": {
+        "OAB": {
+          "visible_surface_count": 2,
+          "source": "fixture_thin"
+        }
+      },
+      "routing_snapshot": {
+        "final_recommendation": "ready_for_implementation",
+        "counts": {
+          "total": 1,
+          "by_decision": {"prioritize": 0}
+        }
+      },
+      "sampling_snapshot": {
+        "final_recommendation": "nothing_actionable",
+        "counts": {"total": 1, "actionable": 0}
+      },
+      "artifact_present": {"routing": true, "sampling": true},
+      "failure_action_mapping": {
+        "status": "not_ready",
+        "total_failures": 1,
+        "actionable_failure_count": 0
+      },
+      "reason_density": {
+        "final_recommendation": "partial_evidence_density",
+        "metrics": {"record_count": 2, "records_with_evidence_refs": 1}
+      },
+      "block_reasons": [
+        "no_complete_research_quality_kpi_values",
+        "routing_ready_evidence_missing_or_not_ready",
+        "sampling_ready_evidence_missing_or_not_ready",
+        "reason_record_evidence_density_not_ready",
+        "no_strategy_synthesis_scope_authorized"
+      ],
+      "expected": {
+        "kpi_complete_value_count": 0,
+        "kpi_partial_value_count": 1,
+        "kpi_fail_closed_count": 7,
+        "routing_status": "fail_closed",
+        "sampling_status": "fail_closed",
+        "routing_missing_evidence": ["prioritize_count_positive"],
+        "sampling_missing_evidence": [
+          "final_recommendation_ready",
+          "actionable_count_positive"
+        ],
+        "blocker_overall_status": "blocked_explained",
+        "explained_blocker_count": 5,
+        "unexplained_blocker_count": 0
+      }
+    },
+    {
+      "case_id": "missing",
+      "description": "No trusted-loop evidence is present; artifacts are absent and all readiness surfaces fail closed.",
+      "kpi_evidence": {},
+      "routing_snapshot": {},
+      "sampling_snapshot": {},
+      "artifact_present": {"routing": false, "sampling": false},
+      "failure_action_mapping": {},
+      "reason_density": {
+        "final_recommendation": "not_available",
+        "metrics": {}
+      },
+      "block_reasons": [
+        "failure_action_mapping_not_ready_when_total_failures_zero",
+        "no_complete_research_quality_kpi_values",
+        "routing_ready_evidence_missing_or_not_ready",
+        "sampling_ready_evidence_missing_or_not_ready",
+        "reason_record_evidence_density_not_ready",
+        "no_strategy_synthesis_scope_authorized"
+      ],
+      "expected": {
+        "kpi_complete_value_count": 0,
+        "kpi_fail_closed_count": 7,
+        "routing_status": "fail_closed",
+        "sampling_status": "fail_closed",
+        "routing_missing_evidence": [
+          "latest_artifact_present",
+          "final_recommendation_ready",
+          "total_count_positive",
+          "prioritize_count_positive"
+        ],
+        "sampling_missing_evidence": [
+          "latest_artifact_present",
+          "final_recommendation_ready",
+          "total_count_positive",
+          "actionable_count_positive"
+        ],
+        "blocker_overall_status": "blocked_explained",
+        "explained_blocker_count": 6,
+        "unexplained_blocker_count": 0
+      }
+    },
+    {
+      "case_id": "contradictory",
+      "description": "The recommendation says ready, but supporting counts are zero; readiness must fail closed instead of trusting the label.",
+      "kpi_evidence": {
+        "TTFPRC": {"value": "ready", "source": "fixture_contradictory"},
+        "OOS_DSR": {"value": 0.6, "source": "fixture_contradictory"}
+      },
+      "routing_snapshot": {
+        "final_recommendation": "ready_for_implementation",
+        "counts": {
+          "total": 0,
+          "by_decision": {"prioritize": 0}
+        }
+      },
+      "sampling_snapshot": {
+        "final_recommendation": "ready_for_sampling",
+        "counts": {"total": 0, "actionable": 0}
+      },
+      "artifact_present": {"routing": true, "sampling": true},
+      "failure_action_mapping": {
+        "status": "ready",
+        "total_failures": 1,
+        "actionable_failure_count": 1
+      },
+      "reason_density": {
+        "final_recommendation": "evidence_density_ready",
+        "metrics": {"record_count": 1, "records_with_evidence_refs": 1}
+      },
+      "block_reasons": [
+        "no_complete_research_quality_kpi_values",
+        "routing_ready_evidence_missing_or_not_ready",
+        "sampling_ready_evidence_missing_or_not_ready",
+        "no_strategy_synthesis_scope_authorized"
+      ],
+      "expected": {
+        "kpi_complete_value_count": 1,
+        "kpi_fail_closed_count": 6,
+        "routing_status": "fail_closed",
+        "sampling_status": "fail_closed",
+        "routing_missing_evidence": [
+          "total_count_positive",
+          "prioritize_count_positive"
+        ],
+        "sampling_missing_evidence": [
+          "total_count_positive",
+          "actionable_count_positive"
+        ],
+        "blocker_overall_status": "blocked_explained",
+        "explained_blocker_count": 4,
+        "unexplained_blocker_count": 0
+      }
+    },
+    {
+      "case_id": "blocked",
+      "description": "Evidence exists but explicit blockers remain active and operator-readable.",
+      "kpi_evidence": {
+        "TTFPRC": {"value": 15.0, "source": "fixture_blocked"},
+        "OOS_DSR": {"value": 0.4, "source": "fixture_blocked"}
+      },
+      "routing_snapshot": {
+        "final_recommendation": "blocked_by_dependency",
+        "counts": {
+          "total": 3,
+          "by_decision": {"prioritize": 0, "defer": 3}
+        }
+      },
+      "sampling_snapshot": {
+        "final_recommendation": "blocked_by_dependency",
+        "counts": {"total": 3, "actionable": 0}
+      },
+      "artifact_present": {"routing": true, "sampling": true},
+      "failure_action_mapping": {
+        "status": "not_ready",
+        "total_failures": 2,
+        "actionable_failure_count": 0
+      },
+      "reason_density": {
+        "final_recommendation": "not_ready_missing_evidence_refs",
+        "metrics": {"record_count": 3, "records_with_evidence_refs": 0}
+      },
+      "block_reasons": [
+        "no_complete_research_quality_kpi_values",
+        "routing_ready_evidence_missing_or_not_ready",
+        "sampling_ready_evidence_missing_or_not_ready",
+        "reason_record_evidence_density_not_ready",
+        "no_strategy_synthesis_scope_authorized"
+      ],
+      "expected": {
+        "kpi_complete_value_count": 2,
+        "kpi_fail_closed_count": 5,
+        "routing_status": "fail_closed",
+        "sampling_status": "fail_closed",
+        "routing_missing_evidence": [
+          "final_recommendation_ready",
+          "prioritize_count_positive"
+        ],
+        "sampling_missing_evidence": [
+          "final_recommendation_ready",
+          "actionable_count_positive"
+        ],
+        "blocker_overall_status": "blocked_explained",
+        "explained_blocker_count": 5,
+        "unexplained_blocker_count": 0
+      }
+    },
+    {
+      "case_id": "non_actionable",
+      "description": "Failure evidence exists only as a zero-failure/non-actionable state and must not produce executable action.",
+      "kpi_evidence": {},
+      "routing_snapshot": {
+        "final_recommendation": "nothing_ready",
+        "counts": {
+          "total": 0,
+          "by_decision": {}
+        }
+      },
+      "sampling_snapshot": {
+        "final_recommendation": "nothing_ready",
+        "counts": {"total": 0, "actionable": 0}
+      },
+      "artifact_present": {"routing": true, "sampling": true},
+      "failure_action_mapping": {
+        "status": "not_ready",
+        "total_failures": 0,
+        "actionable_failure_count": 0
+      },
+      "reason_density": {
+        "final_recommendation": "not_ready_no_reason_records",
+        "metrics": {"record_count": 0, "records_with_evidence_refs": 0}
+      },
+      "block_reasons": [
+        "failure_action_mapping_not_ready_when_total_failures_zero",
+        "no_strategy_synthesis_scope_authorized"
+      ],
+      "expected": {
+        "kpi_complete_value_count": 0,
+        "kpi_fail_closed_count": 7,
+        "routing_status": "fail_closed",
+        "sampling_status": "fail_closed",
+        "routing_missing_evidence": [
+          "final_recommendation_ready",
+          "total_count_positive",
+          "prioritize_count_positive"
+        ],
+        "sampling_missing_evidence": [
+          "final_recommendation_ready",
+          "total_count_positive",
+          "actionable_count_positive"
+        ],
+        "failure_missing_evidence": [
+          "positive_failure_count",
+          "actionable_failure_mapping"
+        ],
+        "blocker_overall_status": "blocked_explained",
+        "explained_blocker_count": 2,
+        "unexplained_blocker_count": 0
+      }
+    }
+  ]
+}
