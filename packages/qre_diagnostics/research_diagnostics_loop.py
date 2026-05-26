@@ -329,7 +329,7 @@ def _bounded_failure_action(row: Mapping[str, Any]) -> dict[str, Any]:
 def _summarize_sources(sources: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = {}
     for source_id, source in sorted(sources.items()):
-        summary[source_id] = {
+        source_summary = {
             key: source.get(key)
             for key in (
                 "source_id",
@@ -342,6 +342,21 @@ def _summarize_sources(sources: Mapping[str, Mapping[str, Any]]) -> dict[str, An
             )
             if key in source
         }
+        payload = source.get("payload")
+        payload_summary = (
+            payload.get("summary")
+            if isinstance(payload, Mapping) and isinstance(payload.get("summary"), Mapping)
+            else {}
+        )
+        for key in (
+            "operator_summary",
+            "readiness_blocker_category_counts",
+            "readiness_blocker_reason_counts",
+            "report_readiness_blockers",
+        ):
+            if key in payload_summary:
+                source_summary[key] = payload_summary[key]
+        summary[source_id] = source_summary
     return summary
 
 

@@ -33,6 +33,11 @@ research output contracts.
 cache manifest only. It does not activate vendor sources, infer alpha, fetch
 data, modify cache files, or change research output contracts.
 
+ADE-QRE-014L uses Roadmap v6 Addendum 3 as reference taxonomy only for
+data/source/identity readiness blocker labels. Runtime Addendum 3 activation,
+new source adapters, new datafeeds, source quality as alpha, and source quality
+as promotion authority remain forbidden.
+
 ## Allowed Future Contents
 
 - Data contract types and metadata.
