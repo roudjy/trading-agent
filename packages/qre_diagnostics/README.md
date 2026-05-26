@@ -18,6 +18,9 @@ diagnostics-loop digest over existing sidecars. Other diagnostics remain under
 The canonical diagnostics path contract is authoritative under
 `packages.qre_diagnostics.paths`. The ADE-QRE-006 diagnostics loop is
 authoritative under `packages.qre_diagnostics.research_diagnostics_loop`.
+ADE-QRE-014M extends that loop with read-only diagnostic/quorum/null-model
+readiness blocker labels using Roadmap v6 Addendum 1 as reference taxonomy
+only.
 Existing diagnostics builders remain authoritative in `research/diagnostics/`.
 Diagnostics are read-only evidence surfaces and do not own trade decisions or
 execution behavior.
@@ -49,3 +52,8 @@ the canonical `packages.qre_diagnostics.paths` public contract.
 ## Activation Status
 
 Activation status: active read-only diagnostics boundary only.
+
+Addendum 1 diagnostic runtime activation remains forbidden. Diagnostic
+readiness blockers may explain missing quorum or null-model evidence, but they
+do not authorize synthesis, control routing or sampling behavior, mutate
+campaigns, or activate paper, shadow, live, risk, broker, or execution paths.

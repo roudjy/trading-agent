@@ -15,6 +15,37 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, sort_keys=True, indent=2), encoding="utf-8")
 
 
+def _write_diagnostic_readiness_evidence(tmp_path: Path) -> None:
+    _write_json(
+        tmp_path / "logs" / "intelligent_routing_diagnostic_signals" / "latest.json",
+        {
+            "schema_version": "1.0",
+            "generated_at_utc": "2026-05-23T00:00:00Z",
+            "report_kind": "intelligent_routing_diagnostic_signals",
+            "signals": [
+                {"family": "quorum"},
+                {"family": "null_model"},
+            ],
+        },
+    )
+    _write_json(
+        tmp_path / "logs" / "quorum_state" / "latest.json",
+        {
+            "schema_version": "1.0",
+            "generated_at_utc": "2026-05-23T00:00:00Z",
+            "summary": {"quorum_ready": True},
+        },
+    )
+    _write_json(
+        tmp_path / "logs" / "null_model_evidence" / "latest.json",
+        {
+            "schema_version": "1.0",
+            "generated_at_utc": "2026-05-23T00:00:00Z",
+            "summary": {"null_model_ready": True},
+        },
+    )
+
+
 def test_diagnostics_loop_links_failure_evidence_to_next_diagnostic(tmp_path: Path) -> None:
     _write_json(
         tmp_path / "research" / "screening_failure_attribution_latest.v1.json",
@@ -87,6 +118,7 @@ def test_diagnostics_loop_links_failure_evidence_to_next_diagnostic(tmp_path: Pa
             ],
         },
     )
+    _write_diagnostic_readiness_evidence(tmp_path)
 
     digest = build_diagnostics_loop_digest(
         repo_root=tmp_path,
@@ -96,6 +128,8 @@ def test_diagnostics_loop_links_failure_evidence_to_next_diagnostic(tmp_path: Pa
     assert digest["report_kind"] == "qre_research_diagnostics_loop"
     assert digest["summary"]["status"] == "ready"
     assert digest["summary"]["fail_closed"] is False
+    assert digest["summary"]["diagnostic_readiness_ready"] is True
+    assert digest["summary"]["report_readiness_blockers"] == []
     assert digest["summary"]["primary_failure_classification"] == "data_coverage_gap"
     assert digest["summary"]["recommended_operator_step"] == "inspect_next_diagnostic"
     assert digest["diagnostic_chain"][0]["failure_code"] == "technical_failure"
@@ -103,6 +137,10 @@ def test_diagnostics_loop_links_failure_evidence_to_next_diagnostic(tmp_path: Pa
     assert digest["diagnostic_chain"][0]["safety"]["mutates_campaign_queue"] is False
     assert digest["diagnostic_chain"][0]["research_memory_context"]["match_count"] == 1
     assert digest["safety_invariants"]["mutates_routing"] is False
+    assert digest["safety_invariants"]["activates_addendum1_runtime"] is False
+    assert digest["safety_invariants"]["diagnostics_authorize_synthesis"] is False
+    assert digest["safety_invariants"]["diagnostics_control_routing"] is False
+    assert digest["safety_invariants"]["diagnostics_control_sampling"] is False
 
 
 def test_diagnostics_loop_missing_sources_fail_closed(tmp_path: Path) -> None:
@@ -117,6 +155,130 @@ def test_diagnostics_loop_missing_sources_fail_closed(tmp_path: Path) -> None:
     assert digest["summary"]["missing_source_count"] == 5
     assert digest["diagnostic_chain"] == []
     assert "missing_failure_diagnostic_chain" in digest["summary"]["blocking_reasons"]
+    assert digest["summary"]["diagnostic_readiness_ready"] is False
+    assert digest["summary"]["readiness_blocker_category_counts"] == {
+        "diagnostic": 2,
+        "null_model": 1,
+        "quorum": 1,
+    }
+    assert digest["summary"]["readiness_blocker_reason_counts"] == {
+        "diagnostic_failure_chain_missing": 1,
+        "diagnostic_signal_evidence_missing": 1,
+        "null_model_evidence_missing": 1,
+        "quorum_evidence_missing": 1,
+    }
+    assert all(
+        blocker["fail_closed"] is True
+        for blocker in digest["summary"]["report_readiness_blockers"]
+    )
+
+
+def test_diagnostics_loop_fails_closed_without_quorum_and_null_model_evidence(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "research" / "screening_failure_attribution_latest.v1.json",
+        {
+            "schema_version": "1.0",
+            "summary": {"observation_count": 1},
+            "classifications": [
+                {
+                    "classification": "policy_gap",
+                    "count": 1,
+                    "sources": ["screening"],
+                    "action_hint": {"action": "inspect_policy_trace_evidence"},
+                }
+            ],
+        },
+    )
+    _write_json(
+        tmp_path / "logs" / "failure_action_mapping_minimal" / "latest.json",
+        {
+            "counts": {"total": 1},
+            "items": [
+                {
+                    "subject_id": "screening:policy_gap",
+                    "recommended_action": "inspect_policy_trace_evidence",
+                }
+            ],
+        },
+    )
+    _write_json(
+        tmp_path / "logs" / "qre_data_cache_manifest" / "latest.json",
+        {"summary": {"research_ready": True}},
+    )
+    _write_json(
+        tmp_path / "logs" / "qre_data_source_quality_readiness" / "latest.json",
+        {"summary": {"research_ready": True}},
+    )
+    _write_json(
+        tmp_path / "logs" / "qre_research_memory" / "latest.json",
+        {"summary": {"research_memory_ready": True}},
+    )
+    _write_json(
+        tmp_path / "logs" / "intelligent_routing_diagnostic_signals" / "latest.json",
+        {"signals": [{"family": "quorum"}, {"family": "null_model"}]},
+    )
+
+    digest = build_diagnostics_loop_digest(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-23T00:00:00Z",
+    )
+
+    assert digest["summary"]["status"] == "not_ready"
+    assert digest["summary"]["fail_closed"] is True
+    assert digest["summary"]["diagnostic_readiness_ready"] is False
+    assert digest["summary"]["recommended_operator_step"] == (
+        "stop_collect_diagnostic_readiness_evidence"
+    )
+    assert digest["summary"]["readiness_blocker_category_counts"] == {
+        "null_model": 1,
+        "quorum": 1,
+    }
+    assert digest["summary"]["readiness_blocker_reason_counts"] == {
+        "null_model_evidence_missing": 1,
+        "quorum_evidence_missing": 1,
+    }
+    assert "diagnostic/quorum/null-model readiness blockers" in digest["summary"][
+        "operator_summary"
+    ]
+    assert digest["diagnostic_readiness_evidence"]["quorum_evidence"]["fails_closed"] is True
+    assert (
+        digest["diagnostic_readiness_evidence"]["null_model_evidence"]["fails_closed"]
+        is True
+    )
+
+
+def test_diagnostics_loop_blocks_diagnostic_taxonomy_without_quorum_or_null_model(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "logs" / "intelligent_routing_diagnostic_signals" / "latest.json",
+        {"signals": [{"family": "entropy"}]},
+    )
+    _write_json(
+        tmp_path / "logs" / "quorum_state" / "latest.json",
+        {"summary": {"quorum_ready": True}},
+    )
+    _write_json(
+        tmp_path / "logs" / "null_model_evidence" / "latest.json",
+        {"summary": {"null_model_ready": True}},
+    )
+
+    digest = build_diagnostics_loop_digest(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-23T00:00:00Z",
+    )
+
+    assert digest["summary"]["readiness_blocker_reason_counts"][
+        "diagnostic_signal_evidence_not_ready"
+    ] == 1
+    assert digest["diagnostic_readiness_evidence"]["diagnostic_signal_evidence"][
+        "status"
+    ] == "not_ready"
+    assert digest["reference_taxonomy"]["runtime_activation"] is False
+    assert "quorum" in digest["reference_taxonomy"]["terms"]
+    assert "null_model" in digest["reference_taxonomy"]["terms"]
 
 
 def test_diagnostics_loop_surfaces_data_source_identity_blockers(
