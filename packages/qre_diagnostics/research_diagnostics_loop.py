@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import sys
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -30,6 +31,11 @@ FAILURE_ACTION_MAPPING_PATH: Final[Path] = Path("logs/failure_action_mapping_min
 DATA_MANIFEST_PATH: Final[Path] = Path("logs/qre_data_cache_manifest/latest.json")
 SOURCE_QUALITY_PATH: Final[Path] = Path("logs/qre_data_source_quality_readiness/latest.json")
 RESEARCH_MEMORY_PATH: Final[Path] = Path("logs/qre_research_memory/latest.json")
+DIAGNOSTIC_SIGNAL_PATH: Final[Path] = Path(
+    "logs/intelligent_routing_diagnostic_signals/latest.json"
+)
+QUORUM_EVIDENCE_PATH: Final[Path] = Path("logs/quorum_state/latest.json")
+NULL_MODEL_EVIDENCE_PATH: Final[Path] = Path("logs/null_model_evidence/latest.json")
 
 SOURCE_PATHS: Final[Mapping[str, Path]] = {
     "screening_failure_attribution": SCREENING_ATTRIBUTION_PATH,
@@ -38,6 +44,35 @@ SOURCE_PATHS: Final[Mapping[str, Path]] = {
     "source_quality": SOURCE_QUALITY_PATH,
     "research_memory": RESEARCH_MEMORY_PATH,
 }
+
+DIAGNOSTIC_READINESS_PATHS: Final[Mapping[str, Path]] = {
+    "diagnostic_signal_evidence": DIAGNOSTIC_SIGNAL_PATH,
+    "quorum_evidence": QUORUM_EVIDENCE_PATH,
+    "null_model_evidence": NULL_MODEL_EVIDENCE_PATH,
+}
+
+READINESS_BLOCKER_CATEGORIES: Final[tuple[str, ...]] = (
+    "diagnostic",
+    "quorum",
+    "null_model",
+)
+
+ADDENDUM1_REFERENCE_TAXONOMY: Final[tuple[str, ...]] = (
+    "entropy",
+    "tail",
+    "criticality",
+    "network",
+    "quorum",
+    "external_intelligence",
+    "dead_zone",
+    "null_model",
+    "barrier",
+    "resonance",
+    "adversarial",
+    "seismic",
+    "turbulence",
+    "market_language",
+)
 
 STOP_ACTIONS: Final[frozenset[str]] = frozenset(
     {
@@ -117,6 +152,47 @@ def _read_json_source(source_id: str, path: Path, *, repo_root: Path) -> dict[st
     }
 
 
+def _read_readiness_evidence(source_id: str, path: Path, *, repo_root: Path) -> dict[str, Any]:
+    full_path = repo_root / path
+    if not full_path.is_file():
+        return {
+            "source_id": source_id,
+            "available": False,
+            "status": "missing",
+            "path": _rel(full_path, repo_root=repo_root),
+            "fails_closed": True,
+        }
+    try:
+        payload = json.loads(full_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "source_id": source_id,
+            "available": False,
+            "status": "invalid",
+            "path": _rel(full_path, repo_root=repo_root),
+            "fails_closed": True,
+        }
+    if not isinstance(payload, dict):
+        return {
+            "source_id": source_id,
+            "available": False,
+            "status": "invalid",
+            "path": _rel(full_path, repo_root=repo_root),
+            "fails_closed": True,
+        }
+    status = _readiness_evidence_status(source_id, payload)
+    return {
+        "source_id": source_id,
+        "available": True,
+        "status": status,
+        "path": _rel(full_path, repo_root=repo_root),
+        "fails_closed": status != "ready",
+        "schema_version": payload.get("schema_version"),
+        "generated_at_utc": payload.get("generated_at_utc"),
+        "payload": payload,
+    }
+
+
 def _source_status(source_id: str, payload: Mapping[str, Any]) -> str:
     summary = payload.get("summary")
     if not isinstance(summary, Mapping):
@@ -146,6 +222,30 @@ def _source_fails_closed(source_id: str, payload: Mapping[str, Any]) -> bool:
         summary = payload.get("summary")
         return not (isinstance(summary, Mapping) and bool(summary.get("research_memory_ready")))
     return False
+
+
+def _readiness_evidence_status(source_id: str, payload: Mapping[str, Any]) -> str:
+    summary = payload.get("summary")
+    summary = summary if isinstance(summary, Mapping) else {}
+    if source_id == "diagnostic_signal_evidence":
+        return "ready" if _has_reference_taxonomy_coverage(payload) else "not_ready"
+    if source_id == "quorum_evidence":
+        return "ready" if bool(summary.get("quorum_ready")) else "not_ready"
+    if source_id == "null_model_evidence":
+        return "ready" if bool(summary.get("null_model_ready")) else "not_ready"
+    return "not_ready"
+
+
+def _has_reference_taxonomy_coverage(payload: Mapping[str, Any]) -> bool:
+    signals = payload.get("signals")
+    if not isinstance(signals, Sequence) or isinstance(signals, str | bytes):
+        return False
+    families = {
+        str(row.get("family"))
+        for row in signals
+        if isinstance(row, Mapping) and row.get("family")
+    }
+    return {"quorum", "null_model"}.issubset(families)
 
 
 def _safe_int(value: Any) -> int:
@@ -360,17 +460,151 @@ def _summarize_sources(sources: Mapping[str, Mapping[str, Any]]) -> dict[str, An
     return summary
 
 
+def _summarize_readiness_evidence(
+    evidence: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    return {
+        source_id: {
+            key: source.get(key)
+            for key in (
+                "source_id",
+                "available",
+                "status",
+                "path",
+                "fails_closed",
+                "schema_version",
+                "generated_at_utc",
+            )
+            if key in source
+        }
+        for source_id, source in sorted(evidence.items())
+    }
+
+
+def _blocker(
+    *,
+    category: str,
+    reason: str,
+    evidence_field: str,
+    evidence_status: str,
+    operator_explanation: str,
+) -> dict[str, Any]:
+    if category not in READINESS_BLOCKER_CATEGORIES:
+        raise ValueError(f"unknown diagnostic readiness blocker category: {category!r}")
+    return {
+        "category": category,
+        "reason": reason,
+        "evidence_field": evidence_field,
+        "evidence_status": evidence_status,
+        "fail_closed": True,
+        "operator_explanation": operator_explanation,
+    }
+
+
+def _readiness_evidence_blocker(source_id: str, source: Mapping[str, Any]) -> dict[str, Any]:
+    if source_id == "diagnostic_signal_evidence":
+        return _blocker(
+            category="diagnostic",
+            reason=f"diagnostic_signal_evidence_{source.get('status')}",
+            evidence_field="signals.quorum+signals.null_model",
+            evidence_status=str(source.get("status") or "missing"),
+            operator_explanation=(
+                "Diagnostic signal evidence is missing, invalid, or lacks quorum/null-model "
+                "taxonomy coverage; diagnostic readiness fails closed."
+            ),
+        )
+    if source_id == "quorum_evidence":
+        return _blocker(
+            category="quorum",
+            reason=f"quorum_evidence_{source.get('status')}",
+            evidence_field="summary.quorum_ready",
+            evidence_status=str(source.get("status") or "missing"),
+            operator_explanation=(
+                "Independent evidence quorum is not ready; diagnostics cannot authorize "
+                "synthesis or escalation and readiness fails closed."
+            ),
+        )
+    return _blocker(
+        category="null_model",
+        reason=f"null_model_evidence_{source.get('status')}",
+        evidence_field="summary.null_model_ready",
+        evidence_status=str(source.get("status") or "missing"),
+        operator_explanation=(
+            "Null-model evidence is not ready; diagnostics cannot authorize synthesis "
+            "or escalation and readiness fails closed."
+        ),
+    )
+
+
+def _diagnostic_readiness_blockers(
+    *,
+    chain: Sequence[Mapping[str, Any]],
+    invalid_sources: Sequence[str],
+    readiness_evidence: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    blockers: list[dict[str, Any]] = []
+    if not chain:
+        blockers.append(
+            _blocker(
+                category="diagnostic",
+                reason="diagnostic_failure_chain_missing",
+                evidence_field="diagnostic_chain",
+                evidence_status="missing",
+                operator_explanation=(
+                    "No failure diagnostic chain is available; diagnostic readiness "
+                    "fails closed until upstream sidecars provide failure evidence."
+                ),
+            )
+        )
+    if invalid_sources:
+        blockers.append(
+            _blocker(
+                category="diagnostic",
+                reason="diagnostic_upstream_source_invalid",
+                evidence_field="sources",
+                evidence_status="invalid",
+                operator_explanation=(
+                    "One or more upstream diagnostic sidecars are invalid; diagnostic "
+                    "readiness fails closed."
+                ),
+            )
+        )
+    for source_id, source in sorted(readiness_evidence.items()):
+        if source.get("status") != "ready":
+            blockers.append(_readiness_evidence_blocker(source_id, source))
+    return sorted(blockers, key=lambda row: (row["category"], row["reason"]))
+
+
+def _operator_summary(blockers: Sequence[Mapping[str, Any]]) -> str:
+    if not blockers:
+        return (
+            "Diagnostic readiness has failure-chain, quorum, and null-model evidence; "
+            "diagnostics remain read-only and do not authorize synthesis."
+        )
+    categories = ", ".join(sorted({str(blocker.get("category")) for blocker in blockers}))
+    return (
+        "Diagnostic readiness is not research-ready; inspect diagnostic/quorum/"
+        f"null-model readiness blockers ({categories})."
+    )
+
+
 def build_diagnostics_loop_digest(
     *,
     repo_root: Path = Path("."),
     generated_at_utc: str | None = None,
     source_paths: Mapping[str, Path] | None = None,
+    readiness_paths: Mapping[str, Path] | None = None,
 ) -> dict[str, Any]:
     source_map = source_paths or SOURCE_PATHS
+    readiness_map = readiness_paths or DIAGNOSTIC_READINESS_PATHS
     generated = generated_at_utc or _utcnow()
     sources = {
         source_id: _read_json_source(source_id, path, repo_root=repo_root)
         for source_id, path in sorted(source_map.items())
+    }
+    readiness_evidence = {
+        source_id: _read_readiness_evidence(source_id, path, repo_root=repo_root)
+        for source_id, path in sorted(readiness_map.items())
     }
     chain = _build_diagnostic_chain(sources)
     missing_sources = [
@@ -388,9 +622,22 @@ def build_diagnostics_loop_digest(
         blocking_reasons.append("missing_failure_diagnostic_chain")
     if invalid_sources:
         blocking_reasons.append("invalid_upstream_source")
+    readiness_blockers = _diagnostic_readiness_blockers(
+        chain=chain,
+        invalid_sources=invalid_sources,
+        readiness_evidence=readiness_evidence,
+    )
+    blocker_category_counts = Counter(
+        str(blocker.get("category")) for blocker in readiness_blockers
+    )
+    blocker_reason_counts = Counter(str(blocker.get("reason")) for blocker in readiness_blockers)
+    if readiness_blockers:
+        blocking_reasons.append("diagnostic_readiness_blockers_present")
     recommended = "inspect_next_diagnostic"
     if not chain:
         recommended = "stop_collect_upstream_sidecars"
+    elif readiness_blockers:
+        recommended = "stop_collect_diagnostic_readiness_evidence"
     elif all(row["next_diagnostic"].startswith("stop_") for row in chain):
         recommended = "stop_until_evidence_improves"
     return {
@@ -400,8 +647,11 @@ def build_diagnostics_loop_digest(
         "mode": "dry-run",
         "safe_to_execute": False,
         "summary": {
-            "status": "ready" if chain and not invalid_sources else "not_ready",
-            "fail_closed": not bool(chain) or bool(invalid_sources),
+            "status": (
+                "ready" if chain and not invalid_sources and not readiness_blockers else "not_ready"
+            ),
+            "fail_closed": not bool(chain) or bool(invalid_sources) or bool(readiness_blockers),
+            "diagnostic_readiness_ready": not readiness_blockers,
             "source_count": len(sources),
             "available_source_count": sum(
                 1 for source in sources.values() if bool(source.get("available"))
@@ -416,8 +666,13 @@ def build_diagnostics_loop_digest(
             "blocking_reasons": blocking_reasons,
             "missing_sources": missing_sources,
             "invalid_sources": invalid_sources,
+            "readiness_blocker_category_counts": dict(sorted(blocker_category_counts.items())),
+            "readiness_blocker_reason_counts": dict(sorted(blocker_reason_counts.items())),
+            "report_readiness_blockers": readiness_blockers,
+            "operator_summary": _operator_summary(readiness_blockers),
         },
         "sources": _summarize_sources(sources),
+        "diagnostic_readiness_evidence": _summarize_readiness_evidence(readiness_evidence),
         "diagnostic_chain": chain,
         "operator_explanations": [row["operator_explanation"] for row in chain],
         "safety_invariants": {
@@ -431,6 +686,17 @@ def build_diagnostics_loop_digest(
             "adaptive_learning_side_effects": False,
             "paper_shadow_live_forbidden": True,
             "broker_risk_execution_forbidden": True,
+            "addendum1_reference_taxonomy_only": True,
+            "activates_addendum1_runtime": False,
+            "diagnostics_authorize_synthesis": False,
+            "diagnostics_control_routing": False,
+            "diagnostics_control_sampling": False,
+            "diagnostics_auto_generate_strategy_seeds": False,
+        },
+        "reference_taxonomy": {
+            "source": "Roadmap v6 Addendum 1",
+            "runtime_activation": False,
+            "terms": list(ADDENDUM1_REFERENCE_TAXONOMY),
         },
     }
 
@@ -536,8 +802,11 @@ if __name__ == "__main__":  # pragma: no cover
 
 
 __all__ = [
+    "ADDENDUM1_REFERENCE_TAXONOMY",
     "DEFAULT_OUTPUT_DIR",
+    "DIAGNOSTIC_READINESS_PATHS",
     "REPORT_KIND",
+    "READINESS_BLOCKER_CATEGORIES",
     "SCHEMA_VERSION",
     "build_diagnostics_loop_digest",
     "read_diagnostics_loop_status",
