@@ -1198,7 +1198,16 @@
 
 - queue id: `ADE-QRE-014M`
 - title: Diagnostic Readiness Blocker Coverage.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #357, merge SHA
+  `d459829fa988a47a19e6531814b68c05cfc8ff3a`; local `main` git log
+  confirmed `d459829 test: add diagnostic readiness blocker coverage (#357)`.
+  Targeted diagnostic readiness blocker tests passed; architecture scanner
+  passed with `forbidden_edge_count = 0`; `git diff --check` validation
+  passed; CI/checks green; main Fast pre-merge gate green; Docker build/push
+  and VPS deploy green; frozen contracts unchanged; protected/execution paths
+  untouched; strategy synthesis remained blocked; Addendum runtime remained
+  inactive.
 - purpose: improve read-only coverage of missing diagnostic/quorum/null-model
   blockers using Addendum 1 as reference taxonomy only.
 - depends on: `ADE-QRE-014L done`.
@@ -1271,7 +1280,7 @@
 
 - queue id: `ADE-QRE-014N`
 - title: Queue/Status Self-Audit Coverage.
-- status: `blocked until ADE-QRE-014M done`
+- status: `ready`
 - purpose: improve read-only self-audit of queue statuses, dependencies, done
   evidence, and blocked/deferred reasons.
 - depends on: `ADE-QRE-014M done`.
