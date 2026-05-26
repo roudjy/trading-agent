@@ -119,6 +119,64 @@ def test_diagnostics_loop_missing_sources_fail_closed(tmp_path: Path) -> None:
     assert "missing_failure_diagnostic_chain" in digest["summary"]["blocking_reasons"]
 
 
+def test_diagnostics_loop_surfaces_data_source_identity_blockers(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "logs" / "qre_data_source_quality_readiness" / "latest.json",
+        {
+            "schema_version": "1.0",
+            "generated_at_utc": "2026-05-23T00:00:00Z",
+            "summary": {
+                "research_ready": False,
+                "operator_summary": (
+                    "Source quality is not research-ready; inspect "
+                    "data/source/identity readiness blockers."
+                ),
+                "readiness_blocker_category_counts": {
+                    "data": 2,
+                    "identity": 1,
+                    "source": 1,
+                },
+                "readiness_blocker_reason_counts": {
+                    "data_row_count_not_positive": 1,
+                    "data_timestamp_range_missing": 1,
+                    "identity_source_unknown": 1,
+                    "source_content_hash_missing": 1,
+                },
+                "report_readiness_blockers": [
+                    {
+                        "category": "source",
+                        "reason": "source_manifest_research_not_ready",
+                        "fail_closed": True,
+                    }
+                ],
+            },
+        },
+    )
+
+    digest = build_diagnostics_loop_digest(
+        repo_root=tmp_path,
+        generated_at_utc="2026-05-23T00:00:00Z",
+    )
+
+    source_quality = digest["sources"]["source_quality"]
+    assert source_quality["status"] == "not_ready"
+    assert source_quality["fails_closed"] is True
+    assert source_quality["readiness_blocker_category_counts"] == {
+        "data": 2,
+        "identity": 1,
+        "source": 1,
+    }
+    assert source_quality["readiness_blocker_reason_counts"][
+        "identity_source_unknown"
+    ] == 1
+    assert source_quality["report_readiness_blockers"][0]["fail_closed"] is True
+    assert "data/source/identity readiness blockers" in source_quality[
+        "operator_summary"
+    ]
+
+
 def test_diagnostics_loop_invalid_source_count_is_separate_from_missing(
     tmp_path: Path,
 ) -> None:

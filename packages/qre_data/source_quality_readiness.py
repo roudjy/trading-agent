@@ -26,6 +26,17 @@ DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_data_source_quality_readiness")
 HISTORY_NAME: Final[str] = "history.jsonl"
 _WRITE_PREFIX: Final[str] = "logs/qre_data_source_quality_readiness/"
 _UNKNOWN_VALUES: Final[set[str]] = {"", "unknown", "none", "null", "nan"}
+READINESS_BLOCKER_CATEGORIES: Final[tuple[str, ...]] = ("data", "source", "identity")
+ADDENDUM3_REFERENCE_TAXONOMY: Final[tuple[str, ...]] = (
+    "source_manifest",
+    "source_identity",
+    "freshness",
+    "coverage",
+    "missing_data",
+    "timestamp_integrity",
+    "source_agreement",
+    "schema_version",
+)
 
 
 def _utcnow() -> str:
@@ -78,6 +89,130 @@ def _blocking_reasons(row: Mapping[str, Any], confidence: str) -> list[str]:
     return reasons
 
 
+def _blocker(
+    *,
+    category: str,
+    reason: str,
+    evidence_field: str,
+    evidence_status: str,
+    operator_explanation: str,
+) -> dict[str, Any]:
+    if category not in READINESS_BLOCKER_CATEGORIES:
+        raise ValueError(f"unknown readiness blocker category: {category!r}")
+    return {
+        "category": category,
+        "reason": reason,
+        "evidence_field": evidence_field,
+        "evidence_status": evidence_status,
+        "fail_closed": True,
+        "operator_explanation": operator_explanation,
+    }
+
+
+def _unknown_identity_blockers(row: Mapping[str, Any]) -> list[dict[str, Any]]:
+    fields = (
+        ("source", "identity_source_unknown"),
+        ("instrument", "identity_instrument_unknown"),
+        ("timeframe", "identity_timeframe_unknown"),
+        ("cache_kind", "identity_cache_kind_unknown"),
+    )
+    blockers: list[dict[str, Any]] = []
+    for field, reason in fields:
+        if _is_known(row.get(field)):
+            continue
+        blockers.append(
+            _blocker(
+                category="identity",
+                reason=reason,
+                evidence_field=field,
+                evidence_status="missing_or_unknown",
+                operator_explanation=(
+                    f"Identity evidence field {field} is missing or unknown; "
+                    "source readiness fails closed until the manifest identifies it."
+                ),
+            )
+        )
+    return blockers
+
+
+def _readiness_blockers(
+    row: Mapping[str, Any],
+    *,
+    confidence: str,
+) -> list[dict[str, Any]]:
+    blockers = _unknown_identity_blockers(row)
+    if confidence != "high" and not blockers:
+        blockers.append(
+            _blocker(
+                category="identity",
+                reason="identity_not_high_confidence",
+                evidence_field="source_identity",
+                evidence_status=confidence,
+                operator_explanation=(
+                    "Source identity evidence is not high confidence; readiness "
+                    "fails closed until identity is complete."
+                ),
+            )
+        )
+
+    manifest_status = row.get("status")
+    if manifest_status != "ready":
+        status = str(manifest_status or "missing")
+        blockers.append(
+            _blocker(
+                category="source",
+                reason="source_manifest_status_not_ready",
+                evidence_field="status",
+                evidence_status=status,
+                operator_explanation=(
+                    f"Source manifest status is {status}; source readiness "
+                    "requires ready manifest evidence."
+                ),
+            )
+        )
+    if not row.get("content_hash"):
+        blockers.append(
+            _blocker(
+                category="source",
+                reason="source_content_hash_missing",
+                evidence_field="content_hash",
+                evidence_status="missing",
+                operator_explanation=(
+                    "Source content hash is missing; reproducibility evidence "
+                    "is incomplete."
+                ),
+            )
+        )
+
+    if not isinstance(row.get("row_count"), int) or int(row["row_count"]) <= 0:
+        blockers.append(
+            _blocker(
+                category="data",
+                reason="data_row_count_not_positive",
+                evidence_field="row_count",
+                evidence_status="missing_or_non_positive",
+                operator_explanation=(
+                    "Data row count is missing, unknown, or non-positive; "
+                    "data readiness fails closed."
+                ),
+            )
+        )
+    if not row.get("min_timestamp_utc") or not row.get("max_timestamp_utc"):
+        blockers.append(
+            _blocker(
+                category="data",
+                reason="data_timestamp_range_missing",
+                evidence_field="timestamp_range",
+                evidence_status="missing",
+                operator_explanation=(
+                    "Data timestamp range is missing; freshness and coverage "
+                    "cannot be verified."
+                ),
+            )
+        )
+    return sorted(blockers, key=lambda row: (row["category"], row["reason"]))
+
+
 def _explanation(
     row: Mapping[str, Any],
     *,
@@ -100,6 +235,7 @@ def _explanation(
 def _evaluate_file(row: Mapping[str, Any]) -> dict[str, Any]:
     confidence = _identity_confidence(row)
     reasons = _blocking_reasons(row, confidence)
+    readiness_blockers = _readiness_blockers(row, confidence=confidence)
     quality_status = "ready" if not reasons else "blocked"
     return {
         "path": row.get("path"),
@@ -110,6 +246,7 @@ def _evaluate_file(row: Mapping[str, Any]) -> dict[str, Any]:
         "identity_confidence": confidence,
         "quality_status": quality_status,
         "blocking_reasons": reasons,
+        "readiness_blockers": readiness_blockers,
         "manifest_status": row.get("status"),
         "row_count": row.get("row_count"),
         "min_timestamp_utc": row.get("min_timestamp_utc"),
@@ -135,6 +272,18 @@ def _source_summaries(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]
         blocking = Counter(
             reason for row in source_rows for reason in row.get("blocking_reasons", [])
         )
+        readiness_blockers = [
+            blocker
+            for row in source_rows
+            for blocker in row.get("readiness_blockers", [])
+            if isinstance(blocker, Mapping)
+        ]
+        blocker_categories = Counter(
+            str(blocker.get("category")) for blocker in readiness_blockers
+        )
+        blocker_reasons = Counter(
+            str(blocker.get("reason")) for blocker in readiness_blockers
+        )
         summaries.append(
             {
                 "source": source,
@@ -142,6 +291,8 @@ def _source_summaries(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]
                 "identity_confidence_counts": dict(sorted(confidence_counts.items())),
                 "quality_status_counts": dict(sorted(quality_counts.items())),
                 "blocking_reason_counts": dict(sorted(blocking.items())),
+                "readiness_blocker_category_counts": dict(sorted(blocker_categories.items())),
+                "readiness_blocker_reason_counts": dict(sorted(blocker_reasons.items())),
                 "ready": quality_counts.get("blocked", 0) == 0,
             }
         )
@@ -170,6 +321,16 @@ def build_source_quality_report(
     identity_counts = Counter(str(row["identity_confidence"]) for row in rows)
     quality_counts = Counter(str(row["quality_status"]) for row in rows)
     blocking_counts = Counter(reason for row in rows for reason in row.get("blocking_reasons", []))
+    readiness_blockers = [
+        blocker
+        for row in rows
+        for blocker in row.get("readiness_blockers", [])
+        if isinstance(blocker, Mapping)
+    ]
+    blocker_category_counts = Counter(
+        str(blocker.get("category")) for blocker in readiness_blockers
+    )
+    blocker_reason_counts = Counter(str(blocker.get("reason")) for blocker in readiness_blockers)
     manifest_summary = (
         manifest.get("summary") if isinstance(manifest.get("summary"), Mapping) else {}
     )
@@ -181,13 +342,47 @@ def build_source_quality_report(
     ).hexdigest()
 
     if not files:
-        operator_summary = "No manifest file rows are available; source quality fails closed."
+        operator_summary = (
+            "No manifest file rows are available; data/source/identity readiness "
+            "fails closed."
+        )
     elif research_ready:
         operator_summary = (
             "All manifest rows have high-confidence source identity and ready quality evidence."
         )
     else:
-        operator_summary = "Source quality is not research-ready; inspect blocking_reason_counts and row explanations."
+        categories = ", ".join(sorted(blocker_category_counts)) or "unknown"
+        operator_summary = (
+            "Source quality is not research-ready; inspect data/source/identity "
+            f"readiness blockers ({categories}) and row explanations."
+        )
+    report_readiness_blockers = []
+    if not files:
+        report_readiness_blockers.append(
+            _blocker(
+                category="data",
+                reason="data_source_rows_missing",
+                evidence_field="files",
+                evidence_status="missing",
+                operator_explanation=(
+                    "No manifest file rows are available, so data/source/identity "
+                    "readiness cannot be established."
+                ),
+            )
+        )
+    if not manifest_ready:
+        report_readiness_blockers.append(
+            _blocker(
+                category="source",
+                reason="source_manifest_research_not_ready",
+                evidence_field="summary.research_ready",
+                evidence_status="false_or_missing",
+                operator_explanation=(
+                    "The upstream cache manifest is not research-ready; source "
+                    "readiness fails closed."
+                ),
+            )
+        )
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -207,6 +402,9 @@ def build_source_quality_report(
             "identity_confidence_counts": dict(sorted(identity_counts.items())),
             "quality_status_counts": dict(sorted(quality_counts.items())),
             "blocking_reason_counts": dict(sorted(blocking_counts.items())),
+            "readiness_blocker_category_counts": dict(sorted(blocker_category_counts.items())),
+            "readiness_blocker_reason_counts": dict(sorted(blocker_reason_counts.items())),
+            "report_readiness_blockers": report_readiness_blockers,
             "evidence_content_hash": f"sha256:{evidence_hash}",
             "operator_summary": operator_summary,
         },
@@ -221,6 +419,15 @@ def build_source_quality_report(
             "frozen_contracts_unchanged": True,
             "paper_shadow_live_forbidden": True,
             "broker_risk_execution_forbidden": True,
+            "addendum3_reference_taxonomy_only": True,
+            "activates_addendum3_runtime": False,
+            "source_quality_as_alpha": False,
+            "source_quality_as_promotion_authority": False,
+        },
+        "reference_taxonomy": {
+            "source": "Roadmap v6 Addendum 3",
+            "runtime_activation": False,
+            "terms": list(ADDENDUM3_REFERENCE_TAXONOMY),
         },
     }
 
@@ -356,8 +563,10 @@ if __name__ == "__main__":  # pragma: no cover
 
 
 __all__ = [
+    "ADDENDUM3_REFERENCE_TAXONOMY",
     "DEFAULT_OUTPUT_DIR",
     "REPORT_KIND",
+    "READINESS_BLOCKER_CATEGORIES",
     "SCHEMA_VERSION",
     "build_source_quality_report",
     "read_source_quality_status",
