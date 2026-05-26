@@ -1204,10 +1204,10 @@
   confirmed `d459829 test: add diagnostic readiness blocker coverage (#357)`.
   Targeted diagnostic readiness blocker tests passed; architecture scanner
   passed with `forbidden_edge_count = 0`; `git diff --check` validation
-  passed; CI/checks were green; main Fast pre-merge gate, Docker build/push,
-  and VPS deploy were green; frozen contracts unchanged; protected/execution
-  paths untouched; strategy synthesis remained blocked; Addendum runtime
-  remained inactive.
+  passed; CI/checks green; main Fast pre-merge gate green; Docker build/push
+  and VPS deploy green; frozen contracts unchanged; protected/execution paths
+  untouched; strategy synthesis remained blocked; Addendum runtime remained
+  inactive.
 - purpose: improve read-only coverage of missing diagnostic/quorum/null-model
   blockers using Addendum 1 as reference taxonomy only.
 - depends on: `ADE-QRE-014L done`.
