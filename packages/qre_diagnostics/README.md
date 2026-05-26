@@ -20,7 +20,8 @@ The canonical diagnostics path contract is authoritative under
 authoritative under `packages.qre_diagnostics.research_diagnostics_loop`.
 ADE-QRE-014M extends that loop with read-only diagnostic/quorum/null-model
 readiness blocker labels using Roadmap v6 Addendum 1 as reference taxonomy
-only.
+only. Unit coverage pins the fail-closed blocker behavior in
+`tests/unit/test_qre_research_diagnostics_loop.py`.
 Existing diagnostics builders remain authoritative in `research/diagnostics/`.
 Diagnostics are read-only evidence surfaces and do not own trade decisions or
 execution behavior.
