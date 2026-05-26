@@ -1109,7 +1109,20 @@
 
 - queue id: `ADE-QRE-014L`
 - title: Data/Source Readiness Blocker Coverage.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #355, merge SHA
+  `c1aac7cda8874905d010c19dd635cf496a1e7b13`; post-merge Fast
+  pre-merge gate run `26439212100`, Docker build/push run `26439500230`,
+  and VPS deploy run `26439500103` completed/success; targeted
+  data/source/identity blocker tests, fail-closed missing/unknown evidence
+  tests, architecture tests, architecture scanner, ruff, mypy,
+  regression-fast, hook tests, governance lint, `git diff --check`, and PR
+  Fast pre-merge gate passed; frozen contracts unchanged;
+  protected/execution paths untouched; no source runtime, external adapter,
+  datafeed, data lake rollout, source-quality alpha/promotion authority,
+  Addendum 3 runtime activation, strategy, registry, research output,
+  campaign/routing mutation, dashboard mutation, approval mutation,
+  paper/shadow/live/risk/broker/execution, or dependency PR changes.
 - purpose: improve read-only coverage of data/source/identity readiness
   blockers using Addendum 3 as reference taxonomy only.
 - depends on: `ADE-QRE-014K done`.
@@ -1185,7 +1198,7 @@
 
 - queue id: `ADE-QRE-014M`
 - title: Diagnostic Readiness Blocker Coverage.
-- status: `blocked until ADE-QRE-014L done`
+- status: `ready`
 - purpose: improve read-only coverage of missing diagnostic/quorum/null-model
   blockers using Addendum 1 as reference taxonomy only.
 - depends on: `ADE-QRE-014L done`.
