@@ -1280,7 +1280,15 @@
 
 - queue id: `ADE-QRE-014N`
 - title: Queue/Status Self-Audit Coverage.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #360, merge SHA
+  `4e3e48e0ce37029cfc5eeef04b88f22a97f24f8e`; Fast pre-merge gate,
+  Docker build/push, and VPS deploy post-merge gates completed/success;
+  targeted queue/status self-audit tests, queue lifecycle tests, architecture
+  tests, architecture scanner, ruff, mypy, governance lint, and
+  `git diff --check` passed; frozen contracts unchanged; protected/execution
+  paths untouched; strategy synthesis remained blocked; Addendum runtime
+  remained inactive.
 - purpose: improve read-only self-audit of queue statuses, dependencies, done
   evidence, and blocked/deferred reasons.
 - depends on: `ADE-QRE-014M done`.
@@ -1350,7 +1358,7 @@
 
 - queue id: `ADE-QRE-014O`
 - title: Final Trusted-Loop Queue Readiness Review.
-- status: `blocked until ADE-QRE-014N done`
+- status: `ready`
 - purpose: produce a final read-only review of ADE-QRE-014 maturity and
   recommend exactly one next queue direction.
 - depends on: `ADE-QRE-014N done`.
