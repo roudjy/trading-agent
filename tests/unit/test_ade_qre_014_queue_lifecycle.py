@@ -10,6 +10,12 @@ _QUEUE_DOC = (
     / "governance"
     / "ade_queue_001_post_package_qre_ade_work_queue.md"
 )
+_FINAL_REVIEW_DOC = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "governance"
+    / "ade_qre_014o_final_trusted_loop_queue_readiness_review.md"
+)
 
 
 @dataclass(frozen=True)
@@ -340,3 +346,29 @@ def test_stale_historical_ready_item_does_not_override_new_dependency_chain() ->
 
     assert _stale_historical_ready_items(items) == ("ITEM-A",)
     assert _next_eligible_ready_item(items) == items["ITEM-C"]
+
+
+def test_ade_qre_014o_review_selects_one_allowed_next_direction() -> None:
+    text = _FINAL_REVIEW_DOC.read_text(encoding="utf-8")
+
+    allowed_directions = (
+        "continue trusted-loop maturity sprint",
+        "return to QRE Feature Build Track",
+        "operator review required",
+        "no eligible work remains",
+    )
+    selected_lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.startswith("Selected next direction:")
+    ]
+
+    assert selected_lines == [
+        "Selected next direction: **continue trusted-loop maturity sprint**."
+    ]
+    assert sum(direction in selected_lines[0] for direction in allowed_directions) == 1
+    assert "`return to QRE Feature Build Track` is not selected" in text
+    assert "`operator review required` is not selected" in text
+    assert "`no eligible work remains` is not selected" in text
+    assert "Strategy synthesis remains blocked." in text
+    assert "Addendum 4 remains `DEFERRED / REFERENCE-ONLY`." in text
