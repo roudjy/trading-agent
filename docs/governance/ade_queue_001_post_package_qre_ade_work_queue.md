@@ -1358,7 +1358,16 @@
 
 - queue id: `ADE-QRE-014O`
 - title: Final Trusted-Loop Queue Readiness Review.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #362, merge SHA
+  `8f614aed7c3502695d998a577ca9b826e5e4c375`; final read-only review
+  selected exactly one allowed next direction, `continue trusted-loop maturity
+  sprint`; post-merge Fast pre-merge gate run `26510874612`, Docker
+  build/push run `26511164074`, and VPS deploy run `26511164073`
+  completed/success; targeted queue lifecycle and queue self-audit tests,
+  architecture scanner, `git diff --check`, and staged diff check passed;
+  frozen contracts unchanged; protected/execution paths untouched; strategy
+  synthesis remained blocked; Addendum runtime remained inactive.
 - purpose: produce a final read-only review of ADE-QRE-014 maturity and
   recommend exactly one next queue direction.
 - depends on: `ADE-QRE-014N done`.
@@ -1437,7 +1446,7 @@ operator review, or stop because no eligible work remains.
 Scope constraints:
 
 - queue planning only until each item becomes eligible through its dependency.
-- `ADE-QRE-015A` remains blocked until `ADE-QRE-014O done`.
+- `ADE-QRE-015A` is ready after `ADE-QRE-014O done`.
 - strategy synthesis remains blocked.
 - Addendum 1, 2, 3, and 4 remain reference-only and not runtime activated.
 - Addendum 4 remains `DEFERRED / REFERENCE-ONLY`.
@@ -1448,7 +1457,7 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015A`
 - title: Post-014 Final Evidence Inventory.
-- status: `blocked until ADE-QRE-014O done`
+- status: `ready`
 - purpose: inventory all evidence produced by `ADE-QRE-014B` through
   `ADE-QRE-014O` and identify what is still scaffold, working capability, or
   operator-trusted capability.
