@@ -1609,7 +1609,16 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015C`
 - title: QRE Feature Track Return Readiness Check.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #368, merge SHA
+  `69df8aaaea07393f5a13c89e61c5b40910be3fc9`; read-only readiness check added
+  in `docs/governance/ade_qre_015c_qre_feature_track_return_readiness_check.md`
+  with explicit recommendation `continue_trusted_loop_maturity`; post-merge
+  Fast pre-merge gate run `26535691624`, Docker build/push run `26535984857`,
+  and VPS deploy run `26535985000` completed/success; local `git diff --check`,
+  architecture scanner, and governance lint passed; frozen contracts unchanged;
+  protected/execution paths untouched; strategy synthesis remained blocked;
+  Addendum runtime remained inactive.
 - purpose: determine whether the project is ready to return to the QRE
   Feature Build Track after the trusted-loop sprint.
 - depends on: `ADE-QRE-015B done`.
@@ -1750,7 +1759,7 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015E`
 - title: Trusted-Loop Continuation Planning Docs Only.
-- status: `blocked until ADE-QRE-015C done and recommendation is continue_trusted_loop_maturity`
+- status: `ready`
 - purpose: prepare a docs-only next trusted-loop maturity sprint if returning
   to QRE Feature Track is not yet safe.
 - depends on: `ADE-QRE-015C done`.
