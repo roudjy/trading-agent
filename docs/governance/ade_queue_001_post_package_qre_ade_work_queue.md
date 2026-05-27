@@ -1533,7 +1533,16 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015B`
 - title: Trusted-Loop Gap Prioritization.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #366, merge SHA
+  `eca3666092d0cbe9681115c9180d91e6a0a8d8c6`; deterministic trusted-loop
+  gap prioritization added in
+  `docs/governance/ade_qre_015b_trusted_loop_gap_prioritization.md`;
+  post-merge Fast pre-merge gate run `26533816388`, Docker build/push run
+  `26534136899`, and VPS deploy run `26534140225` completed/success; local
+  `git diff --check`, architecture scanner, and governance lint passed; frozen
+  contracts unchanged; protected/execution paths untouched; strategy synthesis
+  remained blocked; Addendum runtime remained inactive.
 - purpose: rank remaining trusted-loop gaps by operator value, safety,
   evidence impact, and implementation risk.
 - depends on: `ADE-QRE-015A done`.
@@ -1600,7 +1609,7 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015C`
 - title: QRE Feature Track Return Readiness Check.
-- status: `blocked until ADE-QRE-015B done`
+- status: `ready`
 - purpose: determine whether the project is ready to return to the QRE
   Feature Build Track after the trusted-loop sprint.
 - depends on: `ADE-QRE-015B done`.
