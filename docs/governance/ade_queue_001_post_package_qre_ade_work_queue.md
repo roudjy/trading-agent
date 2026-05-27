@@ -1457,7 +1457,15 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015A`
 - title: Post-014 Final Evidence Inventory.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #364, merge SHA
+  `5469d041e1e1f09648a125b681a73732505e1ef7`; evidence inventory added in
+  `docs/governance/ade_qre_015a_post_014_final_evidence_inventory.md`;
+  post-merge Fast pre-merge gate run `26532026262`, Docker build/push run
+  `26532342682`, and VPS deploy run `26532342816` completed/success; local
+  `git diff --check`, architecture scanner, and governance lint passed; frozen
+  contracts unchanged; protected/execution paths untouched; strategy synthesis
+  remained blocked; Addendum runtime remained inactive.
 - purpose: inventory all evidence produced by `ADE-QRE-014B` through
   `ADE-QRE-014O` and identify what is still scaffold, working capability, or
   operator-trusted capability.
@@ -1525,7 +1533,7 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015B`
 - title: Trusted-Loop Gap Prioritization.
-- status: `blocked until ADE-QRE-015A done`
+- status: `ready`
 - purpose: rank remaining trusted-loop gaps by operator value, safety,
   evidence impact, and implementation risk.
 - depends on: `ADE-QRE-015A done`.
