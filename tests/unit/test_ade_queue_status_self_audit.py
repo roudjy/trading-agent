@@ -115,11 +115,11 @@ def test_blocked_and_deferred_reason_gaps_are_explicit(tmp_path: Path) -> None:
     )
 
 
-def test_current_queue_selects_ade_qre_015e_after_015c_done() -> None:
+def test_current_queue_selects_ade_qre_015h_after_015e_done() -> None:
     snap = audit.collect_snapshot(frozen_utc="2026-05-27T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-015E"
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-015H"
     assert "ADE-QRE-011" in snap["summary"]["stale_historical_ready_items"]
     assert rows["ADE-QRE-014N"]["status"] == "done"
     assert rows["ADE-QRE-014N"]["done_evidence"]["complete"] is True
@@ -132,10 +132,13 @@ def test_current_queue_selects_ade_qre_015e_after_015c_done() -> None:
     assert rows["ADE-QRE-015C"]["status"] == "done"
     assert rows["ADE-QRE-015C"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-015D"]["auto_selectable"] is False
-    assert rows["ADE-QRE-015E"]["status"] == "ready"
-    assert rows["ADE-QRE-015E"]["auto_selectable"] is True
+    assert rows["ADE-QRE-015E"]["status"] == "done"
+    assert rows["ADE-QRE-015E"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-015E"]["auto_selectable"] is False
     assert rows["ADE-QRE-015F"]["auto_selectable"] is False
     assert rows["ADE-QRE-015G"]["auto_selectable"] is False
+    assert rows["ADE-QRE-015H"]["status"] == "ready"
+    assert rows["ADE-QRE-015H"]["auto_selectable"] is True
     assert snap["safety_invariants"]["adds_approval_mutation"] is False
     assert snap["safety_invariants"]["expands_autonomous_authority"] is False
     assert snap["safety_invariants"]["strategy_synthesis_enabled"] is False

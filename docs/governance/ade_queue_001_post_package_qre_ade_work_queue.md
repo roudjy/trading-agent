@@ -1759,7 +1759,15 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015E`
 - title: Trusted-Loop Continuation Planning Docs Only.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #370, merge SHA
+  `31093867c481513cf90b81f40d38fe7685bcc83b`; docs-only trusted-loop
+  continuation plan added in
+  `docs/governance/ade_qre_015e_trusted_loop_continuation_plan.md`;
+  `ADE-QRE-015C` recommendation `continue_trusted_loop_maturity` preserved;
+  `ADE-QRE-015D`, `ADE-QRE-015F`, and `ADE-QRE-015G` remain blocked;
+  checks green; post-merge Fast, Docker build/push, and VPS deploy gates green;
+  frozen contracts unchanged; protected/execution paths untouched.
 - purpose: prepare a docs-only next trusted-loop maturity sprint if returning
   to QRE Feature Track is not yet safe.
 - depends on: `ADE-QRE-015C done`.
@@ -1814,7 +1822,7 @@ Scope constraints:
   - CI failure outside scope.
   - remote auth failure.
   - local git unsafe state.
-- next dependency: `ADE-QRE-015F`.
+- next dependency: `ADE-QRE-015H`.
 
 ### ADE-QRE-015F - Operator Review Packet
 
@@ -1946,10 +1954,10 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015H`
 - title: Queue Direction Finalization.
-- status: `blocked until one of ADE-QRE-015D, ADE-QRE-015E, ADE-QRE-015F, or ADE-QRE-015G is done`
+- status: `ready`
 - purpose: finalize exactly one next queue direction after the `ADE-QRE-015`
   branching decision.
-- depends on: one selected branch path done.
+- depends on: `ADE-QRE-015E done`.
 - risk class: LOW.
 - target layer: `docs/governance`.
 - expected files or file families:
