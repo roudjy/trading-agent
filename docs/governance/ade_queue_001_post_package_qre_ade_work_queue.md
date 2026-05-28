@@ -2127,7 +2127,16 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016B`
 - title: Operator Trust Criteria Tightening.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #378, merge SHA
+  `0d114c003d0c3860db06ee4eea838f3c5534e1a0`; read-only operator trust
+  criteria added in
+  `docs/governance/ade_qre_016b_operator_trust_criteria.md`; post-merge Fast
+  pre-merge gate run `26564059058`, Docker build/push run `26564340950`, and
+  VPS deploy run `26564340949` completed/success; local `git diff --check`,
+  architecture scanner, and governance lint passed; frozen contracts
+  unchanged; protected/execution paths untouched; strategy synthesis remained
+  blocked; Addendum runtime remained inactive.
 - purpose: define stricter criteria for scaffold, working capability, and
   operator-trusted capability, using the 015 evidence and 016A closure
   inventory.
@@ -2195,7 +2204,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016C`
 - title: Missing Evidence Fail-Closed Coverage.
-- status: `blocked until ADE-QRE-016B done`
+- status: `ready`
 - purpose: improve tests/reporting that prove missing evidence cannot be
   interpreted as readiness across key trusted-loop surfaces.
 - depends on: `ADE-QRE-016B done`.
