@@ -2027,3 +2027,568 @@ Scope constraints:
   - remote auth failure.
   - local git unsafe state.
 - next dependency: none for this autonomous run; stop after `ADE-QRE-015H`.
+
+## ADE-QRE-016 - Next Trusted-Loop Maturity Sprint
+
+This sprint continues the trusted-loop maturity direction selected by
+`ADE-QRE-015C` and finalized by `ADE-QRE-015H`. It is derived only from the
+`ADE-QRE-015A` evidence inventory, `ADE-QRE-015B` gap prioritization,
+`ADE-QRE-015C` readiness check, `ADE-QRE-015E` continuation plan, and
+`ADE-QRE-015H` direction finalization.
+
+The sprint is queue planning only until each dependency-gated item is executed
+in a later PR. It does not start QRE Feature Build Track implementation, does
+not implement v3.15.16 Intelligent Routing, does not enable strategy synthesis,
+does not activate Addendum runtime behavior, and does not start shadow, paper,
+live, broker, risk, or execution work.
+
+### ADE-QRE-016A - Evidence Gap Closure Inventory
+
+- queue id: `ADE-QRE-016A`
+- title: Evidence Gap Closure Inventory.
+- status: `ready`
+- purpose: turn the prioritized `ADE-QRE-015B` gap list into a concrete,
+  evidence-backed closure inventory without claiming unsupported readiness.
+- depends on: `ADE-QRE-015H done`.
+- risk class: LOW.
+- target layer: governance docs and read-only evidence/reporting surfaces.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for deterministic read-only
+    evidence inventory/reporting, `tests/unit/**` only if reporting changes,
+    and `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - `registry.py`, strategy implementations, frozen schemas/contracts,
+    regression pins, runtime behavior paths, strategy synthesis enablement
+    paths, runtime Addendum activation paths, shadow/paper/live paths,
+    broker/risk/execution paths, dashboard mutation routes, approval mutation
+    paths, `research/research_latest.json`, and `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs.
+  - read-only reporting.
+  - tests if reporting changes.
+  - deterministic mapping from `GAP-015B-01` through `GAP-015B-07` to closure
+    candidates, missing evidence, blocked claims, and validation needs.
+- forbidden changes:
+  - strategy synthesis.
+  - runtime behavior.
+  - execution paths.
+  - Addendum runtime activation.
+  - `registry.py`.
+  - strategy code.
+  - frozen contract mutation.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+  - targeted reporting tests if reporting code changes.
+- validation required:
+  - every closure candidate cites an `ADE-QRE-015A`, `ADE-QRE-015B`,
+    `ADE-QRE-015C`, `ADE-QRE-015E`, or `ADE-QRE-015H` evidence basis.
+  - unsupported readiness claims are explicitly avoided.
+  - protected, frozen, research-output, and execution paths are untouched.
+  - strategy synthesis remains blocked.
+  - Addendum runtime remains inactive.
+- merge criteria:
+  - focused docs/read-only reporting/tests diff.
+  - tests and CI green where applicable.
+  - no strategy synthesis, runtime behavior, Addendum runtime, frozen contract,
+    research output, or execution path changes.
+- done criteria:
+  - prioritized gaps are mapped to closure candidates.
+  - unsupported claims are avoided.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-015H` is not done.
+  - closure candidates require invented evidence outside the 015 record.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-016B`.
+
+### ADE-QRE-016B - Operator Trust Criteria Tightening
+
+- queue id: `ADE-QRE-016B`
+- title: Operator Trust Criteria Tightening.
+- status: `blocked until ADE-QRE-016A done`
+- purpose: define stricter criteria for scaffold, working capability, and
+  operator-trusted capability, using the 015 evidence and 016A closure
+  inventory.
+- depends on: `ADE-QRE-016A done`.
+- risk class: LOW.
+- target layer: governance docs and read-only validation/reporting.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for read-only trust
+    criteria summaries, `tests/unit/**` only if reporting changes, and
+    `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - runtime gate authority paths, strategy synthesis enablement paths,
+    runtime Addendum activation paths, roadmap activation paths,
+    shadow/paper/live paths, broker/risk/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths, `registry.py`,
+    strategy implementations, `research/research_latest.json`, and
+    `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs.
+  - read-only validation/reporting.
+  - tests if needed for reporting.
+  - explicit, measurable, fail-closed trust criteria tied to evidence.
+- forbidden changes:
+  - changing runtime gates into authority.
+  - strategy synthesis.
+  - Addendum runtime activation.
+  - autonomous authority expansion.
+  - runtime promotion logic.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+  - targeted reporting tests if reporting code changes.
+- validation required:
+  - trust criteria distinguish scaffold, working capability, and
+    operator-trusted capability.
+  - missing evidence fails closed.
+  - protected, frozen, research-output, and execution paths are untouched.
+- merge criteria:
+  - focused docs/read-only validation/reporting/tests diff.
+  - tests and CI green where applicable.
+  - no runtime authority expansion, synthesis, Addendum runtime, frozen
+    contract, research output, or execution path changes.
+- done criteria:
+  - trust criteria are explicit, measurable, fail-closed, and evidence-backed.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-016A` is not done.
+  - criteria require authority beyond read-only reporting.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-016C`.
+
+### ADE-QRE-016C - Missing Evidence Fail-Closed Coverage
+
+- queue id: `ADE-QRE-016C`
+- title: Missing Evidence Fail-Closed Coverage.
+- status: `blocked until ADE-QRE-016B done`
+- purpose: improve tests/reporting that prove missing evidence cannot be
+  interpreted as readiness across key trusted-loop surfaces.
+- depends on: `ADE-QRE-016B done`.
+- risk class: LOW.
+- target layer: read-only reporting/tests and governance docs.
+- expected files or file families:
+  - `reporting/**.py` for read-only fail-closed reporting checks,
+    `tests/unit/**`, `tests/architecture/**` where relevant, fixtures used by
+    existing reporting tests, and `docs/governance/**`.
+- forbidden files or file families:
+  - runtime promotion logic, strategy synthesis enablement paths,
+    strategy code, `registry.py`, runtime Addendum activation paths,
+    shadow/paper/live paths, broker/risk/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths,
+    `research/research_latest.json`, and `research/strategy_matrix.csv`.
+- allowed changes:
+  - tests.
+  - fixtures.
+  - read-only reporting checks.
+  - docs.
+- forbidden changes:
+  - runtime promotion logic.
+  - synthesis enablement.
+  - strategy code.
+  - execution paths.
+  - Addendum runtime activation.
+- tests required:
+  - targeted fail-closed reporting tests.
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - missing reason-record, KPI, routing, sampling, diagnostics, retrieval, and
+    queue-status evidence cannot be treated as ready/trusted.
+  - protected, frozen, research-output, and execution paths are untouched.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - focused tests/read-only reporting/docs diff.
+  - tests and CI green where applicable.
+  - no runtime promotion, synthesis, Addendum runtime, frozen contract,
+    research output, or execution path changes.
+- done criteria:
+  - missing evidence paths fail closed across key trusted-loop surfaces.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-016B` is not done.
+  - fail-closed coverage requires runtime promotion behavior.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-016D`.
+
+### ADE-QRE-016D - Cross-Surface Consistency Audit
+
+- queue id: `ADE-QRE-016D`
+- title: Cross-Surface Consistency Audit.
+- status: `blocked until ADE-QRE-016C done`
+- purpose: verify consistency across reason records, KPI readiness,
+  routing/sampling readiness, diagnostics blockers, retrieval coverage, and
+  queue status.
+- depends on: `ADE-QRE-016C done`.
+- risk class: LOW.
+- target layer: read-only audit/reporting, tests, and governance docs.
+- expected files or file families:
+  - `reporting/**.py` only for read-only audit/reporting, `tests/unit/**`,
+    `tests/architecture/**` where relevant, and `docs/governance/**`.
+- forbidden files or file families:
+  - reason-record mutation paths, KPI authority mutation paths,
+    routing/campaign behavior paths, sampling behavior paths, strategy
+    synthesis enablement paths, runtime Addendum activation paths,
+    shadow/paper/live paths, broker/risk/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths, `registry.py`,
+    strategy implementations, `research/research_latest.json`, and
+    `research/strategy_matrix.csv`.
+- allowed changes:
+  - read-only audit/reporting.
+  - tests.
+  - docs.
+- forbidden changes:
+  - mutation of audited surfaces.
+  - routing behavior.
+  - campaign behavior.
+  - strategy synthesis.
+  - runtime Addendum activation.
+- tests required:
+  - targeted consistency audit/reporting tests if code changes.
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - inconsistencies are explicit and either resolved by docs/reporting
+    clarification or blocked with evidence.
+  - protected, frozen, research-output, and execution paths are untouched.
+  - retrieval remains context, not authority.
+  - diagnostics remain evidence surfaces only.
+- merge criteria:
+  - focused read-only audit/reporting/tests/docs diff.
+  - tests and CI green where applicable.
+  - no surface mutation, synthesis, Addendum runtime, frozen contract, research
+    output, or execution path changes.
+- done criteria:
+  - inconsistencies are explicit and either resolved or blocked with evidence.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-016C` is not done.
+  - audit requires mutating audited surfaces.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-016E`.
+
+### ADE-QRE-016E - Trusted-Loop Operator Summary v2
+
+- queue id: `ADE-QRE-016E`
+- title: Trusted-Loop Operator Summary v2.
+- status: `blocked until ADE-QRE-016D done`
+- purpose: produce a clearer operator-facing summary of what the trusted loop
+  can and cannot currently do.
+- depends on: `ADE-QRE-016D done`.
+- risk class: LOW.
+- target layer: governance docs and read-only operator/reporting summary.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for read-only summary
+    output, `tests/unit/**` only if reporting changes, and
+    `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - dashboard mutation routes, approval mutation paths, runtime authority
+    expansion paths, strategy synthesis enablement paths, runtime Addendum
+    activation paths, shadow/paper/live paths, broker/risk/execution paths,
+    frozen contracts, `registry.py`, strategy implementations,
+    `research/research_latest.json`, and `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs.
+  - read-only reporting summary.
+  - tests if reporting changes.
+- forbidden changes:
+  - dashboard mutation routes.
+  - approval mutation.
+  - runtime authority expansion.
+  - strategy synthesis.
+  - Addendum runtime activation.
+- tests required:
+  - targeted operator summary tests if reporting changes.
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+- validation required:
+  - operator can see ready, blocked, deferred, not-trusted, and no-synthesis
+    reasons clearly.
+  - protected, frozen, research-output, and execution paths are untouched.
+  - no approval or dashboard mutation behavior is added.
+- merge criteria:
+  - focused docs/read-only reporting/tests diff.
+  - tests and CI green where applicable.
+  - no dashboard mutation, approval mutation, runtime authority expansion,
+    synthesis, Addendum runtime, frozen contract, research output, or execution
+    path changes.
+- done criteria:
+  - operator can see ready, blocked, deferred, not-trusted, and no-synthesis
+    reasons clearly.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-016D` is not done.
+  - summary requires mutation routes or approval controls.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-016F`.
+
+### ADE-QRE-016F - Return-to-Feature-Track Criteria Refinement
+
+- queue id: `ADE-QRE-016F`
+- title: Return-to-Feature-Track Criteria Refinement.
+- status: `blocked until ADE-QRE-016E done`
+- purpose: refine exact evidence requirements for a future return to QRE
+  Feature Build Track without starting it.
+- depends on: `ADE-QRE-016E done`.
+- risk class: LOW.
+- target layer: governance docs and read-only criteria/checklist surfaces.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for read-only checklist or
+    criteria summary if needed, `tests/unit/**` only if reporting changes, and
+    `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - Roadmap v6 v3.15.16 implementation paths, roadmap mutation paths,
+    strategy synthesis enablement paths, routing implementation paths,
+    campaign mutation paths, runtime Addendum activation paths,
+    shadow/paper/live paths, broker/risk/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths, `registry.py`,
+    strategy implementations, `research/research_latest.json`, and
+    `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs-only criteria.
+  - read-only checklist.
+  - tests only if reporting changes.
+- forbidden changes:
+  - implementing v3.15.16.
+  - roadmap mutation.
+  - strategy synthesis.
+  - routing implementation.
+  - Addendum runtime activation.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+  - targeted reporting tests if reporting code changes.
+- validation required:
+  - return criteria are explicit and evidence-backed.
+  - no implementation starts.
+  - protected, frozen, research-output, and execution paths are untouched.
+  - strategy synthesis remains blocked.
+- merge criteria:
+  - focused docs/read-only checklist/tests diff.
+  - tests and CI green where applicable.
+  - no v3.15.16 implementation, roadmap mutation, synthesis, routing
+    implementation, Addendum runtime, frozen contract, research output, or
+    execution path changes.
+- done criteria:
+  - return criteria are explicit and evidence-backed.
+  - no implementation starts.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-016E` is not done.
+  - criteria require feature-track implementation.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-016G`.
+
+### ADE-QRE-016G - Next Sprint Decision Check
+
+- queue id: `ADE-QRE-016G`
+- title: Next Sprint Decision Check.
+- status: `blocked until ADE-QRE-016F done`
+- purpose: decide whether the next direction should be another maturity
+  sprint, operator review, return-to-feature-track planning, or no eligible
+  work.
+- depends on: `ADE-QRE-016F done`.
+- risk class: LOW.
+- target layer: governance docs and read-only decision record.
+- expected files or file families:
+  - `docs/governance/**`, `reporting/**.py` only for read-only decision
+    reporting if needed, `tests/unit/**` only if reporting changes, and
+    `tests/architecture/**` where relevant.
+- forbidden files or file families:
+  - selected-direction implementation paths, strategy synthesis enablement
+    paths, runtime Addendum activation paths, roadmap mutation paths,
+    shadow/paper/live paths, broker/risk/execution paths, frozen contracts,
+    dashboard mutation routes, approval mutation paths, `registry.py`,
+    strategy implementations, `research/research_latest.json`, and
+    `research/strategy_matrix.csv`.
+- allowed outputs exactly:
+  1. `continue_trusted_loop_maturity`.
+  2. `return_to_qre_feature_track_planning`.
+  3. `operator_review_required`.
+  4. `no_eligible_work_remains`.
+- allowed changes:
+  - docs-only decision check.
+  - read-only decision reporting if needed.
+  - evidence-backed selection of exactly one allowed output.
+- forbidden changes:
+  - starting the selected direction implementation.
+  - strategy synthesis.
+  - Addendum runtime activation.
+  - roadmap mutation.
+  - execution paths.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+  - targeted reporting tests if reporting code changes.
+- validation required:
+  - exactly one recommendation is selected.
+  - recommendation is evidence-backed.
+  - unselected recommendations remain blocked/deferred.
+  - protected, frozen, research-output, and execution paths are untouched.
+- merge criteria:
+  - focused docs/read-only reporting/tests diff.
+  - tests and CI green where applicable.
+  - no selected-direction implementation, synthesis, Addendum runtime, roadmap
+    mutation, frozen contract, research output, or execution path changes.
+- done criteria:
+  - exactly one recommendation is selected and evidence-backed.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-016F` is not done.
+  - more than one recommendation would be selected.
+  - evidence is insufficient and operator review is not selected.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - runtime behavior mutation required.
+  - live/paper/shadow/risk/broker/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: `ADE-QRE-016H`.
+
+### ADE-QRE-016H - Queue Direction Finalization
+
+- queue id: `ADE-QRE-016H`
+- title: Queue Direction Finalization.
+- status: `blocked until ADE-QRE-016G done`
+- purpose: finalize exactly one next queue direction after `ADE-QRE-016`.
+- depends on: `ADE-QRE-016G done`.
+- risk class: LOW.
+- target layer: governance docs and docs-only queue-direction finalization.
+- expected files or file families:
+  - `docs/governance/**`, and `reporting/**.py` or `tests/unit/**` only if a
+    read-only finalization report already exists and needs narrow validation.
+- forbidden files or file families:
+  - next-queue implementation paths, strategy synthesis enablement paths,
+    runtime Addendum activation paths, shadow/paper/live paths,
+    broker/risk/execution paths, routing/campaign mutation paths, frozen
+    contracts, dashboard mutation routes, approval mutation paths,
+    `registry.py`, strategy implementations, `research/research_latest.json`,
+    and `research/strategy_matrix.csv`.
+- allowed changes:
+  - docs-only finalization.
+  - evidence-backed next queue recommendation.
+  - blocked/deferred notes for unsupported directions.
+- forbidden changes:
+  - implementing the next queue.
+  - strategy synthesis.
+  - Addendum runtime activation.
+  - shadow/paper/live.
+  - broker/risk/execution.
+  - frozen contract mutation.
+- tests required:
+  - `git diff --check`.
+  - architecture scanner summary.
+  - governance lint if available.
+  - targeted reporting tests if reporting code changes.
+- validation required:
+  - next direction is explicit.
+  - unsupported directions remain blocked/deferred.
+  - protected, frozen, research-output, and execution paths are untouched.
+  - strategy synthesis remains blocked.
+  - Addendum runtime remains inactive.
+- merge criteria:
+  - focused docs-only finalization diff.
+  - tests and CI green where applicable.
+  - no next-queue implementation, synthesis, Addendum runtime, shadow/paper/live,
+    broker/risk/execution, frozen contract, research output, routing mutation,
+    or campaign mutation changes.
+- done criteria:
+  - next direction is explicit.
+  - unsupported directions remain blocked/deferred.
+  - PR merged and validated.
+- stop conditions:
+  - `ADE-QRE-016G` is not done.
+  - more than one next direction would be selected.
+  - protected paths touched unexpectedly.
+  - frozen contracts touched.
+  - strategy synthesis would be enabled.
+  - Addendum runtime activation required.
+  - shadow/paper/live required.
+  - broker/risk/execution paths required.
+  - dashboard mutation route required.
+  - approval mutation required.
+  - HIGH/UNKNOWN authority required.
+  - CI failure outside scope.
+  - remote auth failure.
+  - local git unsafe state.
+- next dependency: none.
