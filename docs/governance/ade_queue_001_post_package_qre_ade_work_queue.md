@@ -2204,7 +2204,18 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016C`
 - title: Missing Evidence Fail-Closed Coverage.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #380, merge SHA
+  `5f56b67d6f730e0687976d801fe80fc4b046246b`; read-only missing-evidence
+  fail-closed reporter added in
+  `reporting/trusted_loop_missing_evidence_fail_closed.py`, with coverage note
+  `docs/governance/ade_qre_016c_missing_evidence_fail_closed_coverage.md`;
+  post-merge Fast pre-merge gate run `26566607659`, Docker build/push run
+  `26566886782`, and VPS deploy run `26566886794` completed/success; local
+  targeted fail-closed tests, reporter CLI, ruff, `git diff --check`,
+  architecture scanner, and governance lint passed; frozen contracts
+  unchanged; protected/execution paths untouched; strategy synthesis remained
+  blocked; Addendum runtime remained inactive.
 - purpose: improve tests/reporting that prove missing evidence cannot be
   interpreted as readiness across key trusted-loop surfaces.
 - depends on: `ADE-QRE-016B done`.
@@ -2270,7 +2281,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016D`
 - title: Cross-Surface Consistency Audit.
-- status: `blocked until ADE-QRE-016C done`
+- status: `ready`
 - purpose: verify consistency across reason records, KPI readiness,
   routing/sampling readiness, diagnostics blockers, retrieval coverage, and
   queue status.
