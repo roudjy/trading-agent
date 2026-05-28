@@ -2281,7 +2281,18 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016D`
 - title: Cross-Surface Consistency Audit.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #382, merge SHA
+  `c6ded3af85897fbe8e3888085d6934075bc8b473`; read-only cross-surface
+  consistency audit added in
+  `reporting/trusted_loop_consistency_audit.py`, with governance note
+  `docs/governance/ade_qre_016d_cross_surface_consistency_audit.md`;
+  post-merge Fast pre-merge gate run `26568549334`, Docker build/push run
+  `26568813970`, and VPS deploy run `26568813985` completed/success; local
+  targeted consistency and fail-closed tests, reporter CLI, ruff,
+  `git diff --check`, architecture scanner, and governance lint passed; frozen
+  contracts unchanged; protected/execution paths untouched; strategy synthesis
+  remained blocked; Addendum runtime remained inactive.
 - purpose: verify consistency across reason records, KPI readiness,
   routing/sampling readiness, diagnostics blockers, retrieval coverage, and
   queue status.
@@ -2349,7 +2360,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016E`
 - title: Trusted-Loop Operator Summary v2.
-- status: `blocked until ADE-QRE-016D done`
+- status: `ready`
 - purpose: produce a clearer operator-facing summary of what the trusted loop
   can and cannot currently do.
 - depends on: `ADE-QRE-016D done`.
