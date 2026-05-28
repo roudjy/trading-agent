@@ -1954,7 +1954,15 @@ Scope constraints:
 
 - queue id: `ADE-QRE-015H`
 - title: Queue Direction Finalization.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #372, merge SHA
+  `be83e53fd1e577cd074895207d3f2879d8b5a445`; docs-only queue direction
+  finalization added in
+  `docs/governance/ade_qre_015h_queue_direction_finalization.md`; exactly one
+  next direction selected, `start next trusted-loop maturity sprint`; selected
+  direction not implemented; checks green; post-merge Fast, Docker build/push,
+  and VPS deploy gates green; frozen contracts unchanged;
+  protected/execution paths untouched.
 - purpose: finalize exactly one next queue direction after the `ADE-QRE-015`
   branching decision.
 - depends on: `ADE-QRE-015E done`.
@@ -2018,4 +2026,4 @@ Scope constraints:
   - CI failure outside scope.
   - remote auth failure.
   - local git unsafe state.
-- next dependency: none.
+- next dependency: none for this autonomous run; stop after `ADE-QRE-015H`.
