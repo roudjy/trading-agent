@@ -124,8 +124,8 @@ def _next_eligible_ready_item(items: dict[str, QueueItem]) -> QueueItem | None:
     return min(candidates, key=lambda item: item.order)
 
 
-def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
-    """Pin the ADE-QRE-014 done -> ready -> blocked lifecycle.
+def test_ade_qre_active_queue_lifecycle_is_consistent() -> None:
+    """Pin the active ADE-QRE done -> ready -> blocked lifecycle.
 
     This is a docs/governance-only guardrail: it validates the active
     queue document without mutating runtime state, strategy code, or
@@ -155,6 +155,14 @@ def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     item_15f = items["ADE-QRE-015F"]
     item_15g = items["ADE-QRE-015G"]
     item_15h = items["ADE-QRE-015H"]
+    item_16a = items["ADE-QRE-016A"]
+    item_16b = items["ADE-QRE-016B"]
+    item_16c = items["ADE-QRE-016C"]
+    item_16d = items["ADE-QRE-016D"]
+    item_16e = items["ADE-QRE-016E"]
+    item_16f = items["ADE-QRE-016F"]
+    item_16g = items["ADE-QRE-016G"]
+    item_16h = items["ADE-QRE-016H"]
 
     assert item_a.status == "done"
     assert _done_evidence_is_complete(item_a)
@@ -270,7 +278,41 @@ def test_ade_qre_014_active_queue_lifecycle_is_consistent() -> None:
     assert item_15h.dependencies == ("ADE-QRE-015E",)
     assert _dependencies_done(item_15h, items) is True
     assert _auto_selectable_status(item_15h) is False
-    assert _next_eligible_ready_item(items) is None
+
+    assert item_16a.status == "ready"
+    assert item_16a.dependencies == ("ADE-QRE-015H",)
+    assert _dependencies_done(item_16a, items) is True
+    assert _auto_selectable_status(item_16a) is True
+    assert item_16b.status == "blocked until ADE-QRE-016A done"
+    assert item_16b.dependencies == ("ADE-QRE-016A",)
+    assert _dependencies_done(item_16b, items) is False
+    assert _auto_selectable_status(item_16b) is False
+    assert item_16c.status == "blocked until ADE-QRE-016B done"
+    assert item_16c.dependencies == ("ADE-QRE-016B",)
+    assert _dependencies_done(item_16c, items) is False
+    assert _auto_selectable_status(item_16c) is False
+    assert item_16d.status == "blocked until ADE-QRE-016C done"
+    assert item_16d.dependencies == ("ADE-QRE-016C",)
+    assert _dependencies_done(item_16d, items) is False
+    assert _auto_selectable_status(item_16d) is False
+    assert item_16e.status == "blocked until ADE-QRE-016D done"
+    assert item_16e.dependencies == ("ADE-QRE-016D",)
+    assert _dependencies_done(item_16e, items) is False
+    assert _auto_selectable_status(item_16e) is False
+    assert item_16f.status == "blocked until ADE-QRE-016E done"
+    assert item_16f.dependencies == ("ADE-QRE-016E",)
+    assert _dependencies_done(item_16f, items) is False
+    assert _auto_selectable_status(item_16f) is False
+    assert item_16g.status == "blocked until ADE-QRE-016F done"
+    assert item_16g.dependencies == ("ADE-QRE-016F",)
+    assert _dependencies_done(item_16g, items) is False
+    assert _auto_selectable_status(item_16g) is False
+    assert item_16h.status == "blocked until ADE-QRE-016G done"
+    assert item_16h.dependencies == ("ADE-QRE-016G",)
+    assert _dependencies_done(item_16h, items) is False
+    assert _auto_selectable_status(item_16h) is False
+    assert _stale_historical_ready_items(items) == ("ADE-QRE-011",)
+    assert _next_eligible_ready_item(items) == item_16a
 
 
 def test_done_queue_item_without_merge_evidence_is_rejected() -> None:
