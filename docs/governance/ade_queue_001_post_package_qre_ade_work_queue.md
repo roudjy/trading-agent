@@ -2360,7 +2360,17 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016E`
 - title: Trusted-Loop Operator Summary v2.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #384, merge SHA
+  `bc8b13806589f7acc4213dd2d0c0a4ba12592c3f`; docs-only trusted-loop
+  operator summary v2 added in
+  `docs/governance/ade_qre_016e_trusted_loop_operator_summary_v2.md`;
+  post-merge Fast pre-merge gate run `26570241313`, Docker build/push run
+  `26570496441`, and VPS deploy run `26570496538` completed/success; local
+  `git diff --check`, architecture scanner, governance lint, and queue
+  self-audit passed; frozen contracts unchanged; protected/execution paths
+  untouched; strategy synthesis remained blocked; Addendum runtime remained
+  inactive.
 - purpose: produce a clearer operator-facing summary of what the trusted loop
   can and cannot currently do.
 - depends on: `ADE-QRE-016D done`.
@@ -2427,7 +2437,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016F`
 - title: Return-to-Feature-Track Criteria Refinement.
-- status: `blocked until ADE-QRE-016E done`
+- status: `ready`
 - purpose: refine exact evidence requirements for a future return to QRE
   Feature Build Track without starting it.
 - depends on: `ADE-QRE-016E done`.
