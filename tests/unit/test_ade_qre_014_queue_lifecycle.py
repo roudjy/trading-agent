@@ -311,6 +311,7 @@ def test_ade_qre_active_queue_lifecycle_is_consistent() -> None:
     assert item_16h.dependencies == ("ADE-QRE-016G",)
     assert _dependencies_done(item_16h, items) is False
     assert _auto_selectable_status(item_16h) is False
+    assert _stale_historical_ready_items(items) == ("ADE-QRE-011",)
     assert _next_eligible_ready_item(items) == item_16a
 
 
