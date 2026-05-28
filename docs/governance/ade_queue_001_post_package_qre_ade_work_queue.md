@@ -2046,7 +2046,16 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016A`
 - title: Evidence Gap Closure Inventory.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #376, merge SHA
+  `21ad5a26a496c6f1e185c2c64596a3ba3426c4cd`; read-only evidence gap
+  closure inventory added in
+  `docs/governance/ade_qre_016a_evidence_gap_closure_inventory.md`; post-merge
+  Fast pre-merge gate run `26562379703`, Docker build/push run `26562640607`,
+  and VPS deploy run `26562640663` completed/success; local
+  `git diff --check`, architecture scanner, and governance lint passed; frozen
+  contracts unchanged; protected/execution paths untouched; strategy synthesis
+  remained blocked; Addendum runtime remained inactive.
 - purpose: turn the prioritized `ADE-QRE-015B` gap list into a concrete,
   evidence-backed closure inventory without claiming unsupported readiness.
 - depends on: `ADE-QRE-015H done`.
@@ -2118,7 +2127,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016B`
 - title: Operator Trust Criteria Tightening.
-- status: `blocked until ADE-QRE-016A done`
+- status: `ready`
 - purpose: define stricter criteria for scaffold, working capability, and
   operator-trusted capability, using the 015 evidence and 016A closure
   inventory.
