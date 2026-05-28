@@ -2516,7 +2516,18 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016G`
 - title: Next Sprint Decision Check.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #388, merge SHA
+  `fa11434a2572ddf42e3f8ed0dce318783e158634`; docs-only next sprint
+  decision check added in
+  `docs/governance/ade_qre_016g_next_sprint_decision_check.md`, selecting
+  exactly one allowed output, `continue_trusted_loop_maturity`; post-merge
+  Fast pre-merge gate run `26573650469`, Docker build/push run `26573907736`,
+  and VPS deploy run `26573907739` completed/success; local
+  `git diff --check`, architecture scanner, governance lint, queue self-audit,
+  and exactly-one-recommendation check passed; frozen contracts unchanged;
+  protected/execution paths untouched; strategy synthesis remained blocked;
+  Addendum runtime remained inactive.
 - purpose: decide whether the next direction should be another maturity
   sprint, operator review, return-to-feature-track planning, or no eligible
   work.
@@ -2589,7 +2600,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016H`
 - title: Queue Direction Finalization.
-- status: `blocked until ADE-QRE-016G done`
+- status: `ready`
 - purpose: finalize exactly one next queue direction after `ADE-QRE-016`.
 - depends on: `ADE-QRE-016G done`.
 - risk class: LOW.
