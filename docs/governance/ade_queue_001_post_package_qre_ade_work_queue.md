@@ -2600,7 +2600,19 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016H`
 - title: Queue Direction Finalization.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #390, merge SHA
+  `bdba23846c04f575015c1f29b56748e9feefc09c`; docs-only queue direction
+  finalization added in
+  `docs/governance/ade_qre_016h_queue_direction_finalization.md`, selecting
+  exactly one next direction, `ADE-QRE-017 trusted-loop evidence closure
+  maturity queue`, without starting that direction; post-merge Fast pre-merge
+  gate run `26576056772`, Docker build/push run `26576372752`, and VPS deploy
+  run `26576372754` completed/success; local `git diff --check`,
+  architecture scanner, governance lint, protected/frozen diff check, queue
+  self-audit, and exactly-one-finalized-direction check passed; frozen
+  contracts unchanged; protected/execution paths untouched; strategy synthesis
+  remained blocked; Addendum runtime remained inactive.
 - purpose: finalize exactly one next queue direction after `ADE-QRE-016`.
 - depends on: `ADE-QRE-016G done`.
 - risk class: LOW.
