@@ -2437,7 +2437,17 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016F`
 - title: Return-to-Feature-Track Criteria Refinement.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #386, merge SHA
+  `7b8d692f9377f147c606a665de4be1207828de26`; docs-only return-to-feature-track
+  criteria added in
+  `docs/governance/ade_qre_016f_return_to_feature_track_criteria.md`;
+  post-merge Fast pre-merge gate run `26571922528`, Docker build/push run
+  `26572222841`, and VPS deploy run `26572222812` completed/success; local
+  `git diff --check`, architecture scanner, governance lint, and queue
+  self-audit passed; frozen contracts unchanged; protected/execution paths
+  untouched; strategy synthesis remained blocked; Addendum runtime remained
+  inactive.
 - purpose: refine exact evidence requirements for a future return to QRE
   Feature Build Track without starting it.
 - depends on: `ADE-QRE-016E done`.
@@ -2506,7 +2516,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-016G`
 - title: Next Sprint Decision Check.
-- status: `blocked until ADE-QRE-016F done`
+- status: `ready`
 - purpose: decide whether the next direction should be another maturity
   sprint, operator review, return-to-feature-track planning, or no eligible
   work.
