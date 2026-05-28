@@ -16,14 +16,15 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from packages.qre_diagnostics import research_diagnostics_loop as _diagnostics
-from packages.qre_research import retrieval_coverage as _retrieval
 from reporting import ade_queue_status_self_audit as _queue
 from reporting import trusted_loop_materialization as _tlm
 
 SCHEMA_VERSION: Final[int] = 1
 MODULE_VERSION: Final[str] = "ade-qre-016c-2026-05-28"
 REPORT_KIND: Final[str] = "trusted_loop_missing_evidence_fail_closed"
+DIAGNOSTICS_OUTPUT_DIR: Final[Path] = Path("logs/qre_research_diagnostics_loop")
+RETRIEVAL_OUTPUT_DIR: Final[Path] = Path("logs/qre_research_retrieval_coverage")
+LATEST_NAME: Final[str] = "latest.json"
 
 _SURFACE_IDS: Final[tuple[str, ...]] = (
     "reason_records",
@@ -55,6 +56,81 @@ def _sequence(value: Any) -> Sequence[Any]:
 
 def _strings(value: Any) -> list[str]:
     return [str(item) for item in _sequence(value)]
+
+
+def _rel(path: Path, *, repo_root: Path) -> str:
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _read_json(path: Path) -> Mapping[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, Mapping) else None
+
+
+def _read_diagnostics_status(
+    *,
+    output_dir: Path,
+    repo_root: Path,
+) -> dict[str, Any]:
+    latest = repo_root / output_dir / LATEST_NAME
+    payload = _read_json(latest)
+    if payload is None:
+        return {
+            "status": (
+                "invalid_research_diagnostics_loop"
+                if latest.is_file()
+                else "missing_research_diagnostics_loop"
+            ),
+            "diagnostics_loop_ready": False,
+            "path": _rel(latest, repo_root=repo_root),
+            "fails_closed": True,
+        }
+    summary = _mapping(payload.get("summary"))
+    ready = summary.get("status") == "ready"
+    return {
+        "status": "ready" if ready else "not_ready",
+        "diagnostics_loop_ready": ready,
+        "path": _rel(latest, repo_root=repo_root),
+        "fails_closed": not ready,
+        "schema_version": payload.get("schema_version"),
+    }
+
+
+def _read_retrieval_status(
+    *,
+    output_dir: Path,
+    repo_root: Path,
+) -> dict[str, Any]:
+    latest = repo_root / output_dir / LATEST_NAME
+    payload = _read_json(latest)
+    if payload is None:
+        return {
+            "status": (
+                "invalid_retrieval_coverage"
+                if latest.is_file()
+                else "missing_retrieval_coverage"
+            ),
+            "retrieval_coverage_ready": False,
+            "path": _rel(latest, repo_root=repo_root),
+            "fails_closed": True,
+        }
+    summary = _mapping(payload.get("summary"))
+    ready = summary.get("retrieval_coverage_ready") is True
+    return {
+        "status": "ready" if ready else "not_ready",
+        "retrieval_coverage_ready": ready,
+        "path": _rel(latest, repo_root=repo_root),
+        "fails_closed": not ready,
+        "schema_version": payload.get("schema_version"),
+    }
 
 
 def _surface_row(
@@ -276,8 +352,8 @@ def collect_snapshot(
     routing_artifact_dir: Path | None = None,
     sampling_artifact_dir: Path | None = None,
     observability_artifact_dir: Path | None = None,
-    diagnostics_output_dir: Path = _diagnostics.DEFAULT_OUTPUT_DIR,
-    retrieval_output_dir: Path = _retrieval.DEFAULT_OUTPUT_DIR,
+    diagnostics_output_dir: Path = DIAGNOSTICS_OUTPUT_DIR,
+    retrieval_output_dir: Path = RETRIEVAL_OUTPUT_DIR,
     queue_doc_path: Path | None = None,
     materialization_snapshot: Mapping[str, Any] | None = None,
     diagnostics_status: Mapping[str, Any] | None = None,
@@ -292,11 +368,11 @@ def collect_snapshot(
         sampling_artifact_dir=sampling_artifact_dir,
         observability_artifact_dir=observability_artifact_dir,
     )
-    diagnostics = diagnostics_status or _diagnostics.read_diagnostics_loop_status(
+    diagnostics = diagnostics_status or _read_diagnostics_status(
         output_dir=diagnostics_output_dir,
         repo_root=repo_root,
     )
-    retrieval = retrieval_status or _retrieval.read_retrieval_coverage_status(
+    retrieval = retrieval_status or _read_retrieval_status(
         output_dir=retrieval_output_dir,
         repo_root=repo_root,
     )
