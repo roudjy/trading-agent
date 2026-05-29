@@ -307,3 +307,65 @@ def test_execute_screening_candidate_relabels_zero_trade_rejected_sample() -> No
     }
     assert outcome["diagnostic_metrics"]["totaal_trades"] == 0.0
     assert outcome["diagnostic_metrics"]["trades_per_maand"] == 0.0
+
+
+def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_insufficient() -> None:
+    class MixedSampleEngine:
+        min_trades = 10
+
+        def __init__(self):
+            self.last_evaluation_report = None
+            self.calls = 0
+
+        def run(self, strategie_func, assets, interval="1d"):
+            self.calls += 1
+            self.last_evaluation_report = {
+                "evaluation_samples": {
+                    "daily_returns": [0.01, -0.01],
+                }
+            }
+            if self.calls == 1:
+                return {
+                    "expectancy": 0.02,
+                    "profit_factor": 2.0,
+                    "win_rate": 0.6,
+                    "max_drawdown": 0.05,
+                    "totaal_trades": 12,
+                    "trades_per_maand": 1.0,
+                    "goedgekeurd": True,
+                }
+            return {
+                "expectancy": 0.0,
+                "profit_factor": 0.0,
+                "win_rate": 0.0,
+                "max_drawdown": 0.0,
+                "totaal_trades": 0,
+                "trades_per_maand": 0.0,
+                "goedgekeurd": False,
+            }
+
+    outcome = execute_screening_candidate(
+        strategy={
+            "factory": lambda **params: SimpleNamespace(params=params),
+            "params": {"periode": [14, 21]},
+        },
+        candidate={"asset": "NVDA", "interval": "4h"},
+        engine=MixedSampleEngine(),
+        budget_seconds=30,
+        max_samples=2,
+        screening_phase="exploratory",
+    )
+
+    assert outcome["decision"] == "promoted_to_validation"
+    assert outcome["final_status"] == "passed"
+    assert outcome["reason_code"] is None
+    assert outcome["legacy_decision"] == {
+        "status": "promoted_to_validation",
+        "reason": None,
+        "sampled_combination_count": 2,
+    }
+    assert outcome["diagnostic_metrics"]["expectancy"] == 0.02
+    assert outcome["diagnostic_metrics"]["profit_factor"] == 2.0
+    assert outcome["diagnostic_metrics"]["win_rate"] == 0.6
+    assert outcome["diagnostic_metrics"]["totaal_trades"] == 12.0
+    assert outcome["diagnostic_metrics"]["trades_per_maand"] == 1.0
