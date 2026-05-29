@@ -7,10 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
+from agent.backtesting.execution import ExecutionEvent
 from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
 from research import batch_execution as batch_execution_module
 from research.candidate_resume import candidate_resume_state_path
 from research import run_research as run_research_module
+from research.recovery import build_batch_recovery_state_payload
 from tests.unit.test_run_research_observability import _HealthyEngine, _patch_common_runner
 
 
@@ -23,6 +25,79 @@ def _factory(name_hint: str):
         return SimpleNamespace(name_hint=name_hint)
 
     return _build
+
+
+def test_batch_recovery_payload_serializes_nested_execution_events() -> None:
+    event = ExecutionEvent.full_fill(
+        timestamp_utc="2026-05-29T00:00:00+00:00",
+        asset="BTC/EUR",
+        side="long",
+        sequence=1,
+        fold_index=0,
+        intended_price=100.0,
+        requested_size=2.0,
+        fill_price=101.0,
+        filled_size=2.0,
+        fee_amount=0.1,
+        slippage_bps=10.0,
+    )
+
+    payload = build_batch_recovery_state_payload(
+        source_run_id="run_json_safe",
+        batch={
+            "batch_id": "batch_json_safe",
+            "current_stage": "validation",
+            "candidate_ids": ["candidate_json_safe"],
+        },
+        candidate_snapshots=[
+            {
+                "candidate_id": "candidate_json_safe",
+                "strategy_name": "json_safe_strategy",
+                "asset": "BTC/EUR",
+                "interval": "1h",
+            }
+        ],
+        screening_records=[
+            {
+                "candidate_id": "candidate_json_safe",
+                "events": (event,),
+            }
+        ],
+        rows=[
+            {
+                "strategy_name": "json_safe_strategy",
+                "asset": "BTC/EUR",
+                "interval": "1h",
+            }
+        ],
+        evaluations=[
+            {
+                "row": {
+                    "strategy_name": "json_safe_strategy",
+                    "asset": "BTC/EUR",
+                    "interval": "1h",
+                },
+                "validation": {
+                    "execution_events": [event],
+                },
+            }
+        ],
+        walk_forward_reports=[
+            {
+                "strategy_name": "json_safe_strategy",
+                "asset": "BTC/EUR",
+                "interval": "1h",
+                "nested": {"event": event},
+            }
+        ],
+    )
+
+    json.dumps(payload)
+    serialized_event = payload["evaluations"][0]["validation"]["execution_events"][0]
+    assert serialized_event["asset"] == "BTC/EUR"
+    assert serialized_event["sequence"] == 1
+    assert payload["screening_records"][0]["events"][0]["kind"] == "full_fill"
+    assert payload["walk_forward_reports"][0]["nested"]["event"]["filled_size"] == 2.0
 
 
 class _RetryableFailureEngine(_HealthyEngine):
