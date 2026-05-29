@@ -11,6 +11,7 @@ from research.candidate_pipeline import (
     SCREENING_PROMOTED,
     sampling_plan_for_param_grid,
 )
+from research.promotion import DEFAULT_PROMOTION_CONFIG
 from research.registry import get_enabled_strategies
 from research.results import make_result_row
 from research.screening_process import execute_screening_candidate_isolated
@@ -60,6 +61,47 @@ def _sidecar_strategy_entry(
         "folds": folds,
         "leakage_checks_ok": report.get("leakage_checks_ok", False),
         "robustness": _compute_robustness(folds),
+    }
+
+
+
+def build_validation_evidence_status(
+    evaluation_report: dict[str, Any] | None,
+    *,
+    result_success: bool,
+) -> dict[str, Any]:
+    """Classify whether a technically completed validation has usable OOS evidence.
+
+    ``validation.status == "validated"`` means the validation pipeline completed.
+    This additive evidence status distinguishes that technical completion from
+    research-grade evidence sufficiency without changing the frozen status value.
+    """
+    min_oos_trades = int(DEFAULT_PROMOTION_CONFIG["min_oos_trades"])
+    if not result_success:
+        return {
+            "evidence_status": "validation_error",
+            "oos_trade_count": 0,
+            "min_oos_trades": min_oos_trades,
+        }
+
+    oos_summary = {}
+    if isinstance(evaluation_report, dict):
+        raw_oos_summary = evaluation_report.get("oos_summary")
+        if isinstance(raw_oos_summary, dict):
+            oos_summary = raw_oos_summary
+
+    oos_trade_count = int(oos_summary.get("totaal_trades") or 0)
+    if oos_trade_count <= 0:
+        evidence_status = "no_oos_trades"
+    elif oos_trade_count < min_oos_trades:
+        evidence_status = "insufficient_oos_trades"
+    else:
+        evidence_status = "sufficient_oos_evidence"
+
+    return {
+        "evidence_status": evidence_status,
+        "oos_trade_count": oos_trade_count,
+        "min_oos_trades": min_oos_trades,
     }
 
 
@@ -476,12 +518,17 @@ def execute_validation_batch(
 
             provenance_events.extend(getattr(engine, "_provenance_events", []))
             rows.append(row)
+            validation_evidence = build_validation_evidence_status(
+                evaluation_report if isinstance(evaluation_report, dict) else None,
+                result_success=bool(row["success"]),
+            )
             candidate_updates.append(
                 {
                     "candidate_id": str(candidate["candidate_id"]),
                     "validation": {
                         "status": "validated",
                         "result_success": bool(row["success"]),
+                        **validation_evidence,
                     },
                     "current_status": "validated",
                 }

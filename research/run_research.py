@@ -58,7 +58,11 @@ from research.batching import (
     build_run_batches_payload,
     partition_execution_batches,
 )
-from research.batch_execution import execute_screening_batch, execute_validation_batch
+from research.batch_execution import (
+    build_validation_evidence_status,
+    execute_screening_batch,
+    execute_validation_batch,
+)
 from research.campaigns import (
     build_campaign_id,
     build_run_campaign_payload,
@@ -3115,9 +3119,14 @@ def run_research(
                     for item in candidates:
                         if item["candidate_id"] != candidate["candidate_id"]:
                             continue
+                        validation_evidence = build_validation_evidence_status(
+                            evaluation_report if isinstance(evaluation_report, dict) else None,
+                            result_success=bool(row["success"]),
+                        )
                         item["validation"] = {
                             "status": "validated",
                             "result_success": bool(row["success"]),
+                            **validation_evidence,
                         }
                         item["current_status"] = "validated"
                         break
