@@ -77,13 +77,29 @@ def _asset_type(asset: str) -> str:
 def _lookup_run_candidate(
     run_candidates: dict[str, Any] | None,
     candidate_id: str,
+    *,
+    strategy_name: str | None = None,
+    asset: str | None = None,
+    interval: str | None = None,
 ) -> dict[str, Any] | None:
     if run_candidates is None:
         return None
+
+    fallback_match: dict[str, Any] | None = None
     for entry in run_candidates.get("candidates") or []:
         if entry.get("candidate_id") == candidate_id:
             return entry
-    return None
+        if (
+            fallback_match is None
+            and strategy_name is not None
+            and asset is not None
+            and interval is not None
+            and str(entry.get("strategy_name") or "") == str(strategy_name)
+            and str(entry.get("asset") or "") == str(asset)
+            and str(entry.get("interval") or "") == str(interval)
+        ):
+            fallback_match = entry
+    return fallback_match
 
 
 def _lookup_defensibility(
@@ -171,6 +187,13 @@ def build_registry_v2_entry(
         (run_candidate_entry or {}).get("current_status") or "validation"
     )
 
+    validation = (run_candidate_entry or {}).get("validation") or {}
+    validation_evidence = {
+        "status": validation.get("evidence_status"),
+        "oos_trade_count": validation.get("oos_trade_count"),
+        "min_oos_trades": validation.get("min_oos_trades"),
+    }
+
     strategy_family = (run_candidate_entry or {}).get("strategy_family") or v1_entry.get(
         "strategy_family"
     )
@@ -187,6 +210,7 @@ def build_registry_v2_entry(
         "interval": interval,
         "asset_universe": list(asset_universe or []),
         "processing_state": processing_state,
+        "validation_evidence": validation_evidence,
         "lifecycle_status": lifecycle_status.value,
         "legacy_verdict": legacy_verdict,
         "mapping_reason": mapping_reason,
@@ -220,15 +244,25 @@ def build_candidate_id(
 def _summarize(entries: list[dict[str, Any]]) -> dict[str, Any]:
     by_lifecycle: dict[str, int] = {}
     by_processing: dict[str, int] = {}
+    by_validation_evidence: dict[str, int] = {}
     for entry in entries:
         lc = entry.get("lifecycle_status", "unknown")
         ps = entry.get("processing_state", "unknown")
+        validation_evidence = entry.get("validation_evidence")
+        if isinstance(validation_evidence, dict):
+            evidence_status = validation_evidence.get("status") or "unknown"
+        else:
+            evidence_status = "unknown"
         by_lifecycle[lc] = by_lifecycle.get(lc, 0) + 1
         by_processing[ps] = by_processing.get(ps, 0) + 1
+        by_validation_evidence[str(evidence_status)] = (
+            by_validation_evidence.get(str(evidence_status), 0) + 1
+        )
     return {
         "total": len(entries),
         "by_lifecycle_status": by_lifecycle,
         "by_processing_state": by_processing,
+        "by_validation_evidence_status": by_validation_evidence,
     }
 
 
@@ -277,7 +311,13 @@ def build_registry_v2_payload(
             v1_entry.get("selected_params") or {},
         )
         research_row = research_rows_index.get(candidate_id)
-        run_candidate_entry = _lookup_run_candidate(run_candidates, candidate_id)
+        run_candidate_entry = _lookup_run_candidate(
+            run_candidates,
+            candidate_id,
+            strategy_name=str(v1_entry.get("strategy_name") or ""),
+            asset=str(v1_entry.get("asset") or ""),
+            interval=str(v1_entry.get("interval") or ""),
+        )
         entries.append(
             build_registry_v2_entry(
                 v1_entry={**v1_entry, "strategy_id": candidate_id},

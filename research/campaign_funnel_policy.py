@@ -73,6 +73,12 @@ FUNNEL_DECISION_COVERAGE_FOLLOWUP: Final[str] = (
 )
 FUNNEL_DECISION_COOLDOWN_REPEAT: Final[str] = "cooldown_from_repeat_rejection"
 FUNNEL_DECISION_NO_ACTION_TECHNICAL: Final[str] = "no_action_technical_failure"
+FUNNEL_DECISION_NO_OOS_VALIDATION_FOLLOWUP: Final[str] = (
+    "follow_up_from_no_oos_validation_evidence"
+)
+FUNNEL_DECISION_INSUFFICIENT_OOS_VALIDATION_FOLLOWUP: Final[str] = (
+    "follow_up_from_insufficient_validation_evidence"
+)
 
 
 DECISION_PRIORITY: Final[dict[str, int]] = {
@@ -81,7 +87,9 @@ DECISION_PRIORITY: Final[dict[str, int]] = {
     FUNNEL_DECISION_ALT_TIMEFRAME:       30,
     FUNNEL_DECISION_COVERAGE_FOLLOWUP:   40,
     FUNNEL_DECISION_COOLDOWN_REPEAT:     50,
-    FUNNEL_DECISION_NO_ACTION_TECHNICAL: 60,
+    FUNNEL_DECISION_NO_OOS_VALIDATION_FOLLOWUP:          35,
+    FUNNEL_DECISION_INSUFFICIENT_OOS_VALIDATION_FOLLOWUP: 36,
+    FUNNEL_DECISION_NO_ACTION_TECHNICAL:                  60,
 }
 
 
@@ -431,6 +439,12 @@ def derive_funnel_decisions(
         stage_result = str(record.get("stage_result") or "")
         failure_reasons = list(record.get("failure_reasons") or [])
         near_pass_block = record.get("near_pass") or {}
+        validation_evidence = record.get("validation_evidence") or {}
+        validation_evidence_status = (
+            str(validation_evidence.get("status") or "")
+            if isinstance(validation_evidence, dict)
+            else ""
+        )
 
         # 1) Confirmation from exploratory pass
         if stage_result == _EXPLORATORY_PASS_STAGE_RESULT:
@@ -496,7 +510,34 @@ def derive_funnel_decisions(
             )
             continue
 
-        # 3) Insufficient trades — alt-timeframe never supported today
+        # 3) Validation evidence follow-up signal.
+        if validation_evidence_status in {
+            "no_oos_trades",
+            "insufficient_oos_trades",
+        }:
+            decision_code = (
+                FUNNEL_DECISION_NO_OOS_VALIDATION_FOLLOWUP
+                if validation_evidence_status == "no_oos_trades"
+                else FUNNEL_DECISION_INSUFFICIENT_OOS_VALIDATION_FOLLOWUP
+            )
+            decisions.append(
+                FunnelDecision(
+                    decision_code=decision_code,
+                    candidate_id=candidate_id,
+                    strategy_id=strategy_id,
+                    preset_name=preset_name,
+                    priority=DECISION_PRIORITY[decision_code],
+                    spawn_request=None,
+                    rationale={
+                        "validation_evidence_status": validation_evidence_status,
+                        "oos_trade_count": validation_evidence.get("oos_trade_count"),
+                        "min_oos_trades": validation_evidence.get("min_oos_trades"),
+                    },
+                )
+            )
+            continue
+
+        # 4) Insufficient trades — alt-timeframe never supported today
         if (
             len(failure_reasons) == 1
             and failure_reasons[0] == "insufficient_trades"
@@ -521,7 +562,7 @@ def derive_funnel_decisions(
                 )
                 continue
 
-        # 4) Low coverage signal (sampling defect; no spawn)
+        # 5) Low coverage signal (sampling defect; no spawn)
         if _coverage_warning_signals_low(sampling):
             decisions.append(
                 FunnelDecision(
@@ -605,7 +646,9 @@ __all__ = [
     "FUNNEL_DECISION_COOLDOWN_REPEAT",
     "FUNNEL_DECISION_COVERAGE_FOLLOWUP",
     "FUNNEL_DECISION_NEAR_PASS_FOLLOWUP",
+    "FUNNEL_DECISION_INSUFFICIENT_OOS_VALIDATION_FOLLOWUP",
     "FUNNEL_DECISION_NO_ACTION_TECHNICAL",
+    "FUNNEL_DECISION_NO_OOS_VALIDATION_FOLLOWUP",
     "FunnelDecision",
     "LOW_COVERAGE_TRIGGER_PCT",
     "REPEAT_REJECTION_STREAK_THRESHOLD",

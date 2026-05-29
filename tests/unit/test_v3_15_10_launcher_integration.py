@@ -192,3 +192,46 @@ def test_dedupe_skips_already_recorded_funnel_decision(
     )
     types = [ev.event_type for ev in new_events]
     assert "funnel_decision_emitted" not in types
+
+def test_validation_evidence_followup_decision_is_emitted_to_ledger(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("research").mkdir(parents=True, exist_ok=True)
+    import json
+
+    candidate = _exploratory_pass_candidate()
+    candidate.update({
+        "stage_result": "validated",
+        "pass_kind": None,
+        "validation_evidence": {
+            "status": "no_oos_trades",
+            "oos_trade_count": 0,
+            "min_oos_trades": 10,
+        },
+    })
+    Path("research/screening_evidence_latest.v1.json").write_text(
+        json.dumps(_evidence_payload(candidates=[candidate])),
+        encoding="utf-8",
+    )
+
+    new_events = campaign_launcher._apply_funnel_decisions(
+        registry=_registry_with_owner(),
+        events=[],
+        now_utc=datetime(2026, 4, 26, 12, 0, 0, tzinfo=UTC),
+    )
+
+    decision_event = next(
+        ev for ev in new_events if ev.event_type == "funnel_decision_emitted"
+    )
+    assert decision_event.extra["decision_code"] == (
+        "follow_up_from_no_oos_validation_evidence"
+    )
+    assert decision_event.extra["candidate_id"] == "c1"
+    assert decision_event.extra["strategy_id"] == "s1"
+    assert decision_event.extra["rationale"] == {
+        "validation_evidence_status": "no_oos_trades",
+        "oos_trade_count": 0,
+        "min_oos_trades": 10,
+    }
+    assert "spawn_request_pending" not in decision_event.extra

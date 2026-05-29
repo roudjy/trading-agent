@@ -108,6 +108,45 @@ def _run_meta() -> dict:
     }
 
 
+def _run_candidates(candidates: list[dict]) -> dict:
+    return {
+        "version": "v1",
+        "run_id": RUN_ID,
+        "candidates": candidates,
+    }
+
+
+def _run_candidate(
+    strategy_name: str = "sma_crossover",
+    asset: str = "NVDA",
+    interval: str = "4h",
+    evidence_status: str | None = "no_oos_trades",
+    oos_trade_count: int | None = 0,
+    min_oos_trades: int | None = 10,
+    candidate_id: str | None = None,
+) -> dict:
+    candidate_id = candidate_id or build_candidate_id(
+        strategy_name,
+        asset,
+        interval,
+        {"short": 10},
+    )
+    return {
+        "candidate_id": candidate_id,
+        "strategy_name": strategy_name,
+        "asset": asset,
+        "interval": interval,
+        "current_status": "validated",
+        "validation": {
+            "status": "validated",
+            "result_success": True,
+            "evidence_status": evidence_status,
+            "oos_trade_count": oos_trade_count,
+            "min_oos_trades": min_oos_trades,
+        },
+    }
+
+
 def test_payload_top_level_shape() -> None:
     payload = build_registry_v2_payload(
         candidate_registry_v1=_v1_registry([_v1_candidate()]),
@@ -436,3 +475,85 @@ def test_preset_origin_and_universe_populated_from_run_meta() -> None:
     (entry,) = payload["entries"]
     assert entry["preset_origin"] == "trend_equities_4h_baseline"
     assert entry["asset_universe"] == ["NVDA", "AMD", "ASML"]
+
+def test_entry_surfaces_validation_evidence_from_run_candidate() -> None:
+    v1_candidate = _v1_candidate()
+    payload = build_registry_v2_payload(
+        candidate_registry_v1=_v1_registry([v1_candidate]),
+        research_latest=_research_latest([_research_row()]),
+        run_candidates=_run_candidates([
+            _run_candidate(candidate_id=v1_candidate["strategy_id"]),
+        ]),
+        run_meta=_run_meta(),
+        defensibility=None,
+        regime=None,
+        cost_sens=None,
+        breadth_context=None,
+        run_id=RUN_ID,
+        git_revision=GIT,
+        generated_at_utc=NOW,
+    )
+
+    entry = payload["entries"][0]
+    assert entry["validation_evidence"] == {
+        "status": "no_oos_trades",
+        "oos_trade_count": 0,
+        "min_oos_trades": 10,
+    }
+    assert payload["summary"]["by_validation_evidence_status"] == {
+        "no_oos_trades": 1,
+    }
+
+
+def test_summary_counts_unknown_validation_evidence_when_run_candidate_missing() -> None:
+    payload = build_registry_v2_payload(
+        candidate_registry_v1=_v1_registry([_v1_candidate()]),
+        research_latest=_research_latest([_research_row()]),
+        run_candidates=None,
+        run_meta=_run_meta(),
+        defensibility=None,
+        regime=None,
+        cost_sens=None,
+        breadth_context=None,
+        run_id=RUN_ID,
+        git_revision=GIT,
+        generated_at_utc=NOW,
+    )
+
+    entry = payload["entries"][0]
+    assert entry["validation_evidence"] == {
+        "status": None,
+        "oos_trade_count": None,
+        "min_oos_trades": None,
+    }
+    assert payload["summary"]["by_validation_evidence_status"] == {
+        "unknown": 1,
+    }
+
+def test_entry_surfaces_validation_evidence_from_run_candidate_fallback_identity() -> None:
+    v1_candidate = _v1_candidate()
+    payload = build_registry_v2_payload(
+        candidate_registry_v1=_v1_registry([v1_candidate]),
+        research_latest=_research_latest([_research_row()]),
+        run_candidates=_run_candidates([
+            _run_candidate(candidate_id="different-runtime-id"),
+        ]),
+        run_meta=_run_meta(),
+        defensibility=None,
+        regime=None,
+        cost_sens=None,
+        breadth_context=None,
+        run_id=RUN_ID,
+        git_revision=GIT,
+        generated_at_utc=NOW,
+    )
+
+    entry = payload["entries"][0]
+    assert entry["validation_evidence"] == {
+        "status": "no_oos_trades",
+        "oos_trade_count": 0,
+        "min_oos_trades": 10,
+    }
+    assert payload["summary"]["by_validation_evidence_status"] == {
+        "no_oos_trades": 1,
+    }
