@@ -24,20 +24,17 @@ from research.presets import (
 )
 
 
-def test_seven_presets_registered():
-    """v3.15.4 added ``vol_compression_breakout_crypto_1h`` as the
-    executable bridge for the second active_discovery catalog row
-    (volatility_compression_breakout_v0). v3.15.15 adds the 4h
-    timeframe variant ``vol_compression_breakout_crypto_4h`` so the
-    crypto_exploratory_v1 sprint profile can route the full
-    (1h, 4h) × (trend_pullback_v1, volatility_compression_breakout_v0)
-    matrix. Earlier presets keep their original positions to preserve
-    downstream consumers that snapshot the order."""
+def test_eight_presets_registered():
+    """The catalog keeps legacy baseline ordering while adding explicit
+    active-discovery bridges. The equity trend bridge is inserted next to
+    the existing trend_pullback crypto bridge so downstream snapshots can
+    detect intentional catalog growth."""
     assert [p.name for p in PRESETS] == [
         "trend_equities_4h_baseline",
         "pairs_equities_daily_baseline",
         "trend_regime_filtered_equities_4h",
         "trend_pullback_crypto_1h",
+        "trend_pullback_equities_4h",
         "vol_compression_breakout_crypto_1h",
         "vol_compression_breakout_crypto_4h",
         "crypto_diagnostic_1h",
