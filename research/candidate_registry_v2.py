@@ -77,13 +77,29 @@ def _asset_type(asset: str) -> str:
 def _lookup_run_candidate(
     run_candidates: dict[str, Any] | None,
     candidate_id: str,
+    *,
+    strategy_name: str | None = None,
+    asset: str | None = None,
+    interval: str | None = None,
 ) -> dict[str, Any] | None:
     if run_candidates is None:
         return None
+
+    fallback_match: dict[str, Any] | None = None
     for entry in run_candidates.get("candidates") or []:
         if entry.get("candidate_id") == candidate_id:
             return entry
-    return None
+        if (
+            fallback_match is None
+            and strategy_name is not None
+            and asset is not None
+            and interval is not None
+            and str(entry.get("strategy_name") or "") == str(strategy_name)
+            and str(entry.get("asset") or "") == str(asset)
+            and str(entry.get("interval") or "") == str(interval)
+        ):
+            fallback_match = entry
+    return fallback_match
 
 
 def _lookup_defensibility(
@@ -295,7 +311,13 @@ def build_registry_v2_payload(
             v1_entry.get("selected_params") or {},
         )
         research_row = research_rows_index.get(candidate_id)
-        run_candidate_entry = _lookup_run_candidate(run_candidates, candidate_id)
+        run_candidate_entry = _lookup_run_candidate(
+            run_candidates,
+            candidate_id,
+            strategy_name=str(v1_entry.get("strategy_name") or ""),
+            asset=str(v1_entry.get("asset") or ""),
+            interval=str(v1_entry.get("interval") or ""),
+        )
         entries.append(
             build_registry_v2_entry(
                 v1_entry={**v1_entry, "strategy_id": candidate_id},

@@ -52,6 +52,7 @@ _EXPECTED_PER_CANDIDATE_KEYS = frozenset(
         "criteria",
         "failure_reasons",
         "near_pass",
+        "validation_evidence",
         "sampling",
         "promotion_guard",
         "evidence_fingerprint",
@@ -101,3 +102,45 @@ def test_emitted_payload_top_level_keys_match() -> None:
     )
     assert set(payload.keys()) == _EXPECTED_TOP_LEVEL_KEYS
     assert set(payload["summary"].keys()) == _EXPECTED_SUMMARY_KEYS
+
+def test_screening_evidence_carries_validation_evidence_status() -> None:
+    payload = build_screening_evidence_payload(
+        run_id="run-1",
+        as_of_utc=datetime(2026, 4, 26, 12, 0, 0, tzinfo=UTC),
+        git_revision="abc123",
+        campaign_id="cmp-1",
+        col_campaign_id="cmp-1",
+        preset_name="trend_pullback_equities_4h",
+        screening_phase="exploratory",
+        candidates=[
+            {
+                "candidate_id": "candidate-1",
+                "strategy_id": "trend_pullback_v1",
+                "strategy_name": "trend_pullback_v1",
+                "asset": "NVDA",
+                "interval": "4h",
+                "validation": {
+                    "status": "validated",
+                    "evidence_status": "no_oos_trades",
+                    "oos_trade_count": 0,
+                    "min_oos_trades": 10,
+                },
+            }
+        ],
+        screening_records=[
+            {
+                "candidate_id": "candidate-1",
+                "final_status": "passed",
+                "decision": "promoted_to_validation",
+                "diagnostic_metrics": {},
+            }
+        ],
+        screening_pass_kinds={"trend_pullback_v1": "exploratory"},
+        paper_blocked_index={},
+    )
+
+    assert payload["candidates"][0]["validation_evidence"] == {
+        "status": "no_oos_trades",
+        "oos_trade_count": 0,
+        "min_oos_trades": 10,
+    }

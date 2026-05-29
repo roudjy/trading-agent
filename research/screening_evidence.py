@@ -125,6 +125,7 @@ PER_CANDIDATE_KEYS: Final[frozenset[str]] = frozenset(
         "criteria",
         "failure_reasons",
         "near_pass",
+        "validation_evidence",
         "sampling",
         "promotion_guard",
         "evidence_fingerprint",
@@ -417,6 +418,20 @@ def _build_candidate_record(
             near_payload.get("nearest_failed_criterion")
         )
 
+    validation = candidate.get("validation") or {}
+    if isinstance(validation, dict):
+        validation_evidence = {
+            "status": validation.get("evidence_status"),
+            "oos_trade_count": validation.get("oos_trade_count"),
+            "min_oos_trades": validation.get("min_oos_trades"),
+        }
+    else:
+        validation_evidence = {
+            "status": None,
+            "oos_trade_count": None,
+            "min_oos_trades": None,
+        }
+
     paper_blocked = bool(paper_blocking_reasons)
     stage_result = resolve_stage_result(
         screening_promoted=screening_promoted,
@@ -466,6 +481,7 @@ def _build_candidate_record(
         ),
         "failure_reasons": failure_reasons,
         "near_pass": near_block,
+        "validation_evidence": validation_evidence,
         "sampling": sampling,
         "promotion_guard": promotion_guard,
     }

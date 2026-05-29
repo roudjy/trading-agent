@@ -529,3 +529,31 @@ def test_summary_counts_unknown_validation_evidence_when_run_candidate_missing()
     assert payload["summary"]["by_validation_evidence_status"] == {
         "unknown": 1,
     }
+
+def test_entry_surfaces_validation_evidence_from_run_candidate_fallback_identity() -> None:
+    v1_candidate = _v1_candidate()
+    payload = build_registry_v2_payload(
+        candidate_registry_v1=_v1_registry([v1_candidate]),
+        research_latest=_research_latest([_research_row()]),
+        run_candidates=_run_candidates([
+            _run_candidate(candidate_id="different-runtime-id"),
+        ]),
+        run_meta=_run_meta(),
+        defensibility=None,
+        regime=None,
+        cost_sens=None,
+        breadth_context=None,
+        run_id=RUN_ID,
+        git_revision=GIT,
+        generated_at_utc=NOW,
+    )
+
+    entry = payload["entries"][0]
+    assert entry["validation_evidence"] == {
+        "status": "no_oos_trades",
+        "oos_trade_count": 0,
+        "min_oos_trades": 10,
+    }
+    assert payload["summary"]["by_validation_evidence_status"] == {
+        "no_oos_trades": 1,
+    }
