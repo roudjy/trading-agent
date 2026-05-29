@@ -61,8 +61,13 @@ def test_behavior_hypotheses_are_active_discovery_only() -> None:
 def test_preset_feasibility_uses_existing_preset_bridge() -> None:
     feasible = pf.evaluate_preset_feasibility("trend_pullback_v1")
     assert feasible.feasible is True
-    assert feasible.preset_names == ("trend_pullback_crypto_1h",)
-    assert feasible.preset_feasibility_ref == "preset:trend_pullback_crypto_1h"
+    assert feasible.preset_names == (
+        "trend_pullback_crypto_1h",
+        "trend_pullback_equities_4h",
+    )
+    assert feasible.preset_feasibility_ref == (
+        "preset:trend_pullback_crypto_1h,trend_pullback_equities_4h"
+    )
 
     missing = pf.evaluate_preset_feasibility("unknown_hypothesis")
     assert missing.feasible is False

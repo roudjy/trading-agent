@@ -12,6 +12,7 @@ EXPECTED_PHASE_BY_NAME: dict[str, str] = {
     "pairs_equities_daily_baseline": "promotion_grade",
     "trend_regime_filtered_equities_4h": "promotion_grade",
     "trend_pullback_crypto_1h": "exploratory",
+    "trend_pullback_equities_4h": "exploratory",
     "vol_compression_breakout_crypto_1h": "exploratory",
     # v3.15.15 — 4h timeframe variant of the existing
     # volatility_compression_breakout_v0 hypothesis. Same screening

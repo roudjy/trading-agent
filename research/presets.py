@@ -362,6 +362,59 @@ PRESETS: tuple[ResearchPreset, ...] = (
         ),
     ),
     ResearchPreset(
+        name="trend_pullback_equities_4h",
+        hypothesis=(
+            "Equity 4h controlled active_discovery route for the "
+            "trend_pullback_v1 thin strategy. This tests whether a "
+            "vol-normalised pullback inside an established EMA trend can "
+            "produce bounded exploratory evidence on liquid large-cap "
+            "equities without changing the legacy promotion-grade "
+            "trend_equities_4h_baseline."
+        ),
+        universe=_TREND_EQUITIES_UNIVERSE,
+        timeframe="4h",
+        bundle=("trend_pullback_v1",),
+        hypothesis_id="trend_pullback_v1",
+        screening_mode="strict",
+        screening_phase="exploratory",
+        cost_mode="realistic",
+        status="stable",
+        enabled=True,
+        diagnostic_only=False,
+        excluded_from_daily_scheduler=False,
+        preset_class="experimental",
+        rationale=(
+            "The existing equity trend baseline is a promotion-grade "
+            "legacy route. This preset adds a catalog-driven equity "
+            "active-discovery path so the campaign layer can exercise "
+            "hypothesis_id -> template -> launcher -> run_research -> "
+            "screening/evidence/follow-up without relaxing the baseline."
+        ),
+        expected_behavior=(
+            "Per fold: long entries only when the controlled "
+            "trend_pullback_v1 conditions hold on 4h equity data. "
+            "Exploratory passes should become needs_investigation rather "
+            "than promotion candidates, and downstream confirmation must "
+            "remain explicit."
+        ),
+        falsification=(
+            "Three consecutive daily_primary runs fail on insufficient_trades "
+            "across the large-cap equity universe.",
+            "Realistic costs eliminate exploratory passes across all "
+            "asset/parameter combinations.",
+            "Candidate evidence is parameter-fragile or isolated to a "
+            "single asset across repeated controlled runs.",
+        ),
+        enablement_criteria=(
+            "trend_pullback_v1 remains active_discovery in the hypothesis "
+            "catalog.",
+            "The preset remains hypothesis-aware via hypothesis_id and "
+            "campaign template eligibility.",
+            "The legacy trend_equities_4h_baseline remains promotion-grade "
+            "and unchanged.",
+        ),
+    ),
+    ResearchPreset(
         name="vol_compression_breakout_crypto_1h",
         hypothesis=(
             "v3.15.4 controlled active_discovery: een volatility "

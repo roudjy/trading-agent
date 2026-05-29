@@ -274,6 +274,7 @@ _BASELINE_PRESETS: tuple[str, ...] = (
 # contract).
 _HYPOTHESIS_AWARE_PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("trend_pullback_crypto_1h", ("active_discovery",)),
+    ("trend_pullback_equities_4h", ("active_discovery",)),
     ("vol_compression_breakout_crypto_1h", ("active_discovery",)),
     ("vol_compression_breakout_crypto_4h", ("active_discovery",)),
 )
