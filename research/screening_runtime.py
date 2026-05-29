@@ -271,6 +271,7 @@ def execute_screening_candidate_samples(
     # observability even when the loop terminates without a winning
     # sample.
     last_metrics: dict[str, Any] = {}
+    promoted_metrics: dict[str, Any] | None = None
 
     for sample_index, (_params, strategy_callable) in enumerate(strategy_samples):
         if sample_index < len(sample_results):
@@ -331,6 +332,7 @@ def execute_screening_candidate_samples(
                 # duplicated inside ``apply_phase_aware_criteria``.
                 passed, reason = apply_phase_aware_criteria(metrics, screening_phase)
                 if passed:
+                    promoted_metrics = dict(metrics)
                     sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
                 else:
                     sample_results.append({"status": SCREENING_REJECTED, "reason": reason})
@@ -352,7 +354,7 @@ def execute_screening_candidate_samples(
     legacy_decision = normalize_screening_decision(sample_results)
     min_trades = int(getattr(engine, "min_trades", 10))
     last_trade_count = int(last_metrics.get("totaal_trades", 0) or 0)
-    if legacy_decision["status"] == SCREENING_PROMOTED and last_trade_count < min_trades:
+    if legacy_decision["status"] != SCREENING_PROMOTED and last_trade_count < min_trades:
         legacy_decision = {
             "status": SCREENING_REJECTED,
             "reason": "insufficient_trades",
@@ -365,8 +367,8 @@ def execute_screening_candidate_samples(
         reason_detail = f"screening rejected after {len(sample_results)} sampled parameter combinations"
     # v3.15.7: additive outcome fields for phase-aware visibility.
     # ``pass_kind`` is set ONLY on screening pass (mirrors phase);
-    # rejected → None (failure semantics live in reason_code).
-    # NB: NO ``screening_phase`` key here — v3.15.6 invariant.
+    # rejected -> None (failure semantics live in reason_code).
+    # NB: NO ``screening_phase`` key here ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â v3.15.6 invariant.
     pass_kind: str | None
     if legacy_decision["status"] == SCREENING_PROMOTED:
         pass_kind = screening_phase
@@ -377,15 +379,20 @@ def execute_screening_candidate_samples(
     )
     # JSON-safe finite floats (engine.profit_factor uses
     # PROFIT_FACTOR_NO_LOSS_CAP; expectancy is a finite mean).
-    # ``last_metrics`` holds the most recent sample's metrics dict
-    # (or {} when no sample produced metrics yet).
+    # `selected_metrics` reports the sample that explains the aggregate decision:
+    # promoted sample metrics for passes, last sample metrics for rejections.
+    selected_metrics = (
+        promoted_metrics
+        if legacy_decision["status"] == SCREENING_PROMOTED and promoted_metrics is not None
+        else last_metrics
+    )
     diagnostic_metrics = {
-        "expectancy": float(last_metrics.get("expectancy", 0.0)),
-        "profit_factor": float(last_metrics.get("profit_factor", 0.0)),
-        "win_rate": float(last_metrics.get("win_rate", 0.0)),
-        "max_drawdown": float(last_metrics.get("max_drawdown", 0.0)),
-        "totaal_trades": float(last_metrics.get("totaal_trades", 0.0) or 0.0),
-        "trades_per_maand": float(last_metrics.get("trades_per_maand", 0.0) or 0.0),
+        "expectancy": float(selected_metrics.get("expectancy", 0.0)),
+        "profit_factor": float(selected_metrics.get("profit_factor", 0.0)),
+        "win_rate": float(selected_metrics.get("win_rate", 0.0)),
+        "max_drawdown": float(selected_metrics.get("max_drawdown", 0.0)),
+        "totaal_trades": float(selected_metrics.get("totaal_trades", 0.0) or 0.0),
+        "trades_per_maand": float(selected_metrics.get("trades_per_maand", 0.0) or 0.0),
     }
     return {
         "legacy_decision": legacy_decision,
@@ -399,11 +406,11 @@ def execute_screening_candidate_samples(
         "decision": legacy_decision["status"],
         "reason_code": reason_code,
         "reason_detail": reason_detail,
-        # v3.15.7 additive — non-frozen screening sidecar surfaces only.
+        # v3.15.7 additive -- non-frozen screening sidecar surfaces only.
         "pass_kind": pass_kind,
         "screening_criteria_set": screening_criteria_set,
         "diagnostic_metrics": diagnostic_metrics,
-        # v3.15.8 additive — sampling-policy metadata for the
+        # v3.15.8 additive -- sampling-policy metadata for the
         # screening evidence artifact (v3.15.9) and campaign
         # funnel policy (v3.15.10). Always present, even on
         # legacy/no-engine/error/timeout paths.
