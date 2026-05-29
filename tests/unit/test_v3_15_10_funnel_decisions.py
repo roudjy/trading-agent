@@ -8,6 +8,8 @@ fallback.
 from __future__ import annotations
 
 from research.campaign_funnel_policy import (
+    FUNNEL_DECISION_INSUFFICIENT_OOS_VALIDATION_FOLLOWUP,
+    FUNNEL_DECISION_NO_OOS_VALIDATION_FOLLOWUP,
     ACTIVE_CAMPAIGN_STATES,
     DECISION_PRIORITY,
     FUNNEL_DECISION_CONFIRMATION,
@@ -426,3 +428,72 @@ def test_dedupe_returns_false_on_empty_registry() -> None:
         decision_code=FUNNEL_DECISION_CONFIRMATION,
         lineage_candidate_id="c", evidence_fingerprint="f",
     ) is False
+
+def test_no_oos_validation_evidence_emits_followup_decision() -> None:
+    decisions = derive_funnel_decisions(
+        evidence=_evidence(candidates=[
+            {
+                **_candidate(
+                    candidate_id="candidate-1",
+                    strategy_id="strategy-1",
+                    stage_result="validated",
+                    fp="fp-1",
+                ),
+                "validation_evidence": {
+                    "status": "no_oos_trades",
+                    "oos_trade_count": 0,
+                    "min_oos_trades": 10,
+                },
+            }
+        ]),
+        expected_campaign_id="cmp-1",
+        parent_campaign_record=_parent(),
+        registry={"campaigns": {}},
+        ledger_events=[],
+        preset_catalog={},
+    )
+
+    assert [d.decision_code for d in decisions] == [
+        FUNNEL_DECISION_NO_OOS_VALIDATION_FOLLOWUP,
+    ]
+    assert decisions[0].spawn_request is None
+    assert decisions[0].rationale == {
+        "validation_evidence_status": "no_oos_trades",
+        "oos_trade_count": 0,
+        "min_oos_trades": 10,
+    }
+
+
+def test_insufficient_oos_validation_evidence_emits_followup_decision() -> None:
+    decisions = derive_funnel_decisions(
+        evidence=_evidence(candidates=[
+            {
+                **_candidate(
+                    candidate_id="candidate-2",
+                    strategy_id="strategy-2",
+                    stage_result="validated",
+                    fp="fp-2",
+                ),
+                "validation_evidence": {
+                    "status": "insufficient_oos_trades",
+                    "oos_trade_count": 3,
+                    "min_oos_trades": 10,
+                },
+            }
+        ]),
+        expected_campaign_id="cmp-1",
+        parent_campaign_record=_parent(),
+        registry={"campaigns": {}},
+        ledger_events=[],
+        preset_catalog={},
+    )
+
+    assert [d.decision_code for d in decisions] == [
+        FUNNEL_DECISION_INSUFFICIENT_OOS_VALIDATION_FOLLOWUP,
+    ]
+    assert decisions[0].spawn_request is None
+    assert decisions[0].rationale == {
+        "validation_evidence_status": "insufficient_oos_trades",
+        "oos_trade_count": 3,
+        "min_oos_trades": 10,
+    }
