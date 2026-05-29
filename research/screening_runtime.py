@@ -352,7 +352,7 @@ def execute_screening_candidate_samples(
     legacy_decision = normalize_screening_decision(sample_results)
     min_trades = int(getattr(engine, "min_trades", 10))
     last_trade_count = int(last_metrics.get("totaal_trades", 0) or 0)
-    if legacy_decision["status"] == SCREENING_PROMOTED and last_trade_count < min_trades:
+    if last_trade_count < min_trades:
         legacy_decision = {
             "status": SCREENING_REJECTED,
             "reason": "insufficient_trades",
@@ -365,8 +365,8 @@ def execute_screening_candidate_samples(
         reason_detail = f"screening rejected after {len(sample_results)} sampled parameter combinations"
     # v3.15.7: additive outcome fields for phase-aware visibility.
     # ``pass_kind`` is set ONLY on screening pass (mirrors phase);
-    # rejected → None (failure semantics live in reason_code).
-    # NB: NO ``screening_phase`` key here — v3.15.6 invariant.
+    # rejected â†’ None (failure semantics live in reason_code).
+    # NB: NO ``screening_phase`` key here â€” v3.15.6 invariant.
     pass_kind: str | None
     if legacy_decision["status"] == SCREENING_PROMOTED:
         pass_kind = screening_phase
@@ -399,11 +399,11 @@ def execute_screening_candidate_samples(
         "decision": legacy_decision["status"],
         "reason_code": reason_code,
         "reason_detail": reason_detail,
-        # v3.15.7 additive — non-frozen screening sidecar surfaces only.
+        # v3.15.7 additive â€” non-frozen screening sidecar surfaces only.
         "pass_kind": pass_kind,
         "screening_criteria_set": screening_criteria_set,
         "diagnostic_metrics": diagnostic_metrics,
-        # v3.15.8 additive — sampling-policy metadata for the
+        # v3.15.8 additive â€” sampling-policy metadata for the
         # screening evidence artifact (v3.15.9) and campaign
         # funnel policy (v3.15.10). Always present, even on
         # legacy/no-engine/error/timeout paths.
