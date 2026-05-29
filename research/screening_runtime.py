@@ -350,6 +350,14 @@ def execute_screening_candidate_samples(
             )
 
     legacy_decision = normalize_screening_decision(sample_results)
+    min_trades = int(getattr(engine, "min_trades", 10))
+    last_trade_count = int(last_metrics.get("totaal_trades", 0) or 0)
+    if legacy_decision["status"] == SCREENING_PROMOTED and last_trade_count < min_trades:
+        legacy_decision = {
+            "status": SCREENING_REJECTED,
+            "reason": "insufficient_trades",
+            "sampled_combination_count": len(sample_results),
+        }
     final_status = FINAL_STATUS_PASSED if legacy_decision["status"] == SCREENING_PROMOTED else FINAL_STATUS_REJECTED
     reason_code = legacy_decision.get("reason")
     reason_detail = None
@@ -376,6 +384,8 @@ def execute_screening_candidate_samples(
         "profit_factor": float(last_metrics.get("profit_factor", 0.0)),
         "win_rate": float(last_metrics.get("win_rate", 0.0)),
         "max_drawdown": float(last_metrics.get("max_drawdown", 0.0)),
+        "totaal_trades": float(last_metrics.get("totaal_trades", 0.0) or 0.0),
+        "trades_per_maand": float(last_metrics.get("trades_per_maand", 0.0) or 0.0),
     }
     return {
         "legacy_decision": legacy_decision,
