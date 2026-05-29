@@ -213,3 +213,50 @@ def test_execute_screening_candidate_resume_matches_fresh_result():
         if key not in {"started_at", "finished_at"}
     }
     assert resumed_comparable == comparable_keys
+
+def test_execute_screening_candidate_blocks_zero_trade_promoted_sample() -> None:
+    class ZeroTradePassLikeEngine:
+        min_trades = 10
+
+        def __init__(self):
+            self.last_evaluation_report = None
+
+        def run(self, strategie_func, assets, interval="1d"):
+            self.last_evaluation_report = {
+                "evaluation_samples": {
+                    "daily_returns": [0.0, 0.0],
+                }
+            }
+            return {
+                "expectancy": 1.0,
+                "profit_factor": 2.0,
+                "win_rate": 1.0,
+                "max_drawdown": 0.0,
+                "totaal_trades": 0,
+                "trades_per_maand": 0.0,
+                "goedgekeurd": True,
+            }
+
+    outcome = execute_screening_candidate(
+        strategy={
+            "factory": lambda **params: SimpleNamespace(params=params),
+            "params": {"periode": [14]},
+        },
+        candidate={"asset": "NVDA", "interval": "4h"},
+        engine=ZeroTradePassLikeEngine(),
+        budget_seconds=30,
+        max_samples=1,
+        screening_phase="exploratory",
+    )
+
+    assert outcome["decision"] == "rejected_in_screening"
+    assert outcome["final_status"] == "rejected"
+    assert outcome["reason_code"] == "insufficient_trades"
+    assert outcome["legacy_decision"] == {
+        "status": "rejected_in_screening",
+        "reason": "insufficient_trades",
+        "sampled_combination_count": 1,
+    }
+    assert outcome["pass_kind"] is None
+    assert outcome["diagnostic_metrics"]["totaal_trades"] == 0.0
+    assert outcome["diagnostic_metrics"]["trades_per_maand"] == 0.0
