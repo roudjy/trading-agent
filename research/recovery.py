@@ -7,6 +7,8 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
+from agent.backtesting.execution import ExecutionEvent, execution_event_to_dict
+
 
 BATCH_STATE_FILENAME = "run_batch_state.v1.json"
 FRESH_ATTEMPT_REASON = "fresh_run"
@@ -39,6 +41,27 @@ def _batch_sort_key(batch: dict[str, Any]) -> tuple[str, str, str]:
     )
 
 
+def _to_recovery_json_safe(value: Any) -> Any:
+    """Convert recovery payload values to explicit JSON-safe shapes.
+
+    Recovery artifacts may contain nested backtest runtime objects from
+    validation results. ExecutionEvent has a canonical serializer, so keep
+    the artifact inspectable instead of falling back to stringification.
+    Unknown object types remain loud failures at the JSON boundary.
+    """
+    if isinstance(value, ExecutionEvent):
+        return execution_event_to_dict(value)
+    if isinstance(value, dict):
+        return {str(key): _to_recovery_json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_to_recovery_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_to_recovery_json_safe(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return value
+
+
 def build_batch_recovery_state_payload(
     *,
     source_run_id: str,
@@ -49,7 +72,7 @@ def build_batch_recovery_state_payload(
     evaluations: list[dict[str, Any]],
     walk_forward_reports: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    return {
+    payload = {
         "version": "v1",
         "source_run_id": source_run_id,
         "batch_id": str(batch["batch_id"]),
@@ -88,6 +111,7 @@ def build_batch_recovery_state_payload(
             ),
         ),
     }
+    return _to_recovery_json_safe(payload)
 
 
 def load_batch_recovery_state(
