@@ -100,6 +100,8 @@ class TradeDiagnostic:
 
     entry_timestamp_utc: str
     exit_timestamp_utc: str
+    exit_decision_timestamp_utc: Optional[str]
+    exit_kind: Optional[str]
     asset: str
     fold_index: Optional[int]
     side: str
@@ -233,6 +235,8 @@ def compute_trade_diagnostic(
     return TradeDiagnostic(
         entry_timestamp_utc=entry_timestamp_utc,
         exit_timestamp_utc=exit_timestamp_utc,
+        exit_decision_timestamp_utc=None,
+        exit_kind=None,
         asset=asset,
         fold_index=fold_index,
         side=side,
@@ -344,8 +348,9 @@ def build_exit_diagnostics_report(
     trade_events : Sequence[dict]
         Engine-emitted ``oos_trade_events``. Each entry must carry
         ``asset``, ``fold_index``, ``side``, ``entry_timestamp_utc``,
-        ``exit_timestamp_utc``, and ``pnl``. Additional keys are
-        ignored.
+        ``exit_timestamp_utc``, and ``pnl``. Optional
+        ``exit_decision_timestamp_utc`` and ``exit_kind`` fields are
+        passed through when present.
     bar_return_stream : Sequence[dict]
         Engine-emitted ``oos_bar_returns``. Each entry must carry
         ``asset``, ``fold_index``, ``timestamp_utc``, and ``return``.
@@ -372,6 +377,8 @@ def build_exit_diagnostics_report(
                 {
                   "entry_timestamp_utc": str,
                   "exit_timestamp_utc": str,
+                  "exit_decision_timestamp_utc": str | None,
+                  "exit_kind": str | None,
                   "asset": str,
                   "fold_index": int | None,
                   "side": str,
@@ -442,6 +449,16 @@ def build_exit_diagnostics_report(
             {
                 "entry_timestamp_utc": diag.entry_timestamp_utc,
                 "exit_timestamp_utc": diag.exit_timestamp_utc,
+                "exit_decision_timestamp_utc": (
+                    str(trade["exit_decision_timestamp_utc"])
+                    if trade.get("exit_decision_timestamp_utc") is not None
+                    else None
+                ),
+                "exit_kind": (
+                    str(trade["exit_kind"])
+                    if trade.get("exit_kind") is not None
+                    else None
+                ),
                 "asset": diag.asset,
                 "fold_index": diag.fold_index,
                 "side": diag.side,

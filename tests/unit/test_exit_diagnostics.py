@@ -104,8 +104,8 @@ def test_exit_diagnostics_version_is_pinned_string():
 
 def test_mfe_and_mae_on_simple_long_path():
     # Long trade with interior bars at days 2,3.
-    # ratios: T2=1.05, T3=1.02 → cumulative raw: 1.05, 1.071.
-    # Exit: realized pnl = 0.04958, k=K → exit anchor = 0.05958 ... no
+    # ratios: T2=1.05, T3=1.02 â†’ cumulative raw: 1.05, 1.071.
+    # Exit: realized pnl = 0.04958, k=K â†’ exit anchor = 0.05958 ... no
     # we decide exit-bar anchor = pnl + k. Pick pnl s.t. path[-1] =
     # 0.04958: pnl = 0.03958 for a long trade with close_exit /
     # close_entry = 1.04958.
@@ -139,7 +139,7 @@ def test_mfe_and_mae_on_simple_short_path():
     # pnl = 0.07.
     r1 = 0.05
     r2 = (1.0 / 0.95) * 0.9 - 1.0
-    # Solve: (1 + r2 * -1) = 0.9/0.95 → r2 = 1 - 0.9/0.95
+    # Solve: (1 + r2 * -1) = 0.9/0.95 â†’ r2 = 1 - 0.9/0.95
     r2 = 1.0 - 0.9 / 0.95
     interior = [r1, r2]
     diag = compute_trade_diagnostic(
@@ -259,7 +259,7 @@ def test_winner_giveback_on_winner():
 
 def test_winner_giveback_none_on_loser_even_with_positive_mfe():
     # Trade peaked favorably at bar 2 (path=0.05) then turned.
-    # Exit anchor = -0.10 → realized_return non-positive →
+    # Exit anchor = -0.10 â†’ realized_return non-positive â†’
     # winner_giveback is None despite MFE > 0.
     diag = compute_trade_diagnostic(
         entry_timestamp_utc=_ts(1),
@@ -295,7 +295,7 @@ def test_exit_lag_bars_counts_from_peak():
         kosten_per_kant=K,
         interior_bar_returns=[0.05, 0.02],  # peak at index 2
     )
-    # path = [0.0, 0.05, 0.071, 0.04958] → argmax=2, len-1=3
+    # path = [0.0, 0.05, 0.071, 0.04958] â†’ argmax=2, len-1=3
     assert diag.exit_lag_bars == 1
     assert diag.holding_bars == 3
 
@@ -312,7 +312,7 @@ def test_exit_lag_bars_zero_when_peak_at_exit():
         kosten_per_kant=K,
         interior_bar_returns=[0.02, 0.03],
     )
-    # path = [0.0, 0.02, ~0.0506, 0.10] → argmax = 3 → exit_lag = 0
+    # path = [0.0, 0.02, ~0.0506, 0.10] â†’ argmax = 3 â†’ exit_lag = 0
     assert diag.exit_lag_bars == 0
 
 
@@ -324,7 +324,7 @@ def test_exit_lag_bars_zero_when_peak_at_exit():
 def test_turnover_adjusted_exit_quality_deterministic_and_monotone():
     # Two runs with identical inputs produce identical numbers.
     # Varying only bar_count (while keeping trade_count constant)
-    # should increase the adjustment (density drops → (1-d) rises).
+    # should increase the adjustment (density drops â†’ (1-d) rises).
     bars_short = _bars(
         asset=ASSET,
         fold_index=FOLD,
@@ -375,7 +375,7 @@ def test_turnover_adjusted_exit_quality_deterministic_and_monotone():
     ]
     q_long = rep_long["summary"]["turnover_adjusted_exit_quality"]
     assert q_short == q_short2  # deterministic
-    assert q_long > q_short  # denser → smaller adjustment
+    assert q_long > q_short  # denser â†’ smaller adjustment
 
 
 # ---------------------------------------------------------------------------
@@ -631,6 +631,8 @@ def test_output_structure_is_stable():
     assert set(row.keys()) == {
         "entry_timestamp_utc",
         "exit_timestamp_utc",
+        "exit_decision_timestamp_utc",
+        "exit_kind",
         "asset",
         "fold_index",
         "side",
@@ -829,3 +831,23 @@ def test_trade_diagnostic_is_frozen():
     with pytest.raises(Exception):
         diag.mfe = 999.0  # type: ignore[misc]
     assert isinstance(diag, TradeDiagnostic)
+
+def test_optional_exit_metadata_is_passed_through_to_per_trade():
+    bars = _bars(
+        asset=ASSET,
+        fold_index=FOLD,
+        entries=[(1, 0.0), (2, 0.01), (3, 0.0)],
+    )
+    trade = _trade(side="long", entry_day=1, exit_day=3, pnl=0.00958)
+    trade["exit_decision_timestamp_utc"] = _ts(2)
+    trade["exit_kind"] = "signal_change"
+
+    rep = build_exit_diagnostics_report(
+        trade_events=[trade],
+        bar_return_stream=bars,
+        kosten_per_kant=K,
+    )
+
+    row = rep["per_trade"][0]
+    assert row["exit_decision_timestamp_utc"] == _ts(2)
+    assert row["exit_kind"] == "signal_change"
