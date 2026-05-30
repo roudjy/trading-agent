@@ -16,12 +16,8 @@ from research.candidate_pipeline import (
     normalize_screening_decision,
     sampling_plan_for_param_grid,
 )
-from research.screening_criteria import (
-    EXPLORATORY_MAX_DRAWDOWN,
-    EXPLORATORY_MIN_EXPECTANCY,
-    EXPLORATORY_MIN_PROFIT_FACTOR,
-    apply_phase_aware_criteria,
-)
+from research.screening_criteria import apply_phase_aware_criteria
+from research.screening_criteria import build_exploratory_criteria_checks
 
 FINAL_STATUS_PASSED = "passed"
 FINAL_STATUS_REJECTED = "rejected"
@@ -245,12 +241,7 @@ def _sample_diagnostic(
     min_trades: int,
     trade_pnls: list[Any],
 ) -> dict[str, Any]:
-    criteria_checks = {
-        "sufficient_trades": float(metrics.get("totaal_trades", 0.0) or 0.0) >= float(min_trades),
-        "expectancy_above_zero": float(metrics.get("expectancy", 0.0)) > EXPLORATORY_MIN_EXPECTANCY,
-        "profit_factor_at_or_above_floor": float(metrics.get("profit_factor", 0.0)) >= EXPLORATORY_MIN_PROFIT_FACTOR,
-        "drawdown_within_limit": float(metrics.get("max_drawdown", 1.0)) <= EXPLORATORY_MAX_DRAWDOWN,
-    }
+    criteria_checks = build_exploratory_criteria_checks(metrics, min_trades)
     return {
         "sample_index": int(sample_index),
         "params": dict(params),
