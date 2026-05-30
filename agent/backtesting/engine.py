@@ -1419,7 +1419,10 @@ class BacktestEngine:
                     pnl = (prijs / entry_prijs - 1.0) * positie - self.kosten_per_kant
                     trade_pnls.append(pnl)
                     if include_trade_events and current_trade is not None:
+                        exit_decision_index = max(i - 1, 0)
+                        current_trade["exit_decision_timestamp_utc"] = self._timestamp_to_utc_iso(df.index[exit_decision_index])
                         current_trade["exit_timestamp_utc"] = self._timestamp_to_utc_iso(df.index[i])
+                        current_trade["exit_kind"] = "window_end" if i == len(df) - 1 else "signal_change"
                         current_trade["pnl"] = pnl
                         trade_events.append(current_trade)
                         current_trade = None

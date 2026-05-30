@@ -78,6 +78,7 @@ def _run_detailed(
     signal: pd.Series,
     *,
     include_execution_events: bool,
+    include_trade_events: bool = False,
     fold_index=None,
     asset: str = "BTC-EUR",
 ):
@@ -88,7 +89,7 @@ def _run_detailed(
         asset,
         regime_window=None,
         fold_index=fold_index,
-        include_trade_events=False,
+        include_trade_events=include_trade_events,
         include_execution_events=include_execution_events,
     )
 
@@ -412,3 +413,30 @@ def test_short_position_emits_side_short_on_both_events():
     )
     assert len(exec_events) == 4
     assert all(e.side == "short" for e in exec_events)
+
+def test_trade_events_include_exit_decision_timestamp_and_kind():
+    eng = _engine()
+    df = _ramp_frame(30)
+    sig = _block_signal(df, entry_i=5, exit_i=15)
+
+    _, _, _, trade_events, _ = _run_detailed(
+        eng,
+        df,
+        sig,
+        include_execution_events=False,
+        include_trade_events=True,
+        fold_index=7,
+        asset="NVDA",
+    )
+
+    assert len(trade_events) == 1
+    trade = trade_events[0]
+
+    # Signal turns off at raw index 15. Engine shift(1) fills exit at index 16.
+    assert trade["entry_decision_timestamp_utc"] == eng._timestamp_to_utc_iso(df.index[5])
+    assert trade["entry_timestamp_utc"] == eng._timestamp_to_utc_iso(df.index[6])
+    assert trade["exit_decision_timestamp_utc"] == eng._timestamp_to_utc_iso(df.index[15])
+    assert trade["exit_timestamp_utc"] == eng._timestamp_to_utc_iso(df.index[16])
+    assert trade["exit_kind"] == "signal_change"
+    assert trade["asset"] == "NVDA"
+    assert trade["fold_index"] == 7
