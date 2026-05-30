@@ -231,6 +231,72 @@ def _trade_distribution(trade_pnls: list[Any]) -> dict[str, Any]:
         "win_loss_ratio": round(win_loss_ratio, 6),
     }
 
+def _classify_trend_pullback_exit_reason(
+    *,
+    pullback_distance: Any,
+    ema_fast: Any,
+    ema_slow: Any,
+    exit_kind: Any,
+) -> str:
+    if str(exit_kind or "") == "window_end":
+        return "window_end"
+
+    try:
+        pd_dist = float(pullback_distance)
+        fast = float(ema_fast)
+        slow = float(ema_slow)
+    except (TypeError, ValueError):
+        return "signal_change_unknown"
+
+    pullback_resolved = pd_dist > 0.0
+    trend_break = fast <= slow
+
+    if pullback_resolved and trend_break:
+        return "pullback_resolved_and_trend_break"
+    if pullback_resolved:
+        return "pullback_resolved"
+    if trend_break:
+        return "trend_break"
+    return "signal_change_unknown"
+
+
+def _trend_pullback_exit_reason_summary(
+    *,
+    trade_events: list[Any],
+    features_by_timestamp: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    reason_counts = Counter()
+
+    for trade in trade_events:
+        if not isinstance(trade, dict):
+            continue
+
+        decision_ts = trade.get("exit_decision_timestamp_utc")
+        feature_row = features_by_timestamp.get(str(decision_ts), {})
+        reason = _classify_trend_pullback_exit_reason(
+            pullback_distance=feature_row.get("pullback_distance"),
+            ema_fast=feature_row.get("ema_fast"),
+            ema_slow=feature_row.get("ema_slow"),
+            exit_kind=trade.get("exit_kind"),
+        )
+        reason_counts[reason] += 1
+
+    trade_count = sum(reason_counts.values())
+    return {
+        "trade_count": int(trade_count),
+        "exit_reason_counts": dict(sorted(reason_counts.items())),
+        "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),
+        "trend_break_count": int(reason_counts.get("trend_break", 0)),
+        "pullback_resolved_and_trend_break_count": int(
+            reason_counts.get("pullback_resolved_and_trend_break", 0)
+        ),
+        "window_end_count": int(reason_counts.get("window_end", 0)),
+        "signal_change_unknown_count": int(
+            reason_counts.get("signal_change_unknown", 0)
+        ),
+    }
+
+
 def _exit_metadata_summary(trade_events: list[Any]) -> dict[str, Any]:
     exit_kind_counts = Counter()
     decision_timestamp_count = 0
