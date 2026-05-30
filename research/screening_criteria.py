@@ -1,35 +1,35 @@
-"""v3.15.7 — phase-aware screening criteria dispatch.
+"""v3.15.7 â€” phase-aware screening criteria dispatch.
 
 Pure module, no IO. Called from
 ``research.screening_runtime.execute_screening_candidate_samples``
 after each engine sample. The caller owns the trade-count
 pre-check (``engine.min_trades``) and the OOS-data pre-check
-(``no_oos_samples``) — this helper assumes data validity and only
+(``no_oos_samples``) â€” this helper assumes data validity and only
 performs phase-specific gating on the metrics dict.
 
 Funnel discipline:
 
-- Screening zoekt — exploratory criteria minimaliseren false
+- Screening zoekt â€” exploratory criteria minimaliseren false
   negatives so trend/momentum candidates with positive expectancy
   but low win_rate can pass for shortlist.
-- Promotion bewijst — promotion_grade keeps the strict v3.15.6
+- Promotion bewijst â€” promotion_grade keeps the strict v3.15.6
   gates byte-identical (delegated to the engine ``goedgekeurd``
   AND-gate).
-- Paper valideert — exploratory passes are downgraded to
+- Paper valideert â€” exploratory passes are downgraded to
   ``needs_investigation`` by ``promotion.classify_candidate`` so
   they NEVER auto-promote to paper.
 
 Phase semantics:
 
-- ``screening_phase == "exploratory"`` → exploratory criteria;
+- ``screening_phase == "exploratory"`` â†’ exploratory criteria;
   win_rate is diagnostic-only (not a hard gate).
 - ``screening_phase`` in {``"standard"``, ``"promotion_grade"``,
-  ``None``} → legacy ``goedgekeurd`` AND-gate; behavior is
+  ``None``} â†’ legacy ``goedgekeurd`` AND-gate; behavior is
   byte-identical to pre-v3.15.7.
 
 Threshold values are start-points; v3.15.8+ may recalibrate based
 on empirical evidence. v3.15.7 introduces no
-``EXPLORATORY_MIN_TRADES`` constant — the trade-count gate lives
+``EXPLORATORY_MIN_TRADES`` constant â€” the trade-count gate lives
 upstream in ``screening_runtime`` via ``engine.min_trades`` to
 avoid duplicate-gate drift.
 """
@@ -83,3 +83,10 @@ def _exploratory_criteria(metrics: dict[str, Any]) -> tuple[bool, str | None]:
         return False, "drawdown_above_exploratory_limit"
 
     return True, None
+def build_exploratory_criteria_checks(metrics: dict[str, object], min_trades: int) -> dict[str, bool]:
+    return {
+        "sufficient_trades": float(metrics.get("totaal_trades", 0.0) or 0.0) >= float(min_trades),
+        "expectancy_above_zero": float(metrics.get("expectancy", 0.0)) > EXPLORATORY_MIN_EXPECTANCY,
+        "profit_factor_at_or_above_floor": float(metrics.get("profit_factor", 0.0)) >= EXPLORATORY_MIN_PROFIT_FACTOR,
+        "drawdown_within_limit": float(metrics.get("max_drawdown", 1.0)) <= EXPLORATORY_MAX_DRAWDOWN,
+    }

@@ -205,12 +205,12 @@ def test_execute_screening_candidate_resume_matches_fresh_result():
     comparable_keys = {
         key: value
         for key, value in fresh_outcome.items()
-        if key not in {"started_at", "finished_at"}
+        if key not in {"started_at", "finished_at", "sample_diagnostics", "sample_diagnostics_summary"}
     }
     resumed_comparable = {
         key: value
         for key, value in resumed_outcome.items()
-        if key not in {"started_at", "finished_at"}
+        if key not in {"started_at", "finished_at", "sample_diagnostics", "sample_diagnostics_summary"}
     }
     assert resumed_comparable == comparable_keys
 
@@ -319,12 +319,13 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
 
         def run(self, strategie_func, assets, interval="1d"):
             self.calls += 1
-            self.last_evaluation_report = {
-                "evaluation_samples": {
-                    "daily_returns": [0.01, -0.01],
-                }
-            }
             if self.calls == 1:
+                self.last_evaluation_report = {
+                    "evaluation_samples": {
+                        "daily_returns": [0.01, -0.01],
+                        "trade_pnls": [0.03, 0.01, -0.02],
+                    }
+                }
                 return {
                     "expectancy": 0.02,
                     "profit_factor": 2.0,
@@ -334,6 +335,12 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                     "trades_per_maand": 1.0,
                     "goedgekeurd": True,
                 }
+            self.last_evaluation_report = {
+                "evaluation_samples": {
+                    "daily_returns": [0.0, 0.0],
+                    "trade_pnls": [],
+                }
+            }
             return {
                 "expectancy": 0.0,
                 "profit_factor": 0.0,
@@ -369,3 +376,78 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
     assert outcome["diagnostic_metrics"]["win_rate"] == 0.6
     assert outcome["diagnostic_metrics"]["totaal_trades"] == 12.0
     assert outcome["diagnostic_metrics"]["trades_per_maand"] == 1.0
+    assert outcome["sample_diagnostics_summary"] == {
+        "sample_count": 2,
+        "promoted_sample_count": 1,
+        "rejected_sample_count": 1,
+        "rejection_reason_counts": {
+            "insufficient_trades": 1,
+            "passed": 1,
+        },
+        "best_sample_index": 0,
+        "best_expectancy": 0.02,
+        "best_profit_factor": 2.0,
+        "best_totaal_trades": 12.0,
+    }
+    assert outcome["sample_diagnostics"] == [
+        {
+            "sample_index": 0,
+            "params": {"periode": 14},
+            "status": "promoted_to_validation",
+            "reason": None,
+            "criteria_checks": {
+                "sufficient_trades": True,
+                "expectancy_above_zero": True,
+                "profit_factor_at_or_above_floor": True,
+                "drawdown_within_limit": True,
+            },
+            "trade_distribution": {
+                "trade_count": 3,
+                "avg_trade_pnl": 0.006667,
+                "median_trade_pnl": 0.01,
+                "avg_win": 0.02,
+                "avg_loss": -0.02,
+                "largest_win": 0.03,
+                "largest_loss": -0.02,
+                "win_loss_ratio": 1.0,
+            },
+            "metrics": {
+                "expectancy": 0.02,
+                "profit_factor": 2.0,
+                "win_rate": 0.6,
+                "max_drawdown": 0.05,
+                "totaal_trades": 12.0,
+                "trades_per_maand": 1.0,
+            },
+        },
+        {
+            "sample_index": 1,
+            "params": {"periode": 21},
+            "status": "rejected_in_screening",
+            "reason": "insufficient_trades",
+            "criteria_checks": {
+                "sufficient_trades": False,
+                "expectancy_above_zero": False,
+                "profit_factor_at_or_above_floor": False,
+                "drawdown_within_limit": True,
+            },
+            "trade_distribution": {
+                "trade_count": 0,
+                "avg_trade_pnl": 0.0,
+                "median_trade_pnl": 0.0,
+                "avg_win": 0.0,
+                "avg_loss": 0.0,
+                "largest_win": 0.0,
+                "largest_loss": 0.0,
+                "win_loss_ratio": 0.0,
+            },
+            "metrics": {
+                "expectancy": 0.0,
+                "profit_factor": 0.0,
+                "win_rate": 0.0,
+                "max_drawdown": 0.0,
+                "totaal_trades": 0.0,
+                "trades_per_maand": 0.0,
+            },
+        },
+    ]
