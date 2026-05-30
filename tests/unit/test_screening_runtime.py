@@ -205,12 +205,12 @@ def test_execute_screening_candidate_resume_matches_fresh_result():
     comparable_keys = {
         key: value
         for key, value in fresh_outcome.items()
-        if key not in {"started_at", "finished_at", "sample_diagnostics"}
+        if key not in {"started_at", "finished_at", "sample_diagnostics", "sample_diagnostics_summary"}
     }
     resumed_comparable = {
         key: value
         for key, value in resumed_outcome.items()
-        if key not in {"started_at", "finished_at", "sample_diagnostics"}
+        if key not in {"started_at", "finished_at", "sample_diagnostics", "sample_diagnostics_summary"}
     }
     assert resumed_comparable == comparable_keys
 
@@ -369,6 +369,19 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
     assert outcome["diagnostic_metrics"]["win_rate"] == 0.6
     assert outcome["diagnostic_metrics"]["totaal_trades"] == 12.0
     assert outcome["diagnostic_metrics"]["trades_per_maand"] == 1.0
+    assert outcome["sample_diagnostics_summary"] == {
+        "sample_count": 2,
+        "promoted_sample_count": 1,
+        "rejected_sample_count": 1,
+        "rejection_reason_counts": {
+            "insufficient_trades": 1,
+            "passed": 1,
+        },
+        "best_sample_index": 0,
+        "best_expectancy": 0.02,
+        "best_profit_factor": 2.0,
+        "best_totaal_trades": 12.0,
+    }
     assert outcome["sample_diagnostics"] == [
         {
             "sample_index": 0,

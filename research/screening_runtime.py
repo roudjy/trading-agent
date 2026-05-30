@@ -230,6 +230,52 @@ def _sample_diagnostic(
         },
     }
 
+def _sample_diagnostics_summary(sample_diagnostics: list[dict[str, Any]]) -> dict[str, Any]:
+    reason_counts = Counter(
+        str(item.get("reason") or "passed")
+        for item in sample_diagnostics
+    )
+    promoted_count = sum(
+        1 for item in sample_diagnostics
+        if item.get("status") == SCREENING_PROMOTED
+    )
+    rejected_count = sum(
+        1 for item in sample_diagnostics
+        if item.get("status") == SCREENING_REJECTED
+    )
+    eligible_best_samples = [
+        item for item in sample_diagnostics
+        if item.get("criteria_checks", {}).get("sufficient_trades") is True
+    ]
+    best_sample_pool = eligible_best_samples or sample_diagnostics
+    best_sample = max(
+        best_sample_pool,
+        key=lambda item: (
+            float(item.get("metrics", {}).get("expectancy", 0.0)),
+            float(item.get("metrics", {}).get("profit_factor", 0.0)),
+            float(item.get("metrics", {}).get("totaal_trades", 0.0)),
+        ),
+        default=None,
+    )
+
+    if best_sample is None:
+        best_sample_index = None
+        best_metrics: dict[str, Any] = {}
+    else:
+        best_sample_index = int(best_sample["sample_index"])
+        best_metrics = dict(best_sample.get("metrics", {}))
+
+    return {
+        "sample_count": len(sample_diagnostics),
+        "promoted_sample_count": int(promoted_count),
+        "rejected_sample_count": int(rejected_count),
+        "rejection_reason_counts": dict(sorted(reason_counts.items())),
+        "best_sample_index": best_sample_index,
+        "best_expectancy": float(best_metrics.get("expectancy", 0.0)),
+        "best_profit_factor": float(best_metrics.get("profit_factor", 0.0)),
+        "best_totaal_trades": float(best_metrics.get("totaal_trades", 0.0)),
+    }
+
 def execute_screening_candidate_samples(
     *,
     candidate: dict[str, Any],
@@ -463,6 +509,7 @@ def execute_screening_candidate_samples(
         "screening_criteria_set": screening_criteria_set,
         "diagnostic_metrics": diagnostic_metrics,
         "sample_diagnostics": sample_diagnostics,
+        "sample_diagnostics_summary": _sample_diagnostics_summary(sample_diagnostics),
         # v3.15.8 additive -- sampling-policy metadata for the
         # screening evidence artifact (v3.15.9) and campaign
         # funnel policy (v3.15.10). Always present, even on
