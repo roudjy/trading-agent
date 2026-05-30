@@ -16,7 +16,12 @@ from research.candidate_pipeline import (
     normalize_screening_decision,
     sampling_plan_for_param_grid,
 )
-from research.screening_criteria import apply_phase_aware_criteria
+from research.screening_criteria import (
+    EXPLORATORY_MAX_DRAWDOWN,
+    EXPLORATORY_MIN_EXPECTANCY,
+    EXPLORATORY_MIN_PROFIT_FACTOR,
+    apply_phase_aware_criteria,
+)
 
 FINAL_STATUS_PASSED = "passed"
 FINAL_STATUS_REJECTED = "rejected"
@@ -201,12 +206,20 @@ def _sample_diagnostic(
     status: str,
     reason: str | None,
     metrics: dict[str, Any],
+    min_trades: int,
 ) -> dict[str, Any]:
+    criteria_checks = {
+        "sufficient_trades": float(metrics.get("totaal_trades", 0.0) or 0.0) >= float(min_trades),
+        "expectancy_above_zero": float(metrics.get("expectancy", 0.0)) > EXPLORATORY_MIN_EXPECTANCY,
+        "profit_factor_at_or_above_floor": float(metrics.get("profit_factor", 0.0)) >= EXPLORATORY_MIN_PROFIT_FACTOR,
+        "drawdown_within_limit": float(metrics.get("max_drawdown", 1.0)) <= EXPLORATORY_MAX_DRAWDOWN,
+    }
     return {
         "sample_index": int(sample_index),
         "params": dict(params),
         "status": status,
         "reason": reason,
+        "criteria_checks": criteria_checks,
         "metrics": {
             "expectancy": float(metrics.get("expectancy", 0.0)),
             "profit_factor": float(metrics.get("profit_factor", 0.0)),
@@ -372,6 +385,7 @@ def execute_screening_candidate_samples(
                 status=sample_status,
                 reason=sample_reason,
                 metrics=last_metrics,
+                min_trades=int(getattr(engine, "min_trades", 10)),
             )
         )
         if on_checkpoint is not None:

@@ -375,6 +375,12 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             "params": {"periode": 14},
             "status": "promoted_to_validation",
             "reason": None,
+            "criteria_checks": {
+                "sufficient_trades": True,
+                "expectancy_above_zero": True,
+                "profit_factor_at_or_above_floor": True,
+                "drawdown_within_limit": True,
+            },
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -389,6 +395,12 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             "params": {"periode": 21},
             "status": "rejected_in_screening",
             "reason": "insufficient_trades",
+            "criteria_checks": {
+                "sufficient_trades": False,
+                "expectancy_above_zero": False,
+                "profit_factor_at_or_above_floor": False,
+                "drawdown_within_limit": True,
+            },
             "metrics": {
                 "expectancy": 0.0,
                 "profit_factor": 0.0,
