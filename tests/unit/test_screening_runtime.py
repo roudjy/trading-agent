@@ -205,12 +205,12 @@ def test_execute_screening_candidate_resume_matches_fresh_result():
     comparable_keys = {
         key: value
         for key, value in fresh_outcome.items()
-        if key not in {"started_at", "finished_at"}
+        if key not in {"started_at", "finished_at", "sample_diagnostics"}
     }
     resumed_comparable = {
         key: value
         for key, value in resumed_outcome.items()
-        if key not in {"started_at", "finished_at"}
+        if key not in {"started_at", "finished_at", "sample_diagnostics"}
     }
     assert resumed_comparable == comparable_keys
 
@@ -369,3 +369,33 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
     assert outcome["diagnostic_metrics"]["win_rate"] == 0.6
     assert outcome["diagnostic_metrics"]["totaal_trades"] == 12.0
     assert outcome["diagnostic_metrics"]["trades_per_maand"] == 1.0
+    assert outcome["sample_diagnostics"] == [
+        {
+            "sample_index": 0,
+            "params": {"periode": 14},
+            "status": "promoted_to_validation",
+            "reason": None,
+            "metrics": {
+                "expectancy": 0.02,
+                "profit_factor": 2.0,
+                "win_rate": 0.6,
+                "max_drawdown": 0.05,
+                "totaal_trades": 12.0,
+                "trades_per_maand": 1.0,
+            },
+        },
+        {
+            "sample_index": 1,
+            "params": {"periode": 21},
+            "status": "rejected_in_screening",
+            "reason": "insufficient_trades",
+            "metrics": {
+                "expectancy": 0.0,
+                "profit_factor": 0.0,
+                "win_rate": 0.0,
+                "max_drawdown": 0.0,
+                "totaal_trades": 0.0,
+                "trades_per_maand": 0.0,
+            },
+        },
+    ]

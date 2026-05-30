@@ -194,6 +194,29 @@ def build_screening_sidecar_payload(
     }
 
 
+def _sample_diagnostic(
+    *,
+    sample_index: int,
+    params: dict[str, Any],
+    status: str,
+    reason: str | None,
+    metrics: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "sample_index": int(sample_index),
+        "params": dict(params),
+        "status": status,
+        "reason": reason,
+        "metrics": {
+            "expectancy": float(metrics.get("expectancy", 0.0)),
+            "profit_factor": float(metrics.get("profit_factor", 0.0)),
+            "win_rate": float(metrics.get("win_rate", 0.0)),
+            "max_drawdown": float(metrics.get("max_drawdown", 0.0)),
+            "totaal_trades": float(metrics.get("totaal_trades", 0.0) or 0.0),
+            "trades_per_maand": float(metrics.get("trades_per_maand", 0.0) or 0.0),
+        },
+    }
+
 def execute_screening_candidate_samples(
     *,
     candidate: dict[str, Any],
@@ -272,6 +295,7 @@ def execute_screening_candidate_samples(
     # sample.
     last_metrics: dict[str, Any] = {}
     promoted_metrics: dict[str, Any] | None = None
+    sample_diagnostics: list[dict[str, Any]] = []
 
     for sample_index, (_params, strategy_callable) in enumerate(strategy_samples):
         if sample_index < len(sample_results):
@@ -320,22 +344,36 @@ def execute_screening_candidate_samples(
         report = getattr(engine, "last_evaluation_report", None) or {}
         evaluation_samples = report.get("evaluation_samples") or {}
         daily_returns = evaluation_samples.get("daily_returns") or []
+        sample_status = SCREENING_REJECTED
+        sample_reason: str | None = None
         if not isinstance(daily_returns, list) or not daily_returns:
-            sample_results.append({"status": SCREENING_REJECTED, "reason": "no_oos_samples"})
+            sample_reason = "no_oos_samples"
         else:
             min_trades = int(getattr(engine, "min_trades", 10))
             if int(metrics.get("totaal_trades", 0)) < min_trades:
-                sample_results.append({"status": SCREENING_REJECTED, "reason": "insufficient_trades"})
+                sample_reason = "insufficient_trades"
             else:
                 # v3.15.7: phase-aware criteria dispatch. Pre-checks
                 # above (no_oos_samples / insufficient_trades) are NOT
                 # duplicated inside ``apply_phase_aware_criteria``.
                 passed, reason = apply_phase_aware_criteria(metrics, screening_phase)
                 if passed:
+                    sample_status = SCREENING_PROMOTED
                     promoted_metrics = dict(metrics)
-                    sample_results.append({"status": SCREENING_PROMOTED, "reason": None})
+                    sample_reason = None
                 else:
-                    sample_results.append({"status": SCREENING_REJECTED, "reason": reason})
+                    sample_reason = reason
+
+        sample_results.append({"status": sample_status, "reason": sample_reason})
+        sample_diagnostics.append(
+            _sample_diagnostic(
+                sample_index=sample_index,
+                params=dict(_params),
+                status=sample_status,
+                reason=sample_reason,
+                metrics=last_metrics,
+            )
+        )
         if on_checkpoint is not None:
             on_checkpoint(sample_results)
 
@@ -368,7 +406,7 @@ def execute_screening_candidate_samples(
     # v3.15.7: additive outcome fields for phase-aware visibility.
     # ``pass_kind`` is set ONLY on screening pass (mirrors phase);
     # rejected -> None (failure semantics live in reason_code).
-    # NB: NO ``screening_phase`` key here ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â v3.15.6 invariant.
+    # NB: NO ``screening_phase`` key here -- v3.15.6 invariant.
     pass_kind: str | None
     if legacy_decision["status"] == SCREENING_PROMOTED:
         pass_kind = screening_phase
@@ -410,6 +448,7 @@ def execute_screening_candidate_samples(
         "pass_kind": pass_kind,
         "screening_criteria_set": screening_criteria_set,
         "diagnostic_metrics": diagnostic_metrics,
+        "sample_diagnostics": sample_diagnostics,
         # v3.15.8 additive -- sampling-policy metadata for the
         # screening evidence artifact (v3.15.9) and campaign
         # funnel policy (v3.15.10). Always present, even on
