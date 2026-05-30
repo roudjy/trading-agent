@@ -231,6 +231,31 @@ def _trade_distribution(trade_pnls: list[Any]) -> dict[str, Any]:
         "win_loss_ratio": round(win_loss_ratio, 6),
     }
 
+def _exit_metadata_summary(trade_events: list[Any]) -> dict[str, Any]:
+    exit_kind_counts = Counter()
+    decision_timestamp_count = 0
+
+    for trade in trade_events:
+        if not isinstance(trade, dict):
+            continue
+        exit_kind = str(trade.get("exit_kind") or "unknown")
+        exit_kind_counts[exit_kind] += 1
+        if trade.get("exit_decision_timestamp_utc") is not None:
+            decision_timestamp_count += 1
+
+    trade_count = sum(exit_kind_counts.values())
+    return {
+        "trade_count": int(trade_count),
+        "exit_kind_counts": dict(sorted(exit_kind_counts.items())),
+        "signal_change_count": int(exit_kind_counts.get("signal_change", 0)),
+        "window_end_count": int(exit_kind_counts.get("window_end", 0)),
+        "unknown_exit_kind_count": int(exit_kind_counts.get("unknown", 0)),
+        "has_exit_decision_timestamps": (
+            trade_count > 0 and decision_timestamp_count == trade_count
+        ),
+    }
+
+
 def _sample_diagnostic(
     *,
     sample_index: int,
@@ -240,6 +265,7 @@ def _sample_diagnostic(
     metrics: dict[str, Any],
     min_trades: int,
     trade_pnls: list[Any],
+    trade_events: list[Any],
 ) -> dict[str, Any]:
     criteria_checks = build_exploratory_criteria_checks(metrics, min_trades)
     return {
@@ -249,6 +275,7 @@ def _sample_diagnostic(
         "reason": reason,
         "criteria_checks": criteria_checks,
         "trade_distribution": _trade_distribution(trade_pnls),
+        "exit_metadata_summary": _exit_metadata_summary(trade_events),
         "metrics": {
             "expectancy": float(metrics.get("expectancy", 0.0)),
             "profit_factor": float(metrics.get("profit_factor", 0.0)),
@@ -433,6 +460,8 @@ def execute_screening_candidate_samples(
         evaluation_samples = report.get("evaluation_samples") or {}
         daily_returns = evaluation_samples.get("daily_returns") or []
         trade_pnls = evaluation_samples.get("trade_pnls") or []
+        evaluation_streams = report.get("evaluation_streams") or {}
+        trade_events = evaluation_streams.get("oos_trade_events") or []
         sample_status = SCREENING_REJECTED
         sample_reason: str | None = None
         if not isinstance(daily_returns, list) or not daily_returns:
@@ -463,6 +492,7 @@ def execute_screening_candidate_samples(
                 metrics=last_metrics,
                 min_trades=int(getattr(engine, "min_trades", 10)),
                 trade_pnls=list(trade_pnls),
+                trade_events=list(trade_events),
             )
         )
         if on_checkpoint is not None:
