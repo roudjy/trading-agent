@@ -199,6 +199,42 @@ def build_screening_sidecar_payload(
     }
 
 
+def _trade_distribution(trade_pnls: list[Any]) -> dict[str, Any]:
+    values = [float(value) for value in trade_pnls]
+    wins = [value for value in values if value > 0.0]
+    losses = [value for value in values if value < 0.0]
+
+    def _avg(items: list[float]) -> float:
+        return float(sum(items) / len(items)) if items else 0.0
+
+    sorted_values = sorted(values)
+    if not sorted_values:
+        median = 0.0
+    elif len(sorted_values) % 2 == 1:
+        median = float(sorted_values[len(sorted_values) // 2])
+    else:
+        hi = len(sorted_values) // 2
+        median = float((sorted_values[hi - 1] + sorted_values[hi]) / 2.0)
+
+    avg_win = _avg(wins)
+    avg_loss = _avg(losses)
+    win_loss_ratio = (
+        float(avg_win / abs(avg_loss))
+        if avg_win > 0.0 and avg_loss < 0.0
+        else 0.0
+    )
+
+    return {
+        "trade_count": len(values),
+        "avg_trade_pnl": round(_avg(values), 6),
+        "median_trade_pnl": round(median, 6),
+        "avg_win": round(avg_win, 6),
+        "avg_loss": round(avg_loss, 6),
+        "largest_win": round(max(wins), 6) if wins else 0.0,
+        "largest_loss": round(min(losses), 6) if losses else 0.0,
+        "win_loss_ratio": round(win_loss_ratio, 6),
+    }
+
 def _sample_diagnostic(
     *,
     sample_index: int,
@@ -207,6 +243,7 @@ def _sample_diagnostic(
     reason: str | None,
     metrics: dict[str, Any],
     min_trades: int,
+    trade_pnls: list[Any],
 ) -> dict[str, Any]:
     criteria_checks = {
         "sufficient_trades": float(metrics.get("totaal_trades", 0.0) or 0.0) >= float(min_trades),
@@ -220,6 +257,7 @@ def _sample_diagnostic(
         "status": status,
         "reason": reason,
         "criteria_checks": criteria_checks,
+        "trade_distribution": _trade_distribution(trade_pnls),
         "metrics": {
             "expectancy": float(metrics.get("expectancy", 0.0)),
             "profit_factor": float(metrics.get("profit_factor", 0.0)),
@@ -403,6 +441,7 @@ def execute_screening_candidate_samples(
         report = getattr(engine, "last_evaluation_report", None) or {}
         evaluation_samples = report.get("evaluation_samples") or {}
         daily_returns = evaluation_samples.get("daily_returns") or []
+        trade_pnls = evaluation_samples.get("trade_pnls") or []
         sample_status = SCREENING_REJECTED
         sample_reason: str | None = None
         if not isinstance(daily_returns, list) or not daily_returns:
@@ -432,6 +471,7 @@ def execute_screening_candidate_samples(
                 reason=sample_reason,
                 metrics=last_metrics,
                 min_trades=int(getattr(engine, "min_trades", 10)),
+                trade_pnls=list(trade_pnls),
             )
         )
         if on_checkpoint is not None:

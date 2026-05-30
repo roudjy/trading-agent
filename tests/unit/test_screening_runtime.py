@@ -319,12 +319,13 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
 
         def run(self, strategie_func, assets, interval="1d"):
             self.calls += 1
-            self.last_evaluation_report = {
-                "evaluation_samples": {
-                    "daily_returns": [0.01, -0.01],
-                }
-            }
             if self.calls == 1:
+                self.last_evaluation_report = {
+                    "evaluation_samples": {
+                        "daily_returns": [0.01, -0.01],
+                        "trade_pnls": [0.03, 0.01, -0.02],
+                    }
+                }
                 return {
                     "expectancy": 0.02,
                     "profit_factor": 2.0,
@@ -334,6 +335,12 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                     "trades_per_maand": 1.0,
                     "goedgekeurd": True,
                 }
+            self.last_evaluation_report = {
+                "evaluation_samples": {
+                    "daily_returns": [0.0, 0.0],
+                    "trade_pnls": [],
+                }
+            }
             return {
                 "expectancy": 0.0,
                 "profit_factor": 0.0,
@@ -394,6 +401,16 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "profit_factor_at_or_above_floor": True,
                 "drawdown_within_limit": True,
             },
+            "trade_distribution": {
+                "trade_count": 3,
+                "avg_trade_pnl": 0.006667,
+                "median_trade_pnl": 0.01,
+                "avg_win": 0.02,
+                "avg_loss": -0.02,
+                "largest_win": 0.03,
+                "largest_loss": -0.02,
+                "win_loss_ratio": 1.0,
+            },
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -413,6 +430,16 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "expectancy_above_zero": False,
                 "profit_factor_at_or_above_floor": False,
                 "drawdown_within_limit": True,
+            },
+            "trade_distribution": {
+                "trade_count": 0,
+                "avg_trade_pnl": 0.0,
+                "median_trade_pnl": 0.0,
+                "avg_win": 0.0,
+                "avg_loss": 0.0,
+                "largest_win": 0.0,
+                "largest_loss": 0.0,
+                "win_loss_ratio": 0.0,
             },
             "metrics": {
                 "expectancy": 0.0,
