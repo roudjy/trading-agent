@@ -411,6 +411,14 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "largest_loss": -0.02,
                 "win_loss_ratio": 1.0,
             },
+            "exit_metadata_summary": {
+                "trade_count": 0,
+                "exit_kind_counts": {},
+                "signal_change_count": 0,
+                "window_end_count": 0,
+                "unknown_exit_kind_count": 0,
+                "has_exit_decision_timestamps": False,
+            },
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -440,6 +448,14 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "largest_win": 0.0,
                 "largest_loss": 0.0,
                 "win_loss_ratio": 0.0,
+            },
+            "exit_metadata_summary": {
+                "trade_count": 0,
+                "exit_kind_counts": {},
+                "signal_change_count": 0,
+                "window_end_count": 0,
+                "unknown_exit_kind_count": 0,
+                "has_exit_decision_timestamps": False,
             },
             "metrics": {
                 "expectancy": 0.0,
