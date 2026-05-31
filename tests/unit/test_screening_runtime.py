@@ -6,6 +6,8 @@ from types import SimpleNamespace
 from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
 from research.candidate_resume import CandidateResumeState
 from research.screening_runtime import (
+    _trend_pullback_exit_reason_summary,
+    _classify_trend_pullback_exit_reason,
     FINAL_STATUS_ERRORED,
     FINAL_STATUS_TIMED_OUT,
     ScreeningCandidateInterrupted,
@@ -419,6 +421,16 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "unknown_exit_kind_count": 0,
                 "has_exit_decision_timestamps": False,
             },
+            "trend_pullback_exit_reason_summary": {
+                "trade_count": 0,
+                "exit_reason_counts": {},
+                "exit_reason_pnl_summary": {},
+                "pullback_resolved_count": 0,
+                "trend_break_count": 0,
+                "pullback_resolved_and_trend_break_count": 0,
+                "window_end_count": 0,
+                "signal_change_unknown_count": 0,
+            },
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -457,6 +469,16 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "unknown_exit_kind_count": 0,
                 "has_exit_decision_timestamps": False,
             },
+            "trend_pullback_exit_reason_summary": {
+                "trade_count": 0,
+                "exit_reason_counts": {},
+                "exit_reason_pnl_summary": {},
+                "pullback_resolved_count": 0,
+                "trend_break_count": 0,
+                "pullback_resolved_and_trend_break_count": 0,
+                "window_end_count": 0,
+                "signal_change_unknown_count": 0,
+            },
             "metrics": {
                 "expectancy": 0.0,
                 "profit_factor": 0.0,
@@ -467,3 +489,151 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             },
         },
     ]
+
+def test_classify_trend_pullback_exit_reason_from_decision_features() -> None:
+    assert (
+        _classify_trend_pullback_exit_reason(
+            pullback_distance=1.0,
+            ema_fast=101.0,
+            ema_slow=100.0,
+            exit_kind="signal_change",
+        )
+        == "pullback_resolved"
+    )
+    assert (
+        _classify_trend_pullback_exit_reason(
+            pullback_distance=-1.0,
+            ema_fast=99.0,
+            ema_slow=100.0,
+            exit_kind="signal_change",
+        )
+        == "trend_break"
+    )
+    assert (
+        _classify_trend_pullback_exit_reason(
+            pullback_distance=1.0,
+            ema_fast=99.0,
+            ema_slow=100.0,
+            exit_kind="signal_change",
+        )
+        == "pullback_resolved_and_trend_break"
+    )
+    assert (
+        _classify_trend_pullback_exit_reason(
+            pullback_distance=-1.0,
+            ema_fast=101.0,
+            ema_slow=100.0,
+            exit_kind="signal_change",
+        )
+        == "signal_change_unknown"
+    )
+    assert (
+        _classify_trend_pullback_exit_reason(
+            pullback_distance=-1.0,
+            ema_fast=101.0,
+            ema_slow=100.0,
+            exit_kind="window_end",
+        )
+        == "window_end"
+    )
+    assert (
+        _classify_trend_pullback_exit_reason(
+            pullback_distance=None,
+            ema_fast=101.0,
+            ema_slow=100.0,
+            exit_kind="signal_change",
+        )
+        == "signal_change_unknown"
+    )
+
+def test_trend_pullback_exit_reason_summary_counts_decision_reasons() -> None:
+    trade_events = [
+        {"exit_decision_timestamp_utc": "t1", "exit_kind": "signal_change"},
+        {"exit_decision_timestamp_utc": "t2", "exit_kind": "signal_change"},
+        {"exit_decision_timestamp_utc": "t3", "exit_kind": "signal_change"},
+        {"exit_decision_timestamp_utc": "t4", "exit_kind": "window_end"},
+        {"exit_decision_timestamp_utc": "missing", "exit_kind": "signal_change"},
+    ]
+    features_by_timestamp = {
+        "t1": {
+            "pullback_distance": 1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+        "t2": {
+            "pullback_distance": -1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        "t3": {
+            "pullback_distance": 1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        "t4": {
+            "pullback_distance": -1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+    }
+
+    assert _trend_pullback_exit_reason_summary(
+        trade_events=trade_events,
+        features_by_timestamp=features_by_timestamp,
+    ) == {
+        "trade_count": 5,
+        "exit_reason_counts": {
+            "pullback_resolved": 1,
+            "pullback_resolved_and_trend_break": 1,
+            "signal_change_unknown": 1,
+            "trend_break": 1,
+            "window_end": 1,
+        },
+        "exit_reason_pnl_summary": {
+            "pullback_resolved": {
+                "trade_count": 1,
+                "avg_pnl": 0.0,
+                "loss_count": 0,
+                "winner_count": 0,
+                "largest_loss": 0.0,
+                "largest_win": 0.0,
+            },
+            "pullback_resolved_and_trend_break": {
+                "trade_count": 1,
+                "avg_pnl": 0.0,
+                "loss_count": 0,
+                "winner_count": 0,
+                "largest_loss": 0.0,
+                "largest_win": 0.0,
+            },
+            "signal_change_unknown": {
+                "trade_count": 1,
+                "avg_pnl": 0.0,
+                "loss_count": 0,
+                "winner_count": 0,
+                "largest_loss": 0.0,
+                "largest_win": 0.0,
+            },
+            "trend_break": {
+                "trade_count": 1,
+                "avg_pnl": 0.0,
+                "loss_count": 0,
+                "winner_count": 0,
+                "largest_loss": 0.0,
+                "largest_win": 0.0,
+            },
+            "window_end": {
+                "trade_count": 1,
+                "avg_pnl": 0.0,
+                "loss_count": 0,
+                "winner_count": 0,
+                "largest_loss": 0.0,
+                "largest_win": 0.0,
+            },
+        },
+        "pullback_resolved_count": 1,
+        "trend_break_count": 1,
+        "pullback_resolved_and_trend_break_count": 1,
+        "window_end_count": 1,
+        "signal_change_unknown_count": 1,
+    }

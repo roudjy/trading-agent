@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any, Callable, Iterable
 
 from agent.backtesting.engine import EngineInterrupted, EngineResumeInvalid
+from agent.backtesting.thin_strategy import build_features_for, is_thin_strategy
 from research.candidate_resume import CandidateResumeState
 from research.candidate_pipeline import (
     COVERAGE_WARNING_GRID_UNAVAILABLE,
@@ -231,6 +232,169 @@ def _trade_distribution(trade_pnls: list[Any]) -> dict[str, Any]:
         "win_loss_ratio": round(win_loss_ratio, 6),
     }
 
+def _classify_trend_pullback_exit_reason(
+    *,
+    pullback_distance: Any,
+    ema_fast: Any,
+    ema_slow: Any,
+    exit_kind: Any,
+) -> str:
+    if str(exit_kind or "") == "window_end":
+        return "window_end"
+
+    try:
+        pd_dist = float(pullback_distance)
+        fast = float(ema_fast)
+        slow = float(ema_slow)
+    except (TypeError, ValueError):
+        return "signal_change_unknown"
+
+    pullback_resolved = pd_dist > 0.0
+    trend_break = fast <= slow
+
+    if pullback_resolved and trend_break:
+        return "pullback_resolved_and_trend_break"
+    if pullback_resolved:
+        return "pullback_resolved"
+    if trend_break:
+        return "trend_break"
+    return "signal_change_unknown"
+
+
+def _trend_pullback_exit_reason_summary(
+    *,
+    trade_events: list[Any],
+    features_by_timestamp: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    reason_counts = Counter()
+    pnl_by_reason: dict[str, list[float]] = {}
+
+    for trade in trade_events:
+        if not isinstance(trade, dict):
+            continue
+
+        decision_ts = trade.get("exit_decision_timestamp_utc")
+        feature_row = features_by_timestamp.get(str(decision_ts), {})
+        reason = _classify_trend_pullback_exit_reason(
+            pullback_distance=feature_row.get("pullback_distance"),
+            ema_fast=feature_row.get("ema_fast"),
+            ema_slow=feature_row.get("ema_slow"),
+            exit_kind=trade.get("exit_kind"),
+        )
+        reason_counts[reason] += 1
+        try:
+            pnl = float(trade.get("pnl", 0.0))
+        except (TypeError, ValueError):
+            pnl = 0.0
+        pnl_by_reason.setdefault(reason, []).append(pnl)
+
+    def _pnl_summary(values: list[float]) -> dict[str, Any]:
+        losses = [value for value in values if value < 0.0]
+        winners = [value for value in values if value > 0.0]
+        return {
+            "trade_count": int(len(values)),
+            "avg_pnl": float(sum(values) / len(values)) if values else 0.0,
+            "loss_count": int(len(losses)),
+            "winner_count": int(len(winners)),
+            "largest_loss": float(min(values)) if values else 0.0,
+            "largest_win": float(max(values)) if values else 0.0,
+        }
+
+    trade_count = sum(reason_counts.values())
+    return {
+        "trade_count": int(trade_count),
+        "exit_reason_counts": dict(sorted(reason_counts.items())),
+        "exit_reason_pnl_summary": {
+            reason: _pnl_summary(values)
+            for reason, values in sorted(pnl_by_reason.items())
+        },
+        "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),
+        "trend_break_count": int(reason_counts.get("trend_break", 0)),
+        "pullback_resolved_and_trend_break_count": int(
+            reason_counts.get("pullback_resolved_and_trend_break", 0)
+        ),
+        "window_end_count": int(reason_counts.get("window_end", 0)),
+        "signal_change_unknown_count": int(
+            reason_counts.get("signal_change_unknown", 0)
+        ),
+    }
+
+
+def _trend_pullback_features_by_timestamp(
+    *,
+    engine: Any,
+    strategy_callable: Any,
+    candidate: dict[str, Any],
+    evaluation_report: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    required_aliases = {"ema_fast", "ema_slow", "pullback_distance"}
+    if not is_thin_strategy(strategy_callable):
+        return {}
+
+    requirements = getattr(strategy_callable, "_feature_requirements", None)
+    if not requirements:
+        return {}
+
+    aliases = {
+        str(getattr(requirement, "alias", ""))
+        for requirement in requirements
+    }
+    if not required_aliases.issubset(aliases):
+        return {}
+
+    load_data = getattr(engine, "_laad_data", None)
+    timestamp_to_utc_iso = getattr(engine, "_timestamp_to_utc_iso", None)
+    if load_data is None or timestamp_to_utc_iso is None:
+        return {}
+
+    asset = str(candidate.get("asset") or "")
+    interval = str(candidate.get("interval") or "")
+    if not asset or not interval:
+        return {}
+
+    try:
+        frame = load_data(asset, interval)
+        if frame is None:
+            return {}
+    except Exception:
+        return {}
+
+    folds_by_asset = evaluation_report.get("folds_by_asset") or {}
+    folds = folds_by_asset.get(asset) or evaluation_report.get("folds") or []
+    if not folds:
+        return {}
+
+    by_timestamp: dict[str, dict[str, Any]] = {}
+    for fold in folds:
+        test_bounds = fold.get("test") if isinstance(fold, dict) else None
+        if not isinstance(test_bounds, list) or len(test_bounds) != 2:
+            continue
+
+        try:
+            test_start = int(test_bounds[0])
+            test_end = int(test_bounds[1])
+        except (TypeError, ValueError):
+            continue
+
+        try:
+            fold_frame = frame.iloc[test_start : test_end + 1].copy()
+            if len(fold_frame) == 0:
+                continue
+            features = build_features_for(requirements, fold_frame)
+        except Exception:
+            continue
+
+        for timestamp in fold_frame.index:
+            timestamp_utc = str(timestamp_to_utc_iso(timestamp))
+            by_timestamp[timestamp_utc] = {
+                "ema_fast": features["ema_fast"].get(timestamp),
+                "ema_slow": features["ema_slow"].get(timestamp),
+                "pullback_distance": features["pullback_distance"].get(timestamp),
+            }
+
+    return by_timestamp
+
+
 def _exit_metadata_summary(trade_events: list[Any]) -> dict[str, Any]:
     exit_kind_counts = Counter()
     decision_timestamp_count = 0
@@ -266,6 +430,7 @@ def _sample_diagnostic(
     min_trades: int,
     trade_pnls: list[Any],
     trade_events: list[Any],
+    trend_pullback_features_by_timestamp: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     criteria_checks = build_exploratory_criteria_checks(metrics, min_trades)
     return {
@@ -276,6 +441,14 @@ def _sample_diagnostic(
         "criteria_checks": criteria_checks,
         "trade_distribution": _trade_distribution(trade_pnls),
         "exit_metadata_summary": _exit_metadata_summary(trade_events),
+        "trend_pullback_exit_reason_summary": (
+            _trend_pullback_exit_reason_summary(
+                trade_events=trade_events,
+                features_by_timestamp=trend_pullback_features_by_timestamp or {},
+            )
+            if trend_pullback_features_by_timestamp is not None
+            else None
+        ),
         "metrics": {
             "expectancy": float(metrics.get("expectancy", 0.0)),
             "profit_factor": float(metrics.get("profit_factor", 0.0)),
@@ -483,6 +656,12 @@ def execute_screening_candidate_samples(
                     sample_reason = reason
 
         sample_results.append({"status": sample_status, "reason": sample_reason})
+        trend_pullback_features_by_timestamp = _trend_pullback_features_by_timestamp(
+            engine=engine,
+            strategy_callable=strategy_callable,
+            candidate=candidate,
+            evaluation_report=report,
+        )
         sample_diagnostics.append(
             _sample_diagnostic(
                 sample_index=sample_index,
@@ -493,6 +672,7 @@ def execute_screening_candidate_samples(
                 min_trades=int(getattr(engine, "min_trades", 10)),
                 trade_pnls=list(trade_pnls),
                 trade_events=list(trade_events),
+                trend_pullback_features_by_timestamp=trend_pullback_features_by_timestamp,
             )
         )
         if on_checkpoint is not None:
