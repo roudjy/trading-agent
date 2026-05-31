@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
 from research.candidate_resume import CandidateResumeState
 from research.screening_runtime import (
+    _trend_break_invalidation_simulation_summary,
     _trend_break_invalidation_summary,
     _trend_pullback_exit_reason_summary,
     _classify_trend_pullback_exit_reason,
@@ -433,6 +434,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "signal_change_unknown_count": 0,
             },
             "trend_break_invalidation_summary": None,
+            "trend_break_invalidation_simulation_summary": None,
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -482,6 +484,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "signal_change_unknown_count": 0,
             },
             "trend_break_invalidation_summary": None,
+            "trend_break_invalidation_simulation_summary": None,
             "metrics": {
                 "expectancy": 0.0,
                 "profit_factor": 0.0,
@@ -722,4 +725,83 @@ def test_trend_break_invalidation_summary_aggregates_trend_break_only() -> None:
         "avg_exit_lag_bars": 4.0,
         "zero_mfe_count": 0,
         "adverse_dominant_count": 1,
+    }
+
+def test_trend_break_invalidation_simulation_estimates_rule_impact() -> None:
+    trade_events = [
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "entry_timestamp_utc": "entry-1",
+            "exit_decision_timestamp_utc": "decision-1",
+            "exit_timestamp_utc": "exit-1",
+            "exit_kind": "signal_change",
+            "pnl": -0.10,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "entry_timestamp_utc": "entry-2",
+            "exit_decision_timestamp_utc": "decision-2",
+            "exit_timestamp_utc": "exit-2",
+            "exit_kind": "signal_change",
+            "pnl": 0.04,
+        },
+    ]
+    features_by_timestamp = {
+        "decision-1": {
+            "pullback_distance": -1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        "decision-2": {
+            "pullback_distance": 1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+    }
+    exit_diagnostics = {
+        "per_window": [
+            {
+                "per_trade": [
+                    {
+                        "asset": "AMD",
+                        "fold_index": 0,
+                        "entry_timestamp_utc": "entry-1",
+                        "exit_timestamp_utc": "exit-1",
+                        "mae": 0.05,
+                        "mfe": 0.0,
+                        "holding_bars": 5,
+                    },
+                    {
+                        "asset": "AMD",
+                        "fold_index": 0,
+                        "entry_timestamp_utc": "entry-2",
+                        "exit_timestamp_utc": "exit-2",
+                        "mae": 0.03,
+                        "mfe": 0.0,
+                        "holding_bars": 5,
+                    },
+                ]
+            }
+        ]
+    }
+
+    summary = _trend_break_invalidation_simulation_summary(
+        trade_events=trade_events,
+        features_by_timestamp=features_by_timestamp,
+        exit_diagnostics=exit_diagnostics,
+    )
+
+    assert summary["matched_trade_count"] == 2
+    zero_mfe = summary["rules"]["zero_mfe_holding_ge_3"]
+    assert zero_mfe == {
+        "affected_trades": 2,
+        "affected_trend_break_trades": 1,
+        "affected_pullback_resolved_trades": 1,
+        "affected_other_trades": 0,
+        "trend_break_loss_at_risk": 0.1,
+        "pullback_profit_at_risk": 0.04,
+        "other_pnl_at_risk": 0.0,
+        "net_loss_reduction_upper_bound": 0.060000000000000005,
     }

@@ -435,6 +435,162 @@ def _exit_diagnostics_by_trade_key(
     return by_key
 
 
+def _classify_trade_reason(
+    *,
+    trade: dict[str, Any],
+    features_by_timestamp: dict[str, dict[str, Any]],
+) -> str:
+    decision_ts = trade.get("exit_decision_timestamp_utc")
+    feature_row = features_by_timestamp.get(str(decision_ts), {})
+    return _classify_trend_pullback_exit_reason(
+        pullback_distance=feature_row.get("pullback_distance"),
+        ema_fast=feature_row.get("ema_fast"),
+        ema_slow=feature_row.get("ema_slow"),
+        exit_kind=trade.get("exit_kind"),
+    )
+
+
+def _early_invalidation_rule_specs() -> dict[str, dict[str, float]]:
+    return {
+        "zero_mfe_holding_ge_3": {
+            "max_mfe": 0.0,
+            "min_holding_bars": 3.0,
+        },
+        "mae_gt_2pct_mfe_lt_025pct": {
+            "min_mae": 0.02,
+            "max_mfe": 0.0025,
+        },
+        "adverse_dominant_holding_ge_4": {
+            "adverse_dominant": 1.0,
+            "min_holding_bars": 4.0,
+        },
+    }
+
+
+def _rule_matches_diagnostic(
+    *,
+    diagnostic: dict[str, Any],
+    spec: dict[str, float],
+) -> bool:
+    try:
+        mae = float(diagnostic.get("mae", 0.0))
+    except (TypeError, ValueError):
+        mae = 0.0
+    try:
+        mfe = float(diagnostic.get("mfe", 0.0))
+    except (TypeError, ValueError):
+        mfe = 0.0
+    try:
+        holding_bars = float(diagnostic.get("holding_bars", 0.0))
+    except (TypeError, ValueError):
+        holding_bars = 0.0
+
+    if "min_mae" in spec and mae <= float(spec["min_mae"]):
+        return False
+    if "max_mfe" in spec and mfe > float(spec["max_mfe"]):
+        return False
+    if "min_holding_bars" in spec and holding_bars < float(spec["min_holding_bars"]):
+        return False
+    if spec.get("adverse_dominant") and mae <= mfe:
+        return False
+    return True
+
+
+def _empty_simulation_rule_result() -> dict[str, Any]:
+    return {
+        "affected_trades": 0,
+        "affected_trend_break_trades": 0,
+        "affected_pullback_resolved_trades": 0,
+        "affected_other_trades": 0,
+        "trend_break_loss_at_risk": 0.0,
+        "pullback_profit_at_risk": 0.0,
+        "other_pnl_at_risk": 0.0,
+        "net_loss_reduction_upper_bound": 0.0,
+    }
+
+
+def _trend_break_invalidation_simulation_summary(
+    *,
+    trade_events: list[Any],
+    features_by_timestamp: dict[str, dict[str, Any]],
+    exit_diagnostics: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    diagnostic_by_key = _exit_diagnostics_by_trade_key(exit_diagnostics)
+    if not diagnostic_by_key:
+        return None
+
+    rules = {
+        name: _empty_simulation_rule_result()
+        for name in _early_invalidation_rule_specs()
+    }
+
+    matched_trade_count = 0
+    for trade in trade_events:
+        if not isinstance(trade, dict):
+            continue
+        diagnostic = diagnostic_by_key.get(_trade_key(trade))
+        if diagnostic is None:
+            continue
+
+        matched_trade_count += 1
+        reason = _classify_trade_reason(
+            trade=trade,
+            features_by_timestamp=features_by_timestamp,
+        )
+        try:
+            pnl = float(trade.get("pnl", 0.0))
+        except (TypeError, ValueError):
+            pnl = 0.0
+
+        for rule_name, spec in _early_invalidation_rule_specs().items():
+            if not _rule_matches_diagnostic(diagnostic=diagnostic, spec=spec):
+                continue
+
+            result = rules[rule_name]
+            result["affected_trades"] += 1
+
+            if reason == "trend_break":
+                result["affected_trend_break_trades"] += 1
+                if pnl < 0.0:
+                    result["trend_break_loss_at_risk"] += abs(pnl)
+                    result["net_loss_reduction_upper_bound"] += abs(pnl)
+            elif reason == "pullback_resolved":
+                result["affected_pullback_resolved_trades"] += 1
+                if pnl > 0.0:
+                    result["pullback_profit_at_risk"] += pnl
+                    result["net_loss_reduction_upper_bound"] -= pnl
+            else:
+                result["affected_other_trades"] += 1
+                result["other_pnl_at_risk"] += pnl
+
+    return {
+        "matched_trade_count": int(matched_trade_count),
+        "rules": {
+            name: {
+                "affected_trades": int(values["affected_trades"]),
+                "affected_trend_break_trades": int(
+                    values["affected_trend_break_trades"]
+                ),
+                "affected_pullback_resolved_trades": int(
+                    values["affected_pullback_resolved_trades"]
+                ),
+                "affected_other_trades": int(values["affected_other_trades"]),
+                "trend_break_loss_at_risk": float(
+                    values["trend_break_loss_at_risk"]
+                ),
+                "pullback_profit_at_risk": float(
+                    values["pullback_profit_at_risk"]
+                ),
+                "other_pnl_at_risk": float(values["other_pnl_at_risk"]),
+                "net_loss_reduction_upper_bound": float(
+                    values["net_loss_reduction_upper_bound"]
+                ),
+            }
+            for name, values in sorted(rules.items())
+        },
+    }
+
+
 def _trend_break_invalidation_summary(
     *,
     trade_events: list[Any],
@@ -597,6 +753,15 @@ def _sample_diagnostic(
         ),
         "trend_break_invalidation_summary": (
             _trend_break_invalidation_summary(
+                trade_events=trade_events,
+                features_by_timestamp=trend_pullback_features_by_timestamp or {},
+                exit_diagnostics=exit_diagnostics,
+            )
+            if trend_pullback_features_by_timestamp is not None
+            else None
+        ),
+        "trend_break_invalidation_simulation_summary": (
+            _trend_break_invalidation_simulation_summary(
                 trade_events=trade_events,
                 features_by_timestamp=trend_pullback_features_by_timestamp or {},
                 exit_diagnostics=exit_diagnostics,
