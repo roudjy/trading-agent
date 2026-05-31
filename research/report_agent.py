@@ -733,6 +733,9 @@ def build_report_payload(
         "trend_pullback_exit_impact": _build_trend_pullback_exit_impact(
             screening_candidates_payload
         ),
+        "trend_break_threshold_comparison": _build_trend_break_threshold_comparison(
+            screening_candidates_payload
+        ),
         "join_stats": join_stats,
         "red_flags": red_flags,
         "regime_diagnostics": _regime_diagnostics(),
@@ -839,6 +842,128 @@ def _build_trend_pullback_exit_impact(
     return rows
 
 
+def _build_trend_break_threshold_comparison(
+    screening_candidates_payload: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    if not isinstance(screening_candidates_payload, dict):
+        return []
+
+    totals: dict[str, dict[str, Any]] = {}
+    for candidate in screening_candidates_payload.get("candidates") or []:
+        if not isinstance(candidate, dict):
+            continue
+
+        diagnostics = candidate.get("sample_diagnostics") or []
+        summary = candidate.get("sample_diagnostics_summary") or {}
+        if not diagnostics:
+            continue
+
+        best_index = int(summary.get("best_sample_index") or 0)
+        if best_index < 0 or best_index >= len(diagnostics):
+            best_index = 0
+
+        best = diagnostics[best_index] or {}
+        comparison = (
+            best.get("trend_break_bar_path_threshold_comparison_summary") or {}
+        )
+        rules = comparison.get("rules") or {}
+
+        for rule_name, result in rules.items():
+            if not isinstance(result, dict):
+                continue
+
+            row = totals.setdefault(
+                str(rule_name),
+                {
+                    "rule": str(rule_name),
+                    "asset_count": 0,
+                    "positive_count": 0,
+                    "negative_count": 0,
+                    "net_pnl_delta": 0.0,
+                    "avoided_loss": 0.0,
+                    "sacrificed_profit": 0.0,
+                    "other_pnl_delta": 0.0,
+                    "triggered_trend_break": 0,
+                    "triggered_pullback": 0,
+                    "triggered_other": 0,
+                },
+            )
+
+            net = float(result.get("net_pnl_delta") or 0.0)
+            row["asset_count"] += 1
+            if net > 0.0:
+                row["positive_count"] += 1
+            elif net < 0.0:
+                row["negative_count"] += 1
+
+            row["net_pnl_delta"] += net
+            row["avoided_loss"] += float(result.get("avoided_loss") or 0.0)
+            row["sacrificed_profit"] += float(
+                result.get("sacrificed_profit") or 0.0
+            )
+            row["other_pnl_delta"] += float(result.get("other_pnl_delta") or 0.0)
+            row["triggered_trend_break"] += int(
+                result.get("triggered_trend_break_trades") or 0
+            )
+            row["triggered_pullback"] += int(
+                result.get("triggered_pullback_resolved_trades") or 0
+            )
+            row["triggered_other"] += int(result.get("triggered_other_trades") or 0)
+
+    return sorted(
+        [
+            {
+                "rule": row["rule"],
+                "asset_count": int(row["asset_count"]),
+                "positive_count": int(row["positive_count"]),
+                "negative_count": int(row["negative_count"]),
+                "net_pnl_delta": float(row["net_pnl_delta"]),
+                "avoided_loss": float(row["avoided_loss"]),
+                "sacrificed_profit": float(row["sacrificed_profit"]),
+                "other_pnl_delta": float(row["other_pnl_delta"]),
+                "triggered_trend_break": int(row["triggered_trend_break"]),
+                "triggered_pullback": int(row["triggered_pullback"]),
+                "triggered_other": int(row["triggered_other"]),
+            }
+            for row in totals.values()
+        ],
+        key=lambda row: row["net_pnl_delta"],
+        reverse=True,
+    )
+
+
+def _append_trend_break_threshold_comparison_section(
+    lines: list[str],
+    rows: list[dict[str, Any]],
+) -> None:
+    if not rows:
+        return
+
+    lines.append("## Trend-break early invalidation threshold comparison")
+    lines.append("")
+    lines.append(
+        "| Rule | Net PnL delta | Avoided loss | Sacrificed profit | "
+        "Other PnL delta | +Assets | -Assets | TB hit | Pullbacks hit | Other hit |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+
+    for row in rows:
+        lines.append(
+            f"| `{row.get('rule')}` | "
+            f"{_pct(row.get('net_pnl_delta'))} | "
+            f"{_pct(row.get('avoided_loss'))} | "
+            f"{_pct(row.get('sacrificed_profit'))} | "
+            f"{_pct(row.get('other_pnl_delta'))} | "
+            f"{row.get('positive_count')} | "
+            f"{row.get('negative_count')} | "
+            f"{row.get('triggered_trend_break')} | "
+            f"{row.get('triggered_pullback')} | "
+            f"{row.get('triggered_other')} |"
+        )
+
+    lines.append("")
+
+
 def _append_trend_pullback_exit_impact_section(
     lines: list[str],
     rows: list[dict[str, Any]],
@@ -906,6 +1031,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     _append_trend_pullback_exit_impact_section(
         lines,
         report.get("trend_pullback_exit_impact") or [],
+    )
+    _append_trend_break_threshold_comparison_section(
+        lines,
+        report.get("trend_break_threshold_comparison") or [],
     )
     _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
     _append_portfolio_layer_section(lines, report.get("portfolio_layer_summary"))
