@@ -395,6 +395,151 @@ def _trend_pullback_features_by_timestamp(
     return by_timestamp
 
 
+def _safe_mean(values: list[float]) -> float:
+    return float(sum(values) / len(values)) if values else 0.0
+
+
+def _trade_key(record: dict[str, Any]) -> tuple[str, Any, str, str]:
+    return (
+        str(record.get("asset") or ""),
+        record.get("fold_index"),
+        str(record.get("entry_timestamp_utc") or ""),
+        str(record.get("exit_timestamp_utc") or ""),
+    )
+
+
+def _exit_diagnostics_by_trade_key(
+    exit_diagnostics: dict[str, Any] | None,
+) -> dict[tuple[str, Any, str, str], dict[str, Any]]:
+    if not isinstance(exit_diagnostics, dict):
+        return {}
+
+    by_key: dict[tuple[str, Any, str, str], dict[str, Any]] = {}
+    per_window = exit_diagnostics.get("per_window")
+    if not isinstance(per_window, list):
+        return by_key
+
+    for window in per_window:
+        if not isinstance(window, dict):
+            continue
+        per_trade = window.get("per_trade")
+        if not isinstance(per_trade, list):
+            continue
+        for diagnostic in per_trade:
+            if not isinstance(diagnostic, dict):
+                continue
+            key = _trade_key(diagnostic)
+            if key[0] and key[2] and key[3]:
+                by_key[key] = diagnostic
+
+    return by_key
+
+
+def _trend_break_invalidation_summary(
+    *,
+    trade_events: list[Any],
+    features_by_timestamp: dict[str, dict[str, Any]],
+    exit_diagnostics: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    diagnostic_by_key = _exit_diagnostics_by_trade_key(exit_diagnostics)
+    if not diagnostic_by_key:
+        return None
+
+    pnl_values: list[float] = []
+    mae_values: list[float] = []
+    mfe_values: list[float] = []
+    capture_values: list[float] = []
+    holding_values: list[float] = []
+    exit_lag_values: list[float] = []
+    zero_mfe_count = 0
+    adverse_dominant_count = 0
+
+    for trade in trade_events:
+        if not isinstance(trade, dict):
+            continue
+
+        decision_ts = trade.get("exit_decision_timestamp_utc")
+        feature_row = features_by_timestamp.get(str(decision_ts), {})
+        reason = _classify_trend_pullback_exit_reason(
+            pullback_distance=feature_row.get("pullback_distance"),
+            ema_fast=feature_row.get("ema_fast"),
+            ema_slow=feature_row.get("ema_slow"),
+            exit_kind=trade.get("exit_kind"),
+        )
+        if reason != "trend_break":
+            continue
+
+        diagnostic = diagnostic_by_key.get(_trade_key(trade))
+        if diagnostic is None:
+            continue
+
+        try:
+            pnl_values.append(float(trade.get("pnl", 0.0)))
+        except (TypeError, ValueError):
+            pnl_values.append(0.0)
+
+        try:
+            mae = float(diagnostic.get("mae", 0.0))
+        except (TypeError, ValueError):
+            mae = 0.0
+        try:
+            mfe = float(diagnostic.get("mfe", 0.0))
+        except (TypeError, ValueError):
+            mfe = 0.0
+
+        mae_values.append(mae)
+        mfe_values.append(mfe)
+
+        capture_ratio = diagnostic.get("capture_ratio")
+        if capture_ratio is not None:
+            try:
+                capture_values.append(float(capture_ratio))
+            except (TypeError, ValueError):
+                pass
+
+        try:
+            holding_values.append(float(diagnostic.get("holding_bars", 0.0)))
+        except (TypeError, ValueError):
+            pass
+
+        try:
+            exit_lag_values.append(float(diagnostic.get("exit_lag_bars", 0.0)))
+        except (TypeError, ValueError):
+            pass
+
+        if mfe <= 0.0:
+            zero_mfe_count += 1
+        if mae > mfe:
+            adverse_dominant_count += 1
+
+    if not pnl_values:
+        return {
+            "trade_count": 0,
+            "avg_pnl": 0.0,
+            "largest_loss": 0.0,
+            "avg_mae": 0.0,
+            "avg_mfe": 0.0,
+            "avg_capture_ratio": 0.0,
+            "avg_holding_bars": 0.0,
+            "avg_exit_lag_bars": 0.0,
+            "zero_mfe_count": 0,
+            "adverse_dominant_count": 0,
+        }
+
+    return {
+        "trade_count": int(len(pnl_values)),
+        "avg_pnl": _safe_mean(pnl_values),
+        "largest_loss": float(min(pnl_values)),
+        "avg_mae": _safe_mean(mae_values),
+        "avg_mfe": _safe_mean(mfe_values),
+        "avg_capture_ratio": _safe_mean(capture_values),
+        "avg_holding_bars": _safe_mean(holding_values),
+        "avg_exit_lag_bars": _safe_mean(exit_lag_values),
+        "zero_mfe_count": int(zero_mfe_count),
+        "adverse_dominant_count": int(adverse_dominant_count),
+    }
+
+
 def _exit_metadata_summary(trade_events: list[Any]) -> dict[str, Any]:
     exit_kind_counts = Counter()
     decision_timestamp_count = 0
@@ -431,6 +576,7 @@ def _sample_diagnostic(
     trade_pnls: list[Any],
     trade_events: list[Any],
     trend_pullback_features_by_timestamp: dict[str, dict[str, Any]] | None = None,
+    exit_diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     criteria_checks = build_exploratory_criteria_checks(metrics, min_trades)
     return {
@@ -445,6 +591,15 @@ def _sample_diagnostic(
             _trend_pullback_exit_reason_summary(
                 trade_events=trade_events,
                 features_by_timestamp=trend_pullback_features_by_timestamp or {},
+            )
+            if trend_pullback_features_by_timestamp is not None
+            else None
+        ),
+        "trend_break_invalidation_summary": (
+            _trend_break_invalidation_summary(
+                trade_events=trade_events,
+                features_by_timestamp=trend_pullback_features_by_timestamp or {},
+                exit_diagnostics=exit_diagnostics,
             )
             if trend_pullback_features_by_timestamp is not None
             else None
@@ -635,6 +790,14 @@ def execute_screening_candidate_samples(
         trade_pnls = evaluation_samples.get("trade_pnls") or []
         evaluation_streams = report.get("evaluation_streams") or {}
         trade_events = evaluation_streams.get("oos_trade_events") or []
+        build_exit_diagnostics = getattr(engine, "build_exit_diagnostics", None)
+        if callable(build_exit_diagnostics):
+            try:
+                exit_diagnostics = build_exit_diagnostics()
+            except Exception:
+                exit_diagnostics = None
+        else:
+            exit_diagnostics = None
         sample_status = SCREENING_REJECTED
         sample_reason: str | None = None
         if not isinstance(daily_returns, list) or not daily_returns:
@@ -673,6 +836,7 @@ def execute_screening_candidate_samples(
                 trade_pnls=list(trade_pnls),
                 trade_events=list(trade_events),
                 trend_pullback_features_by_timestamp=trend_pullback_features_by_timestamp,
+                exit_diagnostics=exit_diagnostics,
             )
         )
         if on_checkpoint is not None:
