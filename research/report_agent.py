@@ -38,6 +38,7 @@ _CANDIDATE_REGISTRY_SIDECAR = Path("research/candidate_registry_latest.v1.json")
 _DEFENSIBILITY_SIDECAR = Path("research/statistical_defensibility_latest.v1.json")
 _REGIME_SIDECAR = Path("research/regime_diagnostics_latest.v1.json")
 _RUN_FILTER_SUMMARY_SIDECAR = Path("research/run_filter_summary_latest.v1.json")
+_RUN_SCREENING_CANDIDATES_SIDECAR = Path("research/run_screening_candidates_latest.v1.json")
 _COST_SENSITIVITY_SIDECAR = Path("research/cost_sensitivity_latest.v1.json")
 _REGISTRY_V2_SIDECAR = Path("research/candidate_registry_latest.v2.json")
 _REGIME_INTELLIGENCE_SIDECAR = Path("research/regime_intelligence_latest.v1.json")
@@ -653,6 +654,7 @@ def build_report_payload(
     # per-candidate diagnostics.
     candidate_registry = _load_json(_CANDIDATE_REGISTRY_SIDECAR)
     filter_summary = _load_json(_RUN_FILTER_SUMMARY_SIDECAR)
+    screening_candidates_payload = _load_json(_RUN_SCREENING_CANDIDATES_SIDECAR)
     defensibility_payload = _load_json(_DEFENSIBILITY_SIDECAR)
     regime_payload = _load_json(_REGIME_SIDECAR)
     cost_sensitivity_payload = _load_json(_COST_SENSITIVITY_SIDECAR)
@@ -728,6 +730,9 @@ def build_report_payload(
         "top_rejection_reasons_by_layer": rejection_reasons_by_layer,
         "candidates": candidates,
         "per_candidate_diagnostics": per_candidate,
+        "trend_pullback_exit_impact": _build_trend_pullback_exit_impact(
+            screening_candidates_payload
+        ),
         "join_stats": join_stats,
         "red_flags": red_flags,
         "regime_diagnostics": _regime_diagnostics(),
@@ -746,6 +751,102 @@ def build_report_payload(
             _load_json(_PAPER_READINESS_SIDECAR),
         ),
     }
+
+
+def _pct(value: Any) -> str:
+    try:
+        return f"{float(value) * 100:.2f}%"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _build_trend_pullback_exit_impact(
+    screening_candidates: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    if not isinstance(screening_candidates, dict):
+        return []
+    candidates = screening_candidates.get("candidates")
+    if not isinstance(candidates, list):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+
+        diagnostics = candidate.get("sample_diagnostics")
+        summary = candidate.get("sample_diagnostics_summary") or {}
+        if not isinstance(diagnostics, list) or not diagnostics:
+            continue
+
+        try:
+            best_index = int(summary.get("best_sample_index", 0))
+        except (TypeError, ValueError):
+            best_index = 0
+        if best_index < 0 or best_index >= len(diagnostics):
+            continue
+
+        best = diagnostics[best_index]
+        if not isinstance(best, dict):
+            continue
+
+        exit_summary = best.get("trend_pullback_exit_reason_summary")
+        if not isinstance(exit_summary, dict):
+            continue
+
+        pnl = exit_summary.get("exit_reason_pnl_summary") or {}
+        counts = exit_summary.get("exit_reason_counts") or {}
+        pullback = pnl.get("pullback_resolved") or {}
+        trend_break = pnl.get("trend_break") or {}
+        window_end = pnl.get("window_end") or {}
+
+        rows.append(
+            {
+                "asset": candidate.get("asset"),
+                "interval": candidate.get("interval"),
+                "decision": candidate.get("decision"),
+                "best_sample_index": best_index,
+                "pullback_resolved_count": int(
+                    counts.get("pullback_resolved", 0) or 0
+                ),
+                "pullback_resolved_avg_pnl": pullback.get("avg_pnl"),
+                "trend_break_count": int(counts.get("trend_break", 0) or 0),
+                "trend_break_avg_pnl": trend_break.get("avg_pnl"),
+                "trend_break_largest_loss": trend_break.get("largest_loss"),
+                "window_end_count": int(counts.get("window_end", 0) or 0),
+                "window_end_avg_pnl": window_end.get("avg_pnl"),
+            }
+        )
+
+    return rows
+
+
+def _append_trend_pullback_exit_impact_section(
+    lines: list[str],
+    rows: list[dict[str, Any]],
+) -> None:
+    if not rows:
+        return
+
+    lines.append("## Trend-pullback exit impact (diagnostic only)")
+    lines.append(
+        "| Asset | Decision | Pullback count | Pullback avg PnL | "
+        "Trend-break count | Trend-break avg PnL | Trend-break largest loss | "
+        "Window-end count | Window-end avg PnL |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in rows:
+        lines.append(
+            f"| `{row.get('asset')}` | {row.get('decision')} | "
+            f"{row.get('pullback_resolved_count')} | "
+            f"{_pct(row.get('pullback_resolved_avg_pnl'))} | "
+            f"{row.get('trend_break_count')} | "
+            f"{_pct(row.get('trend_break_avg_pnl'))} | "
+            f"{_pct(row.get('trend_break_largest_loss'))} | "
+            f"{row.get('window_end_count')} | "
+            f"{_pct(row.get('window_end_avg_pnl'))} |"
+        )
+    lines.append("")
 
 
 def render_markdown(report: dict[str, Any]) -> str:
@@ -774,6 +875,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         report.get("top_rejection_reasons") or [],
     )
     _append_waarom_section(lines, report.get("per_candidate_diagnostics") or [])
+    _append_trend_pullback_exit_impact_section(
+        lines,
+        report.get("trend_pullback_exit_impact") or [],
+    )
     _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
     _append_portfolio_layer_section(lines, report.get("portfolio_layer_summary"))
     _append_paper_layer_section(lines, report.get("paper_layer_summary"))
