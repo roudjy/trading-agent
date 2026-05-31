@@ -760,6 +760,13 @@ def _pct(value: Any) -> str:
         return "n/a"
 
 
+def _num(value: Any) -> str:
+    try:
+        return f"{float(value):.2f}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
 def _build_trend_pullback_exit_impact(
     screening_candidates: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
@@ -799,6 +806,7 @@ def _build_trend_pullback_exit_impact(
         pullback = pnl.get("pullback_resolved") or {}
         trend_break = pnl.get("trend_break") or {}
         window_end = pnl.get("window_end") or {}
+        invalidation = best.get("trend_break_invalidation_summary") or {}
 
         rows.append(
             {
@@ -815,6 +823,16 @@ def _build_trend_pullback_exit_impact(
                 "trend_break_largest_loss": trend_break.get("largest_loss"),
                 "window_end_count": int(counts.get("window_end", 0) or 0),
                 "window_end_avg_pnl": window_end.get("avg_pnl"),
+                "trend_break_avg_mae": invalidation.get("avg_mae"),
+                "trend_break_avg_mfe": invalidation.get("avg_mfe"),
+                "trend_break_zero_mfe_count": invalidation.get("zero_mfe_count"),
+                "trend_break_adverse_dominant_count": invalidation.get(
+                    "adverse_dominant_count"
+                ),
+                "trend_break_avg_holding_bars": invalidation.get("avg_holding_bars"),
+                "trend_break_avg_exit_lag_bars": invalidation.get(
+                    "avg_exit_lag_bars"
+                ),
             }
         )
 
@@ -832,9 +850,13 @@ def _append_trend_pullback_exit_impact_section(
     lines.append(
         "| Asset | Decision | Pullback count | Pullback avg PnL | "
         "Trend-break count | Trend-break avg PnL | Trend-break largest loss | "
-        "Window-end count | Window-end avg PnL |"
+        "Window-end count | Window-end avg PnL | "
+        "TB avg MAE | TB avg MFE | TB zero-MFE | TB adverse-dominant | "
+        "TB avg hold bars | TB avg exit-lag bars |"
     )
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append(
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+    )
     for row in rows:
         lines.append(
             f"| `{row.get('asset')}` | {row.get('decision')} | "
@@ -844,7 +866,13 @@ def _append_trend_pullback_exit_impact_section(
             f"{_pct(row.get('trend_break_avg_pnl'))} | "
             f"{_pct(row.get('trend_break_largest_loss'))} | "
             f"{row.get('window_end_count')} | "
-            f"{_pct(row.get('window_end_avg_pnl'))} |"
+            f"{_pct(row.get('window_end_avg_pnl'))} | "
+            f"{_pct(row.get('trend_break_avg_mae'))} | "
+            f"{_pct(row.get('trend_break_avg_mfe'))} | "
+            f"{row.get('trend_break_zero_mfe_count')} | "
+            f"{row.get('trend_break_adverse_dominant_count')} | "
+            f"{_num(row.get('trend_break_avg_holding_bars'))} | "
+            f"{_num(row.get('trend_break_avg_exit_lag_bars'))} |"
         )
     lines.append("")
 
