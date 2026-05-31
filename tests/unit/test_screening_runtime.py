@@ -421,6 +421,15 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "unknown_exit_kind_count": 0,
                 "has_exit_decision_timestamps": False,
             },
+            "trend_pullback_exit_reason_summary": {
+                "trade_count": 0,
+                "exit_reason_counts": {},
+                "pullback_resolved_count": 0,
+                "trend_break_count": 0,
+                "pullback_resolved_and_trend_break_count": 0,
+                "window_end_count": 0,
+                "signal_change_unknown_count": 0,
+            },
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -458,6 +467,15 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "window_end_count": 0,
                 "unknown_exit_kind_count": 0,
                 "has_exit_decision_timestamps": False,
+            },
+            "trend_pullback_exit_reason_summary": {
+                "trade_count": 0,
+                "exit_reason_counts": {},
+                "pullback_resolved_count": 0,
+                "trend_break_count": 0,
+                "pullback_resolved_and_trend_break_count": 0,
+                "window_end_count": 0,
+                "signal_change_unknown_count": 0,
             },
             "metrics": {
                 "expectancy": 0.0,

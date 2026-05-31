@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any, Callable, Iterable
 
 from agent.backtesting.engine import EngineInterrupted, EngineResumeInvalid
+from agent.backtesting.thin_strategy import build_features_for, is_thin_strategy
 from research.candidate_resume import CandidateResumeState
 from research.candidate_pipeline import (
     COVERAGE_WARNING_GRID_UNAVAILABLE,
@@ -297,6 +298,60 @@ def _trend_pullback_exit_reason_summary(
     }
 
 
+def _trend_pullback_features_by_timestamp(
+    *,
+    engine: Any,
+    strategy_callable: Any,
+    candidate: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    required_aliases = {"ema_fast", "ema_slow", "pullback_distance"}
+    if not is_thin_strategy(strategy_callable):
+        return {}
+
+    requirements = getattr(strategy_callable, "_feature_requirements", None)
+    if not requirements:
+        return {}
+
+    aliases = {
+        str(getattr(requirement, "alias", ""))
+        for requirement in requirements
+    }
+    if not required_aliases.issubset(aliases):
+        return {}
+
+    load_data = getattr(engine, "_laad_data", None)
+    if load_data is None:
+        return {}
+
+    asset = str(candidate.get("asset") or "")
+    interval = str(candidate.get("interval") or "")
+    if not asset or not interval:
+        return {}
+
+    try:
+        frame = load_data(asset, interval)
+        if frame is None:
+            return {}
+        features = build_features_for(requirements, frame)
+    except Exception:
+        return {}
+
+    timestamp_to_utc_iso = getattr(engine, "_timestamp_to_utc_iso", None)
+    if timestamp_to_utc_iso is None:
+        return {}
+
+    by_timestamp: dict[str, dict[str, Any]] = {}
+    for timestamp in frame.index:
+        timestamp_utc = str(timestamp_to_utc_iso(timestamp))
+        by_timestamp[timestamp_utc] = {
+            "ema_fast": features["ema_fast"].get(timestamp),
+            "ema_slow": features["ema_slow"].get(timestamp),
+            "pullback_distance": features["pullback_distance"].get(timestamp),
+        }
+
+    return by_timestamp
+
+
 def _exit_metadata_summary(trade_events: list[Any]) -> dict[str, Any]:
     exit_kind_counts = Counter()
     decision_timestamp_count = 0
@@ -332,6 +387,7 @@ def _sample_diagnostic(
     min_trades: int,
     trade_pnls: list[Any],
     trade_events: list[Any],
+    trend_pullback_features_by_timestamp: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     criteria_checks = build_exploratory_criteria_checks(metrics, min_trades)
     return {
@@ -342,6 +398,14 @@ def _sample_diagnostic(
         "criteria_checks": criteria_checks,
         "trade_distribution": _trade_distribution(trade_pnls),
         "exit_metadata_summary": _exit_metadata_summary(trade_events),
+        "trend_pullback_exit_reason_summary": (
+            _trend_pullback_exit_reason_summary(
+                trade_events=trade_events,
+                features_by_timestamp=trend_pullback_features_by_timestamp or {},
+            )
+            if trend_pullback_features_by_timestamp is not None
+            else None
+        ),
         "metrics": {
             "expectancy": float(metrics.get("expectancy", 0.0)),
             "profit_factor": float(metrics.get("profit_factor", 0.0)),
@@ -549,6 +613,11 @@ def execute_screening_candidate_samples(
                     sample_reason = reason
 
         sample_results.append({"status": sample_status, "reason": sample_reason})
+        trend_pullback_features_by_timestamp = _trend_pullback_features_by_timestamp(
+            engine=engine,
+            strategy_callable=strategy_callable,
+            candidate=candidate,
+        )
         sample_diagnostics.append(
             _sample_diagnostic(
                 sample_index=sample_index,
@@ -559,6 +628,7 @@ def execute_screening_candidate_samples(
                 min_trades=int(getattr(engine, "min_trades", 10)),
                 trade_pnls=list(trade_pnls),
                 trade_events=list(trade_events),
+                trend_pullback_features_by_timestamp=trend_pullback_features_by_timestamp,
             )
         )
         if on_checkpoint is not None:
