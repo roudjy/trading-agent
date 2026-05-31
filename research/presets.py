@@ -131,6 +131,7 @@ class ResearchPreset:
 
 _TREND_EQUITIES_UNIVERSE: tuple[str, ...] = (
     "NVDA", "AMD", "ASML", "MSFT", "META", "AMZN", "TSM",
+    "AAPL", "GOOGL", "AVGO", "JPM", "XOM", "LLY", "COST", "HD",
 )
 
 _PAIRS_EQUITIES_UNIVERSE: tuple[str, ...] = (

@@ -8,6 +8,7 @@ from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
 from research.candidate_resume import CandidateResumeState
 from research.screening_runtime import (
     _trend_break_bar_path_simulation_summary,
+    _trend_break_bar_path_threshold_comparison_summary,
     _trend_break_invalidation_simulation_summary,
     _trend_break_invalidation_summary,
     _trend_pullback_exit_reason_summary,
@@ -438,6 +439,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             "trend_break_invalidation_summary": None,
             "trend_break_invalidation_simulation_summary": None,
             "trend_break_bar_path_simulation_summary": None,
+            "trend_break_bar_path_threshold_comparison_summary": None,
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -489,6 +491,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             "trend_break_invalidation_summary": None,
             "trend_break_invalidation_simulation_summary": None,
             "trend_break_bar_path_simulation_summary": None,
+            "trend_break_bar_path_threshold_comparison_summary": None,
             "metrics": {
                 "expectancy": 0.0,
                 "profit_factor": 0.0,
@@ -901,3 +904,108 @@ def test_trend_break_bar_path_simulation_estimates_timed_exit_delta() -> None:
     assert summary["other_pnl_delta"] == pytest.approx(0.0)
     assert summary["net_pnl_delta"] == pytest.approx(0.0)
     assert summary["avg_bars_to_trigger"] == pytest.approx(1.0)
+
+def test_trend_break_bar_path_threshold_comparison_ranks_multiple_rules() -> None:
+    trade_events = [
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "entry_timestamp_utc": "entry-1",
+            "exit_decision_timestamp_utc": "decision-1",
+            "exit_timestamp_utc": "exit-1",
+            "exit_kind": "signal_change",
+            "side": "long",
+            "pnl": -0.10,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "entry_timestamp_utc": "entry-2",
+            "exit_decision_timestamp_utc": "decision-2",
+            "exit_timestamp_utc": "exit-2",
+            "exit_kind": "signal_change",
+            "side": "long",
+            "pnl": 0.04,
+        },
+    ]
+    features_by_timestamp = {
+        "decision-1": {
+            "pullback_distance": -1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        "decision-2": {
+            "pullback_distance": 1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+    }
+    bar_return_stream = [
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "entry-1",
+            "return": 0.0,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "mid-1",
+            "return": -0.025,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "mid-1b",
+            "return": -0.01,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "exit-1",
+            "return": 0.0,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "entry-2",
+            "return": 0.0,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "mid-2",
+            "return": -0.025,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "exit-2",
+            "return": 0.0,
+        },
+    ]
+
+    summary = _trend_break_bar_path_threshold_comparison_summary(
+        trade_events=trade_events,
+        features_by_timestamp=features_by_timestamp,
+        bar_return_stream=bar_return_stream,
+    )
+
+    assert summary["matched_trade_count"] == 2
+    rules = summary["rules"]
+
+    loose = rules["mae_gt_2pct_mfe_lt_025pct"]
+    assert loose["triggered_trade_count"] == 2
+    assert loose["triggered_trend_break_trades"] == 1
+    assert loose["triggered_pullback_resolved_trades"] == 1
+    assert loose["net_pnl_delta"] == pytest.approx(0.01)
+
+    strict = rules["mae_gt_3pct_mfe_lt_025pct"]
+    assert strict["triggered_trade_count"] == 1
+    assert strict["triggered_trend_break_trades"] == 1
+    assert strict["triggered_pullback_resolved_trades"] == 0
+    assert strict["net_pnl_delta"] > loose["net_pnl_delta"]
+
+    zero_mfe = rules["mae_gt_3pct_zero_mfe"]
+    assert zero_mfe["triggered_trade_count"] == 1
+    assert zero_mfe["triggered_trend_break_trades"] == 1
