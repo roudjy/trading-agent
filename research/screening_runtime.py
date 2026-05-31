@@ -267,6 +267,7 @@ def _trend_pullback_exit_reason_summary(
     features_by_timestamp: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     reason_counts = Counter()
+    pnl_by_reason: dict[str, list[float]] = {}
 
     for trade in trade_events:
         if not isinstance(trade, dict):
@@ -281,11 +282,32 @@ def _trend_pullback_exit_reason_summary(
             exit_kind=trade.get("exit_kind"),
         )
         reason_counts[reason] += 1
+        try:
+            pnl = float(trade.get("pnl", 0.0))
+        except (TypeError, ValueError):
+            pnl = 0.0
+        pnl_by_reason.setdefault(reason, []).append(pnl)
+
+    def _pnl_summary(values: list[float]) -> dict[str, Any]:
+        losses = [value for value in values if value < 0.0]
+        winners = [value for value in values if value > 0.0]
+        return {
+            "trade_count": int(len(values)),
+            "avg_pnl": float(sum(values) / len(values)) if values else 0.0,
+            "loss_count": int(len(losses)),
+            "winner_count": int(len(winners)),
+            "largest_loss": float(min(values)) if values else 0.0,
+            "largest_win": float(max(values)) if values else 0.0,
+        }
 
     trade_count = sum(reason_counts.values())
     return {
         "trade_count": int(trade_count),
         "exit_reason_counts": dict(sorted(reason_counts.items())),
+        "exit_reason_pnl_summary": {
+            reason: _pnl_summary(values)
+            for reason, values in sorted(pnl_by_reason.items())
+        },
         "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),
         "trend_break_count": int(reason_counts.get("trend_break", 0)),
         "pullback_resolved_and_trend_break_count": int(
