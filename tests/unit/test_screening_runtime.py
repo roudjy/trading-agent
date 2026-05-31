@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import pytest
 from types import SimpleNamespace
 
 from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
 from research.candidate_resume import CandidateResumeState
 from research.screening_runtime import (
+    _trend_break_bar_path_simulation_summary,
     _trend_break_invalidation_simulation_summary,
     _trend_break_invalidation_summary,
     _trend_pullback_exit_reason_summary,
@@ -435,6 +437,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             },
             "trend_break_invalidation_summary": None,
             "trend_break_invalidation_simulation_summary": None,
+            "trend_break_bar_path_simulation_summary": None,
             "metrics": {
                 "expectancy": 0.02,
                 "profit_factor": 2.0,
@@ -485,6 +488,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             },
             "trend_break_invalidation_summary": None,
             "trend_break_invalidation_simulation_summary": None,
+            "trend_break_bar_path_simulation_summary": None,
             "metrics": {
                 "expectancy": 0.0,
                 "profit_factor": 0.0,
@@ -805,3 +809,95 @@ def test_trend_break_invalidation_simulation_estimates_rule_impact() -> None:
         "other_pnl_at_risk": 0.0,
         "net_loss_reduction_upper_bound": 0.060000000000000005,
     }
+
+def test_trend_break_bar_path_simulation_estimates_timed_exit_delta() -> None:
+    trade_events = [
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "entry_timestamp_utc": "entry-1",
+            "exit_decision_timestamp_utc": "decision-1",
+            "exit_timestamp_utc": "exit-1",
+            "exit_kind": "signal_change",
+            "side": "long",
+            "pnl": -0.10,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "entry_timestamp_utc": "entry-2",
+            "exit_decision_timestamp_utc": "decision-2",
+            "exit_timestamp_utc": "exit-2",
+            "exit_kind": "signal_change",
+            "side": "long",
+            "pnl": 0.04,
+        },
+    ]
+    features_by_timestamp = {
+        "decision-1": {
+            "pullback_distance": -1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        "decision-2": {
+            "pullback_distance": 1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+    }
+    bar_return_stream = [
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "entry-1",
+            "return": 0.0,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "mid-1",
+            "return": -0.03,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "exit-1",
+            "return": 0.0,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "entry-2",
+            "return": 0.0,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "mid-2",
+            "return": -0.03,
+        },
+        {
+            "asset": "AMD",
+            "fold_index": 0,
+            "timestamp_utc": "exit-2",
+            "return": 0.0,
+        },
+    ]
+
+    summary = _trend_break_bar_path_simulation_summary(
+        trade_events=trade_events,
+        features_by_timestamp=features_by_timestamp,
+        bar_return_stream=bar_return_stream,
+    )
+
+    assert summary["rule"] == "mae_gt_2pct_mfe_lt_025pct"
+    assert summary["matched_trade_count"] == 2
+    assert summary["triggered_trade_count"] == 2
+    assert summary["triggered_trend_break_trades"] == 1
+    assert summary["triggered_pullback_resolved_trades"] == 1
+    assert summary["triggered_other_trades"] == 0
+    assert summary["avoided_loss"] == pytest.approx(0.07)
+    assert summary["sacrificed_profit"] == pytest.approx(0.07)
+    assert summary["other_pnl_delta"] == pytest.approx(0.0)
+    assert summary["net_pnl_delta"] == pytest.approx(0.0)
+    assert summary["avg_bars_to_trigger"] == pytest.approx(1.0)

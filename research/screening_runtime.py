@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any, Callable, Iterable
 
 from agent.backtesting.engine import EngineInterrupted, EngineResumeInvalid
+from agent.backtesting.exit_diagnostics import extract_interior_bar_returns
 from agent.backtesting.thin_strategy import build_features_for, is_thin_strategy
 from research.candidate_resume import CandidateResumeState
 from research.candidate_pipeline import (
@@ -591,6 +592,125 @@ def _trend_break_invalidation_simulation_summary(
     }
 
 
+def _side_sign(side: Any) -> float:
+    return 1.0 if str(side).lower() == "long" else -1.0
+
+
+def _bar_path_trigger_for_rule(
+    *,
+    trade: dict[str, Any],
+    interior_returns: list[float],
+    max_mfe: float = 0.0025,
+    min_mae: float = 0.02,
+) -> dict[str, Any] | None:
+    side_sign = _side_sign(trade.get("side"))
+    cumulative_raw = 1.0
+    path: list[float] = [0.0]
+
+    for bar_offset, raw_return in enumerate(interior_returns, start=1):
+        try:
+            rf = float(raw_return)
+        except (TypeError, ValueError):
+            continue
+        cumulative_raw *= 1.0 + rf * side_sign
+        path_value = (cumulative_raw - 1.0) * side_sign
+        path.append(path_value)
+
+        running_mfe = max(max(path), 0.0)
+        running_mae = max(-min(path), 0.0)
+        if running_mae > min_mae and running_mfe < max_mfe:
+            return {
+                "bars_to_trigger": int(bar_offset),
+                "hypothetical_pnl": float(path_value),
+                "running_mae": float(running_mae),
+                "running_mfe": float(running_mfe),
+            }
+
+    return None
+
+
+def _trend_break_bar_path_simulation_summary(
+    *,
+    trade_events: list[Any],
+    features_by_timestamp: dict[str, dict[str, Any]],
+    bar_return_stream: list[Any],
+) -> dict[str, Any] | None:
+    if not bar_return_stream:
+        return None
+
+    matched_trade_count = 0
+    triggered_trade_count = 0
+    triggered_trend_break_trades = 0
+    triggered_pullback_resolved_trades = 0
+    triggered_other_trades = 0
+    avoided_loss = 0.0
+    sacrificed_profit = 0.0
+    other_pnl_delta = 0.0
+    bars_to_trigger: list[float] = []
+
+    for trade in trade_events:
+        if not isinstance(trade, dict):
+            continue
+
+        try:
+            interior_returns = extract_interior_bar_returns(
+                trade=trade,
+                bar_return_stream=bar_return_stream,
+            )
+        except (KeyError, ValueError):
+            continue
+
+        matched_trade_count += 1
+        trigger = _bar_path_trigger_for_rule(
+            trade=trade,
+            interior_returns=interior_returns,
+        )
+        if trigger is None:
+            continue
+
+        triggered_trade_count += 1
+        bars_to_trigger.append(float(trigger["bars_to_trigger"]))
+
+        reason = _classify_trade_reason(
+            trade=trade,
+            features_by_timestamp=features_by_timestamp,
+        )
+        try:
+            actual_pnl = float(trade.get("pnl", 0.0))
+        except (TypeError, ValueError):
+            actual_pnl = 0.0
+        hypothetical_pnl = float(trigger["hypothetical_pnl"])
+        pnl_delta = hypothetical_pnl - actual_pnl
+
+        if reason == "trend_break":
+            triggered_trend_break_trades += 1
+            if pnl_delta > 0.0:
+                avoided_loss += pnl_delta
+        elif reason == "pullback_resolved":
+            triggered_pullback_resolved_trades += 1
+            if pnl_delta < 0.0:
+                sacrificed_profit += abs(pnl_delta)
+        else:
+            triggered_other_trades += 1
+            other_pnl_delta += pnl_delta
+
+    return {
+        "rule": "mae_gt_2pct_mfe_lt_025pct",
+        "matched_trade_count": int(matched_trade_count),
+        "triggered_trade_count": int(triggered_trade_count),
+        "triggered_trend_break_trades": int(triggered_trend_break_trades),
+        "triggered_pullback_resolved_trades": int(
+            triggered_pullback_resolved_trades
+        ),
+        "triggered_other_trades": int(triggered_other_trades),
+        "avoided_loss": float(avoided_loss),
+        "sacrificed_profit": float(sacrificed_profit),
+        "other_pnl_delta": float(other_pnl_delta),
+        "net_pnl_delta": float(avoided_loss - sacrificed_profit + other_pnl_delta),
+        "avg_bars_to_trigger": _safe_mean(bars_to_trigger),
+    }
+
+
 def _trend_break_invalidation_summary(
     *,
     trade_events: list[Any],
@@ -733,6 +853,7 @@ def _sample_diagnostic(
     trade_events: list[Any],
     trend_pullback_features_by_timestamp: dict[str, dict[str, Any]] | None = None,
     exit_diagnostics: dict[str, Any] | None = None,
+    bar_return_stream: list[Any] | None = None,
 ) -> dict[str, Any]:
     criteria_checks = build_exploratory_criteria_checks(metrics, min_trades)
     return {
@@ -765,6 +886,15 @@ def _sample_diagnostic(
                 trade_events=trade_events,
                 features_by_timestamp=trend_pullback_features_by_timestamp or {},
                 exit_diagnostics=exit_diagnostics,
+            )
+            if trend_pullback_features_by_timestamp is not None
+            else None
+        ),
+        "trend_break_bar_path_simulation_summary": (
+            _trend_break_bar_path_simulation_summary(
+                trade_events=trade_events,
+                features_by_timestamp=trend_pullback_features_by_timestamp or {},
+                bar_return_stream=list(bar_return_stream or []),
             )
             if trend_pullback_features_by_timestamp is not None
             else None
@@ -955,6 +1085,7 @@ def execute_screening_candidate_samples(
         trade_pnls = evaluation_samples.get("trade_pnls") or []
         evaluation_streams = report.get("evaluation_streams") or {}
         trade_events = evaluation_streams.get("oos_trade_events") or []
+        bar_return_stream = evaluation_streams.get("oos_bar_returns") or []
         build_exit_diagnostics = getattr(engine, "build_exit_diagnostics", None)
         if callable(build_exit_diagnostics):
             try:
@@ -1002,6 +1133,7 @@ def execute_screening_candidate_samples(
                 trade_events=list(trade_events),
                 trend_pullback_features_by_timestamp=trend_pullback_features_by_timestamp,
                 exit_diagnostics=exit_diagnostics,
+                bar_return_stream=list(bar_return_stream),
             )
         )
         if on_checkpoint is not None:
