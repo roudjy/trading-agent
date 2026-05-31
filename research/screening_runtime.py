@@ -325,6 +325,7 @@ def _trend_pullback_features_by_timestamp(
     engine: Any,
     strategy_callable: Any,
     candidate: dict[str, Any],
+    evaluation_report: dict[str, Any],
 ) -> dict[str, dict[str, Any]]:
     required_aliases = {"ema_fast", "ema_slow", "pullback_distance"}
     if not is_thin_strategy(strategy_callable):
@@ -342,7 +343,8 @@ def _trend_pullback_features_by_timestamp(
         return {}
 
     load_data = getattr(engine, "_laad_data", None)
-    if load_data is None:
+    timestamp_to_utc_iso = getattr(engine, "_timestamp_to_utc_iso", None)
+    if load_data is None or timestamp_to_utc_iso is None:
         return {}
 
     asset = str(candidate.get("asset") or "")
@@ -354,22 +356,41 @@ def _trend_pullback_features_by_timestamp(
         frame = load_data(asset, interval)
         if frame is None:
             return {}
-        features = build_features_for(requirements, frame)
     except Exception:
         return {}
 
-    timestamp_to_utc_iso = getattr(engine, "_timestamp_to_utc_iso", None)
-    if timestamp_to_utc_iso is None:
+    folds_by_asset = evaluation_report.get("folds_by_asset") or {}
+    folds = folds_by_asset.get(asset) or evaluation_report.get("folds") or []
+    if not folds:
         return {}
 
     by_timestamp: dict[str, dict[str, Any]] = {}
-    for timestamp in frame.index:
-        timestamp_utc = str(timestamp_to_utc_iso(timestamp))
-        by_timestamp[timestamp_utc] = {
-            "ema_fast": features["ema_fast"].get(timestamp),
-            "ema_slow": features["ema_slow"].get(timestamp),
-            "pullback_distance": features["pullback_distance"].get(timestamp),
-        }
+    for fold in folds:
+        test_bounds = fold.get("test") if isinstance(fold, dict) else None
+        if not isinstance(test_bounds, list) or len(test_bounds) != 2:
+            continue
+
+        try:
+            test_start = int(test_bounds[0])
+            test_end = int(test_bounds[1])
+        except (TypeError, ValueError):
+            continue
+
+        try:
+            fold_frame = frame.iloc[test_start : test_end + 1].copy()
+            if len(fold_frame) == 0:
+                continue
+            features = build_features_for(requirements, fold_frame)
+        except Exception:
+            continue
+
+        for timestamp in fold_frame.index:
+            timestamp_utc = str(timestamp_to_utc_iso(timestamp))
+            by_timestamp[timestamp_utc] = {
+                "ema_fast": features["ema_fast"].get(timestamp),
+                "ema_slow": features["ema_slow"].get(timestamp),
+                "pullback_distance": features["pullback_distance"].get(timestamp),
+            }
 
     return by_timestamp
 
@@ -639,6 +660,7 @@ def execute_screening_candidate_samples(
             engine=engine,
             strategy_callable=strategy_callable,
             candidate=candidate,
+            evaluation_report=report,
         )
         sample_diagnostics.append(
             _sample_diagnostic(
