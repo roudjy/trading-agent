@@ -1696,18 +1696,32 @@ def build_report_payload(
             )
         ),
         "paper_engine_divergence_component_diagnosis": (
-            _paper_engine_divergence_component_diagnosis(
-                _load_json(_PAPER_DIVERGENCE_SIDECAR),
-                paper_readiness_blocker_diagnosis,
+            paper_engine_divergence_component_diagnosis := (
+                _paper_engine_divergence_component_diagnosis(
+                    _load_json(_PAPER_DIVERGENCE_SIDECAR),
+                    paper_readiness_blocker_diagnosis,
+                )
             )
         ),
-        "candidate_shadow_readiness_report": _candidate_shadow_readiness_report(
-            _load_json(_PAPER_READINESS_SIDECAR),
-            _build_trend_pullback_exit_quality(screening_candidates_payload),
+        "candidate_shadow_readiness_report": (
+            candidate_shadow_readiness_report := _candidate_shadow_readiness_report(
+                _load_json(_PAPER_READINESS_SIDECAR),
+                _build_trend_pullback_exit_quality(screening_candidates_payload),
+            )
         ),
-        "no_paper_candidate_next_action_plan": _next_research_action_from_paper_diagnosis(
-            preset_name=preset_name,
-            paper_diagnosis=paper_readiness_blocker_diagnosis,
+        "no_paper_candidate_next_action_plan": (
+            no_paper_candidate_next_action_plan := (
+                _next_research_action_from_paper_diagnosis(
+                    preset_name=preset_name,
+                    paper_diagnosis=paper_readiness_blocker_diagnosis,
+                )
+            )
+        ),
+        "research_action_queue_items": _build_research_action_queue_items(
+            paper_readiness_diagnosis=paper_readiness_blocker_diagnosis,
+            paper_engine_divergence_diagnosis=paper_engine_divergence_component_diagnosis,
+            no_paper_candidate_next_action_plan=no_paper_candidate_next_action_plan,
+            candidate_shadow_readiness_report=candidate_shadow_readiness_report,
         ),
     }
 
@@ -2345,6 +2359,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines,
         report.get("no_paper_candidate_next_action_plan"),
     )
+    _append_research_action_queue_items_section(
+        lines,
+        report.get("research_action_queue_items"),
+    )
 
     red_flags = report.get("red_flags") or []
     if red_flags:
@@ -2643,6 +2661,59 @@ def _append_paper_engine_divergence_component_diagnosis_section(
         "- advisory: this explains divergence components only; it does not change "
         "paper-readiness thresholds, divergence math, presets, strategies, campaign "
         "queues, or paper/shadow/live runtime."
+    )
+    lines.append("")
+
+
+
+
+def _append_research_action_queue_items_section(
+    lines: list[str], items: list[dict[str, Any]] | None
+) -> None:
+    """Render advisory research action queue items."""
+    if not items:
+        return
+
+    lines.append("## Research Action Queue Items (emitter only)")
+    lines.append(
+        "- status: emitted_machine_readable_actions_only; "
+        "execution_enabled=False; no campaign/ADE/runtime mutation"
+    )
+    lines.append("")
+    lines.append(
+        "| Priority | Action | Source | Target candidate | Operator approval | Bounded next step |"
+    )
+    lines.append("|---|---|---|---|---:|---|")
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        lines.append(
+            f"| {item.get('priority')} | "
+            f"`{item.get('action_id')}` | "
+            f"{item.get('source_section')} | "
+            f"{item.get('target_candidate_id') or 'n/a'} | "
+            f"{item.get('operator_approval_required')} | "
+            f"{item.get('bounded_next_step')} |"
+        )
+
+    forbidden = sorted(
+        {
+            str(action)
+            for item in items
+            if isinstance(item, dict)
+            for action in (item.get("forbidden_actions") or [])
+        }
+    )
+    lines.append("")
+    lines.append(
+        "- forbidden_actions: "
+        + (", ".join(forbidden) if forbidden else "none")
+    )
+    lines.append(
+        "- advisory: queue items are report-only intent; they do not execute, "
+        "write an ADE queue, mutate campaigns, change strategies/presets, alter "
+        "thresholds, or activate paper/shadow/live runtime."
     )
     lines.append("")
 
