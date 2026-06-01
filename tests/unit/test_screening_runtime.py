@@ -22,10 +22,12 @@ from research.screening_runtime import (
     FINAL_STATUS_TIMED_OUT,
     ScreeningCandidateInterrupted,
     _classify_trend_pullback_exit_reason,
+    _sample_diagnostics_summary,
     _trend_break_bar_path_simulation_summary,
     _trend_break_bar_path_threshold_comparison_summary,
     _trend_break_invalidation_simulation_summary,
     _trend_break_invalidation_summary,
+    _trend_pullback_boundary_by_trade_key,
     _trend_pullback_exit_reason_summary,
     _trend_pullback_features_by_timestamp,
     build_screening_runtime_records,
@@ -105,6 +107,17 @@ def _assert_diagnostic_row_matches_engine_features(
             diagnostic_row[alias],
             engine_features[alias].get(timestamp),
         )
+
+
+def _expected_empty_boundary_summary() -> dict[str, object]:
+    return {
+        "trade_count": 0,
+        "bucket_counts": {},
+        "bucket_pnl_summary": {},
+        "by_exit_reason": {},
+        "by_unknown_subcategory": {},
+        "by_asset": {},
+    }
 
 
 def _capture_engine_plain_feature_calls(monkeypatch) -> list[dict[str, object]]:
@@ -526,6 +539,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "exit_reason_pnl_summary": {},
                 "signal_change_unknown_subcategory_counts": {},
                 "signal_change_unknown_subcategory_pnl_summary": {},
+                "boundary_proximity_summary": _expected_empty_boundary_summary(),
                 "pullback_resolved_count": 0,
                 "trend_break_count": 0,
                 "pullback_resolved_and_trend_break_count": 0,
@@ -580,6 +594,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "exit_reason_pnl_summary": {},
                 "signal_change_unknown_subcategory_counts": {},
                 "signal_change_unknown_subcategory_pnl_summary": {},
+                "boundary_proximity_summary": _expected_empty_boundary_summary(),
                 "pullback_resolved_count": 0,
                 "trend_break_count": 0,
                 "pullback_resolved_and_trend_break_count": 0,
@@ -755,6 +770,112 @@ def test_trend_pullback_exit_reason_summary_counts_decision_reasons() -> None:
                 "largest_win": 0.0,
             },
         },
+        "boundary_proximity_summary": {
+            "trade_count": 5,
+            "bucket_counts": {
+                "unknown_boundary_distance": 5,
+            },
+            "bucket_pnl_summary": {
+                "unknown_boundary_distance": {
+                    "trade_count": 5,
+                    "total_pnl": 0.0,
+                    "avg_pnl": 0.0,
+                    "loss_count": 0,
+                    "winner_count": 0,
+                    "largest_loss": 0.0,
+                    "largest_win": 0.0,
+                },
+            },
+            "by_exit_reason": {
+                "pullback_resolved": {
+                    "bucket_counts": {"unknown_boundary_distance": 1},
+                    "bucket_pnl_summary": {
+                        "unknown_boundary_distance": {
+                            "trade_count": 1,
+                            "total_pnl": 0.0,
+                            "avg_pnl": 0.0,
+                            "loss_count": 0,
+                            "winner_count": 0,
+                            "largest_loss": 0.0,
+                            "largest_win": 0.0,
+                        },
+                    },
+                },
+                "pullback_resolved_and_trend_break": {
+                    "bucket_counts": {"unknown_boundary_distance": 1},
+                    "bucket_pnl_summary": {
+                        "unknown_boundary_distance": {
+                            "trade_count": 1,
+                            "total_pnl": 0.0,
+                            "avg_pnl": 0.0,
+                            "loss_count": 0,
+                            "winner_count": 0,
+                            "largest_loss": 0.0,
+                            "largest_win": 0.0,
+                        },
+                    },
+                },
+                "signal_change_unknown": {
+                    "bucket_counts": {"unknown_boundary_distance": 1},
+                    "bucket_pnl_summary": {
+                        "unknown_boundary_distance": {
+                            "trade_count": 1,
+                            "total_pnl": 0.0,
+                            "avg_pnl": 0.0,
+                            "loss_count": 0,
+                            "winner_count": 0,
+                            "largest_loss": 0.0,
+                            "largest_win": 0.0,
+                        },
+                    },
+                },
+                "trend_break": {
+                    "bucket_counts": {"unknown_boundary_distance": 1},
+                    "bucket_pnl_summary": {
+                        "unknown_boundary_distance": {
+                            "trade_count": 1,
+                            "total_pnl": 0.0,
+                            "avg_pnl": 0.0,
+                            "loss_count": 0,
+                            "winner_count": 0,
+                            "largest_loss": 0.0,
+                            "largest_win": 0.0,
+                        },
+                    },
+                },
+                "window_end": {
+                    "bucket_counts": {"unknown_boundary_distance": 1},
+                    "bucket_pnl_summary": {
+                        "unknown_boundary_distance": {
+                            "trade_count": 1,
+                            "total_pnl": 0.0,
+                            "avg_pnl": 0.0,
+                            "loss_count": 0,
+                            "winner_count": 0,
+                            "largest_loss": 0.0,
+                            "largest_win": 0.0,
+                        },
+                    },
+                },
+            },
+            "by_unknown_subcategory": {
+                "signal_change_missing_feature_timestamp": {
+                    "bucket_counts": {"unknown_boundary_distance": 1},
+                    "bucket_pnl_summary": {
+                        "unknown_boundary_distance": {
+                            "trade_count": 1,
+                            "total_pnl": 0.0,
+                            "avg_pnl": 0.0,
+                            "loss_count": 0,
+                            "winner_count": 0,
+                            "largest_loss": 0.0,
+                            "largest_win": 0.0,
+                        },
+                    },
+                },
+            },
+            "by_asset": {},
+        },
         "pullback_resolved_count": 1,
         "trend_break_count": 1,
         "pullback_resolved_and_trend_break_count": 1,
@@ -858,6 +979,201 @@ def test_trend_pullback_exit_reason_summary_explains_unknown_subcategories() -> 
             "largest_win": -0.01,
         },
     }
+
+
+def test_trend_pullback_boundary_proximity_summary_is_report_only() -> None:
+    index = pd.date_range(
+        "2025-01-01",
+        periods=6,
+        freq="1D",
+        tz=UTC,
+    )
+    frame = pd.DataFrame({"close": [100, 101, 102, 103, 104, 105]}, index=index)
+    engine = SimpleNamespace(
+        _laad_data=lambda asset, interval: frame.copy(),
+        _timestamp_to_utc_iso=lambda timestamp: pd.Timestamp(timestamp)
+        .tz_convert(UTC)
+        .isoformat(),
+    )
+    candidate = {"asset": "TEST", "interval": "1d"}
+    boundary_by_trade_key = _trend_pullback_boundary_by_trade_key(
+        engine=engine,
+        candidate=candidate,
+        evaluation_report={
+            "folds_by_asset": {
+                "TEST": [
+                    {"test": [0, 5]},
+                ],
+            },
+        },
+    )
+
+    timestamps = [pd.Timestamp(ts).tz_convert(UTC).isoformat() for ts in index]
+    assert boundary_by_trade_key[("TEST", 0, timestamps[5])][
+        "bars_to_window_end"
+    ] == 0
+    assert boundary_by_trade_key[("TEST", 0, timestamps[4])][
+        "bars_to_window_end"
+    ] == 1
+    assert boundary_by_trade_key[("TEST", 0, timestamps[3])][
+        "bars_to_window_end"
+    ] == 2
+
+    trade_events = [
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": timestamps[5],
+            "exit_kind": "signal_change",
+            "pnl": -0.05,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": timestamps[4],
+            "exit_kind": "signal_change",
+            "pnl": 0.03,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": timestamps[3],
+            "exit_kind": "signal_change",
+            "pnl": -0.02,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": timestamps[0],
+            "exit_kind": "signal_change",
+            "pnl": 0.04,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": timestamps[4],
+            "exit_kind": "window_end",
+            "pnl": 0.01,
+        },
+        {
+            "exit_kind": "signal_change",
+            "pnl": -0.06,
+        },
+    ]
+    features_by_timestamp = {
+        timestamps[5]: {
+            "pullback_distance": -1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        timestamps[4]: {
+            "pullback_distance": 1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+        timestamps[3]: {
+            "pullback_distance": -1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+        timestamps[0]: {
+            "pullback_distance": 1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+    }
+
+    summary = _trend_pullback_exit_reason_summary(
+        trade_events=trade_events,
+        features_by_timestamp=features_by_timestamp,
+        boundary_by_trade_key=boundary_by_trade_key,
+    )
+
+    assert summary["exit_reason_counts"] == {
+        "pullback_resolved": 1,
+        "pullback_resolved_and_trend_break": 1,
+        "signal_change_unknown": 2,
+        "trend_break": 1,
+        "window_end": 1,
+    }
+    boundary = summary["boundary_proximity_summary"]
+    assert boundary["bucket_counts"] == {
+        "near_window_end_1_bar": 1,
+        "near_window_end_2_to_3_bars": 1,
+        "not_near_window_end": 1,
+        "unknown_boundary_distance": 1,
+        "window_end": 2,
+    }
+    assert boundary["bucket_pnl_summary"]["window_end"] == {
+        "trade_count": 2,
+        "total_pnl": -0.04,
+        "avg_pnl": -0.02,
+        "loss_count": 1,
+        "winner_count": 1,
+        "largest_loss": -0.05,
+        "largest_win": 0.01,
+    }
+    assert boundary["by_exit_reason"]["trend_break"]["bucket_counts"] == {
+        "window_end": 1,
+    }
+    assert boundary["by_exit_reason"]["window_end"]["bucket_counts"] == {
+        "window_end": 1,
+    }
+    assert boundary["by_unknown_subcategory"][
+        "signal_change_ambiguous_transition"
+    ]["bucket_counts"] == {
+        "near_window_end_2_to_3_bars": 1,
+    }
+    assert boundary["by_unknown_subcategory"][
+        "signal_change_missing_metadata"
+    ]["bucket_counts"] == {
+        "unknown_boundary_distance": 1,
+    }
+    assert boundary["by_asset"]["TEST"]["bucket_counts"] == {
+        "near_window_end_1_bar": 1,
+        "near_window_end_2_to_3_bars": 1,
+        "not_near_window_end": 1,
+        "window_end": 2,
+    }
+
+
+def test_sample_selection_ignores_boundary_proximity_diagnostics() -> None:
+    sample_diagnostics = [
+        {
+            "sample_index": 0,
+            "criteria_checks": {"sufficient_trades": True},
+            "status": "promoted_to_validation",
+            "reason": None,
+            "metrics": {
+                "expectancy": 0.02,
+                "profit_factor": 1.5,
+                "totaal_trades": 10,
+            },
+            "trend_pullback_exit_reason_summary": {
+                "boundary_proximity_summary": {
+                    "bucket_counts": {"window_end": 10},
+                },
+            },
+        },
+        {
+            "sample_index": 1,
+            "criteria_checks": {"sufficient_trades": True},
+            "status": "promoted_to_validation",
+            "reason": None,
+            "metrics": {
+                "expectancy": 0.01,
+                "profit_factor": 5.0,
+                "totaal_trades": 100,
+            },
+            "trend_pullback_exit_reason_summary": {
+                "boundary_proximity_summary": {
+                    "bucket_counts": {"not_near_window_end": 100},
+                },
+            },
+        },
+    ]
+
+    assert _sample_diagnostics_summary(sample_diagnostics)["best_sample_index"] == 0
 
 
 def test_trend_pullback_diagnostic_features_match_engine_fold_local_features(

@@ -304,15 +304,99 @@ def _classify_signal_change_unknown_subcategory(
     return "signal_change_ambiguous_transition"
 
 
+def _boundary_proximity_bucket(
+    *,
+    bars_to_window_end: int | None,
+    is_window_end_exit: bool,
+) -> str:
+    if bars_to_window_end is None:
+        return "unknown_boundary_distance"
+    if is_window_end_exit or bars_to_window_end == 0:
+        return "window_end"
+    if bars_to_window_end == 1:
+        return "near_window_end_1_bar"
+    if 2 <= bars_to_window_end <= 3:
+        return "near_window_end_2_to_3_bars"
+    return "not_near_window_end"
+
+
+def _boundary_trade_key(trade: dict[str, Any]) -> tuple[str, Any, str]:
+    return (
+        str(trade.get("asset") or ""),
+        trade.get("fold_index"),
+        str(trade.get("exit_decision_timestamp_utc") or ""),
+    )
+
+
+def _boundary_proximity_for_trade(
+    *,
+    trade: dict[str, Any],
+    boundary_by_trade_key: dict[tuple[str, Any, str], dict[str, Any]],
+) -> dict[str, Any]:
+    boundary = boundary_by_trade_key.get(_boundary_trade_key(trade), {})
+    try:
+        bars_to_window_end = int(boundary["bars_to_window_end"])
+    except (KeyError, TypeError, ValueError):
+        bars_to_window_end = None
+
+    is_window_end_exit = str(trade.get("exit_kind") or "") == "window_end"
+    return {
+        "bars_to_window_end": bars_to_window_end,
+        "is_window_end_exit": bool(is_window_end_exit),
+        "is_near_window_end": bool(
+            bars_to_window_end is not None
+            and 0 <= bars_to_window_end <= 3
+        ),
+        "boundary_proximity_bucket": _boundary_proximity_bucket(
+            bars_to_window_end=bars_to_window_end,
+            is_window_end_exit=is_window_end_exit,
+        ),
+    }
+
+
+def _boundary_metric_summary(values: list[float]) -> dict[str, Any]:
+    losses = [value for value in values if value < 0.0]
+    winners = [value for value in values if value > 0.0]
+    total_pnl = float(sum(values))
+    return {
+        "trade_count": int(len(values)),
+        "total_pnl": total_pnl,
+        "avg_pnl": float(total_pnl / len(values)) if values else 0.0,
+        "loss_count": int(len(losses)),
+        "winner_count": int(len(winners)),
+        "largest_loss": float(min(losses)) if losses else 0.0,
+        "largest_win": float(max(winners)) if winners else 0.0,
+    }
+
+
+def _bucket_summary(values_by_bucket: dict[str, list[float]]) -> dict[str, Any]:
+    return {
+        "bucket_counts": {
+            bucket: int(len(values))
+            for bucket, values in sorted(values_by_bucket.items())
+        },
+        "bucket_pnl_summary": {
+            bucket: _boundary_metric_summary(values)
+            for bucket, values in sorted(values_by_bucket.items())
+        },
+    }
+
+
 def _trend_pullback_exit_reason_summary(
     *,
     trade_events: list[Any],
     features_by_timestamp: dict[str, dict[str, Any]],
+    boundary_by_trade_key: dict[tuple[str, Any, str], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     reason_counts = Counter()
     pnl_by_reason: dict[str, list[float]] = {}
     unknown_subcategory_counts = Counter()
     pnl_by_unknown_subcategory: dict[str, list[float]] = {}
+    boundary_lookup = boundary_by_trade_key or {}
+    pnl_by_boundary_bucket: dict[str, list[float]] = {}
+    boundary_by_reason: dict[str, dict[str, list[float]]] = {}
+    boundary_by_unknown_subcategory: dict[str, dict[str, list[float]]] = {}
+    boundary_by_asset: dict[str, dict[str, list[float]]] = {}
 
     for trade in trade_events:
         if not isinstance(trade, dict):
@@ -334,6 +418,22 @@ def _trend_pullback_exit_reason_summary(
         except (TypeError, ValueError):
             pnl = 0.0
         pnl_by_reason.setdefault(reason, []).append(pnl)
+        boundary = _boundary_proximity_for_trade(
+            trade=trade,
+            boundary_by_trade_key=boundary_lookup,
+        )
+        boundary_bucket = str(boundary["boundary_proximity_bucket"])
+        pnl_by_boundary_bucket.setdefault(boundary_bucket, []).append(pnl)
+        boundary_by_reason.setdefault(reason, {}).setdefault(
+            boundary_bucket,
+            [],
+        ).append(pnl)
+        asset = str(trade.get("asset") or "")
+        if asset:
+            boundary_by_asset.setdefault(asset, {}).setdefault(
+                boundary_bucket,
+                [],
+            ).append(pnl)
         if reason == "signal_change_unknown":
             unknown_subcategory = _classify_signal_change_unknown_subcategory(
                 trade=trade,
@@ -345,6 +445,10 @@ def _trend_pullback_exit_reason_summary(
                 unknown_subcategory,
                 [],
             ).append(pnl)
+            boundary_by_unknown_subcategory.setdefault(
+                unknown_subcategory,
+                {},
+            ).setdefault(boundary_bucket, []).append(pnl)
 
     def _pnl_summary(values: list[float]) -> dict[str, Any]:
         losses = [value for value in values if value < 0.0]
@@ -359,6 +463,22 @@ def _trend_pullback_exit_reason_summary(
         }
 
     trade_count = sum(reason_counts.values())
+    boundary_summary = _bucket_summary(pnl_by_boundary_bucket)
+    boundary_summary["trade_count"] = int(trade_count)
+    boundary_summary["by_exit_reason"] = {
+        reason: _bucket_summary(values_by_bucket)
+        for reason, values_by_bucket in sorted(boundary_by_reason.items())
+    }
+    boundary_summary["by_unknown_subcategory"] = {
+        reason: _bucket_summary(values_by_bucket)
+        for reason, values_by_bucket in sorted(
+            boundary_by_unknown_subcategory.items()
+        )
+    }
+    boundary_summary["by_asset"] = {
+        asset: _bucket_summary(values_by_bucket)
+        for asset, values_by_bucket in sorted(boundary_by_asset.items())
+    }
     return {
         "trade_count": int(trade_count),
         "exit_reason_counts": dict(sorted(reason_counts.items())),
@@ -373,6 +493,7 @@ def _trend_pullback_exit_reason_summary(
             reason: _pnl_summary(values)
             for reason, values in sorted(pnl_by_unknown_subcategory.items())
         },
+        "boundary_proximity_summary": boundary_summary,
         "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),
         "trend_break_count": int(reason_counts.get("trend_break", 0)),
         "pullback_resolved_and_trend_break_count": int(
@@ -458,6 +579,66 @@ def _trend_pullback_features_by_timestamp(
             }
 
     return by_timestamp
+
+
+def _trend_pullback_boundary_by_trade_key(
+    *,
+    engine: Any,
+    candidate: dict[str, Any],
+    evaluation_report: dict[str, Any],
+) -> dict[tuple[str, Any, str], dict[str, Any]]:
+    load_data = getattr(engine, "_laad_data", None)
+    timestamp_to_utc_iso = getattr(engine, "_timestamp_to_utc_iso", None)
+    if load_data is None or timestamp_to_utc_iso is None:
+        return {}
+
+    asset = str(candidate.get("asset") or "")
+    interval = str(candidate.get("interval") or "")
+    if not asset or not interval:
+        return {}
+
+    try:
+        frame = load_data(asset, interval)
+        if frame is None:
+            return {}
+    except Exception:
+        return {}
+
+    folds_by_asset = evaluation_report.get("folds_by_asset") or {}
+    folds = folds_by_asset.get(asset) or evaluation_report.get("folds") or []
+    if not folds:
+        return {}
+
+    by_key: dict[tuple[str, Any, str], dict[str, Any]] = {}
+    for fold_index, fold in enumerate(folds):
+        test_bounds = fold.get("test") if isinstance(fold, dict) else None
+        if not isinstance(test_bounds, list) or len(test_bounds) != 2:
+            continue
+
+        try:
+            test_start = int(test_bounds[0])
+            test_end = int(test_bounds[1])
+        except (TypeError, ValueError):
+            continue
+
+        if test_start < 0 or test_end < test_start or test_end >= len(frame):
+            continue
+
+        fold_frame = frame.iloc[test_start : test_end + 1]
+        for offset, timestamp in enumerate(fold_frame.index):
+            bars_to_window_end = int((len(fold_frame) - 1) - offset)
+            timestamp_utc = str(timestamp_to_utc_iso(timestamp))
+            key = (asset, int(fold_index), timestamp_utc)
+            by_key[key] = {
+                "bars_to_window_end": bars_to_window_end,
+                "is_near_window_end": bool(0 <= bars_to_window_end <= 3),
+                "boundary_proximity_bucket": _boundary_proximity_bucket(
+                    bars_to_window_end=bars_to_window_end,
+                    is_window_end_exit=False,
+                ),
+            }
+
+    return by_key
 
 
 def _safe_mean(values: list[float]) -> float:
@@ -1099,6 +1280,9 @@ def _sample_diagnostic(
     trade_pnls: list[Any],
     trade_events: list[Any],
     trend_pullback_features_by_timestamp: dict[str, dict[str, Any]] | None = None,
+    trend_pullback_boundary_by_trade_key: (
+        dict[tuple[str, Any, str], dict[str, Any]] | None
+    ) = None,
     exit_diagnostics: dict[str, Any] | None = None,
     bar_return_stream: list[Any] | None = None,
 ) -> dict[str, Any]:
@@ -1115,6 +1299,7 @@ def _sample_diagnostic(
             _trend_pullback_exit_reason_summary(
                 trade_events=trade_events,
                 features_by_timestamp=trend_pullback_features_by_timestamp or {},
+                boundary_by_trade_key=trend_pullback_boundary_by_trade_key or {},
             )
             if trend_pullback_features_by_timestamp is not None
             else None
@@ -1377,6 +1562,11 @@ def execute_screening_candidate_samples(
             candidate=candidate,
             evaluation_report=report,
         )
+        trend_pullback_boundary_by_trade_key = _trend_pullback_boundary_by_trade_key(
+            engine=engine,
+            candidate=candidate,
+            evaluation_report=report,
+        )
         sample_diagnostics.append(
             _sample_diagnostic(
                 sample_index=sample_index,
@@ -1388,6 +1578,7 @@ def execute_screening_candidate_samples(
                 trade_pnls=list(trade_pnls),
                 trade_events=list(trade_events),
                 trend_pullback_features_by_timestamp=trend_pullback_features_by_timestamp,
+                trend_pullback_boundary_by_trade_key=trend_pullback_boundary_by_trade_key,
                 exit_diagnostics=exit_diagnostics,
                 bar_return_stream=list(bar_return_stream),
             )
