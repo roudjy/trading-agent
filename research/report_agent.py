@@ -784,6 +784,36 @@ def _bucket_counts_text(value: Any) -> str:
     )
 
 
+def _impact_totals_text(value: Any) -> str:
+    if not isinstance(value, dict) or not value:
+        return "n/a"
+
+    parts: list[str] = []
+    for key, summary in sorted(value.items()):
+        if not isinstance(summary, dict):
+            continue
+        parts.append(f"{key}={_pct(summary.get('total_pnl'))}")
+    return ", ".join(parts) if parts else "n/a"
+
+
+def _worst_total_pnl_text(value: Any) -> str:
+    if not isinstance(value, dict) or not value:
+        return "n/a"
+
+    candidates: list[tuple[str, float]] = []
+    for key, summary in value.items():
+        if not isinstance(summary, dict):
+            continue
+        try:
+            candidates.append((str(key), float(summary.get("total_pnl", 0.0))))
+        except (TypeError, ValueError):
+            continue
+    if not candidates:
+        return "n/a"
+    key, total_pnl = min(candidates, key=lambda item: item[1])
+    return f"{key}={_pct(total_pnl)}"
+
+
 def _build_trend_pullback_exit_impact(
     screening_candidates: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
@@ -819,11 +849,23 @@ def _build_trend_pullback_exit_impact(
             continue
 
         pnl = exit_summary.get("exit_reason_pnl_summary") or {}
+        realized = exit_summary.get("realized_pnl_impact") or {}
+        exit_reason_impact = realized.get("by_exit_reason") or pnl
+        unknown_subtype_impact = (
+            realized.get("by_unknown_subcategory")
+            or exit_summary.get("signal_change_unknown_subcategory_pnl_summary")
+            or {}
+        )
+        boundary_bucket_impact = (
+            realized.get("by_boundary_proximity_bucket") or {}
+        )
+        asset_impact = realized.get("by_asset") or {}
+        fold_impact = realized.get("by_fold_index") or {}
         counts = exit_summary.get("exit_reason_counts") or {}
         boundary = exit_summary.get("boundary_proximity_summary") or {}
-        pullback = pnl.get("pullback_resolved") or {}
-        trend_break = pnl.get("trend_break") or {}
-        window_end = pnl.get("window_end") or {}
+        pullback = exit_reason_impact.get("pullback_resolved") or {}
+        trend_break = exit_reason_impact.get("trend_break") or {}
+        window_end = exit_reason_impact.get("window_end") or {}
         invalidation = best.get("trend_break_invalidation_summary") or {}
 
         rows.append(
@@ -836,11 +878,19 @@ def _build_trend_pullback_exit_impact(
                     counts.get("pullback_resolved", 0) or 0
                 ),
                 "pullback_resolved_avg_pnl": pullback.get("avg_pnl"),
+                "pullback_resolved_total_pnl": pullback.get("total_pnl"),
                 "trend_break_count": int(counts.get("trend_break", 0) or 0),
                 "trend_break_avg_pnl": trend_break.get("avg_pnl"),
+                "trend_break_total_pnl": trend_break.get("total_pnl"),
                 "trend_break_largest_loss": trend_break.get("largest_loss"),
                 "window_end_count": int(counts.get("window_end", 0) or 0),
                 "window_end_avg_pnl": window_end.get("avg_pnl"),
+                "window_end_total_pnl": window_end.get("total_pnl"),
+                "exit_reason_realized_pnl_impact": exit_reason_impact,
+                "unknown_subtype_realized_pnl_impact": unknown_subtype_impact,
+                "boundary_bucket_realized_pnl_impact": boundary_bucket_impact,
+                "asset_realized_pnl_impact": asset_impact,
+                "fold_realized_pnl_impact": fold_impact,
                 "boundary_proximity_bucket_counts": boundary.get(
                     "bucket_counts"
                 )
@@ -1113,26 +1163,34 @@ def _append_trend_pullback_exit_impact_section(
 
     lines.append("## Trend-pullback exit impact (diagnostic only)")
     lines.append(
-        "| Asset | Decision | Pullback count | Pullback avg PnL | "
-        "Trend-break count | Trend-break avg PnL | Trend-break largest loss | "
-        "Window-end count | Window-end avg PnL | Boundary buckets | "
+        "| Asset | Decision | Pullback count | Pullback total PnL | "
+        "Pullback avg PnL | Trend-break count | Trend-break total PnL | "
+        "Trend-break avg PnL | Trend-break largest loss | Window-end count | "
+        "Window-end total PnL | Window-end avg PnL | Worst exit reason | "
+        "Unknown subtype totals | Boundary buckets | Boundary totals | "
         "TB avg MAE | TB avg MFE | TB zero-MFE | TB adverse-dominant | "
         "TB avg hold bars | TB avg exit-lag bars |"
     )
     lines.append(
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|"
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|---:|---:|---:|---:|---:|"
     )
     for row in rows:
         lines.append(
             f"| `{row.get('asset')}` | {row.get('decision')} | "
             f"{row.get('pullback_resolved_count')} | "
+            f"{_pct(row.get('pullback_resolved_total_pnl'))} | "
             f"{_pct(row.get('pullback_resolved_avg_pnl'))} | "
             f"{row.get('trend_break_count')} | "
+            f"{_pct(row.get('trend_break_total_pnl'))} | "
             f"{_pct(row.get('trend_break_avg_pnl'))} | "
             f"{_pct(row.get('trend_break_largest_loss'))} | "
             f"{row.get('window_end_count')} | "
+            f"{_pct(row.get('window_end_total_pnl'))} | "
             f"{_pct(row.get('window_end_avg_pnl'))} | "
+            f"{_worst_total_pnl_text(row.get('exit_reason_realized_pnl_impact'))} | "
+            f"{_impact_totals_text(row.get('unknown_subtype_realized_pnl_impact'))} | "
             f"{_bucket_counts_text(row.get('boundary_proximity_bucket_counts'))} | "
+            f"{_impact_totals_text(row.get('boundary_bucket_realized_pnl_impact'))} | "
             f"{_pct(row.get('trend_break_avg_mae'))} | "
             f"{_pct(row.get('trend_break_avg_mfe'))} | "
             f"{row.get('trend_break_zero_mfe_count')} | "

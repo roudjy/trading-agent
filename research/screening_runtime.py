@@ -354,16 +354,30 @@ def _boundary_proximity_for_trade(
     }
 
 
-def _boundary_metric_summary(values: list[float]) -> dict[str, Any]:
+def _pnl_impact_summary(values: list[float]) -> dict[str, Any]:
     losses = [value for value in values if value < 0.0]
     winners = [value for value in values if value > 0.0]
     total_pnl = float(sum(values))
+    sorted_values = sorted(values)
+    if not sorted_values:
+        median_pnl = 0.0
+    elif len(sorted_values) % 2 == 1:
+        median_pnl = float(sorted_values[len(sorted_values) // 2])
+    else:
+        hi = len(sorted_values) // 2
+        median_pnl = float((sorted_values[hi - 1] + sorted_values[hi]) / 2.0)
+
     return {
         "trade_count": int(len(values)),
         "total_pnl": total_pnl,
         "avg_pnl": float(total_pnl / len(values)) if values else 0.0,
+        "median_pnl": median_pnl,
         "loss_count": int(len(losses)),
         "winner_count": int(len(winners)),
+        "loss_pnl_total": float(sum(losses)),
+        "winner_pnl_total": float(sum(winners)),
+        "loss_rate": float(len(losses) / len(values)) if values else 0.0,
+        "win_rate": float(len(winners) / len(values)) if values else 0.0,
         "largest_loss": float(min(losses)) if losses else 0.0,
         "largest_win": float(max(winners)) if winners else 0.0,
     }
@@ -376,9 +390,18 @@ def _bucket_summary(values_by_bucket: dict[str, list[float]]) -> dict[str, Any]:
             for bucket, values in sorted(values_by_bucket.items())
         },
         "bucket_pnl_summary": {
-            bucket: _boundary_metric_summary(values)
+            bucket: _pnl_impact_summary(values)
             for bucket, values in sorted(values_by_bucket.items())
         },
+    }
+
+
+def _pnl_impact_by_dimension(
+    values_by_key: dict[str, list[float]],
+) -> dict[str, dict[str, Any]]:
+    return {
+        key: _pnl_impact_summary(values)
+        for key, values in sorted(values_by_key.items())
     }
 
 
@@ -394,6 +417,8 @@ def _trend_pullback_exit_reason_summary(
     pnl_by_unknown_subcategory: dict[str, list[float]] = {}
     boundary_lookup = boundary_by_trade_key or {}
     pnl_by_boundary_bucket: dict[str, list[float]] = {}
+    pnl_by_asset: dict[str, list[float]] = {}
+    pnl_by_fold_index: dict[str, list[float]] = {}
     boundary_by_reason: dict[str, dict[str, list[float]]] = {}
     boundary_by_unknown_subcategory: dict[str, dict[str, list[float]]] = {}
     boundary_by_asset: dict[str, dict[str, list[float]]] = {}
@@ -430,10 +455,14 @@ def _trend_pullback_exit_reason_summary(
         ).append(pnl)
         asset = str(trade.get("asset") or "")
         if asset:
+            pnl_by_asset.setdefault(asset, []).append(pnl)
             boundary_by_asset.setdefault(asset, {}).setdefault(
                 boundary_bucket,
                 [],
             ).append(pnl)
+        fold_index = trade.get("fold_index")
+        if fold_index is not None:
+            pnl_by_fold_index.setdefault(str(fold_index), []).append(pnl)
         if reason == "signal_change_unknown":
             unknown_subcategory = _classify_signal_change_unknown_subcategory(
                 trade=trade,
@@ -449,18 +478,6 @@ def _trend_pullback_exit_reason_summary(
                 unknown_subcategory,
                 {},
             ).setdefault(boundary_bucket, []).append(pnl)
-
-    def _pnl_summary(values: list[float]) -> dict[str, Any]:
-        losses = [value for value in values if value < 0.0]
-        winners = [value for value in values if value > 0.0]
-        return {
-            "trade_count": int(len(values)),
-            "avg_pnl": float(sum(values) / len(values)) if values else 0.0,
-            "loss_count": int(len(losses)),
-            "winner_count": int(len(winners)),
-            "largest_loss": float(min(values)) if values else 0.0,
-            "largest_win": float(max(values)) if values else 0.0,
-        }
 
     trade_count = sum(reason_counts.values())
     boundary_summary = _bucket_summary(pnl_by_boundary_bucket)
@@ -483,15 +500,26 @@ def _trend_pullback_exit_reason_summary(
         "trade_count": int(trade_count),
         "exit_reason_counts": dict(sorted(reason_counts.items())),
         "exit_reason_pnl_summary": {
-            reason: _pnl_summary(values)
+            reason: _pnl_impact_summary(values)
             for reason, values in sorted(pnl_by_reason.items())
         },
         "signal_change_unknown_subcategory_counts": dict(
             sorted(unknown_subcategory_counts.items())
         ),
         "signal_change_unknown_subcategory_pnl_summary": {
-            reason: _pnl_summary(values)
+            reason: _pnl_impact_summary(values)
             for reason, values in sorted(pnl_by_unknown_subcategory.items())
+        },
+        "realized_pnl_impact": {
+            "by_exit_reason": _pnl_impact_by_dimension(pnl_by_reason),
+            "by_unknown_subcategory": _pnl_impact_by_dimension(
+                pnl_by_unknown_subcategory
+            ),
+            "by_boundary_proximity_bucket": _pnl_impact_by_dimension(
+                pnl_by_boundary_bucket
+            ),
+            "by_asset": _pnl_impact_by_dimension(pnl_by_asset),
+            "by_fold_index": _pnl_impact_by_dimension(pnl_by_fold_index),
         },
         "boundary_proximity_summary": boundary_summary,
         "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),
