@@ -469,6 +469,161 @@ def _paper_readiness_blocker_diagnosis(
 
 
 
+
+def _infer_regular_asset_scope_from_report(
+    *,
+    preset_name: Any,
+    diagnosis: dict[str, Any] | None,
+) -> bool:
+    preset = str(preset_name or "").lower()
+    if any(token in preset for token in ("equities", "equity", "stocks", "stock")):
+        return True
+    if any(token in preset for token in ("crypto", "btc", "eth")):
+        return False
+
+    rows = (diagnosis or {}).get("candidates") if isinstance(diagnosis, dict) else []
+    if not isinstance(rows, list) or not rows:
+        return False
+    asset_types = {
+        str(row.get("asset_type") or "").lower()
+        for row in rows
+        if isinstance(row, dict)
+    }
+    return bool(asset_types) and asset_types.issubset({"equity", "stock"})
+
+
+def _next_research_action_from_paper_diagnosis(
+    *,
+    preset_name: Any,
+    paper_diagnosis: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Translate paper-readiness diagnosis into a bounded next action plan.
+
+    This is an advisory/report-only gate. It can recommend diagnostics or
+    operator-gated proposal review, but it never mutates presets, campaigns,
+    strategies, paper runtime, shadow runtime, or live state.
+    """
+    if not paper_diagnosis:
+        return None
+
+    search_status = str(
+        paper_diagnosis.get("paper_candidate_search_status") or "unknown"
+    )
+    regular_asset_scope = _infer_regular_asset_scope_from_report(
+        preset_name=preset_name,
+        diagnosis=paper_diagnosis,
+    )
+    dominant_diagnoses = [
+        str(row.get("diagnosis_class"))
+        for row in (paper_diagnosis.get("dominant_diagnoses") or [])
+        if isinstance(row, dict) and row.get("diagnosis_class")
+    ]
+    dominant_blockers = [
+        str(row.get("reason"))
+        for row in (paper_diagnosis.get("dominant_blockers") or [])
+        if isinstance(row, dict) and row.get("reason")
+    ]
+    closest = paper_diagnosis.get("closest_candidate") or {}
+    closest_diagnosis = (
+        str(closest.get("diagnosis_class") or "") if isinstance(closest, dict) else ""
+    )
+
+    if search_status == "ready_candidate_found":
+        action_id = "review_ready_paper_candidate"
+        proposal_gate_status = "not_needed_ready_candidate_exists"
+        action_mode = "operator_review"
+        reason_codes = ["paper_ready_candidate_exists"]
+        bounded_next_step = "review_ready_candidate_for_operator_shadow_or_paper_followup"
+    elif closest_diagnosis == "paper_engine_divergence_gap":
+        action_id = "inspect_paper_engine_divergence"
+        proposal_gate_status = "blocked_until_divergence_explained"
+        action_mode = "automatic_diagnostic"
+        reason_codes = ["closest_candidate_has_execution_events_but_high_divergence"]
+        bounded_next_step = (
+            "inspect_paper_engine_divergence_components_before_new_hypothesis_or_preset"
+        )
+    elif "execution_event_coverage_gap" in dominant_diagnoses:
+        action_id = "inspect_execution_event_coverage"
+        proposal_gate_status = "blocked_until_execution_coverage_explained"
+        action_mode = "automatic_diagnostic"
+        reason_codes = ["dominant_blocker_missing_execution_events"]
+        bounded_next_step = (
+            "inspect_validated_candidates_without_reconstructed_execution_events"
+        )
+    elif search_status == "no_ready_candidate":
+        action_id = "diagnose_no_paper_candidate"
+        proposal_gate_status = "blocked_pending_blocker_attribution"
+        action_mode = "automatic_diagnostic"
+        reason_codes = ["no_ready_paper_candidate"]
+        bounded_next_step = "diagnose_paper_readiness_blockers_before_more_preset_runs"
+    elif search_status == "missing_paper_readiness":
+        action_id = "repair_paper_readiness_artifacts"
+        proposal_gate_status = "blocked_missing_readiness_artifact"
+        action_mode = "automatic_diagnostic"
+        reason_codes = ["paper_readiness_artifact_missing"]
+        bounded_next_step = "run_or_repair_paper_readiness_sidecar_generation"
+    else:
+        action_id = "inspect_paper_candidate_search_state"
+        proposal_gate_status = "blocked_unknown_paper_candidate_state"
+        action_mode = "automatic_diagnostic"
+        reason_codes = ["paper_candidate_search_state_unknown"]
+        bounded_next_step = "inspect_latest_paper_candidate_search_artifacts"
+
+    hypothesis_preset_proposal_gate = {
+        "gate_status": proposal_gate_status,
+        "regular_asset_scope": regular_asset_scope,
+        "automatic_preset_mutation_allowed": False,
+        "automatic_strategy_mutation_allowed": False,
+        "automatic_campaign_queue_mutation_allowed": False,
+        "operator_approval_required_for_new_hypothesis_or_preset": True,
+        "allowed_after": [
+            "paper_readiness_blockers_explained",
+            "execution_event_coverage_or_divergence_diagnosed",
+            "operator_approves_bounded_hypothesis_or_preset_review",
+        ],
+    }
+
+    if regular_asset_scope and proposal_gate_status.startswith("blocked"):
+        hypothesis_preset_proposal_gate["regular_asset_research_direction"] = (
+            "do_not_try_more_regular_asset_presets_blindly"
+        )
+    elif regular_asset_scope:
+        hypothesis_preset_proposal_gate["regular_asset_research_direction"] = (
+            "operator_review_ready_candidate_before_new_regular_asset_preset"
+        )
+
+    return {
+        "schema_version": "no_paper_candidate_next_action_plan.v1",
+        "advisory_only": True,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "paper_runtime_enabled": False,
+        "shadow_runtime_enabled": False,
+        "preset_name": preset_name,
+        "paper_candidate_search_status": search_status,
+        "regular_asset_scope": regular_asset_scope,
+        "dominant_blockers": dominant_blockers,
+        "dominant_diagnoses": dominant_diagnoses,
+        "closest_candidate": closest,
+        "recommended_action_id": action_id,
+        "recommended_action_mode": action_mode,
+        "reason_codes": reason_codes,
+        "bounded_next_step": bounded_next_step,
+        "hypothesis_preset_proposal_gate": hypothesis_preset_proposal_gate,
+        "forbidden_actions": [
+            "blind_regular_asset_preset_search",
+            "automatic_strategy_change",
+            "automatic_preset_change",
+            "automatic_campaign_queue_mutation",
+            "paper_runtime_activation",
+            "shadow_runtime_activation",
+            "live_trading",
+        ],
+    }
+
+
+
 def _candidate_shadow_readiness_report(
     paper_readiness: dict[str, Any] | None,
     exit_quality_rows: list[dict[str, Any]],
@@ -1134,6 +1289,14 @@ def build_report_payload(
             _load_json(_PAPER_READINESS_SIDECAR),
             _build_trend_pullback_exit_quality(screening_candidates_payload),
         ),
+        "no_paper_candidate_next_action_plan": _next_research_action_from_paper_diagnosis(
+            preset_name=preset_name,
+            paper_diagnosis=_paper_readiness_blocker_diagnosis(
+                _load_json(_PAPER_READINESS_SIDECAR),
+                _load_json(_PAPER_LEDGER_SIDECAR),
+                _load_json(_PAPER_DIVERGENCE_SIDECAR),
+            ),
+        ),
     }
 
 
@@ -1762,6 +1925,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines,
         report.get("candidate_shadow_readiness_report"),
     )
+    _append_no_paper_candidate_next_action_section(
+        lines,
+        report.get("no_paper_candidate_next_action_plan"),
+    )
 
     red_flags = report.get("red_flags") or []
     if red_flags:
@@ -1941,6 +2108,59 @@ def _append_paper_readiness_blocker_diagnosis_section(
         "- advisory: this diagnosis explains why paper candidates are absent; "
         "it does not change readiness thresholds, presets, strategies, campaign queues, "
         "or paper/shadow/live runtime."
+    )
+    lines.append("")
+
+
+
+
+def _append_no_paper_candidate_next_action_section(
+    lines: list[str], summary: dict[str, Any] | None
+) -> None:
+    """Render bounded next action plan when no paper candidate is available."""
+    if not summary:
+        return
+    lines.append("## No Paper Candidate Next Action Plan (advisory only)")
+    lines.append(
+        f"- paper_candidate_search_status: {summary.get('paper_candidate_search_status')}"
+    )
+    lines.append(f"- regular_asset_scope: {summary.get('regular_asset_scope')}")
+    lines.append(f"- recommended_action_id: {summary.get('recommended_action_id')}")
+    lines.append(f"- recommended_action_mode: {summary.get('recommended_action_mode')}")
+    lines.append(
+        "- reason_codes: "
+        + (
+            ", ".join(str(code) for code in (summary.get("reason_codes") or []))
+            if summary.get("reason_codes")
+            else "none"
+        )
+    )
+    lines.append(f"- bounded_next_step: {summary.get('bounded_next_step')}")
+    gate = summary.get("hypothesis_preset_proposal_gate") or {}
+    lines.append(
+        "- hypothesis_preset_proposal_gate: "
+        f"status={gate.get('gate_status')}, "
+        f"operator_approval_required="
+        f"{gate.get('operator_approval_required_for_new_hypothesis_or_preset')}, "
+        f"automatic_preset_mutation_allowed="
+        f"{gate.get('automatic_preset_mutation_allowed')}, "
+        f"automatic_strategy_mutation_allowed="
+        f"{gate.get('automatic_strategy_mutation_allowed')}, "
+        f"automatic_campaign_queue_mutation_allowed="
+        f"{gate.get('automatic_campaign_queue_mutation_allowed')}"
+    )
+    if gate.get("regular_asset_research_direction"):
+        lines.append(
+            "- regular_asset_research_direction: "
+            f"{gate.get('regular_asset_research_direction')}"
+        )
+    lines.append(
+        "- forbidden_actions: "
+        + ", ".join(str(item) for item in (summary.get("forbidden_actions") or []))
+    )
+    lines.append(
+        "- advisory: QRE should explain missing paper candidates before more manual "
+        "preset attempts; any new hypothesis or preset proposal remains operator-gated."
     )
     lines.append("")
 

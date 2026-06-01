@@ -977,3 +977,142 @@ def test_paper_readiness_blocker_diagnosis_renders_markdown_advisory_section():
     assert "recommended_next_action: review_ready_candidate_for_operator_shadow_or_paper_followup" in markdown
     assert "it does not change readiness thresholds" in markdown
 
+def test_no_paper_candidate_next_action_blocks_blind_regular_asset_preset_search():
+    from research.report_agent import _next_research_action_from_paper_diagnosis
+
+    plan = _next_research_action_from_paper_diagnosis(
+        preset_name="trend_pullback_equities_4h",
+        paper_diagnosis={
+            "paper_candidate_search_status": "no_ready_candidate",
+            "dominant_blockers": [{"reason": "missing_execution_events", "count": 3}],
+            "dominant_diagnoses": [
+                {"diagnosis_class": "execution_event_coverage_gap", "count": 3}
+            ],
+            "closest_candidate": {
+                "candidate_id": "strategy|AAPL|4h|{}",
+                "asset_type": "equity",
+                "diagnosis_class": "execution_event_coverage_gap",
+                "paper_ledger_event_count": 0,
+            },
+            "candidates": [
+                {"candidate_id": "strategy|AAPL|4h|{}", "asset_type": "equity"}
+            ],
+        },
+    )
+
+    assert plan is not None
+    assert plan["regular_asset_scope"] is True
+    assert plan["recommended_action_id"] == "inspect_execution_event_coverage"
+    assert plan["recommended_action_mode"] == "automatic_diagnostic"
+    assert plan["bounded_next_step"] == (
+        "inspect_validated_candidates_without_reconstructed_execution_events"
+    )
+    gate = plan["hypothesis_preset_proposal_gate"]
+    assert gate["gate_status"] == "blocked_until_execution_coverage_explained"
+    assert gate["regular_asset_research_direction"] == (
+        "do_not_try_more_regular_asset_presets_blindly"
+    )
+    assert gate["automatic_preset_mutation_allowed"] is False
+    assert gate["automatic_strategy_mutation_allowed"] is False
+    assert gate["automatic_campaign_queue_mutation_allowed"] is False
+    assert gate["operator_approval_required_for_new_hypothesis_or_preset"] is True
+    assert "blind_regular_asset_preset_search" in plan["forbidden_actions"]
+    assert plan["paper_runtime_enabled"] is False
+    assert plan["shadow_runtime_enabled"] is False
+    assert plan["live_eligible"] is False
+
+
+def test_no_paper_candidate_next_action_prioritizes_divergence_for_closest_candidate():
+    from research.report_agent import _next_research_action_from_paper_diagnosis
+
+    plan = _next_research_action_from_paper_diagnosis(
+        preset_name="trend_pullback_equities_4h",
+        paper_diagnosis={
+            "paper_candidate_search_status": "no_ready_candidate",
+            "dominant_blockers": [
+                {"reason": "missing_execution_events", "count": 3},
+                {"reason": "excessive_divergence", "count": 1},
+            ],
+            "dominant_diagnoses": [
+                {"diagnosis_class": "execution_event_coverage_gap", "count": 3},
+                {"diagnosis_class": "paper_engine_divergence_gap", "count": 1},
+            ],
+            "closest_candidate": {
+                "candidate_id": "strategy|HD|4h|{}",
+                "asset_type": "equity",
+                "diagnosis_class": "paper_engine_divergence_gap",
+                "paper_ledger_event_count": 180,
+            },
+            "candidates": [
+                {"candidate_id": "strategy|HD|4h|{}", "asset_type": "equity"}
+            ],
+        },
+    )
+
+    assert plan is not None
+    assert plan["recommended_action_id"] == "inspect_paper_engine_divergence"
+    assert plan["bounded_next_step"] == (
+        "inspect_paper_engine_divergence_components_before_new_hypothesis_or_preset"
+    )
+    assert plan["hypothesis_preset_proposal_gate"]["gate_status"] == (
+        "blocked_until_divergence_explained"
+    )
+
+
+def test_no_paper_candidate_next_action_renders_markdown_gate():
+    from research.report_agent import _next_research_action_from_paper_diagnosis
+
+    plan = _next_research_action_from_paper_diagnosis(
+        preset_name="trend_pullback_equities_4h",
+        paper_diagnosis={
+            "paper_candidate_search_status": "no_ready_candidate",
+            "dominant_blockers": [{"reason": "missing_execution_events", "count": 1}],
+            "dominant_diagnoses": [
+                {"diagnosis_class": "execution_event_coverage_gap", "count": 1}
+            ],
+            "closest_candidate": {
+                "candidate_id": "strategy|AAPL|4h|{}",
+                "asset_type": "equity",
+                "diagnosis_class": "execution_event_coverage_gap",
+            },
+            "candidates": [
+                {"candidate_id": "strategy|AAPL|4h|{}", "asset_type": "equity"}
+            ],
+        },
+    )
+
+    markdown = render_markdown(
+        {
+            "run_id": "run-next-action",
+            "generated_at_utc": "2026-06-01T12:00:00+00:00",
+            "preset": "trend_pullback_equities_4h",
+            "verdict": VERDICT_PROMOTED,
+            "summary": {
+                "raw": 1,
+                "screened": 1,
+                "validated": 1,
+                "rejected": 0,
+                "promoted": 1,
+            },
+            "candidates": [],
+            "top_rejection_reasons": [],
+            "top_rejection_reasons_by_layer": {
+                "screening_layer": [],
+                "promotion_layer": [],
+            },
+            "per_candidate_diagnostics": [],
+            "join_stats": {},
+            "red_flags": [],
+            "regime_diagnostics": {},
+            "statistical_diagnostics": {},
+            "no_paper_candidate_next_action_plan": plan,
+            "next_experiment": "Review next action.",
+        }
+    )
+
+    assert "No Paper Candidate Next Action Plan (advisory only)" in markdown
+    assert "recommended_action_id: inspect_execution_event_coverage" in markdown
+    assert "do_not_try_more_regular_asset_presets_blindly" in markdown
+    assert "automatic_preset_mutation_allowed=False" in markdown
+    assert "any new hypothesis or preset proposal remains operator-gated" in markdown
+
