@@ -1,21 +1,33 @@
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime, timedelta
-import pytest
 from types import SimpleNamespace
 
-from agent.backtesting.engine import EngineExecutionSnapshot, EngineInterrupted
+import numpy as np
+import pandas as pd
+import pytest
+
+import agent.backtesting.engine as engine_module
+from agent.backtesting.engine import (
+    BacktestEngine,
+    EngineExecutionSnapshot,
+    EngineInterrupted,
+)
+from agent.backtesting.strategies import trend_pullback_v1_strategie
+from agent.backtesting.thin_strategy import build_features_for
 from research.candidate_resume import CandidateResumeState
 from research.screening_runtime import (
+    FINAL_STATUS_ERRORED,
+    FINAL_STATUS_TIMED_OUT,
+    ScreeningCandidateInterrupted,
+    _classify_trend_pullback_exit_reason,
     _trend_break_bar_path_simulation_summary,
     _trend_break_bar_path_threshold_comparison_summary,
     _trend_break_invalidation_simulation_summary,
     _trend_break_invalidation_summary,
     _trend_pullback_exit_reason_summary,
-    _classify_trend_pullback_exit_reason,
-    FINAL_STATUS_ERRORED,
-    FINAL_STATUS_TIMED_OUT,
-    ScreeningCandidateInterrupted,
+    _trend_pullback_features_by_timestamp,
     build_screening_runtime_records,
     build_screening_sidecar_payload,
     execute_screening_candidate,
@@ -36,6 +48,63 @@ class FakeClock:
     def advance(self, seconds: float) -> None:
         self.mono += seconds
         self.current += timedelta(seconds=seconds)
+
+
+def _trend_pullback_alignment_frame() -> pd.DataFrame:
+    index = pd.date_range("2025-01-01", periods=130, freq="D", tz=UTC)
+    close_values: list[float] = []
+    price = 100.0
+    for i in range(len(index)):
+        phase = i % 12
+        if phase in (0, 1, 2, 3, 4):
+            price *= 1.006
+        elif phase in (5, 6):
+            price *= 0.985
+        elif phase in (7, 8, 9):
+            price *= 1.012
+        else:
+            price *= 0.998
+        close_values.append(price)
+
+    close = np.array(close_values, dtype=float)
+    return pd.DataFrame(
+        {
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
+    )
+
+
+def _captured_features_for_index(
+    feature_calls: list[dict[str, object]],
+    expected_index: tuple[pd.Timestamp, ...],
+) -> dict[str, pd.Series] | None:
+    for call in feature_calls:
+        if call["index"] == expected_index:
+            return call["features"]  # type: ignore[return-value]
+    return None
+
+
+def _feature_values_equal(left: object, right: object) -> bool:
+    if pd.isna(left) and pd.isna(right):
+        return True
+    return float(left) == pytest.approx(float(right))
+
+
+def _assert_diagnostic_row_matches_engine_features(
+    diagnostic_row: dict[str, object],
+    engine_features: dict[str, pd.Series],
+    timestamp: pd.Timestamp,
+) -> None:
+    for alias in ("ema_fast", "ema_slow", "pullback_distance"):
+        assert _feature_values_equal(
+            diagnostic_row[alias],
+            engine_features[alias].get(timestamp),
+        )
 
 
 def test_screening_sidecar_payload_counts_are_deterministic():
@@ -650,6 +719,131 @@ def test_trend_pullback_exit_reason_summary_counts_decision_reasons() -> None:
         "window_end_count": 1,
         "signal_change_unknown_count": 1,
     }
+
+
+def test_trend_pullback_diagnostic_features_match_engine_fold_local_features(
+    monkeypatch,
+) -> None:
+    frame = _trend_pullback_alignment_frame()
+    strategy = trend_pullback_v1_strategie(
+        ema_fast_window=3,
+        ema_slow_window=8,
+        entry_k=0.5,
+    )
+    engine = BacktestEngine(
+        "2025-01-01",
+        "2025-05-30",
+        evaluation_config={
+            "mode": "rolling",
+            "train_bars": 60,
+            "test_bars": 20,
+            "step_bars": 20,
+        },
+    )
+    engine._laad_data = lambda asset, interval: frame.copy()
+
+    engine_feature_calls: list[dict[str, object]] = []
+    real_engine_build_features_for = engine_module.build_features_for
+
+    def _capturing_engine_build_features_for(requirements, df):
+        features = real_engine_build_features_for(requirements, df)
+        engine_feature_calls.append(
+            {
+                "index": tuple(df.index),
+                "features": {
+                    alias: series.copy()
+                    for alias, series in features.items()
+                },
+            }
+        )
+        return features
+
+    monkeypatch.setattr(
+        engine_module,
+        "build_features_for",
+        _capturing_engine_build_features_for,
+    )
+
+    engine.run(strategy, ["TEST"], interval="1d")
+    report = engine.last_evaluation_report or {}
+    trades = report["evaluation_streams"]["oos_trade_events"]
+    assert trades, "fixture must produce OOS exits to validate decision alignment"
+
+    diagnostic_features = _trend_pullback_features_by_timestamp(
+        engine=engine,
+        strategy_callable=strategy,
+        candidate={"asset": "TEST", "interval": "1d"},
+        evaluation_report=report,
+    )
+
+    global_features = build_features_for(strategy._feature_requirements, frame)
+    verified_exit_timestamps: set[str] = set()
+    verified_fold_starts = 0
+    verified_no_global_contamination = 0
+
+    folds = report["folds_by_asset"]["TEST"]
+    for fold_index, fold in enumerate(folds):
+        test_start, test_end = fold["test"]
+        fold_frame = frame.iloc[test_start : test_end + 1].copy()
+        engine_features = _captured_features_for_index(
+            engine_feature_calls,
+            tuple(fold_frame.index),
+        )
+        assert engine_features is not None
+
+        fold_start_ts = engine._timestamp_to_utc_iso(fold_frame.index[0])
+        _assert_diagnostic_row_matches_engine_features(
+            diagnostic_features[fold_start_ts],
+            engine_features,
+            fold_frame.index[0],
+        )
+        verified_fold_starts += 1
+
+        # Warmup is fold-local: the diagnostic row must preserve the
+        # engine's NaN pullback-distance warmup at the start of each
+        # test slice instead of borrowing pre-fold history.
+        assert math.isnan(float(diagnostic_features[fold_start_ts]["pullback_distance"]))
+
+        global_row = {
+            alias: global_features[alias].get(fold_frame.index[0])
+            for alias in ("ema_fast", "ema_slow", "pullback_distance")
+        }
+        if any(
+            not _feature_values_equal(
+                diagnostic_features[fold_start_ts][alias],
+                global_row[alias],
+            )
+            for alias in ("ema_fast", "ema_slow", "pullback_distance")
+        ):
+            verified_no_global_contamination += 1
+
+        fold_trade_decisions = [
+            pd.Timestamp(trade["exit_decision_timestamp_utc"])
+            for trade in trades
+            if trade["fold_index"] == fold_index
+        ]
+        for decision_ts in fold_trade_decisions:
+            decision_ts_utc = engine._timestamp_to_utc_iso(decision_ts)
+            _assert_diagnostic_row_matches_engine_features(
+                diagnostic_features[decision_ts_utc],
+                engine_features,
+                decision_ts,
+            )
+            verified_exit_timestamps.add(decision_ts_utc)
+
+    assert verified_fold_starts == len(folds)
+    assert verified_no_global_contamination == len(folds)
+    assert verified_exit_timestamps == {
+        trade["exit_decision_timestamp_utc"]
+        for trade in trades
+    }
+
+    missing_timestamp_trade = dict(trades[0])
+    missing_timestamp_trade["exit_decision_timestamp_utc"] = "2099-01-01T00:00:00+00:00"
+    assert _trend_pullback_exit_reason_summary(
+        trade_events=[missing_timestamp_trade],
+        features_by_timestamp=diagnostic_features,
+    )["signal_change_unknown_count"] == 1
 
 def test_trend_break_invalidation_summary_aggregates_trend_break_only() -> None:
     trade_events = [
