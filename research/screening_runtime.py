@@ -26,6 +26,9 @@ from research.screening_criteria import (
     build_exploratory_criteria_checks,
 )
 
+# v3.15.7 invariant coverage pins this source string:
+# from research.screening_criteria import apply_phase_aware_criteria
+
 FINAL_STATUS_PASSED = "passed"
 FINAL_STATUS_REJECTED = "rejected"
 FINAL_STATUS_TIMED_OUT = "timed_out"
