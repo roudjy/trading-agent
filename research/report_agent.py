@@ -1110,11 +1110,29 @@ def _write_research_action_queue_sidecar(
 
 
 
-def _hypothesis_state_for_queue_item(item: dict[str, Any]) -> dict[str, Any]:
+def _hypothesis_ref_from_action_evidence(
+    item: dict[str, Any],
+    report: dict[str, Any] | None = None,
+) -> str:
+    evidence = item.get("evidence") if isinstance(item.get("evidence"), dict) else {}
+    for value in (
+        evidence.get("hypothesis_id"),
+        evidence.get("hypothesis_ref"),
+        evidence.get("preset"),
+        (report or {}).get("preset"),
+        (report or {}).get("run_id"),
+    ):
+        if isinstance(value, str) and value:
+            return value
+    return "latest_research_run"
+
+
+def _hypothesis_state_for_queue_item(
+    item: dict[str, Any],
+    report: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     action_id = str(item.get("action_id") or "")
     source = str(item.get("source_section") or "")
-    evidence = item.get("evidence") if isinstance(item.get("evidence"), dict) else {}
-
     if action_id == "operator_review_candidate_shadow_readiness":
         state = "ready_for_operator_review"
         reason = "candidate_shadow_readiness_ready"
@@ -1139,9 +1157,7 @@ def _hypothesis_state_for_queue_item(item: dict[str, Any]) -> dict[str, Any]:
         )
 
     return {
-        "hypothesis_ref": evidence.get("preset")
-        or evidence.get("regular_asset_scope")
-        or "latest_research_run",
+        "hypothesis_ref": _hypothesis_ref_from_action_evidence(item, report),
         "state": state,
         "blocking_action_id": action_id,
         "source_section": source,
@@ -1191,7 +1207,7 @@ def _research_action_state_sidecar(
             1 for item in items if item.get("operator_approval_required") is True
         ),
         "hypothesis_state_updates": [
-            _hypothesis_state_for_queue_item(item) for item in pending
+            _hypothesis_state_for_queue_item(item, report) for item in pending
         ],
         "outcomes": [
             {

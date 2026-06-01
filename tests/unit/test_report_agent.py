@@ -1558,3 +1558,40 @@ def test_write_research_action_state_sidecar_writes_artifact(tmp_path: Path):
     )
     assert written["outcomes"][0]["outcome_status"] == "not_recorded"
 
+def test_research_action_state_sidecar_does_not_use_boolean_hypothesis_ref():
+    from research.report_agent import (
+        _research_action_queue_sidecar,
+        _research_action_state_sidecar,
+    )
+
+    report = {
+        "run_id": "run-state",
+        "generated_at_utc": "2026-06-01T12:00:00+00:00",
+        "preset": "trend_pullback_equities_4h",
+    }
+    queue = _research_action_queue_sidecar(
+        report=report,
+        queue_items=[
+            {
+                "action_id": "inspect_paper_engine_divergence",
+                "source_section": "no_paper_candidate_next_action_plan",
+                "target_candidate_id": "strategy|HD|4h|{}",
+                "operator_approval_required": False,
+                "reason_codes": [
+                    "closest_candidate_has_execution_events_but_high_divergence"
+                ],
+                "evidence": {
+                    "regular_asset_scope": True,
+                    "paper_candidate_search_status": "no_ready_candidate",
+                },
+            }
+        ],
+    )
+
+    state = _research_action_state_sidecar(report=report, queue_sidecar=queue)
+
+    assert state["hypothesis_state_updates"][0]["hypothesis_ref"] == (
+        "trend_pullback_equities_4h"
+    )
+    assert isinstance(state["hypothesis_state_updates"][0]["hypothesis_ref"], str)
+
