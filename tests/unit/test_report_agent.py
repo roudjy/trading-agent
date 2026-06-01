@@ -421,10 +421,64 @@ def test_trend_pullback_exit_impact_carries_boundary_proximity_evidence():
                                 },
                                 "exit_reason_pnl_summary": {
                                     "trend_break": {
+                                        "total_pnl": -0.05,
                                         "avg_pnl": -0.05,
                                         "largest_loss": -0.05,
                                     },
-                                    "window_end": {"avg_pnl": 0.01},
+                                    "window_end": {
+                                        "total_pnl": 0.01,
+                                        "avg_pnl": 0.01,
+                                    },
+                                },
+                                "signal_change_unknown_subcategory_pnl_summary": {
+                                    "signal_change_ambiguous_transition": {
+                                        "total_pnl": -0.02,
+                                        "avg_pnl": -0.02,
+                                    },
+                                },
+                                "realized_pnl_impact": {
+                                    "by_exit_reason": {
+                                        "trend_break": {
+                                            "trade_count": 1,
+                                            "total_pnl": -0.05,
+                                            "avg_pnl": -0.05,
+                                            "largest_loss": -0.05,
+                                        },
+                                        "window_end": {
+                                            "trade_count": 1,
+                                            "total_pnl": 0.01,
+                                            "avg_pnl": 0.01,
+                                        },
+                                    },
+                                    "by_unknown_subcategory": {
+                                        "signal_change_ambiguous_transition": {
+                                            "trade_count": 1,
+                                            "total_pnl": -0.02,
+                                            "avg_pnl": -0.02,
+                                        },
+                                    },
+                                    "by_boundary_proximity_bucket": {
+                                        "near_window_end_1_bar": {
+                                            "trade_count": 1,
+                                            "total_pnl": -0.05,
+                                        },
+                                        "window_end": {
+                                            "trade_count": 1,
+                                            "total_pnl": 0.01,
+                                        },
+                                    },
+                                    "by_asset": {
+                                        "TEST": {
+                                            "trade_count": 2,
+                                            "total_pnl": -0.04,
+                                        },
+                                    },
+                                    "by_fold_index": {
+                                        "0": {
+                                            "trade_count": 2,
+                                            "total_pnl": -0.04,
+                                        },
+                                    },
                                 },
                                 "boundary_proximity_summary": {
                                     "bucket_counts": {
@@ -452,7 +506,15 @@ def test_trend_pullback_exit_impact_carries_boundary_proximity_evidence():
                                     },
                                 },
                             },
-                            "trend_break_invalidation_summary": {},
+                            "trend_break_invalidation_summary": {
+                                "avg_mae": 0.11,
+                                "avg_mfe": 0.02,
+                            },
+                            "trend_break_invalidation_simulation_summary": {
+                                "avoided_loss": 0.99,
+                                "sacrificed_profit": 0.88,
+                                "net_pnl_delta": 0.11,
+                            },
                         },
                     ],
                 },
@@ -467,6 +529,19 @@ def test_trend_pullback_exit_impact_carries_boundary_proximity_evidence():
     assert rows[0]["boundary_proximity_by_exit_reason"]["trend_break"][
         "bucket_counts"
     ] == {"near_window_end_1_bar": 1}
+    assert rows[0]["trend_break_total_pnl"] == -0.05
+    assert rows[0]["trend_break_avg_mae"] == 0.11
+    assert rows[0]["exit_reason_realized_pnl_impact"]["trend_break"][
+        "total_pnl"
+    ] == -0.05
+    assert rows[0]["unknown_subtype_realized_pnl_impact"][
+        "signal_change_ambiguous_transition"
+    ]["total_pnl"] == -0.02
+    assert rows[0]["boundary_bucket_realized_pnl_impact"][
+        "near_window_end_1_bar"
+    ]["total_pnl"] == -0.05
+    assert rows[0]["asset_realized_pnl_impact"]["TEST"]["total_pnl"] == -0.04
+    assert rows[0]["fold_realized_pnl_impact"]["0"]["trade_count"] == 2
 
     markdown = render_markdown(
         {
@@ -498,3 +573,6 @@ def test_trend_pullback_exit_impact_carries_boundary_proximity_evidence():
     )
     assert "Boundary buckets" in markdown
     assert "near_window_end_1_bar=1" in markdown
+    assert "Trend-break total PnL" in markdown
+    assert "trend_break=-5.00%" in markdown
+    assert "signal_change_ambiguous_transition=-2.00%" in markdown
