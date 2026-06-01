@@ -1463,3 +1463,98 @@ def test_write_research_action_queue_sidecar_writes_stable_artifact(tmp_path: Pa
     assert written["ade_queue_written"] is False
     assert written["campaign_queue_mutated"] is False
 
+def test_research_action_state_sidecar_summarizes_pending_actions():
+    from research.report_agent import (
+        _research_action_queue_sidecar,
+        _research_action_state_sidecar,
+    )
+
+    report = {
+        "run_id": "run-state",
+        "generated_at_utc": "2026-06-01T12:00:00+00:00",
+        "preset": "trend_pullback_equities_4h",
+    }
+    queue = _research_action_queue_sidecar(
+        report=report,
+        queue_items=[
+            {
+                "action_id": "inspect_paper_engine_divergence",
+                "source_section": "no_paper_candidate_next_action_plan",
+                "target_candidate_id": "strategy|HD|4h|{}",
+                "operator_approval_required": False,
+                "reason_codes": [
+                    "closest_candidate_has_execution_events_but_high_divergence"
+                ],
+                "evidence": {
+                    "regular_asset_scope": True,
+                    "paper_candidate_search_status": "no_ready_candidate",
+                },
+            },
+            {
+                "action_id": "operator_review_candidate_shadow_readiness",
+                "source_section": "candidate_shadow_readiness_report",
+                "target_candidate_id": "strategy|MSFT|4h|{}",
+                "operator_approval_required": True,
+                "reason_codes": ["candidate_shadow_readiness_ready"],
+                "evidence": {"paper_ready_candidate_count": 1},
+            },
+        ],
+    )
+
+    state = _research_action_state_sidecar(report=report, queue_sidecar=queue)
+
+    assert state["schema_version"] == "research_action_state.v1"
+    assert state["state_sidecar_only"] is True
+    assert state["execution_enabled"] is False
+    assert state["ade_queue_written"] is False
+    assert state["campaign_queue_mutated"] is False
+    assert state["paper_runtime_enabled"] is False
+    assert state["shadow_runtime_enabled"] is False
+    assert state["live_eligible"] is False
+    assert state["queue_item_count"] == 2
+    assert state["pending_action_count"] == 2
+    assert state["completed_action_count"] == 0
+    assert state["blocked_action_count"] == 0
+    assert state["operator_required_action_count"] == 1
+    assert state["next_required_operator_role"] == "review_operator_required_actions"
+    states = {row["state"] for row in state["hypothesis_state_updates"]}
+    assert "blocked_pending_paper_engine_divergence_action" in states
+    assert "ready_for_operator_review" in states
+
+
+def test_write_research_action_state_sidecar_writes_artifact(tmp_path: Path):
+    from research.report_agent import (
+        _research_action_queue_sidecar,
+        _write_research_action_state_sidecar,
+    )
+
+    report = {
+        "run_id": "run-state",
+        "generated_at_utc": "2026-06-01T12:00:00+00:00",
+        "preset": "trend_pullback_equities_4h",
+    }
+    queue = _research_action_queue_sidecar(
+        report=report,
+        queue_items=[
+            {
+                "action_id": "inspect_execution_event_coverage",
+                "source_section": "no_paper_candidate_next_action_plan",
+                "target_candidate_id": "strategy|AAPL|4h|{}",
+                "operator_approval_required": False,
+                "reason_codes": ["dominant_blocker_missing_execution_events"],
+            }
+        ],
+    )
+    path = tmp_path / "research_action_state_latest.v1.json"
+
+    payload = _write_research_action_state_sidecar(report, queue, path=path)
+
+    assert payload is not None
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["schema_version"] == "research_action_state.v1"
+    assert written["pending_action_count"] == 1
+    assert written["hypothesis_state_updates"][0]["state"] == (
+        "blocked_pending_execution_event_coverage_action"
+    )
+    assert written["outcomes"][0]["outcome_status"] == "not_recorded"
+

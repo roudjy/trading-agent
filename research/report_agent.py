@@ -29,8 +29,10 @@ from research.run_meta import RUN_META_PATH, read_run_meta_sidecar
 REPORT_MARKDOWN_PATH = Path("research/report_latest.md")
 REPORT_JSON_PATH = Path("research/report_latest.json")
 RESEARCH_ACTION_QUEUE_PATH = Path("research/research_action_queue_latest.v1.json")
+RESEARCH_ACTION_STATE_PATH = Path("research/research_action_state_latest.v1.json")
 REPORT_SCHEMA_VERSION = "1.1"
 RESEARCH_ACTION_QUEUE_SCHEMA_VERSION = "research_action_queue.v1"
+RESEARCH_ACTION_STATE_SCHEMA_VERSION = "research_action_state.v1"
 
 _RESEARCH_LATEST_JSON = Path("research/research_latest.json")
 _FALSIFICATION_SIDECAR = Path("research/falsification_gates_latest.v1.json")
@@ -1103,6 +1105,123 @@ def _write_research_action_queue_sidecar(
     if not isinstance(items, list):
         return None
     payload = _research_action_queue_sidecar(report=report, queue_items=items)
+    _write_json_sidecar_atomic(path, payload)
+    return payload
+
+
+
+def _hypothesis_state_for_queue_item(item: dict[str, Any]) -> dict[str, Any]:
+    action_id = str(item.get("action_id") or "")
+    source = str(item.get("source_section") or "")
+    evidence = item.get("evidence") if isinstance(item.get("evidence"), dict) else {}
+
+    if action_id == "operator_review_candidate_shadow_readiness":
+        state = "ready_for_operator_review"
+        reason = "candidate_shadow_readiness_ready"
+    elif "divergence" in action_id or "divergence" in source:
+        state = "blocked_pending_paper_engine_divergence_action"
+        reason = (
+            ",".join(str(code) for code in item.get("reason_codes") or [])
+            or "paper_engine_divergence_pending"
+        )
+    elif "execution_event" in action_id:
+        state = "blocked_pending_execution_event_coverage_action"
+        reason = (
+            ",".join(str(code) for code in item.get("reason_codes") or [])
+            or "execution_event_coverage_pending"
+        )
+    else:
+        state = "blocked_pending_research_action"
+        reason = (
+            ",".join(str(code) for code in item.get("reason_codes") or [])
+            or action_id
+            or "research_action_pending"
+        )
+
+    return {
+        "hypothesis_ref": evidence.get("preset")
+        or evidence.get("regular_asset_scope")
+        or "latest_research_run",
+        "state": state,
+        "blocking_action_id": action_id,
+        "source_section": source,
+        "target_candidate_id": item.get("target_candidate_id"),
+        "reason": reason,
+        "operator_approval_required": item.get("operator_approval_required") is True,
+    }
+
+
+def _research_action_state_sidecar(
+    *,
+    report: dict[str, Any],
+    queue_sidecar: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build a state summary from emitted queue items.
+
+    This records state only. It does not mark actions completed, execute
+    actions, mutate hypotheses in-place, write ADE queues, or activate runtime.
+    """
+    queue = queue_sidecar or {}
+    items = [item for item in (queue.get("items") or []) if isinstance(item, dict)]
+
+    pending = [item for item in items if item.get("status") == "pending"]
+    completed = [item for item in items if item.get("status") == "completed"]
+    blocked = [item for item in items if item.get("status") == "blocked"]
+
+    return {
+        "schema_version": RESEARCH_ACTION_STATE_SCHEMA_VERSION,
+        "generated_at_utc": report.get("generated_at_utc"),
+        "run_id": report.get("run_id"),
+        "preset": report.get("preset"),
+        "advisory_only": True,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "state_sidecar_only": True,
+        "execution_enabled": False,
+        "ade_queue_written": False,
+        "campaign_queue_mutated": False,
+        "paper_runtime_enabled": False,
+        "shadow_runtime_enabled": False,
+        "live_eligible": False,
+        "queue_item_count": len(items),
+        "pending_action_count": len(pending),
+        "completed_action_count": len(completed),
+        "blocked_action_count": len(blocked),
+        "operator_required_action_count": sum(
+            1 for item in items if item.get("operator_approval_required") is True
+        ),
+        "hypothesis_state_updates": [
+            _hypothesis_state_for_queue_item(item) for item in pending
+        ],
+        "outcomes": [
+            {
+                "action_id": item.get("action_id"),
+                "target_candidate_id": item.get("target_candidate_id"),
+                "outcome_status": item.get("outcome_status") or "not_recorded",
+                "status": item.get("status") or "pending",
+            }
+            for item in items
+        ],
+        "next_required_operator_role": (
+            "review_operator_required_actions"
+            if any(item.get("operator_approval_required") is True for item in items)
+            else "none"
+        ),
+    }
+
+
+def _write_research_action_state_sidecar(
+    report: dict[str, Any],
+    queue_sidecar: dict[str, Any] | None,
+    *,
+    path: Path = RESEARCH_ACTION_STATE_PATH,
+) -> dict[str, Any] | None:
+    if queue_sidecar is None:
+        return None
+    payload = _research_action_state_sidecar(
+        report=report,
+        queue_sidecar=queue_sidecar,
+    )
     _write_json_sidecar_atomic(path, payload)
     return payload
 
@@ -3037,7 +3156,8 @@ def generate_post_run_report(
         run_meta_path=run_meta_path,
     )
     write_report(report, markdown_path=markdown_path, json_path=json_path)
-    _write_research_action_queue_sidecar(report)
+    queue_sidecar = _write_research_action_queue_sidecar(report)
+    _write_research_action_state_sidecar(report, queue_sidecar)
     return report
 
 
