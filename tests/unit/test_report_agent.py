@@ -1398,3 +1398,68 @@ def test_research_action_queue_items_render_markdown_surface():
     assert "forbidden_actions:" in markdown
     assert "write an ADE queue" in markdown
 
+def test_research_action_queue_sidecar_builder_marks_items_pending():
+    from research.report_agent import _research_action_queue_sidecar
+
+    payload = _research_action_queue_sidecar(
+        report={
+            "run_id": "run-queue",
+            "generated_at_utc": "2026-06-01T12:00:00+00:00",
+            "preset": "trend_pullback_equities_4h",
+        },
+        queue_items=[
+            {
+                "action_id": "inspect_engine_vs_venue_fee_model_before_strategy_or_threshold_changes",
+                "target_candidate_id": "strategy|HD|4h|{}",
+                "operator_approval_required": False,
+                "forbidden_actions": ["automatic_campaign_queue_mutation"],
+            }
+        ],
+    )
+
+    assert payload["schema_version"] == "research_action_queue.v1"
+    assert payload["queue_sidecar_only"] is True
+    assert payload["execution_enabled"] is False
+    assert payload["ade_queue_written"] is False
+    assert payload["campaign_queue_mutated"] is False
+    assert payload["paper_runtime_enabled"] is False
+    assert payload["shadow_runtime_enabled"] is False
+    assert payload["live_eligible"] is False
+    assert payload["item_count"] == 1
+    assert payload["pending_item_count"] == 1
+    assert payload["operator_required_item_count"] == 0
+    assert payload["items"][0]["status"] == "pending"
+    assert payload["items"][0]["outcome_status"] == "not_recorded"
+    assert payload["forbidden_actions"] == ["automatic_campaign_queue_mutation"]
+
+
+def test_write_research_action_queue_sidecar_writes_stable_artifact(tmp_path: Path):
+    from research.report_agent import _write_research_action_queue_sidecar
+
+    path = tmp_path / "research_action_queue_latest.v1.json"
+    payload = _write_research_action_queue_sidecar(
+        {
+            "run_id": "run-queue",
+            "generated_at_utc": "2026-06-01T12:00:00+00:00",
+            "preset": "trend_pullback_equities_4h",
+            "research_action_queue_items": [
+                {
+                    "action_id": "inspect_paper_engine_divergence",
+                    "target_candidate_id": "strategy|HD|4h|{}",
+                    "operator_approval_required": False,
+                    "forbidden_actions": ["paper_runtime_activation"],
+                }
+            ],
+        },
+        path=path,
+    )
+
+    assert payload is not None
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["schema_version"] == "research_action_queue.v1"
+    assert written["item_count"] == 1
+    assert written["items"][0]["action_id"] == "inspect_paper_engine_divergence"
+    assert written["items"][0]["status"] == "pending"
+    assert written["ade_queue_written"] is False
+    assert written["campaign_queue_mutated"] is False
+

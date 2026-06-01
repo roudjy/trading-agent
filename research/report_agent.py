@@ -28,7 +28,9 @@ from research.run_meta import RUN_META_PATH, read_run_meta_sidecar
 
 REPORT_MARKDOWN_PATH = Path("research/report_latest.md")
 REPORT_JSON_PATH = Path("research/report_latest.json")
+RESEARCH_ACTION_QUEUE_PATH = Path("research/research_action_queue_latest.v1.json")
 REPORT_SCHEMA_VERSION = "1.1"
+RESEARCH_ACTION_QUEUE_SCHEMA_VERSION = "research_action_queue.v1"
 
 _RESEARCH_LATEST_JSON = Path("research/research_latest.json")
 _FALSIFICATION_SIDECAR = Path("research/falsification_gates_latest.v1.json")
@@ -1030,6 +1032,79 @@ def _build_research_action_queue_items(
 
     return deduped
 
+
+
+
+def _research_action_queue_sidecar(
+    *,
+    report: dict[str, Any],
+    queue_items: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Build a stable sidecar for emitted research action queue items.
+
+    Artifact-only: this records emitted intent and never executes actions,
+    mutates campaigns, writes an ADE queue, or activates runtime.
+    """
+    items = [item for item in (queue_items or []) if isinstance(item, dict)]
+    return {
+        "schema_version": RESEARCH_ACTION_QUEUE_SCHEMA_VERSION,
+        "generated_at_utc": report.get("generated_at_utc"),
+        "run_id": report.get("run_id"),
+        "preset": report.get("preset"),
+        "advisory_only": True,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "queue_sidecar_only": True,
+        "execution_enabled": False,
+        "ade_queue_written": False,
+        "campaign_queue_mutated": False,
+        "paper_runtime_enabled": False,
+        "shadow_runtime_enabled": False,
+        "live_eligible": False,
+        "item_count": len(items),
+        "pending_item_count": len(items),
+        "operator_required_item_count": sum(
+            1 for item in items if item.get("operator_approval_required") is True
+        ),
+        "items": [
+            {
+                **item,
+                "status": "pending",
+                "outcome_status": "not_recorded",
+            }
+            for item in items
+        ],
+        "forbidden_actions": sorted(
+            {
+                str(action)
+                for item in items
+                for action in (item.get("forbidden_actions") or [])
+            }
+        ),
+    }
+
+
+def _write_json_sidecar_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+    tmp_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=False),
+        encoding="utf-8",
+    )
+    tmp_path.replace(path)
+
+
+def _write_research_action_queue_sidecar(
+    report: dict[str, Any],
+    *,
+    path: Path = RESEARCH_ACTION_QUEUE_PATH,
+) -> dict[str, Any] | None:
+    items = report.get("research_action_queue_items")
+    if not isinstance(items, list):
+        return None
+    payload = _research_action_queue_sidecar(report=report, queue_items=items)
+    _write_json_sidecar_atomic(path, payload)
+    return payload
 
 
 def _candidate_shadow_readiness_report(
@@ -2962,6 +3037,7 @@ def generate_post_run_report(
         run_meta_path=run_meta_path,
     )
     write_report(report, markdown_path=markdown_path, json_path=json_path)
+    _write_research_action_queue_sidecar(report)
     return report
 
 
