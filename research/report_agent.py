@@ -733,8 +733,13 @@ def build_report_payload(
         "trend_pullback_exit_impact": _build_trend_pullback_exit_impact(
             screening_candidates_payload
         ),
-        "trend_break_threshold_comparison": _build_trend_break_threshold_comparison(
-            screening_candidates_payload
+        "trend_break_threshold_comparison": (
+            trend_break_threshold_comparison := _build_trend_break_threshold_comparison(
+                screening_candidates_payload
+            )
+        ),
+        "trend_break_threshold_decision_gate": _build_trend_break_threshold_decision_gate(
+            trend_break_threshold_comparison
         ),
         "join_stats": join_stats,
         "red_flags": red_flags,
@@ -932,6 +937,118 @@ def _build_trend_break_threshold_comparison(
     )
 
 
+def _build_trend_break_threshold_decision_gate(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    decisions: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+
+        rule = str(row.get("rule") or "")
+        net = float(row.get("net_pnl_delta") or 0.0)
+        avoided = float(row.get("avoided_loss") or 0.0)
+        sacrificed = float(row.get("sacrificed_profit") or 0.0)
+        positive_count = int(row.get("positive_count") or 0)
+        negative_count = int(row.get("negative_count") or 0)
+        triggered_trend_break = int(row.get("triggered_trend_break") or 0)
+        triggered_pullback = int(row.get("triggered_pullback") or 0)
+
+        sacrificed_to_avoided_ratio = (
+            sacrificed / avoided if avoided > 0.0 else None
+        )
+        pullback_to_trend_break_ratio = (
+            triggered_pullback / triggered_trend_break
+            if triggered_trend_break > 0
+            else None
+        )
+
+        reasons: list[str] = []
+        if net <= 0.0:
+            decision = "fail"
+            reasons.append("net_pnl_delta_not_positive")
+        else:
+            decision = "pass"
+
+            if positive_count <= negative_count:
+                decision = "watch"
+                reasons.append("positive_count_not_greater_than_negative_count")
+
+            if sacrificed_to_avoided_ratio is None:
+                decision = "watch"
+                reasons.append("avoided_loss_zero")
+            elif sacrificed_to_avoided_ratio > 0.60:
+                decision = "watch"
+                reasons.append("sacrificed_profit_above_60pct_of_avoided_loss")
+
+            if pullback_to_trend_break_ratio is None:
+                decision = "watch"
+                reasons.append("triggered_trend_break_zero")
+            elif pullback_to_trend_break_ratio > 0.50:
+                decision = "watch"
+                reasons.append("pullback_hits_above_50pct_of_trend_break_hits")
+
+        decisions.append(
+            {
+                "rule": rule,
+                "decision": decision,
+                "reasons": reasons,
+                "net_pnl_delta": net,
+                "positive_count": positive_count,
+                "negative_count": negative_count,
+                "avoided_loss": avoided,
+                "sacrificed_profit": sacrificed,
+                "sacrificed_to_avoided_ratio": sacrificed_to_avoided_ratio,
+                "triggered_trend_break": triggered_trend_break,
+                "triggered_pullback": triggered_pullback,
+                "pullback_to_trend_break_ratio": pullback_to_trend_break_ratio,
+            }
+        )
+
+    rank = {"pass": 0, "watch": 1, "fail": 2}
+    return sorted(
+        decisions,
+        key=lambda item: (
+            rank.get(str(item.get("decision")), 99),
+            -float(item.get("net_pnl_delta") or 0.0),
+        ),
+    )
+
+
+def _append_trend_break_threshold_decision_gate_section(
+    lines: list[str],
+    rows: list[dict[str, Any]],
+) -> None:
+    if not rows:
+        return
+
+    lines.append("## Trend-break early invalidation decision gate")
+    lines.append("")
+    lines.append(
+        "| Rule | Decision | Reasons | Net PnL delta | +Assets | -Assets | "
+        "Sacrificed/Avoided | Pullback/TB hit ratio |"
+    )
+    lines.append("|---|---|---|---:|---:|---:|---:|---:|")
+
+    for row in rows:
+        reasons = row.get("reasons") or []
+        reason_text = ", ".join(str(reason) for reason in reasons) if reasons else "?"
+        sacrificed_ratio = row.get("sacrificed_to_avoided_ratio")
+        pullback_ratio = row.get("pullback_to_trend_break_ratio")
+        lines.append(
+            f"| `{row.get('rule')}` | "
+            f"{row.get('decision')} | "
+            f"{reason_text} | "
+            f"{_pct(row.get('net_pnl_delta'))} | "
+            f"{row.get('positive_count')} | "
+            f"{row.get('negative_count')} | "
+            f"{_pct(sacrificed_ratio)} | "
+            f"{_pct(pullback_ratio)} |"
+        )
+
+    lines.append("")
+
+
 def _append_trend_break_threshold_comparison_section(
     lines: list[str],
     rows: list[dict[str, Any]],
@@ -1035,6 +1152,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     _append_trend_break_threshold_comparison_section(
         lines,
         report.get("trend_break_threshold_comparison") or [],
+    )
+    _append_trend_break_threshold_decision_gate_section(
+        lines,
+        report.get("trend_break_threshold_decision_gate") or [],
     )
     _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
     _append_portfolio_layer_section(lines, report.get("portfolio_layer_summary"))
