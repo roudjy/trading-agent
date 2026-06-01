@@ -365,6 +365,17 @@ def _exit_semantic_metadata(exit_reason: str) -> dict[str, str]:
     )
 
 
+def _exit_health_class(exit_reason: str) -> str:
+    health_by_reason = {
+        "pullback_resolved": "healthy_exit",
+        "trend_break": "risk_exit",
+        "pullback_resolved_and_trend_break": "late_or_choppy_exit",
+        "signal_change_unknown": "unknown_exit",
+        "window_end": "boundary_exit",
+    }
+    return health_by_reason.get(exit_reason, "neutral_exit")
+
+
 def _boundary_proximity_bucket(
     *,
     bars_to_window_end: int | None,
@@ -466,6 +477,41 @@ def _pnl_impact_by_dimension(
     }
 
 
+def _exit_health_ratio_summary(
+    pnl_by_health_class: dict[str, list[float]],
+) -> dict[str, Any]:
+    total_trades = sum(len(values) for values in pnl_by_health_class.values())
+    total_pnl = float(
+        sum(sum(values) for values in pnl_by_health_class.values())
+    )
+    if abs(total_pnl) < 1e-12:
+        total_pnl = 0.0
+    by_health_class: dict[str, dict[str, Any]] = {}
+    for health_class, values in sorted(pnl_by_health_class.items()):
+        summary = _pnl_impact_summary(values)
+        summary["trade_share"] = (
+            float(summary["trade_count"] / total_trades)
+            if total_trades
+            else 0.0
+        )
+        summary["pnl_share"] = (
+            float(summary["total_pnl"] / total_pnl)
+            if total_pnl
+            else 0.0
+        )
+        by_health_class[health_class] = summary
+
+    return {
+        "trade_count": int(total_trades),
+        "total_pnl": total_pnl,
+        "health_class_counts": {
+            health_class: int(len(values))
+            for health_class, values in sorted(pnl_by_health_class.items())
+        },
+        "by_health_class": by_health_class,
+    }
+
+
 def _trend_pullback_exit_reason_summary(
     *,
     trade_events: list[Any],
@@ -480,6 +526,11 @@ def _trend_pullback_exit_reason_summary(
     pnl_by_boundary_bucket: dict[str, list[float]] = {}
     pnl_by_asset: dict[str, list[float]] = {}
     pnl_by_fold_index: dict[str, list[float]] = {}
+    pnl_by_health_class: dict[str, list[float]] = {}
+    health_by_asset: dict[str, dict[str, list[float]]] = {}
+    health_by_exit_reason: dict[str, dict[str, list[float]]] = {}
+    health_by_unknown_subcategory: dict[str, dict[str, list[float]]] = {}
+    health_by_boundary_bucket: dict[str, dict[str, list[float]]] = {}
     boundary_by_reason: dict[str, dict[str, list[float]]] = {}
     boundary_by_unknown_subcategory: dict[str, dict[str, list[float]]] = {}
     boundary_by_asset: dict[str, dict[str, list[float]]] = {}
@@ -504,12 +555,22 @@ def _trend_pullback_exit_reason_summary(
         except (TypeError, ValueError):
             pnl = 0.0
         pnl_by_reason.setdefault(reason, []).append(pnl)
+        health_class = _exit_health_class(reason)
+        pnl_by_health_class.setdefault(health_class, []).append(pnl)
+        health_by_exit_reason.setdefault(reason, {}).setdefault(
+            health_class,
+            [],
+        ).append(pnl)
         boundary = _boundary_proximity_for_trade(
             trade=trade,
             boundary_by_trade_key=boundary_lookup,
         )
         boundary_bucket = str(boundary["boundary_proximity_bucket"])
         pnl_by_boundary_bucket.setdefault(boundary_bucket, []).append(pnl)
+        health_by_boundary_bucket.setdefault(boundary_bucket, {}).setdefault(
+            health_class,
+            [],
+        ).append(pnl)
         boundary_by_reason.setdefault(reason, {}).setdefault(
             boundary_bucket,
             [],
@@ -517,6 +578,10 @@ def _trend_pullback_exit_reason_summary(
         asset = str(trade.get("asset") or "")
         if asset:
             pnl_by_asset.setdefault(asset, []).append(pnl)
+            health_by_asset.setdefault(asset, {}).setdefault(
+                health_class,
+                [],
+            ).append(pnl)
             boundary_by_asset.setdefault(asset, {}).setdefault(
                 boundary_bucket,
                 [],
@@ -535,6 +600,10 @@ def _trend_pullback_exit_reason_summary(
                 unknown_subcategory,
                 [],
             ).append(pnl)
+            health_by_unknown_subcategory.setdefault(
+                unknown_subcategory,
+                {},
+            ).setdefault(health_class, []).append(pnl)
             boundary_by_unknown_subcategory.setdefault(
                 unknown_subcategory,
                 {},
@@ -585,6 +654,41 @@ def _trend_pullback_exit_reason_summary(
             ),
             "by_asset": _pnl_impact_by_dimension(pnl_by_asset),
             "by_fold_index": _pnl_impact_by_dimension(pnl_by_fold_index),
+        },
+        "exit_health_summary": {
+            "advisory_only": True,
+            "taxonomy": [
+                "healthy_exit",
+                "risk_exit",
+                "late_or_choppy_exit",
+                "boundary_exit",
+                "unknown_exit",
+                "neutral_exit",
+            ],
+            "overall": _exit_health_ratio_summary(pnl_by_health_class),
+            "by_asset": {
+                asset: _exit_health_ratio_summary(values_by_class)
+                for asset, values_by_class in sorted(health_by_asset.items())
+            },
+            "by_exit_reason": {
+                reason: {
+                    "exit_health_class": _exit_health_class(reason),
+                    "summary": _exit_health_ratio_summary(values_by_class),
+                }
+                for reason, values_by_class in sorted(health_by_exit_reason.items())
+            },
+            "by_unknown_subcategory": {
+                subcategory: _exit_health_ratio_summary(values_by_class)
+                for subcategory, values_by_class in sorted(
+                    health_by_unknown_subcategory.items()
+                )
+            },
+            "by_boundary_proximity_bucket": {
+                bucket: _exit_health_ratio_summary(values_by_class)
+                for bucket, values_by_class in sorted(
+                    health_by_boundary_bucket.items()
+                )
+            },
         },
         "boundary_proximity_summary": boundary_summary,
         "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),

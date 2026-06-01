@@ -22,6 +22,7 @@ from research.screening_runtime import (
     FINAL_STATUS_TIMED_OUT,
     ScreeningCandidateInterrupted,
     _classify_trend_pullback_exit_reason,
+    _exit_health_class,
     _exit_semantic_metadata,
     _sample_diagnostics_summary,
     _trend_break_bar_path_simulation_summary,
@@ -552,6 +553,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "signal_change_unknown_subcategory_counts": {},
                 "signal_change_unknown_subcategory_pnl_summary": {},
                 "realized_pnl_impact": _expected_empty_realized_pnl_impact(),
+                "exit_health_summary": _expected_empty_exit_health_summary(),
                 "boundary_proximity_summary": _expected_empty_boundary_summary(),
                 "pullback_resolved_count": 0,
                 "trend_break_count": 0,
@@ -609,6 +611,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "signal_change_unknown_subcategory_counts": {},
                 "signal_change_unknown_subcategory_pnl_summary": {},
                 "realized_pnl_impact": _expected_empty_realized_pnl_impact(),
+                "exit_health_summary": _expected_empty_exit_health_summary(),
                 "boundary_proximity_summary": _expected_empty_boundary_summary(),
                 "pullback_resolved_count": 0,
                 "trend_break_count": 0,
@@ -709,6 +712,176 @@ def test_pullback_resolved_and_trend_break_has_ambiguous_advisory_semantics() ->
     assert summary["exit_reason_semantics"][
         "pullback_resolved_and_trend_break"
     ]["exit_semantic_class"] == "ambiguous_late_or_choppy_exit"
+
+
+def _expected_empty_exit_health_summary() -> dict[str, object]:
+    return {
+        "advisory_only": True,
+        "taxonomy": [
+            "healthy_exit",
+            "risk_exit",
+            "late_or_choppy_exit",
+            "boundary_exit",
+            "unknown_exit",
+            "neutral_exit",
+        ],
+        "overall": {
+            "trade_count": 0,
+            "total_pnl": 0.0,
+            "health_class_counts": {},
+            "by_health_class": {},
+        },
+        "by_asset": {},
+        "by_exit_reason": {},
+        "by_unknown_subcategory": {},
+        "by_boundary_proximity_bucket": {},
+    }
+
+
+def test_exit_health_ratio_v1_maps_reasons_and_keeps_boundary_context_separate() -> None:
+    assert _exit_health_class("pullback_resolved") == "healthy_exit"
+    assert _exit_health_class("trend_break") == "risk_exit"
+    assert (
+        _exit_health_class("pullback_resolved_and_trend_break")
+        == "late_or_choppy_exit"
+    )
+    assert _exit_health_class("signal_change_unknown") == "unknown_exit"
+    assert _exit_health_class("window_end") == "boundary_exit"
+    assert _exit_health_class("unsupported_reason") == "neutral_exit"
+
+    trade_events = [
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": "healthy",
+            "exit_kind": "signal_change",
+            "pnl": 0.04,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": "risk",
+            "exit_kind": "signal_change",
+            "pnl": -0.03,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": "late",
+            "exit_kind": "signal_change",
+            "pnl": -0.01,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": "unknown",
+            "exit_kind": "signal_change",
+            "pnl": 0.0,
+        },
+        {
+            "asset": "TEST",
+            "fold_index": 0,
+            "exit_decision_timestamp_utc": "boundary",
+            "exit_kind": "window_end",
+            "pnl": 0.0,
+        },
+    ]
+    features_by_timestamp = {
+        "healthy": {
+            "pullback_distance": 1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+        "risk": {
+            "pullback_distance": -1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        "late": {
+            "pullback_distance": 1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+        "unknown": {
+            "pullback_distance": -1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+        "boundary": {
+            "pullback_distance": 1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+    }
+    summary = _trend_pullback_exit_reason_summary(
+        trade_events=trade_events,
+        features_by_timestamp=features_by_timestamp,
+        boundary_by_trade_key={
+            ("TEST", 0, "risk"): {"bars_to_window_end": 1},
+            ("TEST", 0, "boundary"): {"bars_to_window_end": 0},
+        },
+    )
+
+    health = summary["exit_health_summary"]
+    assert health["advisory_only"] is True
+    assert health["overall"]["health_class_counts"] == {
+        "boundary_exit": 1,
+        "healthy_exit": 1,
+        "late_or_choppy_exit": 1,
+        "risk_exit": 1,
+        "unknown_exit": 1,
+    }
+    assert health["overall"]["by_health_class"]["healthy_exit"][
+        "trade_share"
+    ] == 0.2
+    assert health["overall"]["by_health_class"]["risk_exit"]["total_pnl"] == -0.03
+    assert health["overall"]["by_health_class"]["risk_exit"]["pnl_share"] == 0.0
+    assert health["by_exit_reason"]["trend_break"]["exit_health_class"] == "risk_exit"
+    assert health["by_exit_reason"]["pullback_resolved_and_trend_break"][
+        "exit_health_class"
+    ] == "late_or_choppy_exit"
+    assert health["by_unknown_subcategory"]["signal_change_ambiguous_transition"][
+        "health_class_counts"
+    ] == {"unknown_exit": 1}
+    assert health["by_boundary_proximity_bucket"]["near_window_end_1_bar"][
+        "health_class_counts"
+    ] == {"risk_exit": 1}
+    assert health["by_boundary_proximity_bucket"]["window_end"][
+        "health_class_counts"
+    ] == {"boundary_exit": 1}
+
+
+def test_exit_health_ratio_handles_zero_total_pnl_safely() -> None:
+    summary = _trend_pullback_exit_reason_summary(
+        trade_events=[
+            {
+                "exit_decision_timestamp_utc": "healthy",
+                "exit_kind": "signal_change",
+                "pnl": 0.01,
+            },
+            {
+                "exit_decision_timestamp_utc": "risk",
+                "exit_kind": "signal_change",
+                "pnl": -0.01,
+            },
+        ],
+        features_by_timestamp={
+            "healthy": {
+                "pullback_distance": 1.0,
+                "ema_fast": 101.0,
+                "ema_slow": 100.0,
+            },
+            "risk": {
+                "pullback_distance": -1.0,
+                "ema_fast": 99.0,
+                "ema_slow": 100.0,
+            },
+        },
+    )
+
+    health = summary["exit_health_summary"]["overall"]["by_health_class"]
+    assert health["healthy_exit"]["pnl_share"] == 0.0
+    assert health["risk_exit"]["pnl_share"] == 0.0
     assert (
         _classify_trend_pullback_exit_reason(
             pullback_distance=-1.0,
