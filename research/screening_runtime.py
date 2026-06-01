@@ -304,6 +304,67 @@ def _classify_signal_change_unknown_subcategory(
     return "signal_change_ambiguous_transition"
 
 
+def _exit_semantic_metadata(exit_reason: str) -> dict[str, str]:
+    semantic_by_reason = {
+        "pullback_resolved": {
+            "exit_semantic_class": "clean_resolution_exit",
+            "exit_semantic_label": "clean pullback resolution",
+            "exit_semantic_warning": "",
+            "exit_semantic_explanation": (
+                "Pullback resolved without simultaneous trend-break evidence."
+            ),
+        },
+        "trend_break": {
+            "exit_semantic_class": "trend_break_risk_exit",
+            "exit_semantic_label": "trend break",
+            "exit_semantic_warning": "risk exit",
+            "exit_semantic_explanation": (
+                "Trend-following state broke before or at the exit decision."
+            ),
+        },
+        "pullback_resolved_and_trend_break": {
+            "exit_semantic_class": "ambiguous_late_or_choppy_exit",
+            "exit_semantic_label": "simultaneous pullback resolution and trend break",
+            "exit_semantic_warning": "not automatically healthy",
+            "exit_semantic_explanation": (
+                "Pullback resolution and trend-break evidence appeared together; "
+                "keep separate from clean pullback resolution until reviewed."
+            ),
+        },
+        "signal_change_unknown": {
+            "exit_semantic_class": "unknown_exit",
+            "exit_semantic_label": "unknown signal-change exit",
+            "exit_semantic_warning": "requires diagnostic explanation",
+            "exit_semantic_explanation": (
+                "Signal-change exit could not be classified from available "
+                "fold-local features or metadata."
+            ),
+        },
+        "window_end": {
+            "exit_semantic_class": "boundary_exit",
+            "exit_semantic_label": "window-end exit",
+            "exit_semantic_warning": "boundary context",
+            "exit_semantic_explanation": (
+                "Exit occurred because the fold/window ended; treat as boundary "
+                "context rather than strategy exit quality."
+            ),
+        },
+    }
+    return dict(
+        semantic_by_reason.get(
+            exit_reason,
+            {
+                "exit_semantic_class": "unsupported_exit_reason",
+                "exit_semantic_label": str(exit_reason or "unknown"),
+                "exit_semantic_warning": "unsupported exit reason",
+                "exit_semantic_explanation": (
+                    "No advisory semantic mapping exists for this exit reason."
+                ),
+            },
+        )
+    )
+
+
 def _boundary_proximity_bucket(
     *,
     bars_to_window_end: int | None,
@@ -499,6 +560,10 @@ def _trend_pullback_exit_reason_summary(
     return {
         "trade_count": int(trade_count),
         "exit_reason_counts": dict(sorted(reason_counts.items())),
+        "exit_reason_semantics": {
+            reason: _exit_semantic_metadata(reason)
+            for reason in sorted(reason_counts)
+        },
         "exit_reason_pnl_summary": {
             reason: _pnl_impact_summary(values)
             for reason, values in sorted(pnl_by_reason.items())

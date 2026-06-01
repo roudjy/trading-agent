@@ -22,6 +22,7 @@ from research.screening_runtime import (
     FINAL_STATUS_TIMED_OUT,
     ScreeningCandidateInterrupted,
     _classify_trend_pullback_exit_reason,
+    _exit_semantic_metadata,
     _sample_diagnostics_summary,
     _trend_break_bar_path_simulation_summary,
     _trend_break_bar_path_threshold_comparison_summary,
@@ -546,6 +547,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             "trend_pullback_exit_reason_summary": {
                 "trade_count": 0,
                 "exit_reason_counts": {},
+                "exit_reason_semantics": {},
                 "exit_reason_pnl_summary": {},
                 "signal_change_unknown_subcategory_counts": {},
                 "signal_change_unknown_subcategory_pnl_summary": {},
@@ -602,6 +604,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
             "trend_pullback_exit_reason_summary": {
                 "trade_count": 0,
                 "exit_reason_counts": {},
+                "exit_reason_semantics": {},
                 "exit_reason_pnl_summary": {},
                 "signal_change_unknown_subcategory_counts": {},
                 "signal_change_unknown_subcategory_pnl_summary": {},
@@ -665,6 +668,47 @@ def test_classify_trend_pullback_exit_reason_from_decision_features() -> None:
         )
         == "signal_change_unknown"
     )
+
+
+def test_pullback_resolved_and_trend_break_has_ambiguous_advisory_semantics() -> None:
+    reason = _classify_trend_pullback_exit_reason(
+        pullback_distance=1.0,
+        ema_fast=99.0,
+        ema_slow=100.0,
+        exit_kind="signal_change",
+    )
+
+    assert reason == "pullback_resolved_and_trend_break"
+    assert reason != "pullback_resolved"
+
+    semantic = _exit_semantic_metadata(reason)
+    assert semantic["exit_semantic_class"] == "ambiguous_late_or_choppy_exit"
+    assert semantic["exit_semantic_label"] == (
+        "simultaneous pullback resolution and trend break"
+    )
+    assert semantic["exit_semantic_warning"] == "not automatically healthy"
+
+    summary = _trend_pullback_exit_reason_summary(
+        trade_events=[
+            {
+                "exit_decision_timestamp_utc": "decision",
+                "exit_kind": "signal_change",
+            },
+        ],
+        features_by_timestamp={
+            "decision": {
+                "pullback_distance": 1.0,
+                "ema_fast": 99.0,
+                "ema_slow": 100.0,
+            },
+        },
+    )
+    assert summary["exit_reason_counts"] == {
+        "pullback_resolved_and_trend_break": 1,
+    }
+    assert summary["exit_reason_semantics"][
+        "pullback_resolved_and_trend_break"
+    ]["exit_semantic_class"] == "ambiguous_late_or_choppy_exit"
     assert (
         _classify_trend_pullback_exit_reason(
             pullback_distance=-1.0,
