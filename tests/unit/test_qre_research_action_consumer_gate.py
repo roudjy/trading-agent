@@ -265,3 +265,25 @@ def test_write_proposal_intake_outputs_writes_latest(monkeypatch, tmp_path: Path
     assert out == latest
     assert json.loads(latest.read_text(encoding="utf-8"))["schema_version"] == 1
 
+def test_utf8_bom_source_json_is_accepted(tmp_path: Path) -> None:
+    source = tmp_path / "queue.json"
+    source.write_text(
+        json.dumps(
+            {
+                "schema_version": "research_action_queue.v1",
+                "run_id": "run-qre",
+                "preset": "trend_pullback_equities_4h",
+                "item_count": 1,
+                "items": [_item()],
+            },
+            indent=2,
+        ),
+        encoding="utf-8-sig",
+    )
+
+    snap = gate.collect_snapshot(source_path=source, frozen_utc="2026-06-01T12:00:00Z")
+
+    assert snap["source"]["status"] == "ok"
+    assert snap["final_recommendation"] == "ready_for_ade_proposal_intake"
+    assert snap["counts"]["eligible_for_ade_proposal_intake"] == 1
+

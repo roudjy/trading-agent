@@ -91,7 +91,10 @@ def _rel(path: Path) -> str:
 
 def _read_json(path: Path) -> dict[str, Any] | None:
     try:
-        raw = path.read_text(encoding="utf-8")
+        # Windows PowerShell Set-Content -Encoding UTF8 may write a UTF-8 BOM.
+        # Accept it so local operator-generated sidecar fixtures do not fail closed
+        # as missing_or_unreadable.
+        raw = path.read_text(encoding="utf-8-sig")
     except OSError:
         return None
     try:
