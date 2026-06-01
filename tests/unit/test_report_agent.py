@@ -1269,3 +1269,132 @@ def test_paper_engine_divergence_component_diagnosis_renders_markdown():
     assert "slippage_drag=2.96%" in markdown
     assert "it does not change paper-readiness thresholds" in markdown
 
+def test_research_action_queue_builder_emits_divergence_action_item():
+    from research.report_agent import _build_research_action_queue_items
+
+    items = _build_research_action_queue_items(
+        paper_engine_divergence_diagnosis={
+            "high_divergence_candidate_count": 1,
+            "recommended_next_action": (
+                "inspect_engine_vs_venue_fee_model_before_strategy_or_threshold_changes"
+            ),
+            "closest_candidate_component_diagnosis": {
+                "candidate_id": "strategy|HD|4h|{}",
+                "divergence_severity": "high",
+                "divergence_component_driver": "fee_model_delta_dominant",
+                "n_full_fills": 30,
+                "metrics_delta": {"final_equity_delta_bps": 305.32},
+                "venue_cost_delta": {
+                    "fee_drag_engine_baseline": 0.0723,
+                    "fee_drag_venue": 0.0149,
+                },
+            },
+        }
+    )
+
+    assert len(items) == 1
+    item = items[0]
+    assert item["schema_version"] == "research_action_queue_item.v1"
+    assert item["queue_emitter_only"] is True
+    assert item["execution_enabled"] is False
+    assert item["action_id"] == (
+        "inspect_engine_vs_venue_fee_model_before_strategy_or_threshold_changes"
+    )
+    assert item["source_section"] == "paper_engine_divergence_component_diagnosis"
+    assert item["target_candidate_id"] == "strategy|HD|4h|{}"
+    assert item["priority"] == "high"
+    assert item["operator_approval_required"] is False
+    assert item["reason_codes"] == ["fee_model_delta_dominant"]
+    assert item["evidence"]["n_full_fills"] == 30
+    assert "automatic_campaign_queue_mutation" in item["forbidden_actions"]
+    assert "paper_runtime_activation" in item["forbidden_actions"]
+    assert item["paper_runtime_enabled"] is False
+    assert item["shadow_runtime_enabled"] is False
+    assert item["live_eligible"] is False
+
+
+def test_research_action_queue_builder_emits_operator_gated_shadow_review_item():
+    from research.report_agent import _build_research_action_queue_items
+
+    items = _build_research_action_queue_items(
+        candidate_shadow_readiness_report={
+            "readiness_status": "ready_for_operator_shadow_review",
+            "paper_ready_candidate_count": 1,
+            "operator_go_required": True,
+        }
+    )
+
+    assert len(items) == 1
+    item = items[0]
+    assert item["action_id"] == "operator_review_candidate_shadow_readiness"
+    assert item["source_section"] == "candidate_shadow_readiness_report"
+    assert item["operator_approval_required"] is True
+    assert item["execution_enabled"] is False
+    assert item["evidence"]["paper_ready_candidate_count"] == 1
+    assert item["evidence"]["operator_go_required"] is True
+
+def test_research_action_queue_items_render_markdown_surface():
+    from research.report_agent import _build_research_action_queue_items
+
+    items = _build_research_action_queue_items(
+        paper_engine_divergence_diagnosis={
+            "high_divergence_candidate_count": 1,
+            "recommended_next_action": (
+                "inspect_engine_vs_venue_fee_model_before_strategy_or_threshold_changes"
+            ),
+            "closest_candidate_component_diagnosis": {
+                "candidate_id": "strategy|HD|4h|{}",
+                "divergence_severity": "high",
+                "divergence_component_driver": "fee_model_delta_dominant",
+                "n_full_fills": 30,
+            },
+        },
+        no_paper_candidate_next_action_plan={
+            "paper_candidate_search_status": "no_ready_candidate",
+            "recommended_action_id": "inspect_paper_engine_divergence",
+            "bounded_next_step": (
+                "inspect_paper_engine_divergence_components_before_new_hypothesis_or_preset"
+            ),
+            "reason_codes": ["closest_candidate_has_execution_events_but_high_divergence"],
+            "closest_candidate": {"candidate_id": "strategy|HD|4h|{}"},
+            "regular_asset_scope": True,
+        },
+    )
+
+    markdown = render_markdown(
+        {
+            "run_id": "run-queue-items",
+            "generated_at_utc": "2026-06-01T12:00:00+00:00",
+            "preset": "trend_pullback_equities_4h",
+            "verdict": VERDICT_PROMOTED,
+            "summary": {
+                "raw": 1,
+                "screened": 1,
+                "validated": 1,
+                "rejected": 0,
+                "promoted": 1,
+            },
+            "candidates": [],
+            "top_rejection_reasons": [],
+            "top_rejection_reasons_by_layer": {
+                "screening_layer": [],
+                "promotion_layer": [],
+            },
+            "per_candidate_diagnostics": [],
+            "join_stats": {},
+            "red_flags": [],
+            "regime_diagnostics": {},
+            "statistical_diagnostics": {},
+            "research_action_queue_items": items,
+            "next_experiment": "Review queue items.",
+        }
+    )
+
+    assert "Research Action Queue Items (emitter only)" in markdown
+    assert "execution_enabled=False" in markdown
+    assert "`inspect_engine_vs_venue_fee_model_before_strategy_or_threshold_changes`" in markdown
+    assert "`inspect_paper_engine_divergence`" in markdown
+    assert "strategy|HD|4h|{}" in markdown
+    assert "forbidden_actions:" in markdown
+    assert "write an ADE queue" in markdown
+
