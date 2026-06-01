@@ -743,3 +743,116 @@ def test_trend_pullback_exit_quality_handles_missing_diagnostics_gracefully():
         )[0]["exit_health_counts"]
         == {}
     )
+
+def test_candidate_shadow_readiness_report_fails_closed_without_paper_readiness():
+    from research.report_agent import _candidate_shadow_readiness_report
+
+    report = _candidate_shadow_readiness_report(
+        None,
+        [
+            {
+                "best_sample_exit_quality_audit": {
+                    "exit_quality_disagreement": False,
+                },
+                "exit_health_counts": {
+                    "risk_exit": 1,
+                    "late_or_choppy_exit": 0,
+                    "unknown_exit": 0,
+                    "boundary_exit": 0,
+                },
+            }
+        ],
+    )
+
+    assert report is not None
+    assert report["readiness_status"] == "blocked"
+    assert report["advisory_only"] is True
+    assert report["shadow_runtime_enabled"] is False
+    assert report["paper_runtime_enabled"] is False
+    assert report["live_eligible"] is False
+    assert "paper_readiness_missing" in report["blocking_reasons"]
+
+    markdown = render_markdown(
+        {
+            "run_id": "run-shadow-readiness-missing",
+            "generated_at_utc": "2026-06-01T12:00:00+00:00",
+            "preset": "trend_equities_4h_baseline",
+            "verdict": VERDICT_PROMOTED,
+            "summary": {
+                "raw": 1,
+                "screened": 1,
+                "validated": 1,
+                "rejected": 0,
+                "promoted": 1,
+            },
+            "candidates": [],
+            "top_rejection_reasons": [],
+            "top_rejection_reasons_by_layer": {
+                "screening_layer": [],
+                "promotion_layer": [],
+            },
+            "per_candidate_diagnostics": [],
+            "join_stats": {},
+            "red_flags": [],
+            "regime_diagnostics": {},
+            "statistical_diagnostics": {},
+            "candidate_shadow_readiness_report": report,
+            "next_experiment": "Review shadow readiness blockers.",
+        }
+    )
+
+    assert "Candidate Shadow Readiness (advisory only, default-off)" in markdown
+    assert "paper_readiness_missing" in markdown
+    assert "this report does not authorize runtime activation" in markdown
+
+
+def test_candidate_shadow_readiness_report_can_recommend_operator_review_default_off():
+    from research.report_agent import _candidate_shadow_readiness_report
+
+    paper_readiness = {
+        "counts": {
+            "ready_for_paper_promotion": 1,
+            "blocked": 0,
+            "insufficient_evidence": 0,
+        },
+        "entries": [
+            {
+                "candidate_id": "cand-1",
+                "asset_type": "equity",
+                "sleeve_id": None,
+                "readiness_status": "ready_for_paper_promotion",
+                "blocking_reasons": [],
+                "warnings": [],
+                "evidence": {},
+            }
+        ],
+    }
+
+    report = _candidate_shadow_readiness_report(
+        paper_readiness,
+        [
+            {
+                "best_sample_exit_quality_audit": {
+                    "exit_quality_disagreement": False,
+                },
+                "exit_health_counts": {
+                    "risk_exit": 0,
+                    "late_or_choppy_exit": 0,
+                    "unknown_exit": 0,
+                    "boundary_exit": 0,
+                },
+            }
+        ],
+    )
+
+    assert report is not None
+    assert report["readiness_status"] == "ready_for_operator_shadow_review"
+    assert report["eligible_for_operator_shadow_review"] is True
+    assert report["paper_ready_candidate_count"] == 1
+    assert report["blocking_reasons"] == []
+    assert report["shadow_runtime_enabled"] is False
+    assert report["paper_runtime_enabled"] is False
+    assert report["live_eligible"] is False
+    assert report["operator_go_required"] is True
+    assert report["candidates"][0]["eligible_for_operator_shadow_review"] is True
+

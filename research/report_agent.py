@@ -235,6 +235,137 @@ def _paper_layer_summary(
     }
 
 
+
+def _candidate_shadow_readiness_report(
+    paper_readiness: dict[str, Any] | None,
+    exit_quality_rows: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Build a report-only candidate shadow-readiness surface.
+
+    This is deliberately not a runtime gate. It combines existing paper
+    readiness evidence with exit-quality diagnostics so the operator can see
+    whether candidates are even worth considering for a future shadow-review
+    lane. Missing evidence fails closed. Shadow/paper runtime flags stay off.
+    """
+    if not paper_readiness and not exit_quality_rows:
+        return None
+
+    readiness = paper_readiness or {}
+    entries = readiness.get("entries") if isinstance(readiness, dict) else []
+    if not isinstance(entries, list):
+        entries = []
+
+    quality_rows = exit_quality_rows if isinstance(exit_quality_rows, list) else []
+
+    ready_count = 0
+    blocked_count = 0
+    insufficient_count = 0
+    candidate_summaries: list[dict[str, Any]] = []
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        status = entry.get("readiness_status")
+        if status == "ready_for_paper_promotion":
+            ready_count += 1
+        elif status == "blocked":
+            blocked_count += 1
+        elif status == "insufficient_evidence":
+            insufficient_count += 1
+
+        candidate_summaries.append(
+            {
+                "candidate_id": entry.get("candidate_id"),
+                "paper_readiness_status": status,
+                "blocking_reasons": list(entry.get("blocking_reasons") or []),
+                "warnings": list(entry.get("warnings") or []),
+                "eligible_for_operator_shadow_review": (
+                    status == "ready_for_paper_promotion"
+                ),
+            }
+        )
+
+    quality_disagreement_count = 0
+    late_or_choppy_candidate_count = 0
+    risk_exit_candidate_count = 0
+    unknown_exit_candidate_count = 0
+    boundary_exit_candidate_count = 0
+
+    for row in quality_rows:
+        if not isinstance(row, dict):
+            continue
+        audit = row.get("best_sample_exit_quality_audit") or {}
+        if bool(audit.get("exit_quality_disagreement")):
+            quality_disagreement_count += 1
+        counts = row.get("exit_health_counts") or {}
+        if int(counts.get("late_or_choppy_exit", 0) or 0) > 0:
+            late_or_choppy_candidate_count += 1
+        if int(counts.get("risk_exit", 0) or 0) > 0:
+            risk_exit_candidate_count += 1
+        if int(counts.get("unknown_exit", 0) or 0) > 0:
+            unknown_exit_candidate_count += 1
+        if int(counts.get("boundary_exit", 0) or 0) > 0:
+            boundary_exit_candidate_count += 1
+
+    blocking_reasons: list[str] = []
+    warnings: list[str] = []
+
+    if not readiness or not entries:
+        blocking_reasons.append("paper_readiness_missing")
+    if entries and ready_count == 0:
+        blocking_reasons.append("no_paper_ready_candidates")
+    if blocked_count:
+        blocking_reasons.append("paper_readiness_blocked_candidates_present")
+    if not quality_rows:
+        blocking_reasons.append("exit_quality_missing")
+    if quality_disagreement_count:
+        warnings.append("exit_quality_best_sample_disagreement_present")
+    if late_or_choppy_candidate_count:
+        warnings.append("late_or_choppy_exits_present")
+    if risk_exit_candidate_count:
+        warnings.append("risk_exits_present")
+    if unknown_exit_candidate_count:
+        warnings.append("unknown_exits_present")
+    if boundary_exit_candidate_count:
+        warnings.append("boundary_exits_present")
+
+    if blocking_reasons:
+        readiness_status = "blocked"
+    elif ready_count == 0 or quality_disagreement_count:
+        readiness_status = "insufficient_evidence"
+    else:
+        readiness_status = "ready_for_operator_shadow_review"
+
+    return {
+        "schema_version": "candidate_shadow_readiness_report.v1",
+        "advisory_only": True,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "shadow_runtime_enabled": False,
+        "paper_runtime_enabled": False,
+        "operator_go_required": True,
+        "readiness_status": readiness_status,
+        "eligible_for_operator_shadow_review": (
+            readiness_status == "ready_for_operator_shadow_review"
+        ),
+        "blocking_reasons": blocking_reasons,
+        "warnings": warnings,
+        "candidate_count": len(candidate_summaries),
+        "paper_ready_candidate_count": ready_count,
+        "paper_blocked_candidate_count": blocked_count,
+        "paper_insufficient_evidence_candidate_count": insufficient_count,
+        "exit_quality_candidate_count": len(quality_rows),
+        "exit_quality_disagreement_count": quality_disagreement_count,
+        "late_or_choppy_candidate_count": late_or_choppy_candidate_count,
+        "risk_exit_candidate_count": risk_exit_candidate_count,
+        "unknown_exit_candidate_count": unknown_exit_candidate_count,
+        "boundary_exit_candidate_count": boundary_exit_candidate_count,
+        "candidates": candidate_summaries,
+    }
+
+
+
 def _lifecycle_breakdown(
     per_candidate: list[dict[str, Any]],
 ) -> dict[str, int] | None:
@@ -760,6 +891,10 @@ def build_report_payload(
             _load_json(_PAPER_LEDGER_SIDECAR),
             _load_json(_PAPER_DIVERGENCE_SIDECAR),
             _load_json(_PAPER_READINESS_SIDECAR),
+        ),
+        "candidate_shadow_readiness_report": _candidate_shadow_readiness_report(
+            _load_json(_PAPER_READINESS_SIDECAR),
+            _build_trend_pullback_exit_quality(screening_candidates_payload),
         ),
     }
 
@@ -1381,6 +1516,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
     _append_portfolio_layer_section(lines, report.get("portfolio_layer_summary"))
     _append_paper_layer_section(lines, report.get("paper_layer_summary"))
+    _append_candidate_shadow_readiness_section(
+        lines,
+        report.get("candidate_shadow_readiness_report"),
+    )
 
     red_flags = report.get("red_flags") or []
     if red_flags:
@@ -1494,6 +1633,64 @@ def _append_paper_layer_section(
         f"- live_eligible: {summary.get('live_eligible')} (v3.15 is research-only)"
     )
     lines.append("")
+
+
+
+def _append_candidate_shadow_readiness_section(
+    lines: list[str], summary: dict[str, Any] | None
+) -> None:
+    """Render advisory candidate shadow-readiness evidence.
+
+    This section is deliberately default-off: it can recommend operator review,
+    but it cannot activate shadow, paper, or live behavior.
+    """
+    if not summary:
+        return
+    lines.append("## Candidate Shadow Readiness (advisory only, default-off)")
+    lines.append(f"- readiness_status: {summary.get('readiness_status')}")
+    lines.append(
+        "- runtime_enabled: "
+        f"shadow={summary.get('shadow_runtime_enabled')}, "
+        f"paper={summary.get('paper_runtime_enabled')}, "
+        f"live_eligible={summary.get('live_eligible')}"
+    )
+    lines.append(
+        "- operator_go_required: "
+        f"{summary.get('operator_go_required')} "
+        "(this report does not authorize runtime activation)"
+    )
+    lines.append(
+        "- candidates: "
+        f"total={summary.get('candidate_count')}, "
+        f"paper_ready={summary.get('paper_ready_candidate_count')}, "
+        f"blocked={summary.get('paper_blocked_candidate_count')}, "
+        f"insufficient_evidence={summary.get('paper_insufficient_evidence_candidate_count')}"
+    )
+    lines.append(
+        "- exit_quality_context: "
+        f"rows={summary.get('exit_quality_candidate_count')}, "
+        f"disagreements={summary.get('exit_quality_disagreement_count')}, "
+        f"risk_candidates={summary.get('risk_exit_candidate_count')}, "
+        f"late_or_choppy_candidates={summary.get('late_or_choppy_candidate_count')}, "
+        f"unknown_candidates={summary.get('unknown_exit_candidate_count')}, "
+        f"boundary_candidates={summary.get('boundary_exit_candidate_count')}"
+    )
+    blockers = summary.get("blocking_reasons") or []
+    warnings = summary.get("warnings") or []
+    lines.append(
+        "- blocking_reasons: "
+        + (", ".join(str(reason) for reason in blockers) if blockers else "none")
+    )
+    lines.append(
+        "- warnings: "
+        + (", ".join(str(reason) for reason in warnings) if warnings else "none")
+    )
+    lines.append(
+        "- advisory: candidate shadow readiness is evidence context only; "
+        "best-sample selection, paper runtime, shadow runtime, and live paths remain unchanged."
+    )
+    lines.append("")
+
 
 
 def _append_hypothesis_section(lines: list[str]) -> None:
