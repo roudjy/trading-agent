@@ -1547,6 +1547,167 @@ def _sample_diagnostic(
         },
     }
 
+
+def _health_class_share(
+    health_summary: dict[str, Any],
+    health_class: str,
+) -> float:
+    try:
+        return float(
+            health_summary["overall"]["by_health_class"]
+            .get(health_class, {})
+            .get("trade_share", 0.0)
+        )
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return 0.0
+
+
+def _health_class_total_pnl(
+    health_summary: dict[str, Any],
+    health_class: str,
+) -> float:
+    try:
+        return float(
+            health_summary["overall"]["by_health_class"]
+            .get(health_class, {})
+            .get("total_pnl", 0.0)
+        )
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return 0.0
+
+
+def _sample_exit_quality_score(sample: dict[str, Any]) -> float:
+    exit_summary = sample.get("trend_pullback_exit_reason_summary") or {}
+    health_summary = exit_summary.get("exit_health_summary") or {}
+    healthy = _health_class_share(health_summary, "healthy_exit")
+    risk = _health_class_share(health_summary, "risk_exit")
+    late = _health_class_share(health_summary, "late_or_choppy_exit")
+    unknown = _health_class_share(health_summary, "unknown_exit")
+    boundary = _health_class_share(health_summary, "boundary_exit")
+    return float(healthy - risk - late - unknown - boundary)
+
+
+def _sample_exit_quality_audit(
+    *,
+    sample_diagnostics: list[dict[str, Any]],
+    selected_best_sample_index: int | None,
+) -> dict[str, Any]:
+    if not sample_diagnostics:
+        return {
+            "advisory_only": True,
+            "selected_best_sample_index": selected_best_sample_index,
+            "performance_best_sample_index": selected_best_sample_index,
+            "exit_quality_best_sample_index": None,
+            "exit_quality_disagreement": False,
+            "selected_sample_health_score": 0.0,
+            "exit_quality_best_health_score": 0.0,
+            "selected_sample_risk_exit_share": 0.0,
+            "selected_sample_unknown_exit_share": 0.0,
+            "selected_sample_boundary_exit_share": 0.0,
+            "selected_sample_late_or_choppy_exit_share": 0.0,
+            "selected_sample_total_pnl": 0.0,
+            "selected_sample_risk_exit_total_pnl": 0.0,
+            "advisory_message": "No sample diagnostics available for exit-quality audit.",
+        }
+
+    scored = [
+        (int(sample.get("sample_index", index)), _sample_exit_quality_score(sample))
+        for index, sample in enumerate(sample_diagnostics)
+    ]
+    exit_quality_best_index, exit_quality_best_score = max(
+        scored,
+        key=lambda item: (item[1], -item[0]),
+    )
+    selected_sample = next(
+        (
+            sample
+            for sample in sample_diagnostics
+            if sample.get("sample_index") == selected_best_sample_index
+        ),
+        None,
+    )
+    selected_health = (
+        (selected_sample.get("trend_pullback_exit_reason_summary") or {}).get(
+            "exit_health_summary"
+        )
+        or {}
+        if isinstance(selected_sample, dict)
+        else {}
+    )
+    selected_impact = (
+        (selected_sample.get("trend_pullback_exit_reason_summary") or {}).get(
+            "realized_pnl_impact"
+        )
+        or {}
+        if isinstance(selected_sample, dict)
+        else {}
+    )
+
+    selected_score = (
+        _sample_exit_quality_score(selected_sample)
+        if isinstance(selected_sample, dict)
+        else 0.0
+    )
+    selected_total_pnl = 0.0
+    try:
+        selected_total_pnl = float(
+            sum(
+                item.get("total_pnl", 0.0)
+                for item in (selected_impact.get("by_exit_reason") or {}).values()
+                if isinstance(item, dict)
+            )
+        )
+    except (AttributeError, TypeError, ValueError):
+        selected_total_pnl = 0.0
+
+    disagreement = (
+        selected_best_sample_index is not None
+        and int(selected_best_sample_index) != int(exit_quality_best_index)
+    )
+    if disagreement:
+        message = (
+            "Selected performance-best sample differs from advisory "
+            "exit-quality-best sample; review before trusting exit quality."
+        )
+    else:
+        message = (
+            "Selected performance-best sample matches advisory exit-quality-best "
+            "sample."
+        )
+
+    return {
+        "advisory_only": True,
+        "selected_best_sample_index": selected_best_sample_index,
+        "performance_best_sample_index": selected_best_sample_index,
+        "exit_quality_best_sample_index": int(exit_quality_best_index),
+        "exit_quality_disagreement": bool(disagreement),
+        "selected_sample_health_score": float(selected_score),
+        "exit_quality_best_health_score": float(exit_quality_best_score),
+        "selected_sample_risk_exit_share": _health_class_share(
+            selected_health,
+            "risk_exit",
+        ),
+        "selected_sample_unknown_exit_share": _health_class_share(
+            selected_health,
+            "unknown_exit",
+        ),
+        "selected_sample_boundary_exit_share": _health_class_share(
+            selected_health,
+            "boundary_exit",
+        ),
+        "selected_sample_late_or_choppy_exit_share": _health_class_share(
+            selected_health,
+            "late_or_choppy_exit",
+        ),
+        "selected_sample_total_pnl": float(selected_total_pnl),
+        "selected_sample_risk_exit_total_pnl": _health_class_total_pnl(
+            selected_health,
+            "risk_exit",
+        ),
+        "advisory_message": message,
+    }
+
+
 def _sample_diagnostics_summary(sample_diagnostics: list[dict[str, Any]]) -> dict[str, Any]:
     reason_counts = Counter(
         str(item.get("reason") or "passed")
@@ -1591,6 +1752,10 @@ def _sample_diagnostics_summary(sample_diagnostics: list[dict[str, Any]]) -> dic
         "best_expectancy": float(best_metrics.get("expectancy", 0.0)),
         "best_profit_factor": float(best_metrics.get("profit_factor", 0.0)),
         "best_totaal_trades": float(best_metrics.get("totaal_trades", 0.0)),
+        "best_sample_exit_quality_audit": _sample_exit_quality_audit(
+            sample_diagnostics=sample_diagnostics,
+            selected_best_sample_index=best_sample_index,
+        ),
     }
 
 def execute_screening_candidate_samples(
