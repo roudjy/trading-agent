@@ -815,6 +815,223 @@ def _paper_engine_divergence_component_diagnosis(
 
 
 
+
+_RESEARCH_ACTION_FORBIDDEN_ACTIONS: list[str] = [
+    "automatic_strategy_change",
+    "automatic_preset_change",
+    "automatic_campaign_queue_mutation",
+    "threshold_change",
+    "readiness_threshold_change",
+    "paper_runtime_activation",
+    "shadow_runtime_activation",
+    "live_trading",
+]
+
+
+def _research_action_queue_item(
+    *,
+    action_id: str,
+    source_section: str,
+    target_candidate_id: Any = None,
+    priority: str = "medium",
+    reason_codes: list[str] | None = None,
+    bounded_next_step: str | None = None,
+    scope: str = "report_only",
+    operator_approval_required: bool = False,
+    evidence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a machine-readable advisory research action queue item.
+
+    This does not enqueue, execute, mutate campaigns, mutate presets, mutate
+    strategies, or activate paper/shadow/live runtime.
+    """
+    return {
+        "schema_version": "research_action_queue_item.v1",
+        "advisory_only": True,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "queue_emitter_only": True,
+        "execution_enabled": False,
+        "live_eligible": False,
+        "paper_runtime_enabled": False,
+        "shadow_runtime_enabled": False,
+        "action_id": action_id,
+        "queue_item_type": action_id,
+        "source_section": source_section,
+        "target_candidate_id": target_candidate_id,
+        "priority": priority,
+        "scope": scope,
+        "operator_approval_required": operator_approval_required,
+        "bounded_next_step": bounded_next_step or action_id,
+        "reason_codes": list(reason_codes or []),
+        "forbidden_actions": list(_RESEARCH_ACTION_FORBIDDEN_ACTIONS),
+        "evidence": dict(evidence or {}),
+    }
+
+
+def _build_research_action_queue_items(
+    *,
+    paper_readiness_diagnosis: dict[str, Any] | None = None,
+    paper_engine_divergence_diagnosis: dict[str, Any] | None = None,
+    no_paper_candidate_next_action_plan: dict[str, Any] | None = None,
+    candidate_shadow_readiness_report: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Emit advisory next-action queue items from report diagnostics.
+
+    The output is machine-readable intent only. It is not a persisted queue,
+    not an ADE command, and not a campaign mutation.
+    """
+    items: list[dict[str, Any]] = []
+
+    if isinstance(paper_engine_divergence_diagnosis, dict):
+        closest = (
+            paper_engine_divergence_diagnosis.get(
+                "closest_candidate_component_diagnosis"
+            )
+            or {}
+        )
+        action = paper_engine_divergence_diagnosis.get("recommended_next_action")
+        if action:
+            items.append(
+                _research_action_queue_item(
+                    action_id=str(action),
+                    source_section="paper_engine_divergence_component_diagnosis",
+                    target_candidate_id=closest.get("candidate_id")
+                    if isinstance(closest, dict)
+                    else None,
+                    priority="high"
+                    if paper_engine_divergence_diagnosis.get(
+                        "high_divergence_candidate_count"
+                    )
+                    else "medium",
+                    reason_codes=[
+                        str(closest.get("divergence_component_driver"))
+                    ]
+                    if isinstance(closest, dict)
+                    and closest.get("divergence_component_driver")
+                    else [],
+                    bounded_next_step=str(action),
+                    scope="report_only",
+                    operator_approval_required=False,
+                    evidence={
+                        "divergence_severity": closest.get("divergence_severity")
+                        if isinstance(closest, dict)
+                        else None,
+                        "n_full_fills": closest.get("n_full_fills")
+                        if isinstance(closest, dict)
+                        else None,
+                        "metrics_delta": closest.get("metrics_delta")
+                        if isinstance(closest, dict)
+                        else None,
+                        "venue_cost_delta": closest.get("venue_cost_delta")
+                        if isinstance(closest, dict)
+                        else None,
+                    },
+                )
+            )
+
+    if isinstance(no_paper_candidate_next_action_plan, dict):
+        action = no_paper_candidate_next_action_plan.get("bounded_next_step")
+        closest = no_paper_candidate_next_action_plan.get("closest_candidate") or {}
+        if action:
+            items.append(
+                _research_action_queue_item(
+                    action_id=str(
+                        no_paper_candidate_next_action_plan.get(
+                            "recommended_action_id"
+                        )
+                        or action
+                    ),
+                    source_section="no_paper_candidate_next_action_plan",
+                    target_candidate_id=closest.get("candidate_id")
+                    if isinstance(closest, dict)
+                    else None,
+                    priority="high"
+                    if no_paper_candidate_next_action_plan.get(
+                        "paper_candidate_search_status"
+                    )
+                    == "no_ready_candidate"
+                    else "medium",
+                    reason_codes=[
+                        str(reason)
+                        for reason in (
+                            no_paper_candidate_next_action_plan.get(
+                                "reason_codes"
+                            )
+                            or []
+                        )
+                    ],
+                    bounded_next_step=str(action),
+                    scope="report_only",
+                    operator_approval_required=False,
+                    evidence={
+                        "regular_asset_scope": no_paper_candidate_next_action_plan.get(
+                            "regular_asset_scope"
+                        ),
+                        "paper_candidate_search_status": no_paper_candidate_next_action_plan.get(
+                            "paper_candidate_search_status"
+                        ),
+                        "hypothesis_preset_proposal_gate": no_paper_candidate_next_action_plan.get(
+                            "hypothesis_preset_proposal_gate"
+                        ),
+                    },
+                )
+            )
+
+    if isinstance(paper_readiness_diagnosis, dict):
+        status = paper_readiness_diagnosis.get("paper_candidate_search_status")
+        if status == "missing_paper_readiness":
+            items.append(
+                _research_action_queue_item(
+                    action_id="run_or_repair_paper_readiness_sidecar_generation",
+                    source_section="paper_readiness_blocker_diagnosis",
+                    priority="high",
+                    reason_codes=["paper_readiness_artifact_missing"],
+                    bounded_next_step="run_or_repair_paper_readiness_sidecar_generation",
+                    operator_approval_required=False,
+                    evidence={"paper_candidate_search_status": status},
+                )
+            )
+
+    if isinstance(candidate_shadow_readiness_report, dict):
+        readiness = candidate_shadow_readiness_report.get("readiness_status")
+        if readiness == "ready_for_operator_shadow_review":
+            items.append(
+                _research_action_queue_item(
+                    action_id="operator_review_candidate_shadow_readiness",
+                    source_section="candidate_shadow_readiness_report",
+                    priority="high",
+                    reason_codes=["candidate_shadow_readiness_ready"],
+                    bounded_next_step="operator_review_candidate_shadow_readiness",
+                    operator_approval_required=True,
+                    evidence={
+                        "paper_ready_candidate_count": candidate_shadow_readiness_report.get(
+                            "paper_ready_candidate_count"
+                        ),
+                        "operator_go_required": candidate_shadow_readiness_report.get(
+                            "operator_go_required"
+                        ),
+                    },
+                )
+            )
+
+    deduped: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in items:
+        key = (
+            str(item.get("action_id")),
+            str(item.get("source_section")),
+            str(item.get("target_candidate_id")),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+
+    return deduped
+
+
+
 def _candidate_shadow_readiness_report(
     paper_readiness: dict[str, Any] | None,
     exit_quality_rows: list[dict[str, Any]],
