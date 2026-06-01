@@ -624,6 +624,197 @@ def _next_research_action_from_paper_diagnosis(
 
 
 
+
+def _safe_float_or_none(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _paper_engine_divergence_driver(
+    *,
+    final_equity_delta_bps: float | None,
+    fee_drag_delta_vs_baseline: float | None,
+    slippage_drag: float | None,
+    n_full_fills: int,
+) -> str:
+    if final_equity_delta_bps is None:
+        return "missing_metrics_delta"
+    if n_full_fills <= 0:
+        return "no_full_fills"
+
+    fee_abs = abs(fee_drag_delta_vs_baseline or 0.0)
+    slip_abs = abs(slippage_drag or 0.0)
+
+    if fee_abs == 0.0 and slip_abs == 0.0:
+        return "metrics_delta_without_cost_component_breakdown"
+    if slip_abs > fee_abs * 1.5:
+        return "slippage_drag_dominant"
+    if fee_abs > slip_abs * 1.5:
+        return "fee_model_delta_dominant"
+    return "mixed_fee_and_slippage_effects"
+
+
+def _paper_engine_divergence_next_action(driver: str) -> str:
+    mapping = {
+        "missing_metrics_delta": "repair_paper_divergence_metrics_before_threshold_review",
+        "no_full_fills": "inspect_execution_event_coverage_before_divergence_review",
+        "slippage_drag_dominant": "inspect_venue_slippage_assumptions_before_strategy_or_threshold_changes",
+        "fee_model_delta_dominant": "inspect_engine_vs_venue_fee_model_before_strategy_or_threshold_changes",
+        "mixed_fee_and_slippage_effects": "inspect_combined_fee_and_slippage_model_before_strategy_or_threshold_changes",
+        "metrics_delta_without_cost_component_breakdown": "inspect_paper_divergence_payload_completeness",
+    }
+    return mapping.get(driver, "inspect_paper_engine_divergence_components")
+
+
+def _paper_engine_divergence_component_diagnosis(
+    paper_divergence: dict[str, Any] | None,
+    paper_diagnosis: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Explain paper-engine divergence components using existing sidecar fields.
+
+    Report-only: does not change divergence math, readiness thresholds,
+    strategy behavior, presets, campaign queues, or runtime activation.
+    """
+    if not paper_divergence:
+        return None
+
+    per_candidate = paper_divergence.get("per_candidate")
+    if not isinstance(per_candidate, list):
+        per_candidate = []
+
+    closest_candidate_id = None
+    if isinstance(paper_diagnosis, dict):
+        closest = paper_diagnosis.get("closest_candidate") or {}
+        if isinstance(closest, dict):
+            closest_candidate_id = closest.get("candidate_id")
+
+    rows: list[dict[str, Any]] = []
+    driver_counts: dict[str, int] = {}
+    high_count = 0
+
+    for entry in per_candidate:
+        if not isinstance(entry, dict):
+            continue
+
+        metrics = entry.get("metrics_delta") if isinstance(entry.get("metrics_delta"), dict) else {}
+        costs = entry.get("venue_cost_delta") if isinstance(entry.get("venue_cost_delta"), dict) else {}
+
+        severity = entry.get("divergence_severity")
+        final_bps = _safe_float_or_none(metrics.get("final_equity_delta_bps"))
+        cumulative_adjustment = _safe_float_or_none(metrics.get("cumulative_adjustment"))
+        sharpe_proxy_delta = _safe_float_or_none(metrics.get("sharpe_proxy_delta"))
+
+        venue_fee = _safe_float_or_none(costs.get("venue_fee_per_side"))
+        venue_slippage = _safe_float_or_none(costs.get("venue_slippage_bps"))
+        per_fill_adjustment = _safe_float_or_none(costs.get("per_fill_adjustment"))
+        fee_drag_venue = _safe_float_or_none(costs.get("fee_drag_venue"))
+        fee_drag_engine = _safe_float_or_none(costs.get("fee_drag_engine_baseline"))
+        fee_delta = _safe_float_or_none(costs.get("fee_drag_delta_vs_baseline"))
+        slippage_drag = _safe_float_or_none(costs.get("slippage_drag"))
+
+        n_full_fills = int(entry.get("n_full_fills") or 0)
+
+        driver = _paper_engine_divergence_driver(
+            final_equity_delta_bps=final_bps,
+            fee_drag_delta_vs_baseline=fee_delta,
+            slippage_drag=slippage_drag,
+            n_full_fills=n_full_fills,
+        )
+        driver_counts[driver] = driver_counts.get(driver, 0) + 1
+        if severity == "high":
+            high_count += 1
+
+        rows.append(
+            {
+                "candidate_id": entry.get("candidate_id"),
+                "asset_hint": _candidate_id_asset_hint(entry.get("candidate_id")),
+                "asset_type": entry.get("asset_type"),
+                "sleeve_id": entry.get("sleeve_id"),
+                "venue": entry.get("venue"),
+                "included_in_portfolio": entry.get("included_in_portfolio"),
+                "reason_excluded": entry.get("reason_excluded"),
+                "divergence_severity": severity,
+                "n_full_fills": n_full_fills,
+                "metrics_delta": {
+                    "final_equity_delta_bps": final_bps,
+                    "cumulative_adjustment": cumulative_adjustment,
+                    "sharpe_proxy_delta": sharpe_proxy_delta,
+                },
+                "venue_cost_delta": {
+                    "venue_fee_per_side": venue_fee,
+                    "venue_slippage_bps": venue_slippage,
+                    "per_fill_adjustment": per_fill_adjustment,
+                    "fee_drag_venue": fee_drag_venue,
+                    "fee_drag_engine_baseline": fee_drag_engine,
+                    "fee_drag_delta_vs_baseline": fee_delta,
+                    "slippage_drag": slippage_drag,
+                },
+                "divergence_component_driver": driver,
+                "recommended_next_action": _paper_engine_divergence_next_action(driver),
+                "is_closest_paper_candidate": (
+                    closest_candidate_id is not None
+                    and entry.get("candidate_id") == closest_candidate_id
+                ),
+            }
+        )
+
+    if not rows:
+        return {
+            "schema_version": "paper_engine_divergence_component_diagnosis.v1",
+            "advisory_only": True,
+            "authoritative": False,
+            "diagnostic_only": True,
+            "live_eligible": False,
+            "paper_runtime_enabled": False,
+            "shadow_runtime_enabled": False,
+            "candidate_count": 0,
+            "high_divergence_candidate_count": 0,
+            "component_driver_counts": {},
+            "closest_candidate_component_diagnosis": None,
+            "recommended_next_action": "run_or_repair_paper_divergence_sidecar_generation",
+            "candidates": [],
+        }
+
+    closest_row = None
+    for row in rows:
+        if row.get("is_closest_paper_candidate"):
+            closest_row = row
+            break
+
+    if closest_row is None:
+        # Prefer high-divergence rows, then rows with largest absolute equity delta.
+        closest_row = max(
+            rows,
+            key=lambda row: (
+                1 if row.get("divergence_severity") == "high" else 0,
+                abs((row.get("metrics_delta") or {}).get("final_equity_delta_bps") or 0.0),
+                int(row.get("n_full_fills") or 0),
+            ),
+        )
+
+    return {
+        "schema_version": "paper_engine_divergence_component_diagnosis.v1",
+        "advisory_only": True,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "paper_runtime_enabled": False,
+        "shadow_runtime_enabled": False,
+        "candidate_count": len(rows),
+        "high_divergence_candidate_count": high_count,
+        "component_driver_counts": dict(sorted(driver_counts.items())),
+        "severity_counts": paper_divergence.get("severity_counts") or {},
+        "closest_candidate_component_diagnosis": closest_row,
+        "recommended_next_action": closest_row.get("recommended_next_action"),
+        "candidates": rows,
+    }
+
+
+
 def _candidate_shadow_readiness_report(
     paper_readiness: dict[str, Any] | None,
     exit_quality_rows: list[dict[str, Any]],
@@ -1280,10 +1471,18 @@ def build_report_payload(
             _load_json(_PAPER_DIVERGENCE_SIDECAR),
             _load_json(_PAPER_READINESS_SIDECAR),
         ),
-        "paper_readiness_blocker_diagnosis": _paper_readiness_blocker_diagnosis(
-            _load_json(_PAPER_READINESS_SIDECAR),
-            _load_json(_PAPER_LEDGER_SIDECAR),
-            _load_json(_PAPER_DIVERGENCE_SIDECAR),
+        "paper_readiness_blocker_diagnosis": (
+            paper_readiness_blocker_diagnosis := _paper_readiness_blocker_diagnosis(
+                _load_json(_PAPER_READINESS_SIDECAR),
+                _load_json(_PAPER_LEDGER_SIDECAR),
+                _load_json(_PAPER_DIVERGENCE_SIDECAR),
+            )
+        ),
+        "paper_engine_divergence_component_diagnosis": (
+            _paper_engine_divergence_component_diagnosis(
+                _load_json(_PAPER_DIVERGENCE_SIDECAR),
+                paper_readiness_blocker_diagnosis,
+            )
         ),
         "candidate_shadow_readiness_report": _candidate_shadow_readiness_report(
             _load_json(_PAPER_READINESS_SIDECAR),
@@ -1291,11 +1490,7 @@ def build_report_payload(
         ),
         "no_paper_candidate_next_action_plan": _next_research_action_from_paper_diagnosis(
             preset_name=preset_name,
-            paper_diagnosis=_paper_readiness_blocker_diagnosis(
-                _load_json(_PAPER_READINESS_SIDECAR),
-                _load_json(_PAPER_LEDGER_SIDECAR),
-                _load_json(_PAPER_DIVERGENCE_SIDECAR),
-            ),
+            paper_diagnosis=paper_readiness_blocker_diagnosis,
         ),
     }
 
@@ -1921,6 +2116,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines,
         report.get("paper_readiness_blocker_diagnosis"),
     )
+    _append_paper_engine_divergence_component_diagnosis_section(
+        lines,
+        report.get("paper_engine_divergence_component_diagnosis"),
+    )
     _append_candidate_shadow_readiness_section(
         lines,
         report.get("candidate_shadow_readiness_report"),
@@ -2161,6 +2360,72 @@ def _append_no_paper_candidate_next_action_section(
     lines.append(
         "- advisory: QRE should explain missing paper candidates before more manual "
         "preset attempts; any new hypothesis or preset proposal remains operator-gated."
+    )
+    lines.append("")
+
+
+
+
+def _append_paper_engine_divergence_component_diagnosis_section(
+    lines: list[str], summary: dict[str, Any] | None
+) -> None:
+    """Render paper-engine divergence component diagnosis."""
+    if not summary:
+        return
+
+    lines.append("## Paper Engine Divergence Component Diagnosis (advisory only)")
+    lines.append(
+        "- candidates: "
+        f"total={summary.get('candidate_count')}, "
+        f"high_divergence={summary.get('high_divergence_candidate_count')}"
+    )
+    driver_counts = summary.get("component_driver_counts") or {}
+    lines.append(
+        "- component_driver_counts: "
+        + (
+            ", ".join(f"{key}={value}" for key, value in sorted(driver_counts.items()))
+            if driver_counts
+            else "none"
+        )
+    )
+
+    closest = summary.get("closest_candidate_component_diagnosis") or {}
+    if closest:
+        metrics = closest.get("metrics_delta") or {}
+        costs = closest.get("venue_cost_delta") or {}
+        lines.append(
+            "- closest_candidate: "
+            f"{closest.get('candidate_id')} "
+            f"severity={closest.get('divergence_severity')} "
+            f"driver={closest.get('divergence_component_driver')} "
+            f"fills={closest.get('n_full_fills')} "
+            f"final_equity_delta_bps={_num(metrics.get('final_equity_delta_bps'))}"
+        )
+        lines.append(
+            "- closest_candidate_cost_components: "
+            f"fee_drag_engine_baseline={_pct(costs.get('fee_drag_engine_baseline'))}, "
+            f"fee_drag_venue={_pct(costs.get('fee_drag_venue'))}, "
+            f"fee_drag_delta_vs_baseline={_pct(costs.get('fee_drag_delta_vs_baseline'))}, "
+            f"slippage_drag={_pct(costs.get('slippage_drag'))}, "
+            f"venue_fee_per_side={_pct(costs.get('venue_fee_per_side'))}, "
+            f"venue_slippage_bps={_num(costs.get('venue_slippage_bps'))}"
+        )
+        lines.append(
+            "- closest_candidate_adjustment: "
+            f"per_fill_adjustment={_num(costs.get('per_fill_adjustment'))}, "
+            f"cumulative_adjustment={_num(metrics.get('cumulative_adjustment'))}, "
+            f"sharpe_proxy_delta={_num(metrics.get('sharpe_proxy_delta'))}"
+        )
+    else:
+        lines.append("- closest_candidate: none")
+
+    lines.append(
+        f"- recommended_next_action: {summary.get('recommended_next_action')}"
+    )
+    lines.append(
+        "- advisory: this explains divergence components only; it does not change "
+        "paper-readiness thresholds, divergence math, presets, strategies, campaign "
+        "queues, or paper/shadow/live runtime."
     )
     lines.append("")
 

@@ -1116,3 +1116,156 @@ def test_no_paper_candidate_next_action_renders_markdown_gate():
     assert "automatic_preset_mutation_allowed=False" in markdown
     assert "any new hypothesis or preset proposal remains operator-gated" in markdown
 
+def test_paper_engine_divergence_component_diagnosis_explains_closest_candidate():
+    from research.report_agent import _paper_engine_divergence_component_diagnosis
+
+    diagnosis = _paper_engine_divergence_component_diagnosis(
+        {
+            "severity_counts": {"low": 1, "medium": 0, "high": 1},
+            "per_candidate": [
+                {
+                    "candidate_id": "strategy|AAPL|4h|{}",
+                    "asset_type": "equity",
+                    "sleeve_id": None,
+                    "venue": "equity_ibkr",
+                    "n_full_fills": 0,
+                    "included_in_portfolio": True,
+                    "reason_excluded": None,
+                    "metrics_delta": {
+                        "final_equity_delta_bps": 0.0,
+                        "cumulative_adjustment": 1.0,
+                        "sharpe_proxy_delta": None,
+                    },
+                    "venue_cost_delta": {
+                        "venue_fee_per_side": 0.0005,
+                        "venue_slippage_bps": 10.0,
+                        "per_fill_adjustment": 1.0,
+                        "fee_drag_venue": 0.0,
+                        "fee_drag_engine_baseline": 0.0,
+                        "fee_drag_delta_vs_baseline": 0.0,
+                        "slippage_drag": 0.0,
+                    },
+                    "divergence_severity": "low",
+                },
+                {
+                    "candidate_id": "strategy|HD|4h|{}",
+                    "asset_type": "equity",
+                    "sleeve_id": None,
+                    "venue": "equity_ibkr",
+                    "n_full_fills": 30,
+                    "included_in_portfolio": True,
+                    "reason_excluded": None,
+                    "metrics_delta": {
+                        "final_equity_delta_bps": 305.32,
+                        "cumulative_adjustment": 1.030532,
+                        "sharpe_proxy_delta": 0.001,
+                    },
+                    "venue_cost_delta": {
+                        "venue_fee_per_side": 0.0005,
+                        "venue_slippage_bps": 10.0,
+                        "per_fill_adjustment": 1.001,
+                        "fee_drag_venue": 0.0149,
+                        "fee_drag_engine_baseline": 0.0723,
+                        "fee_drag_delta_vs_baseline": -0.0574,
+                        "slippage_drag": 0.0296,
+                    },
+                    "divergence_severity": "high",
+                },
+            ],
+        },
+        {
+            "closest_candidate": {
+                "candidate_id": "strategy|HD|4h|{}",
+            }
+        },
+    )
+
+    assert diagnosis is not None
+    assert diagnosis["candidate_count"] == 2
+    assert diagnosis["high_divergence_candidate_count"] == 1
+    assert diagnosis["closest_candidate_component_diagnosis"]["candidate_id"] == (
+        "strategy|HD|4h|{}"
+    )
+    assert diagnosis["closest_candidate_component_diagnosis"][
+        "divergence_component_driver"
+    ] == "fee_model_delta_dominant"
+    assert diagnosis["recommended_next_action"] == (
+        "inspect_engine_vs_venue_fee_model_before_strategy_or_threshold_changes"
+    )
+    assert diagnosis["paper_runtime_enabled"] is False
+    assert diagnosis["shadow_runtime_enabled"] is False
+    assert diagnosis["live_eligible"] is False
+
+
+def test_paper_engine_divergence_component_diagnosis_renders_markdown():
+    from research.report_agent import _paper_engine_divergence_component_diagnosis
+
+    diagnosis = _paper_engine_divergence_component_diagnosis(
+        {
+            "severity_counts": {"high": 1},
+            "per_candidate": [
+                {
+                    "candidate_id": "strategy|HD|4h|{}",
+                    "asset_type": "equity",
+                    "venue": "equity_ibkr",
+                    "n_full_fills": 30,
+                    "included_in_portfolio": True,
+                    "reason_excluded": None,
+                    "metrics_delta": {
+                        "final_equity_delta_bps": 305.32,
+                        "cumulative_adjustment": 1.030532,
+                        "sharpe_proxy_delta": 0.001,
+                    },
+                    "venue_cost_delta": {
+                        "venue_fee_per_side": 0.0005,
+                        "venue_slippage_bps": 10.0,
+                        "per_fill_adjustment": 1.001,
+                        "fee_drag_venue": 0.0149,
+                        "fee_drag_engine_baseline": 0.0723,
+                        "fee_drag_delta_vs_baseline": -0.0574,
+                        "slippage_drag": 0.0296,
+                    },
+                    "divergence_severity": "high",
+                }
+            ],
+        },
+        None,
+    )
+
+    markdown = render_markdown(
+        {
+            "run_id": "run-divergence-components",
+            "generated_at_utc": "2026-06-01T12:00:00+00:00",
+            "preset": "trend_pullback_equities_4h",
+            "verdict": VERDICT_PROMOTED,
+            "summary": {
+                "raw": 1,
+                "screened": 1,
+                "validated": 1,
+                "rejected": 0,
+                "promoted": 1,
+            },
+            "candidates": [],
+            "top_rejection_reasons": [],
+            "top_rejection_reasons_by_layer": {
+                "screening_layer": [],
+                "promotion_layer": [],
+            },
+            "per_candidate_diagnostics": [],
+            "join_stats": {},
+            "red_flags": [],
+            "regime_diagnostics": {},
+            "statistical_diagnostics": {},
+            "paper_engine_divergence_component_diagnosis": diagnosis,
+            "next_experiment": "Review divergence components.",
+        }
+    )
+
+    assert "Paper Engine Divergence Component Diagnosis (advisory only)" in markdown
+    assert "component_driver_counts: fee_model_delta_dominant=1" in markdown
+    assert "final_equity_delta_bps=305.32" in markdown
+    assert "fee_drag_engine_baseline=7.23%" in markdown
+    assert "fee_drag_venue=1.49%" in markdown
+    assert "slippage_drag=2.96%" in markdown
+    assert "it does not change paper-readiness thresholds" in markdown
+
