@@ -201,6 +201,102 @@ def test_deterministic_output_with_injected_timestamp(tmp_path: Path) -> None:
     assert op["validation_results"][0]["result_id"] == "qre-result-fixture-001"
     assert op["evidence_updates"][0]["evidence_decision"] == "supported"
     assert "approve_or_reject_pending_run_manifests" in op["operator_decisions_required"]
+    assert op["top_supported_hypotheses"][0]["hypothesis_id"] == "qre-hyp-fixture-001"
+    assert op["top_falsified_hypotheses"] == []
+    assert op["needs_more_data_hypotheses"] == []
+    assert op["contradiction_hypotheses"] == []
+    assert op["missing_validation_results"] == []
+    assert op["why_auto_execution_is_forbidden"]
+    assert op["next_manual_actions"] == ["review_evidence_lineage_before_any_follow_up"]
+
+
+def test_operator_report_buckets_all_evidence_decisions(tmp_path: Path) -> None:
+    paths = _artifact_set(tmp_path)
+    paths["hypotheses"] = _write_payload(
+        tmp_path / "hypotheses_multi.json",
+        "qre_hypothesis_candidates",
+        "hypotheses",
+        [
+            {"hypothesis_id": "hyp-supported", "title": "Supported"},
+            {"hypothesis_id": "hyp-falsified", "title": "Falsified"},
+            {"hypothesis_id": "hyp-more", "title": "Needs more"},
+            {"hypothesis_id": "hyp-contradiction", "title": "Contradiction"},
+            {"hypothesis_id": "hyp-missing", "title": "Missing"},
+        ],
+    )
+    paths["plans"] = _write_payload(
+        tmp_path / "plans_multi.json",
+        "qre_hypothesis_validation_plan",
+        "validation_plans",
+        [
+            {"validation_plan_id": f"plan-{idx}", "hypothesis_id": hypothesis_id}
+            for idx, hypothesis_id in enumerate(
+                [
+                    "hyp-supported",
+                    "hyp-falsified",
+                    "hyp-more",
+                    "hyp-contradiction",
+                    "hyp-missing",
+                ]
+            )
+        ],
+    )
+    paths["results"] = _write_payload(
+        tmp_path / "results_multi.json",
+        "qre_hypothesis_validation_results",
+        "validation_results",
+        [
+            {"result_id": "result-supported", "hypothesis_id": "hyp-supported"},
+            {"result_id": "result-falsified", "hypothesis_id": "hyp-falsified"},
+            {"result_id": "result-more", "hypothesis_id": "hyp-more"},
+            {"result_id": "result-contradiction", "hypothesis_id": "hyp-contradiction"},
+        ],
+    )
+    paths["updates"] = _write_payload(
+        tmp_path / "updates_multi.json",
+        "qre_hypothesis_evidence_update",
+        "evidence_updates",
+        [
+            {
+                "evidence_update_id": "update-supported",
+                "hypothesis_id": "hyp-supported",
+                "evidence_decision": "supported",
+                "supporting_evidence_refs": ["source#supported"],
+                "contradicting_evidence_refs": [],
+            },
+            {
+                "evidence_update_id": "update-falsified",
+                "hypothesis_id": "hyp-falsified",
+                "evidence_decision": "falsified",
+                "supporting_evidence_refs": [],
+                "contradicting_evidence_refs": ["source#falsified"],
+            },
+            {
+                "evidence_update_id": "update-more",
+                "hypothesis_id": "hyp-more",
+                "evidence_decision": "needs_more_data",
+                "supporting_evidence_refs": [],
+                "contradicting_evidence_refs": [],
+            },
+            {
+                "evidence_update_id": "update-contradiction",
+                "hypothesis_id": "hyp-contradiction",
+                "evidence_decision": "contradiction_detected",
+                "supporting_evidence_refs": ["source#support"],
+                "contradicting_evidence_refs": ["source#contradiction"],
+            },
+        ],
+    )
+
+    snap = _collect(paths)
+    op = snap["operator_report"]
+
+    assert [row["hypothesis_id"] for row in op["top_supported_hypotheses"]] == ["hyp-supported"]
+    assert [row["hypothesis_id"] for row in op["top_falsified_hypotheses"]] == ["hyp-falsified"]
+    assert [row["hypothesis_id"] for row in op["needs_more_data_hypotheses"]] == ["hyp-more"]
+    assert [row["hypothesis_id"] for row in op["contradiction_hypotheses"]] == ["hyp-contradiction"]
+    assert [row["hypothesis_id"] for row in op["missing_validation_results"]] == ["hyp-missing"]
+    assert "provide_or_accept_missing_validation_results" in op["operator_decisions_required"]
 
 
 def test_atomic_write_refuses_outside_artifact_dir(tmp_path: Path) -> None:

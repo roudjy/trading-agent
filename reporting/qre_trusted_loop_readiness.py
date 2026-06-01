@@ -55,12 +55,7 @@ NOTE_READINESS_EVALUATED: Final[str] = "trusted_loop_readiness_evaluated"
 
 
 def _utcnow() -> str:
-    return (
-        _dt.datetime.now(_dt.UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _rel(path: Path) -> str:
@@ -158,9 +153,7 @@ def _repeatability_status(
 ) -> str:
     approved = bool(
         operator_payload
-        and operator_payload.get("operator_report", {}).get(
-            "operator_approved_for_trusted_loop"
-        )
+        and operator_payload.get("operator_report", {}).get("operator_approved_for_trusted_loop")
     )
     repeatability_refs = [
         item.get("repeatability_evidence_refs")
@@ -175,11 +168,51 @@ def _repeatability_status(
     return "no_repeatability_evidence"
 
 
+def _source_lineage_status(
+    results: list[dict[str, Any]],
+    updates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not results and not updates:
+        return {
+            "status": "missing",
+            "results_with_lineage": 0,
+            "updates_with_lineage": 0,
+        }
+    results_with_lineage = sum(
+        1
+        for item in results
+        if item.get("source_artifact")
+        and item.get("source_report_kind")
+        and (item.get("source_row_id") or item.get("source_ref"))
+    )
+    updates_with_lineage = sum(
+        1
+        for item in updates
+        if item.get("source_artifact")
+        and item.get("source_report_kind")
+        and (item.get("source_row_id") or item.get("source_ref"))
+    )
+    status = (
+        "complete"
+        if results_with_lineage == len(results)
+        and updates_with_lineage == len(updates)
+        and bool(results)
+        and bool(updates)
+        else "incomplete"
+    )
+    return {
+        "status": status,
+        "results_with_lineage": results_with_lineage,
+        "updates_with_lineage": updates_with_lineage,
+    }
+
+
 def _state(
     *,
     input_warnings: list[str],
     density: dict[str, int],
     contradiction_visibility: dict[str, Any],
+    source_lineage: dict[str, Any],
     operator_report_available: bool,
     repeatability_status: str,
 ) -> tuple[str, list[str], list[str]]:
@@ -214,6 +247,9 @@ def _state(
         return ("scaffold", blockers, warnings)
     if not contradiction_visible:
         blockers.append("contradiction_visibility_incomplete")
+        return ("working_capability", blockers, warnings)
+    if source_lineage["status"] != "complete":
+        blockers.append("source_lineage_incomplete")
         return ("working_capability", blockers, warnings)
     if repeatability_status == "operator_approved_repeatability_evidence_present":
         return ("operator_trusted", blockers, warnings)
@@ -303,11 +339,13 @@ def collect_snapshot(
     )
     contradiction = _contradiction_visibility(updates)
     repeatability = _repeatability_status(results, operator_payload)
+    source_lineage = _source_lineage_status(results, updates)
     operator_report_available = bool(meta_h["valid"])
     readiness_state, blockers, warnings = _state(
         input_warnings=input_warnings,
         density=density,
         contradiction_visibility=contradiction,
+        source_lineage=source_lineage,
         operator_report_available=operator_report_available,
         repeatability_status=repeatability,
     )
@@ -325,6 +363,7 @@ def collect_snapshot(
         and density["evidence_updates"] > 0,
         "operator_report_available": operator_report_available,
         "contradiction_visibility_available": contradiction["status"] == "visible",
+        "source_lineage_status": source_lineage["status"],
         "repeatability_status": repeatability,
     }
     return {
@@ -338,6 +377,7 @@ def collect_snapshot(
         "warnings": warnings,
         "evidence_density": density,
         "contradiction_visibility": contradiction,
+        "source_lineage": source_lineage,
         "repeatability_status": repeatability,
         "operator_report_available": operator_report_available,
         "input_artifacts": {
