@@ -10,8 +10,10 @@ queue, or change paper/shadow/live runtime behavior.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any, Final
@@ -25,6 +27,13 @@ ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "qre_research_action_consumer_g
 ARTIFACT_LATEST: Final[Path] = ARTIFACT_DIR / "latest.json"
 ARTIFACT_RELATIVE_PATH: Final[str] = (
     "logs/qre_research_action_consumer_gate/latest.json"
+)
+PROPOSAL_INTAKE_DIR: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_research_action_proposal_intake"
+)
+PROPOSAL_INTAKE_LATEST: Final[Path] = PROPOSAL_INTAKE_DIR / "latest.json"
+PROPOSAL_INTAKE_RELATIVE_PATH: Final[str] = (
+    "logs/qre_research_action_proposal_intake/latest.json"
 )
 
 SCHEMA_VERSION: Final[int] = 1
@@ -97,6 +106,181 @@ def _bounded_str(value: Any, max_len: int = 240) -> str:
     if len(text) <= max_len:
         return text
     return text[: max_len - 3].rstrip() + "..."
+
+
+def _slug(value: str, *, max_len: int = 48) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    if not slug:
+        slug = "qre-research-action"
+    return slug[:max_len].strip("-") or "qre-research-action"
+
+
+def _proposal_id(row: dict[str, Any]) -> str:
+    seed = "|".join(
+        [
+            "qre_research_action",
+            str(row.get("action_id") or ""),
+            str(row.get("source_section") or ""),
+            str(row.get("target_candidate_id") or ""),
+        ]
+    )
+    return "qre-" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
+
+
+def _proposal_title(row: dict[str, Any]) -> str:
+    action_id = _bounded_str(row.get("action_id"), 120)
+    if not action_id:
+        action_id = "qre_research_action"
+    return f"QRE research action: {action_id}"
+
+
+def _proposal_summary(row: dict[str, Any]) -> str:
+    source_item = row.get("source_item") if isinstance(row.get("source_item"), dict) else {}
+    parts = [
+        f"Gate verdict: {row.get('verdict')}.",
+        f"Reason: {row.get('reason')}.",
+    ]
+    target = row.get("target_candidate_id")
+    if target:
+        parts.append(f"Target candidate: {target}.")
+    bounded_next = source_item.get("bounded_next_step")
+    if bounded_next:
+        parts.append(f"Bounded next step: {bounded_next}")
+    reason_codes = source_item.get("reason_codes")
+    if reason_codes:
+        parts.append("Reason codes: " + ", ".join(str(x) for x in reason_codes) + ".")
+    return _bounded_str(" ".join(parts), 600)
+
+
+def _proposal_status_for_row(row: dict[str, Any]) -> str:
+    verdict = row.get("verdict")
+    if verdict == VERDICT_ELIGIBLE:
+        return "proposed"
+    if verdict == VERDICT_OPERATOR_REQUIRED:
+        return "needs_human"
+    return "blocked"
+
+
+def _proposal_risk_for_row(row: dict[str, Any]) -> str:
+    if row.get("verdict") == VERDICT_ELIGIBLE:
+        return "LOW"
+    if row.get("verdict") == VERDICT_OPERATOR_REQUIRED:
+        return "MEDIUM"
+    return "HIGH"
+
+
+def _proposal_allowed_actions(row: dict[str, Any]) -> list[str]:
+    if row.get("verdict") == VERDICT_ELIGIBLE:
+        return ["create_branch", "open_pr"]
+    return []
+
+
+def _proposal_forbidden_actions(row: dict[str, Any]) -> list[str]:
+    base = [
+        "execute_research_action",
+        "launch_codex",
+        "mutate_campaign_queue",
+        "mutate_strategy_or_preset",
+        "enable_paper_runtime",
+        "enable_shadow_runtime",
+        "enable_live_runtime",
+        "place_order",
+        "allocate_capital",
+    ]
+    source_item = row.get("source_item") if isinstance(row.get("source_item"), dict) else {}
+    for action in source_item.get("forbidden_actions") or []:
+        if isinstance(action, str) and action not in base:
+            base.append(action)
+    return base
+
+
+def _build_proposal_from_gate_row(row: dict[str, Any]) -> dict[str, Any]:
+    proposal_id = _proposal_id(row)
+    title = _proposal_title(row)
+    branch_slug = _slug(str(row.get("action_id") or proposal_id))
+    status = _proposal_status_for_row(row)
+    risk_class = _proposal_risk_for_row(row)
+    proposal_type = "qre_research_action"
+
+    return {
+        "proposal_id": proposal_id,
+        "source": ARTIFACT_RELATIVE_PATH,
+        "source_type": "qre_research_action_consumer_gate",
+        "source_action_id": row.get("action_id"),
+        "title": title,
+        "summary": _proposal_summary(row),
+        "proposal_type": proposal_type,
+        "status": status,
+        "risk_class": risk_class,
+        "risk_reason": row.get("reason"),
+        "affected_files": [
+            "research/research_action_queue_latest.v1.json",
+            "logs/qre_research_action_consumer_gate/latest.json",
+        ],
+        "required_tests": [
+            "python -m pytest tests/unit/test_qre_research_action_consumer_gate.py -q"
+        ],
+        "suggested_branch_name": f"fix/qre-action-{branch_slug}",
+        "allowed_actions": _proposal_allowed_actions(row),
+        "forbidden_actions": _proposal_forbidden_actions(row),
+        "operator_approval_required": row.get("operator_approval_required") is True,
+        "safe_to_execute": False,
+        "eligible_for_direct_execution": False,
+        "eligible_for_ade_proposal_intake": row.get("eligible_for_ade_proposal_intake")
+        is True,
+        "parent_proposal_id": None,
+        "evidence": {
+            "gate_verdict": row.get("verdict"),
+            "gate_reason": row.get("reason"),
+            "source_section": row.get("source_section"),
+            "target_candidate_id": row.get("target_candidate_id"),
+            "blocked_reasons": row.get("blocked_reasons") or [],
+            "warnings": row.get("warnings") or [],
+        },
+    }
+
+
+def build_proposal_intake_snapshot(
+    gate_snapshot: dict[str, Any],
+    *,
+    frozen_utc: str | None = None,
+) -> dict[str, Any]:
+    generated = frozen_utc or str(gate_snapshot.get("generated_at_utc") or _utcnow())
+    rows = gate_snapshot.get("rows")
+    valid_rows = [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+    proposals = [_build_proposal_from_gate_row(row) for row in valid_rows]
+
+    counts = Counter(str(p.get("status") or "blocked") for p in proposals)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "report_kind": "qre_research_action_proposal_intake",
+        "generated_at_utc": generated,
+        "source_gate": {
+            "path": ARTIFACT_RELATIVE_PATH,
+            "report_kind": gate_snapshot.get("report_kind"),
+            "final_recommendation": gate_snapshot.get("final_recommendation"),
+            "source": gate_snapshot.get("source"),
+        },
+        "mode": "proposal_intake_bridge",
+        "safe_to_execute": False,
+        "writes_ade_work_queue": False,
+        "writes_development_work_queue": False,
+        "mutates_campaign_queue": False,
+        "mutates_strategy_or_preset": False,
+        "mutates_paper_shadow_live_runtime": False,
+        "proposal_count": len(proposals),
+        "counts": {
+            "proposed": counts.get("proposed", 0),
+            "needs_human": counts.get("needs_human", 0),
+            "blocked": counts.get("blocked", 0),
+        },
+        "proposals": proposals,
+        "final_recommendation": (
+            "ready_for_existing_ade_proposal_intake"
+            if proposals and not counts.get("blocked", 0)
+            else "operator_review_required_or_no_proposals"
+        ),
+    }
 
 
 def _as_str_list(value: Any, *, max_items: int = 20) -> list[str]:
@@ -320,6 +504,22 @@ def write_outputs(snapshot: dict[str, Any]) -> Path:
     return ARTIFACT_LATEST
 
 
+def write_proposal_intake_outputs(snapshot: dict[str, Any]) -> Path:
+    if not PROPOSAL_INTAKE_LATEST.resolve().is_relative_to(
+        PROPOSAL_INTAKE_DIR.resolve()
+    ):
+        raise ValueError(
+            f"refusing write outside proposal intake dir: {PROPOSAL_INTAKE_LATEST}"
+        )
+    PROPOSAL_INTAKE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = PROPOSAL_INTAKE_LATEST.with_suffix(
+        f"{PROPOSAL_INTAKE_LATEST.suffix}.tmp"
+    )
+    tmp.write_text(json.dumps(snapshot, indent=2, sort_keys=False), encoding="utf-8")
+    os.replace(tmp, PROPOSAL_INTAKE_LATEST)
+    return PROPOSAL_INTAKE_LATEST
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="reporting.qre_research_action_consumer_gate",
@@ -328,16 +528,24 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--source", type=Path, default=None)
+    parser.add_argument(
+        "--write-proposal-intake",
+        action="store_true",
+        help="Also write proposal-queue-compatible QRE proposal intake artifact.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     snapshot = collect_snapshot(source_path=args.source)
+    proposal_intake = build_proposal_intake_snapshot(snapshot)
     if args.status:
         print(json.dumps(snapshot, indent=2, sort_keys=False))
     if not args.no_write:
         write_outputs(snapshot)
+        if args.write_proposal_intake:
+            write_proposal_intake_outputs(proposal_intake)
     return 0
 
 
@@ -349,11 +557,15 @@ __all__ = [
     "ARTIFACT_LATEST",
     "ARTIFACT_RELATIVE_PATH",
     "QRE_ACTION_QUEUE_LATEST",
+    "PROPOSAL_INTAKE_LATEST",
+    "PROPOSAL_INTAKE_RELATIVE_PATH",
     "REPORT_KIND",
     "SCHEMA_VERSION",
     "VERDICT_BLOCKED",
     "VERDICT_ELIGIBLE",
     "VERDICT_OPERATOR_REQUIRED",
+    "build_proposal_intake_snapshot",
     "collect_snapshot",
     "write_outputs",
+    "write_proposal_intake_outputs",
 ]
