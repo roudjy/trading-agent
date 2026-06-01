@@ -733,6 +733,9 @@ def build_report_payload(
         "trend_pullback_exit_impact": _build_trend_pullback_exit_impact(
             screening_candidates_payload
         ),
+        "trend_pullback_exit_quality": _build_trend_pullback_exit_quality(
+            screening_candidates_payload
+        ),
         "trend_break_threshold_comparison": (
             trend_break_threshold_comparison := _build_trend_break_threshold_comparison(
                 screening_candidates_payload
@@ -814,6 +817,27 @@ def _worst_total_pnl_text(value: Any) -> str:
     return f"{key}={_pct(total_pnl)}"
 
 
+def _best_sample_diagnostic(
+    candidate: dict[str, Any],
+) -> tuple[int, dict[str, Any], dict[str, Any]] | None:
+    diagnostics = candidate.get("sample_diagnostics")
+    summary = candidate.get("sample_diagnostics_summary") or {}
+    if not isinstance(diagnostics, list) or not diagnostics:
+        return None
+
+    try:
+        best_index = int(summary.get("best_sample_index", 0))
+    except (TypeError, ValueError):
+        best_index = 0
+    if best_index < 0 or best_index >= len(diagnostics):
+        return None
+
+    best = diagnostics[best_index]
+    if not isinstance(best, dict):
+        return None
+    return best_index, best, summary
+
+
 def _build_trend_pullback_exit_impact(
     screening_candidates: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
@@ -828,21 +852,10 @@ def _build_trend_pullback_exit_impact(
         if not isinstance(candidate, dict):
             continue
 
-        diagnostics = candidate.get("sample_diagnostics")
-        summary = candidate.get("sample_diagnostics_summary") or {}
-        if not isinstance(diagnostics, list) or not diagnostics:
+        best_result = _best_sample_diagnostic(candidate)
+        if best_result is None:
             continue
-
-        try:
-            best_index = int(summary.get("best_sample_index", 0))
-        except (TypeError, ValueError):
-            best_index = 0
-        if best_index < 0 or best_index >= len(diagnostics):
-            continue
-
-        best = diagnostics[best_index]
-        if not isinstance(best, dict):
-            continue
+        best_index, best, _summary = best_result
 
         exit_summary = best.get("trend_pullback_exit_reason_summary")
         if not isinstance(exit_summary, dict):
@@ -914,6 +927,76 @@ def _build_trend_pullback_exit_impact(
                 "trend_break_avg_exit_lag_bars": invalidation.get(
                     "avg_exit_lag_bars"
                 ),
+            }
+        )
+
+    return rows
+
+
+def _build_trend_pullback_exit_quality(
+    screening_candidates: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    if not isinstance(screening_candidates, dict):
+        return []
+    candidates = screening_candidates.get("candidates")
+    if not isinstance(candidates, list):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+
+        best_result = _best_sample_diagnostic(candidate)
+        if best_result is None:
+            continue
+        best_index, best, sample_summary = best_result
+
+        exit_summary = best.get("trend_pullback_exit_reason_summary")
+        if not isinstance(exit_summary, dict):
+            continue
+
+        health = exit_summary.get("exit_health_summary") or {}
+        overall_health = health.get("overall") or {}
+        realized = exit_summary.get("realized_pnl_impact") or {}
+        boundary = exit_summary.get("boundary_proximity_summary") or {}
+        audit = sample_summary.get("best_sample_exit_quality_audit") or {}
+        rows.append(
+            {
+                "asset": candidate.get("asset"),
+                "interval": candidate.get("interval"),
+                "decision": candidate.get("decision"),
+                "best_sample_index": best_index,
+                "advisory_only": True,
+                "exit_health_summary": health,
+                "exit_health_counts": overall_health.get("health_class_counts")
+                or {},
+                "exit_health_by_class": overall_health.get("by_health_class") or {},
+                "exit_health_by_asset": health.get("by_asset") or {},
+                "exit_health_by_reason": health.get("by_exit_reason") or {},
+                "exit_health_by_unknown_subcategory": health.get(
+                    "by_unknown_subcategory"
+                )
+                or {},
+                "exit_health_by_boundary_bucket": health.get(
+                    "by_boundary_proximity_bucket"
+                )
+                or {},
+                "exit_reason_semantics": exit_summary.get("exit_reason_semantics")
+                or {},
+                "exit_reason_realized_pnl_impact": realized.get("by_exit_reason")
+                or {},
+                "unknown_subtype_realized_pnl_impact": realized.get(
+                    "by_unknown_subcategory"
+                )
+                or {},
+                "boundary_bucket_realized_pnl_impact": realized.get(
+                    "by_boundary_proximity_bucket"
+                )
+                or {},
+                "boundary_proximity_bucket_counts": boundary.get("bucket_counts")
+                or {},
+                "best_sample_exit_quality_audit": audit,
             }
         )
 
@@ -1201,6 +1284,58 @@ def _append_trend_pullback_exit_impact_section(
     lines.append("")
 
 
+def _health_share_text(row: dict[str, Any], health_class: str) -> str:
+    summary = row.get("exit_health_by_class") or {}
+    if not isinstance(summary, dict):
+        return "n/a"
+    return _pct((summary.get(health_class) or {}).get("trade_share"))
+
+
+def _append_trend_pullback_exit_quality_section(
+    lines: list[str],
+    rows: list[dict[str, Any]],
+) -> None:
+    if not rows:
+        return
+
+    lines.append("## Trend-pullback exit quality (advisory only)")
+    lines.append(
+        "- Health classes are diagnostic context only; they do not change "
+        "exit reasons, strategy behavior, or sample selection."
+    )
+    lines.append(
+        "- Boundary proximity is context, not reclassification; realized PnL "
+        "impact remains separate from simulated invalidation deltas."
+    )
+    lines.append(
+        "- `pullback_resolved_and_trend_break` is treated as ambiguous late/choppy "
+        "evidence until further research proves otherwise."
+    )
+    lines.append("")
+    lines.append(
+        "| Asset | Decision | Best sample | Health counts | Risk share | "
+        "Unknown share | Boundary share | Late/choppy share | Selected score | "
+        "Exit-quality best | Disagreement | Advisory message |"
+    )
+    lines.append("|---|---|---:|---|---:|---:|---:|---:|---:|---:|---|---|")
+    for row in rows:
+        audit = row.get("best_sample_exit_quality_audit") or {}
+        lines.append(
+            f"| `{row.get('asset')}` | {row.get('decision')} | "
+            f"{row.get('best_sample_index')} | "
+            f"{_bucket_counts_text(row.get('exit_health_counts'))} | "
+            f"{_health_share_text(row, 'risk_exit')} | "
+            f"{_health_share_text(row, 'unknown_exit')} | "
+            f"{_health_share_text(row, 'boundary_exit')} | "
+            f"{_health_share_text(row, 'late_or_choppy_exit')} | "
+            f"{_num(audit.get('selected_sample_health_score'))} | "
+            f"{audit.get('exit_quality_best_sample_index')} | "
+            f"{audit.get('exit_quality_disagreement')} | "
+            f"{audit.get('advisory_message') or 'n/a'} |"
+        )
+    lines.append("")
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = []
     preset = report.get("preset") or "(no preset)"
@@ -1230,6 +1365,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     _append_trend_pullback_exit_impact_section(
         lines,
         report.get("trend_pullback_exit_impact") or [],
+    )
+    _append_trend_pullback_exit_quality_section(
+        lines,
+        report.get("trend_pullback_exit_quality") or [],
     )
     _append_trend_break_threshold_comparison_section(
         lines,

@@ -304,6 +304,78 @@ def _classify_signal_change_unknown_subcategory(
     return "signal_change_ambiguous_transition"
 
 
+def _exit_semantic_metadata(exit_reason: str) -> dict[str, str]:
+    semantic_by_reason = {
+        "pullback_resolved": {
+            "exit_semantic_class": "clean_resolution_exit",
+            "exit_semantic_label": "clean pullback resolution",
+            "exit_semantic_warning": "",
+            "exit_semantic_explanation": (
+                "Pullback resolved without simultaneous trend-break evidence."
+            ),
+        },
+        "trend_break": {
+            "exit_semantic_class": "trend_break_risk_exit",
+            "exit_semantic_label": "trend break",
+            "exit_semantic_warning": "risk exit",
+            "exit_semantic_explanation": (
+                "Trend-following state broke before or at the exit decision."
+            ),
+        },
+        "pullback_resolved_and_trend_break": {
+            "exit_semantic_class": "ambiguous_late_or_choppy_exit",
+            "exit_semantic_label": "simultaneous pullback resolution and trend break",
+            "exit_semantic_warning": "not automatically healthy",
+            "exit_semantic_explanation": (
+                "Pullback resolution and trend-break evidence appeared together; "
+                "keep separate from clean pullback resolution until reviewed."
+            ),
+        },
+        "signal_change_unknown": {
+            "exit_semantic_class": "unknown_exit",
+            "exit_semantic_label": "unknown signal-change exit",
+            "exit_semantic_warning": "requires diagnostic explanation",
+            "exit_semantic_explanation": (
+                "Signal-change exit could not be classified from available "
+                "fold-local features or metadata."
+            ),
+        },
+        "window_end": {
+            "exit_semantic_class": "boundary_exit",
+            "exit_semantic_label": "window-end exit",
+            "exit_semantic_warning": "boundary context",
+            "exit_semantic_explanation": (
+                "Exit occurred because the fold/window ended; treat as boundary "
+                "context rather than strategy exit quality."
+            ),
+        },
+    }
+    return dict(
+        semantic_by_reason.get(
+            exit_reason,
+            {
+                "exit_semantic_class": "unsupported_exit_reason",
+                "exit_semantic_label": str(exit_reason or "unknown"),
+                "exit_semantic_warning": "unsupported exit reason",
+                "exit_semantic_explanation": (
+                    "No advisory semantic mapping exists for this exit reason."
+                ),
+            },
+        )
+    )
+
+
+def _exit_health_class(exit_reason: str) -> str:
+    health_by_reason = {
+        "pullback_resolved": "healthy_exit",
+        "trend_break": "risk_exit",
+        "pullback_resolved_and_trend_break": "late_or_choppy_exit",
+        "signal_change_unknown": "unknown_exit",
+        "window_end": "boundary_exit",
+    }
+    return health_by_reason.get(exit_reason, "neutral_exit")
+
+
 def _boundary_proximity_bucket(
     *,
     bars_to_window_end: int | None,
@@ -405,6 +477,41 @@ def _pnl_impact_by_dimension(
     }
 
 
+def _exit_health_ratio_summary(
+    pnl_by_health_class: dict[str, list[float]],
+) -> dict[str, Any]:
+    total_trades = sum(len(values) for values in pnl_by_health_class.values())
+    total_pnl = float(
+        sum(sum(values) for values in pnl_by_health_class.values())
+    )
+    if abs(total_pnl) < 1e-12:
+        total_pnl = 0.0
+    by_health_class: dict[str, dict[str, Any]] = {}
+    for health_class, values in sorted(pnl_by_health_class.items()):
+        summary = _pnl_impact_summary(values)
+        summary["trade_share"] = (
+            float(summary["trade_count"] / total_trades)
+            if total_trades
+            else 0.0
+        )
+        summary["pnl_share"] = (
+            float(summary["total_pnl"] / total_pnl)
+            if total_pnl
+            else 0.0
+        )
+        by_health_class[health_class] = summary
+
+    return {
+        "trade_count": int(total_trades),
+        "total_pnl": total_pnl,
+        "health_class_counts": {
+            health_class: int(len(values))
+            for health_class, values in sorted(pnl_by_health_class.items())
+        },
+        "by_health_class": by_health_class,
+    }
+
+
 def _trend_pullback_exit_reason_summary(
     *,
     trade_events: list[Any],
@@ -419,6 +526,11 @@ def _trend_pullback_exit_reason_summary(
     pnl_by_boundary_bucket: dict[str, list[float]] = {}
     pnl_by_asset: dict[str, list[float]] = {}
     pnl_by_fold_index: dict[str, list[float]] = {}
+    pnl_by_health_class: dict[str, list[float]] = {}
+    health_by_asset: dict[str, dict[str, list[float]]] = {}
+    health_by_exit_reason: dict[str, dict[str, list[float]]] = {}
+    health_by_unknown_subcategory: dict[str, dict[str, list[float]]] = {}
+    health_by_boundary_bucket: dict[str, dict[str, list[float]]] = {}
     boundary_by_reason: dict[str, dict[str, list[float]]] = {}
     boundary_by_unknown_subcategory: dict[str, dict[str, list[float]]] = {}
     boundary_by_asset: dict[str, dict[str, list[float]]] = {}
@@ -443,12 +555,22 @@ def _trend_pullback_exit_reason_summary(
         except (TypeError, ValueError):
             pnl = 0.0
         pnl_by_reason.setdefault(reason, []).append(pnl)
+        health_class = _exit_health_class(reason)
+        pnl_by_health_class.setdefault(health_class, []).append(pnl)
+        health_by_exit_reason.setdefault(reason, {}).setdefault(
+            health_class,
+            [],
+        ).append(pnl)
         boundary = _boundary_proximity_for_trade(
             trade=trade,
             boundary_by_trade_key=boundary_lookup,
         )
         boundary_bucket = str(boundary["boundary_proximity_bucket"])
         pnl_by_boundary_bucket.setdefault(boundary_bucket, []).append(pnl)
+        health_by_boundary_bucket.setdefault(boundary_bucket, {}).setdefault(
+            health_class,
+            [],
+        ).append(pnl)
         boundary_by_reason.setdefault(reason, {}).setdefault(
             boundary_bucket,
             [],
@@ -456,6 +578,10 @@ def _trend_pullback_exit_reason_summary(
         asset = str(trade.get("asset") or "")
         if asset:
             pnl_by_asset.setdefault(asset, []).append(pnl)
+            health_by_asset.setdefault(asset, {}).setdefault(
+                health_class,
+                [],
+            ).append(pnl)
             boundary_by_asset.setdefault(asset, {}).setdefault(
                 boundary_bucket,
                 [],
@@ -474,6 +600,10 @@ def _trend_pullback_exit_reason_summary(
                 unknown_subcategory,
                 [],
             ).append(pnl)
+            health_by_unknown_subcategory.setdefault(
+                unknown_subcategory,
+                {},
+            ).setdefault(health_class, []).append(pnl)
             boundary_by_unknown_subcategory.setdefault(
                 unknown_subcategory,
                 {},
@@ -499,6 +629,10 @@ def _trend_pullback_exit_reason_summary(
     return {
         "trade_count": int(trade_count),
         "exit_reason_counts": dict(sorted(reason_counts.items())),
+        "exit_reason_semantics": {
+            reason: _exit_semantic_metadata(reason)
+            for reason in sorted(reason_counts)
+        },
         "exit_reason_pnl_summary": {
             reason: _pnl_impact_summary(values)
             for reason, values in sorted(pnl_by_reason.items())
@@ -520,6 +654,41 @@ def _trend_pullback_exit_reason_summary(
             ),
             "by_asset": _pnl_impact_by_dimension(pnl_by_asset),
             "by_fold_index": _pnl_impact_by_dimension(pnl_by_fold_index),
+        },
+        "exit_health_summary": {
+            "advisory_only": True,
+            "taxonomy": [
+                "healthy_exit",
+                "risk_exit",
+                "late_or_choppy_exit",
+                "boundary_exit",
+                "unknown_exit",
+                "neutral_exit",
+            ],
+            "overall": _exit_health_ratio_summary(pnl_by_health_class),
+            "by_asset": {
+                asset: _exit_health_ratio_summary(values_by_class)
+                for asset, values_by_class in sorted(health_by_asset.items())
+            },
+            "by_exit_reason": {
+                reason: {
+                    "exit_health_class": _exit_health_class(reason),
+                    "summary": _exit_health_ratio_summary(values_by_class),
+                }
+                for reason, values_by_class in sorted(health_by_exit_reason.items())
+            },
+            "by_unknown_subcategory": {
+                subcategory: _exit_health_ratio_summary(values_by_class)
+                for subcategory, values_by_class in sorted(
+                    health_by_unknown_subcategory.items()
+                )
+            },
+            "by_boundary_proximity_bucket": {
+                bucket: _exit_health_ratio_summary(values_by_class)
+                for bucket, values_by_class in sorted(
+                    health_by_boundary_bucket.items()
+                )
+            },
         },
         "boundary_proximity_summary": boundary_summary,
         "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),
@@ -1378,6 +1547,167 @@ def _sample_diagnostic(
         },
     }
 
+
+def _health_class_share(
+    health_summary: dict[str, Any],
+    health_class: str,
+) -> float:
+    try:
+        return float(
+            health_summary["overall"]["by_health_class"]
+            .get(health_class, {})
+            .get("trade_share", 0.0)
+        )
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return 0.0
+
+
+def _health_class_total_pnl(
+    health_summary: dict[str, Any],
+    health_class: str,
+) -> float:
+    try:
+        return float(
+            health_summary["overall"]["by_health_class"]
+            .get(health_class, {})
+            .get("total_pnl", 0.0)
+        )
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return 0.0
+
+
+def _sample_exit_quality_score(sample: dict[str, Any]) -> float:
+    exit_summary = sample.get("trend_pullback_exit_reason_summary") or {}
+    health_summary = exit_summary.get("exit_health_summary") or {}
+    healthy = _health_class_share(health_summary, "healthy_exit")
+    risk = _health_class_share(health_summary, "risk_exit")
+    late = _health_class_share(health_summary, "late_or_choppy_exit")
+    unknown = _health_class_share(health_summary, "unknown_exit")
+    boundary = _health_class_share(health_summary, "boundary_exit")
+    return float(healthy - risk - late - unknown - boundary)
+
+
+def _sample_exit_quality_audit(
+    *,
+    sample_diagnostics: list[dict[str, Any]],
+    selected_best_sample_index: int | None,
+) -> dict[str, Any]:
+    if not sample_diagnostics:
+        return {
+            "advisory_only": True,
+            "selected_best_sample_index": selected_best_sample_index,
+            "performance_best_sample_index": selected_best_sample_index,
+            "exit_quality_best_sample_index": None,
+            "exit_quality_disagreement": False,
+            "selected_sample_health_score": 0.0,
+            "exit_quality_best_health_score": 0.0,
+            "selected_sample_risk_exit_share": 0.0,
+            "selected_sample_unknown_exit_share": 0.0,
+            "selected_sample_boundary_exit_share": 0.0,
+            "selected_sample_late_or_choppy_exit_share": 0.0,
+            "selected_sample_total_pnl": 0.0,
+            "selected_sample_risk_exit_total_pnl": 0.0,
+            "advisory_message": "No sample diagnostics available for exit-quality audit.",
+        }
+
+    scored = [
+        (int(sample.get("sample_index", index)), _sample_exit_quality_score(sample))
+        for index, sample in enumerate(sample_diagnostics)
+    ]
+    exit_quality_best_index, exit_quality_best_score = max(
+        scored,
+        key=lambda item: (item[1], -item[0]),
+    )
+    selected_sample = next(
+        (
+            sample
+            for sample in sample_diagnostics
+            if sample.get("sample_index") == selected_best_sample_index
+        ),
+        None,
+    )
+    selected_health = (
+        (selected_sample.get("trend_pullback_exit_reason_summary") or {}).get(
+            "exit_health_summary"
+        )
+        or {}
+        if isinstance(selected_sample, dict)
+        else {}
+    )
+    selected_impact = (
+        (selected_sample.get("trend_pullback_exit_reason_summary") or {}).get(
+            "realized_pnl_impact"
+        )
+        or {}
+        if isinstance(selected_sample, dict)
+        else {}
+    )
+
+    selected_score = (
+        _sample_exit_quality_score(selected_sample)
+        if isinstance(selected_sample, dict)
+        else 0.0
+    )
+    selected_total_pnl = 0.0
+    try:
+        selected_total_pnl = float(
+            sum(
+                item.get("total_pnl", 0.0)
+                for item in (selected_impact.get("by_exit_reason") or {}).values()
+                if isinstance(item, dict)
+            )
+        )
+    except (AttributeError, TypeError, ValueError):
+        selected_total_pnl = 0.0
+
+    disagreement = (
+        selected_best_sample_index is not None
+        and int(selected_best_sample_index) != int(exit_quality_best_index)
+    )
+    if disagreement:
+        message = (
+            "Selected performance-best sample differs from advisory "
+            "exit-quality-best sample; review before trusting exit quality."
+        )
+    else:
+        message = (
+            "Selected performance-best sample matches advisory exit-quality-best "
+            "sample."
+        )
+
+    return {
+        "advisory_only": True,
+        "selected_best_sample_index": selected_best_sample_index,
+        "performance_best_sample_index": selected_best_sample_index,
+        "exit_quality_best_sample_index": int(exit_quality_best_index),
+        "exit_quality_disagreement": bool(disagreement),
+        "selected_sample_health_score": float(selected_score),
+        "exit_quality_best_health_score": float(exit_quality_best_score),
+        "selected_sample_risk_exit_share": _health_class_share(
+            selected_health,
+            "risk_exit",
+        ),
+        "selected_sample_unknown_exit_share": _health_class_share(
+            selected_health,
+            "unknown_exit",
+        ),
+        "selected_sample_boundary_exit_share": _health_class_share(
+            selected_health,
+            "boundary_exit",
+        ),
+        "selected_sample_late_or_choppy_exit_share": _health_class_share(
+            selected_health,
+            "late_or_choppy_exit",
+        ),
+        "selected_sample_total_pnl": float(selected_total_pnl),
+        "selected_sample_risk_exit_total_pnl": _health_class_total_pnl(
+            selected_health,
+            "risk_exit",
+        ),
+        "advisory_message": message,
+    }
+
+
 def _sample_diagnostics_summary(sample_diagnostics: list[dict[str, Any]]) -> dict[str, Any]:
     reason_counts = Counter(
         str(item.get("reason") or "passed")
@@ -1422,6 +1752,10 @@ def _sample_diagnostics_summary(sample_diagnostics: list[dict[str, Any]]) -> dic
         "best_expectancy": float(best_metrics.get("expectancy", 0.0)),
         "best_profit_factor": float(best_metrics.get("profit_factor", 0.0)),
         "best_totaal_trades": float(best_metrics.get("totaal_trades", 0.0)),
+        "best_sample_exit_quality_audit": _sample_exit_quality_audit(
+            sample_diagnostics=sample_diagnostics,
+            selected_best_sample_index=best_sample_index,
+        ),
     }
 
 def execute_screening_candidate_samples(

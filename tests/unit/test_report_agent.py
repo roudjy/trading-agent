@@ -13,6 +13,7 @@ from research.report_agent import (
     VERDICT_NIETS_BRUIKBAARS,
     VERDICT_PROMOTED,
     _build_trend_pullback_exit_impact,
+    _build_trend_pullback_exit_quality,
     build_report_payload,
     classify_verdict,
     generate_post_run_report,
@@ -576,3 +577,169 @@ def test_trend_pullback_exit_impact_carries_boundary_proximity_evidence():
     assert "Trend-break total PnL" in markdown
     assert "trend_break=-5.00%" in markdown
     assert "signal_change_ambiguous_transition=-2.00%" in markdown
+
+
+def test_trend_pullback_exit_quality_renders_advisory_sections():
+    rows = _build_trend_pullback_exit_quality(
+        {
+            "candidates": [
+                {
+                    "asset": "TEST",
+                    "interval": "1d",
+                    "decision": "promoted_to_validation",
+                    "sample_diagnostics_summary": {
+                        "best_sample_index": 0,
+                        "best_sample_exit_quality_audit": {
+                            "advisory_only": True,
+                            "selected_best_sample_index": 0,
+                            "performance_best_sample_index": 0,
+                            "exit_quality_best_sample_index": 1,
+                            "exit_quality_disagreement": True,
+                            "selected_sample_health_score": -0.6,
+                            "advisory_message": (
+                                "Selected performance-best sample differs from "
+                                "advisory exit-quality-best sample."
+                            ),
+                        },
+                    },
+                    "sample_diagnostics": [
+                        {
+                            "trend_pullback_exit_reason_summary": {
+                                "exit_reason_semantics": {
+                                    "pullback_resolved_and_trend_break": {
+                                        "exit_semantic_class": (
+                                            "ambiguous_late_or_choppy_exit"
+                                        ),
+                                        "exit_semantic_warning": (
+                                            "not automatically healthy"
+                                        ),
+                                    },
+                                },
+                                "exit_health_summary": {
+                                    "overall": {
+                                        "health_class_counts": {
+                                            "healthy_exit": 1,
+                                            "late_or_choppy_exit": 1,
+                                            "risk_exit": 1,
+                                        },
+                                        "by_health_class": {
+                                            "risk_exit": {"trade_share": 0.33},
+                                            "unknown_exit": {"trade_share": 0.0},
+                                            "boundary_exit": {"trade_share": 0.0},
+                                            "late_or_choppy_exit": {
+                                                "trade_share": 0.33,
+                                            },
+                                        },
+                                    },
+                                    "by_asset": {
+                                        "TEST": {
+                                            "overall": {
+                                                "trade_count": 3,
+                                                "total_pnl": -0.04,
+                                            },
+                                        },
+                                    },
+                                    "by_exit_reason": {
+                                        "pullback_resolved_and_trend_break": {
+                                            "exit_health_class": (
+                                                "late_or_choppy_exit"
+                                            ),
+                                        },
+                                    },
+                                    "by_unknown_subcategory": {},
+                                    "by_boundary_proximity_bucket": {
+                                        "not_near_window_end": {
+                                            "overall": {"trade_count": 3},
+                                        },
+                                    },
+                                },
+                                "realized_pnl_impact": {
+                                    "by_exit_reason": {
+                                        "trend_break": {"total_pnl": -0.05},
+                                        "pullback_resolved_and_trend_break": {
+                                            "total_pnl": -0.01,
+                                        },
+                                    },
+                                    "by_unknown_subcategory": {},
+                                    "by_boundary_proximity_bucket": {
+                                        "not_near_window_end": {
+                                            "total_pnl": -0.04,
+                                        },
+                                    },
+                                },
+                                "boundary_proximity_summary": {
+                                    "bucket_counts": {
+                                        "not_near_window_end": 3,
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        }
+    )
+
+    assert rows[0]["advisory_only"] is True
+    assert rows[0]["exit_health_counts"]["late_or_choppy_exit"] == 1
+    assert rows[0]["exit_health_by_reason"][
+        "pullback_resolved_and_trend_break"
+    ]["exit_health_class"] == "late_or_choppy_exit"
+    assert rows[0]["best_sample_exit_quality_audit"][
+        "exit_quality_disagreement"
+    ] is True
+
+    markdown = render_markdown(
+        {
+            "run_id": "run-quality",
+            "generated_at_utc": "2026-06-01T09:30:00+00:00",
+            "preset": "trend_equities_4h_baseline",
+            "verdict": VERDICT_PROMOTED,
+            "summary": {
+                "raw": 1,
+                "screened": 1,
+                "validated": 1,
+                "rejected": 0,
+                "promoted": 1,
+            },
+            "candidates": [],
+            "top_rejection_reasons": [],
+            "top_rejection_reasons_by_layer": {
+                "screening_layer": [],
+                "promotion_layer": [],
+            },
+            "per_candidate_diagnostics": [],
+            "join_stats": {},
+            "red_flags": [],
+            "trend_pullback_exit_quality": rows,
+            "regime_diagnostics": {},
+            "statistical_diagnostics": {},
+            "next_experiment": "Review exit quality.",
+        }
+    )
+    assert "Trend-pullback exit quality (advisory only)" in markdown
+    assert "Health classes are diagnostic context only" in markdown
+    assert "Boundary proximity is context, not reclassification" in markdown
+    assert "realized PnL impact remains separate" in markdown
+    assert "`pullback_resolved_and_trend_break` is treated as ambiguous" in markdown
+    assert "Selected performance-best sample differs" in markdown
+
+
+def test_trend_pullback_exit_quality_handles_missing_diagnostics_gracefully():
+    assert _build_trend_pullback_exit_quality({"candidates": [{}]}) == []
+    assert (
+        _build_trend_pullback_exit_quality(
+            {
+                "candidates": [
+                    {
+                        "asset": "ZERO",
+                        "sample_diagnostics_summary": {"best_sample_index": 0},
+                        "sample_diagnostics": [
+                            {"trend_pullback_exit_reason_summary": {}},
+                        ],
+                    }
+                ],
+            }
+        )[0]["exit_health_counts"]
+        == {}
+    )
