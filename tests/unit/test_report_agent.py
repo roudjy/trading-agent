@@ -856,3 +856,124 @@ def test_candidate_shadow_readiness_report_can_recommend_operator_review_default
     assert report["operator_go_required"] is True
     assert report["candidates"][0]["eligible_for_operator_shadow_review"] is True
 
+def test_paper_readiness_blocker_diagnosis_selects_closest_candidate_by_evidence():
+    from research.report_agent import _paper_readiness_blocker_diagnosis
+
+    paper_readiness = {
+        "entries": [
+            {
+                "candidate_id": "strategy|AAPL|4h|{}",
+                "asset_type": "equity",
+                "sleeve_id": None,
+                "readiness_status": "blocked",
+                "blocking_reasons": ["missing_execution_events"],
+                "warnings": ["negative_paper_sharpe"],
+                "evidence": {
+                    "paper_ledger_event_count": 0,
+                    "timestamped_returns_n_obs": 197,
+                    "divergence_severity": "low",
+                    "paper_sharpe_proxy": 0.0,
+                },
+            },
+            {
+                "candidate_id": "strategy|HD|4h|{}",
+                "asset_type": "equity",
+                "sleeve_id": None,
+                "readiness_status": "blocked",
+                "blocking_reasons": ["excessive_divergence"],
+                "warnings": [],
+                "evidence": {
+                    "paper_ledger_event_count": 180,
+                    "timestamped_returns_n_obs": 197,
+                    "divergence_severity": "high",
+                    "paper_sharpe_proxy": 0.715,
+                },
+            },
+        ]
+    }
+
+    report = _paper_readiness_blocker_diagnosis(
+        paper_readiness,
+        {"overall_event_counts": {"signal": 60, "order": 60, "fill": 30}},
+        {"severity_counts": {"low": 1, "medium": 0, "high": 1}},
+    )
+
+    assert report is not None
+    assert report["paper_candidate_search_status"] == "no_ready_candidate"
+    assert report["ready_candidate_count"] == 0
+    assert report["blocked_candidate_count"] == 2
+    assert report["dominant_blockers"] == [
+        {"reason": "excessive_divergence", "count": 1},
+        {"reason": "missing_execution_events", "count": 1},
+    ]
+    assert report["diagnosis_counts"]["execution_event_coverage_gap"] == 1
+    assert report["diagnosis_counts"]["paper_engine_divergence_gap"] == 1
+    assert report["closest_candidate"]["candidate_id"] == "strategy|HD|4h|{}"
+    assert report["closest_candidate"]["diagnosis_class"] == "paper_engine_divergence_gap"
+    assert report["recommended_next_action"] == (
+        "inspect_paper_engine_divergence_components_before_threshold_or_strategy_changes"
+    )
+    assert report["paper_runtime_enabled"] is False
+    assert report["shadow_runtime_enabled"] is False
+    assert report["live_eligible"] is False
+
+
+def test_paper_readiness_blocker_diagnosis_renders_markdown_advisory_section():
+    from research.report_agent import _paper_readiness_blocker_diagnosis
+
+    report = _paper_readiness_blocker_diagnosis(
+        {
+            "entries": [
+                {
+                    "candidate_id": "strategy|MSFT|4h|{}",
+                    "asset_type": "equity",
+                    "sleeve_id": None,
+                    "readiness_status": "ready_for_paper_promotion",
+                    "blocking_reasons": [],
+                    "warnings": [],
+                    "evidence": {
+                        "paper_ledger_event_count": 12,
+                        "timestamped_returns_n_obs": 90,
+                        "divergence_severity": "low",
+                    },
+                }
+            ]
+        },
+        {"overall_event_counts": {"signal": 12}},
+        {"severity_counts": {"low": 1}},
+    )
+
+    markdown = render_markdown(
+        {
+            "run_id": "run-paper-diagnosis",
+            "generated_at_utc": "2026-06-01T12:00:00+00:00",
+            "preset": "trend_equities_4h_baseline",
+            "verdict": VERDICT_PROMOTED,
+            "summary": {
+                "raw": 1,
+                "screened": 1,
+                "validated": 1,
+                "rejected": 0,
+                "promoted": 1,
+            },
+            "candidates": [],
+            "top_rejection_reasons": [],
+            "top_rejection_reasons_by_layer": {
+                "screening_layer": [],
+                "promotion_layer": [],
+            },
+            "per_candidate_diagnostics": [],
+            "join_stats": {},
+            "red_flags": [],
+            "regime_diagnostics": {},
+            "statistical_diagnostics": {},
+            "paper_readiness_blocker_diagnosis": report,
+            "next_experiment": "Review paper diagnosis.",
+        }
+    )
+
+    assert "Paper Readiness Blocker Diagnosis (advisory only)" in markdown
+    assert "paper_candidate_search_status: ready_candidate_found" in markdown
+    assert "recommended_next_action: review_ready_candidate_for_operator_shadow_or_paper_followup" in markdown
+    assert "it does not change readiness thresholds" in markdown
+

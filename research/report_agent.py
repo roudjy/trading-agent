@@ -236,6 +236,239 @@ def _paper_layer_summary(
 
 
 
+
+def _candidate_id_asset_hint(candidate_id: Any) -> str | None:
+    if not isinstance(candidate_id, str) or not candidate_id:
+        return None
+    parts = candidate_id.split("|")
+    if len(parts) >= 2 and parts[1]:
+        return parts[1]
+    return None
+
+
+def _paper_readiness_diagnosis_class(
+    *,
+    status: str | None,
+    blocking_reasons: list[str],
+    warnings: list[str],
+    evidence: dict[str, Any],
+) -> str:
+    if status == "ready_for_paper_promotion":
+        return "ready_candidate_found"
+    if "missing_execution_events" in blocking_reasons:
+        return "execution_event_coverage_gap"
+    if "excessive_divergence" in blocking_reasons:
+        return "paper_engine_divergence_gap"
+    if "insufficient_oos_days" in blocking_reasons:
+        return "insufficient_return_evidence"
+    if "no_candidate_returns" in blocking_reasons:
+        return "missing_return_evidence"
+    if "malformed_return_stream" in blocking_reasons:
+        return "malformed_return_evidence"
+    if "insufficient_venue_mapping" in blocking_reasons:
+        return "venue_mapping_gap"
+    if "negative_paper_sharpe" in warnings:
+        return "weak_paper_performance_signal"
+    if status == "insufficient_evidence":
+        return "insufficient_evidence"
+    if not evidence:
+        return "missing_candidate_evidence"
+    return "paper_readiness_blocked_unknown"
+
+
+def _paper_readiness_next_action_for_diagnosis(diagnosis_class: str) -> str:
+    mapping = {
+        "ready_candidate_found": "review_ready_candidate_for_operator_shadow_or_paper_followup",
+        "execution_event_coverage_gap": "inspect_validated_candidate_execution_event_coverage",
+        "paper_engine_divergence_gap": "inspect_paper_engine_divergence_components_before_threshold_or_strategy_changes",
+        "insufficient_return_evidence": "collect_more_oos_return_evidence_before_paper_review",
+        "missing_return_evidence": "repair_candidate_return_stream_before_paper_review",
+        "malformed_return_evidence": "repair_malformed_candidate_return_stream_before_paper_review",
+        "venue_mapping_gap": "inspect_venue_mapping_before_paper_review",
+        "weak_paper_performance_signal": "keep_candidate_blocked_until_paper_performance_signal_improves",
+        "insufficient_evidence": "collect_more_candidate_evidence_before_paper_review",
+        "missing_candidate_evidence": "run_or_repair_paper_readiness_sidecar_generation",
+    }
+    return mapping.get(
+        diagnosis_class,
+        "inspect_paper_readiness_blockers_before_new_strategy_or_preset_changes",
+    )
+
+
+def _paper_candidate_evidence_score(row: dict[str, Any]) -> tuple[int, int, int, int, int]:
+    status = str(row.get("readiness_status") or "")
+    blockers = row.get("blocking_reasons") if isinstance(row.get("blocking_reasons"), list) else []
+
+    event_count = int(row.get("paper_ledger_event_count") or 0)
+    status_score = 3 if status == "ready_for_paper_promotion" else 0
+
+    # A blocked candidate with real reconstructed paper events is closer to
+    # paper readiness than a candidate with low divergence caused by zero events.
+    event_presence_score = 1 if event_count > 0 else 0
+    event_score = event_count
+
+    divergence_score = 0
+    severity = row.get("divergence_severity")
+    if severity == "low":
+        divergence_score = 2
+    elif severity == "medium":
+        divergence_score = 1
+
+    obs_score = int(row.get("timestamped_returns_n_obs") or 0)
+
+    # Fewer blockers should win only after evidence coverage and quality.
+    blocker_penalty = -len(blockers)
+    return (
+        status_score,
+        event_presence_score,
+        event_score,
+        divergence_score,
+        obs_score + blocker_penalty,
+    )
+
+
+def _paper_readiness_blocker_diagnosis(
+    paper_readiness: dict[str, Any] | None,
+    paper_ledger: dict[str, Any] | None,
+    paper_divergence: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Build a generic paper-readiness blocker diagnosis.
+
+    This is report-only and does not alter readiness thresholds, strategy
+    behavior, preset behavior, campaign queues, or runtime activation.
+    """
+    if not paper_readiness and not paper_ledger and not paper_divergence:
+        return None
+
+    readiness = paper_readiness or {}
+    entries = readiness.get("entries") if isinstance(readiness, dict) else []
+    if not isinstance(entries, list):
+        entries = []
+
+    ledger = paper_ledger or {}
+    divergence = paper_divergence or {}
+
+    blocker_counts: dict[str, int] = {}
+    warning_counts: dict[str, int] = {}
+    diagnosis_counts: dict[str, int] = {}
+    candidate_rows: list[dict[str, Any]] = []
+
+    ready_count = 0
+    blocked_count = 0
+    insufficient_count = 0
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+
+        status = str(entry.get("readiness_status") or "unknown")
+        if status == "ready_for_paper_promotion":
+            ready_count += 1
+        elif status == "blocked":
+            blocked_count += 1
+        elif status == "insufficient_evidence":
+            insufficient_count += 1
+
+        blocking_reasons = list(entry.get("blocking_reasons") or [])
+        warnings = list(entry.get("warnings") or [])
+        evidence = entry.get("evidence") if isinstance(entry.get("evidence"), dict) else {}
+
+        for reason in blocking_reasons:
+            blocker_counts[str(reason)] = blocker_counts.get(str(reason), 0) + 1
+        for warning in warnings:
+            warning_counts[str(warning)] = warning_counts.get(str(warning), 0) + 1
+
+        diagnosis_class = _paper_readiness_diagnosis_class(
+            status=status,
+            blocking_reasons=[str(reason) for reason in blocking_reasons],
+            warnings=[str(warning) for warning in warnings],
+            evidence=evidence,
+        )
+        diagnosis_counts[diagnosis_class] = diagnosis_counts.get(diagnosis_class, 0) + 1
+
+        candidate_rows.append(
+            {
+                "candidate_id": entry.get("candidate_id"),
+                "asset_hint": _candidate_id_asset_hint(entry.get("candidate_id")),
+                "asset_type": entry.get("asset_type"),
+                "sleeve_id": entry.get("sleeve_id"),
+                "readiness_status": status,
+                "blocking_reasons": blocking_reasons,
+                "warnings": warnings,
+                "paper_ledger_event_count": int(evidence.get("paper_ledger_event_count") or 0),
+                "timestamped_returns_n_obs": int(evidence.get("timestamped_returns_n_obs") or 0),
+                "divergence_severity": evidence.get("divergence_severity"),
+                "paper_sharpe_proxy": evidence.get("paper_sharpe_proxy"),
+                "diagnosis_class": diagnosis_class,
+                "recommended_next_action": _paper_readiness_next_action_for_diagnosis(
+                    diagnosis_class
+                ),
+            }
+        )
+
+    if ready_count > 0:
+        search_status = "ready_candidate_found"
+    elif entries:
+        search_status = "no_ready_candidate"
+    elif paper_readiness:
+        search_status = "insufficient_evidence"
+    else:
+        search_status = "missing_paper_readiness"
+
+    closest = None
+    if candidate_rows:
+        closest = max(candidate_rows, key=_paper_candidate_evidence_score)
+
+    dominant_blockers = [
+        {"reason": reason, "count": count}
+        for reason, count in sorted(
+            blocker_counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )
+    ]
+    dominant_diagnoses = [
+        {"diagnosis_class": reason, "count": count}
+        for reason, count in sorted(
+            diagnosis_counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )
+    ]
+
+    if ready_count > 0:
+        recommended = "review_ready_candidate_for_operator_shadow_or_paper_followup"
+    elif closest:
+        recommended = closest["recommended_next_action"]
+    elif not paper_readiness:
+        recommended = "run_or_repair_paper_readiness_sidecar_generation"
+    else:
+        recommended = "inspect_paper_readiness_blockers_before_new_strategy_or_preset_changes"
+
+    return {
+        "schema_version": "paper_readiness_blocker_diagnosis.v1",
+        "advisory_only": True,
+        "authoritative": False,
+        "diagnostic_only": True,
+        "live_eligible": False,
+        "paper_runtime_enabled": False,
+        "shadow_runtime_enabled": False,
+        "paper_candidate_search_status": search_status,
+        "candidate_count": len(candidate_rows),
+        "ready_candidate_count": ready_count,
+        "blocked_candidate_count": blocked_count,
+        "insufficient_evidence_candidate_count": insufficient_count,
+        "dominant_blockers": dominant_blockers,
+        "warning_counts": dict(sorted(warning_counts.items())),
+        "diagnosis_counts": dict(sorted(diagnosis_counts.items())),
+        "dominant_diagnoses": dominant_diagnoses,
+        "closest_candidate": closest,
+        "recommended_next_action": recommended,
+        "ledger_event_counts": ledger.get("overall_event_counts") or {},
+        "divergence_severity_counts": divergence.get("severity_counts") or {},
+        "candidates": candidate_rows,
+    }
+
+
+
 def _candidate_shadow_readiness_report(
     paper_readiness: dict[str, Any] | None,
     exit_quality_rows: list[dict[str, Any]],
@@ -892,6 +1125,11 @@ def build_report_payload(
             _load_json(_PAPER_DIVERGENCE_SIDECAR),
             _load_json(_PAPER_READINESS_SIDECAR),
         ),
+        "paper_readiness_blocker_diagnosis": _paper_readiness_blocker_diagnosis(
+            _load_json(_PAPER_READINESS_SIDECAR),
+            _load_json(_PAPER_LEDGER_SIDECAR),
+            _load_json(_PAPER_DIVERGENCE_SIDECAR),
+        ),
         "candidate_shadow_readiness_report": _candidate_shadow_readiness_report(
             _load_json(_PAPER_READINESS_SIDECAR),
             _build_trend_pullback_exit_quality(screening_candidates_payload),
@@ -1516,6 +1754,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     _append_lifecycle_breakdown_section(lines, report.get("lifecycle_breakdown"))
     _append_portfolio_layer_section(lines, report.get("portfolio_layer_summary"))
     _append_paper_layer_section(lines, report.get("paper_layer_summary"))
+    _append_paper_readiness_blocker_diagnosis_section(
+        lines,
+        report.get("paper_readiness_blocker_diagnosis"),
+    )
     _append_candidate_shadow_readiness_section(
         lines,
         report.get("candidate_shadow_readiness_report"),
@@ -1631,6 +1873,74 @@ def _append_paper_layer_section(
     )
     lines.append(
         f"- live_eligible: {summary.get('live_eligible')} (v3.15 is research-only)"
+    )
+    lines.append("")
+
+
+
+
+def _append_paper_readiness_blocker_diagnosis_section(
+    lines: list[str], summary: dict[str, Any] | None
+) -> None:
+    """Render generic paper-readiness blocker diagnosis."""
+    if not summary:
+        return
+    lines.append("## Paper Readiness Blocker Diagnosis (advisory only)")
+    lines.append(
+        f"- paper_candidate_search_status: {summary.get('paper_candidate_search_status')}"
+    )
+    lines.append(
+        "- candidates: "
+        f"total={summary.get('candidate_count')}, "
+        f"ready={summary.get('ready_candidate_count')}, "
+        f"blocked={summary.get('blocked_candidate_count')}, "
+        f"insufficient_evidence={summary.get('insufficient_evidence_candidate_count')}"
+    )
+    blockers = summary.get("dominant_blockers") or []
+    lines.append(
+        "- dominant_blockers: "
+        + (
+            ", ".join(
+                f"{row.get('reason')}={row.get('count')}"
+                for row in blockers
+                if isinstance(row, dict)
+            )
+            if blockers
+            else "none"
+        )
+    )
+    diagnoses = summary.get("dominant_diagnoses") or []
+    lines.append(
+        "- dominant_diagnoses: "
+        + (
+            ", ".join(
+                f"{row.get('diagnosis_class')}={row.get('count')}"
+                for row in diagnoses
+                if isinstance(row, dict)
+            )
+            if diagnoses
+            else "none"
+        )
+    )
+    closest = summary.get("closest_candidate") or {}
+    if closest:
+        lines.append(
+            "- closest_candidate: "
+            f"{closest.get('candidate_id')} "
+            f"status={closest.get('readiness_status')} "
+            f"diagnosis={closest.get('diagnosis_class')} "
+            f"events={closest.get('paper_ledger_event_count')} "
+            f"divergence={closest.get('divergence_severity')}"
+        )
+    else:
+        lines.append("- closest_candidate: none")
+    lines.append(
+        f"- recommended_next_action: {summary.get('recommended_next_action')}"
+    )
+    lines.append(
+        "- advisory: this diagnosis explains why paper candidates are absent; "
+        "it does not change readiness thresholds, presets, strategies, campaign queues, "
+        "or paper/shadow/live runtime."
     )
     lines.append("")
 
