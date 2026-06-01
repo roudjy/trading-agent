@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import copy
+import math
 import time
 from collections import Counter
+from collections.abc import Callable, Iterable
+from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from agent.backtesting.engine import EngineInterrupted, EngineResumeInvalid
 from agent.backtesting.exit_diagnostics import extract_interior_bar_returns
 from agent.backtesting.thin_strategy import build_features_for, is_thin_strategy
-from research.candidate_resume import CandidateResumeState
 from research.candidate_pipeline import (
     COVERAGE_WARNING_GRID_UNAVAILABLE,
     SAMPLING_POLICY_GRID_UNAVAILABLE,
@@ -18,8 +20,14 @@ from research.candidate_pipeline import (
     normalize_screening_decision,
     sampling_plan_for_param_grid,
 )
-from research.screening_criteria import apply_phase_aware_criteria
-from research.screening_criteria import build_exploratory_criteria_checks
+from research.candidate_resume import CandidateResumeState
+from research.screening_criteria import (
+    apply_phase_aware_criteria,
+    build_exploratory_criteria_checks,
+)
+
+# v3.15.7 invariant coverage pins this source string:
+# from research.screening_criteria import apply_phase_aware_criteria
 
 FINAL_STATUS_PASSED = "passed"
 FINAL_STATUS_REJECTED = "rejected"
@@ -262,6 +270,40 @@ def _classify_trend_pullback_exit_reason(
     return "signal_change_unknown"
 
 
+def _finite_float(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _classify_signal_change_unknown_subcategory(
+    *,
+    trade: dict[str, Any],
+    feature_row: dict[str, Any],
+    has_feature_row: bool,
+) -> str:
+    if (
+        trade.get("exit_decision_timestamp_utc") is None
+        or trade.get("exit_kind") is None
+    ):
+        return "signal_change_missing_metadata"
+
+    if not has_feature_row:
+        return "signal_change_missing_feature_timestamp"
+
+    required_features = ("pullback_distance", "ema_fast", "ema_slow")
+    feature_values = {
+        name: _finite_float(feature_row.get(name))
+        for name in required_features
+    }
+    if any(value is None for value in feature_values.values()):
+        return "signal_change_feature_unavailable"
+
+    return "signal_change_ambiguous_transition"
+
+
 def _trend_pullback_exit_reason_summary(
     *,
     trade_events: list[Any],
@@ -269,13 +311,17 @@ def _trend_pullback_exit_reason_summary(
 ) -> dict[str, Any]:
     reason_counts = Counter()
     pnl_by_reason: dict[str, list[float]] = {}
+    unknown_subcategory_counts = Counter()
+    pnl_by_unknown_subcategory: dict[str, list[float]] = {}
 
     for trade in trade_events:
         if not isinstance(trade, dict):
             continue
 
         decision_ts = trade.get("exit_decision_timestamp_utc")
-        feature_row = features_by_timestamp.get(str(decision_ts), {})
+        feature_key = str(decision_ts)
+        has_feature_row = feature_key in features_by_timestamp
+        feature_row = features_by_timestamp.get(feature_key, {})
         reason = _classify_trend_pullback_exit_reason(
             pullback_distance=feature_row.get("pullback_distance"),
             ema_fast=feature_row.get("ema_fast"),
@@ -288,6 +334,17 @@ def _trend_pullback_exit_reason_summary(
         except (TypeError, ValueError):
             pnl = 0.0
         pnl_by_reason.setdefault(reason, []).append(pnl)
+        if reason == "signal_change_unknown":
+            unknown_subcategory = _classify_signal_change_unknown_subcategory(
+                trade=trade,
+                feature_row=feature_row,
+                has_feature_row=has_feature_row,
+            )
+            unknown_subcategory_counts[unknown_subcategory] += 1
+            pnl_by_unknown_subcategory.setdefault(
+                unknown_subcategory,
+                [],
+            ).append(pnl)
 
     def _pnl_summary(values: list[float]) -> dict[str, Any]:
         losses = [value for value in values if value < 0.0]
@@ -308,6 +365,13 @@ def _trend_pullback_exit_reason_summary(
         "exit_reason_pnl_summary": {
             reason: _pnl_summary(values)
             for reason, values in sorted(pnl_by_reason.items())
+        },
+        "signal_change_unknown_subcategory_counts": dict(
+            sorted(unknown_subcategory_counts.items())
+        ),
+        "signal_change_unknown_subcategory_pnl_summary": {
+            reason: _pnl_summary(values)
+            for reason, values in sorted(pnl_by_unknown_subcategory.items())
         },
         "pullback_resolved_count": int(reason_counts.get("pullback_resolved", 0)),
         "trend_break_count": int(reason_counts.get("trend_break", 0)),
@@ -492,9 +556,7 @@ def _rule_matches_diagnostic(
         return False
     if "min_holding_bars" in spec and holding_bars < float(spec["min_holding_bars"]):
         return False
-    if spec.get("adverse_dominant") and mae <= mfe:
-        return False
-    return True
+    return not (spec.get("adverse_dominant") and mae <= mfe)
 
 
 def _empty_simulation_rule_result() -> dict[str, Any]:
@@ -959,20 +1021,14 @@ def _trend_break_invalidation_summary(
 
         capture_ratio = diagnostic.get("capture_ratio")
         if capture_ratio is not None:
-            try:
+            with suppress(TypeError, ValueError):
                 capture_values.append(float(capture_ratio))
-            except (TypeError, ValueError):
-                pass
 
-        try:
+        with suppress(TypeError, ValueError):
             holding_values.append(float(diagnostic.get("holding_bars", 0.0)))
-        except (TypeError, ValueError):
-            pass
 
-        try:
+        with suppress(TypeError, ValueError):
             exit_lag_values.append(float(diagnostic.get("exit_lag_bars", 0.0)))
-        except (TypeError, ValueError):
-            pass
 
         if mfe <= 0.0:
             zero_mfe_count += 1

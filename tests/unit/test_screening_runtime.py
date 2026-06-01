@@ -107,6 +107,31 @@ def _assert_diagnostic_row_matches_engine_features(
         )
 
 
+def _capture_engine_plain_feature_calls(monkeypatch) -> list[dict[str, object]]:
+    feature_calls: list[dict[str, object]] = []
+    real_engine_build_features_for = engine_module.build_features_for
+
+    def _capturing_engine_build_features_for(requirements, df):
+        features = real_engine_build_features_for(requirements, df)
+        feature_calls.append(
+            {
+                "index": tuple(df.index),
+                "features": {
+                    alias: series.copy()
+                    for alias, series in features.items()
+                },
+            }
+        )
+        return features
+
+    monkeypatch.setattr(
+        engine_module,
+        "build_features_for",
+        _capturing_engine_build_features_for,
+    )
+    return feature_calls
+
+
 def test_screening_sidecar_payload_counts_are_deterministic():
     records = build_screening_runtime_records(
         candidates=[
@@ -499,6 +524,8 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "trade_count": 0,
                 "exit_reason_counts": {},
                 "exit_reason_pnl_summary": {},
+                "signal_change_unknown_subcategory_counts": {},
+                "signal_change_unknown_subcategory_pnl_summary": {},
                 "pullback_resolved_count": 0,
                 "trend_break_count": 0,
                 "pullback_resolved_and_trend_break_count": 0,
@@ -551,6 +578,8 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
                 "trade_count": 0,
                 "exit_reason_counts": {},
                 "exit_reason_pnl_summary": {},
+                "signal_change_unknown_subcategory_counts": {},
+                "signal_change_unknown_subcategory_pnl_summary": {},
                 "pullback_resolved_count": 0,
                 "trend_break_count": 0,
                 "pullback_resolved_and_trend_break_count": 0,
@@ -713,11 +742,121 @@ def test_trend_pullback_exit_reason_summary_counts_decision_reasons() -> None:
                 "largest_win": 0.0,
             },
         },
+        "signal_change_unknown_subcategory_counts": {
+            "signal_change_missing_feature_timestamp": 1,
+        },
+        "signal_change_unknown_subcategory_pnl_summary": {
+            "signal_change_missing_feature_timestamp": {
+                "trade_count": 1,
+                "avg_pnl": 0.0,
+                "loss_count": 0,
+                "winner_count": 0,
+                "largest_loss": 0.0,
+                "largest_win": 0.0,
+            },
+        },
         "pullback_resolved_count": 1,
         "trend_break_count": 1,
         "pullback_resolved_and_trend_break_count": 1,
         "window_end_count": 1,
         "signal_change_unknown_count": 1,
+    }
+
+
+def test_trend_pullback_exit_reason_summary_explains_unknown_subcategories() -> None:
+    trade_events = [
+        {
+            "exit_kind": "signal_change",
+            "pnl": -0.01,
+        },
+        {
+            "exit_decision_timestamp_utc": "missing-feature-row",
+            "exit_kind": "signal_change",
+            "pnl": -0.02,
+        },
+        {
+            "exit_decision_timestamp_utc": "nan-feature-row",
+            "exit_kind": "signal_change",
+            "pnl": -0.03,
+        },
+        {
+            "exit_decision_timestamp_utc": "ambiguous-state",
+            "exit_kind": "signal_change",
+            "pnl": 0.04,
+        },
+        {
+            "exit_decision_timestamp_utc": "trend-break",
+            "exit_kind": "signal_change",
+            "pnl": -0.05,
+        },
+    ]
+    features_by_timestamp = {
+        "nan-feature-row": {
+            "pullback_distance": float("nan"),
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+        "ambiguous-state": {
+            "pullback_distance": -1.0,
+            "ema_fast": 101.0,
+            "ema_slow": 100.0,
+        },
+        "trend-break": {
+            "pullback_distance": -1.0,
+            "ema_fast": 99.0,
+            "ema_slow": 100.0,
+        },
+    }
+
+    summary = _trend_pullback_exit_reason_summary(
+        trade_events=trade_events,
+        features_by_timestamp=features_by_timestamp,
+    )
+
+    assert summary["exit_reason_counts"] == {
+        "signal_change_unknown": 4,
+        "trend_break": 1,
+    }
+    assert summary["signal_change_unknown_count"] == 4
+    assert summary["signal_change_unknown_subcategory_counts"] == {
+        "signal_change_ambiguous_transition": 1,
+        "signal_change_feature_unavailable": 1,
+        "signal_change_missing_feature_timestamp": 1,
+        "signal_change_missing_metadata": 1,
+    }
+    assert summary["signal_change_unknown_subcategory_pnl_summary"] == {
+        "signal_change_ambiguous_transition": {
+            "trade_count": 1,
+            "avg_pnl": 0.04,
+            "loss_count": 0,
+            "winner_count": 1,
+            "largest_loss": 0.04,
+            "largest_win": 0.04,
+        },
+        "signal_change_feature_unavailable": {
+            "trade_count": 1,
+            "avg_pnl": -0.03,
+            "loss_count": 1,
+            "winner_count": 0,
+            "largest_loss": -0.03,
+            "largest_win": -0.03,
+        },
+        "signal_change_missing_feature_timestamp": {
+            "trade_count": 1,
+            "avg_pnl": -0.02,
+            "loss_count": 1,
+            "winner_count": 0,
+            "largest_loss": -0.02,
+            "largest_win": -0.02,
+        },
+        "signal_change_missing_metadata": {
+            "trade_count": 1,
+            "avg_pnl": -0.01,
+            "loss_count": 1,
+            "winner_count": 0,
+            "largest_loss": -0.01,
+            "largest_win": -0.01,
+        },
     }
 
 
@@ -742,27 +881,7 @@ def test_trend_pullback_diagnostic_features_match_engine_fold_local_features(
     )
     engine._laad_data = lambda asset, interval: frame.copy()
 
-    engine_feature_calls: list[dict[str, object]] = []
-    real_engine_build_features_for = engine_module.build_features_for
-
-    def _capturing_engine_build_features_for(requirements, df):
-        features = real_engine_build_features_for(requirements, df)
-        engine_feature_calls.append(
-            {
-                "index": tuple(df.index),
-                "features": {
-                    alias: series.copy()
-                    for alias, series in features.items()
-                },
-            }
-        )
-        return features
-
-    monkeypatch.setattr(
-        engine_module,
-        "build_features_for",
-        _capturing_engine_build_features_for,
-    )
+    engine_feature_calls = _capture_engine_plain_feature_calls(monkeypatch)
 
     engine.run(strategy, ["TEST"], interval="1d")
     report = engine.last_evaluation_report or {}
