@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from research.presets import get_preset
 from research.report_agent import (
     REPORT_JSON_PATH,
@@ -14,6 +12,7 @@ from research.report_agent import (
     VERDICT_CANDIDATES_NO_PROMOTION,
     VERDICT_NIETS_BRUIKBAARS,
     VERDICT_PROMOTED,
+    _build_trend_pullback_exit_impact,
     build_report_payload,
     classify_verdict,
     generate_post_run_report,
@@ -21,8 +20,8 @@ from research.report_agent import (
     suggest_next_experiment,
 )
 from research.run_meta import (
-    build_run_meta_payload,
     build_candidate_summary,
+    build_run_meta_payload,
     write_run_meta_sidecar,
 )
 
@@ -195,8 +194,8 @@ def test_suggest_next_experiment_covers_known_shapes():
 
 
 def test_default_report_paths_live_inside_research_folder():
-    assert REPORT_MARKDOWN_PATH == Path("research/report_latest.md")
-    assert REPORT_JSON_PATH == Path("research/report_latest.json")
+    assert Path("research/report_latest.md") == REPORT_MARKDOWN_PATH
+    assert Path("research/report_latest.json") == REPORT_JSON_PATH
 
 
 # ---------------------------------------------------------------------------
@@ -336,7 +335,7 @@ def test_markdown_shows_hypothesis_and_waarom_sections(tmp_path: Path, monkeypat
     )
     _write_meta(meta_path)
 
-    from research.report_agent import render_markdown, build_report_payload
+    from research.report_agent import build_report_payload, render_markdown
 
     report = build_report_payload(
         run_id="run-md",
@@ -402,3 +401,100 @@ def test_next_experiment_steers_to_hypothesis_when_screening_dominant():
         rejection_reasons_by_layer=reasons_by_layer,
     )
     assert "hypothese" in msg.lower() or "family" in msg.lower()
+
+
+def test_trend_pullback_exit_impact_carries_boundary_proximity_evidence():
+    rows = _build_trend_pullback_exit_impact(
+        {
+            "candidates": [
+                {
+                    "asset": "TEST",
+                    "interval": "1d",
+                    "decision": "promoted_to_validation",
+                    "sample_diagnostics_summary": {"best_sample_index": 0},
+                    "sample_diagnostics": [
+                        {
+                            "trend_pullback_exit_reason_summary": {
+                                "exit_reason_counts": {
+                                    "trend_break": 1,
+                                    "window_end": 1,
+                                },
+                                "exit_reason_pnl_summary": {
+                                    "trend_break": {
+                                        "avg_pnl": -0.05,
+                                        "largest_loss": -0.05,
+                                    },
+                                    "window_end": {"avg_pnl": 0.01},
+                                },
+                                "boundary_proximity_summary": {
+                                    "bucket_counts": {
+                                        "window_end": 1,
+                                        "near_window_end_1_bar": 1,
+                                    },
+                                    "by_exit_reason": {
+                                        "trend_break": {
+                                            "bucket_counts": {
+                                                "near_window_end_1_bar": 1,
+                                            },
+                                        },
+                                        "window_end": {
+                                            "bucket_counts": {"window_end": 1},
+                                        },
+                                    },
+                                    "by_unknown_subcategory": {},
+                                    "by_asset": {
+                                        "TEST": {
+                                            "bucket_counts": {
+                                                "window_end": 1,
+                                                "near_window_end_1_bar": 1,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            "trend_break_invalidation_summary": {},
+                        },
+                    ],
+                },
+            ],
+        }
+    )
+
+    assert rows[0]["boundary_proximity_bucket_counts"] == {
+        "near_window_end_1_bar": 1,
+        "window_end": 1,
+    }
+    assert rows[0]["boundary_proximity_by_exit_reason"]["trend_break"][
+        "bucket_counts"
+    ] == {"near_window_end_1_bar": 1}
+
+    markdown = render_markdown(
+        {
+            "run_id": "run-boundary",
+            "generated_at_utc": "2026-06-01T08:30:00+00:00",
+            "preset": "trend_equities_4h_baseline",
+            "verdict": VERDICT_PROMOTED,
+            "summary": {
+                "raw": 1,
+                "screened": 1,
+                "validated": 1,
+                "rejected": 0,
+                "promoted": 1,
+            },
+            "candidates": [],
+            "top_rejection_reasons": [],
+            "top_rejection_reasons_by_layer": {
+                "screening_layer": [],
+                "promotion_layer": [],
+            },
+            "per_candidate_diagnostics": [],
+            "join_stats": {},
+            "red_flags": [],
+            "trend_pullback_exit_impact": rows,
+            "regime_diagnostics": {},
+            "statistical_diagnostics": {},
+            "next_experiment": "Review boundary diagnostics.",
+        }
+    )
+    assert "Boundary buckets" in markdown
+    assert "near_window_end_1_bar=1" in markdown

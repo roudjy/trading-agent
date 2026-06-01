@@ -775,6 +775,15 @@ def _num(value: Any) -> str:
         return "n/a"
 
 
+def _bucket_counts_text(value: Any) -> str:
+    if not isinstance(value, dict) or not value:
+        return "n/a"
+    return ", ".join(
+        f"{key}={int(count or 0)}"
+        for key, count in sorted(value.items())
+    )
+
+
 def _build_trend_pullback_exit_impact(
     screening_candidates: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
@@ -811,6 +820,7 @@ def _build_trend_pullback_exit_impact(
 
         pnl = exit_summary.get("exit_reason_pnl_summary") or {}
         counts = exit_summary.get("exit_reason_counts") or {}
+        boundary = exit_summary.get("boundary_proximity_summary") or {}
         pullback = pnl.get("pullback_resolved") or {}
         trend_break = pnl.get("trend_break") or {}
         window_end = pnl.get("window_end") or {}
@@ -831,6 +841,19 @@ def _build_trend_pullback_exit_impact(
                 "trend_break_largest_loss": trend_break.get("largest_loss"),
                 "window_end_count": int(counts.get("window_end", 0) or 0),
                 "window_end_avg_pnl": window_end.get("avg_pnl"),
+                "boundary_proximity_bucket_counts": boundary.get(
+                    "bucket_counts"
+                )
+                or {},
+                "boundary_proximity_by_exit_reason": boundary.get(
+                    "by_exit_reason"
+                )
+                or {},
+                "boundary_proximity_by_unknown_subcategory": boundary.get(
+                    "by_unknown_subcategory"
+                )
+                or {},
+                "boundary_proximity_by_asset": boundary.get("by_asset") or {},
                 "trend_break_avg_mae": invalidation.get("avg_mae"),
                 "trend_break_avg_mfe": invalidation.get("avg_mfe"),
                 "trend_break_zero_mfe_count": invalidation.get("zero_mfe_count"),
@@ -1092,12 +1115,12 @@ def _append_trend_pullback_exit_impact_section(
     lines.append(
         "| Asset | Decision | Pullback count | Pullback avg PnL | "
         "Trend-break count | Trend-break avg PnL | Trend-break largest loss | "
-        "Window-end count | Window-end avg PnL | "
+        "Window-end count | Window-end avg PnL | Boundary buckets | "
         "TB avg MAE | TB avg MFE | TB zero-MFE | TB adverse-dominant | "
         "TB avg hold bars | TB avg exit-lag bars |"
     )
     lines.append(
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|"
     )
     for row in rows:
         lines.append(
@@ -1109,6 +1132,7 @@ def _append_trend_pullback_exit_impact_section(
             f"{_pct(row.get('trend_break_largest_loss'))} | "
             f"{row.get('window_end_count')} | "
             f"{_pct(row.get('window_end_avg_pnl'))} | "
+            f"{_bucket_counts_text(row.get('boundary_proximity_bucket_counts'))} | "
             f"{_pct(row.get('trend_break_avg_mae'))} | "
             f"{_pct(row.get('trend_break_avg_mfe'))} | "
             f"{row.get('trend_break_zero_mfe_count')} | "
