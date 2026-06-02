@@ -52,6 +52,8 @@ def _fake_modules(tmp_path: Path, calls: list[str]):
         "qre_hypothesis_evidence_update",
         "qre_closed_loop_operator_report",
         "qre_trusted_loop_readiness",
+        "qre_evidence_quality_gate",
+        "qre_validated_hypothesis_promotion_intent",
     ]
     return tuple(
         _fake_module(f"reporting.{name}", name, tmp_path / "logs", calls) for name in names
@@ -95,6 +97,8 @@ def test_no_write_mode_collects_in_exact_step_order_without_module_writes(
         "qre_hypothesis_evidence_update",
         "qre_closed_loop_operator_report",
         "qre_trusted_loop_readiness",
+        "qre_evidence_quality_gate",
+        "qre_validated_hypothesis_promotion_intent",
     ]
     assert all(call.startswith("collect:") for call in calls)
     assert all(step["artifact_path"] is None for step in snap["steps"])
