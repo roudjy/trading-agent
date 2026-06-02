@@ -12,6 +12,7 @@ from types import ModuleType
 from typing import Any, Final
 
 from reporting import qre_closed_loop_operator_report
+from reporting import qre_evidence_quality_gate
 from reporting import qre_hypothesis_candidates
 from reporting import qre_hypothesis_evidence_update
 from reporting import qre_hypothesis_validation_plan
@@ -20,6 +21,7 @@ from reporting import qre_market_observation_snapshot
 from reporting import qre_observation_hypothesis_projector
 from reporting import qre_research_run_manifest
 from reporting import qre_trusted_loop_readiness
+from reporting import qre_validated_hypothesis_promotion_intent
 from reporting import qre_validation_research_action_candidates
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
@@ -41,6 +43,8 @@ STEP_MODULES: Final[tuple[ModuleType, ...]] = (
     qre_hypothesis_evidence_update,
     qre_closed_loop_operator_report,
     qre_trusted_loop_readiness,
+    qre_evidence_quality_gate,
+    qre_validated_hypothesis_promotion_intent,
 )
 
 
@@ -67,6 +71,8 @@ def _counts(snapshot: dict[str, Any]) -> dict[str, Any]:
         "run_manifests",
         "validation_results",
         "evidence_updates",
+        "evidence_quality_rows",
+        "promotion_intents",
     ):
         rows = snapshot.get(key)
         if isinstance(rows, list):
