@@ -49,11 +49,10 @@ from research.screening_criteria import (
     EXPLORATORY_MIN_PROFIT_FACTOR,
 )
 
-
-SCREENING_EVIDENCE_PATH: Final[Path] = Path(
-    "research/screening_evidence_latest.v1.json"
-)
-SCREENING_EVIDENCE_SCHEMA_VERSION: Final[str] = "1.0"
+SCREENING_EVIDENCE_PATH: Final[Path] = Path("research/screening_evidence_latest.v1.json")
+SCREENING_EVIDENCE_SCHEMA_VERSION: Final[str] = "1.1"
+SCREENING_EVIDENCE_SOURCE_ARTIFACT: Final[str] = "research/screening_evidence_latest.v1.json"
+SCREENING_EVIDENCE_SOURCE_REPORT_KIND: Final[str] = "screening_evidence"
 
 
 # v3.15.9 near-pass band constants (REV 3 §6.10).
@@ -116,6 +115,13 @@ PER_CANDIDATE_KEYS: Final[frozenset[str]] = frozenset(
         "asset",
         "interval",
         "hypothesis_id",
+        "validation_plan_id",
+        "run_manifest_id",
+        "source_artifact",
+        "source_report_kind",
+        "source_row_id",
+        "qre_validation_linkage_status",
+        "qre_validation_linkage_warnings",
         "preset_name",
         "screening_phase",
         "stage_result",
@@ -215,7 +221,10 @@ def is_near_pass(
     max_drawdown = to_json_safe_float(metrics.get("max_drawdown"))
 
     if reason == "expectancy_not_positive":
-        if expectancy is not None and -EXPLORATORY_EXPECTANCY_NEAR_BAND <= expectancy <= EXPLORATORY_MIN_EXPECTANCY:
+        if (
+            expectancy is not None
+            and -EXPLORATORY_EXPECTANCY_NEAR_BAND <= expectancy <= EXPLORATORY_MIN_EXPECTANCY
+        ):
             return True, {
                 "nearest_failed_criterion": reason,
                 "distance": abs(expectancy),
@@ -258,9 +267,9 @@ def dominant_failure_reasons(candidates: list[dict[str, Any]]) -> list[str]:
     for record in candidates:
         for reason in record.get("failure_reasons") or []:
             counter[str(reason)] += 1
-    return [reason for reason, _count in sorted(
-        counter.items(), key=lambda item: (-item[1], item[0])
-    )]
+    return [
+        reason for reason, _count in sorted(counter.items(), key=lambda item: (-item[1], item[0]))
+    ]
 
 
 def resolve_stage_result(
@@ -303,9 +312,7 @@ def _fallback_candidate_id(candidate: dict[str, Any]) -> str:
     base = json.dumps(
         {
             "strategy_id": str(
-                candidate.get("strategy_id")
-                or candidate.get("strategy_name")
-                or ""
+                candidate.get("strategy_id") or candidate.get("strategy_name") or ""
             ),
             "asset": str(candidate.get("asset") or ""),
             "interval": str(candidate.get("interval") or ""),
@@ -316,6 +323,208 @@ def _fallback_candidate_id(candidate: dict[str, Any]) -> str:
         allow_nan=False,
     )
     return "fb_" + hashlib.sha1(base.encode("utf-8")).hexdigest()[:16]
+
+
+def _bounded_str(value: Any, *, max_len: int = 240) -> str:
+    text = str(value or "").strip()
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3].rstrip() + "..."
+
+
+def _safe_dict_rows(payload: dict[str, Any] | None, field: str) -> list[dict[str, Any]] | None:
+    if not isinstance(payload, dict):
+        return None
+    rows = payload.get(field)
+    if not isinstance(rows, list) or not all(isinstance(item, dict) for item in rows):
+        return None
+    return rows
+
+
+def build_qre_validation_linkage_authority(
+    *,
+    hypothesis_candidates_payload: dict[str, Any] | None,
+    validation_plans_payload: dict[str, Any] | None,
+    run_manifest_payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build exact QRE validation-linkage authority for screening rows.
+
+    The authority is intentionally strict: it only links by an existing
+    ``hypothesis_id`` that is present in the QRE hypothesis artifact and
+    resolves to exactly one validation plan and exactly one run manifest.
+    Asset, symbol, timeframe, strategy, filename, and candidate-only
+    matching are not used.
+    """
+    warnings: list[str] = []
+    hypotheses = _safe_dict_rows(hypothesis_candidates_payload, "hypotheses")
+    plans = _safe_dict_rows(validation_plans_payload, "validation_plans")
+    manifests = _safe_dict_rows(run_manifest_payload, "run_manifests")
+
+    if (
+        not isinstance(hypothesis_candidates_payload, dict)
+        or hypothesis_candidates_payload.get("report_kind") != "qre_hypothesis_candidates"
+        or hypotheses is None
+    ):
+        warnings.append("qre_hypothesis_authority_absent_or_unparseable")
+    if (
+        not isinstance(validation_plans_payload, dict)
+        or validation_plans_payload.get("report_kind") != "qre_hypothesis_validation_plan"
+        or plans is None
+    ):
+        warnings.append("qre_validation_plan_authority_absent_or_unparseable")
+    if (
+        not isinstance(run_manifest_payload, dict)
+        or run_manifest_payload.get("report_kind") != "qre_research_run_manifest"
+        or manifests is None
+    ):
+        warnings.append("qre_run_manifest_authority_absent_or_unparseable")
+
+    if warnings:
+        return {
+            "available": False,
+            "warnings": warnings,
+            "by_hypothesis_id": {},
+        }
+
+    hypothesis_ids = {
+        _bounded_str(item.get("hypothesis_id"), max_len=160)
+        for item in hypotheses or []
+        if _bounded_str(item.get("hypothesis_id"), max_len=160)
+    }
+    plans_by_hypothesis: dict[str, list[str]] = {}
+    for item in plans or []:
+        hypothesis_id = _bounded_str(item.get("hypothesis_id"), max_len=160)
+        plan_id = _bounded_str(item.get("validation_plan_id"), max_len=160)
+        if hypothesis_id in hypothesis_ids and plan_id:
+            plans_by_hypothesis.setdefault(hypothesis_id, []).append(plan_id)
+    for values in plans_by_hypothesis.values():
+        values.sort()
+
+    manifests_by_plan: dict[str, list[str]] = {}
+    for item in manifests or []:
+        plan_id = _bounded_str(item.get("target_validation_plan_id"), max_len=160)
+        manifest_id = _bounded_str(item.get("run_manifest_id"), max_len=160)
+        if plan_id and manifest_id:
+            manifests_by_plan.setdefault(plan_id, []).append(manifest_id)
+    for values in manifests_by_plan.values():
+        values.sort()
+
+    by_hypothesis_id: dict[str, dict[str, Any]] = {}
+    for hypothesis_id in sorted(hypothesis_ids):
+        plan_ids = plans_by_hypothesis.get(hypothesis_id, [])
+        if not plan_ids:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_missing_validation_plan_id",
+                "warnings": ["qre_validation_plan_id_not_found_for_hypothesis"],
+            }
+            continue
+        if len(plan_ids) != 1:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_ambiguous_validation_plan_id",
+                "warnings": ["qre_validation_plan_id_not_unique_for_hypothesis"],
+            }
+            continue
+
+        plan_id = plan_ids[0]
+        manifest_ids = manifests_by_plan.get(plan_id, [])
+        if not manifest_ids:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_missing_run_manifest_id",
+                "validation_plan_id": plan_id,
+                "warnings": ["qre_run_manifest_id_not_found_for_validation_plan"],
+            }
+            continue
+        if len(manifest_ids) != 1:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_ambiguous_run_manifest_id",
+                "validation_plan_id": plan_id,
+                "warnings": ["qre_run_manifest_id_not_unique_for_validation_plan"],
+            }
+            continue
+
+        by_hypothesis_id[hypothesis_id] = {
+            "status": "linked_exact_ids",
+            "hypothesis_id": hypothesis_id,
+            "validation_plan_id": plan_id,
+            "run_manifest_id": manifest_ids[0],
+            "warnings": [],
+        }
+
+    return {
+        "available": True,
+        "warnings": [],
+        "by_hypothesis_id": by_hypothesis_id,
+    }
+
+
+def _qre_validation_linkage_fields(
+    *,
+    hypothesis_id: str | None,
+    source_row_id: str,
+    qre_validation_linkage_authority: dict[str, Any] | None,
+) -> dict[str, Any]:
+    fields: dict[str, Any] = {
+        "validation_plan_id": None,
+        "run_manifest_id": None,
+        "source_artifact": SCREENING_EVIDENCE_SOURCE_ARTIFACT,
+        "source_report_kind": SCREENING_EVIDENCE_SOURCE_REPORT_KIND,
+        "source_row_id": source_row_id,
+        "qre_validation_linkage_status": "unlinked_reference_authority_unavailable",
+        "qre_validation_linkage_warnings": ["qre_validation_linkage_authority_absent"],
+    }
+    if not isinstance(qre_validation_linkage_authority, dict):
+        return fields
+
+    authority_warnings = [
+        _bounded_str(item, max_len=120)
+        for item in qre_validation_linkage_authority.get("warnings", [])
+        if _bounded_str(item, max_len=120)
+    ]
+    if not qre_validation_linkage_authority.get("available"):
+        fields["qre_validation_linkage_warnings"] = authority_warnings or [
+            "qre_validation_linkage_authority_unavailable"
+        ]
+        return fields
+
+    if not hypothesis_id:
+        fields["qre_validation_linkage_status"] = "unlinked_missing_hypothesis_id"
+        fields["qre_validation_linkage_warnings"] = ["screening_row_missing_hypothesis_id"]
+        return fields
+
+    by_hypothesis = qre_validation_linkage_authority.get("by_hypothesis_id")
+    if not isinstance(by_hypothesis, dict):
+        return fields
+    entry = by_hypothesis.get(hypothesis_id)
+    if not isinstance(entry, dict):
+        fields["qre_validation_linkage_status"] = "unlinked_unknown_hypothesis_id"
+        fields["qre_validation_linkage_warnings"] = [
+            "screening_row_hypothesis_id_not_in_qre_authority"
+        ]
+        return fields
+
+    fields["qre_validation_linkage_status"] = (
+        _bounded_str(entry.get("status"), max_len=80) or "unlinked_incomplete_qre_authority"
+    )
+    fields["qre_validation_linkage_warnings"] = [
+        _bounded_str(item, max_len=120)
+        for item in entry.get("warnings", [])
+        if _bounded_str(item, max_len=120)
+    ]
+    if fields["qre_validation_linkage_status"] != "linked_exact_ids":
+        return fields
+
+    fields["validation_plan_id"] = (
+        _bounded_str(entry.get("validation_plan_id"), max_len=160) or None
+    )
+    fields["run_manifest_id"] = _bounded_str(entry.get("run_manifest_id"), max_len=160) or None
+    if not fields["validation_plan_id"] or not fields["run_manifest_id"]:
+        fields["validation_plan_id"] = None
+        fields["run_manifest_id"] = None
+        fields["qre_validation_linkage_status"] = "unlinked_incomplete_qre_authority"
+        fields["qre_validation_linkage_warnings"] = [
+            "qre_validation_authority_missing_required_exact_id"
+        ]
+    return fields
 
 
 def _coerce_metrics(raw: dict[str, Any]) -> dict[str, float | None]:
@@ -373,6 +582,7 @@ def _build_candidate_record(
     paper_blocking_reasons: list[str],
     preset_name: str | None,
     screening_phase: str | None,
+    qre_validation_linkage_authority: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Build one per-candidate evidence record (without fingerprint).
 
@@ -382,7 +592,7 @@ def _build_candidate_record(
     """
     raw_id = candidate.get("candidate_id")
     identity_fallback_used = False
-    if raw_id is None or not isinstance(raw_id, (str, int)) or str(raw_id).strip() == "":
+    if raw_id is None or not isinstance(raw_id, str | int) or str(raw_id).strip() == "":
         candidate_id = _fallback_candidate_id(candidate)
         identity_fallback_used = True
     else:
@@ -414,9 +624,7 @@ def _build_candidate_record(
     }
     if near_is_near and near_payload is not None:
         near_block["distance"] = to_json_safe_float(near_payload.get("distance"))
-        near_block["nearest_failed_criterion"] = str(
-            near_payload.get("nearest_failed_criterion")
-        )
+        near_block["nearest_failed_criterion"] = str(near_payload.get("nearest_failed_criterion"))
 
     validation = candidate.get("validation") or {}
     if isinstance(validation, dict):
@@ -445,35 +653,35 @@ def _build_candidate_record(
 
     promotion_guard = {
         "promotion_allowed": (
-            stage_result == STAGE_RESULT_DOWNSTREAM_PROMOTION
-            and not paper_blocked
+            stage_result == STAGE_RESULT_DOWNSTREAM_PROMOTION and not paper_blocked
         ),
         "blocked_by": list(paper_blocking_reasons) if paper_blocking_reasons else [],
     }
 
+    hypothesis_id = (
+        str(candidate.get("hypothesis_id")) if candidate.get("hypothesis_id") is not None else None
+    )
+    qre_linkage = _qre_validation_linkage_fields(
+        hypothesis_id=hypothesis_id,
+        source_row_id=candidate_id,
+        qre_validation_linkage_authority=qre_validation_linkage_authority,
+    )
+
     record: dict[str, Any] = {
         "candidate_id": candidate_id,
         "identity_fallback_used": identity_fallback_used,
-        "strategy_id": str(
-            candidate.get("strategy_id")
-            or candidate.get("strategy_name")
-            or ""
-        ) or None,
+        "strategy_id": str(candidate.get("strategy_id") or candidate.get("strategy_name") or "")
+        or None,
         "strategy_name": str(candidate.get("strategy_name") or "") or None,
         "asset": str(candidate.get("asset") or "") or None,
         "interval": str(candidate.get("interval") or "") or None,
-        "hypothesis_id": (
-            str(candidate.get("hypothesis_id"))
-            if candidate.get("hypothesis_id") is not None
-            else None
-        ),
+        "hypothesis_id": hypothesis_id,
+        **qre_linkage,
         "preset_name": preset_name,
         "screening_phase": screening_phase,
         "stage_result": stage_result,
         "pass_kind": pass_kind if isinstance(pass_kind, str) else None,
-        "screening_criteria_set": str(
-            screening_record.get("screening_criteria_set") or "legacy"
-        ),
+        "screening_criteria_set": str(screening_record.get("screening_criteria_set") or "legacy"),
         "metrics": metrics,
         "criteria": _criteria_split(
             screening_phase=screening_phase,
@@ -545,6 +753,7 @@ def build_screening_evidence_payload(
     screening_pass_kinds: dict[str, str | None],
     paper_blocked_index: dict[str, list[str]],
     promotion_status_index: dict[str, str] | None = None,
+    qre_validation_linkage_authority: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the full ``screening_evidence_latest.v1.json`` payload.
 
@@ -569,23 +778,15 @@ def build_screening_evidence_payload(
     for candidate in candidates:
         raw_id = candidate.get("candidate_id")
         candidate_record: dict[str, Any] | None = (
-            screening_record_by_id.get(str(raw_id))
-            if raw_id is not None
-            else None
+            screening_record_by_id.get(str(raw_id)) if raw_id is not None else None
         )
         if candidate_record is None:
             candidate_record = {}
-        strategy_id = (
-            candidate.get("strategy_id")
-            or candidate.get("strategy_name")
-            or ""
-        )
+        strategy_id = candidate.get("strategy_id") or candidate.get("strategy_name") or ""
         pass_kind = screening_pass_kinds.get(str(strategy_id))
         promotion_status = promotion_index.get(str(strategy_id))
         paper_blocking_reasons = list(
-            paper_blocked_index.get(str(raw_id), [])
-            if raw_id is not None
-            else []
+            paper_blocked_index.get(str(raw_id), []) if raw_id is not None else []
         )
         candidate_records.append(
             _build_candidate_record(
@@ -596,6 +797,7 @@ def build_screening_evidence_payload(
                 paper_blocking_reasons=paper_blocking_reasons,
                 preset_name=preset_name,
                 screening_phase=screening_phase,
+                qre_validation_linkage_authority=qre_validation_linkage_authority,
             )
         )
 
@@ -605,9 +807,7 @@ def build_screening_evidence_payload(
         "git_revision": git_revision,
         "run_id": str(run_id),
         "campaign_id": str(campaign_id) if campaign_id is not None else None,
-        "col_campaign_id": (
-            str(col_campaign_id) if col_campaign_id is not None else None
-        ),
+        "col_campaign_id": (str(col_campaign_id) if col_campaign_id is not None else None),
         "preset_name": preset_name,
         "screening_phase": screening_phase,
         "summary": _summarise(candidate_records),

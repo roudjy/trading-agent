@@ -33,10 +33,10 @@ def _empty_payload() -> dict:
     )
 
 
-def test_schema_version_is_1_0() -> None:
-    assert SCREENING_EVIDENCE_SCHEMA_VERSION == "1.0"
+def test_schema_version_is_1_1() -> None:
+    assert SCREENING_EVIDENCE_SCHEMA_VERSION == "1.1"
     payload = _empty_payload()
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
 
 
 def test_top_level_keys_are_closed_set() -> None:
