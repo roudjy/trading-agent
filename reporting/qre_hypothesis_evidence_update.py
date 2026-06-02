@@ -19,20 +19,14 @@ REPORT_KIND: Final[str] = "qre_hypothesis_evidence_update"
 HYPOTHESIS_INPUT_REPORT_KIND: Final[str] = "qre_hypothesis_candidates"
 RESULT_INPUT_REPORT_KIND: Final[str] = "qre_hypothesis_validation_results"
 
-HYPOTHESIS_INPUT_ARTIFACT_RELATIVE_PATH: Final[str] = (
-    "logs/qre_hypothesis_candidates/latest.json"
-)
+HYPOTHESIS_INPUT_ARTIFACT_RELATIVE_PATH: Final[str] = "logs/qre_hypothesis_candidates/latest.json"
 RESULT_INPUT_ARTIFACT_RELATIVE_PATH: Final[str] = (
     "logs/qre_hypothesis_validation_results/latest.json"
 )
-HYPOTHESIS_INPUT_ARTIFACT_PATH: Final[Path] = (
-    REPO_ROOT / HYPOTHESIS_INPUT_ARTIFACT_RELATIVE_PATH
-)
+HYPOTHESIS_INPUT_ARTIFACT_PATH: Final[Path] = REPO_ROOT / HYPOTHESIS_INPUT_ARTIFACT_RELATIVE_PATH
 RESULT_INPUT_ARTIFACT_PATH: Final[Path] = REPO_ROOT / RESULT_INPUT_ARTIFACT_RELATIVE_PATH
 ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "qre_hypothesis_evidence_updates"
-OUTPUT_ARTIFACT_RELATIVE_PATH: Final[str] = (
-    "logs/qre_hypothesis_evidence_updates/latest.json"
-)
+OUTPUT_ARTIFACT_RELATIVE_PATH: Final[str] = "logs/qre_hypothesis_evidence_updates/latest.json"
 ARTIFACT_LATEST: Final[Path] = REPO_ROOT / OUTPUT_ARTIFACT_RELATIVE_PATH
 
 DECISIONS: Final[tuple[str, ...]] = (
@@ -51,12 +45,7 @@ NOTE_UPDATES_PRESENT: Final[str] = "evidence_updates_present"
 
 
 def _utcnow() -> str:
-    return (
-        _dt.datetime.now(_dt.UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _rel(path: Path) -> str:
@@ -174,9 +163,13 @@ def _build_update(
     result_id = _bounded_str(result.get("result_id"), max_len=160) if result else ""
     decision, next_status, reason, next_actions = _decision(result)
     supporting_refs = _str_list(result.get("supporting_evidence_refs")) if result else []
-    contradicting_refs = (
-        _str_list(result.get("contradicting_evidence_refs")) if result else []
+    contradicting_refs = _str_list(result.get("contradicting_evidence_refs")) if result else []
+    source_artifact = _bounded_str(result.get("source_artifact"), max_len=240) if result else ""
+    source_report_kind = (
+        _bounded_str(result.get("source_report_kind"), max_len=120) if result else ""
     )
+    source_row_id = _bounded_str(result.get("source_row_id"), max_len=240) if result else ""
+    source_ref = _bounded_str(result.get("source_ref"), max_len=300) if result else ""
     return {
         "evidence_update_id": _evidence_update_id(
             hypothesis_id,
@@ -184,12 +177,15 @@ def _build_update(
             decision,
         ),
         "hypothesis_id": hypothesis_id,
-        "previous_status": _bounded_str(hypothesis.get("status"), max_len=80)
-        or "unknown",
+        "previous_status": _bounded_str(hypothesis.get("status"), max_len=80) or "unknown",
         "evidence_decision": decision,
         "recommended_next_status": next_status,
         "supporting_evidence_refs": supporting_refs,
         "contradicting_evidence_refs": contradicting_refs,
+        "source_artifact": source_artifact,
+        "source_report_kind": source_report_kind,
+        "source_row_id": source_row_id,
+        "source_ref": source_ref,
         "reason": reason,
         "next_actions": next_actions,
         "safe_to_execute": False,
@@ -202,8 +198,7 @@ def _empty_counts() -> dict[str, Any]:
 
 def _counts(evidence_updates: list[dict[str, Any]]) -> dict[str, Any]:
     counter = Counter(
-        str(item.get("evidence_decision") or "needs_more_data")
-        for item in evidence_updates
+        str(item.get("evidence_decision") or "needs_more_data") for item in evidence_updates
     )
     out = _empty_counts()
     out["total"] = len(evidence_updates)
@@ -303,7 +298,12 @@ def collect_snapshot(
         )
 
     evidence_updates = [
-        _build_update(item, _result_for_hypothesis(_bounded_str(item.get("hypothesis_id"), max_len=160), raw_results))
+        _build_update(
+            item,
+            _result_for_hypothesis(
+                _bounded_str(item.get("hypothesis_id"), max_len=160), raw_results
+            ),
+        )
         for item in raw_hypotheses
     ]
     evidence_updates.sort(key=lambda item: item["evidence_update_id"])

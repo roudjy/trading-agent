@@ -16,9 +16,7 @@ SCHEMA_VERSION: Final[int] = 1
 REPORT_KIND: Final[str] = "qre_closed_loop_operator_report"
 
 ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "qre_closed_loop_operator_report"
-OUTPUT_ARTIFACT_RELATIVE_PATH: Final[str] = (
-    "logs/qre_closed_loop_operator_report/latest.json"
-)
+OUTPUT_ARTIFACT_RELATIVE_PATH: Final[str] = "logs/qre_closed_loop_operator_report/latest.json"
 ARTIFACT_LATEST: Final[Path] = REPO_ROOT / OUTPUT_ARTIFACT_RELATIVE_PATH
 
 DEFAULT_OBSERVATIONS_PATH: Final[Path] = (
@@ -48,12 +46,7 @@ NOTE_REPORT_READY: Final[str] = "closed_loop_operator_report_ready"
 
 
 def _utcnow() -> str:
-    return (
-        _dt.datetime.now(_dt.UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _rel(path: Path) -> str:
@@ -91,6 +84,17 @@ def _safe_rows(payload: dict[str, Any] | None, field: str) -> list[dict[str, Any
     return rows
 
 
+def _str_list(value: Any, *, max_items: int = 24, max_len: int = 180) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value[:max_items]:
+        text = _bounded_str(item, max_len=max_len)
+        if text:
+            out.append(text)
+    return out
+
+
 def _load(
     path: Path,
     *,
@@ -124,9 +128,7 @@ def _blocked_links(
 ) -> list[str]:
     blockers: list[str] = []
     hypothesis_ids = {_bounded_str(item.get("hypothesis_id"), max_len=160) for item in hypotheses}
-    plan_hypothesis_ids = {
-        _bounded_str(item.get("hypothesis_id"), max_len=160) for item in plans
-    }
+    plan_hypothesis_ids = {_bounded_str(item.get("hypothesis_id"), max_len=160) for item in plans}
     action_plan_ids = {
         _bounded_str(item.get("target_validation_plan_id"), max_len=160) for item in actions
     }
@@ -155,6 +157,7 @@ def _blocked_links(
 
 
 def _operator_decisions_required(
+    missing_validation_results: list[dict[str, Any]],
     run_manifests: list[dict[str, Any]],
     evidence_updates: list[dict[str, Any]],
     blocked_links: list[str],
@@ -167,9 +170,128 @@ def _operator_decisions_required(
         for item in evidence_updates
     ):
         decisions.append("resolve_evidence_update_decisions")
+    if missing_validation_results:
+        decisions.append("provide_or_accept_missing_validation_results")
     if blocked_links:
         decisions.append("repair_or_accept_blocked_closed_loop_links")
     return decisions
+
+
+def _result_index(results: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    by_hypothesis: dict[str, list[dict[str, Any]]] = {}
+    for item in results:
+        hypothesis_id = _bounded_str(item.get("hypothesis_id"), max_len=160)
+        if hypothesis_id:
+            by_hypothesis.setdefault(hypothesis_id, []).append(item)
+    for rows in by_hypothesis.values():
+        rows.sort(key=lambda row: _bounded_str(row.get("result_id"), max_len=160))
+    return by_hypothesis
+
+
+def _missing_validation_results(
+    hypotheses: list[dict[str, Any]],
+    results: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    result_by_hypothesis = _result_index(results)
+    missing: list[dict[str, Any]] = []
+    for hypothesis in hypotheses:
+        hypothesis_id = _bounded_str(hypothesis.get("hypothesis_id"), max_len=160)
+        if not hypothesis_id or hypothesis_id in result_by_hypothesis:
+            continue
+        missing.append(
+            {
+                "hypothesis_id": hypothesis_id,
+                "title": _bounded_str(hypothesis.get("title"), max_len=180),
+                "reason": "no_validation_result_linked",
+                "safe_to_execute": False,
+            }
+        )
+    missing.sort(key=lambda item: item["hypothesis_id"])
+    return missing
+
+
+def _bucketed_hypotheses(
+    hypotheses: list[dict[str, Any]],
+    evidence_updates: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    hypotheses_by_id = {
+        _bounded_str(item.get("hypothesis_id"), max_len=160): item
+        for item in hypotheses
+        if _bounded_str(item.get("hypothesis_id"), max_len=160)
+    }
+    buckets = {
+        "top_supported_hypotheses": [],
+        "top_falsified_hypotheses": [],
+        "needs_more_data_hypotheses": [],
+        "contradiction_hypotheses": [],
+    }
+    bucket_by_decision = {
+        "supported": "top_supported_hypotheses",
+        "falsified": "top_falsified_hypotheses",
+        "needs_more_data": "needs_more_data_hypotheses",
+        "inconclusive": "needs_more_data_hypotheses",
+        "contradiction_detected": "contradiction_hypotheses",
+    }
+    for update in evidence_updates:
+        hypothesis_id = _bounded_str(update.get("hypothesis_id"), max_len=160)
+        bucket_name = bucket_by_decision.get(
+            _bounded_str(update.get("evidence_decision"), max_len=80)
+        )
+        if not hypothesis_id or bucket_name is None:
+            continue
+        hypothesis = hypotheses_by_id.get(hypothesis_id, {})
+        row = {
+            "hypothesis_id": hypothesis_id,
+            "title": _bounded_str(hypothesis.get("title"), max_len=180),
+            "evidence_update_id": _bounded_str(update.get("evidence_update_id"), max_len=160),
+            "evidence_decision": _bounded_str(update.get("evidence_decision"), max_len=80),
+            "supporting_evidence_refs": _str_list(update.get("supporting_evidence_refs")),
+            "contradicting_evidence_refs": _str_list(update.get("contradicting_evidence_refs")),
+            "source_artifact": _bounded_str(update.get("source_artifact"), max_len=240),
+            "safe_to_execute": False,
+        }
+        buckets[bucket_name].append(row)
+    for rows in buckets.values():
+        rows.sort(key=lambda item: (item["hypothesis_id"], item["evidence_update_id"]))
+    return buckets
+
+
+def _operator_guidance(
+    *,
+    missing_validation_results: list[dict[str, Any]],
+    evidence_updates: list[dict[str, Any]],
+    validation_warnings: list[str],
+) -> tuple[str, list[str], list[str]]:
+    if validation_warnings:
+        readiness = "Input artifacts are missing or malformed; the loop remains scaffold-level."
+    elif missing_validation_results:
+        readiness = "Some hypotheses have no validation result; the loop is not trusted."
+    elif any(
+        item.get("evidence_decision") == "contradiction_detected" for item in evidence_updates
+    ):
+        readiness = "Contradictory evidence is visible and requires operator resolution."
+    elif evidence_updates:
+        readiness = "Evidence updates are available for manual readiness review."
+    else:
+        readiness = "No evidence updates are available; the loop remains planning-only."
+    forbidden = [
+        "QRE closed-loop reports are read-only operator aids.",
+        "Research execution, queue writes, campaign mutation, and runtime activation require separate approved workflows.",
+        "All safe_to_execute flags remain false in this report.",
+    ]
+    manual_actions: list[str] = []
+    if missing_validation_results:
+        manual_actions.append("review_missing_validation_results")
+    if any(item.get("evidence_decision") == "contradiction_detected" for item in evidence_updates):
+        manual_actions.append("resolve_contradictory_evidence")
+    if any(
+        item.get("evidence_decision") in {"needs_more_data", "inconclusive"}
+        for item in evidence_updates
+    ):
+        manual_actions.append("decide_whether_more_data_is_required")
+    if not manual_actions:
+        manual_actions.append("review_evidence_lineage_before_any_follow_up")
+    return (readiness, forbidden, manual_actions)
 
 
 def _base_snapshot(
@@ -265,16 +387,22 @@ def collect_snapshot(
         label="evidence_updates",
     )
     validation_warnings = (
-        warnings_a
-        + warnings_b
-        + warnings_c
-        + warnings_d
-        + warnings_e
-        + warnings_f
-        + warnings_g
+        warnings_a + warnings_b + warnings_c + warnings_d + warnings_e + warnings_f + warnings_g
     )
     blocked_links = _blocked_links(hypotheses, plans, actions, run_manifests, results, updates)
-    decisions = _operator_decisions_required(run_manifests, updates, blocked_links)
+    missing_results = _missing_validation_results(hypotheses, results)
+    decisions = _operator_decisions_required(
+        missing_results,
+        run_manifests,
+        updates,
+        blocked_links,
+    )
+    buckets = _bucketed_hypotheses(hypotheses, updates)
+    readiness_explanation, forbidden_reasons, next_manual_actions = _operator_guidance(
+        missing_validation_results=missing_results,
+        evidence_updates=updates,
+        validation_warnings=validation_warnings,
+    )
     active_hypotheses = [
         item
         for item in hypotheses
@@ -285,14 +413,20 @@ def collect_snapshot(
         "proposed_hypotheses": hypotheses,
         "validation_plans": plans,
         "pending_run_manifests": [
-            item
-            for item in run_manifests
-            if item.get("status") == "operator_review_required"
+            item for item in run_manifests if item.get("status") == "operator_review_required"
         ],
         "validation_results": results,
         "evidence_updates": updates,
+        "top_supported_hypotheses": buckets["top_supported_hypotheses"],
+        "top_falsified_hypotheses": buckets["top_falsified_hypotheses"],
+        "needs_more_data_hypotheses": buckets["needs_more_data_hypotheses"],
+        "contradiction_hypotheses": buckets["contradiction_hypotheses"],
+        "missing_validation_results": missing_results,
         "blocked_or_missing_links": blocked_links + validation_warnings,
         "operator_decisions_required": decisions,
+        "readiness_explanation": readiness_explanation,
+        "why_auto_execution_is_forbidden": forbidden_reasons,
+        "next_manual_actions": next_manual_actions,
         "summary": (
             f"Closed-loop report: {len(observations)} observations, "
             f"{len(hypotheses)} hypotheses, {len(results)} validation results."

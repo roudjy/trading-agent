@@ -89,6 +89,10 @@ def _artifact_set(tmp_path: Path, *, with_results: bool = True) -> dict[str, Pat
                 {
                     "result_id": "qre-result-fixture-001",
                     "hypothesis_id": "qre-hyp-fixture-001",
+                    "source_artifact": "fixture/results.json",
+                    "source_report_kind": "fixture",
+                    "source_row_id": "result-001",
+                    "source_ref": "fixture/results.json#result-001",
                     "safe_to_execute": False,
                 }
             ]
@@ -105,6 +109,10 @@ def _artifact_set(tmp_path: Path, *, with_results: bool = True) -> dict[str, Pat
                     "hypothesis_id": "qre-hyp-fixture-001",
                     "evidence_decision": "supported",
                     "contradicting_evidence_refs": [],
+                    "source_artifact": "fixture/results.json",
+                    "source_report_kind": "fixture",
+                    "source_row_id": "result-001",
+                    "source_ref": "fixture/results.json#result-001",
                     "safe_to_execute": False,
                 }
             ]
@@ -211,6 +219,7 @@ def test_deterministic_output_with_injected_timestamp(tmp_path: Path) -> None:
     assert snap_a["readiness_state"] == "operator_trusted_candidate"
     assert snap_a["evidence_density"]["validation_results"] == 1
     assert snap_a["contradiction_visibility"]["status"] == "visible"
+    assert snap_a["source_lineage"]["status"] == "complete"
     assert snap_a["operator_report_available"] is True
 
 
@@ -233,6 +242,10 @@ def test_operator_trusted_requires_repeatability_and_approval(tmp_path: Path) ->
                     {
                         "result_id": "qre-result-fixture-001",
                         "hypothesis_id": "qre-hyp-fixture-001",
+                        "source_artifact": "fixture/results.json",
+                        "source_report_kind": "fixture",
+                        "source_row_id": "result-001",
+                        "source_ref": "fixture/results.json#result-001",
                         "repeatability_evidence_refs": ["fixture#repeatability"],
                         "safe_to_execute": False,
                     }
@@ -254,11 +267,73 @@ def test_operator_trusted_requires_repeatability_and_approval(tmp_path: Path) ->
         ),
         encoding="utf-8",
     )
+    paths["updates"].write_text(
+        json.dumps(
+            {
+                "report_kind": "qre_hypothesis_evidence_update",
+                "evidence_updates": [
+                    {
+                        "evidence_update_id": "qre-evidence-fixture-001",
+                        "hypothesis_id": "qre-hyp-fixture-001",
+                        "evidence_decision": "supported",
+                        "contradicting_evidence_refs": [],
+                        "source_artifact": "fixture/results.json",
+                        "source_report_kind": "fixture",
+                        "source_row_id": "result-001",
+                        "source_ref": "fixture/results.json#result-001",
+                        "safe_to_execute": False,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
     snap = _collect(paths)
 
     assert snap["readiness_state"] == "operator_trusted"
     assert snap["repeatability_status"] == "operator_approved_repeatability_evidence_present"
+
+
+def test_evidence_without_source_lineage_is_not_trusted(tmp_path: Path) -> None:
+    paths = _artifact_set(tmp_path)
+    paths["results"].write_text(
+        json.dumps(
+            {
+                "report_kind": "qre_hypothesis_validation_results",
+                "validation_results": [
+                    {
+                        "result_id": "qre-result-fixture-001",
+                        "hypothesis_id": "qre-hyp-fixture-001",
+                        "safe_to_execute": False,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    paths["updates"].write_text(
+        json.dumps(
+            {
+                "report_kind": "qre_hypothesis_evidence_update",
+                "evidence_updates": [
+                    {
+                        "evidence_update_id": "qre-evidence-fixture-001",
+                        "hypothesis_id": "qre-hyp-fixture-001",
+                        "evidence_decision": "supported",
+                        "contradicting_evidence_refs": [],
+                        "safe_to_execute": False,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    snap = _collect(paths)
+
+    assert snap["readiness_state"] == "working_capability"
+    assert "source_lineage_incomplete" in snap["blockers"]
 
 
 def test_atomic_write_refuses_outside_artifact_dir(tmp_path: Path) -> None:
@@ -497,7 +572,7 @@ def test_integration_synthetic_closed_loop_to_readiness(
     assert result_snap["validation_results"][0]["safe_to_execute"] is False
     assert evidence_snap["evidence_updates"][0]["safe_to_execute"] is False
     assert report_snap["operator_report"]["safe_to_execute"] is False
-    assert readiness_snap["readiness_state"] == "operator_trusted_candidate"
+    assert readiness_snap["readiness_state"] == "working_capability"
     assert readiness_snap["readiness_state"] != "operator_trusted"
 
     allowed_dirs = {

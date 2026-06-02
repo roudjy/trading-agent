@@ -39,6 +39,50 @@ def _write_results(path: Path, rows: list[dict], **overrides) -> Path:
     return path
 
 
+def _write_authorities(tmp_path: Path) -> dict[str, Path]:
+    hypothesis_id = "qre-hyp-fixture-001"
+    plan_id = "qre-plan-fixture-001"
+    run_id = "qre-run-fixture-001"
+    hypotheses = tmp_path / "hypotheses.json"
+    plans = tmp_path / "plans.json"
+    manifests = tmp_path / "run_manifests.json"
+    hypotheses.write_text(
+        json.dumps(
+            {
+                "report_kind": "qre_hypothesis_candidates",
+                "hypotheses": [{"hypothesis_id": hypothesis_id}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plans.write_text(
+        json.dumps(
+            {
+                "report_kind": "qre_hypothesis_validation_plan",
+                "validation_plans": [
+                    {"hypothesis_id": hypothesis_id, "validation_plan_id": plan_id}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifests.write_text(
+        json.dumps(
+            {
+                "report_kind": "qre_research_run_manifest",
+                "run_manifests": [
+                    {
+                        "run_manifest_id": run_id,
+                        "target_validation_plan_id": plan_id,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return {"hypotheses": hypotheses, "plans": plans, "manifests": manifests}
+
+
 def _assert_safety_flags_false(snapshot: dict) -> None:
     for key in (
         "safe_to_execute",
@@ -93,6 +137,133 @@ def test_deterministic_output_with_injected_timestamp(tmp_path: Path) -> None:
     assert row["metric_results"]["trade_count"] == 120
     assert row["supporting_evidence_refs"] == ["fixture#support"]
     assert row["safe_to_execute"] is False
+
+
+def test_real_source_screening_evidence_maps_linked_rows(tmp_path: Path) -> None:
+    authorities = _write_authorities(tmp_path)
+    source = tmp_path / "screening_evidence_latest.v1.json"
+    source.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "candidates": [
+                    {
+                        "candidate_id": "candidate-001",
+                        "hypothesis_id": "qre-hyp-fixture-001",
+                        "stage_result": "screening_reject",
+                        "metrics": {"profit_factor": 0.8, "totaal_trades": 42},
+                        "failure_reasons": ["profit_factor_below_floor"],
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    snap = results.collect_snapshot(
+        source_artifact_paths=[source],
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+    )
+
+    row = snap["validation_results"][0]
+    assert row["hypothesis_id"] == "qre-hyp-fixture-001"
+    assert row["validation_plan_id"] == "qre-plan-fixture-001"
+    assert row["run_manifest_id"] == "qre-run-fixture-001"
+    assert row["status"] == "failed"
+    assert row["metric_results"]["profit_factor"] == 0.8
+    assert row["falsification_hits"] == ["profit_factor_below_floor"]
+    assert row["source_artifact"].endswith("screening_evidence_latest.v1.json")
+    assert row["source_report_kind"] == "screening_evidence"
+    assert row["source_row_id"] == "candidate-001"
+    assert row["source_ref"].endswith("#candidate-001")
+    assert row["safe_to_execute"] is False
+
+
+def test_real_source_unlinked_rows_are_skipped_with_warning(tmp_path: Path) -> None:
+    authorities = _write_authorities(tmp_path)
+    source = tmp_path / "screening_evidence_latest.v1.json"
+    source.write_text(
+        json.dumps({"candidates": [{"candidate_id": "candidate-001"}]}),
+        encoding="utf-8",
+    )
+
+    snap = results.collect_snapshot(
+        source_artifact_paths=[source],
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+    )
+
+    assert snap["validation_results"] == []
+    assert f"{results.NOTE_REAL_SOURCE_ROWS_SKIPPED}:1" in snap["validation_warnings"]
+
+
+def test_real_source_lineage_and_ids_are_deterministic(tmp_path: Path) -> None:
+    authorities = _write_authorities(tmp_path)
+    source = tmp_path / "screening_evidence_latest.v1.json"
+    source.write_text(
+        json.dumps(
+            {
+                "candidates": [
+                    {
+                        "candidate_id": "candidate-001",
+                        "hypothesis_id": "qre-hyp-fixture-001",
+                        "stage_result": "screening_pass",
+                        "metrics": {"profit_factor": 1.4},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    snap_a = results.collect_snapshot(
+        source_artifact_paths=[source],
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+    )
+    snap_b = results.collect_snapshot(
+        source_artifact_paths=[source],
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+    )
+
+    assert (
+        snap_a["validation_results"][0]["result_id"] == snap_b["validation_results"][0]["result_id"]
+    )
+    assert (
+        snap_a["validation_results"][0]["source_ref"]
+        == snap_b["validation_results"][0]["source_ref"]
+    )
+
+
+def test_real_source_malformed_artifact_fails_closed(tmp_path: Path) -> None:
+    authorities = _write_authorities(tmp_path)
+    source = tmp_path / "screening_evidence_latest.v1.json"
+    source.write_text("{", encoding="utf-8")
+
+    snap = results.collect_snapshot(
+        source_artifact_paths=[source],
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+    )
+
+    assert snap["validation_results"] == []
+    assert any(
+        results.NOTE_REAL_SOURCE_ARTIFACT_UNPARSEABLE in item
+        for item in snap["validation_warnings"]
+    )
 
 
 def test_atomic_write_refuses_outside_artifact_dir(tmp_path: Path) -> None:
