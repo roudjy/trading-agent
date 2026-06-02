@@ -995,10 +995,22 @@ def _persist_candidate_pipeline_sidecars(
     as_of_utc: datetime,
     candidates: list[dict],
 ) -> tuple[dict, dict]:
+    qre_validation_linkage_authority = build_qre_validation_linkage_authority(
+        hypothesis_candidates_payload=_read_json_if_exists(
+            QRE_HYPOTHESIS_CANDIDATES_PATH
+        ),
+        validation_plans_payload=_read_json_if_exists(
+            QRE_HYPOTHESIS_VALIDATION_PLANS_PATH
+        ),
+        run_manifest_payload=_read_json_if_exists(
+            QRE_RESEARCH_RUN_MANIFEST_PATH
+        ),
+    )
     candidate_payload = build_candidate_artifact_payload(
         run_id=run_id,
         as_of_utc=as_of_utc,
         candidates=candidates,
+        qre_validation_linkage_authority=qre_validation_linkage_authority,
     )
     filter_payload = build_filter_summary_payload(
         run_id=run_id,
@@ -2192,6 +2204,14 @@ def run_research(
                 build_research_universe_from_preset(preset_obj, research_config)
             )
             strategies = resolve_preset_bundle(preset_obj)
+            if preset_obj.hypothesis_id is not None:
+                strategies = [
+                    {
+                        **strategy,
+                        "hypothesis_id": str(preset_obj.hypothesis_id),
+                    }
+                    for strategy in strategies
+                ]
             if not strategies:
                 raise RuntimeError(
                     f"preset {preset_obj.name!r} has no executable strategies"

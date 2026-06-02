@@ -39,6 +39,9 @@ SAMPLING_POLICY_EMPTY_GRID: Final[str] = "empty_grid"
 COVERAGE_WARNING_BELOW_THRESHOLD: Final[str] = "below_threshold_for_small_grid"
 COVERAGE_WARNING_GRID_UNAVAILABLE: Final[str] = "grid_size_unavailable"
 
+RUN_CANDIDATES_SOURCE_ARTIFACT: Final[str] = "research/run_candidates_latest.v1.json"
+RUN_CANDIDATES_SOURCE_REPORT_KIND: Final[str] = "run_candidates"
+
 
 @dataclass(frozen=True)
 class SamplingPlan:
@@ -81,7 +84,7 @@ def _json_safe_param_value(value: Any) -> Any:
     hashing can rely on ``allow_nan=False``. Non-primitive values
     are stringified deterministically.
     """
-    if value is None or isinstance(value, (int, str, bool)):
+    if value is None or isinstance(value, int | str | bool):
         return value
     if isinstance(value, float):
         if math.isnan(value) or math.isinf(value):
@@ -185,6 +188,15 @@ def _hash_payload(payload: Any) -> str:
     return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
 
 
+def _bounded_str(value: Any, *, max_len: int) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3].rstrip() + "..."
+
+
 def _asset_metadata(asset: Any) -> tuple[str, str, str]:
     raw_asset_type = str(getattr(asset, "asset_type", "") or "")
     raw_asset_class = str(getattr(asset, "asset_class", "") or "")
@@ -218,6 +230,7 @@ def plan_candidates(
     for strategy in sorted(strategies, key=lambda item: str(item["name"])):
         strategy_name = str(strategy["name"])
         strategy_family = _strategy_family(strategy)
+        hypothesis_id = _bounded_str(strategy.get("hypothesis_id"), max_len=160) or None
         param_grid = copy.deepcopy(strategy.get("params") or {})
         param_grid_hash = _hash_payload(param_grid)
         combination_count = count_param_combinations(strategy)
@@ -285,11 +298,15 @@ def plan_candidates(
                         "result_success": None,
                     },
                 }
+                if hypothesis_id is not None:
+                    candidate["hypothesis_id"] = hypothesis_id
                 candidates.append(candidate)
     return sorted(candidates, key=_candidate_sort_key)
 
 
-def deduplicate_candidates(candidates: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+def deduplicate_candidates(
+    candidates: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     unique_by_id: dict[str, dict[str, Any]] = {}
     for candidate in sorted(candidates, key=_candidate_sort_key):
         candidate_id = str(candidate["candidate_id"])
@@ -323,9 +340,11 @@ def _normalized_asset_type(candidate: dict[str, Any]) -> str:
 
 def assess_fit_prior(candidate: dict[str, Any]) -> tuple[str, str]:
     requirements = candidate.get("strategy_requirements") or {}
-    if requirements.get("position_structure") == POSITION_SPREAD:
-        if not requirements.get("reference_asset"):
-            return FIT_BLOCKED, "requires_spread_not_outright"
+    if (
+        requirements.get("position_structure") == POSITION_SPREAD
+        and not requirements.get("reference_asset")
+    ):
+        return FIT_BLOCKED, "requires_spread_not_outright"
     if requirements.get("initial_lane_support") == BLOCKED_INITIAL_LANE:
         return FIT_BLOCKED, "unsupported_for_initial_lane"
 
@@ -339,7 +358,9 @@ def assess_fit_prior(candidate: dict[str, Any]) -> tuple[str, str]:
     return FIT_ALLOWED, "empirical_fit_mixed"
 
 
-def apply_fit_prior(candidates: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def apply_fit_prior(
+    candidates: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     updated: list[dict[str, Any]] = []
     blocked_reasons: Counter[str] = Counter()
     counts = {
@@ -368,7 +389,9 @@ def apply_fit_prior(candidates: list[dict[str, Any]]) -> tuple[list[dict[str, An
     }
 
 
-def index_readiness(pair_diagnostics: list[dict[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
+def index_readiness(
+    pair_diagnostics: list[dict[str, Any]],
+) -> dict[tuple[str, str], dict[str, Any]]:
     return {
         (str(item["asset"]), str(item["interval"])): item
         for item in pair_diagnostics
@@ -637,7 +660,9 @@ def normalize_screening_decision(sample_results: list[dict[str, Any]]) -> dict[s
             "sampled_combination_count": len(sample_results),
         }
 
-    reason_counts = Counter(str(result.get("reason") or "screening_error") for result in sample_results)
+    reason_counts = Counter(
+        str(result.get("reason") or "screening_error") for result in sample_results
+    )
     reason = sorted(
         reason_counts.items(),
         key=lambda item: (-item[1], item[0]),
@@ -669,7 +694,9 @@ def summarize_candidates(candidates: list[dict[str, Any]]) -> dict[str, int]:
     raw_count = sum(int(candidate["dedupe"]["raw_occurrences"]) for candidate in candidates)
     deduplicated_count = len(candidates)
     fit_statuses = Counter(str(candidate["fit_prior"]["status"]) for candidate in candidates)
-    eligibility_statuses = Counter(str(candidate["eligibility"]["status"]) for candidate in candidates)
+    eligibility_statuses = Counter(
+        str(candidate["eligibility"]["status"]) for candidate in candidates
+    )
     screening_statuses = Counter(str(candidate["screening"]["status"]) for candidate in candidates)
     validated_count = sum(
         1
@@ -691,13 +718,104 @@ def summarize_candidates(candidates: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
+def _source_row_id(candidate: dict[str, Any]) -> str:
+    candidate_id = _bounded_str(candidate.get("candidate_id"), max_len=160)
+    if candidate_id:
+        return candidate_id
+    return f"row_{_hash_payload(candidate)[:24]}"
+
+
+def _run_candidate_validation_linkage_fields(
+    *,
+    candidate: dict[str, Any],
+    qre_validation_linkage_authority: dict[str, Any] | None,
+) -> dict[str, Any]:
+    hypothesis_id = _bounded_str(candidate.get("hypothesis_id"), max_len=160) or None
+    fields: dict[str, Any] = {
+        "hypothesis_id": hypothesis_id,
+        "validation_plan_id": None,
+        "run_manifest_id": None,
+        "source_artifact": RUN_CANDIDATES_SOURCE_ARTIFACT,
+        "source_report_kind": RUN_CANDIDATES_SOURCE_REPORT_KIND,
+        "source_row_id": _source_row_id(candidate),
+        "qre_validation_linkage_status": "unlinked_authority_absent",
+        "qre_validation_linkage_warnings": ["qre_validation_linkage_authority_absent"],
+    }
+    if not isinstance(qre_validation_linkage_authority, dict):
+        return fields
+
+    authority_warnings = [
+        _bounded_str(item, max_len=120)
+        for item in qre_validation_linkage_authority.get("warnings", [])
+        if _bounded_str(item, max_len=120)
+    ]
+    if not qre_validation_linkage_authority.get("available"):
+        fields["qre_validation_linkage_warnings"] = authority_warnings or [
+            "qre_validation_linkage_authority_unavailable"
+        ]
+        return fields
+
+    if not hypothesis_id:
+        fields["qre_validation_linkage_status"] = "unlinked_missing_hypothesis_id"
+        fields["qre_validation_linkage_warnings"] = ["run_candidate_missing_hypothesis_id"]
+        return fields
+
+    by_hypothesis = qre_validation_linkage_authority.get("by_hypothesis_id")
+    if not isinstance(by_hypothesis, dict):
+        return fields
+    entry = by_hypothesis.get(hypothesis_id)
+    if not isinstance(entry, dict):
+        fields["qre_validation_linkage_status"] = "unlinked_unknown_hypothesis_id"
+        fields["qre_validation_linkage_warnings"] = [
+            "run_candidate_hypothesis_id_not_in_qre_authority"
+        ]
+        return fields
+
+    fields["qre_validation_linkage_status"] = (
+        _bounded_str(entry.get("status"), max_len=80) or "unlinked_incomplete_qre_authority"
+    )
+    fields["qre_validation_linkage_warnings"] = [
+        _bounded_str(item, max_len=120)
+        for item in entry.get("warnings", [])
+        if _bounded_str(item, max_len=120)
+    ]
+    if fields["qre_validation_linkage_status"] != "linked_exact_ids":
+        return fields
+
+    fields["validation_plan_id"] = (
+        _bounded_str(entry.get("validation_plan_id"), max_len=160) or None
+    )
+    fields["run_manifest_id"] = _bounded_str(entry.get("run_manifest_id"), max_len=160) or None
+    if not fields["validation_plan_id"] or not fields["run_manifest_id"]:
+        fields["validation_plan_id"] = None
+        fields["run_manifest_id"] = None
+        fields["qre_validation_linkage_status"] = "unlinked_incomplete_qre_authority"
+        fields["qre_validation_linkage_warnings"] = [
+            "qre_validation_authority_missing_required_exact_id"
+        ]
+    return fields
+
+
 def build_candidate_artifact_payload(
     *,
     run_id: str,
     as_of_utc: datetime,
     candidates: list[dict[str, Any]],
+    qre_validation_linkage_authority: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    ordered_candidates = sorted((copy.deepcopy(candidate) for candidate in candidates), key=_candidate_sort_key)
+    ordered_candidates = sorted(
+        (copy.deepcopy(candidate) for candidate in candidates), key=_candidate_sort_key
+    )
+    ordered_candidates = [
+        {
+            **candidate,
+            **_run_candidate_validation_linkage_fields(
+                candidate=candidate,
+                qre_validation_linkage_authority=qre_validation_linkage_authority,
+            ),
+        }
+        for candidate in ordered_candidates
+    ]
     return {
         "version": "v1",
         "run_id": run_id,
