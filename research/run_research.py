@@ -165,6 +165,7 @@ from research.viability_metrics import write_viability_artifact
 from research.results import make_result_row, write_latest_json, write_results_to_csv
 from research.screening_evidence import (
     SCREENING_EVIDENCE_PATH,
+    build_qre_validation_linkage_authority,
     build_screening_evidence_payload,
 )
 from research.screening_process import execute_screening_candidate_isolated
@@ -215,6 +216,11 @@ RUN_CAMPAIGN_PROGRESS_PATH = Path("research/run_campaign_progress_latest.v1.json
 RUN_PROGRESS_PATH = Path("research/run_progress_latest.v1.json")
 RUN_STATE_PATH = Path("research/run_state.v1.json")
 RUN_MANIFEST_PATH = Path("research/run_manifest_latest.v1.json")
+QRE_HYPOTHESIS_CANDIDATES_PATH = Path("logs/qre_hypothesis_candidates/latest.json")
+QRE_HYPOTHESIS_VALIDATION_PLANS_PATH = Path(
+    "logs/qre_hypothesis_validation_plans/latest.json"
+)
+QRE_RESEARCH_RUN_MANIFEST_PATH = Path("logs/qre_research_run_manifest/latest.json")
 INTEGRITY_REPORT_PATH = Path("research/integrity_report_latest.v1.json")
 FALSIFICATION_GATES_PATH = Path("research/falsification_gates_latest.v1.json")
 RUN_LOG_DIR = Path("logs/research")
@@ -3645,6 +3651,17 @@ def run_research(
         screening_evidence_payload: dict[str, Any] | None = None
         try:
             paper_blocked_index = _read_paper_blocked_index()
+            qre_validation_linkage_authority = build_qre_validation_linkage_authority(
+                hypothesis_candidates_payload=_read_json_if_exists(
+                    QRE_HYPOTHESIS_CANDIDATES_PATH
+                ),
+                validation_plans_payload=_read_json_if_exists(
+                    QRE_HYPOTHESIS_VALIDATION_PLANS_PATH
+                ),
+                run_manifest_payload=_read_json_if_exists(
+                    QRE_RESEARCH_RUN_MANIFEST_PATH
+                ),
+            )
             screening_pass_kinds_by_strategy: dict[str, str | None] = {}
             for _candidate_for_evidence in candidates:
                 screening_block = (
@@ -3675,6 +3692,7 @@ def run_research(
                 screening_records=screening_records,
                 screening_pass_kinds=screening_pass_kinds_by_strategy,
                 paper_blocked_index=paper_blocked_index,
+                qre_validation_linkage_authority=qre_validation_linkage_authority,
             )
             write_sidecar_atomic(SCREENING_EVIDENCE_PATH, evidence_payload)
             screening_evidence_payload = evidence_payload

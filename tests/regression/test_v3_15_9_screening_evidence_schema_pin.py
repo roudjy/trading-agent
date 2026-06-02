@@ -18,7 +18,6 @@ from research.screening_evidence import (
     build_screening_evidence_payload,
 )
 
-
 _EXPECTED_TOP_LEVEL_KEYS = frozenset(
     {
         "schema_version",
@@ -43,6 +42,13 @@ _EXPECTED_PER_CANDIDATE_KEYS = frozenset(
         "asset",
         "interval",
         "hypothesis_id",
+        "validation_plan_id",
+        "run_manifest_id",
+        "source_artifact",
+        "source_report_kind",
+        "source_row_id",
+        "qre_validation_linkage_status",
+        "qre_validation_linkage_warnings",
         "preset_name",
         "screening_phase",
         "stage_result",
@@ -74,8 +80,8 @@ _EXPECTED_SUMMARY_KEYS = frozenset(
 )
 
 
-def test_schema_version_pinned_at_1_0() -> None:
-    assert SCREENING_EVIDENCE_SCHEMA_VERSION == "1.0"
+def test_schema_version_pinned_at_1_1() -> None:
+    assert SCREENING_EVIDENCE_SCHEMA_VERSION == "1.1"
 
 
 def test_module_constant_top_level_keys_match_pinned_set() -> None:
@@ -102,6 +108,7 @@ def test_emitted_payload_top_level_keys_match() -> None:
     )
     assert set(payload.keys()) == _EXPECTED_TOP_LEVEL_KEYS
     assert set(payload["summary"].keys()) == _EXPECTED_SUMMARY_KEYS
+
 
 def test_screening_evidence_carries_validation_evidence_status() -> None:
     payload = build_screening_evidence_payload(
