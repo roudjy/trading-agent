@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import datetime as _dt
 import json
 import os
@@ -11,8 +12,6 @@ from collections import Counter
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final
-
-from research.screening_evidence import build_qre_validation_linkage_authority
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
@@ -39,6 +38,8 @@ SAMPLE_LIMIT: Final[int] = 20
 PRESET_ROW_LIMIT: Final[int] = 100
 ID_LIMIT: Final[int] = 100
 WARNING_LIMIT: Final[int] = 50
+
+PRESETS_SOURCE_PATH: Final[Path] = REPO_ROOT / "research" / "presets.py"
 
 FINAL_RECOMMENDATION_BRIDGE_REQUIRED: Final[str] = (
     "executable_hypothesis_identity_bridge_required_before_regeneration"
@@ -111,13 +112,182 @@ def _read_json(path: Path) -> tuple[bool, dict[str, Any] | None, str | None]:
     return (True, parsed, None)
 
 
-def _load_default_presets() -> tuple[Any, list[str]]:
+def _safe_dict_rows(payload: dict[str, Any] | None, field: str) -> list[dict[str, Any]] | None:
+    if not isinstance(payload, dict):
+        return None
+    rows = payload.get(field)
+    if not isinstance(rows, list) or not all(isinstance(item, dict) for item in rows):
+        return None
+    return rows
+
+
+def _build_qre_validation_linkage_authority(
+    *,
+    hypothesis_candidates_payload: dict[str, Any] | None,
+    validation_plans_payload: dict[str, Any] | None,
+    run_manifest_payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    warnings: list[str] = []
+    hypotheses = _safe_dict_rows(hypothesis_candidates_payload, "hypotheses")
+    plans = _safe_dict_rows(validation_plans_payload, "validation_plans")
+    manifests = _safe_dict_rows(run_manifest_payload, "run_manifests")
+
+    if (
+        not isinstance(hypothesis_candidates_payload, dict)
+        or hypothesis_candidates_payload.get("report_kind") != "qre_hypothesis_candidates"
+        or hypotheses is None
+    ):
+        warnings.append("qre_hypothesis_authority_absent_or_unparseable")
+    if (
+        not isinstance(validation_plans_payload, dict)
+        or validation_plans_payload.get("report_kind") != "qre_hypothesis_validation_plan"
+        or plans is None
+    ):
+        warnings.append("qre_validation_plan_authority_absent_or_unparseable")
+    if (
+        not isinstance(run_manifest_payload, dict)
+        or run_manifest_payload.get("report_kind") != "qre_research_run_manifest"
+        or manifests is None
+    ):
+        warnings.append("qre_run_manifest_authority_absent_or_unparseable")
+
+    if warnings:
+        return {
+            "available": False,
+            "warnings": warnings,
+            "by_hypothesis_id": {},
+        }
+
+    hypothesis_ids = {
+        _bounded_str(item.get("hypothesis_id"), max_len=160)
+        for item in hypotheses or []
+        if _bounded_str(item.get("hypothesis_id"), max_len=160)
+    }
+    plans_by_hypothesis: dict[str, list[str]] = {}
+    for item in plans or []:
+        hypothesis_id = _bounded_str(item.get("hypothesis_id"), max_len=160)
+        plan_id = _bounded_str(item.get("validation_plan_id"), max_len=160)
+        if hypothesis_id in hypothesis_ids and plan_id:
+            plans_by_hypothesis.setdefault(hypothesis_id, []).append(plan_id)
+    for values in plans_by_hypothesis.values():
+        values.sort()
+
+    manifests_by_plan: dict[str, list[str]] = {}
+    for item in manifests or []:
+        plan_id = _bounded_str(item.get("target_validation_plan_id"), max_len=160)
+        manifest_id = _bounded_str(item.get("run_manifest_id"), max_len=160)
+        if plan_id and manifest_id:
+            manifests_by_plan.setdefault(plan_id, []).append(manifest_id)
+    for values in manifests_by_plan.values():
+        values.sort()
+
+    by_hypothesis_id: dict[str, dict[str, Any]] = {}
+    for hypothesis_id in sorted(hypothesis_ids):
+        plan_ids = plans_by_hypothesis.get(hypothesis_id, [])
+        if not plan_ids:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_missing_validation_plan_id",
+                "warnings": ["qre_validation_plan_id_not_found_for_hypothesis"],
+            }
+            continue
+        if len(plan_ids) != 1:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_ambiguous_validation_plan_id",
+                "warnings": ["qre_validation_plan_id_not_unique_for_hypothesis"],
+            }
+            continue
+
+        plan_id = plan_ids[0]
+        manifest_ids = manifests_by_plan.get(plan_id, [])
+        if not manifest_ids:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_missing_run_manifest_id",
+                "validation_plan_id": plan_id,
+                "warnings": ["qre_run_manifest_id_not_found_for_validation_plan"],
+            }
+            continue
+        if len(manifest_ids) != 1:
+            by_hypothesis_id[hypothesis_id] = {
+                "status": "unlinked_ambiguous_run_manifest_id",
+                "validation_plan_id": plan_id,
+                "warnings": ["qre_run_manifest_id_not_unique_for_validation_plan"],
+            }
+            continue
+
+        by_hypothesis_id[hypothesis_id] = {
+            "status": "linked_exact_ids",
+            "hypothesis_id": hypothesis_id,
+            "validation_plan_id": plan_id,
+            "run_manifest_id": manifest_ids[0],
+            "warnings": [],
+        }
+
+    return {
+        "available": True,
+        "warnings": [],
+        "by_hypothesis_id": by_hypothesis_id,
+    }
+
+
+def _literal(node: ast.AST) -> Any:
     try:
-        from research.presets import PRESETS
-    except Exception as exc:  # pragma: no cover - exercised via monkeypatchable helper
-        detail = _bounded_str(exc, max_len=120)
-        return ((), [f"presets_import_failed:{detail}" if detail else "presets_import_failed"])
-    return (PRESETS, [])
+        return ast.literal_eval(node)
+    except (ValueError, TypeError):
+        return None
+
+
+def _research_preset_from_call(node: ast.Call) -> dict[str, Any]:
+    defaults: dict[str, Any] = {
+        "enabled": True,
+        "diagnostic_only": False,
+        "excluded_from_daily_scheduler": False,
+        "excluded_from_candidate_promotion": False,
+        "status": "stable",
+        "preset_class": "experimental",
+        "hypothesis_id": None,
+    }
+    fields = dict(defaults)
+    for keyword in node.keywords:
+        if keyword.arg in fields or keyword.arg == "name":
+            fields[str(keyword.arg)] = _literal(keyword.value)
+    return fields
+
+
+def _presets_from_source(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        return ([], [f"presets_source_missing:{_rel(path)}"])
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return ([], [f"presets_source_malformed:{_rel(path)}"])
+
+    presets: list[dict[str, Any]] = []
+    for node in tree.body:
+        is_presets_assign = isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "PRESETS" for target in node.targets
+        )
+        is_presets_ann_assign = isinstance(node, ast.AnnAssign) and (
+            isinstance(node.target, ast.Name) and node.target.id == "PRESETS"
+        )
+        if not is_presets_assign and not is_presets_ann_assign:
+            continue
+        value = node.value
+        if not isinstance(value, ast.Tuple):
+            return ([], [f"presets_source_malformed:{_rel(path)}"])
+        for item in value.elts:
+            if not isinstance(item, ast.Call):
+                continue
+            func = item.func
+            if isinstance(func, ast.Name) and func.id == "ResearchPreset":
+                presets.append(_research_preset_from_call(item))
+        return (presets, [])
+    return ([], [f"presets_source_malformed:{_rel(path)}"])
+
+
+def _load_default_presets() -> tuple[Any, list[str]]:
+    return _presets_from_source(PRESETS_SOURCE_PATH)
 
 
 def _get_field(preset: Any, field: str, default: Any = None) -> Any:
@@ -180,7 +350,7 @@ def _authority_snapshot(
         if warning:
             warnings.append(warning)
 
-    authority = build_qre_validation_linkage_authority(
+    authority = _build_qre_validation_linkage_authority(
         hypothesis_candidates_payload=hypothesis_payload,
         validation_plans_payload=plan_payload,
         run_manifest_payload=run_payload,

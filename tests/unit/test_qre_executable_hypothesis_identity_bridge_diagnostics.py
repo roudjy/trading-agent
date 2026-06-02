@@ -333,6 +333,40 @@ def test_presets_malformed_fails_closed(tmp_path: Path) -> None:
     assert "presets_unavailable_or_malformed" in snap["validation_warnings"]
 
 
+def test_presets_source_parser_handles_annotated_presets_assignment(tmp_path: Path) -> None:
+    presets_source = tmp_path / "presets.py"
+    presets_source.write_text(
+        """
+PRESETS: tuple[ResearchPreset, ...] = (
+    ResearchPreset(
+        name="trend_pullback_crypto_1h",
+        enabled=True,
+        status="stable",
+        preset_class="experimental",
+        hypothesis_id="trend_pullback_v1",
+    ),
+)
+""",
+        encoding="utf-8",
+    )
+
+    presets, warnings = diag._presets_from_source(presets_source)
+
+    assert warnings == []
+    assert presets == [
+        {
+            "enabled": True,
+            "diagnostic_only": False,
+            "excluded_from_daily_scheduler": False,
+            "excluded_from_candidate_promotion": False,
+            "status": "stable",
+            "preset_class": "experimental",
+            "hypothesis_id": "trend_pullback_v1",
+            "name": "trend_pullback_crypto_1h",
+        }
+    ]
+
+
 def test_write_snapshot_only_allows_diagnostic_latest_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
