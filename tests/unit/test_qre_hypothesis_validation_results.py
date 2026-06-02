@@ -6,16 +6,19 @@ from pathlib import Path
 import pytest
 
 from reporting import qre_hypothesis_validation_results as results
-
+from reporting.qre_hypothesis_validation_results import collect_snapshot
 
 FROZEN = "2026-06-01T12:00:00Z"
+HYPOTHESIS_ID = "qre-hyp-fixture-001"
+VALIDATION_PLAN_ID = "qre-plan-fixture-001"
+RUN_MANIFEST_ID = "qre-run-fixture-001"
 
 
 def _result(**overrides) -> dict:
     base = {
-        "hypothesis_id": "qre-hyp-fixture-001",
-        "validation_plan_id": "qre-plan-fixture-001",
-        "run_manifest_id": "qre-run-fixture-001",
+        "hypothesis_id": HYPOTHESIS_ID,
+        "validation_plan_id": VALIDATION_PLAN_ID,
+        "run_manifest_id": RUN_MANIFEST_ID,
         "status": "passed",
         "metric_results": {"deflated_sharpe": 1.2, "trade_count": 120},
         "falsification_hits": [],
@@ -40,9 +43,6 @@ def _write_results(path: Path, rows: list[dict], **overrides) -> Path:
 
 
 def _write_authorities(tmp_path: Path) -> dict[str, Path]:
-    hypothesis_id = "qre-hyp-fixture-001"
-    plan_id = "qre-plan-fixture-001"
-    run_id = "qre-run-fixture-001"
     hypotheses = tmp_path / "hypotheses.json"
     plans = tmp_path / "plans.json"
     manifests = tmp_path / "run_manifests.json"
@@ -50,7 +50,7 @@ def _write_authorities(tmp_path: Path) -> dict[str, Path]:
         json.dumps(
             {
                 "report_kind": "qre_hypothesis_candidates",
-                "hypotheses": [{"hypothesis_id": hypothesis_id}],
+                "hypotheses": [{"hypothesis_id": HYPOTHESIS_ID}],
             }
         ),
         encoding="utf-8",
@@ -60,7 +60,10 @@ def _write_authorities(tmp_path: Path) -> dict[str, Path]:
             {
                 "report_kind": "qre_hypothesis_validation_plan",
                 "validation_plans": [
-                    {"hypothesis_id": hypothesis_id, "validation_plan_id": plan_id}
+                    {
+                        "hypothesis_id": HYPOTHESIS_ID,
+                        "validation_plan_id": VALIDATION_PLAN_ID,
+                    }
                 ],
             }
         ),
@@ -72,8 +75,8 @@ def _write_authorities(tmp_path: Path) -> dict[str, Path]:
                 "report_kind": "qre_research_run_manifest",
                 "run_manifests": [
                     {
-                        "run_manifest_id": run_id,
-                        "target_validation_plan_id": plan_id,
+                        "run_manifest_id": RUN_MANIFEST_ID,
+                        "target_validation_plan_id": VALIDATION_PLAN_ID,
                     }
                 ],
             }
@@ -81,6 +84,37 @@ def _write_authorities(tmp_path: Path) -> dict[str, Path]:
         encoding="utf-8",
     )
     return {"hypotheses": hypotheses, "plans": plans, "manifests": manifests}
+
+
+def _strict_linked_candidate(row_id: str, **overrides) -> dict:
+    base = {
+        "candidate_id": row_id,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "validation_plan_id": VALIDATION_PLAN_ID,
+        "run_manifest_id": RUN_MANIFEST_ID,
+        "source_artifact": "screening_evidence_latest.v1.json",
+        "source_report_kind": "screening_evidence",
+        "source_row_id": row_id,
+        "metrics": {"expectancy": 0.42},
+    }
+    base.update(overrides)
+    return base
+
+
+def _write_screening_evidence(path: Path, candidates: list[dict]) -> Path:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "report_kind": "screening_evidence",
+                "candidates": candidates,
+                "safe_to_execute": False,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 def _assert_safety_flags_false(snapshot: dict) -> None:
@@ -181,6 +215,147 @@ def test_real_source_screening_evidence_maps_linked_rows(tmp_path: Path) -> None
     assert row["source_row_id"] == "candidate-001"
     assert row["source_ref"].endswith("#candidate-001")
     assert row["safe_to_execute"] is False
+
+
+def test_real_source_status_semantics_for_strict_linked_screening_rows(
+    tmp_path: Path,
+) -> None:
+    authorities = _write_authorities(tmp_path)
+    source = _write_screening_evidence(
+        tmp_path / "screening_evidence_latest.v1.json",
+        [
+            _strict_linked_candidate("status-passed", status="passed"),
+            _strict_linked_candidate("status-failed", status="failed"),
+            _strict_linked_candidate(
+                "missing-falls-through",
+                status="missing",
+                stage_result="screening_pass",
+            ),
+            _strict_linked_candidate(
+                "candidate-falls-through",
+                status="candidate",
+                stage_result="screening_pass",
+            ),
+            _strict_linked_candidate(
+                "promotion-candidate",
+                decision="promotion_candidate",
+            ),
+            _strict_linked_candidate("quality-ready", quality_status="ready"),
+            _strict_linked_candidate(
+                "screening-reject",
+                stage_result="screening_reject",
+            ),
+            _strict_linked_candidate("quality-blocked", quality_status="blocked"),
+            _strict_linked_candidate("near-pass", stage_result="near_pass"),
+            _strict_linked_candidate("candidate-no-fallback", status="candidate"),
+        ],
+    )
+
+    snap = collect_snapshot(
+        source_artifact_paths=[source],
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+    )
+
+    assert snap["counts"] == {
+        "total": 10,
+        "by_status": {
+            "passed": 5,
+            "failed": 3,
+            "inconclusive": 2,
+            "missing": 0,
+        },
+    }
+    assert snap["validation_warnings"] == []
+    assert snap["note"] == results.NOTE_RESULTS_PRESENT
+    assert snap["final_recommendation"] == "validation_results_ready_for_evidence_update"
+    assert snap["safe_to_execute"] is False
+
+    by_row_id = {row["source_row_id"]: row for row in snap["validation_results"]}
+    assert {row_id: row["status"] for row_id, row in by_row_id.items()} == {
+        "status-passed": "passed",
+        "status-failed": "failed",
+        "missing-falls-through": "passed",
+        "candidate-falls-through": "passed",
+        "promotion-candidate": "passed",
+        "quality-ready": "passed",
+        "screening-reject": "failed",
+        "quality-blocked": "failed",
+        "near-pass": "inconclusive",
+        "candidate-no-fallback": "inconclusive",
+    }
+
+    for row in snap["validation_results"]:
+        assert row["hypothesis_id"] == HYPOTHESIS_ID
+        assert row["validation_plan_id"] == VALIDATION_PLAN_ID
+        assert row["run_manifest_id"] == RUN_MANIFEST_ID
+        assert row["source_report_kind"] == "screening_evidence"
+        assert row["source_row_id"]
+        assert row["safe_to_execute"] is False
+        assert row["metric_results"]["expectancy"] == 0.42
+
+    assert by_row_id["missing-falls-through"]["metric_results"]["stage_result"] == (
+        "screening_pass"
+    )
+    assert by_row_id["quality-ready"]["metric_results"]["quality_status"] == "ready"
+
+
+def test_strict_linked_run_candidates_and_screening_evidence_materialize_results(
+    tmp_path: Path,
+) -> None:
+    authorities = _write_authorities(tmp_path)
+    screening_source = _write_screening_evidence(
+        tmp_path / "screening_evidence_latest.v1.json",
+        [
+            _strict_linked_candidate(
+                "screening-row-001",
+                stage_result="screening_pass",
+            )
+        ],
+    )
+    run_candidates_source = tmp_path / "run_candidates_latest.v1.json"
+    run_candidates_source.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "report_kind": "run_candidates",
+                "candidates": [
+                    {
+                        **_strict_linked_candidate(
+                            "run-candidate-row-001",
+                            status="passed",
+                        ),
+                        "source_artifact": "run_candidates_latest.v1.json",
+                        "source_report_kind": "run_candidates",
+                    }
+                ],
+                "safe_to_execute": False,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    snap = collect_snapshot(
+        source_artifact_paths=[run_candidates_source, screening_source],
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+    )
+
+    assert snap["counts"]["total"] == 2
+    assert snap["note"] == results.NOTE_RESULTS_PRESENT
+    assert snap["final_recommendation"] == "validation_results_ready_for_evidence_update"
+    assert {row["source_report_kind"] for row in snap["validation_results"]} == {
+        "run_candidates",
+        "screening_evidence",
+    }
+    assert snap["safe_to_execute"] is False
+    for row in snap["validation_results"]:
+        assert row["safe_to_execute"] is False
 
 
 def test_real_source_unlinked_rows_are_skipped_with_warning(tmp_path: Path) -> None:
