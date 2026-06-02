@@ -12,6 +12,8 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final
 
+from reporting.qre_validation_source_linkage_contract import REQUIRED_LINKAGE_FIELDS
+
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[int] = 1
@@ -703,34 +705,39 @@ def _deterministic_mapping_assessment(
 
 
 def _recommended_linkage_keys() -> list[dict[str, Any]]:
-    return [
-        {
-            "source_field": "hypothesis_id",
+    targets = {
+        "hypothesis_id": {
             "target_artifact": "logs/qre_hypothesis_candidates/latest.json",
             "target_field": "hypotheses[].hypothesis_id",
             "requirement": "stable exact identifier",
         },
-        {
-            "source_field": "candidate_id",
-            "target_artifact": "logs/qre_hypothesis_candidates/latest.json",
-            "target_field": (
-                "hypotheses[].source_candidate_id or " "hypotheses[].source_observation_id"
-            ),
-            "requirement": "stable exact source-to-hypothesis identifier",
-        },
-        {
-            "source_field": "validation_plan_id",
+        "validation_plan_id": {
             "target_artifact": "logs/qre_hypothesis_validation_plans/latest.json",
             "target_field": "validation_plans[].validation_plan_id",
             "requirement": "stable exact validation plan identifier",
         },
-        {
-            "source_field": "run_manifest_id",
+        "run_manifest_id": {
             "target_artifact": "logs/qre_research_run_manifest/latest.json",
             "target_field": "run_manifests[].run_manifest_id",
             "requirement": "stable exact operator-gated run manifest identifier",
         },
-    ]
+        "source_artifact": {
+            "target_artifact": "source artifact path",
+            "target_field": "source_artifact",
+            "requirement": "stable exact source artifact identifier",
+        },
+        "source_report_kind": {
+            "target_artifact": "source artifact payload",
+            "target_field": "report_kind",
+            "requirement": "stable exact source report kind",
+        },
+        "source_row_id": {
+            "target_artifact": "source artifact row",
+            "target_field": "source_row_id",
+            "requirement": "stable exact source row identifier",
+        },
+    }
+    return [{"source_field": field, **targets[field]} for field in REQUIRED_LINKAGE_FIELDS]
 
 
 def collect_snapshot(
