@@ -253,3 +253,70 @@ def test_source_has_no_runtime_launch_or_mutating_queue_calls() -> None:
     )
     for token in forbidden:
         assert token not in src, token
+
+
+def test_operator_report_includes_selection_route_summary(tmp_path: Path) -> None:
+    paths = _fixtures(tmp_path)
+
+    selection_flow = tmp_path / "selection-flow.json"
+    selection_preflight = tmp_path / "selection-preflight.json"
+
+    _write(
+        selection_flow,
+        {
+            "report_kind": "qre_selection_route_validation_flow",
+            "counts": {
+                "materialized_route_ready": 3,
+                "hypothesis_ready": 3,
+                "request_ready_for_operator_review": 3,
+                "dry_run_ready": 3,
+                "selection_validation_flow_ready": 3,
+            },
+        },
+    )
+    _write(
+        selection_preflight,
+        {
+            "report_kind": "qre_selection_closed_loop_preflight",
+            "selection_route": {
+                "ready": True,
+            },
+            "controlled_regeneration_preflight": {
+                "can_be_considered": True,
+                "requires_operator_approval": True,
+                "requires_backup_plan": True,
+                "requires_explicit_regeneration_flag": True,
+            },
+            "final_recommendation": (
+                "selection_route_ready_controlled_regeneration_can_be_considered"
+            ),
+        },
+    )
+
+    snap = report.collect_snapshot(
+        market_observations_path=paths["observations"],
+        readiness_path=paths["readiness"],
+        validation_request_path=paths["request"],
+        dry_run_path=paths["dry"],
+        controlled_regeneration_path=paths["controlled"],
+        validation_results_path=paths["results"],
+        evidence_quality_path=paths["evidence"],
+        promotion_intent_path=paths["promotion"],
+        audit_path=paths["audit"],
+        selection_route_validation_flow_path=selection_flow,
+        selection_closed_loop_preflight_path=selection_preflight,
+        generated_at_utc=FROZEN,
+    )
+
+    selection_route = snap["operator_summary"]["selection_route"]
+
+    assert selection_route["available"] is True
+    assert selection_route["ready"] is True
+    assert selection_route["counts"]["request_ready_for_operator_review"] == 3
+    assert selection_route["counts"]["dry_run_ready"] == 3
+    assert selection_route["controlled_regeneration_can_be_considered"] is True
+    assert selection_route["requires_operator_approval"] is True
+    assert selection_route["requires_backup_plan"] is True
+    assert selection_route["requires_explicit_regeneration_flag"] is True
+    assert snap["artifact_refs"]["selection_route_validation_flow"]["valid"] is True
+    assert snap["artifact_refs"]["selection_closed_loop_preflight"]["valid"] is True

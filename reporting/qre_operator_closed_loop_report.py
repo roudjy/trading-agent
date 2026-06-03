@@ -48,6 +48,12 @@ DEFAULT_PROMOTION_INTENT_PATH: Final[Path] = (
 DEFAULT_AUDIT_PATH: Final[Path] = (
     REPO_ROOT / "logs" / "qre_post_run_evidence_promotion_audit" / "latest.json"
 )
+DEFAULT_SELECTION_ROUTE_VALIDATION_FLOW_PATH: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_selection_route_validation_flow" / "latest.json"
+)
+DEFAULT_SELECTION_CLOSED_LOOP_PREFLIGHT_PATH: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_selection_closed_loop_preflight" / "latest.json"
+)
 
 LOOP_CLOSED_READY: Final[str] = "loop_closed_ready_for_operator_review"
 LOOP_BLOCKED_IDENTITY: Final[str] = "loop_blocked_identity_missing"
@@ -192,6 +198,8 @@ def _operator_summary(
     evidence: dict[str, Any] | None,
     promotion: dict[str, Any] | None,
     audit: dict[str, Any] | None,
+    selection_route_validation_flow: dict[str, Any] | None = None,
+    selection_closed_loop_preflight: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "market_observations": {
@@ -261,6 +269,10 @@ def _operator_summary(
             "rows": _count_field(promotion, "promotion_intents"),
             "counts": _safe_counts(promotion),
         },
+        "selection_route": _selection_route_summary(
+            selection_route_validation_flow,
+            selection_closed_loop_preflight,
+        ),
         "post_run_audit": {
             "final_recommendation": _bounded_str(
                 audit.get("final_recommendation") if audit else "", max_len=160
@@ -268,6 +280,58 @@ def _operator_summary(
             "next_action": _bounded_str(audit.get("next_action") if audit else "", max_len=160),
             "blockers": audit.get("blockers", []) if isinstance(audit, dict) else [],
         },
+    }
+
+
+def _selection_route_summary(
+    selection_route_validation_flow: dict[str, Any] | None,
+    selection_closed_loop_preflight: dict[str, Any] | None,
+) -> dict[str, Any]:
+    flow_counts = (
+        selection_route_validation_flow.get("counts", {})
+        if isinstance(selection_route_validation_flow, dict)
+        else {}
+    )
+    preflight_route = (
+        selection_closed_loop_preflight.get("selection_route", {})
+        if isinstance(selection_closed_loop_preflight, dict)
+        else {}
+    )
+    preflight_gate = (
+        selection_closed_loop_preflight.get("controlled_regeneration_preflight", {})
+        if isinstance(selection_closed_loop_preflight, dict)
+        else {}
+    )
+
+    request_ready = int(flow_counts.get("request_ready_for_operator_review", 0) or 0)
+    dry_run_ready = int(flow_counts.get("dry_run_ready", 0) or 0)
+    route_ready = bool(preflight_route.get("ready"))
+    can_consider_regeneration = bool(preflight_gate.get("can_be_considered"))
+
+    return {
+        "available": isinstance(selection_route_validation_flow, dict)
+        and isinstance(selection_closed_loop_preflight, dict),
+        "ready": route_ready,
+        "counts": {
+            "materialized_route_ready": int(flow_counts.get("materialized_route_ready", 0) or 0),
+            "hypothesis_ready": int(flow_counts.get("hypothesis_ready", 0) or 0),
+            "request_ready_for_operator_review": request_ready,
+            "dry_run_ready": dry_run_ready,
+            "selection_validation_flow_ready": int(
+                flow_counts.get("selection_validation_flow_ready", 0) or 0
+            ),
+        },
+        "controlled_regeneration_can_be_considered": can_consider_regeneration,
+        "requires_operator_approval": bool(preflight_gate.get("requires_operator_approval", True)),
+        "requires_backup_plan": bool(preflight_gate.get("requires_backup_plan", True)),
+        "requires_explicit_regeneration_flag": bool(
+            preflight_gate.get("requires_explicit_regeneration_flag", True)
+        ),
+        "final_recommendation": (
+            selection_closed_loop_preflight.get("final_recommendation")
+            if isinstance(selection_closed_loop_preflight, dict)
+            else None
+        ),
     }
 
 
@@ -282,6 +346,8 @@ def collect_snapshot(
     evidence_quality_path: Path | None = None,
     promotion_intent_path: Path | None = None,
     audit_path: Path | None = None,
+    selection_route_validation_flow_path: Path | None = None,
+    selection_closed_loop_preflight_path: Path | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
@@ -330,6 +396,16 @@ def collect_snapshot(
         expected_kind="qre_post_run_evidence_promotion_audit",
         label="post_run_audit",
     )
+    selection_route_validation_flow, meta_j, warnings_j = _load(
+        selection_route_validation_flow_path or DEFAULT_SELECTION_ROUTE_VALIDATION_FLOW_PATH,
+        expected_kind="qre_selection_route_validation_flow",
+        label="selection_route_validation_flow",
+    )
+    selection_closed_loop_preflight, meta_k, warnings_k = _load(
+        selection_closed_loop_preflight_path or DEFAULT_SELECTION_CLOSED_LOOP_PREFLIGHT_PATH,
+        expected_kind="qre_selection_closed_loop_preflight",
+        label="selection_closed_loop_preflight",
+    )
     status = _loop_status(
         readiness=readiness,
         requests=requests,
@@ -347,6 +423,8 @@ def collect_snapshot(
         evidence=evidence,
         promotion=promotion,
         audit=audit,
+        selection_route_validation_flow=selection_route_validation_flow,
+        selection_closed_loop_preflight=selection_closed_loop_preflight,
     )
     warnings = (
         warnings_a
@@ -358,6 +436,8 @@ def collect_snapshot(
         + warnings_g
         + warnings_h
         + warnings_i
+        + warnings_j
+        + warnings_k
     )
     actions = _recommended_actions(status, audit)
     return {
@@ -391,6 +471,8 @@ def collect_snapshot(
             "evidence_quality": meta_g,
             "promotion_intent": meta_h,
             "post_run_audit": meta_i,
+            "selection_route_validation_flow": meta_j,
+            "selection_closed_loop_preflight": meta_k,
         },
         "blockers": summary["post_run_audit"]["blockers"] + warnings,
         "validation_warnings": warnings,
@@ -494,6 +576,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--evidence-quality-source", type=Path, default=None)
     parser.add_argument("--promotion-intent-source", type=Path, default=None)
     parser.add_argument("--audit-source", type=Path, default=None)
+    parser.add_argument("--selection-route-validation-flow-source", type=Path, default=None)
+    parser.add_argument("--selection-closed-loop-preflight-source", type=Path, default=None)
     parser.add_argument("--frozen-utc", default=None)
     parser.add_argument("--indent", type=int, default=2)
     return parser
@@ -511,6 +595,8 @@ def main(argv: list[str] | None = None) -> int:
         evidence_quality_path=args.evidence_quality_source,
         promotion_intent_path=args.promotion_intent_source,
         audit_path=args.audit_source,
+        selection_route_validation_flow_path=args.selection_route_validation_flow_source,
+        selection_closed_loop_preflight_path=args.selection_closed_loop_preflight_source,
         generated_at_utc=args.frozen_utc,
     )
     if not args.no_write:
