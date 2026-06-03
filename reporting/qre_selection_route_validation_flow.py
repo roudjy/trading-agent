@@ -12,7 +12,6 @@ import reporting.qre_market_observation_hypothesis_readiness as readiness
 import reporting.qre_selection_route_materialization as materialization
 import reporting.qre_validation_request_dry_run_runner as dry_run
 
-
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 
 SCHEMA_VERSION: Final[int] = 1
