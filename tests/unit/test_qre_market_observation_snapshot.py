@@ -281,6 +281,81 @@ def test_research_latest_input_does_not_infer_strategy_family_or_template(
         assert "executable_hypothesis_id" not in observation
 
 
+def test_candidate_source_input_preserves_explicit_executable_identity_fields(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "run_candidates_latest.v1.json"
+    source.write_text(
+        json.dumps(
+            {
+                "version": "v1",
+                "candidates": [
+                    {
+                        "candidate_id": "candidate-001",
+                        "current_status": "planned",
+                        "strategy_name": "trend_pullback_v1",
+                        "strategy_family": "trend_pullback",
+                        "strategy_template_id": "trend_pullback_v1",
+                        "preset_name": "trend_pullback_crypto_1h",
+                        "asset": "BTC-EUR",
+                        "interval": "1h",
+                        "executable_hypothesis_id": "trend_pullback_v1",
+                        "source_hypothesis_id": "source-trend-pullback",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    snap = market.collect_snapshot(source_path=source, generated_at_utc=FROZEN)
+
+    observation = snap["observations"][0]
+    assert observation["source_artifact"].endswith("run_candidates_latest.v1.json")
+    assert observation["supporting_evidence_refs"] == [
+        f"{observation['source_artifact']}#candidate-001"
+    ]
+    assert observation["asset_scope"] == ["BTC-EUR"]
+    assert observation["timeframe_scope"] == ["1h"]
+    assert observation["executable_hypothesis_id"] == "trend_pullback_v1"
+    assert observation["source_hypothesis_id"] == "source-trend-pullback"
+    assert observation["strategy_family"] == "trend_pullback"
+    assert observation["strategy_template_id"] == "trend_pullback_v1"
+    assert observation["preset_name"] == "trend_pullback_crypto_1h"
+    assert observation["candidate_id"] == "candidate-001"
+
+
+def test_candidate_source_input_does_not_infer_identity_from_alias_fields(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "run_candidates_latest.v1.json"
+    source.write_text(
+        json.dumps(
+            {
+                "version": "v1",
+                "candidates": [
+                    {
+                        "candidate_id": "candidate-001",
+                        "strategy_name": "trend_pullback_v1",
+                        "family": "trend",
+                        "hypothesis_id": "trend_pullback_v1",
+                        "asset": "BTC-EUR",
+                        "interval": "1h",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    snap = market.collect_snapshot(source_path=source, generated_at_utc=FROZEN)
+
+    observation = snap["observations"][0]
+    assert "executable_hypothesis_id" not in observation
+    assert "strategy_template_id" not in observation
+    assert "strategy_family" not in observation
+
+
 def test_explicit_identity_fixture_chain_reaches_hypothesis_bridge_authority(
     tmp_path: Path,
 ) -> None:
