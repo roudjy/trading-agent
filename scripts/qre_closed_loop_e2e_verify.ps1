@@ -54,6 +54,17 @@ Invoke-QreCommand "Validation request dry-run runner" @(
 Invoke-QreCommand "Executable hypothesis identity bridge diagnostics" @(
     "-m", "reporting.qre_executable_hypothesis_identity_bridge_diagnostics", "--no-write", "--indent", "2"
 )
+
+Invoke-QreCommand "Selection route materialization" @(
+    "-m", "reporting.qre_selection_route_materialization"
+)
+Invoke-QreCommand "Selection route validation flow" @(
+    "-m", "reporting.qre_selection_route_validation_flow"
+)
+Invoke-QreCommand "Selection closed-loop preflight" @(
+    "-m", "reporting.qre_selection_closed_loop_preflight"
+)
+
 Invoke-QreCommand "Controlled artifact regeneration backup plan" @(
     "-m", "reporting.qre_controlled_artifact_regeneration_backup_plan"
 )
@@ -78,12 +89,22 @@ Invoke-QreCommand "Operator closed-loop report" @(
 $controlled = Read-QreJson "logs/qre_controlled_artifact_regeneration/latest.json"
 $audit = Read-QreJson "logs/qre_post_run_evidence_promotion_audit/latest.json"
 $operator = Read-QreJson "logs/qre_operator_closed_loop_report/latest.json"
+$selectionFlow = Read-QreJson "logs/qre_selection_route_validation_flow/latest.json"
+$selectionPreflight = Read-QreJson "logs/qre_selection_closed_loop_preflight/latest.json"
 
 Write-Host ""
 Write-Host "=== QRE Closed-Loop E2E Summary ==="
 if ($operator -ne $null) {
     Write-Host "loop_status: $($operator.loop_status)"
     Write-Host "next_operator_action: $($operator.next_operator_action)"
+}
+if ($selectionFlow -ne $null) {
+    Write-Host "selection_request_ready_for_operator_review: $($selectionFlow.counts.request_ready_for_operator_review)"
+    Write-Host "selection_dry_run_ready: $($selectionFlow.counts.dry_run_ready)"
+}
+if ($selectionPreflight -ne $null) {
+    Write-Host "selection_route_ready: $($selectionPreflight.selection_route.ready)"
+    Write-Host "selection_controlled_regeneration_can_be_considered: $($selectionPreflight.controlled_regeneration_preflight.can_be_considered)"
 }
 if ($controlled -ne $null) {
     Write-Host "controlled_regeneration_mode: $($controlled.mode)"
