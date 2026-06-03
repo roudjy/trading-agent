@@ -11,9 +11,11 @@ import argparse
 import datetime as _dt
 import hashlib
 import json
+import math
 import os
 import tempfile
 from collections import Counter
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final
 
@@ -39,6 +41,16 @@ OBSERVATION_TYPES: Final[tuple[str, ...]] = (
     "unknown",
 )
 
+OPTIONAL_EXECUTABLE_IDENTITY_FIELDS: Final[tuple[str, ...]] = (
+    "executable_hypothesis_id",
+    "source_hypothesis_id",
+    "strategy_family",
+    "strategy_template_id",
+    "preset_name",
+    "candidate_id",
+    "strategy_id",
+)
+
 NOTE_INPUT_ABSENT: Final[str] = "market_source_artifact_absent"
 NOTE_INPUT_UNPARSEABLE: Final[str] = "market_source_artifact_unparseable"
 NOTE_NO_OBSERVATIONS: Final[str] = "no_market_observations_projected"
@@ -46,12 +58,7 @@ NOTE_OBSERVATIONS_PRESENT: Final[str] = "market_observations_present"
 
 
 def _utcnow() -> str:
-    return (
-        _dt.datetime.now(_dt.UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _rel(path: Path) -> str:
@@ -78,6 +85,24 @@ def _bounded_str(value: Any, *, max_len: int = 240) -> str:
     if len(text) <= max_len:
         return text
     return text[: max_len - 3].rstrip() + "..."
+
+
+def _bounded_identity_str(value: Any, *, max_len: int = 160) -> str:
+    if value is None or isinstance(value, bool):
+        return ""
+    if isinstance(value, float) and not math.isfinite(value):
+        return ""
+    if not isinstance(value, str | int | float):
+        return ""
+    return _bounded_str(value, max_len=max_len)
+
+
+def _explicit_identity_fields(raw: dict[str, Any]) -> dict[str, str]:
+    return {
+        field: value
+        for field in OPTIONAL_EXECUTABLE_IDENTITY_FIELDS
+        if (value := _bounded_identity_str(raw.get(field)))
+    }
 
 
 def _str_list(value: Any, *, max_items: int = 12, max_len: int = 120) -> list[str]:
@@ -165,6 +190,7 @@ def _normalise_fixture_observation(
             raw.get("contradicting_evidence_refs"), max_items=24, max_len=180
         ),
         "safe_to_execute": False,
+        **_explicit_identity_fields(raw),
     }
 
 
@@ -200,6 +226,7 @@ def _build_research_observations(
         family = _bounded_str(raw.get("family"), max_len=80)
         regime_tags = [family] if family else []
         row_ref = _row_identity(raw)
+        identity_fields = _explicit_identity_fields(raw)
         metric_refs = [
             _metric_ref("win_rate", raw.get("win_rate")),
             _metric_ref("sharpe", raw.get("sharpe")),
@@ -227,9 +254,8 @@ def _build_research_observations(
                     0.85,
                 )
             )
-        if (
-            (total_trades is not None and total_trades < 30)
-            or (trades_per_month is not None and trades_per_month < 1.0)
+        if (total_trades is not None and total_trades < 30) or (
+            trades_per_month is not None and trades_per_month < 1.0
         ):
             projected.append(
                 (
@@ -238,9 +264,8 @@ def _build_research_observations(
                     0.8,
                 )
             )
-        if (
-            (consistency is not None and consistency == 0.0)
-            and (total_trades is not None and total_trades < 40)
+        if (consistency is not None and consistency == 0.0) and (
+            total_trades is not None and total_trades < 40
         ):
             projected.append(
                 (
@@ -300,6 +325,7 @@ def _build_research_observations(
                     "supporting_evidence_refs": supporting_refs,
                     "contradicting_evidence_refs": contradicting_refs,
                     "safe_to_execute": False,
+                    **identity_fields,
                 }
             )
 
@@ -455,10 +481,8 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
             handle.write(text)
         os.replace(tmp_name, path)
     except Exception:
-        try:
+        with suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise
 
 
@@ -504,6 +528,7 @@ __all__ = [
     "ARTIFACT_DIR",
     "ARTIFACT_LATEST",
     "DEFAULT_SOURCE_CANDIDATES",
+    "OPTIONAL_EXECUTABLE_IDENTITY_FIELDS",
     "OBSERVATION_TYPES",
     "OUTPUT_ARTIFACT_RELATIVE_PATH",
     "REPORT_KIND",
