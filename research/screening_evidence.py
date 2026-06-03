@@ -337,6 +337,25 @@ def _bounded_str(value: Any, *, max_len: int = 240) -> str:
     return text[: max_len - 3].rstrip() + "..."
 
 
+def _is_canonical_qre_hypothesis_id(value: str | None) -> bool:
+    return bool(value and value.startswith("qre-hyp-"))
+
+
+def _explicit_executable_hypothesis_id(
+    *,
+    hypothesis_id: str | None,
+    candidate: dict[str, Any] | None = None,
+) -> str | None:
+    candidate = candidate or {}
+    explicit = _bounded_str(candidate.get("executable_hypothesis_id"), max_len=160)
+    if explicit:
+        return explicit
+    bounded_hypothesis_id = _bounded_str(hypothesis_id, max_len=160)
+    if bounded_hypothesis_id and not _is_canonical_qre_hypothesis_id(bounded_hypothesis_id):
+        return bounded_hypothesis_id
+    return None
+
+
 def _safe_dict_rows(payload: dict[str, Any] | None, field: str) -> list[dict[str, Any]] | None:
     if not isinstance(payload, dict):
         return None
@@ -515,10 +534,15 @@ def _qre_validation_linkage_fields(
     hypothesis_id: str | None,
     source_row_id: str,
     qre_validation_linkage_authority: dict[str, Any] | None,
+    candidate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    executable_hypothesis_id = _explicit_executable_hypothesis_id(
+        hypothesis_id=hypothesis_id,
+        candidate=candidate,
+    )
     fields: dict[str, Any] = {
         "hypothesis_id": hypothesis_id,
-        "executable_hypothesis_id": None,
+        "executable_hypothesis_id": executable_hypothesis_id,
         "validation_plan_id": None,
         "run_manifest_id": None,
         "source_artifact": SCREENING_EVIDENCE_SOURCE_ARTIFACT,
@@ -743,6 +767,7 @@ def _build_candidate_record(
         hypothesis_id=hypothesis_id,
         source_row_id=candidate_id,
         qre_validation_linkage_authority=qre_validation_linkage_authority,
+        candidate=candidate,
     )
 
     record: dict[str, Any] = {
