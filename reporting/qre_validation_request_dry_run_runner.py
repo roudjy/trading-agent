@@ -114,10 +114,7 @@ def _build_dry_run_row(request: Any) -> dict[str, Any]:
     command_preview = _bounded_str(request.get("allowed_command_preview"), max_len=600)
     if request.get("request_status") != REQUEST_READY:
         status = DRY_RUN_BLOCKED_REQUEST_NOT_READY
-    elif (
-        request.get("requires_operator_approval") is True
-        and request.get("operator_approved") is not True
-    ):
+    elif request.get("requires_operator_approval") is not True:
         status = DRY_RUN_BLOCKED_MISSING_OPERATOR_APPROVAL
     elif not command_preview:
         status = DRY_RUN_BLOCKED_MISSING_COMMAND_PREVIEW
