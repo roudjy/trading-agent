@@ -138,6 +138,7 @@ def test_selection_rows_can_feed_request_and_dry_run_route(tmp_path) -> None:
     import json
 
     import reporting.qre_executable_validation_request as request
+    import reporting.qre_market_observation_hypothesis_readiness as readiness
     import reporting.qre_validation_request_dry_run_runner as dry_run
 
     frozen = "2026-06-03T13:30:00Z"
@@ -172,7 +173,7 @@ def test_selection_rows_can_feed_request_and_dry_run_route(tmp_path) -> None:
                 "strategy_template_id": row["strategy_template_id"],
                 "executable_hypothesis_id": row["executable_hypothesis_id"],
                 "source_hypothesis_id": row["source_hypothesis_id"],
-                "bounded_text": f"Catalog-selected {row['preset_name']}",
+                "summary": row["summary"],
             }
         )
         hypotheses.append(
@@ -226,6 +227,7 @@ def test_selection_rows_can_feed_request_and_dry_run_route(tmp_path) -> None:
     hypothesis_path = tmp_path / "hypothesis_candidates.json"
     validation_plan_path = tmp_path / "validation_plans.json"
     run_manifest_path = tmp_path / "run_manifest.json"
+    readiness_path = tmp_path / "readiness.json"
     request_path = tmp_path / "request.json"
 
     market_observation_path.write_text(
@@ -273,8 +275,15 @@ def test_selection_rows_can_feed_request_and_dry_run_route(tmp_path) -> None:
         encoding="utf-8",
     )
 
+    readiness_snapshot = readiness.collect_snapshot(
+        input_artifact_path=market_observation_path,
+        generated_at_utc=frozen,
+    )
+    readiness_path.write_text(json.dumps(readiness_snapshot), encoding="utf-8")
+
     request_snapshot = request.collect_snapshot(
         input_artifact_path=hypothesis_path,
+        readiness_artifact_path=readiness_path,
         market_observation_artifact_path=market_observation_path,
         validation_plan_artifact_path=validation_plan_path,
         run_manifest_artifact_path=run_manifest_path,

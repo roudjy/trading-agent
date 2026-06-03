@@ -3,13 +3,11 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import importlib
 import json
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Final
-
-from research.discovery_sprint import BUILTIN_PROFILES, derive_plan
-from research.presets import PRESETS
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 
@@ -78,8 +76,16 @@ def _preset_by_name(presets: Any) -> dict[str, Any]:
     return index
 
 
+def _discovery_sprint_module() -> Any:
+    return importlib.import_module("research.discovery_sprint")
+
+
+def _default_presets() -> Any:
+    return importlib.import_module("research.presets").PRESETS
+
+
 def _profile_by_name(profile_name: str) -> Any | None:
-    profiles = BUILTIN_PROFILES
+    profiles = getattr(_discovery_sprint_module(), "BUILTIN_PROFILES", {})
     if isinstance(profiles, dict):
         return profiles.get(profile_name)
     return None
@@ -153,6 +159,12 @@ def _build_selection_row(
         "selection_profile_name": profile_name,
         "selection_source": "research.discovery_sprint.derive_plan",
         "selection_reason": "catalog_derive_plan_entry",
+        "summary": (
+            f"Catalog-selected executable hypothesis {executable_hypothesis_id} "
+            f"via preset {preset_name} for {asset or asset_class}/{timeframe}"
+            if preset_name and executable_hypothesis_id
+            else None
+        ),
         "generated_at_utc": generated_at_utc,
         "preset_name": preset_name or None,
         "executable_hypothesis_id": executable_hypothesis_id or None,
@@ -250,11 +262,11 @@ def collect_snapshot(
             validation_warnings=warnings,
         )
 
-    active_presets = presets if presets is not None else PRESETS
+    active_presets = presets if presets is not None else _default_presets()
     preset_index = _preset_by_name(active_presets)
 
     try:
-        plan = derive_plan(profile, presets=active_presets)
+        plan = _discovery_sprint_module().derive_plan(profile, presets=active_presets)
     except Exception:
         warnings.append(NOTE_PLAN_DERIVATION_FAILED)
         return _base_snapshot(
