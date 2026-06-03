@@ -154,6 +154,44 @@ def test_optional_fields_are_checked_only_when_present() -> None:
     assert result["eligibility_status"] == "eligible"
 
 
+def test_default_preset_source_parser_reads_explicit_fields(tmp_path: Path) -> None:
+    source = tmp_path / "presets.py"
+    source.write_text(
+        """
+PRESETS: tuple[ResearchPreset, ...] = (
+    ResearchPreset(
+        name="trend_pullback_crypto_1h",
+        enabled=True,
+        diagnostic_only=False,
+        excluded_from_candidate_promotion=False,
+        hypothesis_id="trend_pullback_v1",
+        timeframe="1h",
+        universe=("BTC-EUR",),
+        bundle=("trend_pullback_v1",),
+    ),
+)
+""",
+        encoding="utf-8",
+    )
+
+    presets = eligibility._presets_from_source(source)
+    result = eligibility.validate_request(_request(), presets=presets)
+
+    assert presets == [
+        {
+            "enabled": True,
+            "diagnostic_only": False,
+            "excluded_from_candidate_promotion": False,
+            "hypothesis_id": "trend_pullback_v1",
+            "timeframe": "1h",
+            "universe": ("BTC-EUR",),
+            "bundle": ("trend_pullback_v1",),
+            "name": "trend_pullback_crypto_1h",
+        }
+    ]
+    assert result["safe_to_request"] is True
+
+
 def test_malformed_request_fails_closed() -> None:
     result = eligibility.validate_request("not-a-row", presets=[])
 
@@ -183,6 +221,8 @@ def test_source_has_no_forbidden_calls_or_matching_heuristics() -> None:
         "os.system",
         "os.popen",
         "shell=True",
+        "from research.presets",
+        "import research.presets",
         "research.run_research",
         "SequenceMatcher",
         "difflib",

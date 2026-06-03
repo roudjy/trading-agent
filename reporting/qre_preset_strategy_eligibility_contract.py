@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import ast
 from collections import Counter
+from pathlib import Path
 from typing import Any, Final
 
-from research.presets import PRESETS
-
 SCHEMA_VERSION: Final[int] = 1
+REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+PRESETS_SOURCE_PATH: Final[Path] = REPO_ROOT / "research" / "presets.py"
 
 STATUS_ELIGIBLE: Final[str] = "eligible"
 STATUS_MISSING_PRESET_NAME: Final[str] = "missing_preset_name"
@@ -63,6 +65,63 @@ def _get_field(obj: Any, field: str, default: Any = None) -> Any:
     return getattr(obj, field, default)
 
 
+def _literal(node: ast.AST) -> Any:
+    try:
+        return ast.literal_eval(node)
+    except (TypeError, ValueError):
+        return None
+
+
+def _research_preset_from_call(node: ast.Call) -> dict[str, Any]:
+    fields: dict[str, Any] = {
+        "enabled": True,
+        "diagnostic_only": False,
+        "excluded_from_candidate_promotion": False,
+        "hypothesis_id": None,
+        "timeframe": "",
+        "universe": (),
+        "bundle": (),
+        "name": "",
+    }
+    for keyword in node.keywords:
+        if keyword.arg in fields:
+            fields[str(keyword.arg)] = _literal(keyword.value)
+    return fields
+
+
+def _presets_from_source(path: Path = PRESETS_SOURCE_PATH) -> list[dict[str, Any]]:
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+
+    for node in tree.body:
+        is_presets_assign = isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "PRESETS" for target in node.targets
+        )
+        is_presets_ann_assign = isinstance(node, ast.AnnAssign) and (
+            isinstance(node.target, ast.Name) and node.target.id == "PRESETS"
+        )
+        if not is_presets_assign and not is_presets_ann_assign:
+            continue
+        if not isinstance(node.value, ast.Tuple):
+            return []
+        presets: list[dict[str, Any]] = []
+        for item in node.value.elts:
+            if (
+                isinstance(item, ast.Call)
+                and isinstance(item.func, ast.Name)
+                and item.func.id == "ResearchPreset"
+            ):
+                presets.append(_research_preset_from_call(item))
+        return presets
+    return []
+
+
 def _bool_field(obj: Any, field: str) -> bool:
     return bool(_get_field(obj, field, False))
 
@@ -100,7 +159,7 @@ def _preset_summary(preset: Any) -> dict[str, Any]:
 
 def _coerce_presets(presets: Any | None) -> list[Any]:
     if presets is None:
-        return list(PRESETS)
+        return list(_presets_from_source())
     if isinstance(presets, str) or not hasattr(presets, "__iter__"):
         return []
     return list(presets)
