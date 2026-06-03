@@ -43,6 +43,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
+from reporting.qre_executable_hypothesis_identity_bridge_contract import (
+    BRIDGE_STATUS_EXACT,
+    build_bridge_index,
+)
 from research.screening_criteria import (
     EXPLORATORY_MAX_DRAWDOWN,
     EXPLORATORY_MIN_EXPECTANCY,
@@ -115,6 +119,7 @@ PER_CANDIDATE_KEYS: Final[frozenset[str]] = frozenset(
         "asset",
         "interval",
         "hypothesis_id",
+        "executable_hypothesis_id",
         "validation_plan_id",
         "run_manifest_id",
         "source_artifact",
@@ -384,6 +389,12 @@ def build_qre_validation_linkage_authority(
             "available": False,
             "warnings": warnings,
             "by_hypothesis_id": {},
+            "by_executable_hypothesis_id": {},
+            "bridge_summary": {
+                "exact_bridge_count": 0,
+                "ambiguous_bridge_count": 0,
+                "unsafe_bridge_count": 0,
+            },
         }
 
     hypothesis_ids = {
@@ -450,10 +461,52 @@ def build_qre_validation_linkage_authority(
             "warnings": [],
         }
 
+    bridge_rows: list[dict[str, Any]] = []
+    for item in hypotheses or []:
+        executable_hypothesis_id = _bounded_str(item.get("executable_hypothesis_id"), max_len=160)
+        qre_hypothesis_id = _bounded_str(item.get("hypothesis_id"), max_len=160)
+        entry = by_hypothesis_id.get(qre_hypothesis_id)
+        if not executable_hypothesis_id or not qre_hypothesis_id:
+            continue
+        entry = entry if isinstance(entry, dict) else {}
+        bridge_rows.append(
+            {
+                "executable_hypothesis_id": executable_hypothesis_id,
+                "qre_hypothesis_id": qre_hypothesis_id,
+                "source_hypothesis_id": item.get("source_hypothesis_id"),
+                "strategy_family": item.get("strategy_family"),
+                "strategy_template_id": item.get("strategy_template_id"),
+                "preset_name": item.get("preset_name"),
+                "validation_plan_id": entry.get("validation_plan_id"),
+                "run_manifest_id": entry.get("run_manifest_id"),
+            }
+        )
+    bridge_index = build_bridge_index(
+        bridge_rows,
+        qre_authority={"by_hypothesis_id": by_hypothesis_id},
+    )
+    raw_by_executable = bridge_index.get("by_executable_hypothesis_id")
+    by_executable_hypothesis_id = {
+        key: value
+        for key, value in (raw_by_executable.items() if isinstance(raw_by_executable, dict) else [])
+        if isinstance(value, dict)
+        and value.get("safe_to_bridge") is True
+        and value.get("bridge_status") == BRIDGE_STATUS_EXACT
+    }
+
     return {
         "available": True,
         "warnings": [],
         "by_hypothesis_id": by_hypothesis_id,
+        "by_executable_hypothesis_id": by_executable_hypothesis_id,
+        "bridge_summary": bridge_index.get(
+            "bridge_summary",
+            {
+                "exact_bridge_count": 0,
+                "ambiguous_bridge_count": 0,
+                "unsafe_bridge_count": 0,
+            },
+        ),
     }
 
 
@@ -464,6 +517,8 @@ def _qre_validation_linkage_fields(
     qre_validation_linkage_authority: dict[str, Any] | None,
 ) -> dict[str, Any]:
     fields: dict[str, Any] = {
+        "hypothesis_id": hypothesis_id,
+        "executable_hypothesis_id": None,
         "validation_plan_id": None,
         "run_manifest_id": None,
         "source_artifact": SCREENING_EVIDENCE_SOURCE_ARTIFACT,
@@ -496,6 +551,29 @@ def _qre_validation_linkage_fields(
         return fields
     entry = by_hypothesis.get(hypothesis_id)
     if not isinstance(entry, dict):
+        by_executable = qre_validation_linkage_authority.get("by_executable_hypothesis_id")
+        bridge_entry = by_executable.get(hypothesis_id) if isinstance(by_executable, dict) else None
+        if (
+            isinstance(bridge_entry, dict)
+            and bridge_entry.get("safe_to_bridge") is True
+            and bridge_entry.get("bridge_status") == BRIDGE_STATUS_EXACT
+        ):
+            qre_hypothesis_id = (
+                _bounded_str(bridge_entry.get("qre_hypothesis_id"), max_len=160) or None
+            )
+            validation_plan_id = (
+                _bounded_str(bridge_entry.get("validation_plan_id"), max_len=160) or None
+            )
+            run_manifest_id = _bounded_str(bridge_entry.get("run_manifest_id"), max_len=160) or None
+            if qre_hypothesis_id and validation_plan_id and run_manifest_id:
+                fields["hypothesis_id"] = qre_hypothesis_id
+                fields["executable_hypothesis_id"] = hypothesis_id
+                fields["validation_plan_id"] = validation_plan_id
+                fields["run_manifest_id"] = run_manifest_id
+                fields["qre_validation_linkage_status"] = "linked_executable_hypothesis_bridge"
+                fields["qre_validation_linkage_warnings"] = []
+                return fields
+
         fields["qre_validation_linkage_status"] = "unlinked_unknown_hypothesis_id"
         fields["qre_validation_linkage_warnings"] = [
             "screening_row_hypothesis_id_not_in_qre_authority"

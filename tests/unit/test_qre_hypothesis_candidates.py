@@ -7,7 +7,6 @@ import pytest
 
 from reporting import qre_hypothesis_candidates as hyp
 
-
 FROZEN = "2026-06-01T12:00:00Z"
 
 
@@ -82,6 +81,42 @@ def test_deterministic_output_with_injected_timestamp(tmp_path: Path) -> None:
     assert row["safe_to_execute"] is False
 
 
+def test_explicit_executable_bridge_fields_are_preserved_when_present(
+    tmp_path: Path,
+) -> None:
+    source = _write_observations(
+        tmp_path / "obs.json",
+        [
+            _observation(
+                executable_hypothesis_id="trend_pullback_v1",
+                source_hypothesis_id="source-trend-pullback",
+                strategy_family="trend",
+                strategy_template_id="trend_pullback",
+                preset_name="trend_pullback_crypto_1h",
+            )
+        ],
+    )
+
+    snap = hyp.collect_snapshot(input_artifact_path=source, generated_at_utc=FROZEN)
+
+    row = snap["hypotheses"][0]
+    assert row["executable_hypothesis_id"] == "trend_pullback_v1"
+    assert row["source_hypothesis_id"] == "source-trend-pullback"
+    assert row["strategy_family"] == "trend"
+    assert row["strategy_template_id"] == "trend_pullback"
+    assert row["preset_name"] == "trend_pullback_crypto_1h"
+
+
+def test_executable_bridge_fields_are_not_invented_when_absent(tmp_path: Path) -> None:
+    source = _write_observations(tmp_path / "obs.json", [_observation()])
+
+    snap = hyp.collect_snapshot(input_artifact_path=source, generated_at_utc=FROZEN)
+
+    row = snap["hypotheses"][0]
+    for field in hyp.OPTIONAL_BRIDGE_FIELDS:
+        assert field not in row
+
+
 def test_atomic_write_refuses_outside_artifact_dir(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         hyp._atomic_write_json(tmp_path / "latest.json", {"x": 1})
@@ -98,9 +133,7 @@ def test_cli_no_write_outputs_json_without_writing(
     monkeypatch.setattr(hyp, "ARTIFACT_DIR", artifact_dir)
     monkeypatch.setattr(hyp, "ARTIFACT_LATEST", latest)
 
-    rc = hyp.main(
-        ["--no-write", "--source", str(source), "--frozen-utc", FROZEN, "--indent", "0"]
-    )
+    rc = hyp.main(["--no-write", "--source", str(source), "--frozen-utc", FROZEN, "--indent", "0"])
 
     assert rc == 0
     assert latest.exists() is False

@@ -16,14 +16,32 @@ def _write_json(path: Path, payload: dict) -> Path:
     return path
 
 
-def _write_authorities(tmp_path: Path, hypothesis_ids: list[str]) -> dict[str, Path]:
+def _write_authorities(
+    tmp_path: Path,
+    hypothesis_ids: list[str],
+    *,
+    executable_bridge_by_hypothesis_id: dict[str, str] | None = None,
+) -> dict[str, Path]:
+    bridge = executable_bridge_by_hypothesis_id or {}
     hypotheses = []
     plans = []
     manifests = []
     for index, hypothesis_id in enumerate(hypothesis_ids, start=1):
         plan_id = f"qre-plan-fixture-{index:03d}"
         run_id = f"qre-run-fixture-{index:03d}"
-        hypotheses.append({"hypothesis_id": hypothesis_id})
+        hypothesis = {"hypothesis_id": hypothesis_id}
+        executable_hypothesis_id = bridge.get(hypothesis_id)
+        if executable_hypothesis_id:
+            hypothesis.update(
+                {
+                    "executable_hypothesis_id": executable_hypothesis_id,
+                    "source_hypothesis_id": f"source-{index:03d}",
+                    "strategy_family": "trend",
+                    "strategy_template_id": "trend_pullback",
+                    "preset_name": f"preset-{index:03d}",
+                }
+            )
+        hypotheses.append(hypothesis)
         plans.append(
             {
                 "hypothesis_id": hypothesis_id,
@@ -90,8 +108,13 @@ def _snapshot(
     *,
     authority_ids: list[str],
     presets: list[dict],
+    executable_bridge_by_hypothesis_id: dict[str, str] | None = None,
 ) -> dict:
-    authorities = _write_authorities(tmp_path, authority_ids)
+    authorities = _write_authorities(
+        tmp_path,
+        authority_ids,
+        executable_bridge_by_hypothesis_id=executable_bridge_by_hypothesis_id,
+    )
     return diag.collect_snapshot(
         hypothesis_artifact_path=authorities["hypotheses"],
         plan_artifact_path=authorities["plans"],
@@ -190,8 +213,74 @@ def test_exact_match_expects_regeneration_linkage(tmp_path: Path) -> None:
     assert snap["bridge"]["executable_to_qre_authority_match_count"] == 2
     assert snap["bridge"]["regeneration_linkage_expected"] is True
     assert snap["bridge"]["deterministic_mapping_possible"] is True
-    assert snap["bridge"]["primary_blocker"] == "none"
+    assert snap["bridge"]["primary_blocker"] == "no_primary_blocker"
     _assert_safety(snap)
+
+
+def test_explicit_bridge_reports_regeneration_linkage_ready(tmp_path: Path) -> None:
+    snap = _snapshot(
+        tmp_path,
+        authority_ids=["qre-hyp-fixture-001", "qre-hyp-fixture-002"],
+        executable_bridge_by_hypothesis_id={
+            "qre-hyp-fixture-001": "trend_pullback_v1",
+            "qre-hyp-fixture-002": "volatility_compression_breakout_v0",
+        },
+        presets=[
+            _preset("trend_pullback_crypto_1h", "trend_pullback_v1"),
+            _preset(
+                "vol_compression_breakout_crypto_1h",
+                "volatility_compression_breakout_v0",
+            ),
+        ],
+    )
+
+    assert snap["qre_authority"]["executable_bridge_summary"] == {
+        "exact_bridge_count": 2,
+        "ambiguous_bridge_count": 0,
+        "unsafe_bridge_count": 0,
+    }
+    assert snap["qre_authority"]["sample_executable_hypothesis_ids"] == [
+        "trend_pullback_v1",
+        "volatility_compression_breakout_v0",
+    ]
+    assert snap["bridge"]["executable_ids_missing_from_qre_authority"] == []
+    assert snap["bridge"]["regeneration_linkage_expected"] is True
+    assert snap["bridge"]["deterministic_mapping_possible"] is True
+    assert snap["bridge"]["primary_blocker"] == "no_primary_blocker"
+    assert snap["final_recommendation"] == (
+        "executable_hypothesis_identity_bridge_ready_for_regeneration"
+    )
+    assert {
+        row["qre_authority_linkage_mode"] for row in snap["executable_presets"]["per_preset"]
+    } == {"executable_hypothesis_bridge"}
+    _assert_safety(snap)
+
+
+def test_explicit_bridge_reports_false_when_one_executable_id_is_missing(
+    tmp_path: Path,
+) -> None:
+    snap = _snapshot(
+        tmp_path,
+        authority_ids=["qre-hyp-fixture-001", "qre-hyp-fixture-002"],
+        executable_bridge_by_hypothesis_id={
+            "qre-hyp-fixture-001": "trend_pullback_v1",
+        },
+        presets=[
+            _preset("trend_pullback_crypto_1h", "trend_pullback_v1"),
+            _preset(
+                "vol_compression_breakout_crypto_1h",
+                "volatility_compression_breakout_v0",
+            ),
+        ],
+    )
+
+    assert snap["bridge"]["executable_ids_present_in_qre_authority"] == ["trend_pullback_v1"]
+    assert snap["bridge"]["executable_ids_missing_from_qre_authority"] == [
+        "volatility_compression_breakout_v0"
+    ]
+    assert snap["bridge"]["regeneration_linkage_expected"] is False
+    assert snap["bridge"]["deterministic_mapping_possible"] is False
+    assert snap["bridge"]["primary_blocker"] == "executable_hypothesis_id_not_in_qre_authority"
 
 
 def test_partial_match_fails_closed_and_reports_missing_id(tmp_path: Path) -> None:
@@ -293,6 +382,7 @@ def test_per_preset_rows_are_bounded_and_include_required_fields(tmp_path: Path)
         "hypothesis_id",
         "hypothesis_id_present_in_qre_authority",
         "qre_authority_status",
+        "qre_authority_linkage_mode",
     }
     assert required <= set(rows[0])
     assert rows[0]["hypothesis_id_present_in_qre_authority"] is True
@@ -457,5 +547,9 @@ def test_forbidden_calls_imports_and_mutating_paths_absent() -> None:
         "registry.py",
         "strategy_matrix.csv",
         "research/research_latest.json",
+        "import difflib",
+        "SequenceMatcher",
+        "fuzzy",
+        "levenshtein",
     ):
         assert token not in src

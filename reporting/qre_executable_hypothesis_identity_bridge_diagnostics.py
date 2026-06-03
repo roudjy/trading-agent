@@ -13,6 +13,11 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final
 
+from reporting.qre_executable_hypothesis_identity_bridge_contract import (
+    BRIDGE_STATUS_EXACT,
+    build_bridge_index,
+)
+
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
 SCHEMA_VERSION: Final[int] = 1
@@ -47,12 +52,15 @@ FINAL_RECOMMENDATION_BRIDGE_REQUIRED: Final[str] = (
 FINAL_RECOMMENDATION_REGENERATION_LINKAGE_EXPECTED: Final[str] = (
     "runtime_regeneration_linkage_expected_for_executable_hypothesis_ids"
 )
+FINAL_RECOMMENDATION_BRIDGE_READY: Final[str] = (
+    "executable_hypothesis_identity_bridge_ready_for_regeneration"
+)
 FINAL_RECOMMENDATION_INPUTS_FAILED_CLOSED: Final[str] = "inputs_failed_closed_before_regeneration"
 
 PRIMARY_BLOCKER_EXECUTABLE_ID_MISSING: Final[str] = "executable_hypothesis_id_not_in_qre_authority"
 PRIMARY_BLOCKER_QRE_AUTHORITY_UNAVAILABLE: Final[str] = "qre_authority_unavailable"
 PRIMARY_BLOCKER_NO_EXECUTABLE_IDS: Final[str] = "no_executable_hypothesis_ids"
-PRIMARY_BLOCKER_NONE: Final[str] = "none"
+PRIMARY_BLOCKER_NONE: Final[str] = "no_primary_blocker"
 
 RECOMMENDED_BRIDGE_KEYS: Final[tuple[str, ...]] = (
     "executable_hypothesis_id",
@@ -156,6 +164,12 @@ def _build_qre_validation_linkage_authority(
             "available": False,
             "warnings": warnings,
             "by_hypothesis_id": {},
+            "by_executable_hypothesis_id": {},
+            "bridge_summary": {
+                "exact_bridge_count": 0,
+                "ambiguous_bridge_count": 0,
+                "unsafe_bridge_count": 0,
+            },
         }
 
     hypothesis_ids = {
@@ -222,10 +236,52 @@ def _build_qre_validation_linkage_authority(
             "warnings": [],
         }
 
+    bridge_rows: list[dict[str, Any]] = []
+    for item in hypotheses or []:
+        executable_hypothesis_id = _bounded_str(item.get("executable_hypothesis_id"), max_len=160)
+        qre_hypothesis_id = _bounded_str(item.get("hypothesis_id"), max_len=160)
+        entry = by_hypothesis_id.get(qre_hypothesis_id)
+        if not executable_hypothesis_id or not qre_hypothesis_id:
+            continue
+        entry = entry if isinstance(entry, dict) else {}
+        bridge_rows.append(
+            {
+                "executable_hypothesis_id": executable_hypothesis_id,
+                "qre_hypothesis_id": qre_hypothesis_id,
+                "source_hypothesis_id": item.get("source_hypothesis_id"),
+                "strategy_family": item.get("strategy_family"),
+                "strategy_template_id": item.get("strategy_template_id"),
+                "preset_name": item.get("preset_name"),
+                "validation_plan_id": entry.get("validation_plan_id"),
+                "run_manifest_id": entry.get("run_manifest_id"),
+            }
+        )
+    bridge_index = build_bridge_index(
+        bridge_rows,
+        qre_authority={"by_hypothesis_id": by_hypothesis_id},
+    )
+    raw_by_executable = bridge_index.get("by_executable_hypothesis_id")
+    by_executable_hypothesis_id = {
+        key: value
+        for key, value in (raw_by_executable.items() if isinstance(raw_by_executable, dict) else [])
+        if isinstance(value, dict)
+        and value.get("safe_to_bridge") is True
+        and value.get("bridge_status") == BRIDGE_STATUS_EXACT
+    }
+
     return {
         "available": True,
         "warnings": [],
         "by_hypothesis_id": by_hypothesis_id,
+        "by_executable_hypothesis_id": by_executable_hypothesis_id,
+        "bridge_summary": bridge_index.get(
+            "bridge_summary",
+            {
+                "exact_bridge_count": 0,
+                "ambiguous_bridge_count": 0,
+                "unsafe_bridge_count": 0,
+            },
+        ),
     }
 
 
@@ -304,9 +360,17 @@ def _preset_row(
     preset: Any,
     *,
     qre_by_hypothesis_id: dict[str, Any],
+    qre_by_executable_hypothesis_id: dict[str, Any],
 ) -> dict[str, Any]:
     hypothesis_id = _bounded_str(_get_field(preset, "hypothesis_id"), max_len=160)
-    entry = qre_by_hypothesis_id.get(hypothesis_id) if hypothesis_id else None
+    direct_entry = qre_by_hypothesis_id.get(hypothesis_id) if hypothesis_id else None
+    bridge_entry = qre_by_executable_hypothesis_id.get(hypothesis_id) if hypothesis_id else None
+    entry = direct_entry if isinstance(direct_entry, dict) else bridge_entry
+    linkage_mode = None
+    if isinstance(direct_entry, dict):
+        linkage_mode = "direct_qre_hypothesis_id"
+    elif isinstance(bridge_entry, dict):
+        linkage_mode = "executable_hypothesis_bridge"
     return {
         "preset_name": _bounded_str(_get_field(preset, "name"), max_len=160),
         "enabled": _bool_field(preset, "enabled"),
@@ -319,8 +383,11 @@ def _preset_row(
         "preset_class": _bounded_str(_get_field(preset, "preset_class"), max_len=80),
         "hypothesis_id": hypothesis_id or None,
         "hypothesis_id_present_in_qre_authority": bool(entry),
+        "qre_authority_linkage_mode": linkage_mode,
         "qre_authority_status": (
-            _bounded_str(entry.get("status"), max_len=80) if isinstance(entry, dict) else None
+            _bounded_str(entry.get("status") or entry.get("bridge_status"), max_len=80)
+            if isinstance(entry, dict)
+            else None
         ),
     }
 
@@ -341,7 +408,7 @@ def _authority_snapshot(
     hypothesis_artifact_path: Path,
     plan_artifact_path: Path,
     run_manifest_artifact_path: Path,
-) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], list[str]]:
     warnings: list[str] = []
     _hyp_available, hypothesis_payload, hyp_warning = _read_json(hypothesis_artifact_path)
     _plan_available, plan_payload, plan_warning = _read_json(plan_artifact_path)
@@ -364,6 +431,8 @@ def _authority_snapshot(
 
     by_hypothesis_id_raw = authority.get("by_hypothesis_id")
     by_hypothesis_id = by_hypothesis_id_raw if isinstance(by_hypothesis_id_raw, dict) else {}
+    by_executable_raw = authority.get("by_executable_hypothesis_id")
+    by_executable_hypothesis_id = by_executable_raw if isinstance(by_executable_raw, dict) else {}
     status_counter: Counter[str] = Counter()
     for entry in by_hypothesis_id.values():
         if isinstance(entry, dict):
@@ -374,25 +443,48 @@ def _authority_snapshot(
 
     qre_ids = sorted(_bounded_str(value, max_len=160) for value in by_hypothesis_id)
     qre_ids = [value for value in qre_ids if value]
+    executable_ids = sorted(
+        _bounded_str(value, max_len=160) for value in by_executable_hypothesis_id
+    )
+    executable_ids = [value for value in executable_ids if value]
+    bridge_summary = authority.get("bridge_summary")
+    if not isinstance(bridge_summary, dict):
+        bridge_summary = {
+            "exact_bridge_count": 0,
+            "ambiguous_bridge_count": 0,
+            "unsafe_bridge_count": 0,
+        }
     snapshot = {
         "available": bool(authority.get("available")),
         "warnings": _bounded_unique(authority_warnings, max_items=WARNING_LIMIT),
         "total_hypotheses": len(by_hypothesis_id),
         "linked_exact_ids": status_counter.get("linked_exact_ids", 0),
+        "executable_bridge_summary": bridge_summary,
+        "sample_executable_hypothesis_ids": executable_ids[:SAMPLE_LIMIT],
         "status_counts": dict(sorted(status_counter.items())),
         "sample_qre_hypothesis_ids": qre_ids[:SAMPLE_LIMIT],
     }
-    return (snapshot, by_hypothesis_id, _bounded_unique(warnings, max_items=WARNING_LIMIT))
+    return (
+        snapshot,
+        by_hypothesis_id,
+        by_executable_hypothesis_id,
+        _bounded_unique(warnings, max_items=WARNING_LIMIT),
+    )
 
 
 def _presets_snapshot(
     *,
     presets: Any,
     qre_by_hypothesis_id: dict[str, Any],
+    qre_by_executable_hypothesis_id: dict[str, Any],
 ) -> tuple[dict[str, Any], list[str]]:
     preset_items, warnings = _coerce_presets(presets)
     rows = [
-        _preset_row(preset, qre_by_hypothesis_id=qre_by_hypothesis_id)
+        _preset_row(
+            preset,
+            qre_by_hypothesis_id=qre_by_hypothesis_id,
+            qre_by_executable_hypothesis_id=qre_by_executable_hypothesis_id,
+        )
         for preset in preset_items[:PRESET_ROW_LIMIT]
     ]
     executable_ids = _bounded_unique(
@@ -551,7 +643,7 @@ def _bridge_snapshot_from_rows(
 
 def _final_recommendation(bridge: dict[str, Any]) -> str:
     if bridge["primary_blocker"] == PRIMARY_BLOCKER_NONE:
-        return FINAL_RECOMMENDATION_REGENERATION_LINKAGE_EXPECTED
+        return FINAL_RECOMMENDATION_BRIDGE_READY
     if bridge["primary_blocker"] == PRIMARY_BLOCKER_EXECUTABLE_ID_MISSING:
         return FINAL_RECOMMENDATION_BRIDGE_REQUIRED
     return FINAL_RECOMMENDATION_INPUTS_FAILED_CLOSED
@@ -566,7 +658,12 @@ def collect_snapshot(
     presets: Any = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
-    qre_authority, qre_by_hypothesis_id, authority_warnings = _authority_snapshot(
+    (
+        qre_authority,
+        qre_by_hypothesis_id,
+        qre_by_executable_hypothesis_id,
+        authority_warnings,
+    ) = _authority_snapshot(
         hypothesis_artifact_path=hypothesis_artifact_path or DEFAULT_HYPOTHESIS_ARTIFACT_PATH,
         plan_artifact_path=plan_artifact_path or DEFAULT_PLAN_ARTIFACT_PATH,
         run_manifest_artifact_path=run_manifest_artifact_path or DEFAULT_RUN_MANIFEST_ARTIFACT_PATH,
@@ -574,6 +671,7 @@ def collect_snapshot(
     executable_presets, preset_warnings = _presets_snapshot(
         presets=presets,
         qre_by_hypothesis_id=qre_by_hypothesis_id,
+        qre_by_executable_hypothesis_id=qre_by_executable_hypothesis_id,
     )
     bridge = _bridge_snapshot_from_rows(
         qre_authority=qre_authority,

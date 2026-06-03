@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final
 
+from reporting.qre_executable_hypothesis_identity_bridge_contract import (
+    BRIDGE_STATUS_EXACT,
+)
 from research.asset_typing import normalize_asset_type
 from research.registry import count_param_combinations, expand_param_grid
 
@@ -99,10 +102,7 @@ def _canonical_param_dump(samples: list[dict[str, Any]]) -> str:
     ``allow_nan=False`` is explicit: any unsanitised NaN/inf
     reaching this call is a programmer bug and raises immediately.
     """
-    safe = [
-        {key: _json_safe_param_value(val) for key, val in sample.items()}
-        for sample in samples
-    ]
+    safe = [{key: _json_safe_param_value(val) for key, val in sample.items()} for sample in samples]
     return json.dumps(
         safe,
         sort_keys=True,
@@ -113,9 +113,7 @@ def _canonical_param_dump(samples: list[dict[str, Any]]) -> str:
 
 
 def _compute_sampled_parameter_digest(samples: list[dict[str, Any]]) -> str:
-    return hashlib.sha1(
-        _canonical_param_dump(samples).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha1(_canonical_param_dump(samples).encode("utf-8")).hexdigest()
 
 
 def _stratified_indices(grid_size: int) -> list[int]:
@@ -137,10 +135,7 @@ def _stratified_indices(grid_size: int) -> list[int]:
         math.ceil(grid_size * MIN_STRATIFIED_COVERAGE_PCT),
     )
     sample_size = min(sample_size, grid_size)
-    raw = [
-        round(i * (grid_size - 1) / (sample_size - 1))
-        for i in range(sample_size)
-    ]
+    raw = [round(i * (grid_size - 1) / (sample_size - 1)) for i in range(sample_size)]
     deduped = sorted({0, grid_size - 1, *raw})
     while len(deduped) < sample_size:
         for candidate in range(grid_size):
@@ -340,9 +335,8 @@ def _normalized_asset_type(candidate: dict[str, Any]) -> str:
 
 def assess_fit_prior(candidate: dict[str, Any]) -> tuple[str, str]:
     requirements = candidate.get("strategy_requirements") or {}
-    if (
-        requirements.get("position_structure") == POSITION_SPREAD
-        and not requirements.get("reference_asset")
+    if requirements.get("position_structure") == POSITION_SPREAD and not requirements.get(
+        "reference_asset"
     ):
         return FIT_BLOCKED, "requires_spread_not_outright"
     if requirements.get("initial_lane_support") == BLOCKED_INITIAL_LANE:
@@ -392,10 +386,7 @@ def apply_fit_prior(
 def index_readiness(
     pair_diagnostics: list[dict[str, Any]],
 ) -> dict[tuple[str, str], dict[str, Any]]:
-    return {
-        (str(item["asset"]), str(item["interval"])): item
-        for item in pair_diagnostics
-    }
+    return {(str(item["asset"]), str(item["interval"])): item for item in pair_diagnostics}
 
 
 def apply_eligibility(
@@ -613,9 +604,7 @@ def sampling_plan_for_param_grid(
     # remains honoured here so external callers that explicitly
     # constrain the legacy regime still get the smaller cap.
     legacy_cap = max(1, int(max_samples_for_legacy))
-    selected_indices = sorted(
-        {0, grid_size // 2, grid_size - 1}
-    )
+    selected_indices = sorted({0, grid_size // 2, grid_size - 1})
     samples = [combinations[i] for i in selected_indices][:legacy_cap]
     coverage_pct = len(samples) / grid_size
     return SamplingPlan(
@@ -647,9 +636,7 @@ def screening_param_samples(
     Callers that need coverage metadata should use
     ``sampling_plan_for_param_grid`` directly.
     """
-    return sampling_plan_for_param_grid(
-        param_grid, max_samples_for_legacy=max_samples
-    ).samples
+    return sampling_plan_for_param_grid(param_grid, max_samples_for_legacy=max_samples).samples
 
 
 def normalize_screening_decision(sample_results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -733,6 +720,7 @@ def _run_candidate_validation_linkage_fields(
     hypothesis_id = _bounded_str(candidate.get("hypothesis_id"), max_len=160) or None
     fields: dict[str, Any] = {
         "hypothesis_id": hypothesis_id,
+        "executable_hypothesis_id": None,
         "validation_plan_id": None,
         "run_manifest_id": None,
         "source_artifact": RUN_CANDIDATES_SOURCE_ARTIFACT,
@@ -765,6 +753,29 @@ def _run_candidate_validation_linkage_fields(
         return fields
     entry = by_hypothesis.get(hypothesis_id)
     if not isinstance(entry, dict):
+        by_executable = qre_validation_linkage_authority.get("by_executable_hypothesis_id")
+        bridge_entry = by_executable.get(hypothesis_id) if isinstance(by_executable, dict) else None
+        if (
+            isinstance(bridge_entry, dict)
+            and bridge_entry.get("safe_to_bridge") is True
+            and bridge_entry.get("bridge_status") == BRIDGE_STATUS_EXACT
+        ):
+            qre_hypothesis_id = (
+                _bounded_str(bridge_entry.get("qre_hypothesis_id"), max_len=160) or None
+            )
+            validation_plan_id = (
+                _bounded_str(bridge_entry.get("validation_plan_id"), max_len=160) or None
+            )
+            run_manifest_id = _bounded_str(bridge_entry.get("run_manifest_id"), max_len=160) or None
+            if qre_hypothesis_id and validation_plan_id and run_manifest_id:
+                fields["hypothesis_id"] = qre_hypothesis_id
+                fields["executable_hypothesis_id"] = hypothesis_id
+                fields["validation_plan_id"] = validation_plan_id
+                fields["run_manifest_id"] = run_manifest_id
+                fields["qre_validation_linkage_status"] = "linked_executable_hypothesis_bridge"
+                fields["qre_validation_linkage_warnings"] = []
+                return fields
+
         fields["qre_validation_linkage_status"] = "unlinked_unknown_hypothesis_id"
         fields["qre_validation_linkage_warnings"] = [
             "run_candidate_hypothesis_id_not_in_qre_authority"
