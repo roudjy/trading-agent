@@ -83,6 +83,40 @@ def _write_readiness(path: Path, readiness_class: str = "hypothesis_ready") -> P
     return path
 
 
+def _write_plans(path: Path, plans: list[dict]) -> Path:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "report_kind": "qre_hypothesis_validation_plan",
+                "generated_at_utc": FROZEN,
+                "validation_plans": plans,
+                "safe_to_execute": False,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _write_manifests(path: Path, manifests: list[dict]) -> Path:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "report_kind": "qre_research_run_manifest",
+                "generated_at_utc": FROZEN,
+                "run_manifests": manifests,
+                "safe_to_execute": False,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def test_ready_request_requires_operator_review_and_has_descriptive_preview(
     tmp_path: Path,
 ) -> None:
@@ -103,6 +137,95 @@ def test_ready_request_requires_operator_review_and_has_descriptive_preview(
     assert row["requires_operator_approval"] is True
     assert snap["counts"]["ready"] == 1
     assert snap["safe_to_execute"] is False
+
+
+def test_ready_request_can_use_exact_plan_and_manifest_artifacts(
+    tmp_path: Path,
+) -> None:
+    source = _write_hypotheses(
+        tmp_path / "hypotheses.json",
+        [_hypothesis(validation_plan_id="", run_manifest_id="")],
+    )
+    readiness = _write_readiness(tmp_path / "readiness.json")
+    plans = _write_plans(
+        tmp_path / "plans.json",
+        [
+            {
+                "hypothesis_id": "qre-hyp-fixture",
+                "validation_plan_id": "qre-plan-fixture",
+            }
+        ],
+    )
+    manifests = _write_manifests(
+        tmp_path / "manifests.json",
+        [
+            {
+                "run_manifest_id": "qre-run-fixture",
+                "target_validation_plan_id": "qre-plan-fixture",
+            }
+        ],
+    )
+
+    snap = req.collect_snapshot(
+        input_artifact_path=source,
+        readiness_artifact_path=readiness,
+        validation_plan_artifact_path=plans,
+        run_manifest_artifact_path=manifests,
+        generated_at_utc=FROZEN,
+        presets=[PresetFixture()],
+    )
+
+    row = snap["validation_requests"][0]
+    assert row["request_status"] == "request_ready_for_operator_review"
+    assert row["validation_plan_id"] == "qre-plan-fixture"
+    assert row["run_manifest_id"] == "qre-run-fixture"
+
+
+def test_ambiguous_plan_artifact_fails_closed(tmp_path: Path) -> None:
+    source = _write_hypotheses(
+        tmp_path / "hypotheses.json",
+        [_hypothesis(validation_plan_id="", run_manifest_id="")],
+    )
+    readiness = _write_readiness(tmp_path / "readiness.json")
+    plans = _write_plans(
+        tmp_path / "plans.json",
+        [
+            {
+                "hypothesis_id": "qre-hyp-fixture",
+                "validation_plan_id": "qre-plan-fixture",
+            },
+            {
+                "hypothesis_id": "qre-hyp-fixture",
+                "validation_plan_id": "qre-plan-fixture-2",
+            },
+        ],
+    )
+    manifests = _write_manifests(
+        tmp_path / "manifests.json",
+        [
+            {
+                "run_manifest_id": "qre-run-fixture",
+                "target_validation_plan_id": "qre-plan-fixture",
+            }
+        ],
+    )
+
+    snap = req.collect_snapshot(
+        input_artifact_path=source,
+        readiness_artifact_path=readiness,
+        validation_plan_artifact_path=plans,
+        run_manifest_artifact_path=manifests,
+        generated_at_utc=FROZEN,
+        presets=[PresetFixture()],
+    )
+
+    row = snap["validation_requests"][0]
+    assert row["request_status"] == "request_blocked_validation_plan_missing"
+    assert row["allowed_command_preview"] is None
+    assert (
+        "ambiguous_validation_plan_id_for_hypothesis_id:qre-hyp-fixture"
+        in (snap["validation_warnings"])
+    )
 
 
 def test_missing_executable_hypothesis_id_blocks_request(tmp_path: Path) -> None:
