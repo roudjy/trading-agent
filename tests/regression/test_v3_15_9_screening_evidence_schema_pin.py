@@ -42,6 +42,7 @@ _EXPECTED_PER_CANDIDATE_KEYS = frozenset(
         "asset",
         "interval",
         "hypothesis_id",
+        "executable_hypothesis_id",
         "validation_plan_id",
         "run_manifest_id",
         "source_artifact",
