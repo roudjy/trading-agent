@@ -46,8 +46,8 @@ def _write_requests(path: Path, requests: list) -> Path:
     return path
 
 
-def test_ready_request_with_operator_approval_produces_dry_run_ready(tmp_path: Path) -> None:
-    source = _write_requests(tmp_path / "requests.json", [_request(operator_approved=True)])
+def test_ready_request_produces_non_executing_dry_run_ready(tmp_path: Path) -> None:
+    source = _write_requests(tmp_path / "requests.json", [_request()])
 
     snap = dry_run.collect_snapshot(input_artifact_path=source, generated_at_utc=FROZEN)
 
@@ -61,6 +61,19 @@ def test_ready_request_with_operator_approval_produces_dry_run_ready(tmp_path: P
     assert snap["executed_anything"] is False
 
 
+def test_operator_approval_contract_must_be_visible_for_ready_dry_run(tmp_path: Path) -> None:
+    source = _write_requests(
+        tmp_path / "requests.json",
+        [_request(requires_operator_approval=False)],
+    )
+
+    snap = dry_run.collect_snapshot(input_artifact_path=source, generated_at_utc=FROZEN)
+
+    assert snap["dry_run_results"][0]["dry_run_status"] == (
+        "dry_run_blocked_missing_operator_approval"
+    )
+
+
 def test_request_not_ready_blocks_dry_run(tmp_path: Path) -> None:
     source = _write_requests(
         tmp_path / "requests.json",
@@ -72,20 +85,10 @@ def test_request_not_ready_blocks_dry_run(tmp_path: Path) -> None:
     assert snap["dry_run_results"][0]["dry_run_status"] == ("dry_run_blocked_request_not_ready")
 
 
-def test_missing_operator_approval_blocks_dry_run(tmp_path: Path) -> None:
-    source = _write_requests(tmp_path / "requests.json", [_request()])
-
-    snap = dry_run.collect_snapshot(input_artifact_path=source, generated_at_utc=FROZEN)
-
-    assert snap["dry_run_results"][0]["dry_run_status"] == (
-        "dry_run_blocked_missing_operator_approval"
-    )
-
-
 def test_missing_command_preview_blocks_dry_run(tmp_path: Path) -> None:
     source = _write_requests(
         tmp_path / "requests.json",
-        [_request(operator_approved=True, allowed_command_preview="")],
+        [_request(allowed_command_preview="")],
     )
 
     snap = dry_run.collect_snapshot(input_artifact_path=source, generated_at_utc=FROZEN)

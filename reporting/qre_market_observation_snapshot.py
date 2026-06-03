@@ -29,6 +29,8 @@ OUTPUT_ARTIFACT_RELATIVE_PATH: Final[str] = "logs/qre_market_observations/latest
 ARTIFACT_LATEST: Final[Path] = REPO_ROOT / OUTPUT_ARTIFACT_RELATIVE_PATH
 
 DEFAULT_SOURCE_CANDIDATES: Final[tuple[Path, ...]] = (
+    REPO_ROOT / "research" / "screening_evidence_latest.v1.json",
+    REPO_ROOT / "research" / "run_candidates_latest.v1.json",
     REPO_ROOT / "research" / "research_latest.json",
 )
 
@@ -199,10 +201,105 @@ def _metric_ref(name: str, value: Any) -> str:
 
 
 def _row_identity(row: dict[str, Any]) -> str:
-    strategy = _bounded_str(row.get("strategy_name"), max_len=80) or "unknown_strategy"
+    strategy = (
+        _bounded_str(row.get("strategy_id"), max_len=80)
+        or _bounded_str(row.get("strategy_name"), max_len=80)
+        or "unknown_strategy"
+    )
     asset = _bounded_str(row.get("asset"), max_len=80) or "unknown_asset"
     interval = _bounded_str(row.get("interval"), max_len=40) or "unknown_timeframe"
     return f"{strategy}|{asset}|{interval}"
+
+
+def _source_has_explicit_executable_identity(payload: dict[str, Any]) -> bool:
+    for field in ("results", "candidates", "observations"):
+        rows = payload.get(field)
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if isinstance(row, dict) and _bounded_identity_str(row.get("executable_hypothesis_id")):
+                return True
+    return False
+
+
+def _metric_refs_from_row(raw: dict[str, Any]) -> list[str]:
+    metrics = raw.get("metrics")
+    if not isinstance(metrics, dict):
+        metrics = raw.get("diagnostic_metrics")
+    metric_source = metrics if isinstance(metrics, dict) else raw
+    refs = [
+        _metric_ref("win_rate", metric_source.get("win_rate")),
+        _metric_ref("sharpe", metric_source.get("sharpe")),
+        _metric_ref("deflated_sharpe", metric_source.get("deflated_sharpe")),
+        _metric_ref("trades_per_month", metric_source.get("trades_per_maand")),
+        _metric_ref("total_trades", metric_source.get("totaal_trades")),
+        _metric_ref("expectancy", metric_source.get("expectancy")),
+        _metric_ref("profit_factor", metric_source.get("profit_factor")),
+        _metric_ref("max_drawdown", metric_source.get("max_drawdown")),
+    ]
+    return [ref for ref in refs if not ref.endswith(":")]
+
+
+def _candidate_summary(row_ref: str, raw: dict[str, Any]) -> str:
+    status = (
+        _bounded_str(raw.get("qre_validation_linkage_status"), max_len=120)
+        or _bounded_str(raw.get("stage_result"), max_len=120)
+        or _bounded_str(raw.get("current_status"), max_len=120)
+        or "candidate_context_available"
+    )
+    return f"Candidate source row {row_ref} exposes explicit validation context: {status}."
+
+
+def _build_candidate_observations(
+    payload: dict[str, Any],
+    *,
+    source_artifact: str,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    raw_candidates = payload.get("candidates")
+    if not isinstance(raw_candidates, list):
+        return ([], [NOTE_INPUT_UNPARSEABLE])
+
+    observations: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    for index, raw in enumerate(raw_candidates, start=1):
+        if not isinstance(raw, dict):
+            warnings.append(f"candidate_{index}:not_object")
+            continue
+
+        asset_scope = [_bounded_str(raw.get("asset"), max_len=80) or "unknown"]
+        timeframe_scope = [_bounded_str(raw.get("interval"), max_len=40) or "unknown"]
+        strategy_family = _bounded_str(raw.get("strategy_family"), max_len=80)
+        regime_tags = [strategy_family] if strategy_family else []
+        row_ref = _bounded_str(raw.get("candidate_id"), max_len=160) or _row_identity(raw)
+        identity_fields = _explicit_identity_fields(raw)
+        summary = _candidate_summary(row_ref, raw)
+        observation_id = _observation_id(
+            source_artifact=source_artifact,
+            observation_type="unknown",
+            asset_scope=asset_scope,
+            timeframe_scope=timeframe_scope,
+            summary=summary,
+        )
+        observations.append(
+            {
+                "observation_id": observation_id,
+                "source_artifact": source_artifact,
+                "observation_type": "unknown",
+                "asset_scope": asset_scope,
+                "timeframe_scope": timeframe_scope,
+                "regime_tags": regime_tags,
+                "metric_refs": _metric_refs_from_row(raw),
+                "summary": summary,
+                "confidence": 0.5,
+                "supporting_evidence_refs": [f"{source_artifact}#{row_ref}"],
+                "contradicting_evidence_refs": [],
+                "safe_to_execute": False,
+                **identity_fields,
+            }
+        )
+
+    observations.sort(key=lambda item: item["observation_id"])
+    return (observations, warnings)
 
 
 def _build_research_observations(
@@ -335,9 +432,14 @@ def _build_research_observations(
 
 def _select_default_source() -> Path:
     for path in DEFAULT_SOURCE_CANDIDATES:
-        if path.exists():
+        available, payload = _read_json(path)
+        if (
+            available
+            and isinstance(payload, dict)
+            and _source_has_explicit_executable_identity(payload)
+        ):
             return path
-    return DEFAULT_SOURCE_CANDIDATES[0]
+    return REPO_ROOT / "research" / "research_latest.json"
 
 
 def _empty_counts() -> dict[str, Any]:
@@ -440,6 +542,29 @@ def collect_snapshot(
             note=NOTE_OBSERVATIONS_PRESENT if observations else NOTE_NO_OBSERVATIONS,
             observations=observations,
             validation_warnings=[],
+        )
+
+    if "candidates" in payload:
+        observations, warnings = _build_candidate_observations(
+            payload,
+            source_artifact=source_artifact,
+        )
+        if NOTE_INPUT_UNPARSEABLE in warnings:
+            return _base_snapshot(
+                generated_at_utc=generated,
+                input_artifact_path=source,
+                input_artifact_available=True,
+                note=NOTE_INPUT_UNPARSEABLE,
+                observations=[],
+                validation_warnings=warnings,
+            )
+        return _base_snapshot(
+            generated_at_utc=generated,
+            input_artifact_path=source,
+            input_artifact_available=True,
+            note=NOTE_OBSERVATIONS_PRESENT if observations else NOTE_NO_OBSERVATIONS,
+            observations=observations,
+            validation_warnings=warnings,
         )
 
     observations, warnings = _build_research_observations(

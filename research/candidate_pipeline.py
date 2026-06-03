@@ -192,6 +192,20 @@ def _bounded_str(value: Any, *, max_len: int) -> str:
     return text[: max_len - 3].rstrip() + "..."
 
 
+def _is_canonical_qre_hypothesis_id(value: str | None) -> bool:
+    return bool(value and value.startswith("qre-hyp-"))
+
+
+def _explicit_executable_hypothesis_id(candidate: dict[str, Any]) -> str | None:
+    explicit = _bounded_str(candidate.get("executable_hypothesis_id"), max_len=160)
+    if explicit:
+        return explicit
+    hypothesis_id = _bounded_str(candidate.get("hypothesis_id"), max_len=160)
+    if hypothesis_id and not _is_canonical_qre_hypothesis_id(hypothesis_id):
+        return hypothesis_id
+    return None
+
+
 def _asset_metadata(asset: Any) -> tuple[str, str, str]:
     raw_asset_type = str(getattr(asset, "asset_type", "") or "")
     raw_asset_class = str(getattr(asset, "asset_class", "") or "")
@@ -295,6 +309,17 @@ def plan_candidates(
                 }
                 if hypothesis_id is not None:
                     candidate["hypothesis_id"] = hypothesis_id
+                    if not _is_canonical_qre_hypothesis_id(hypothesis_id):
+                        candidate["executable_hypothesis_id"] = hypothesis_id
+                strategy_template_id = _bounded_str(
+                    strategy.get("strategy_template_id"),
+                    max_len=160,
+                )
+                if strategy_template_id:
+                    candidate["strategy_template_id"] = strategy_template_id
+                preset_name = _bounded_str(strategy.get("preset_name"), max_len=160)
+                if preset_name:
+                    candidate["preset_name"] = preset_name
                 candidates.append(candidate)
     return sorted(candidates, key=_candidate_sort_key)
 
@@ -718,9 +743,10 @@ def _run_candidate_validation_linkage_fields(
     qre_validation_linkage_authority: dict[str, Any] | None,
 ) -> dict[str, Any]:
     hypothesis_id = _bounded_str(candidate.get("hypothesis_id"), max_len=160) or None
+    executable_hypothesis_id = _explicit_executable_hypothesis_id(candidate)
     fields: dict[str, Any] = {
         "hypothesis_id": hypothesis_id,
-        "executable_hypothesis_id": None,
+        "executable_hypothesis_id": executable_hypothesis_id,
         "validation_plan_id": None,
         "run_manifest_id": None,
         "source_artifact": RUN_CANDIDATES_SOURCE_ARTIFACT,

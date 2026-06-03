@@ -14,11 +14,17 @@ from research.candidate_pipeline import (
     plan_candidates,
 )
 
-
 AS_OF_UTC = datetime(2026, 4, 13, 12, 0, 0, tzinfo=UTC)
 
 
-def _strategy(name: str, *, family: str, strategy_family: str, position_structure: str = "outright", initial_lane_support: str = "supported"):
+def _strategy(
+    name: str,
+    *,
+    family: str,
+    strategy_family: str,
+    position_structure: str = "outright",
+    initial_lane_support: str = "supported",
+):
     return {
         "name": name,
         "family": family,
@@ -50,6 +56,40 @@ def test_candidate_planning_is_deterministic():
     assert first[0]["asset"] == "BTC-USD"
     assert first[0]["interval"] == "1h"
     assert first[0]["asset_type"] == "crypto"
+
+
+def test_candidate_planning_preserves_explicit_executable_identity_fields():
+    strategies = [
+        {
+            **_strategy(name="trend_pullback_v1", family="trend", strategy_family="trend"),
+            "hypothesis_id": "trend_pullback_v1",
+            "strategy_template_id": "trend_pullback_v1",
+            "preset_name": "trend_pullback_crypto_1h",
+        }
+    ]
+    assets = [SimpleNamespace(symbol="BTC-USD", asset_type="crypto", asset_class="crypto")]
+
+    planned = plan_candidates(strategies=strategies, assets=assets, intervals=["1h"])
+
+    assert planned[0]["hypothesis_id"] == "trend_pullback_v1"
+    assert planned[0]["executable_hypothesis_id"] == "trend_pullback_v1"
+    assert planned[0]["strategy_template_id"] == "trend_pullback_v1"
+    assert planned[0]["preset_name"] == "trend_pullback_crypto_1h"
+
+
+def test_candidate_planning_does_not_treat_canonical_qre_id_as_executable_identity():
+    strategies = [
+        {
+            **_strategy(name="trend", family="trend", strategy_family="trend"),
+            "hypothesis_id": "qre-hyp-fixture",
+        }
+    ]
+    assets = [SimpleNamespace(symbol="BTC-USD", asset_type="crypto", asset_class="crypto")]
+
+    planned = plan_candidates(strategies=strategies, assets=assets, intervals=["1h"])
+
+    assert planned[0]["hypothesis_id"] == "qre-hyp-fixture"
+    assert "executable_hypothesis_id" not in planned[0]
 
 
 def test_deduplication_is_exact_and_reproducible():
@@ -107,7 +147,13 @@ def test_fit_prior_gating_is_deterministic_and_explicit():
 def test_candidate_sidecar_payloads_include_reduction_counts():
     strategies = [
         _strategy(name="trend", family="trend", strategy_family="trend_following"),
-        _strategy(name="pairs", family="stat_arb", strategy_family="stat_arb", position_structure="spread", initial_lane_support="blocked"),
+        _strategy(
+            name="pairs",
+            family="stat_arb",
+            strategy_family="stat_arb",
+            position_structure="spread",
+            initial_lane_support="blocked",
+        ),
     ]
     assets = [SimpleNamespace(symbol="BTC-USD", asset_type="crypto", asset_class="crypto")]
     planned = plan_candidates(strategies=strategies, assets=assets, intervals=["1h"])

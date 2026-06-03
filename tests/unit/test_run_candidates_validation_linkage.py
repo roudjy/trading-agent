@@ -230,7 +230,7 @@ def test_ambiguous_executable_bridge_fails_closed_for_run_candidates() -> None:
     assert EXECUTABLE_HYPOTHESIS_ID not in authority["by_executable_hypothesis_id"]
     assert authority["bridge_summary"]["ambiguous_bridge_count"] == 1
     assert row["hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
-    assert row["executable_hypothesis_id"] is None
+    assert row["executable_hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
     assert row["qre_validation_linkage_status"] == "unlinked_unknown_hypothesis_id"
 
 
@@ -277,6 +277,23 @@ def test_reference_artifacts_missing_do_not_fabricate_ids() -> None:
     assert row["validation_plan_id"] is None
     assert row["run_manifest_id"] is None
     assert row["qre_validation_linkage_status"] == "unlinked_authority_absent"
+
+
+def test_runtime_hypothesis_id_is_preserved_as_executable_identity_without_authority() -> None:
+    row = _row(candidate=_candidate(hypothesis_id=EXECUTABLE_HYPOTHESIS_ID), authority=None)
+
+    assert row["hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["executable_hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["validation_plan_id"] is None
+    assert row["run_manifest_id"] is None
+    assert row["qre_validation_linkage_status"] == "unlinked_authority_absent"
+
+
+def test_canonical_qre_hypothesis_id_is_not_fabricated_as_executable_identity() -> None:
+    row = _row(candidate=_candidate(hypothesis_id=HYPOTHESIS_ID), authority=None)
+
+    assert row["hypothesis_id"] == HYPOTHESIS_ID
+    assert row["executable_hypothesis_id"] is None
 
 
 def test_missing_hypothesis_authority_fails_closed() -> None:

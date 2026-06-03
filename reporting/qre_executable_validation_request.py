@@ -32,6 +32,12 @@ READINESS_ARTIFACT_PATH: Final[Path] = REPO_ROOT / READINESS_ARTIFACT_RELATIVE_P
 MARKET_OBSERVATION_ARTIFACT_PATH: Final[Path] = (
     REPO_ROOT / "logs" / "qre_market_observations" / "latest.json"
 )
+VALIDATION_PLAN_ARTIFACT_PATH: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_hypothesis_validation_plans" / "latest.json"
+)
+RUN_MANIFEST_ARTIFACT_PATH: Final[Path] = (
+    REPO_ROOT / "logs" / "qre_research_run_manifest" / "latest.json"
+)
 ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "qre_executable_validation_request"
 OUTPUT_ARTIFACT_RELATIVE_PATH: Final[str] = "logs/qre_executable_validation_request/latest.json"
 ARTIFACT_LATEST: Final[Path] = REPO_ROOT / OUTPUT_ARTIFACT_RELATIVE_PATH
@@ -182,6 +188,73 @@ def _market_context_available(
     return readiness_class == "hypothesis_ready"
 
 
+def _unique_index(rows: Any, key_field: str, value_field: str) -> tuple[dict[str, str], list[str]]:
+    if not isinstance(rows, list):
+        return ({}, ["validation_linkage_rows_unparseable"])
+    values_by_key: dict[str, set[str]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        key = _bounded_str(row.get(key_field), max_len=160)
+        value = _bounded_str(row.get(value_field), max_len=160)
+        if key and value:
+            values_by_key.setdefault(key, set()).add(value)
+    index: dict[str, str] = {}
+    warnings: list[str] = []
+    for key in sorted(values_by_key):
+        values = values_by_key[key]
+        if len(values) == 1:
+            index[key] = next(iter(values))
+        else:
+            warnings.append(f"ambiguous_{value_field}_for_{key_field}:{key}")
+    return (index, warnings[:20])
+
+
+def _validation_linkage_by_hypothesis(
+    *,
+    validation_plan_path: Path,
+    run_manifest_path: Path,
+) -> tuple[dict[str, dict[str, str]], list[str]]:
+    warnings: list[str] = []
+    _plans_available, plan_payload = _read_json(validation_plan_path)
+    _manifests_available, manifest_payload = _read_json(run_manifest_path)
+    if (
+        not isinstance(plan_payload, dict)
+        or plan_payload.get("report_kind") != "qre_hypothesis_validation_plan"
+    ):
+        warnings.append("validation_plan_artifact_absent_or_unparseable")
+        return ({}, warnings)
+    if (
+        not isinstance(manifest_payload, dict)
+        or manifest_payload.get("report_kind") != "qre_research_run_manifest"
+    ):
+        warnings.append("run_manifest_artifact_absent_or_unparseable")
+        return ({}, warnings)
+
+    plan_by_hypothesis, plan_warnings = _unique_index(
+        plan_payload.get("validation_plans"),
+        "hypothesis_id",
+        "validation_plan_id",
+    )
+    manifest_by_plan, manifest_warnings = _unique_index(
+        manifest_payload.get("run_manifests"),
+        "target_validation_plan_id",
+        "run_manifest_id",
+    )
+    warnings.extend(plan_warnings)
+    warnings.extend(manifest_warnings)
+    linkage: dict[str, dict[str, str]] = {}
+    for hypothesis_id in sorted(plan_by_hypothesis):
+        plan_id = plan_by_hypothesis[hypothesis_id]
+        run_manifest_id = manifest_by_plan.get(plan_id)
+        if plan_id and run_manifest_id:
+            linkage[hypothesis_id] = {
+                "validation_plan_id": plan_id,
+                "run_manifest_id": run_manifest_id,
+            }
+    return (linkage, warnings[:20])
+
+
 def _allowed_command_preview(row: dict[str, Any]) -> str:
     return (
         "Operator-reviewed validation request for "
@@ -196,6 +269,7 @@ def _build_request(
     hypothesis: Any,
     *,
     readiness_by_observation_id: dict[str, dict[str, Any]],
+    validation_linkage_by_hypothesis: dict[str, dict[str, str]] | None = None,
     presets: Any = None,
 ) -> dict[str, Any]:
     if not isinstance(hypothesis, dict):
@@ -210,6 +284,11 @@ def _build_request(
 
     qre_hypothesis_id = _bounded_str(hypothesis.get("hypothesis_id"), max_len=160)
     source_observation_id = _bounded_str(hypothesis.get("source_observation_id"), max_len=160)
+    validation_linkage = (
+        validation_linkage_by_hypothesis.get(qre_hypothesis_id, {})
+        if isinstance(validation_linkage_by_hypothesis, dict)
+        else {}
+    )
     executable_hypothesis_id = _bounded_str(
         hypothesis.get("executable_hypothesis_id"),
         max_len=160,
@@ -227,8 +306,13 @@ def _build_request(
         "qre_hypothesis_id": qre_hypothesis_id,
         "executable_hypothesis_id": executable_hypothesis_id,
         "source_hypothesis_id": _bounded_str(hypothesis.get("source_hypothesis_id"), max_len=160),
-        "validation_plan_id": _bounded_str(hypothesis.get("validation_plan_id"), max_len=160),
-        "run_manifest_id": _bounded_str(hypothesis.get("run_manifest_id"), max_len=160),
+        "validation_plan_id": _bounded_str(
+            hypothesis.get("validation_plan_id"),
+            max_len=160,
+        )
+        or validation_linkage.get("validation_plan_id", ""),
+        "run_manifest_id": _bounded_str(hypothesis.get("run_manifest_id"), max_len=160)
+        or validation_linkage.get("run_manifest_id", ""),
         "preset_name": _bounded_str(hypothesis.get("preset_name"), max_len=160),
         "strategy_family": _bounded_str(hypothesis.get("strategy_family"), max_len=160),
         "strategy_template_id": _bounded_str(
@@ -332,6 +416,8 @@ def collect_snapshot(
     input_artifact_path: Path | None = None,
     readiness_artifact_path: Path | None = None,
     market_observation_artifact_path: Path | None = None,
+    validation_plan_artifact_path: Path | None = None,
+    run_manifest_artifact_path: Path | None = None,
     generated_at_utc: str | None = None,
     presets: Any = None,
 ) -> dict[str, Any]:
@@ -364,10 +450,15 @@ def collect_snapshot(
         or MARKET_OBSERVATION_ARTIFACT_PATH,
         generated_at_utc=generated,
     )
+    validation_linkage, linkage_warnings = _validation_linkage_by_hypothesis(
+        validation_plan_path=validation_plan_artifact_path or VALIDATION_PLAN_ARTIFACT_PATH,
+        run_manifest_path=run_manifest_artifact_path or RUN_MANIFEST_ARTIFACT_PATH,
+    )
     validation_requests = [
         _build_request(
             item,
             readiness_by_observation_id=readiness_by_observation_id,
+            validation_linkage_by_hypothesis=validation_linkage,
             presets=presets,
         )
         for item in raw_hypotheses
@@ -378,7 +469,7 @@ def collect_snapshot(
         input_artifact_path=source,
         input_artifact_available=True,
         validation_requests=validation_requests,
-        validation_warnings=readiness_warnings,
+        validation_warnings=[*readiness_warnings, *linkage_warnings],
     )
 
 
@@ -421,6 +512,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source", type=Path, default=None)
     parser.add_argument("--readiness-source", type=Path, default=None)
     parser.add_argument("--market-observation-source", type=Path, default=None)
+    parser.add_argument("--validation-plan-source", type=Path, default=None)
+    parser.add_argument("--run-manifest-source", type=Path, default=None)
     parser.add_argument("--frozen-utc", default=None)
     parser.add_argument("--indent", type=int, default=2)
     return parser
@@ -432,6 +525,8 @@ def main(argv: list[str] | None = None) -> int:
         input_artifact_path=args.source,
         readiness_artifact_path=args.readiness_source,
         market_observation_artifact_path=args.market_observation_source,
+        validation_plan_artifact_path=args.validation_plan_source,
+        run_manifest_artifact_path=args.run_manifest_source,
         generated_at_utc=args.frozen_utc,
     )
     if not args.no_write:
