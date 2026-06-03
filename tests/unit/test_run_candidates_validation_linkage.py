@@ -14,6 +14,7 @@ from research.screening_evidence import build_qre_validation_linkage_authority
 
 FROZEN = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 HYPOTHESIS_ID = "qre-hyp-fixture-001"
+EXECUTABLE_HYPOTHESIS_ID = "trend_pullback_v1"
 PLAN_ID = "qre-plan-fixture-001"
 RUN_MANIFEST_ID = "qre-run-fixture-001"
 _DEFAULT = object()
@@ -61,6 +62,24 @@ def _authority(
                 ],
             }
         ),
+    )
+
+
+def _bridge_authority() -> dict:
+    return _authority(
+        hypotheses={
+            "report_kind": "qre_hypothesis_candidates",
+            "hypotheses": [
+                {
+                    "hypothesis_id": HYPOTHESIS_ID,
+                    "executable_hypothesis_id": EXECUTABLE_HYPOTHESIS_ID,
+                    "source_hypothesis_id": "source-trend-pullback",
+                    "strategy_family": "trend",
+                    "strategy_template_id": "trend_pullback",
+                    "preset_name": "trend_pullback_crypto_1h",
+                }
+            ],
+        },
     )
 
 
@@ -120,6 +139,99 @@ def test_exact_qre_authority_adds_all_strict_linkage_fields() -> None:
     assert row["run_manifest_id"] == RUN_MANIFEST_ID
     assert row["qre_validation_linkage_status"] == "linked_exact_ids"
     assert row["qre_validation_linkage_warnings"] == []
+
+
+def test_qre_hypothesis_row_with_executable_id_builds_safe_bridge_authority() -> None:
+    authority = _bridge_authority()
+
+    bridge = authority["by_executable_hypothesis_id"][EXECUTABLE_HYPOTHESIS_ID]
+    assert bridge["safe_to_bridge"] is True
+    assert bridge["bridge_status"] == "bridge_exact"
+    assert bridge["qre_hypothesis_id"] == HYPOTHESIS_ID
+    assert bridge["validation_plan_id"] == PLAN_ID
+    assert bridge["run_manifest_id"] == RUN_MANIFEST_ID
+    assert authority["bridge_summary"] == {
+        "exact_bridge_count": 1,
+        "ambiguous_bridge_count": 0,
+        "unsafe_bridge_count": 0,
+    }
+
+
+def test_trend_pullback_v1_bridges_safely_to_qre_fixture() -> None:
+    bridge = _bridge_authority()["by_executable_hypothesis_id"][EXECUTABLE_HYPOTHESIS_ID]
+
+    assert bridge["executable_hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert bridge["qre_hypothesis_id"] == HYPOTHESIS_ID
+    assert bridge["source_hypothesis_id"] == "source-trend-pullback"
+
+
+def test_run_candidate_executable_hypothesis_id_links_through_bridge() -> None:
+    row = _row(
+        candidate=_candidate(hypothesis_id=EXECUTABLE_HYPOTHESIS_ID),
+        authority=_bridge_authority(),
+    )
+
+    assert row["hypothesis_id"] == HYPOTHESIS_ID
+    assert row["executable_hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["validation_plan_id"] == PLAN_ID
+    assert row["run_manifest_id"] == RUN_MANIFEST_ID
+    assert row["qre_validation_linkage_status"] == "linked_executable_hypothesis_bridge"
+    assert row["qre_validation_linkage_warnings"] == []
+
+
+def test_ambiguous_executable_bridge_fails_closed_for_run_candidates() -> None:
+    authority = _authority(
+        hypotheses={
+            "report_kind": "qre_hypothesis_candidates",
+            "hypotheses": [
+                {
+                    "hypothesis_id": HYPOTHESIS_ID,
+                    "executable_hypothesis_id": EXECUTABLE_HYPOTHESIS_ID,
+                },
+                {
+                    "hypothesis_id": "qre-hyp-fixture-002",
+                    "executable_hypothesis_id": EXECUTABLE_HYPOTHESIS_ID,
+                },
+            ],
+        },
+        plans={
+            "report_kind": "qre_hypothesis_validation_plan",
+            "validation_plans": [
+                {
+                    "hypothesis_id": HYPOTHESIS_ID,
+                    "validation_plan_id": PLAN_ID,
+                },
+                {
+                    "hypothesis_id": "qre-hyp-fixture-002",
+                    "validation_plan_id": "qre-plan-fixture-002",
+                },
+            ],
+        },
+        manifests={
+            "report_kind": "qre_research_run_manifest",
+            "run_manifests": [
+                {
+                    "run_manifest_id": RUN_MANIFEST_ID,
+                    "target_validation_plan_id": PLAN_ID,
+                },
+                {
+                    "run_manifest_id": "qre-run-fixture-002",
+                    "target_validation_plan_id": "qre-plan-fixture-002",
+                },
+            ],
+        },
+    )
+
+    row = _row(
+        candidate=_candidate(hypothesis_id=EXECUTABLE_HYPOTHESIS_ID),
+        authority=authority,
+    )
+
+    assert EXECUTABLE_HYPOTHESIS_ID not in authority["by_executable_hypothesis_id"]
+    assert authority["bridge_summary"]["ambiguous_bridge_count"] == 1
+    assert row["hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["executable_hypothesis_id"] is None
+    assert row["qre_validation_linkage_status"] == "unlinked_unknown_hypothesis_id"
 
 
 def test_emitted_strict_linked_run_candidate_passes_source_linkage_contract() -> None:

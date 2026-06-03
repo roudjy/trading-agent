@@ -9,6 +9,7 @@ import json
 import os
 import tempfile
 from collections import Counter
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final
 
@@ -26,6 +27,14 @@ ARTIFACT_LATEST: Final[Path] = REPO_ROOT / OUTPUT_ARTIFACT_RELATIVE_PATH
 
 STATUS_PROPOSED: Final[str] = "proposed"
 
+OPTIONAL_BRIDGE_FIELDS: Final[tuple[str, ...]] = (
+    "executable_hypothesis_id",
+    "source_hypothesis_id",
+    "strategy_family",
+    "strategy_template_id",
+    "preset_name",
+)
+
 NOTE_INPUT_ABSENT: Final[str] = "market_observation_artifact_absent"
 NOTE_INPUT_UNPARSEABLE: Final[str] = "market_observation_artifact_unparseable"
 NOTE_NO_HYPOTHESES: Final[str] = "no_hypotheses_projected"
@@ -33,12 +42,7 @@ NOTE_HYPOTHESES_PRESENT: Final[str] = "hypothesis_candidates_present"
 
 
 def _utcnow() -> str:
-    return (
-        _dt.datetime.now(_dt.UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _rel(path: Path) -> str:
@@ -135,11 +139,9 @@ def _template_for_type(observation_type: str) -> dict[str, str]:
 def _build_hypothesis(observation: dict[str, Any]) -> dict[str, Any]:
     observation_type = _bounded_str(observation.get("observation_type"), max_len=80)
     template = _template_for_type(observation_type)
-    return {
+    hypothesis = {
         "hypothesis_id": _hypothesis_id(observation),
-        "source_observation_id": _bounded_str(
-            observation.get("observation_id"), max_len=160
-        ),
+        "source_observation_id": _bounded_str(observation.get("observation_id"), max_len=160),
         "title": template["title"],
         "claim": template["claim"],
         "asset_scope": _str_list(observation.get("asset_scope")) or ["unknown"],
@@ -157,6 +159,11 @@ def _build_hypothesis(observation: dict[str, Any]) -> dict[str, Any]:
         "status": STATUS_PROPOSED,
         "safe_to_execute": False,
     }
+    for field in OPTIONAL_BRIDGE_FIELDS:
+        value = _bounded_str(observation.get(field), max_len=160)
+        if value:
+            hypothesis[field] = value
+    return hypothesis
 
 
 def _empty_counts() -> dict[str, Any]:
@@ -227,9 +234,11 @@ def collect_snapshot(
         )
 
     raw_observations = payload.get("observations")
-    if payload.get("report_kind") != INPUT_REPORT_KIND or not isinstance(
-        raw_observations, list
-    ) or not all(isinstance(item, dict) for item in raw_observations):
+    if (
+        payload.get("report_kind") != INPUT_REPORT_KIND
+        or not isinstance(raw_observations, list)
+        or not all(isinstance(item, dict) for item in raw_observations)
+    ):
         return _base_snapshot(
             generated_at_utc=generated,
             input_artifact_path=source,
@@ -266,10 +275,8 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
             handle.write(text)
         os.replace(tmp_name, path)
     except Exception:
-        try:
+        with suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise
 
 
