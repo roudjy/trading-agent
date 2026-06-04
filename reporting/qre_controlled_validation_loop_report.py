@@ -80,6 +80,8 @@ def collect_snapshot(
     profile_name: str | None = None,
     execute_controlled_validation: bool = False,
     execution_operator_go: str | None = None,
+    connect_runner_adapter: bool = False,
+    timeout_seconds_per_campaign: int = execution.QRE_CONTROLLED_EVAL_DEFAULT_TIMEOUT_SECONDS,
     write_research_action_queue: bool = False,
     queue_operator_go: str | None = None,
     generated_at_utc: str | None = None,
@@ -90,6 +92,8 @@ def collect_snapshot(
         profile_name=profile_name,
         execute_controlled_validation=execute_controlled_validation,
         operator_go=execution_operator_go,
+        connect_runner_adapter=connect_runner_adapter,
+        timeout_seconds_per_campaign=timeout_seconds_per_campaign,
         generated_at_utc=generated,
     )
     analysis_snapshot = analysis.collect_snapshot(
@@ -231,6 +235,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", default=None)
     parser.add_argument("--execute-controlled-validation", action="store_true")
     parser.add_argument("--execution-operator-go", default=None)
+    parser.add_argument("--connect-runner-adapter", action="store_true")
+    parser.add_argument(
+        "--timeout-seconds-per-campaign",
+        type=int,
+        default=execution.QRE_CONTROLLED_EVAL_DEFAULT_TIMEOUT_SECONDS,
+    )
     parser.add_argument("--write-research-action-queue", action="store_true")
     parser.add_argument("--queue-operator-go", default=None)
     parser.add_argument("--no-write", action="store_true")
@@ -245,6 +255,8 @@ def main(argv: list[str] | None = None) -> int:
         profile_name=args.profile,
         execute_controlled_validation=bool(args.execute_controlled_validation),
         execution_operator_go=args.execution_operator_go,
+        connect_runner_adapter=bool(args.connect_runner_adapter),
+        timeout_seconds_per_campaign=int(args.timeout_seconds_per_campaign),
         write_research_action_queue=bool(args.write_research_action_queue),
         queue_operator_go=args.queue_operator_go,
         generated_at_utc=args.frozen_utc,
