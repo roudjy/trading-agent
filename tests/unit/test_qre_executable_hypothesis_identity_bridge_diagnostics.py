@@ -305,6 +305,73 @@ def test_partial_match_fails_closed_and_reports_missing_id(tmp_path: Path) -> No
     assert snap["bridge"]["primary_blocker"] == ("executable_hypothesis_id_not_in_qre_authority")
 
 
+
+
+def test_controlled_validation_bridge_readiness_reports_missing_executable_authority(
+    tmp_path: Path,
+) -> None:
+    snap = _snapshot(
+        tmp_path,
+        authority_ids=["qre-hyp-04f4d1cd9a515176"],
+        presets=[_preset("trend_pullback_equities_4h", "trend_pullback_v1")],
+    )
+
+    readiness = snap["controlled_validation_bridge_readiness"]
+
+    assert readiness["ready"] is False
+    assert readiness["executable_hypothesis_count"] == 1
+    assert readiness["ready_count"] == 0
+    assert readiness["blocked_count"] == 1
+    assert readiness["rows"] == [
+        {
+            "preset_name": "trend_pullback_equities_4h",
+            "executable_hypothesis_id": "trend_pullback_v1",
+            "in_qre_authority": False,
+            "qre_authority_linkage_mode": None,
+            "qre_authority_status": None,
+            "validation_plan_id_present": False,
+            "run_manifest_id_present": False,
+            "ready": False,
+            "primary_blocker": "executable_hypothesis_id_not_in_qre_authority",
+        }
+    ]
+    _assert_safety(snap)
+
+
+def test_controlled_validation_bridge_readiness_reports_exact_bridge_ready(
+    tmp_path: Path,
+) -> None:
+    snap = _snapshot(
+        tmp_path,
+        authority_ids=["qre-hyp-fixture-001"],
+        executable_bridge_by_hypothesis_id={
+            "qre-hyp-fixture-001": "trend_pullback_v1",
+        },
+        presets=[_preset("trend_pullback_equities_4h", "trend_pullback_v1")],
+    )
+
+    readiness = snap["controlled_validation_bridge_readiness"]
+
+    assert readiness["ready"] is True
+    assert readiness["executable_hypothesis_count"] == 1
+    assert readiness["ready_count"] == 1
+    assert readiness["blocked_count"] == 0
+    assert readiness["rows"] == [
+        {
+            "preset_name": "trend_pullback_equities_4h",
+            "executable_hypothesis_id": "trend_pullback_v1",
+            "in_qre_authority": True,
+            "qre_authority_linkage_mode": "executable_hypothesis_bridge",
+            "qre_authority_status": "bridge_exact",
+            "validation_plan_id_present": True,
+            "run_manifest_id_present": True,
+            "ready": True,
+            "primary_blocker": "no_primary_blocker",
+        }
+    ]
+    _assert_safety(snap)
+
+
 def test_missing_qre_authority_artifacts_fail_closed(tmp_path: Path) -> None:
     snap = diag.collect_snapshot(
         hypothesis_artifact_path=tmp_path / "missing-hypotheses.json",
