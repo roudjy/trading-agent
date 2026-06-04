@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any, Final
@@ -58,6 +59,59 @@ def _analysis_status(execution_snapshot: dict[str, Any]) -> str:
     return ANALYSIS_READY
 
 
+def _current_git_revision() -> str | None:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    value = completed.stdout.strip()
+    return value or None
+
+
+def _artifact_freshness(
+    payload: dict[str, Any] | None,
+    *,
+    current_git_revision: str | None,
+) -> dict[str, Any]:
+    artifact_git_revision = (
+        payload.get("git_revision") if isinstance(payload, dict) else None
+    )
+    if not isinstance(artifact_git_revision, str) or not artifact_git_revision:
+        artifact_git_revision = None
+
+    reason_codes: list[str] = []
+    artifact_may_be_stale = False
+
+    if artifact_git_revision is None:
+        reason_codes.append("artifact_git_revision_missing")
+        artifact_may_be_stale = True
+    if current_git_revision is None:
+        reason_codes.append("current_git_revision_unavailable")
+        artifact_may_be_stale = True
+    if (
+        artifact_git_revision is not None
+        and current_git_revision is not None
+        and artifact_git_revision != current_git_revision
+    ):
+        reason_codes.append("artifact_git_revision_differs_from_current_head")
+        artifact_may_be_stale = True
+    if not reason_codes:
+        reason_codes.append("artifact_git_revision_matches_current_head")
+
+    return {
+        "artifact_git_revision": artifact_git_revision,
+        "current_git_revision": current_git_revision,
+        "artifact_may_be_stale": artifact_may_be_stale,
+        "reason_codes": reason_codes,
+    }
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -87,6 +141,8 @@ def _resolve_controlled_eval_report_path(
 def _controlled_eval_report_summary(
     execution_snapshot: dict[str, Any],
     status: str,
+    *,
+    current_git_revision: str | None = None,
 ) -> dict[str, Any]:
     report_path = _resolve_controlled_eval_report_path(execution_snapshot)
     payload = _read_json(report_path) if report_path is not None else None
@@ -101,9 +157,15 @@ def _controlled_eval_report_summary(
     if not isinstance(screening_evidence_summary, dict):
         screening_evidence_summary = {}
 
+    freshness = _artifact_freshness(
+        payload,
+        current_git_revision=current_git_revision,
+    )
+
     return {
         "present": payload is not None,
         "path": report_path.as_posix() if report_path is not None else None,
+        "artifact_freshness": freshness,
         "verdict_status": verdict.get("status"),
         "campaigns_completed": (payload or {}).get("campaigns_completed"),
         "campaign_level_evidence_valid": (payload or {}).get(
@@ -112,6 +174,84 @@ def _controlled_eval_report_summary(
         "recommended_next_action": (payload or {}).get("recommended_next_action"),
         "reason_codes": list(reason_codes),
         "screening_evidence_summary": screening_evidence_summary,
+    }
+
+
+def _evidence_quality_bottleneck(
+    *,
+    controlled_eval_summary: dict[str, Any],
+) -> dict[str, Any]:
+    artifact_freshness = controlled_eval_summary.get("artifact_freshness")
+    if not isinstance(artifact_freshness, dict):
+        artifact_freshness = {}
+    screening_summary = controlled_eval_summary.get("screening_evidence_summary")
+    if not isinstance(screening_summary, dict):
+        screening_summary = {}
+    reason_codes = controlled_eval_summary.get("reason_codes")
+    if not isinstance(reason_codes, list):
+        reason_codes = []
+
+    bottleneck_reason_codes: list[str] = []
+
+    if artifact_freshness.get("artifact_may_be_stale") is True:
+        bottleneck_reason_codes.append("controlled_eval_artifact_may_be_stale")
+        return {
+            "primary_bottleneck": "stale_artifact",
+            "reason_codes": bottleneck_reason_codes,
+            "artifact_freshness": artifact_freshness,
+            "screening_evidence_summary": screening_summary,
+        }
+
+    if "registry_ledger_invariant_violation" in reason_codes:
+        bottleneck_reason_codes.append("registry_ledger_invariant_violation")
+        return {
+            "primary_bottleneck": "registry_ledger_invariant_violation",
+            "reason_codes": bottleneck_reason_codes,
+            "artifact_freshness": artifact_freshness,
+            "screening_evidence_summary": screening_summary,
+        }
+
+    sufficient_oos_but_unlinked = int(
+        screening_summary.get("sufficient_oos_but_unlinked_candidates") or 0
+    )
+    qre_linkage_blocked = int(screening_summary.get("qre_linkage_blocked_candidates") or 0)
+    sufficient_oos = int(screening_summary.get("sufficient_oos_evidence_candidates") or 0)
+    passed_screening = int(screening_summary.get("passed_screening") or 0)
+    rejected_screening = int(screening_summary.get("rejected_screening") or 0)
+
+    if sufficient_oos_but_unlinked > 0 or qre_linkage_blocked > 0:
+        bottleneck_reason_codes.append("sufficient_oos_evidence_blocked_by_qre_linkage")
+        return {
+            "primary_bottleneck": "linkage_blocker",
+            "reason_codes": bottleneck_reason_codes,
+            "artifact_freshness": artifact_freshness,
+            "screening_evidence_summary": screening_summary,
+        }
+
+    if passed_screening > 0 and sufficient_oos == 0:
+        bottleneck_reason_codes.append("screening_passed_without_sufficient_oos_evidence")
+        return {
+            "primary_bottleneck": "no_oos_evidence",
+            "reason_codes": bottleneck_reason_codes,
+            "artifact_freshness": artifact_freshness,
+            "screening_evidence_summary": screening_summary,
+        }
+
+    if rejected_screening > 0 and passed_screening == 0:
+        bottleneck_reason_codes.append("screening_rejected_candidates_before_validation")
+        return {
+            "primary_bottleneck": "insufficient_trades",
+            "reason_codes": bottleneck_reason_codes,
+            "artifact_freshness": artifact_freshness,
+            "screening_evidence_summary": screening_summary,
+        }
+
+    bottleneck_reason_codes.append("no_evidence_quality_bottleneck_detected")
+    return {
+        "primary_bottleneck": "no_bottleneck_detected",
+        "reason_codes": bottleneck_reason_codes,
+        "artifact_freshness": artifact_freshness,
+        "screening_evidence_summary": screening_summary,
     }
 
 
@@ -160,21 +300,34 @@ def collect_snapshot(
     profile_name: str | None = None,
     execution_snapshot: dict[str, Any] | None = None,
     generated_at_utc: str | None = None,
+    current_git_revision: str | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
     active_execution = execution_snapshot or execution.collect_snapshot(
         profile_name=profile_name,
         generated_at_utc=generated,
     )
+    resolved_current_git_revision = (
+        current_git_revision
+        if current_git_revision is not None
+        else _current_git_revision()
+    )
 
     status = _analysis_status(active_execution)
-    controlled_eval_summary = _controlled_eval_report_summary(active_execution, status)
+    controlled_eval_summary = _controlled_eval_report_summary(
+        active_execution,
+        status,
+        current_git_revision=resolved_current_git_revision,
+    )
     campaigns_completed = int(controlled_eval_summary.get("campaigns_completed") or 0)
     evidence_valid = controlled_eval_summary.get("campaign_level_evidence_valid") is True
     if status == ANALYSIS_READY and (campaigns_completed < 1 or not evidence_valid):
         status = ANALYSIS_BLOCKED_NO_COMPLETED_RUN
     pass_fail = _pass_fail_from_report(controlled_eval_summary)
     primary_failure_class = _failure_class_from_report(controlled_eval_summary)
+    evidence_quality_bottleneck = _evidence_quality_bottleneck(
+        controlled_eval_summary=controlled_eval_summary
+    )
     evidence_refs = []
     if controlled_eval_summary.get("path"):
         evidence_refs.append(str(controlled_eval_summary["path"]))
@@ -218,9 +371,13 @@ def collect_snapshot(
             "pass_fail": pass_fail,
             "trade_count": controlled_eval_summary.get("campaigns_completed"),
             "primary_failure_class": primary_failure_class,
+            "artifact_freshness": controlled_eval_summary.get(
+                "artifact_freshness", {}
+            ),
             "screening_evidence_summary": controlled_eval_summary.get(
                 "screening_evidence_summary", {}
             ),
+            "evidence_quality_bottleneck": evidence_quality_bottleneck,
             "evidence_refs": evidence_refs,
         },
         "next_required_step": (

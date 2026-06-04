@@ -5,6 +5,37 @@ import json
 from reporting import qre_controlled_validation_execution as execution
 
 
+
+
+def _bridge_snapshot(*, ready: bool = True) -> dict:
+    return {
+        "report_kind": "qre_executable_hypothesis_identity_bridge_diagnostics",
+        "final_recommendation": (
+            "executable_hypothesis_identity_bridge_ready_for_regeneration"
+            if ready
+            else "executable_hypothesis_identity_bridge_required_before_regeneration"
+        ),
+        "controlled_validation_bridge_readiness": {
+            "ready": ready,
+            "executable_hypothesis_count": 1,
+            "ready_count": 1 if ready else 0,
+            "blocked_count": 0 if ready else 1,
+            "rows": [
+                {
+                    "preset_name": "trend_pullback_equities_4h",
+                    "executable_hypothesis_id": "trend_pullback_v1",
+                    "in_qre_authority": ready,
+                    "ready": ready,
+                    "primary_blocker": (
+                        "no_primary_blocker"
+                        if ready
+                        else "executable_hypothesis_id_not_in_qre_authority"
+                    ),
+                }
+            ],
+        },
+    }
+
 def test_default_controlled_validation_execution_is_blocked() -> None:
     snapshot = execution.collect_snapshot(
         profile_name="equities_exploratory_v1",
@@ -56,6 +87,7 @@ def test_exact_operator_go_authorizes_contract_but_runner_is_not_connected() -> 
         profile_name="equities_exploratory_v1",
         execute_controlled_validation=True,
         operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        controlled_validation_bridge_snapshot=_bridge_snapshot(ready=True),
         generated_at_utc="2026-06-03T17:00:00Z",
     )
 
@@ -70,6 +102,47 @@ def test_exact_operator_go_authorizes_contract_but_runner_is_not_connected() -> 
     assert snapshot["writes_research_action_queue"] is False
 
 
+
+
+def test_bridge_not_ready_blocks_even_with_operator_go_and_runner_adapter(
+    monkeypatch,
+) -> None:
+    calls: list[object] = []
+
+    class FakeControlledEval:
+        @staticmethod
+        def run_controlled_eval(**kwargs: object) -> int:
+            calls.append(kwargs)
+            return 0
+
+    monkeypatch.setattr(
+        execution,
+        "_load_controlled_eval_module",
+        lambda: FakeControlledEval,
+    )
+
+    snapshot = execution.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        execute_controlled_validation=True,
+        operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        connect_runner_adapter=True,
+        timeout_seconds_per_campaign=60,
+        controlled_validation_bridge_snapshot=_bridge_snapshot(ready=False),
+        generated_at_utc="2026-06-03T22:00:00Z",
+    )
+
+    assert calls == []
+    assert snapshot["execution_status"] == "execution_blocked_bridge_not_ready"
+    assert snapshot["final_recommendation"] == (
+        "controlled_validation_execution_blocked_bridge_not_ready"
+    )
+    assert snapshot["controlled_validation_authorized"] is False
+    assert snapshot["executed_anything"] is False
+    assert snapshot["launches_subprocess"] is False
+    assert snapshot["runner_adapter_status"] == "not_connected"
+    assert snapshot["controlled_validation_bridge"]["ready"] is False
+    assert snapshot["controlled_validation_bridge"]["readiness"]["blocked_count"] == 1
+
 def test_preflight_not_ready_blocks_even_with_operator_go() -> None:
     preflight_snapshot = {
         "report_kind": "qre_selection_closed_loop_preflight",
@@ -83,6 +156,7 @@ def test_preflight_not_ready_blocks_even_with_operator_go() -> None:
         execute_controlled_validation=True,
         operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
         preflight_snapshot=preflight_snapshot,
+        controlled_validation_bridge_snapshot=_bridge_snapshot(ready=True),
         generated_at_utc="2026-06-03T17:00:00Z",
     )
 
@@ -93,6 +167,11 @@ def test_preflight_not_ready_blocks_even_with_operator_go() -> None:
 def test_cli_no_write_does_not_create_artifact(tmp_path, monkeypatch, capsys) -> None:
     artifact_path = tmp_path / "latest.json"
     monkeypatch.setattr(execution, "ARTIFACT_LATEST", artifact_path)
+    monkeypatch.setattr(
+        execution.bridge_diagnostics,
+        "collect_snapshot",
+        lambda generated_at_utc=None: _bridge_snapshot(ready=True),
+    )
 
     rc = execution.main(
         [
@@ -180,6 +259,7 @@ def test_connected_runner_adapter_invokes_controlled_eval(monkeypatch, tmp_path)
         operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
         connect_runner_adapter=True,
         timeout_seconds_per_campaign=60,
+        controlled_validation_bridge_snapshot=_bridge_snapshot(ready=True),
         generated_at_utc="2026-06-03T22:00:00Z",
     )
 
@@ -234,6 +314,7 @@ def test_connected_runner_adapter_records_failure(monkeypatch, tmp_path) -> None
         operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
         connect_runner_adapter=True,
         timeout_seconds_per_campaign=60,
+        controlled_validation_bridge_snapshot=_bridge_snapshot(ready=True),
         generated_at_utc="2026-06-03T22:00:00Z",
     )
 
@@ -251,6 +332,7 @@ def test_connected_runner_adapter_rejects_unbounded_timeout() -> None:
             operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
             connect_runner_adapter=True,
             timeout_seconds_per_campaign=59,
+            controlled_validation_bridge_snapshot=_bridge_snapshot(ready=True),
             generated_at_utc="2026-06-03T22:00:00Z",
         )
     except ValueError as exc:

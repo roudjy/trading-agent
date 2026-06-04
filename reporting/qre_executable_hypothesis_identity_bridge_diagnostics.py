@@ -641,6 +641,57 @@ def _bridge_snapshot_from_rows(
     return bridge
 
 
+def _controlled_validation_bridge_readiness(
+    *,
+    per_preset: list[dict[str, Any]],
+) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    for row in per_preset:
+        if not row.get("enabled") or not row.get("hypothesis_id"):
+            continue
+
+        in_qre_authority = row.get("hypothesis_id_present_in_qre_authority") is True
+        linkage_mode = row.get("qre_authority_linkage_mode")
+        qre_status = row.get("qre_authority_status")
+        has_complete_authority_linkage = qre_status in {"linked_exact_ids", "bridge_exact"}
+        validation_plan_id_present = has_complete_authority_linkage and bool(linkage_mode)
+        run_manifest_id_present = validation_plan_id_present
+        ready = in_qre_authority and validation_plan_id_present and run_manifest_id_present
+
+        if not in_qre_authority:
+            primary_blocker = PRIMARY_BLOCKER_EXECUTABLE_ID_MISSING
+        elif not validation_plan_id_present:
+            primary_blocker = "validation_plan_id_missing_for_executable_hypothesis"
+        elif not run_manifest_id_present:
+            primary_blocker = "run_manifest_id_missing_for_executable_hypothesis"
+        else:
+            primary_blocker = PRIMARY_BLOCKER_NONE
+
+        rows.append(
+            {
+                "preset_name": row.get("preset_name"),
+                "executable_hypothesis_id": row.get("hypothesis_id"),
+                "in_qre_authority": in_qre_authority,
+                "qre_authority_linkage_mode": linkage_mode,
+                "qre_authority_status": qre_status,
+                "validation_plan_id_present": validation_plan_id_present,
+                "run_manifest_id_present": run_manifest_id_present,
+                "ready": ready,
+                "primary_blocker": primary_blocker,
+            }
+        )
+
+    ready_count = sum(1 for row in rows if row["ready"])
+    blocked_count = len(rows) - ready_count
+    return {
+        "ready": bool(rows) and blocked_count == 0,
+        "executable_hypothesis_count": len(rows),
+        "ready_count": ready_count,
+        "blocked_count": blocked_count,
+        "rows": rows,
+    }
+
+
 def _final_recommendation(bridge: dict[str, Any]) -> str:
     if bridge["primary_blocker"] == PRIMARY_BLOCKER_NONE:
         return FINAL_RECOMMENDATION_BRIDGE_READY
@@ -678,6 +729,9 @@ def collect_snapshot(
         executable_hypothesis_ids=executable_presets["executable_hypothesis_ids"],
         per_preset=executable_presets["per_preset"],
     )
+    controlled_validation_bridge_readiness = _controlled_validation_bridge_readiness(
+        per_preset=executable_presets["per_preset"],
+    )
     validation_warnings = _bounded_unique(
         [*authority_warnings, *preset_warnings],
         max_items=WARNING_LIMIT,
@@ -694,6 +748,7 @@ def collect_snapshot(
         "qre_authority": qre_authority,
         "executable_presets": executable_presets,
         "bridge": bridge,
+        "controlled_validation_bridge_readiness": controlled_validation_bridge_readiness,
         "recommended_bridge_keys": list(RECOMMENDED_BRIDGE_KEYS),
         "writes_development_work_queue": False,
         "writes_seed_jsonl": False,

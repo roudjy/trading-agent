@@ -6,6 +6,28 @@ from reporting import qre_controlled_validation_execution as execution
 from reporting import qre_controlled_validation_result_analysis as analysis
 
 
+
+
+def _ready_bridge_snapshot() -> dict:
+    return {
+        "report_kind": "qre_executable_hypothesis_identity_bridge_diagnostics",
+        "final_recommendation": "executable_hypothesis_identity_bridge_ready_for_regeneration",
+        "controlled_validation_bridge_readiness": {
+            "ready": True,
+            "executable_hypothesis_count": 1,
+            "ready_count": 1,
+            "blocked_count": 0,
+            "rows": [
+                {
+                    "preset_name": "trend_pullback_equities_4h",
+                    "executable_hypothesis_id": "trend_pullback_v1",
+                    "ready": True,
+                    "primary_blocker": "no_primary_blocker",
+                }
+            ],
+        },
+    }
+
 def test_analysis_blocks_when_execution_not_authorized() -> None:
     snapshot = analysis.collect_snapshot(
         profile_name="equities_exploratory_v1",
@@ -26,6 +48,7 @@ def test_analysis_blocks_when_runner_not_connected_even_if_authorized() -> None:
         profile_name="equities_exploratory_v1",
         execute_controlled_validation=True,
         operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        controlled_validation_bridge_snapshot=_ready_bridge_snapshot(),
         generated_at_utc="2026-06-03T17:00:00Z",
     )
 
@@ -141,6 +164,7 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
                 "campaigns_completed": 1,
                 "campaign_level_evidence_valid": True,
                 "recommended_next_action": "inspect_results",
+                "git_revision": "abc123",
                 "screening_evidence_summary": {
                     "present": True,
                     "total_candidates": 15,
@@ -172,6 +196,7 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
     snapshot = analysis.collect_snapshot(
         execution_snapshot=execution_snapshot,
         generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="abc123",
     )
 
     assert snapshot["analysis_status"] == "analysis_ready"
@@ -182,6 +207,18 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
     assert snapshot["result_summary"]["pass_fail"] == "pass"
     assert snapshot["result_summary"]["trade_count"] == 1
     assert snapshot["result_summary"]["primary_failure_class"] is None
+    assert snapshot["controlled_eval_report"]["artifact_freshness"] == {
+        "artifact_git_revision": "abc123",
+        "current_git_revision": "abc123",
+        "artifact_may_be_stale": False,
+        "reason_codes": ["artifact_git_revision_matches_current_head"],
+    }
+    assert snapshot["result_summary"]["artifact_freshness"] == {
+        "artifact_git_revision": "abc123",
+        "current_git_revision": "abc123",
+        "artifact_may_be_stale": False,
+        "reason_codes": ["artifact_git_revision_matches_current_head"],
+    }
     assert snapshot["result_summary"]["screening_evidence_summary"] == {
         "present": True,
         "total_candidates": 15,
@@ -191,6 +228,26 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
         "sufficient_oos_evidence_candidates": 1,
         "qre_linkage_blocked_candidates": 1,
         "sufficient_oos_but_unlinked_candidates": 1,
+    }
+    assert snapshot["result_summary"]["evidence_quality_bottleneck"] == {
+        "primary_bottleneck": "linkage_blocker",
+        "reason_codes": ["sufficient_oos_evidence_blocked_by_qre_linkage"],
+        "artifact_freshness": {
+            "artifact_git_revision": "abc123",
+            "current_git_revision": "abc123",
+            "artifact_may_be_stale": False,
+            "reason_codes": ["artifact_git_revision_matches_current_head"],
+        },
+        "screening_evidence_summary": {
+            "present": True,
+            "total_candidates": 15,
+            "passed_screening": 6,
+            "rejected_screening": 9,
+            "promotion_grade_candidates": 0,
+            "sufficient_oos_evidence_candidates": 1,
+            "qre_linkage_blocked_candidates": 1,
+            "sufficient_oos_but_unlinked_candidates": 1,
+        },
     }
     assert snapshot["result_summary"]["evidence_refs"] == [report_path.as_posix()]
 
@@ -282,3 +339,261 @@ def test_analysis_blocks_timeout_without_completed_campaign_evidence(tmp_path) -
     assert snapshot["result_summary"]["pass_fail"] is None
     assert snapshot["result_summary"]["trade_count"] == 0
 
+
+
+def test_analysis_marks_controlled_eval_report_stale_when_git_revision_differs(
+    tmp_path,
+) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "git_revision": "old123",
+                "verdict": {
+                    "status": "useful_observation",
+                    "reason_codes": ["degenerate_no_survivors"],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": True,
+                "recommended_next_action": "inspect_results",
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="new456",
+    )
+
+    assert snapshot["analysis_status"] == "analysis_ready"
+    assert snapshot["controlled_eval_report"]["artifact_freshness"] == {
+        "artifact_git_revision": "old123",
+        "current_git_revision": "new456",
+        "artifact_may_be_stale": True,
+        "reason_codes": ["artifact_git_revision_differs_from_current_head"],
+    }
+    assert snapshot["result_summary"]["artifact_freshness"] == snapshot[
+        "controlled_eval_report"
+    ]["artifact_freshness"]
+
+
+def test_analysis_marks_controlled_eval_report_stale_when_git_revision_missing(
+    tmp_path,
+) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "verdict": {
+                    "status": "useful_observation",
+                    "reason_codes": ["degenerate_no_survivors"],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": True,
+                "recommended_next_action": "inspect_results",
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="new456",
+    )
+
+    assert snapshot["controlled_eval_report"]["artifact_freshness"] == {
+        "artifact_git_revision": None,
+        "current_git_revision": "new456",
+        "artifact_may_be_stale": True,
+        "reason_codes": ["artifact_git_revision_missing"],
+    }
+
+
+def test_evidence_quality_bottleneck_prioritizes_stale_artifact(tmp_path) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "git_revision": "old123",
+                "verdict": {
+                    "status": "useful_observation",
+                    "reason_codes": ["degenerate_no_survivors"],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": True,
+                "recommended_next_action": "inspect_results",
+                "screening_evidence_summary": {
+                    "passed_screening": 6,
+                    "rejected_screening": 9,
+                    "sufficient_oos_evidence_candidates": 1,
+                    "qre_linkage_blocked_candidates": 1,
+                    "sufficient_oos_but_unlinked_candidates": 1,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="new456",
+    )
+
+    assert snapshot["result_summary"]["evidence_quality_bottleneck"]["primary_bottleneck"] == (
+        "stale_artifact"
+    )
+    assert snapshot["result_summary"]["evidence_quality_bottleneck"]["reason_codes"] == [
+        "controlled_eval_artifact_may_be_stale"
+    ]
+
+
+def test_evidence_quality_bottleneck_classifies_no_oos_evidence(tmp_path) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "git_revision": "abc123",
+                "verdict": {
+                    "status": "insufficient_data",
+                    "reason_codes": ["campaign_completed_without_decisive_evidence"],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": True,
+                "recommended_next_action": "continue_sprint",
+                "screening_evidence_summary": {
+                    "passed_screening": 6,
+                    "rejected_screening": 9,
+                    "sufficient_oos_evidence_candidates": 0,
+                    "qre_linkage_blocked_candidates": 0,
+                    "sufficient_oos_but_unlinked_candidates": 0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="abc123",
+    )
+
+    assert snapshot["result_summary"]["evidence_quality_bottleneck"]["primary_bottleneck"] == (
+        "no_oos_evidence"
+    )
+    assert snapshot["result_summary"]["evidence_quality_bottleneck"]["reason_codes"] == [
+        "screening_passed_without_sufficient_oos_evidence"
+    ]
+
+
+def test_evidence_quality_bottleneck_classifies_registry_ledger_invariant_failure(
+    tmp_path,
+) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "git_revision": "abc123",
+                "verdict": {
+                    "status": "technical_failure",
+                    "reason_codes": [
+                        "registry_ledger_invariant_violation",
+                        "completed_campaign_missing_campaign_completed_ledger_event",
+                    ],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": False,
+                "recommended_next_action": "operator_review_required",
+                "screening_evidence_summary": {
+                    "passed_screening": 6,
+                    "rejected_screening": 9,
+                    "sufficient_oos_evidence_candidates": 1,
+                    "qre_linkage_blocked_candidates": 1,
+                    "sufficient_oos_but_unlinked_candidates": 1,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="abc123",
+    )
+
+    assert snapshot["result_summary"]["evidence_quality_bottleneck"]["primary_bottleneck"] == (
+        "registry_ledger_invariant_violation"
+    )
+    assert snapshot["result_summary"]["evidence_quality_bottleneck"]["reason_codes"] == [
+        "registry_ledger_invariant_violation"
+    ]

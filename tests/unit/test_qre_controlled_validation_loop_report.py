@@ -25,7 +25,40 @@ def test_loop_report_blocks_before_execution_by_default() -> None:
     assert snapshot["writes_research_action_queue"] is False
 
 
-def test_loop_report_authorizes_execution_but_stops_at_runner_not_connected() -> None:
+
+def _ready_bridge_snapshot() -> dict:
+    return {
+        "report_kind": "qre_executable_hypothesis_identity_bridge_diagnostics",
+        "final_recommendation": "executable_hypothesis_identity_bridge_ready_for_regeneration",
+        "controlled_validation_bridge_readiness": {
+            "ready": True,
+            "executable_hypothesis_count": 1,
+            "ready_count": 1,
+            "blocked_count": 0,
+            "rows": [
+                {
+                    "preset_name": "trend_pullback_equities_4h",
+                    "executable_hypothesis_id": "trend_pullback_v1",
+                    "ready": True,
+                    "primary_blocker": "no_primary_blocker",
+                }
+            ],
+        },
+    }
+
+
+def _patch_ready_bridge(monkeypatch) -> None:
+    monkeypatch.setattr(
+        execution.bridge_diagnostics,
+        "collect_snapshot",
+        lambda generated_at_utc=None: _ready_bridge_snapshot(),
+    )
+
+
+def test_loop_report_authorizes_execution_but_stops_at_runner_not_connected(
+    monkeypatch,
+) -> None:
+    _patch_ready_bridge(monkeypatch)
     snapshot = loop.collect_snapshot(
         profile_name="equities_exploratory_v1",
         execute_controlled_validation=True,
@@ -64,6 +97,7 @@ def test_loop_report_queue_flags_do_not_bypass_learning_gate() -> None:
 def test_cli_no_write_does_not_create_artifact(tmp_path, monkeypatch, capsys) -> None:
     artifact_path = tmp_path / "latest.json"
     monkeypatch.setattr(loop, "ARTIFACT_LATEST", artifact_path)
+    _patch_ready_bridge(monkeypatch)
 
     rc = loop.main(
         [
@@ -108,6 +142,8 @@ def test_cli_writes_only_own_artifact(tmp_path, monkeypatch) -> None:
     assert payload["read_only"] is True
 
 def test_loop_report_connected_runner_reaches_learning_ready(monkeypatch, tmp_path) -> None:
+    _patch_ready_bridge(monkeypatch)
+
     def fake_run_controlled_eval(**kwargs: object) -> int:
         report_json = kwargs["report_json"]
         report_md = kwargs["report_md"]
