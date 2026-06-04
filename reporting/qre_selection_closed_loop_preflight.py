@@ -106,6 +106,38 @@ def _base_snapshot(
                 "controlled_regeneration_not_executed_by_preflight",
             ],
         },
+        "next_capability_gaps": {
+            "real_market_data_intake": {
+                "status": "not_implemented_in_this_preflight",
+                "required_next_step": "add quality-gated market observation intake",
+                "may_mutate_state": False,
+            },
+            "autonomous_hypothesis_generation": {
+                "status": "not_implemented_in_this_preflight",
+                "required_next_step": "add bounded market-data-derived hypothesis proposal",
+                "may_mutate_state": False,
+            },
+            "controlled_validation_execution": {
+                "status": "operator_go_required",
+                "required_next_step": "add explicit controlled validation execution flag and operator-go phrase",
+                "may_mutate_state": True,
+            },
+            "result_analysis": {
+                "status": "requires_completed_validation_run",
+                "required_next_step": "materialize post-run analysis from validation artifacts",
+                "may_mutate_state": False,
+            },
+            "learning_update": {
+                "status": "requires_completed_validation_run",
+                "required_next_step": "write deterministic learning proposal artifact after analysis",
+                "may_mutate_state": False,
+            },
+            "research_action_queue_mutation": {
+                "status": "blocked_without_explicit_operator_go",
+                "required_next_step": "add separate queue-write gate after learning proposal review",
+                "may_mutate_state": True,
+            },
+        },
         "validation_warnings": [
             *list(flow_snapshot.get("validation_warnings") or []),
             *list(bridge_snapshot.get("validation_warnings") or []),
@@ -122,10 +154,14 @@ def collect_snapshot(
     *,
     flow_snapshot: dict[str, Any] | None = None,
     bridge_snapshot: dict[str, Any] | None = None,
+    profile_name: str | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
-    active_flow = flow_snapshot or validation_flow.collect_snapshot(generated_at_utc=generated)
+    active_flow = flow_snapshot or validation_flow.collect_snapshot(
+        profile_name=profile_name,
+        generated_at_utc=generated,
+    )
     active_bridge = bridge_snapshot or bridge.collect_snapshot(generated_at_utc=generated)
 
     return _base_snapshot(
@@ -147,12 +183,16 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--indent", type=int, default=2)
     parser.add_argument("--frozen-utc")
+    parser.add_argument("--profile")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    snapshot = collect_snapshot(generated_at_utc=args.frozen_utc)
+    snapshot = collect_snapshot(
+        profile_name=args.profile,
+        generated_at_utc=args.frozen_utc,
+    )
     if not args.no_write:
         write_outputs(snapshot)
     print(json.dumps(snapshot, indent=args.indent, sort_keys=True))

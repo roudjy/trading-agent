@@ -313,3 +313,42 @@ def test_selection_rows_can_feed_request_and_dry_run_route(tmp_path) -> None:
         assert row["safe_to_execute"] is False
         assert row["executed"] is False
         assert row["would_run_command_preview"]
+
+def test_equities_profile_selects_trend_pullback_equities_4h_only() -> None:
+    snapshot = selection.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        generated_at_utc="2026-06-03T12:00:00Z",
+    )
+
+    assert snapshot["report_kind"] == "qre_executable_hypothesis_selection"
+    assert snapshot["safe_to_execute"] is False
+    assert snapshot["read_only"] is True
+    assert snapshot["eligible_for_direct_execution"] is False
+    assert snapshot["launches_codex"] is False
+    assert snapshot["launches_subprocess"] is False
+    assert snapshot["mutates_strategy_or_preset"] is False
+    assert snapshot["mutates_campaign_queue"] is False
+    assert snapshot["mutates_paper_shadow_live_runtime"] is False
+
+    assert snapshot["selection_profile_name"] == "equities_exploratory_v1"
+    assert snapshot["counts"]["selected"] == 1
+    assert snapshot["counts"]["blocked"] == 0
+    assert snapshot["counts"]["total"] == 1
+    assert snapshot["final_recommendation"] == (
+        "executable_hypothesis_selections_ready_for_operator_review"
+    )
+
+    rows = snapshot["selection_rows"]
+    assert [row["preset_name"] for row in rows] == ["trend_pullback_equities_4h"]
+    row = rows[0]
+    assert row["source_hypothesis_id"] == "trend_pullback_v1"
+    assert row["executable_hypothesis_id"] == "trend_pullback_v1"
+    assert row["asset"] == "NVDA"
+    assert row["symbol"] == "NVDA"
+    assert row["timeframe"] == "4h"
+    assert row["interval"] == "4h"
+    assert row["asset_class"] == "equity"
+    assert row["selection_status"] == "selected"
+    assert row["requires_operator_approval"] is True
+    assert row["safe_to_execute"] is False
+
