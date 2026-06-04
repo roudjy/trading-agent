@@ -459,3 +459,65 @@ def test_cli_smoke_with_mocked_launcher_invocation(
     assert launcher_calls == [[ce.sys.executable, "-m", "research.campaign_launcher"]]
     assert (tmp_path / "controlled.json").exists()
     assert (tmp_path / "controlled.md").exists()
+
+def test_launcher_invariant_violation_is_technical_failure() -> None:
+    payload = ce.build_report_payload(
+        profile="equities_exploratory_v1",
+        max_campaigns=1,
+        sprint_started_by_harness=True,
+        sprint_reused=False,
+        observed_total_before=0,
+        observed_total_after=0,
+        campaigns_attempted=1,
+        sprint_registry={},
+        sprint_progress={},
+        registry={},
+        ledger_events=[],
+        run_campaign_payload={},
+        latest_policy_decision_payload={
+            "action": "spawn",
+            "reason": "cron_tick",
+            "candidates_considered": [{"id": "candidate-1"}],
+            "rules_summary": {
+                "R4_R7_filtering": {
+                    "result": "candidates",
+                    "surviving": 1,
+                    "rejected": 0,
+                }
+            },
+        },
+        queue_payload={"items": [{"state": "terminal"}]},
+        intelligence_artifact_status={
+            "information_gain": "missing",
+            "viability": "missing",
+            "stop_conditions": "missing",
+            "spawn_proposals": "missing",
+        },
+        ticks=[
+            ce.LauncherTick(
+                tick_index=1,
+                returncode=2,
+                timed_out=False,
+                elapsed_seconds=1,
+                stdout_tail="",
+                stderr_tail=(
+                    "campaign invariant violation: I5 violation: completed campaign "
+                    "'col-example' lacks campaign_completed ledger event"
+                ),
+                completed_campaign_ids=(),
+            )
+        ],
+    )
+
+    assert payload["campaigns_completed"] == 0
+    assert payload["campaign_level_evidence_valid"] is False
+    assert payload["verdict"]["status"] == "technical_failure"
+    assert "launcher_invariant_violation" in payload["verdict"]["reason_codes"]
+    assert payload["recommended_next_action"] == "operator_review_required"
+    assert payload["launcher_ticks"][0]["returncode"] == 2
+    assert "campaign invariant violation" in payload["launcher_ticks"][0]["stderr_tail"]
+
+    markdown = ce.render_markdown_report(payload)
+    assert "technical_failure" in markdown
+    assert "launcher_invariant_violation" in markdown
+

@@ -390,6 +390,26 @@ def _classify_verdict(
             },
             "operator_review_required",
         )
+    launcher_invariant_violations = [
+        tick
+        for tick in ticks
+        if tick.returncode not in (None, 0)
+        and "campaign invariant violation" in tick.stderr_tail.lower()
+    ]
+    if launcher_invariant_violations:
+        reason_codes.append("launcher_invariant_violation")
+        return (
+            {
+                "status": "technical_failure",
+                "reason_codes": reason_codes,
+                "human_summary": (
+                    "Campaign launcher reported a campaign invariant violation "
+                    "before campaign-level completion evidence could be trusted."
+                ),
+            },
+            "operator_review_required",
+        )
+
     if not completed:
         reason_codes.append("no_campaign_completed")
         if (
