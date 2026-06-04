@@ -127,3 +127,87 @@ def test_cli_writes_only_own_artifact(tmp_path, monkeypatch) -> None:
     payload = json.loads(artifact_path.read_text(encoding="utf-8"))
     assert payload["analysis_status"] == "analysis_blocked_execution_not_authorized"
     assert payload["read_only"] is True
+
+def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "verdict": {
+                    "status": "useful_observation",
+                    "reason_codes": ["degenerate_no_survivors"],
+                },
+                "campaigns_completed": 1,
+                "recommended_next_action": "inspect_results",
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+    )
+
+    assert snapshot["analysis_status"] == "analysis_ready"
+    assert snapshot["controlled_eval_report"]["present"] is True
+    assert snapshot["controlled_eval_report"]["verdict_status"] == "useful_observation"
+    assert snapshot["controlled_eval_report"]["campaigns_completed"] == 1
+    assert snapshot["result_summary"]["completed_run_available"] is True
+    assert snapshot["result_summary"]["pass_fail"] == "pass"
+    assert snapshot["result_summary"]["trade_count"] == 1
+    assert snapshot["result_summary"]["primary_failure_class"] is None
+    assert snapshot["result_summary"]["evidence_refs"] == [report_path.as_posix()]
+
+
+def test_analysis_marks_no_campaign_completed_as_failure(tmp_path) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "verdict": {
+                    "status": "no_campaign_completed",
+                    "reason_codes": ["no_campaign_completed"],
+                },
+                "campaigns_completed": 0,
+                "recommended_next_action": "rerun_with_more_campaigns",
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+    )
+
+    assert snapshot["analysis_status"] == "analysis_ready"
+    assert snapshot["result_summary"]["pass_fail"] == "fail"
+    assert snapshot["result_summary"]["primary_failure_class"] == "no_campaign_completed"
+
