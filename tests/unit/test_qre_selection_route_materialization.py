@@ -213,3 +213,34 @@ def test_cli_writes_only_own_artifact(tmp_path, monkeypatch) -> None:
     assert payload["report_kind"] == "qre_selection_route_materialization"
     assert payload["safe_to_execute"] is False
     assert payload["counts"]["materialized_route_ready"] == 3
+
+def test_materializes_equities_profile_route_artifacts() -> None:
+    snapshot = materialization.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        generated_at_utc="2026-06-03T14:00:00Z",
+    )
+
+    assert snapshot["report_kind"] == "qre_selection_route_materialization"
+    assert snapshot["safe_to_execute"] is False
+    assert snapshot["read_only"] is True
+    assert snapshot["counts"]["observations"] == 1
+    assert snapshot["counts"]["hypotheses"] == 1
+    assert snapshot["counts"]["validation_plans"] == 1
+    assert snapshot["counts"]["run_manifests"] == 1
+    assert snapshot["counts"]["materialized_route_ready"] == 1
+    assert snapshot["final_recommendation"] == "selection_route_materialized_for_validation_request"
+
+    observations = snapshot["market_observation_payload"]["observations"]
+    hypotheses = snapshot["hypothesis_candidates_payload"]["hypotheses"]
+    plans = snapshot["validation_plans_payload"]["validation_plans"]
+    manifests = snapshot["run_manifest_payload"]["run_manifests"]
+
+    assert [row["asset"] for row in observations] == ["NVDA"]
+    assert [row["timeframe"] for row in observations] == ["4h"]
+    assert observations[0]["market_context"]["selection_profile_name"] == (
+        "equities_exploratory_v1"
+    )
+    assert [row["preset_name"] for row in hypotheses] == ["trend_pullback_equities_4h"]
+    assert [row["asset"] for row in plans] == ["NVDA"]
+    assert [row["timeframe"] for row in manifests] == ["4h"]
+

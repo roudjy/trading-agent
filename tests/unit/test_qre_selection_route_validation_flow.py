@@ -137,3 +137,39 @@ def test_selection_route_validation_flow_includes_bounded_request_and_dry_run_ex
         assert example["backup_required"] is True
         assert example["executed"] is False
         assert example["safe_to_execute"] is False
+
+def test_equities_selection_route_validation_flow_is_ready() -> None:
+    snapshot = flow.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        generated_at_utc="2026-06-03T15:00:00Z",
+    )
+
+    assert snapshot["report_kind"] == "qre_selection_route_validation_flow"
+    assert snapshot["safe_to_execute"] is False
+    assert snapshot["read_only"] is True
+    assert snapshot["eligible_for_direct_execution"] is False
+    assert snapshot["counts"]["materialized_route_ready"] == 1
+    assert snapshot["counts"]["hypothesis_ready"] == 1
+    assert snapshot["counts"]["request_ready_for_operator_review"] == 1
+    assert snapshot["counts"]["dry_run_ready"] == 1
+    assert snapshot["counts"]["selection_validation_flow_ready"] == 1
+    assert (
+        snapshot["final_recommendation"]
+        == "selection_route_validation_flow_ready_for_operator_review"
+    )
+
+    request_examples = snapshot["validation_request"]["examples"]
+    dry_run_examples = snapshot["dry_run"]["examples"]
+
+    assert len(request_examples) == 1
+    assert len(dry_run_examples) == 1
+    assert request_examples[0]["preset_name"] == "trend_pullback_equities_4h"
+    assert request_examples[0]["asset"] == "NVDA"
+    assert request_examples[0]["timeframe"] == "4h"
+    assert request_examples[0]["requires_operator_approval"] is True
+    assert request_examples[0]["safe_to_execute"] is False
+    assert dry_run_examples[0]["asset"] == "NVDA"
+    assert dry_run_examples[0]["timeframe"] == "4h"
+    assert dry_run_examples[0]["executed"] is False
+    assert dry_run_examples[0]["safe_to_execute"] is False
+

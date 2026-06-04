@@ -312,13 +312,22 @@ def _base_snapshot(
 def collect_snapshot(
     *,
     selection_snapshot: dict[str, Any] | None = None,
+    profile_name: str | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
     warnings: list[str] = []
-    active_selection_snapshot = selection_snapshot or selection.collect_snapshot(
-        generated_at_utc=generated,
-    )
+    if selection_snapshot is not None:
+        active_selection_snapshot = selection_snapshot
+    elif profile_name is not None:
+        active_selection_snapshot = selection.collect_snapshot(
+            profile_name=profile_name,
+            generated_at_utc=generated,
+        )
+    else:
+        active_selection_snapshot = selection.collect_snapshot(
+            generated_at_utc=generated,
+        )
     if not isinstance(active_selection_snapshot, dict):
         active_selection_snapshot = {}
         warnings.append(NOTE_SELECTION_INPUT_UNAVAILABLE)
@@ -352,12 +361,16 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--indent", type=int, default=2)
     parser.add_argument("--frozen-utc")
+    parser.add_argument("--profile")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    snapshot = collect_snapshot(generated_at_utc=args.frozen_utc)
+    snapshot = collect_snapshot(
+        profile_name=args.profile,
+        generated_at_utc=args.frozen_utc,
+    )
     if not args.no_write:
         write_outputs(snapshot)
     print(json.dumps(snapshot, indent=args.indent, sort_keys=True))

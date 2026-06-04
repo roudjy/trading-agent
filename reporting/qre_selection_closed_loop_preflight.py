@@ -122,10 +122,14 @@ def collect_snapshot(
     *,
     flow_snapshot: dict[str, Any] | None = None,
     bridge_snapshot: dict[str, Any] | None = None,
+    profile_name: str | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
-    active_flow = flow_snapshot or validation_flow.collect_snapshot(generated_at_utc=generated)
+    active_flow = flow_snapshot or validation_flow.collect_snapshot(
+        profile_name=profile_name,
+        generated_at_utc=generated,
+    )
     active_bridge = bridge_snapshot or bridge.collect_snapshot(generated_at_utc=generated)
 
     return _base_snapshot(
@@ -147,12 +151,16 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--indent", type=int, default=2)
     parser.add_argument("--frozen-utc")
+    parser.add_argument("--profile")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    snapshot = collect_snapshot(generated_at_utc=args.frozen_utc)
+    snapshot = collect_snapshot(
+        profile_name=args.profile,
+        generated_at_utc=args.frozen_utc,
+    )
     if not args.no_write:
         write_outputs(snapshot)
     print(json.dumps(snapshot, indent=args.indent, sort_keys=True))
