@@ -88,16 +88,6 @@ def _controlled_eval_report_summary(
     execution_snapshot: dict[str, Any],
     status: str,
 ) -> dict[str, Any]:
-    if status != ANALYSIS_READY:
-        return {
-            "present": False,
-            "path": None,
-            "verdict_status": None,
-            "campaigns_completed": None,
-            "recommended_next_action": None,
-            "reason_codes": [],
-        }
-
     report_path = _resolve_controlled_eval_report_path(execution_snapshot)
     payload = _read_json(report_path) if report_path is not None else None
     verdict = (payload or {}).get("verdict")
@@ -112,6 +102,9 @@ def _controlled_eval_report_summary(
         "path": report_path.as_posix() if report_path is not None else None,
         "verdict_status": verdict.get("status"),
         "campaigns_completed": (payload or {}).get("campaigns_completed"),
+        "campaign_level_evidence_valid": (payload or {}).get(
+            "campaign_level_evidence_valid"
+        ),
         "recommended_next_action": (payload or {}).get("recommended_next_action"),
         "reason_codes": list(reason_codes),
     }
@@ -171,6 +164,10 @@ def collect_snapshot(
 
     status = _analysis_status(active_execution)
     controlled_eval_summary = _controlled_eval_report_summary(active_execution, status)
+    campaigns_completed = int(controlled_eval_summary.get("campaigns_completed") or 0)
+    evidence_valid = controlled_eval_summary.get("campaign_level_evidence_valid") is True
+    if status == ANALYSIS_READY and (campaigns_completed < 1 or not evidence_valid):
+        status = ANALYSIS_BLOCKED_NO_COMPLETED_RUN
     pass_fail = _pass_fail_from_report(controlled_eval_summary)
     primary_failure_class = _failure_class_from_report(controlled_eval_summary)
     evidence_refs = []
