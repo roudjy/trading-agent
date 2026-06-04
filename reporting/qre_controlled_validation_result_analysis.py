@@ -97,6 +97,10 @@ def _controlled_eval_report_summary(
     if not isinstance(reason_codes, list):
         reason_codes = []
 
+    screening_evidence_summary = (payload or {}).get("screening_evidence_summary")
+    if not isinstance(screening_evidence_summary, dict):
+        screening_evidence_summary = {}
+
     return {
         "present": payload is not None,
         "path": report_path.as_posix() if report_path is not None else None,
@@ -107,6 +111,7 @@ def _controlled_eval_report_summary(
         ),
         "recommended_next_action": (payload or {}).get("recommended_next_action"),
         "reason_codes": list(reason_codes),
+        "screening_evidence_summary": screening_evidence_summary,
     }
 
 
@@ -213,6 +218,9 @@ def collect_snapshot(
             "pass_fail": pass_fail,
             "trade_count": controlled_eval_summary.get("campaigns_completed"),
             "primary_failure_class": primary_failure_class,
+            "screening_evidence_summary": controlled_eval_summary.get(
+                "screening_evidence_summary", {}
+            ),
             "evidence_refs": evidence_refs,
         },
         "next_required_step": (

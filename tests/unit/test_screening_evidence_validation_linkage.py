@@ -204,6 +204,39 @@ def test_ambiguous_executable_bridge_fails_closed_for_screening_evidence() -> No
     assert row["qre_validation_linkage_status"] == "unlinked_unknown_hypothesis_id"
 
 
+
+
+def test_summary_surfaces_sufficient_oos_candidate_blocked_by_qre_linkage() -> None:
+    payload = _payload(
+        candidate={
+            "candidate_id": "hd-candidate",
+            "strategy_id": "trend_pullback_v1",
+            "strategy_name": "trend_pullback_v1",
+            "asset": "HD",
+            "interval": "4h",
+            "hypothesis_id": EXECUTABLE_HYPOTHESIS_ID,
+            "validation": {
+                "evidence_status": "sufficient_oos_evidence",
+                "oos_trade_count": 14,
+                "min_oos_trades": 10,
+            },
+        },
+        authority=_authority(),
+    )
+
+    row = payload["candidates"][0]
+    summary = payload["summary"]
+
+    assert row["qre_validation_linkage_status"] == "unlinked_unknown_hypothesis_id"
+    assert row["validation_evidence"]["status"] == "sufficient_oos_evidence"
+    assert row["validation_evidence"]["oos_trade_count"] == 14
+    assert row["validation_evidence"]["min_oos_trades"] == 10
+    assert summary["sufficient_oos_evidence_candidates"] == 1
+    assert summary["sufficient_oos_but_unlinked_candidates"] == 1
+    assert summary["qre_linkage_blocked_candidates"] == 1
+    assert summary["promotion_grade_candidates"] == 0
+
+
 def test_emitted_strict_linked_row_passes_source_linkage_contract() -> None:
     row = _payload(authority=_authority())["candidates"][0]
 

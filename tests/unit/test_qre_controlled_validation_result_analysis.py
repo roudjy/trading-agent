@@ -141,6 +141,16 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
                 "campaigns_completed": 1,
                 "campaign_level_evidence_valid": True,
                 "recommended_next_action": "inspect_results",
+                "screening_evidence_summary": {
+                    "present": True,
+                    "total_candidates": 15,
+                    "passed_screening": 6,
+                    "rejected_screening": 9,
+                    "promotion_grade_candidates": 0,
+                    "sufficient_oos_evidence_candidates": 1,
+                    "qre_linkage_blocked_candidates": 1,
+                    "sufficient_oos_but_unlinked_candidates": 1,
+                },
             }
         ),
         encoding="utf-8",
@@ -172,6 +182,16 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
     assert snapshot["result_summary"]["pass_fail"] == "pass"
     assert snapshot["result_summary"]["trade_count"] == 1
     assert snapshot["result_summary"]["primary_failure_class"] is None
+    assert snapshot["result_summary"]["screening_evidence_summary"] == {
+        "present": True,
+        "total_candidates": 15,
+        "passed_screening": 6,
+        "rejected_screening": 9,
+        "promotion_grade_candidates": 0,
+        "sufficient_oos_evidence_candidates": 1,
+        "qre_linkage_blocked_candidates": 1,
+        "sufficient_oos_but_unlinked_candidates": 1,
+    }
     assert snapshot["result_summary"]["evidence_refs"] == [report_path.as_posix()]
 
 

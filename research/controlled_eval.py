@@ -45,6 +45,7 @@ MAX_POLL_SECONDS: Final[int] = 300
 
 LEDGER_PATH: Final[Path] = Path("research/campaign_evidence_ledger_latest.v1.jsonl")
 RUN_CAMPAIGN_PATH: Final[Path] = Path("research/run_campaign_latest.v1.json")
+SCREENING_EVIDENCE_PATH: Final[Path] = Path("research/screening_evidence_latest.v1.json")
 INFORMATION_GAIN_PATH: Final[Path] = Path(
     "research/campaigns/evidence/information_gain_latest.v1.json"
 )
@@ -232,6 +233,44 @@ def summarize_campaign_records(
             }
         )
     return records
+
+
+def summarize_screening_evidence(
+    screening_evidence_payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    summary = (
+        screening_evidence_payload.get("summary")
+        if isinstance(screening_evidence_payload, dict)
+        else None
+    )
+    if not isinstance(summary, dict):
+        return {
+            "present": False,
+            "total_candidates": 0,
+            "passed_screening": 0,
+            "rejected_screening": 0,
+            "promotion_grade_candidates": 0,
+            "sufficient_oos_evidence_candidates": 0,
+            "qre_linkage_blocked_candidates": 0,
+            "sufficient_oos_but_unlinked_candidates": 0,
+        }
+
+    return {
+        "present": True,
+        "total_candidates": int(summary.get("total_candidates") or 0),
+        "passed_screening": int(summary.get("passed_screening") or 0),
+        "rejected_screening": int(summary.get("rejected_screening") or 0),
+        "promotion_grade_candidates": int(summary.get("promotion_grade_candidates") or 0),
+        "sufficient_oos_evidence_candidates": int(
+            summary.get("sufficient_oos_evidence_candidates") or 0
+        ),
+        "qre_linkage_blocked_candidates": int(
+            summary.get("qre_linkage_blocked_candidates") or 0
+        ),
+        "sufficient_oos_but_unlinked_candidates": int(
+            summary.get("sufficient_oos_but_unlinked_candidates") or 0
+        ),
+    }
 
 
 def summarize_latest_run(run_campaign_payload: dict[str, Any] | None) -> dict[str, Any]:
@@ -515,6 +554,7 @@ def build_report_payload(
     queue_payload: dict[str, Any] | None,
     intelligence_artifact_status: dict[str, str],
     ticks: list[LauncherTick],
+    screening_evidence_payload: dict[str, Any] | None = None,
     generated_at_utc: datetime | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _now_utc()
@@ -553,6 +593,9 @@ def build_report_payload(
         "campaigns_by_outcome": dict(sorted(by_outcome.items())),
         "campaign_records": campaign_records,
         "latest_run_summary": summarize_latest_run(run_campaign_payload),
+        "screening_evidence_summary": summarize_screening_evidence(
+            screening_evidence_payload
+        ),
         **latest_policy_summary,
         **active_campaign_summary,
         **queue_summary,
@@ -764,6 +807,7 @@ def run_controlled_eval(
         registry=campaign_registry,
         ledger_events=ledger_events,
         run_campaign_payload=_read_json(RUN_CAMPAIGN_PATH),
+        screening_evidence_payload=_read_json(SCREENING_EVIDENCE_PATH),
         latest_policy_decision_payload=_read_json(POLICY_DECISION_PATH),
         queue_payload=load_queue(QUEUE_ARTIFACT_PATH),
         intelligence_artifact_status=build_intelligence_artifact_status(),
@@ -874,6 +918,7 @@ __all__ = [
     "summarize_active_campaigns",
     "summarize_campaign_records",
     "summarize_latest_run",
+    "summarize_screening_evidence",
     "summarize_latest_policy_decision",
     "summarize_queue_state",
 ]
