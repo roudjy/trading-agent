@@ -133,3 +133,110 @@ def test_cli_writes_only_own_artifact(tmp_path, monkeypatch) -> None:
     payload = json.loads(artifact_path.read_text(encoding="utf-8"))
     assert payload["execution_status"] == "execution_blocked_not_requested"
     assert payload["executed_anything"] is False
+
+def test_connected_runner_adapter_invokes_controlled_eval(monkeypatch, tmp_path) -> None:
+    calls: list[dict[str, object]] = []
+
+    def fake_run_controlled_eval(**kwargs: object) -> int:
+        calls.append(kwargs)
+        report_json = kwargs["report_json"]
+        report_md = kwargs["report_md"]
+        report_json.write_text(
+            "{\"verdict\": {\"status\": \"useful_observation\"}, "
+            "\"campaigns_completed\": 1, "
+            "\"recommended_next_action\": \"inspect_results\"}",
+            encoding="utf-8",
+        )
+        report_md.write_text("# fake controlled eval", encoding="utf-8")
+        out = kwargs["out"]
+        out.write("controlled_eval: completed=1 verdict=useful_observation\\n")
+        return 0
+
+    monkeypatch.setattr(execution.ce, "run_controlled_eval", fake_run_controlled_eval)
+    monkeypatch.setattr(execution, "ARTIFACT_DIR", tmp_path)
+    monkeypatch.setattr(
+        execution,
+        "CONTROLLED_EVAL_REPORT_JSON",
+        tmp_path / "controlled_eval_latest.v1.json",
+    )
+    monkeypatch.setattr(
+        execution,
+        "CONTROLLED_EVAL_REPORT_MD",
+        tmp_path / "controlled_eval_latest.md",
+    )
+
+    snapshot = execution.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        execute_controlled_validation=True,
+        operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        connect_runner_adapter=True,
+        timeout_seconds_per_campaign=60,
+        generated_at_utc="2026-06-03T22:00:00Z",
+    )
+
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["profile"] == "equities_exploratory_v1"
+    assert call["max_campaigns"] == 1
+    assert call["timeout_seconds_per_campaign"] == 60
+    assert call["poll_seconds"] == 0
+    assert snapshot["execution_status"] == "execution_completed"
+    assert snapshot["runner_adapter_status"] == "connected"
+    assert snapshot["controlled_validation_authorized"] is True
+    assert snapshot["executed_anything"] is True
+    assert snapshot["launches_subprocess"] is True
+    assert snapshot["read_only"] is False
+    assert snapshot["controlled_eval_result"]["returncode"] == 0
+    assert snapshot["writes_research_action_queue"] is False
+    assert snapshot["mutates_paper_shadow_live_runtime"] is False
+
+
+def test_connected_runner_adapter_records_failure(monkeypatch, tmp_path) -> None:
+    def fake_run_controlled_eval(**kwargs: object) -> int:
+        out = kwargs["out"]
+        out.write("controlled_eval: failed\\n")
+        return 1
+
+    monkeypatch.setattr(execution.ce, "run_controlled_eval", fake_run_controlled_eval)
+    monkeypatch.setattr(execution, "ARTIFACT_DIR", tmp_path)
+    monkeypatch.setattr(
+        execution,
+        "CONTROLLED_EVAL_REPORT_JSON",
+        tmp_path / "controlled_eval_latest.v1.json",
+    )
+    monkeypatch.setattr(
+        execution,
+        "CONTROLLED_EVAL_REPORT_MD",
+        tmp_path / "controlled_eval_latest.md",
+    )
+
+    snapshot = execution.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        execute_controlled_validation=True,
+        operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        connect_runner_adapter=True,
+        timeout_seconds_per_campaign=60,
+        generated_at_utc="2026-06-03T22:00:00Z",
+    )
+
+    assert snapshot["execution_status"] == "execution_failed"
+    assert snapshot["runner_adapter_status"] == "connected"
+    assert snapshot["executed_anything"] is True
+    assert snapshot["controlled_eval_result"]["returncode"] == 1
+
+
+def test_connected_runner_adapter_rejects_unbounded_timeout() -> None:
+    try:
+        execution.collect_snapshot(
+            profile_name="equities_exploratory_v1",
+            execute_controlled_validation=True,
+            operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+            connect_runner_adapter=True,
+            timeout_seconds_per_campaign=59,
+            generated_at_utc="2026-06-03T22:00:00Z",
+        )
+    except ValueError as exc:
+        assert "timeout_seconds_per_campaign" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
