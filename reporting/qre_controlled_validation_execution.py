@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Final
 
+from reporting import qre_executable_hypothesis_identity_bridge_diagnostics as bridge_diagnostics
 from reporting import qre_selection_closed_loop_preflight as preflight
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
@@ -36,6 +37,7 @@ REQUIRED_OPERATOR_GO_PHRASE: Final[str] = (
 
 EXECUTION_BLOCKED_NOT_REQUESTED: Final[str] = "execution_blocked_not_requested"
 EXECUTION_BLOCKED_PREFLIGHT_NOT_READY: Final[str] = "execution_blocked_preflight_not_ready"
+EXECUTION_BLOCKED_BRIDGE_NOT_READY: Final[str] = "execution_blocked_bridge_not_ready"
 EXECUTION_BLOCKED_OPERATOR_GO_MISSING: Final[str] = "execution_blocked_operator_go_missing"
 EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH: Final[str] = "execution_blocked_operator_go_mismatch"
 EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED: Final[str] = (
@@ -47,6 +49,7 @@ EXECUTION_FAILED: Final[str] = "execution_failed"
 EXECUTION_STATUSES: Final[tuple[str, ...]] = (
     EXECUTION_BLOCKED_NOT_REQUESTED,
     EXECUTION_BLOCKED_PREFLIGHT_NOT_READY,
+    EXECUTION_BLOCKED_BRIDGE_NOT_READY,
     EXECUTION_BLOCKED_OPERATOR_GO_MISSING,
     EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH,
     EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED,
@@ -76,6 +79,7 @@ def _authorization_status(
     execute_controlled_validation: bool,
     operator_go: str | None,
     selection_route_ready: bool,
+    controlled_validation_bridge_ready: bool,
 ) -> str:
     if not execute_controlled_validation:
         return EXECUTION_BLOCKED_NOT_REQUESTED
@@ -85,6 +89,8 @@ def _authorization_status(
         return EXECUTION_BLOCKED_OPERATOR_GO_MISSING
     if operator_go.strip() != REQUIRED_OPERATOR_GO_PHRASE:
         return EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH
+    if not controlled_validation_bridge_ready:
+        return EXECUTION_BLOCKED_BRIDGE_NOT_READY
     return EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED
 
 
@@ -115,6 +121,8 @@ def _final_recommendation(status: str) -> str:
         return "controlled_validation_execution_failed"
     if status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED:
         return "controlled_validation_execution_authorized_runner_not_connected"
+    if status == EXECUTION_BLOCKED_BRIDGE_NOT_READY:
+        return "controlled_validation_execution_blocked_bridge_not_ready"
     return "controlled_validation_execution_blocked"
 
 
@@ -179,6 +187,7 @@ def collect_snapshot(
     connect_runner_adapter: bool = False,
     timeout_seconds_per_campaign: int = QRE_CONTROLLED_EVAL_DEFAULT_TIMEOUT_SECONDS,
     preflight_snapshot: dict[str, Any] | None = None,
+    controlled_validation_bridge_snapshot: dict[str, Any] | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
@@ -187,12 +196,26 @@ def collect_snapshot(
         generated_at_utc=generated,
     )
 
+    active_bridge_snapshot = (
+        controlled_validation_bridge_snapshot
+        or bridge_diagnostics.collect_snapshot(generated_at_utc=generated)
+    )
+    bridge_readiness = (
+        active_bridge_snapshot.get("controlled_validation_bridge_readiness")
+        if isinstance(active_bridge_snapshot, dict)
+        else {}
+    )
+    if not isinstance(bridge_readiness, dict):
+        bridge_readiness = {}
+    controlled_validation_bridge_ready = bridge_readiness.get("ready") is True
+
     selection_route = active_preflight.get("selection_route") or {}
     selection_route_ready = selection_route.get("ready") is True
     status = _authorization_status(
         execute_controlled_validation=execute_controlled_validation,
         operator_go=operator_go,
         selection_route_ready=selection_route_ready,
+        controlled_validation_bridge_ready=controlled_validation_bridge_ready,
     )
     runner_result: dict[str, Any] | None = None
     if status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED and connect_runner_adapter:
@@ -242,6 +265,16 @@ def collect_snapshot(
             "matched": operator_go is not None
             and operator_go.strip() == REQUIRED_OPERATOR_GO_PHRASE,
             "required_phrase": REQUIRED_OPERATOR_GO_PHRASE,
+        },
+        "controlled_validation_bridge": {
+            "report_kind": active_bridge_snapshot.get("report_kind")
+            if isinstance(active_bridge_snapshot, dict)
+            else None,
+            "final_recommendation": active_bridge_snapshot.get("final_recommendation")
+            if isinstance(active_bridge_snapshot, dict)
+            else None,
+            "ready": controlled_validation_bridge_ready,
+            "readiness": bridge_readiness,
         },
         "preflight": {
             "report_kind": active_preflight.get("report_kind"),
