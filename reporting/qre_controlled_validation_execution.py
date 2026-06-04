@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import importlib
 import io
 import json
 import tempfile
@@ -9,7 +10,6 @@ from pathlib import Path
 from typing import Any, Final
 
 from reporting import qre_selection_closed_loop_preflight as preflight
-from research import controlled_eval as ce
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 
@@ -139,6 +139,13 @@ def _runner_report_paths() -> dict[str, str]:
     }
 
 
+def _load_controlled_eval_module() -> Any:
+    # Keep reporting/ADE import graph free of static research/QRE edges.
+    # The real runner is loaded only after explicit operator authorization
+    # and --connect-runner-adapter.
+    return importlib.import_module("research.controlled_eval")
+
+
 def _run_controlled_eval_adapter(
     *,
     profile_name: str,
@@ -146,7 +153,8 @@ def _run_controlled_eval_adapter(
 ) -> dict[str, Any]:
     timeout_seconds = _bounded_timeout_seconds(timeout_seconds_per_campaign)
     output = io.StringIO()
-    rc = ce.run_controlled_eval(
+    controlled_eval = _load_controlled_eval_module()
+    rc = controlled_eval.run_controlled_eval(
         profile=profile_name,
         max_campaigns=QRE_CONTROLLED_EVAL_MAX_CAMPAIGNS,
         timeout_seconds_per_campaign=timeout_seconds,

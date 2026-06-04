@@ -152,7 +152,16 @@ def test_connected_runner_adapter_invokes_controlled_eval(monkeypatch, tmp_path)
         out.write("controlled_eval: completed=1 verdict=useful_observation\\n")
         return 0
 
-    monkeypatch.setattr(execution.ce, "run_controlled_eval", fake_run_controlled_eval)
+    class FakeControlledEval:
+        @staticmethod
+        def run_controlled_eval(**kwargs: object) -> int:
+            return fake_run_controlled_eval(**kwargs)
+
+    monkeypatch.setattr(
+        execution,
+        "_load_controlled_eval_module",
+        lambda: FakeControlledEval,
+    )
     monkeypatch.setattr(execution, "ARTIFACT_DIR", tmp_path)
     monkeypatch.setattr(
         execution,
@@ -197,7 +206,16 @@ def test_connected_runner_adapter_records_failure(monkeypatch, tmp_path) -> None
         out.write("controlled_eval: failed\\n")
         return 1
 
-    monkeypatch.setattr(execution.ce, "run_controlled_eval", fake_run_controlled_eval)
+    class FakeControlledEval:
+        @staticmethod
+        def run_controlled_eval(**kwargs: object) -> int:
+            return fake_run_controlled_eval(**kwargs)
+
+    monkeypatch.setattr(
+        execution,
+        "_load_controlled_eval_module",
+        lambda: FakeControlledEval,
+    )
     monkeypatch.setattr(execution, "ARTIFACT_DIR", tmp_path)
     monkeypatch.setattr(
         execution,

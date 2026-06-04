@@ -129,7 +129,16 @@ def test_loop_report_connected_runner_reaches_learning_ready(monkeypatch, tmp_pa
         out.write("controlled_eval: completed=1 verdict=useful_observation\\n")
         return 0
 
-    monkeypatch.setattr(execution.ce, "run_controlled_eval", fake_run_controlled_eval)
+    class FakeControlledEval:
+        @staticmethod
+        def run_controlled_eval(**kwargs: object) -> int:
+            return fake_run_controlled_eval(**kwargs)
+
+    monkeypatch.setattr(
+        execution,
+        "_load_controlled_eval_module",
+        lambda: FakeControlledEval,
+    )
     monkeypatch.setattr(execution, "ARTIFACT_DIR", tmp_path)
     monkeypatch.setattr(
         execution,
