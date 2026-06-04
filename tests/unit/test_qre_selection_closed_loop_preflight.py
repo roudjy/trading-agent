@@ -161,3 +161,31 @@ def test_equities_preflight_allows_considering_controlled_regeneration() -> None
         == "selection_route_ready_controlled_regeneration_can_be_considered"
     )
 
+def test_preflight_reports_next_capability_gaps() -> None:
+    snapshot = preflight.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        generated_at_utc="2026-06-03T16:00:00Z",
+    )
+
+    gaps = snapshot["next_capability_gaps"]
+
+    assert gaps["real_market_data_intake"]["status"] == (
+        "not_implemented_in_this_preflight"
+    )
+    assert gaps["autonomous_hypothesis_generation"]["status"] == (
+        "not_implemented_in_this_preflight"
+    )
+    assert gaps["controlled_validation_execution"]["status"] == "operator_go_required"
+    assert gaps["result_analysis"]["status"] == "requires_completed_validation_run"
+    assert gaps["learning_update"]["status"] == "requires_completed_validation_run"
+    assert gaps["research_action_queue_mutation"]["status"] == (
+        "blocked_without_explicit_operator_go"
+    )
+
+    assert gaps["real_market_data_intake"]["may_mutate_state"] is False
+    assert gaps["autonomous_hypothesis_generation"]["may_mutate_state"] is False
+    assert gaps["controlled_validation_execution"]["may_mutate_state"] is True
+    assert gaps["result_analysis"]["may_mutate_state"] is False
+    assert gaps["learning_update"]["may_mutate_state"] is False
+    assert gaps["research_action_queue_mutation"]["may_mutate_state"] is True
+

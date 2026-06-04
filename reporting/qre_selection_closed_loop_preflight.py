@@ -106,6 +106,38 @@ def _base_snapshot(
                 "controlled_regeneration_not_executed_by_preflight",
             ],
         },
+        "next_capability_gaps": {
+            "real_market_data_intake": {
+                "status": "not_implemented_in_this_preflight",
+                "required_next_step": "add quality-gated market observation intake",
+                "may_mutate_state": False,
+            },
+            "autonomous_hypothesis_generation": {
+                "status": "not_implemented_in_this_preflight",
+                "required_next_step": "add bounded market-data-derived hypothesis proposal",
+                "may_mutate_state": False,
+            },
+            "controlled_validation_execution": {
+                "status": "operator_go_required",
+                "required_next_step": "add explicit controlled validation execution flag and operator-go phrase",
+                "may_mutate_state": True,
+            },
+            "result_analysis": {
+                "status": "requires_completed_validation_run",
+                "required_next_step": "materialize post-run analysis from validation artifacts",
+                "may_mutate_state": False,
+            },
+            "learning_update": {
+                "status": "requires_completed_validation_run",
+                "required_next_step": "write deterministic learning proposal artifact after analysis",
+                "may_mutate_state": False,
+            },
+            "research_action_queue_mutation": {
+                "status": "blocked_without_explicit_operator_go",
+                "required_next_step": "add separate queue-write gate after learning proposal review",
+                "may_mutate_state": True,
+            },
+        },
         "validation_warnings": [
             *list(flow_snapshot.get("validation_warnings") or []),
             *list(bridge_snapshot.get("validation_warnings") or []),
