@@ -126,6 +126,63 @@ def test_report_summarization_from_fake_payloads() -> None:
     assert payload["latest_run_summary"]["screening_rejected_count"] == 4
 
 
+
+
+def test_report_includes_screening_evidence_summary_linkage_counters() -> None:
+    payload = ce.build_report_payload(
+        profile="equities_exploratory_v1",
+        max_campaigns=1,
+        sprint_started_by_harness=True,
+        sprint_reused=False,
+        observed_total_before=0,
+        observed_total_after=1,
+        campaigns_attempted=1,
+        sprint_registry=_sprint_registry(),
+        sprint_progress={"state": "active"},
+        registry=_registry(_completed_campaign()),
+        ledger_events=[_ledger_event()],
+        run_campaign_payload={
+            "run_id": "run-1",
+            "status": "completed",
+            "summary": {
+                "screening_rejected_count": 9,
+                "validation_candidate_count": 6,
+            },
+        },
+        screening_evidence_payload={
+            "summary": {
+                "total_candidates": 15,
+                "passed_screening": 6,
+                "rejected_screening": 9,
+                "promotion_grade_candidates": 0,
+                "sufficient_oos_evidence_candidates": 1,
+                "qre_linkage_blocked_candidates": 1,
+                "sufficient_oos_but_unlinked_candidates": 1,
+            }
+        },
+        latest_policy_decision_payload=None,
+        queue_payload={"queue": []},
+        intelligence_artifact_status={
+            "information_gain": "present",
+            "viability": "present",
+            "stop_conditions": "present",
+            "spawn_proposals": "present",
+        },
+        ticks=[],
+    )
+
+    assert payload["screening_evidence_summary"] == {
+        "present": True,
+        "total_candidates": 15,
+        "passed_screening": 6,
+        "rejected_screening": 9,
+        "promotion_grade_candidates": 0,
+        "sufficient_oos_evidence_candidates": 1,
+        "qre_linkage_blocked_candidates": 1,
+        "sufficient_oos_but_unlinked_candidates": 1,
+    }
+
+
 def test_degenerate_no_survivors_is_useful_meaningful_failure() -> None:
     payload = ce.build_report_payload(
         profile="crypto_exploratory_v1",

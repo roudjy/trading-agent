@@ -813,6 +813,9 @@ def _summarise(
         "near_passes": 0,
         "coverage_warnings": 0,
         "identity_fallbacks": 0,
+        "sufficient_oos_evidence_candidates": 0,
+        "qre_linkage_blocked_candidates": 0,
+        "sufficient_oos_but_unlinked_candidates": 0,
         "dominant_failure_reasons": dominant_failure_reasons(candidates),
     }
     for record in candidates:
@@ -839,6 +842,21 @@ def _summarise(
             summary["coverage_warnings"] += 1
         if record.get("identity_fallback_used"):
             summary["identity_fallbacks"] += 1
+
+        validation_evidence = record.get("validation_evidence") or {}
+        validation_status = (
+            validation_evidence.get("status") if isinstance(validation_evidence, dict) else None
+        )
+        linkage_status = str(record.get("qre_validation_linkage_status") or "")
+        linked = linkage_status.startswith("linked_")
+
+        if validation_status == "sufficient_oos_evidence":
+            summary["sufficient_oos_evidence_candidates"] += 1
+            if not linked:
+                summary["sufficient_oos_but_unlinked_candidates"] += 1
+
+        if linkage_status.startswith("unlinked_"):
+            summary["qre_linkage_blocked_candidates"] += 1
     return summary
 
 

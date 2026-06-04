@@ -76,6 +76,9 @@ _EXPECTED_SUMMARY_KEYS = frozenset(
         "near_passes",
         "coverage_warnings",
         "identity_fallbacks",
+    "sufficient_oos_evidence_candidates",
+    "qre_linkage_blocked_candidates",
+    "sufficient_oos_but_unlinked_candidates",
         "dominant_failure_reasons",
     }
 )
