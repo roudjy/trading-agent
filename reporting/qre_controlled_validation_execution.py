@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import importlib
+import io
 import json
 import tempfile
 from pathlib import Path
@@ -17,6 +19,16 @@ REPORT_KIND: Final[str] = "qre_controlled_validation_execution"
 ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "qre_controlled_validation_execution"
 OUTPUT_ARTIFACT_RELATIVE_PATH: Final[str] = "logs/qre_controlled_validation_execution/latest.json"
 ARTIFACT_LATEST: Final[Path] = REPO_ROOT / OUTPUT_ARTIFACT_RELATIVE_PATH
+CONTROLLED_EVAL_REPORT_JSON: Final[Path] = (
+    ARTIFACT_DIR / "controlled_eval_latest.v1.json"
+)
+CONTROLLED_EVAL_REPORT_MD: Final[Path] = ARTIFACT_DIR / "controlled_eval_latest.md"
+
+QRE_CONTROLLED_EVAL_MAX_CAMPAIGNS: Final[int] = 1
+QRE_CONTROLLED_EVAL_MIN_TIMEOUT_SECONDS: Final[int] = 60
+QRE_CONTROLLED_EVAL_MAX_TIMEOUT_SECONDS: Final[int] = 3600
+QRE_CONTROLLED_EVAL_DEFAULT_TIMEOUT_SECONDS: Final[int] = 60
+QRE_CONTROLLED_EVAL_DEFAULT_POLL_SECONDS: Final[int] = 0
 
 REQUIRED_OPERATOR_GO_PHRASE: Final[str] = (
     "I authorize QRE controlled validation execution"
@@ -29,6 +41,8 @@ EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH: Final[str] = "execution_blocked_operator
 EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED: Final[str] = (
     "execution_authorized_runner_not_connected"
 )
+EXECUTION_COMPLETED: Final[str] = "execution_completed"
+EXECUTION_FAILED: Final[str] = "execution_failed"
 
 EXECUTION_STATUSES: Final[tuple[str, ...]] = (
     EXECUTION_BLOCKED_NOT_REQUESTED,
@@ -36,6 +50,8 @@ EXECUTION_STATUSES: Final[tuple[str, ...]] = (
     EXECUTION_BLOCKED_OPERATOR_GO_MISSING,
     EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH,
     EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED,
+    EXECUTION_COMPLETED,
+    EXECUTION_FAILED,
 )
 
 
@@ -73,10 +89,18 @@ def _authorization_status(
 
 
 def _counts(status: str) -> dict[str, Any]:
+    completed = status == EXECUTION_COMPLETED
+    authorized = status in {
+        EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED,
+        EXECUTION_COMPLETED,
+        EXECUTION_FAILED,
+    }
     return {
         "total": 1,
-        "authorized": 1 if status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED else 0,
-        "blocked": 0 if status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED else 1,
+        "authorized": 1 if authorized else 0,
+        "blocked": 0 if authorized else 1,
+        "completed": 1 if completed else 0,
+        "failed": 1 if status == EXECUTION_FAILED else 0,
         "by_execution_status": {
             candidate: 1 if candidate == status else 0
             for candidate in EXECUTION_STATUSES
@@ -85,9 +109,66 @@ def _counts(status: str) -> dict[str, Any]:
 
 
 def _final_recommendation(status: str) -> str:
+    if status == EXECUTION_COMPLETED:
+        return "controlled_validation_execution_completed"
+    if status == EXECUTION_FAILED:
+        return "controlled_validation_execution_failed"
     if status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED:
         return "controlled_validation_execution_authorized_runner_not_connected"
     return "controlled_validation_execution_blocked"
+
+
+def _bounded_timeout_seconds(value: int) -> int:
+    if value < QRE_CONTROLLED_EVAL_MIN_TIMEOUT_SECONDS:
+        raise ValueError(
+            "timeout_seconds_per_campaign must be at least "
+            f"{QRE_CONTROLLED_EVAL_MIN_TIMEOUT_SECONDS}"
+        )
+    if value > QRE_CONTROLLED_EVAL_MAX_TIMEOUT_SECONDS:
+        raise ValueError(
+            "timeout_seconds_per_campaign must be at most "
+            f"{QRE_CONTROLLED_EVAL_MAX_TIMEOUT_SECONDS}"
+        )
+    return int(value)
+
+
+def _runner_report_paths() -> dict[str, str]:
+    return {
+        "report_json": _rel(CONTROLLED_EVAL_REPORT_JSON),
+        "report_md": _rel(CONTROLLED_EVAL_REPORT_MD),
+    }
+
+
+def _load_controlled_eval_module() -> Any:
+    # Keep reporting/ADE import graph free of static research/QRE edges.
+    # The real runner is loaded only after explicit operator authorization
+    # and --connect-runner-adapter.
+    return importlib.import_module("research.controlled_eval")
+
+
+def _run_controlled_eval_adapter(
+    *,
+    profile_name: str,
+    timeout_seconds_per_campaign: int,
+) -> dict[str, Any]:
+    timeout_seconds = _bounded_timeout_seconds(timeout_seconds_per_campaign)
+    output = io.StringIO()
+    controlled_eval = _load_controlled_eval_module()
+    rc = controlled_eval.run_controlled_eval(
+        profile=profile_name,
+        max_campaigns=QRE_CONTROLLED_EVAL_MAX_CAMPAIGNS,
+        timeout_seconds_per_campaign=timeout_seconds,
+        poll_seconds=QRE_CONTROLLED_EVAL_DEFAULT_POLL_SECONDS,
+        report_json=CONTROLLED_EVAL_REPORT_JSON,
+        report_md=CONTROLLED_EVAL_REPORT_MD,
+        out=output,
+    )
+    stdout = output.getvalue()
+    return {
+        "returncode": int(rc),
+        "stdout_tail": stdout[-2000:],
+        "report_paths": _runner_report_paths(),
+    }
 
 
 def collect_snapshot(
@@ -95,6 +176,8 @@ def collect_snapshot(
     profile_name: str | None = None,
     execute_controlled_validation: bool = False,
     operator_go: str | None = None,
+    connect_runner_adapter: bool = False,
+    timeout_seconds_per_campaign: int = QRE_CONTROLLED_EVAL_DEFAULT_TIMEOUT_SECONDS,
     preflight_snapshot: dict[str, Any] | None = None,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
@@ -111,7 +194,23 @@ def collect_snapshot(
         operator_go=operator_go,
         selection_route_ready=selection_route_ready,
     )
-    authorized = status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED
+    runner_result: dict[str, Any] | None = None
+    if status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED and connect_runner_adapter:
+        if profile_name is None:
+            raise ValueError("profile_name is required when connecting the runner adapter")
+        runner_result = _run_controlled_eval_adapter(
+            profile_name=profile_name,
+            timeout_seconds_per_campaign=timeout_seconds_per_campaign,
+        )
+        status = EXECUTION_COMPLETED if runner_result["returncode"] == 0 else EXECUTION_FAILED
+
+    authorized = status in {
+        EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED,
+        EXECUTION_COMPLETED,
+        EXECUTION_FAILED,
+    }
+    runner_connected = status in {EXECUTION_COMPLETED, EXECUTION_FAILED}
+    executed_anything = runner_connected
 
     return {
         "report_kind": REPORT_KIND,
@@ -119,11 +218,11 @@ def collect_snapshot(
         "generated_at_utc": generated,
         "selection_profile_name": profile_name,
         "safe_to_execute": False,
-        "read_only": True,
+        "read_only": not executed_anything,
         "eligible_for_direct_execution": False,
-        "launches_subprocess": False,
+        "launches_subprocess": executed_anything,
         "launches_codex": False,
-        "executed_anything": False,
+        "executed_anything": executed_anything,
         "mutates_campaign_queue": False,
         "mutates_strategy_or_preset": False,
         "mutates_paper_shadow_live_runtime": False,
@@ -133,7 +232,7 @@ def collect_snapshot(
         "writes_generated_seed_jsonl": False,
         "controlled_validation_authorized": authorized,
         "live_or_paper_execution_authorized": False,
-        "runner_adapter_status": "not_connected",
+        "runner_adapter_status": "connected" if runner_connected else "not_connected",
         "execution_status": status,
         "final_recommendation": _final_recommendation(status),
         "counts": _counts(status),
@@ -159,11 +258,20 @@ def collect_snapshot(
         "planned_runner": {
             "module": "research.controlled_eval",
             "callable": "run_controlled_eval",
-            "connected": False,
-            "reason": "runner adapter intentionally not connected in authority-contract stage",
+            "connected": runner_connected,
+            "max_campaigns": QRE_CONTROLLED_EVAL_MAX_CAMPAIGNS,
+            "timeout_seconds_per_campaign": timeout_seconds_per_campaign,
+            "poll_seconds": QRE_CONTROLLED_EVAL_DEFAULT_POLL_SECONDS,
+            "reason": (
+                "runner adapter connected and invoked"
+                if runner_connected
+                else "runner adapter not connected unless explicitly requested"
+            ),
         },
+        "controlled_eval_result": runner_result,
         "would_write_artifacts": [
             "logs/qre_controlled_validation_execution/latest.json",
+            *_runner_report_paths().values(),
         ],
         "validation_warnings": [],
     }
@@ -207,6 +315,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", default=None)
     parser.add_argument("--execute-controlled-validation", action="store_true")
     parser.add_argument("--operator-go", default=None)
+    parser.add_argument("--connect-runner-adapter", action="store_true")
+    parser.add_argument(
+        "--timeout-seconds-per-campaign",
+        type=int,
+        default=QRE_CONTROLLED_EVAL_DEFAULT_TIMEOUT_SECONDS,
+    )
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--indent", type=int, default=2)
     parser.add_argument("--frozen-utc", default=None)
@@ -219,6 +333,8 @@ def main(argv: list[str] | None = None) -> int:
         profile_name=args.profile,
         execute_controlled_validation=bool(args.execute_controlled_validation),
         operator_go=args.operator_go,
+        connect_runner_adapter=bool(args.connect_runner_adapter),
+        timeout_seconds_per_campaign=int(args.timeout_seconds_per_campaign),
         generated_at_utc=args.frozen_utc,
     )
     print(json.dumps(snapshot, indent=args.indent, sort_keys=True))
@@ -233,7 +349,11 @@ if __name__ == "__main__":  # pragma: no cover
 
 __all__ = [
     "ARTIFACT_LATEST",
+    "CONTROLLED_EVAL_REPORT_JSON",
+    "CONTROLLED_EVAL_REPORT_MD",
     "EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED",
+    "EXECUTION_COMPLETED",
+    "EXECUTION_FAILED",
     "EXECUTION_BLOCKED_NOT_REQUESTED",
     "EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH",
     "EXECUTION_BLOCKED_OPERATOR_GO_MISSING",

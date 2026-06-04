@@ -106,3 +106,71 @@ def test_cli_writes_only_own_artifact(tmp_path, monkeypatch) -> None:
         "controlled_validation_loop_blocked_before_execution"
     )
     assert payload["read_only"] is True
+
+def test_loop_report_connected_runner_reaches_learning_ready(monkeypatch, tmp_path) -> None:
+    def fake_run_controlled_eval(**kwargs: object) -> int:
+        report_json = kwargs["report_json"]
+        report_md = kwargs["report_md"]
+        report_json.write_text(
+            json.dumps(
+                {
+                    "verdict": {
+                        "status": "useful_observation",
+                        "reason_codes": ["degenerate_no_survivors"],
+                    },
+                    "campaigns_completed": 1,
+                    "recommended_next_action": "inspect_results",
+                }
+            ),
+            encoding="utf-8",
+        )
+        report_md.write_text("# fake controlled eval", encoding="utf-8")
+        out = kwargs["out"]
+        out.write("controlled_eval: completed=1 verdict=useful_observation\\n")
+        return 0
+
+    class FakeControlledEval:
+        @staticmethod
+        def run_controlled_eval(**kwargs: object) -> int:
+            return fake_run_controlled_eval(**kwargs)
+
+    monkeypatch.setattr(
+        execution,
+        "_load_controlled_eval_module",
+        lambda: FakeControlledEval,
+    )
+    monkeypatch.setattr(execution, "ARTIFACT_DIR", tmp_path)
+    monkeypatch.setattr(
+        execution,
+        "CONTROLLED_EVAL_REPORT_JSON",
+        tmp_path / "controlled_eval_latest.v1.json",
+    )
+    monkeypatch.setattr(
+        execution,
+        "CONTROLLED_EVAL_REPORT_MD",
+        tmp_path / "controlled_eval_latest.md",
+    )
+
+    snapshot = loop.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        execute_controlled_validation=True,
+        execution_operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        connect_runner_adapter=True,
+        timeout_seconds_per_campaign=60,
+        generated_at_utc="2026-06-04T00:00:00Z",
+    )
+
+    assert snapshot["counts"]["execution_authorized"] == 1
+    assert snapshot["counts"]["analysis_ready"] == 1
+    assert snapshot["counts"]["learning_ready"] == 1
+    assert snapshot["counts"]["queue_mutation_authorized"] == 0
+    assert snapshot["loop_stages"]["execution"]["runner_adapter_status"] == "connected"
+    assert snapshot["loop_stages"]["result_analysis"]["analysis_status"] == "analysis_ready"
+    assert snapshot["loop_stages"]["learning_proposal"]["learning_status"] == (
+        "learning_ready_for_operator_review"
+    )
+    assert snapshot["loop_stages"]["research_action_queue_gate"]["queue_status"] == (
+        "queue_blocked_write_not_requested"
+    )
+    assert snapshot["writes_research_action_queue"] is False
+

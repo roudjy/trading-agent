@@ -53,7 +53,90 @@ def _analysis_status(execution_snapshot: dict[str, Any]) -> str:
         return ANALYSIS_BLOCKED_RUNNER_NOT_CONNECTED
     if execution_snapshot.get("executed_anything") is not True:
         return ANALYSIS_BLOCKED_NO_COMPLETED_RUN
+    if execution_snapshot.get("execution_status") != "execution_completed":
+        return ANALYSIS_BLOCKED_NO_COMPLETED_RUN
     return ANALYSIS_READY
+
+
+def _read_json(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _resolve_controlled_eval_report_path(
+    execution_snapshot: dict[str, Any],
+) -> Path | None:
+    result = execution_snapshot.get("controlled_eval_result")
+    if not isinstance(result, dict):
+        return None
+    report_paths = result.get("report_paths")
+    if not isinstance(report_paths, dict):
+        return None
+    value = report_paths.get("report_json")
+    if not isinstance(value, str) or not value:
+        return None
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = REPO_ROOT / candidate
+    return candidate
+
+
+def _controlled_eval_report_summary(
+    execution_snapshot: dict[str, Any],
+    status: str,
+) -> dict[str, Any]:
+    if status != ANALYSIS_READY:
+        return {
+            "present": False,
+            "path": None,
+            "verdict_status": None,
+            "campaigns_completed": None,
+            "recommended_next_action": None,
+            "reason_codes": [],
+        }
+
+    report_path = _resolve_controlled_eval_report_path(execution_snapshot)
+    payload = _read_json(report_path) if report_path is not None else None
+    verdict = (payload or {}).get("verdict")
+    if not isinstance(verdict, dict):
+        verdict = {}
+    reason_codes = verdict.get("reason_codes")
+    if not isinstance(reason_codes, list):
+        reason_codes = []
+
+    return {
+        "present": payload is not None,
+        "path": report_path.as_posix() if report_path is not None else None,
+        "verdict_status": verdict.get("status"),
+        "campaigns_completed": (payload or {}).get("campaigns_completed"),
+        "recommended_next_action": (payload or {}).get("recommended_next_action"),
+        "reason_codes": list(reason_codes),
+    }
+
+
+def _pass_fail_from_report(summary: dict[str, Any]) -> str | None:
+    verdict_status = summary.get("verdict_status")
+    campaigns_completed = int(summary.get("campaigns_completed") or 0)
+    if verdict_status in {"technical_failure"}:
+        return "fail"
+    if campaigns_completed > 0:
+        return "pass"
+    if verdict_status in {"no_campaign_completed"}:
+        return "fail"
+    return None
+
+
+def _failure_class_from_report(summary: dict[str, Any]) -> str | None:
+    if _pass_fail_from_report(summary) != "fail":
+        return None
+    reason_codes = summary.get("reason_codes")
+    if isinstance(reason_codes, list) and reason_codes:
+        return str(reason_codes[0])
+    verdict_status = summary.get("verdict_status")
+    return str(verdict_status) if verdict_status else "unknown_failure"
 
 
 def _counts(status: str) -> dict[str, Any]:
@@ -87,6 +170,12 @@ def collect_snapshot(
     )
 
     status = _analysis_status(active_execution)
+    controlled_eval_summary = _controlled_eval_report_summary(active_execution, status)
+    pass_fail = _pass_fail_from_report(controlled_eval_summary)
+    primary_failure_class = _failure_class_from_report(controlled_eval_summary)
+    evidence_refs = []
+    if controlled_eval_summary.get("path"):
+        evidence_refs.append(str(controlled_eval_summary["path"]))
 
     return {
         "report_kind": REPORT_KIND,
@@ -121,12 +210,13 @@ def collect_snapshot(
             "executed_anything": active_execution.get("executed_anything") is True,
             "final_recommendation": active_execution.get("final_recommendation"),
         },
+        "controlled_eval_report": controlled_eval_summary,
         "result_summary": {
             "completed_run_available": status == ANALYSIS_READY,
-            "pass_fail": None,
-            "trade_count": None,
-            "primary_failure_class": None,
-            "evidence_refs": [],
+            "pass_fail": pass_fail,
+            "trade_count": controlled_eval_summary.get("campaigns_completed"),
+            "primary_failure_class": primary_failure_class,
+            "evidence_refs": evidence_refs,
         },
         "next_required_step": (
             "connect controlled validation runner before result analysis"
