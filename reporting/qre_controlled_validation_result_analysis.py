@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any, Final
@@ -58,6 +59,59 @@ def _analysis_status(execution_snapshot: dict[str, Any]) -> str:
     return ANALYSIS_READY
 
 
+def _current_git_revision() -> str | None:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    value = completed.stdout.strip()
+    return value or None
+
+
+def _artifact_freshness(
+    payload: dict[str, Any] | None,
+    *,
+    current_git_revision: str | None,
+) -> dict[str, Any]:
+    artifact_git_revision = (
+        payload.get("git_revision") if isinstance(payload, dict) else None
+    )
+    if not isinstance(artifact_git_revision, str) or not artifact_git_revision:
+        artifact_git_revision = None
+
+    reason_codes: list[str] = []
+    artifact_may_be_stale = False
+
+    if artifact_git_revision is None:
+        reason_codes.append("artifact_git_revision_missing")
+        artifact_may_be_stale = True
+    if current_git_revision is None:
+        reason_codes.append("current_git_revision_unavailable")
+        artifact_may_be_stale = True
+    if (
+        artifact_git_revision is not None
+        and current_git_revision is not None
+        and artifact_git_revision != current_git_revision
+    ):
+        reason_codes.append("artifact_git_revision_differs_from_current_head")
+        artifact_may_be_stale = True
+    if not reason_codes:
+        reason_codes.append("artifact_git_revision_matches_current_head")
+
+    return {
+        "artifact_git_revision": artifact_git_revision,
+        "current_git_revision": current_git_revision,
+        "artifact_may_be_stale": artifact_may_be_stale,
+        "reason_codes": reason_codes,
+    }
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -87,6 +141,8 @@ def _resolve_controlled_eval_report_path(
 def _controlled_eval_report_summary(
     execution_snapshot: dict[str, Any],
     status: str,
+    *,
+    current_git_revision: str | None = None,
 ) -> dict[str, Any]:
     report_path = _resolve_controlled_eval_report_path(execution_snapshot)
     payload = _read_json(report_path) if report_path is not None else None
@@ -101,9 +157,15 @@ def _controlled_eval_report_summary(
     if not isinstance(screening_evidence_summary, dict):
         screening_evidence_summary = {}
 
+    freshness = _artifact_freshness(
+        payload,
+        current_git_revision=current_git_revision,
+    )
+
     return {
         "present": payload is not None,
         "path": report_path.as_posix() if report_path is not None else None,
+        "artifact_freshness": freshness,
         "verdict_status": verdict.get("status"),
         "campaigns_completed": (payload or {}).get("campaigns_completed"),
         "campaign_level_evidence_valid": (payload or {}).get(
@@ -160,15 +222,25 @@ def collect_snapshot(
     profile_name: str | None = None,
     execution_snapshot: dict[str, Any] | None = None,
     generated_at_utc: str | None = None,
+    current_git_revision: str | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
     active_execution = execution_snapshot or execution.collect_snapshot(
         profile_name=profile_name,
         generated_at_utc=generated,
     )
+    resolved_current_git_revision = (
+        current_git_revision
+        if current_git_revision is not None
+        else _current_git_revision()
+    )
 
     status = _analysis_status(active_execution)
-    controlled_eval_summary = _controlled_eval_report_summary(active_execution, status)
+    controlled_eval_summary = _controlled_eval_report_summary(
+        active_execution,
+        status,
+        current_git_revision=resolved_current_git_revision,
+    )
     campaigns_completed = int(controlled_eval_summary.get("campaigns_completed") or 0)
     evidence_valid = controlled_eval_summary.get("campaign_level_evidence_valid") is True
     if status == ANALYSIS_READY and (campaigns_completed < 1 or not evidence_valid):
@@ -218,6 +290,9 @@ def collect_snapshot(
             "pass_fail": pass_fail,
             "trade_count": controlled_eval_summary.get("campaigns_completed"),
             "primary_failure_class": primary_failure_class,
+            "artifact_freshness": controlled_eval_summary.get(
+                "artifact_freshness", {}
+            ),
             "screening_evidence_summary": controlled_eval_summary.get(
                 "screening_evidence_summary", {}
             ),

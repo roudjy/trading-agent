@@ -141,6 +141,7 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
                 "campaigns_completed": 1,
                 "campaign_level_evidence_valid": True,
                 "recommended_next_action": "inspect_results",
+                "git_revision": "abc123",
                 "screening_evidence_summary": {
                     "present": True,
                     "total_candidates": 15,
@@ -172,6 +173,7 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
     snapshot = analysis.collect_snapshot(
         execution_snapshot=execution_snapshot,
         generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="abc123",
     )
 
     assert snapshot["analysis_status"] == "analysis_ready"
@@ -182,6 +184,18 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
     assert snapshot["result_summary"]["pass_fail"] == "pass"
     assert snapshot["result_summary"]["trade_count"] == 1
     assert snapshot["result_summary"]["primary_failure_class"] is None
+    assert snapshot["controlled_eval_report"]["artifact_freshness"] == {
+        "artifact_git_revision": "abc123",
+        "current_git_revision": "abc123",
+        "artifact_may_be_stale": False,
+        "reason_codes": ["artifact_git_revision_matches_current_head"],
+    }
+    assert snapshot["result_summary"]["artifact_freshness"] == {
+        "artifact_git_revision": "abc123",
+        "current_git_revision": "abc123",
+        "artifact_may_be_stale": False,
+        "reason_codes": ["artifact_git_revision_matches_current_head"],
+    }
     assert snapshot["result_summary"]["screening_evidence_summary"] == {
         "present": True,
         "total_candidates": 15,
@@ -282,3 +296,100 @@ def test_analysis_blocks_timeout_without_completed_campaign_evidence(tmp_path) -
     assert snapshot["result_summary"]["pass_fail"] is None
     assert snapshot["result_summary"]["trade_count"] == 0
 
+
+
+def test_analysis_marks_controlled_eval_report_stale_when_git_revision_differs(
+    tmp_path,
+) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "git_revision": "old123",
+                "verdict": {
+                    "status": "useful_observation",
+                    "reason_codes": ["degenerate_no_survivors"],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": True,
+                "recommended_next_action": "inspect_results",
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="new456",
+    )
+
+    assert snapshot["analysis_status"] == "analysis_ready"
+    assert snapshot["controlled_eval_report"]["artifact_freshness"] == {
+        "artifact_git_revision": "old123",
+        "current_git_revision": "new456",
+        "artifact_may_be_stale": True,
+        "reason_codes": ["artifact_git_revision_differs_from_current_head"],
+    }
+    assert snapshot["result_summary"]["artifact_freshness"] == snapshot[
+        "controlled_eval_report"
+    ]["artifact_freshness"]
+
+
+def test_analysis_marks_controlled_eval_report_stale_when_git_revision_missing(
+    tmp_path,
+) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "verdict": {
+                    "status": "useful_observation",
+                    "reason_codes": ["degenerate_no_survivors"],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": True,
+                "recommended_next_action": "inspect_results",
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-03T23:00:00Z",
+        current_git_revision="new456",
+    )
+
+    assert snapshot["controlled_eval_report"]["artifact_freshness"] == {
+        "artifact_git_revision": None,
+        "current_git_revision": "new456",
+        "artifact_may_be_stale": True,
+        "reason_codes": ["artifact_git_revision_missing"],
+    }
