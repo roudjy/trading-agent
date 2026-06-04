@@ -235,6 +235,42 @@ def summarize_campaign_records(
     return records
 
 
+def summarize_registry_ledger_invariants(
+    *,
+    campaign_records: list[dict[str, Any]],
+    ledger_events: list[dict[str, Any]],
+) -> dict[str, Any]:
+    completed_campaign_ids = {
+        str(record.get("campaign_id"))
+        for record in campaign_records
+        if record.get("state") == "completed" and record.get("campaign_id")
+    }
+    ledger_completed_campaign_ids = {
+        str(event.get("campaign_id"))
+        for event in ledger_events
+        if isinstance(event, dict)
+        and event.get("event_type") == "campaign_completed"
+        and event.get("campaign_id")
+    }
+    missing_completed_ledger_event_ids = sorted(
+        completed_campaign_ids - ledger_completed_campaign_ids
+    )
+    status = "failed" if missing_completed_ledger_event_ids else "passed"
+    reason_codes = (
+        ["completed_campaign_missing_campaign_completed_ledger_event"]
+        if missing_completed_ledger_event_ids
+        else []
+    )
+    return {
+        "status": status,
+        "reason_codes": reason_codes,
+        "operator_review_required": bool(missing_completed_ledger_event_ids),
+        "completed_campaign_count": len(completed_campaign_ids),
+        "campaign_completed_ledger_event_count": len(ledger_completed_campaign_ids),
+        "missing_completed_ledger_event_ids": missing_completed_ledger_event_ids,
+    }
+
+
 def summarize_screening_evidence(
     screening_evidence_payload: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -403,6 +439,7 @@ def _classify_verdict(
     ticks: list[LauncherTick],
     intelligence_artifact_status: dict[str, str],
     latest_policy_summary: dict[str, Any],
+    registry_ledger_invariant_summary: dict[str, Any],
 ) -> tuple[dict[str, Any], str]:
     reason_codes: list[str] = []
     timed_out = any(tick.timed_out for tick in ticks)
@@ -413,6 +450,26 @@ def _classify_verdict(
                 "status": "timeout",
                 "reason_codes": reason_codes,
                 "human_summary": "Campaign launcher timed out before the bounded evaluation completed.",
+            },
+            "operator_review_required",
+        )
+
+    if registry_ledger_invariant_summary.get("status") == "failed":
+        reason_codes.append("registry_ledger_invariant_violation")
+        reason_codes.extend(
+            str(code)
+            for code in registry_ledger_invariant_summary.get("reason_codes", [])
+            if code
+        )
+        return (
+            {
+                "status": "technical_failure",
+                "reason_codes": reason_codes,
+                "human_summary": (
+                    "Campaign registry and evidence ledger disagree about completed "
+                    "campaign evidence; operator review is required before results "
+                    "can be trusted."
+                ),
             },
             "operator_review_required",
         )
@@ -569,11 +626,16 @@ def build_report_payload(
     latest_policy_summary = summarize_latest_policy_decision(latest_policy_decision_payload)
     active_campaign_summary = summarize_active_campaigns(registry)
     queue_summary = summarize_queue_state(queue_payload)
+    registry_ledger_invariant_summary = summarize_registry_ledger_invariants(
+        campaign_records=campaign_records,
+        ledger_events=ledger_events,
+    )
     verdict, next_action = _classify_verdict(
         campaign_records=campaign_records,
         ticks=ticks,
         intelligence_artifact_status=intelligence_artifact_status,
         latest_policy_summary=latest_policy_summary,
+        registry_ledger_invariant_summary=registry_ledger_invariant_summary,
     )
     return {
         "schema_version": CONTROLLED_EVAL_SCHEMA_VERSION,
@@ -592,6 +654,7 @@ def build_report_payload(
         "campaigns_by_preset": dict(sorted(by_preset.items())),
         "campaigns_by_outcome": dict(sorted(by_outcome.items())),
         "campaign_records": campaign_records,
+        "registry_ledger_invariant_summary": registry_ledger_invariant_summary,
         "latest_run_summary": summarize_latest_run(run_campaign_payload),
         "screening_evidence_summary": summarize_screening_evidence(
             screening_evidence_payload
@@ -603,7 +666,8 @@ def build_report_payload(
         "launcher_ticks": [tick.to_payload() for tick in ticks],
         "verdict": verdict,
         "recommended_next_action": next_action,
-        "campaign_level_evidence_valid": bool(completed_records),
+        "campaign_level_evidence_valid": bool(completed_records)
+        and registry_ledger_invariant_summary.get("status") == "passed",
         "strategy_synthesis_sandbox_needed": "not_enough_evidence_not_yet",
     }
 
@@ -921,4 +985,5 @@ __all__ = [
     "summarize_screening_evidence",
     "summarize_latest_policy_decision",
     "summarize_queue_state",
+    "summarize_registry_ledger_invariants",
 ]

@@ -247,6 +247,88 @@ def test_missing_intelligence_artifacts_are_reported_as_observability_gap() -> N
     assert payload["intelligence_artifact_status"]["information_gain"] == "missing"
 
 
+
+
+def test_completed_registry_campaign_without_completed_ledger_event_fails_closed() -> None:
+    payload = ce.build_report_payload(
+        profile="crypto_exploratory_v1",
+        max_campaigns=1,
+        sprint_started_by_harness=True,
+        sprint_reused=False,
+        observed_total_before=0,
+        observed_total_after=1,
+        campaigns_attempted=1,
+        sprint_registry=_sprint_registry(),
+        sprint_progress={"state": "active"},
+        registry=_registry(_completed_campaign()),
+        ledger_events=[],
+        run_campaign_payload=None,
+        intelligence_artifact_status={
+            "information_gain": "present",
+            "viability": "present",
+            "stop_conditions": "present",
+            "spawn_proposals": "present",
+        },
+        latest_policy_decision_payload=None,
+        queue_payload={"queue": []},
+        ticks=[],
+    )
+
+    assert payload["campaigns_completed"] == 1
+    assert payload["campaign_level_evidence_valid"] is False
+    assert payload["registry_ledger_invariant_summary"] == {
+        "status": "failed",
+        "reason_codes": ["completed_campaign_missing_campaign_completed_ledger_event"],
+        "operator_review_required": True,
+        "completed_campaign_count": 1,
+        "campaign_completed_ledger_event_count": 0,
+        "missing_completed_ledger_event_ids": ["col-1"],
+    }
+    assert payload["verdict"]["status"] == "technical_failure"
+    assert payload["verdict"]["reason_codes"] == [
+        "registry_ledger_invariant_violation",
+        "completed_campaign_missing_campaign_completed_ledger_event",
+    ]
+    assert payload["recommended_next_action"] == "operator_review_required"
+
+
+def test_completed_registry_campaign_with_completed_ledger_event_passes_invariant() -> None:
+    payload = ce.build_report_payload(
+        profile="crypto_exploratory_v1",
+        max_campaigns=1,
+        sprint_started_by_harness=True,
+        sprint_reused=False,
+        observed_total_before=0,
+        observed_total_after=1,
+        campaigns_attempted=1,
+        sprint_registry=_sprint_registry(),
+        sprint_progress={"state": "active"},
+        registry=_registry(_completed_campaign()),
+        ledger_events=[_ledger_event()],
+        run_campaign_payload=None,
+        intelligence_artifact_status={
+            "information_gain": "present",
+            "viability": "present",
+            "stop_conditions": "present",
+            "spawn_proposals": "present",
+        },
+        latest_policy_decision_payload=None,
+        queue_payload={"queue": []},
+        ticks=[],
+    )
+
+    assert payload["registry_ledger_invariant_summary"] == {
+        "status": "passed",
+        "reason_codes": [],
+        "operator_review_required": False,
+        "completed_campaign_count": 1,
+        "campaign_completed_ledger_event_count": 1,
+        "missing_completed_ledger_event_ids": [],
+    }
+    assert payload["campaign_level_evidence_valid"] is True
+    assert payload["verdict"]["status"] == "useful_observation"
+
+
 def test_no_completed_campaign_with_no_candidates_policy_is_diagnostic() -> None:
     payload = ce.build_report_payload(
         profile="crypto_exploratory_v1",
