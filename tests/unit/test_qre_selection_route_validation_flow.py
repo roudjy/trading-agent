@@ -99,3 +99,41 @@ def test_no_write_cli_does_not_write_artifact(tmp_path, monkeypatch) -> None:
 
     assert rc == 0
     assert not artifact_path.exists()
+
+
+def test_selection_route_validation_flow_includes_bounded_request_and_dry_run_examples() -> None:
+    snapshot = flow.collect_snapshot(generated_at_utc="2026-06-03T15:00:00Z")
+
+    request_examples = snapshot["validation_request"]["examples"]
+    dry_run_examples = snapshot["dry_run"]["examples"]
+
+    assert len(request_examples) == 3
+    assert len(dry_run_examples) == 3
+
+    for example in request_examples:
+        assert example["request_id"]
+        assert example["request_status"] == "request_ready_for_operator_review"
+        assert example["qre_hypothesis_id"].startswith("qre-hyp-sel-")
+        assert example["executable_hypothesis_id"]
+        assert example["preset_name"]
+        assert example["asset"] == "BTC-EUR"
+        assert example["timeframe"] in {"1h", "4h"}
+        assert example["allowed_command_preview"]
+        assert example["requires_operator_approval"] is True
+        assert example["safe_to_execute"] is False
+
+    for example in dry_run_examples:
+        assert example["request_id"]
+        assert example["dry_run_status"] == "dry_run_ready"
+        assert example["qre_hypothesis_id"].startswith("qre-hyp-sel-")
+        assert example["asset"] == "BTC-EUR"
+        assert example["timeframe"] in {"1h", "4h"}
+        assert example["would_run_command_preview"]
+        assert example["would_write_artifacts"] == [
+            "research/run_candidates_latest.v1.json",
+            "research/screening_evidence_latest.v1.json",
+            "research/history/<run_id>/...",
+        ]
+        assert example["backup_required"] is True
+        assert example["executed"] is False
+        assert example["safe_to_execute"] is False

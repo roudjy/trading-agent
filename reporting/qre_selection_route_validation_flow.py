@@ -45,6 +45,62 @@ def _readiness_counts(snapshot: dict[str, Any]) -> dict[str, Any]:
     return counts if isinstance(counts, dict) else {}
 
 
+def _bounded_examples(
+    rows: Any,
+    *,
+    max_items: int = 5,
+    allowed_fields: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+    examples: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        item: dict[str, Any] = {}
+        for field in allowed_fields:
+            value = row.get(field)
+            if isinstance(value, list):
+                item[field] = value[:10]
+            elif isinstance(value, dict):
+                item[field] = dict(list(value.items())[:10])
+            else:
+                item[field] = value
+        examples.append(item)
+        if len(examples) >= max_items:
+            break
+    return examples
+
+
+_REQUEST_EXAMPLE_FIELDS: tuple[str, ...] = (
+    "request_id",
+    "request_status",
+    "qre_hypothesis_id",
+    "executable_hypothesis_id",
+    "preset_name",
+    "asset",
+    "timeframe",
+    "validation_plan_id",
+    "run_manifest_id",
+    "allowed_command_preview",
+    "requires_operator_approval",
+    "safe_to_execute",
+)
+
+_DRY_RUN_EXAMPLE_FIELDS: tuple[str, ...] = (
+    "request_id",
+    "dry_run_status",
+    "qre_hypothesis_id",
+    "asset",
+    "timeframe",
+    "would_run_command_preview",
+    "would_write_artifacts",
+    "backup_required",
+    "executed",
+    "safe_to_execute",
+)
+
+
 def _base_snapshot(
     *,
     generated_at_utc: str,
@@ -105,10 +161,18 @@ def _base_snapshot(
         },
         "validation_request": {
             "counts": request_counts,
+            "examples": _bounded_examples(
+                validation_request_snapshot.get("validation_requests"),
+                allowed_fields=_REQUEST_EXAMPLE_FIELDS,
+            ),
             "final_recommendation": validation_request_snapshot.get("final_recommendation"),
         },
         "dry_run": {
             "counts": dry_run_counts,
+            "examples": _bounded_examples(
+                dry_run_snapshot.get("dry_run_results"),
+                allowed_fields=_DRY_RUN_EXAMPLE_FIELDS,
+            ),
             "executed_anything": dry_run_snapshot.get("executed_anything", False),
             "final_recommendation": dry_run_snapshot.get("final_recommendation"),
         },
