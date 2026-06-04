@@ -119,6 +119,7 @@ def test_loop_report_connected_runner_reaches_learning_ready(monkeypatch, tmp_pa
                         "reason_codes": ["degenerate_no_survivors"],
                     },
                     "campaigns_completed": 1,
+                    "campaign_level_evidence_valid": True,
                     "recommended_next_action": "inspect_results",
                 }
             ),
