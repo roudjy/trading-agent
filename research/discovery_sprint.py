@@ -5,7 +5,7 @@ the existing v3.15.2 Campaign Operating Layer (COL). It does NOT spawn,
 queue, lease, or otherwise mutate campaigns — COL keeps owning that.
 This module:
 
-1. Validates a closed built-in profile (currently ``crypto_exploratory_v1``).
+1. Validates a closed built-in profile such as ``crypto_exploratory_v1`` or ``equities_exploratory_v1``.
 2. Derives a deterministic plan from the existing
    ``research.strategy_hypothesis_catalog`` and ``research.presets``
    binding (no new strategies, no new presets).
@@ -32,6 +32,7 @@ Hard constraints honoured:
 CLI::
 
     python -m research.discovery_sprint plan   --profile crypto_exploratory_v1
+    python -m research.discovery_sprint plan   --profile equities_exploratory_v1
     python -m research.discovery_sprint run    --profile crypto_exploratory_v1
     python -m research.discovery_sprint status
     python -m research.discovery_sprint report
@@ -211,8 +212,21 @@ CRYPTO_EXPLORATORY_V1: Final[SprintProfile] = SprintProfile(
     exclude_promotion_grade=True,
 )
 
+EQUITIES_EXPLORATORY_V1: Final[SprintProfile] = SprintProfile(
+    name="equities_exploratory_v1",
+    target_campaigns=25,
+    max_days=5,
+    asset_class="equity",
+    timeframes=("4h",),
+    screening_phase="exploratory",
+    hypotheses=("trend_pullback_v1",),
+    exclude_equities=False,
+    exclude_promotion_grade=True,
+)
+
 BUILTIN_PROFILES: Final[dict[str, SprintProfile]] = {
     CRYPTO_EXPLORATORY_V1.name: CRYPTO_EXPLORATORY_V1,
+    EQUITIES_EXPLORATORY_V1.name: EQUITIES_EXPLORATORY_V1,
 }
 
 
@@ -1650,6 +1664,7 @@ __all__ = [
     "ASSET_CLASSES",
     "BUILTIN_PROFILES",
     "CRYPTO_EXPLORATORY_V1",
+    "EQUITIES_EXPLORATORY_V1",
     "INACTIVE_SPRINT_STATES",
     "INSUFFICIENT_TRADES_MIN_HISTORY",
     "INSUFFICIENT_TRADES_RATE_THRESHOLD",

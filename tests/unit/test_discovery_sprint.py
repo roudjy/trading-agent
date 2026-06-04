@@ -18,8 +18,11 @@ from research import discovery_sprint as ds
 # ---------------------------------------------------------------------------
 
 
-def test_builtin_profiles_only_contains_crypto_exploratory_v1() -> None:
-    assert set(ds.BUILTIN_PROFILES) == {"crypto_exploratory_v1"}
+def test_builtin_profiles_contains_expected_closed_profiles() -> None:
+    assert set(ds.BUILTIN_PROFILES) == {
+        "crypto_exploratory_v1",
+        "equities_exploratory_v1",
+    }
 
 
 def test_crypto_exploratory_v1_spec_is_exact() -> None:
@@ -34,6 +37,18 @@ def test_crypto_exploratory_v1_spec_is_exact() -> None:
         "volatility_compression_breakout_v0",
     )
     assert profile.exclude_equities is True
+    assert profile.exclude_promotion_grade is True
+
+
+def test_equities_exploratory_v1_spec_is_exact() -> None:
+    profile = ds.get_profile("equities_exploratory_v1")
+    assert profile.target_campaigns == 25
+    assert profile.max_days == 5
+    assert profile.asset_class == "equity"
+    assert profile.timeframes == ("4h",)
+    assert profile.screening_phase == "exploratory"
+    assert profile.hypotheses == ("trend_pullback_v1",)
+    assert profile.exclude_equities is False
     assert profile.exclude_promotion_grade is True
 
 
@@ -169,6 +184,16 @@ def test_plan_contains_both_target_presets() -> None:
     preset_names = {e.preset_name for e in plan}
     assert "trend_pullback_crypto_1h" in preset_names
     assert "vol_compression_breakout_crypto_1h" in preset_names
+
+
+def test_equities_plan_contains_only_trend_pullback_equities_4h() -> None:
+    profile = ds.get_profile("equities_exploratory_v1")
+    plan = ds.derive_plan(profile)
+
+    assert [entry.preset_name for entry in plan] == ["trend_pullback_equities_4h"]
+    assert [entry.asset_class for entry in plan] == ["equity"]
+    assert [entry.timeframe for entry in plan] == ["4h"]
+    assert [entry.hypothesis_id for entry in plan] == ["trend_pullback_v1"]
 
 
 def test_infer_asset_class_handles_known_universes() -> None:
