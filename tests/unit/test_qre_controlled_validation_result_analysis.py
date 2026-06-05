@@ -415,6 +415,9 @@ def test_operator_summary_surfaces_hd_blockers_and_candidate_rollup(tmp_path) ->
     )
     assert hd_row == {
         "asset": "HD",
+        "asset_group": None,
+        "region": None,
+        "hypothesis_id": None,
         "preset_name": "trend_pullback_equities_4h",
         "strategy_name": "trend_pullback_v1",
         "interval": "4h",
@@ -431,6 +434,12 @@ def test_operator_summary_surfaces_hd_blockers_and_candidate_rollup(tmp_path) ->
         ],
         "failure_reasons": [],
         "near_pass": False,
+        "outcome_class": "reject_criteria_consistentie_failed",
+        "fixture_candidate": False,
+        "not_real_market_evidence": False,
+        "no_paper_activation": False,
+        "no_live_activation": False,
+        "no_shadow_activation": False,
         "metrics": {
             "win_rate": 0.5,
             "trades_per_maand": 1.1,

@@ -203,6 +203,37 @@ def _top_counts(values: list[str], *, limit: int = 5) -> list[dict[str, Any]]:
     return [{"reason": reason, "count": count} for reason, count in ordered[:limit]]
 
 
+def _candidate_outcome_class(
+    row: dict[str, Any],
+    *,
+    validation_status: str | None,
+    failure_reasons: list[str],
+    blocked_by: list[str],
+    near_pass: bool,
+    promotion_allowed: bool,
+) -> str:
+    explicit = row.get("outcome_class")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit
+    if promotion_allowed:
+        return "promotion_eligible_fixture_candidate"
+    if near_pass:
+        return "near_pass"
+    if "insufficient_trades" in failure_reasons:
+        return "reject_insufficient_trades"
+    if validation_status == "no_oos_trades":
+        return "reject_no_oos_evidence"
+    if "criteria_consistentie_failed" in blocked_by:
+        return "reject_criteria_consistentie_failed"
+    if "criteria_trades_per_maand_failed" in blocked_by:
+        return "reject_criteria_trades_per_maand_failed"
+    if "criteria_win_rate_failed" in blocked_by:
+        return "reject_criteria_win_rate_failed"
+    if validation_status == "sufficient_oos_evidence":
+        return "sufficient_oos_but_not_promoted"
+    return "unclassified_outcome"
+
+
 def _candidate_operator_row(row: dict[str, Any]) -> dict[str, Any]:
     validation = row.get("validation_evidence")
     if not isinstance(validation, dict):
@@ -216,20 +247,40 @@ def _candidate_operator_row(row: dict[str, Any]) -> dict[str, Any]:
     failure_reasons = row.get("failure_reasons")
     if not isinstance(failure_reasons, list):
         failure_reasons = []
+    blocked_by = list(promotion_guard.get("blocked_by") or [])
+    promotion_allowed = promotion_guard.get("promotion_allowed") is True
+    near_pass = bool((row.get("near_pass") or {}).get("is_near_pass"))
+    validation_status = validation.get("status")
     return {
         "asset": str(row.get("asset") or ""),
+        "asset_group": row.get("asset_group"),
+        "region": row.get("region"),
+        "hypothesis_id": row.get("hypothesis_id"),
         "preset_name": row.get("preset_name"),
         "strategy_name": row.get("strategy_name"),
         "interval": row.get("interval"),
         "stage_result": row.get("stage_result"),
         "qre_validation_linkage_status": row.get("qre_validation_linkage_status"),
-        "validation_evidence_status": validation.get("status"),
+        "validation_evidence_status": validation_status,
         "oos_trade_count": validation.get("oos_trade_count"),
         "min_oos_trades": validation.get("min_oos_trades"),
-        "promotion_allowed": promotion_guard.get("promotion_allowed") is True,
-        "blocked_by": list(promotion_guard.get("blocked_by") or []),
+        "promotion_allowed": promotion_allowed,
+        "blocked_by": blocked_by,
         "failure_reasons": list(failure_reasons),
-        "near_pass": bool((row.get("near_pass") or {}).get("is_near_pass")),
+        "near_pass": near_pass,
+        "outcome_class": _candidate_outcome_class(
+            row,
+            validation_status=validation_status,
+            failure_reasons=list(failure_reasons),
+            blocked_by=blocked_by,
+            near_pass=near_pass,
+            promotion_allowed=promotion_allowed,
+        ),
+        "fixture_candidate": row.get("fixture_candidate") is True,
+        "not_real_market_evidence": row.get("not_real_market_evidence") is True,
+        "no_paper_activation": row.get("no_paper_activation") is True,
+        "no_live_activation": row.get("no_live_activation") is True,
+        "no_shadow_activation": row.get("no_shadow_activation") is True,
         "metrics": {
             "win_rate": metrics.get("win_rate"),
             "trades_per_maand": metrics.get("trades_per_maand"),
@@ -260,6 +311,7 @@ def _operator_summary(
     runtime_gate_failed_assets: list[str] = []
     public_result_criteria_blocked_assets: list[str] = []
     near_pass_assets: list[str] = []
+    outcome_classes: list[str] = []
 
     for row in sorted(candidates, key=lambda item: str(item.get("asset") or "")):
         op_row = _candidate_operator_row(row)
@@ -284,6 +336,7 @@ def _operator_summary(
             near_pass_count += 1
             near_pass_assets.append(asset)
         failure_reasons.extend(str(reason) for reason in op_row["failure_reasons"])
+        outcome_classes.append(str(op_row["outcome_class"]))
 
     total_candidates = int(screening_summary.get("total_candidates") or len(candidates))
     promotion_blocked_count = max(total_candidates - promotion_allowed_count, 0)
@@ -295,6 +348,26 @@ def _operator_summary(
     freshness = controlled_eval_summary.get("artifact_freshness")
     if not isinstance(freshness, dict):
         freshness = {}
+    preset_names = {
+        str(row["preset_name"])
+        for row in asset_rows
+        if isinstance(row.get("preset_name"), str) and row["preset_name"]
+    }
+    hypothesis_ids = {
+        str(row["hypothesis_id"])
+        for row in asset_rows
+        if isinstance(row.get("hypothesis_id"), str) and row["hypothesis_id"]
+    }
+    regions = {
+        str(row["region"])
+        for row in asset_rows
+        if isinstance(row.get("region"), str) and row["region"]
+    }
+    fixture_candidate_count = sum(1 for row in asset_rows if row["fixture_candidate"])
+    promotion_eligible_fixture_candidate_count = sum(
+        1 for row in asset_rows if row["fixture_candidate"] and row["promotion_allowed"]
+    )
+    outcome_class_summary = _top_counts(outcome_classes, limit=10)
 
     return {
         "total_candidates": total_candidates,
@@ -303,6 +376,16 @@ def _operator_summary(
         "promotion_allowed_count": promotion_allowed_count,
         "promotion_blocked_count": promotion_blocked_count,
         "near_pass_count": near_pass_count,
+        "candidate_diversity": {
+            "preset_count": len(preset_names),
+            "hypothesis_count": len(hypothesis_ids),
+            "region_count": len(regions),
+            "fixture_candidate_count": fixture_candidate_count,
+            "promotion_eligible_fixture_candidate_count": (
+                promotion_eligible_fixture_candidate_count
+            ),
+            "outcome_class_summary": outcome_class_summary,
+        },
         "top_promotion_blockers": _top_counts(blocked_reasons),
         "top_failure_reasons": _top_counts(failure_reasons),
         "runtime_gate_failed_assets": runtime_gate_failed_assets,
