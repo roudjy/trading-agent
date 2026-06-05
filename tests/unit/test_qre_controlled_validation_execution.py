@@ -104,6 +104,108 @@ def test_exact_operator_go_authorizes_contract_but_runner_is_not_connected() -> 
 
 
 
+
+
+def test_campaign_invariant_violation_blocks_runner_before_launch(monkeypatch) -> None:
+    calls: list[object] = []
+
+    def fake_run_controlled_eval(**kwargs: object) -> int:
+        calls.append(kwargs)
+        return 0
+
+    monkeypatch.setattr(
+        execution,
+        "_run_controlled_eval_adapter",
+        fake_run_controlled_eval,
+    )
+    monkeypatch.setattr(
+        execution,
+        "_campaign_invariant_preflight",
+        lambda: {
+            "status": "failed",
+            "completed_campaign_count": 1,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [
+                "col-20260604T203711765074Z-trend_pullback_equities_4h-3e5f6de0b6"
+            ],
+        },
+    )
+
+    snapshot = execution.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        execute_controlled_validation=True,
+        operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        connect_runner_adapter=True,
+        timeout_seconds_per_campaign=240,
+        controlled_validation_bridge_snapshot=_bridge_snapshot(ready=True),
+        generated_at_utc="2026-06-05T05:30:00Z",
+    )
+
+    assert calls == []
+    assert snapshot["execution_status"] == (
+        "execution_blocked_campaign_invariant_violation"
+    )
+    assert snapshot["final_recommendation"] == (
+        "controlled_validation_execution_blocked_campaign_invariant_violation"
+    )
+    assert snapshot["controlled_validation_authorized"] is False
+    assert snapshot["executed_anything"] is False
+    assert snapshot["launches_subprocess"] is False
+    assert snapshot["runner_adapter_status"] == "not_connected"
+    assert snapshot["campaign_invariant_preflight"] == {
+        "status": "failed",
+        "completed_campaign_count": 1,
+        "campaign_completed_ledger_event_count": 0,
+        "missing_completed_ledger_event_ids": [
+            "col-20260604T203711765074Z-trend_pullback_equities_4h-3e5f6de0b6"
+        ],
+    }
+
+
+def test_campaign_invariant_preflight_pass_allows_existing_runner_path(
+    monkeypatch,
+) -> None:
+    calls: list[object] = []
+
+    def fake_run_controlled_eval(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {
+            "returncode": 0,
+            "stdout_tail": "ok",
+            "report_paths": {"report_json": "x.json", "report_md": "x.md"},
+        }
+
+    monkeypatch.setattr(
+        execution,
+        "_run_controlled_eval_adapter",
+        fake_run_controlled_eval,
+    )
+    monkeypatch.setattr(
+        execution,
+        "_campaign_invariant_preflight",
+        lambda: {
+            "status": "passed",
+            "completed_campaign_count": 0,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [],
+        },
+    )
+
+    snapshot = execution.collect_snapshot(
+        profile_name="equities_exploratory_v1",
+        execute_controlled_validation=True,
+        operator_go=execution.REQUIRED_OPERATOR_GO_PHRASE,
+        connect_runner_adapter=True,
+        timeout_seconds_per_campaign=240,
+        controlled_validation_bridge_snapshot=_bridge_snapshot(ready=True),
+        generated_at_utc="2026-06-05T05:30:00Z",
+    )
+
+    assert len(calls) == 1
+    assert snapshot["execution_status"] == "execution_completed"
+    assert snapshot["campaign_invariant_preflight"]["status"] == "passed"
+
+
 def test_bridge_not_ready_blocks_even_with_operator_go_and_runner_adapter(
     monkeypatch,
 ) -> None:
@@ -253,6 +355,17 @@ def test_connected_runner_adapter_invokes_controlled_eval(monkeypatch, tmp_path)
         tmp_path / "controlled_eval_latest.md",
     )
 
+    monkeypatch.setattr(
+        execution,
+        "_campaign_invariant_preflight",
+        lambda: {
+            "status": "passed",
+            "completed_campaign_count": 0,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [],
+        },
+    )
+
     snapshot = execution.collect_snapshot(
         profile_name="equities_exploratory_v1",
         execute_controlled_validation=True,
@@ -306,6 +419,17 @@ def test_connected_runner_adapter_records_failure(monkeypatch, tmp_path) -> None
         execution,
         "CONTROLLED_EVAL_REPORT_MD",
         tmp_path / "controlled_eval_latest.md",
+    )
+
+    monkeypatch.setattr(
+        execution,
+        "_campaign_invariant_preflight",
+        lambda: {
+            "status": "passed",
+            "completed_campaign_count": 0,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [],
+        },
     )
 
     snapshot = execution.collect_snapshot(

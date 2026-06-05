@@ -38,6 +38,9 @@ REQUIRED_OPERATOR_GO_PHRASE: Final[str] = (
 EXECUTION_BLOCKED_NOT_REQUESTED: Final[str] = "execution_blocked_not_requested"
 EXECUTION_BLOCKED_PREFLIGHT_NOT_READY: Final[str] = "execution_blocked_preflight_not_ready"
 EXECUTION_BLOCKED_BRIDGE_NOT_READY: Final[str] = "execution_blocked_bridge_not_ready"
+EXECUTION_BLOCKED_CAMPAIGN_INVARIANT_VIOLATION: Final[str] = (
+    "execution_blocked_campaign_invariant_violation"
+)
 EXECUTION_BLOCKED_OPERATOR_GO_MISSING: Final[str] = "execution_blocked_operator_go_missing"
 EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH: Final[str] = "execution_blocked_operator_go_mismatch"
 EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED: Final[str] = (
@@ -50,6 +53,7 @@ EXECUTION_STATUSES: Final[tuple[str, ...]] = (
     EXECUTION_BLOCKED_NOT_REQUESTED,
     EXECUTION_BLOCKED_PREFLIGHT_NOT_READY,
     EXECUTION_BLOCKED_BRIDGE_NOT_READY,
+    EXECUTION_BLOCKED_CAMPAIGN_INVARIANT_VIOLATION,
     EXECUTION_BLOCKED_OPERATOR_GO_MISSING,
     EXECUTION_BLOCKED_OPERATOR_GO_MISMATCH,
     EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED,
@@ -123,6 +127,8 @@ def _final_recommendation(status: str) -> str:
         return "controlled_validation_execution_authorized_runner_not_connected"
     if status == EXECUTION_BLOCKED_BRIDGE_NOT_READY:
         return "controlled_validation_execution_blocked_bridge_not_ready"
+    if status == EXECUTION_BLOCKED_CAMPAIGN_INVARIANT_VIOLATION:
+        return "controlled_validation_execution_blocked_campaign_invariant_violation"
     return "controlled_validation_execution_blocked"
 
 
@@ -144,6 +150,78 @@ def _runner_report_paths() -> dict[str, str]:
     return {
         "report_json": _rel(CONTROLLED_EVAL_REPORT_JSON),
         "report_md": _rel(CONTROLLED_EVAL_REPORT_MD),
+    }
+
+
+def _campaign_invariant_preflight() -> dict[str, Any]:
+    try:
+        import importlib
+
+        registry_module = importlib.import_module("research.campaign_registry")
+        ledger_module = importlib.import_module("research.campaign_evidence_ledger")
+    except Exception as exc:  # pragma: no cover - defensive diagnostic guard
+        return {
+            "status": "unknown",
+            "reason": f"campaign_invariant_preflight_unavailable:{type(exc).__name__}",
+            "completed_campaign_count": 0,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [],
+        }
+
+    registry_path = getattr(registry_module, "REGISTRY_ARTIFACT_PATH", None)
+    load_registry = getattr(registry_module, "load_registry", None)
+    load_events = getattr(ledger_module, "load_events", None)
+    if registry_path is None or load_registry is None or load_events is None:
+        return {
+            "status": "unknown",
+            "reason": "campaign_invariant_preflight_api_unavailable",
+            "completed_campaign_count": 0,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [],
+        }
+
+    try:
+        registry = load_registry(registry_path)
+        ledger_events = load_events(Path("research/campaign_evidence_ledger_latest.v1.jsonl"))
+    except Exception as exc:  # pragma: no cover - defensive diagnostic guard
+        return {
+            "status": "unknown",
+            "reason": f"campaign_invariant_preflight_load_failed:{type(exc).__name__}",
+            "completed_campaign_count": 0,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [],
+        }
+
+    campaigns = registry.get("campaigns") if isinstance(registry, dict) else {}
+    if not isinstance(campaigns, dict):
+        campaigns = {}
+
+    completed_campaign_ids = {
+        str(campaign_id)
+        for campaign_id, record in campaigns.items()
+        if isinstance(record, dict) and record.get("state") == "completed"
+    }
+
+    campaign_completed_ledger_ids: set[str] = set()
+    for event in ledger_events:
+        if not isinstance(event, dict):
+            continue
+        event_type = event.get("event_type") or event.get("type")
+        if event_type != "campaign_completed":
+            continue
+        campaign_id = event.get("campaign_id")
+        if campaign_id:
+            campaign_completed_ledger_ids.add(str(campaign_id))
+
+    missing_completed_ledger_event_ids = sorted(
+        completed_campaign_ids - campaign_completed_ledger_ids
+    )
+    status = "failed" if missing_completed_ledger_event_ids else "passed"
+    return {
+        "status": status,
+        "completed_campaign_count": len(completed_campaign_ids),
+        "campaign_completed_ledger_event_count": len(campaign_completed_ledger_ids),
+        "missing_completed_ledger_event_ids": missing_completed_ledger_event_ids,
     }
 
 
@@ -217,15 +295,31 @@ def collect_snapshot(
         selection_route_ready=selection_route_ready,
         controlled_validation_bridge_ready=controlled_validation_bridge_ready,
     )
+    campaign_invariant_preflight: dict[str, Any] = {
+        "status": "not_checked",
+        "completed_campaign_count": 0,
+        "campaign_completed_ledger_event_count": 0,
+        "missing_completed_ledger_event_ids": [],
+    }
+
     runner_result: dict[str, Any] | None = None
     if status == EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED and connect_runner_adapter:
         if profile_name is None:
             raise ValueError("profile_name is required when connecting the runner adapter")
-        runner_result = _run_controlled_eval_adapter(
-            profile_name=profile_name,
-            timeout_seconds_per_campaign=timeout_seconds_per_campaign,
-        )
-        status = EXECUTION_COMPLETED if runner_result["returncode"] == 0 else EXECUTION_FAILED
+        _bounded_timeout_seconds(timeout_seconds_per_campaign)
+        campaign_invariant_preflight = _campaign_invariant_preflight()
+        if campaign_invariant_preflight.get("status") == "failed":
+            status = EXECUTION_BLOCKED_CAMPAIGN_INVARIANT_VIOLATION
+        else:
+            runner_result = _run_controlled_eval_adapter(
+                profile_name=profile_name,
+                timeout_seconds_per_campaign=timeout_seconds_per_campaign,
+            )
+            status = (
+                EXECUTION_COMPLETED
+                if runner_result["returncode"] == 0
+                else EXECUTION_FAILED
+            )
 
     authorized = status in {
         EXECUTION_AUTHORIZED_RUNNER_NOT_CONNECTED,
@@ -302,6 +396,7 @@ def collect_snapshot(
             ),
         },
         "controlled_eval_result": runner_result,
+        "campaign_invariant_preflight": campaign_invariant_preflight,
         "would_write_artifacts": [
             "logs/qre_controlled_validation_execution/latest.json",
             *_runner_report_paths().values(),
