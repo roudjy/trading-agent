@@ -156,16 +156,31 @@ def _artifact_status(row: dict[str, Any]) -> str:
 
 def _source_identity_blocker(row: dict[str, Any]) -> str | None:
     blocker_class = str(row.get("source_identity_blocker_class") or "").strip()
-    if blocker_class:
-        return blocker_class
     source_identity_status = str(row.get("source_identity_status") or "").strip()
     provider_symbol_status = str(row.get("provider_symbol_status") or "").strip()
+    lookup_failure_fields = {
+        "missing_data",
+        "data_coverage_blocker",
+        "degenerate_no_survivors",
+        "no_oos_evidence",
+    }
+    row_blocker_class = str(row.get("blocker_class") or "").strip()
     if source_identity_status == "missing_provider_symbol":
         return "source_identity_missing_provider_symbol"
+    if provider_symbol_status == "provider_lookup_failed" or source_identity_status == "provider_lookup_failed":
+        return "source_identity_provider_lookup_failed"
+    if (
+        blocker_class == "source_identity_provider_lookup_failed"
+        or (
+            row_blocker_class in lookup_failure_fields
+            and provider_symbol_status == "candidate_alias_requires_verification"
+        )
+    ):
+        return "source_identity_provider_lookup_failed"
     if provider_symbol_status == "candidate_alias_requires_verification":
         return "source_identity_candidate_alias_unverified"
-    if provider_symbol_status == "provider_lookup_failed":
-        return "source_identity_provider_lookup_failed"
+    if blocker_class:
+        return blocker_class
     return None
 
 
@@ -286,6 +301,45 @@ def _top_oos_follow_up_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return top_rows
 
 
+def _source_identity_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    latest_by_instrument: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        symbol = str(row.get("instrument_symbol") or "")
+        if not symbol:
+            continue
+        latest_by_instrument[symbol] = row
+    selected = sorted(
+        latest_by_instrument.values(),
+        key=lambda row: (
+            0
+            if row.get("source_identity_blocker_class")
+            in {
+                "source_identity_missing_provider_symbol",
+                "source_identity_candidate_alias_unverified",
+                "source_identity_provider_lookup_failed",
+            }
+            else 1,
+            str(row.get("region") or ""),
+            str(row.get("instrument_symbol") or ""),
+        ),
+    )
+    return [
+        {
+            "instrument_symbol": str(row.get("instrument_symbol") or ""),
+            "region": str(row.get("region") or ""),
+            "canonical_symbol": str(row.get("instrument_symbol") or ""),
+            "provider_symbol": row.get("primary_data_provider_symbol"),
+            "status": str(row.get("source_identity_status") or ""),
+            "candidate_aliases": list(row.get("provider_symbol_aliases") or []),
+            "blocker": str(
+                row.get("source_identity_blocker_class")
+                or "source_identity_provider_symbol_verified"
+            ),
+        }
+        for row in selected
+    ]
+
+
 def build_summary(
     *,
     run_dir: Path,
@@ -393,6 +447,7 @@ def build_summary(
             if row.get("oos_evidence_blocker_class")
         ],
         "top_oos_follow_up_diagnostics": _top_oos_follow_up_rows(diagnostic_rows),
+        "source_identity_diagnostics": _source_identity_rows(diagnostic_rows),
         "next_action": "DEFER_EXECUTION_INTEGRATION"
         if deferred_count
         else "MERGE_AND_RUN_ON_VPS",
@@ -530,6 +585,32 @@ def render_operator_summary(summary: dict[str, Any]) -> str:
             for row in follow_up_rows
         ],
     )
+    source_identity_rows = summary["source_identity_diagnostics"] or [
+        {
+            "instrument_symbol": "-",
+            "region": "-",
+            "canonical_symbol": "-",
+            "provider_symbol": "-",
+            "status": "-",
+            "candidate_aliases": [],
+            "blocker": "-",
+        }
+    ]
+    source_identity_table = _table(
+        ["Instrument", "Region", "Canonical symbol", "Provider symbol", "Status", "Candidate aliases", "Blocker"],
+        [
+            [
+                str(row["instrument_symbol"]),
+                str(row["region"]),
+                str(row["canonical_symbol"]),
+                str(row["provider_symbol"]),
+                str(row["status"]),
+                ", ".join(str(value) for value in row["candidate_aliases"]) or "-",
+                str(row["blocker"]),
+            ]
+            for row in source_identity_rows
+        ],
+    )
     return "\n".join(
         [
             "# QRE Controlled Discovery Grid Operator Summary",
@@ -554,7 +635,10 @@ def render_operator_summary(summary: dict[str, Any]) -> str:
             "## 6. Top OOS follow-up diagnostics",
             follow_up_table,
             "",
-            "## 7. Next action",
+            "## 7. Source identity diagnostics",
+            source_identity_table,
+            "",
+            "## 8. Next action",
             f"- NEXT_ACTION: {summary['next_action']}",
         ]
     )

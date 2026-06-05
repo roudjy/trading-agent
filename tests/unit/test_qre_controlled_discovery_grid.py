@@ -56,6 +56,12 @@ def test_controlled_discovery_grid_rows_expose_required_metadata() -> None:
     assert row["asset_class"] in {"equity", "etf"}
     assert row["hypothesis_id"]
     assert row["timeframe"] in {"1d", "4h"}
+    assert "primary_data_provider_symbol" in row
+    assert "provider_symbol_aliases" in row
+    assert "provider_symbol_status" in row
+    assert "source_identity_status" in row
+    assert "source_identity_notes" in row
+    assert "source_identity_blocker_class" in row
 
 
 def test_controlled_discovery_grid_does_not_mutate_frozen_contracts() -> None:

@@ -50,6 +50,12 @@ class GridCombination:
     canonical_instrument_id: str
     region: str
     asset_class: str
+    primary_data_provider_symbol: str | None
+    provider_symbol_aliases: tuple[str, ...]
+    provider_symbol_status: str
+    source_identity_status: str
+    source_identity_notes: str
+    source_identity_blocker_class: str
     behavior_preset_id: str
     hypothesis_id: str
     timeframe: str
@@ -73,6 +79,12 @@ class GridCombination:
             "canonical_instrument_id": self.canonical_instrument_id,
             "region": self.region,
             "asset_class": self.asset_class,
+            "primary_data_provider_symbol": self.primary_data_provider_symbol,
+            "provider_symbol_aliases": list(self.provider_symbol_aliases),
+            "provider_symbol_status": self.provider_symbol_status,
+            "source_identity_status": self.source_identity_status,
+            "source_identity_notes": self.source_identity_notes,
+            "source_identity_blocker_class": self.source_identity_blocker_class,
             "behavior_preset_id": self.behavior_preset_id,
             "hypothesis_id": self.hypothesis_id,
             "timeframe": self.timeframe,
@@ -169,8 +181,12 @@ def list_enabled_presets() -> list[dict[str, Any]]:
 
 def build_controlled_discovery_grid() -> list[dict[str, Any]]:
     combinations: list[dict[str, Any]] = []
+    source_identity_by_symbol = {
+        str(row["instrument_symbol"]): row for row in catalog.source_identity_diagnostics()
+    }
     sequence_number = 1
     for asset_payload in list_enabled_assets():
+        source_identity = source_identity_by_symbol.get(str(asset_payload["symbol"]), {})
         for preset_payload in list_enabled_presets():
             status, warnings = _combination_status(asset_payload, preset_payload)
             combination = GridCombination(
@@ -185,6 +201,17 @@ def build_controlled_discovery_grid() -> list[dict[str, Any]]:
                 canonical_instrument_id=str(asset_payload["canonical_instrument_id"]),
                 region=str(asset_payload["region"]),
                 asset_class=str(asset_payload["asset_class"]),
+                primary_data_provider_symbol=asset_payload.get("primary_data_provider_symbol"),
+                provider_symbol_aliases=tuple(
+                    str(value) for value in (asset_payload.get("provider_symbol_aliases") or [])
+                ),
+                provider_symbol_status=str(asset_payload.get("provider_symbol_status") or "unknown"),
+                source_identity_status=str(asset_payload.get("source_identity_status") or "unknown"),
+                source_identity_notes=str(asset_payload.get("source_identity_notes") or ""),
+                source_identity_blocker_class=str(
+                    source_identity.get("source_identity_blocker_class")
+                    or "source_identity_missing_provider_symbol"
+                ),
                 behavior_preset_id=str(preset_payload["preset_id"]),
                 hypothesis_id=str(preset_payload["hypothesis_id"]),
                 timeframe=_timeframe_for_preset(preset_payload),

@@ -264,5 +264,40 @@ def test_operator_summary_includes_oos_blocker_explanation_section() -> None:
 
     assert "## 5. Sufficient OOS evidence blocker explanation" in markdown
     assert "## 6. Top OOS follow-up diagnostics" in markdown
+    assert "## 7. Source identity diagnostics" in markdown
     assert "| Sequence | Instrument | Preset | OOS trades | HD trades | Trades total | Promotion | Primary blocker | Criteria failures | Metric consistency | Follow-up |" in markdown
     assert "| 13 | AMD | trend_continuation_daily_v1 | 13.0 | 0.0 | 13.0 | false | oos_evidence_no_promotion_due_to_criteria | criteria_consistentie_failed, criteria_win_rate_failed | consistent | review_criteria_failures |" in markdown
+
+
+def test_provider_lookup_failures_are_classified_as_source_identity_blockers() -> None:
+    summary = analysis.build_summary(
+        run_dir=Path("research/controlled_discovery_grid_runs/run-008"),
+        results=[
+            {
+                "sequence_number": 14,
+                "status": "completed",
+                "blocker_class": "missing_data",
+                "outcome_class": "unknown",
+                "near_pass": False,
+                "promotion_candidate": False,
+                "safe_to_promote": False,
+                "region": "NL/EU",
+                "instrument_symbol": "ADYEN",
+                "behavior_preset_id": "trend_continuation_daily_v1",
+                "primary_data_provider_symbol": None,
+                "provider_symbol_aliases": ["ADYEN.AS"],
+                "provider_symbol_status": "candidate_alias_requires_verification",
+                "source_identity_status": "candidate_alias_only",
+                "source_identity_notes": "Provider suffix likely required.",
+            }
+        ],
+    )
+
+    assert summary["counts"]["unknown"] == 0
+    assert summary["by_outcome_class"] == [
+        {"value": "source_identity_provider_lookup_failed", "count": 1}
+    ]
+    source_identity_row = summary["source_identity_diagnostics"][0]
+    assert source_identity_row["provider_symbol"] is None
+    assert source_identity_row["candidate_aliases"] == ["ADYEN.AS"]
+    assert source_identity_row["blocker"] == "source_identity_provider_lookup_failed"
