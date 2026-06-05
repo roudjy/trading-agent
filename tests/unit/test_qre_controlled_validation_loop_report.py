@@ -176,6 +176,16 @@ def test_loop_report_connected_runner_reaches_learning_ready(monkeypatch, tmp_pa
         "_load_controlled_eval_module",
         lambda: FakeControlledEval,
     )
+    monkeypatch.setattr(
+        execution,
+        "_campaign_invariant_preflight",
+        lambda: {
+            "status": "passed",
+            "completed_campaign_count": 0,
+            "campaign_completed_ledger_event_count": 0,
+            "missing_completed_ledger_event_ids": [],
+        },
+    )
     monkeypatch.setattr(execution, "ARTIFACT_DIR", tmp_path)
     monkeypatch.setattr(
         execution,
