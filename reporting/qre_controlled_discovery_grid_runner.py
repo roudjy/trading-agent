@@ -47,6 +47,19 @@ def _run_dir(*, output_dir: Path, run_id: str) -> Path:
     return output_dir / run_id
 
 
+def _resolved_run_location(
+    *,
+    output_dir: Path,
+    run_id: str | None,
+) -> tuple[str, Path]:
+    if run_id:
+        return run_id, _run_dir(output_dir=output_dir, run_id=run_id)
+    if output_dir == OUTPUT_DIR_DEFAULT:
+        resolved_run_id = _utcnow_stamp()
+        return resolved_run_id, _run_dir(output_dir=output_dir, run_id=resolved_run_id)
+    return output_dir.name, output_dir
+
+
 def _result_row(
     combination: dict[str, Any],
     *,
@@ -92,6 +105,10 @@ def _load_existing_sequence_numbers(results_path: Path) -> set[int]:
     return sequence_numbers
 
 
+def _execution_module():
+    return importlib.import_module("research.controlled_discovery_grid_execution")
+
+
 def plan_snapshot() -> dict[str, Any]:
     payload = _plan_payload()
     return {
@@ -118,8 +135,7 @@ def execute_range(
 ) -> dict[str, Any]:
     payload = _plan_payload()
     selected = _selected_combinations(start=start, end=end)
-    resolved_run_id = run_id or _utcnow_stamp()
-    run_dir = _run_dir(output_dir=output_dir, run_id=resolved_run_id)
+    resolved_run_id, run_dir = _resolved_run_location(output_dir=output_dir, run_id=run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     plan_path = run_dir / PLAN_FILENAME
@@ -132,11 +148,17 @@ def execute_range(
         )
 
     existing_sequence_numbers = _load_existing_sequence_numbers(results_path) if resume else set()
-    rows_to_write = [
-        _result_row(item, run_id=resolved_run_id, run_dir=run_dir)
-        for item in selected
-        if int(item["sequence_number"]) not in existing_sequence_numbers
-    ]
+    execution = _execution_module()
+    rows_to_write = []
+    for item in selected:
+        if int(item["sequence_number"]) in existing_sequence_numbers:
+            continue
+        row = execution.execute_grid_row(
+            item,
+            output_dir=run_dir / f"combination_{int(item['sequence_number']):03d}",
+        )
+        row["run_id"] = resolved_run_id
+        rows_to_write.append(row)
     if rows_to_write:
         with results_path.open("a", encoding="utf-8") as handle:
             for row in rows_to_write:
@@ -151,10 +173,8 @@ def execute_range(
         "selected_count": len(selected),
         "written_count": len(rows_to_write),
         "resume": resume,
-        "execution_integration_deferred": True,
-        "deferred_reason": (
-            "RUNNER_EXECUTION_INTEGRATION_DEFERRED: planner and runbook are ready, "
-            "execution integration needs next PR"
+        "execution_integration_deferred": (
+            int(summary["counts"]["execution_integration_deferred"]) > 0
         ),
         "artifacts": {
             "grid_plan": plan_path.as_posix(),
@@ -174,6 +194,7 @@ def main(argv: list[str] | None = None) -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--plan-only", action="store_true")
     mode.add_argument("--run", action="store_true")
+    mode.add_argument("--summarize", action="store_true")
     parser.add_argument("--start", type=int)
     parser.add_argument("--end", type=int)
     parser.add_argument("--output-dir", default=str(OUTPUT_DIR_DEFAULT))
@@ -183,6 +204,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.plan_only:
         print(json.dumps(plan_snapshot(), indent=2, ensure_ascii=False))
+        return 0
+    if args.summarize:
+        summary = analysis.summarize_run(
+            input_dir=Path(args.output_dir),
+            write_summary=True,
+        )
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
         return 0
 
     if args.start is None or args.end is None:
