@@ -11,6 +11,9 @@ from typing import Any, Final
 from reporting import qre_controlled_validation_execution as execution
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+SCREENING_EVIDENCE_LATEST: Final[Path] = (
+    REPO_ROOT / "research" / "screening_evidence_latest.v1.json"
+)
 
 SCHEMA_VERSION: Final[int] = 1
 REPORT_KIND: Final[str] = "qre_controlled_validation_result_analysis"
@@ -177,6 +180,135 @@ def _controlled_eval_report_summary(
     }
 
 
+def _screening_evidence_candidates(
+    screening_evidence_payload: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    payload = screening_evidence_payload
+    if payload is None:
+        payload = _read_json(SCREENING_EVIDENCE_LATEST)
+    candidates = (payload or {}).get("candidates")
+    if not isinstance(candidates, list):
+        return []
+    return [row for row in candidates if isinstance(row, dict)]
+
+
+def _top_counts(values: list[str], *, limit: int = 5) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    for value in values:
+        key = str(value or "").strip()
+        if not key:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return [{"reason": reason, "count": count} for reason, count in ordered[:limit]]
+
+
+def _candidate_operator_row(row: dict[str, Any]) -> dict[str, Any]:
+    validation = row.get("validation_evidence")
+    if not isinstance(validation, dict):
+        validation = {}
+    promotion_guard = row.get("promotion_guard")
+    if not isinstance(promotion_guard, dict):
+        promotion_guard = {}
+    metrics = row.get("metrics")
+    if not isinstance(metrics, dict):
+        metrics = {}
+    failure_reasons = row.get("failure_reasons")
+    if not isinstance(failure_reasons, list):
+        failure_reasons = []
+    return {
+        "asset": str(row.get("asset") or ""),
+        "preset_name": row.get("preset_name"),
+        "strategy_name": row.get("strategy_name"),
+        "interval": row.get("interval"),
+        "stage_result": row.get("stage_result"),
+        "qre_validation_linkage_status": row.get("qre_validation_linkage_status"),
+        "validation_evidence_status": validation.get("status"),
+        "oos_trade_count": validation.get("oos_trade_count"),
+        "min_oos_trades": validation.get("min_oos_trades"),
+        "promotion_allowed": promotion_guard.get("promotion_allowed") is True,
+        "blocked_by": list(promotion_guard.get("blocked_by") or []),
+        "failure_reasons": list(failure_reasons),
+        "near_pass": bool((row.get("near_pass") or {}).get("is_near_pass")),
+        "metrics": {
+            "win_rate": metrics.get("win_rate"),
+            "trades_per_maand": metrics.get("trades_per_maand"),
+            "consistentie": metrics.get("consistentie"),
+            "deflated_sharpe": metrics.get("deflated_sharpe"),
+        },
+    }
+
+
+def _operator_summary(
+    *,
+    controlled_eval_summary: dict[str, Any],
+    execution_summary: dict[str, Any],
+    screening_evidence_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    candidates = _screening_evidence_candidates(screening_evidence_payload)
+    screening_summary = controlled_eval_summary.get("screening_evidence_summary")
+    if not isinstance(screening_summary, dict):
+        screening_summary = {}
+
+    linked_count = 0
+    sufficient_oos_count = 0
+    promotion_allowed_count = 0
+    near_pass_count = 0
+    blocked_reasons: list[str] = []
+    failure_reasons: list[str] = []
+    asset_rows: list[dict[str, Any]] = []
+
+    for row in sorted(candidates, key=lambda item: str(item.get("asset") or "")):
+        op_row = _candidate_operator_row(row)
+        asset_rows.append(op_row)
+        if op_row["qre_validation_linkage_status"] == "linked_catalog_active_discovery":
+            linked_count += 1
+        if op_row["validation_evidence_status"] == "sufficient_oos_evidence":
+            sufficient_oos_count += 1
+        if op_row["promotion_allowed"]:
+            promotion_allowed_count += 1
+        else:
+            blocked_reasons.extend(str(reason) for reason in op_row["blocked_by"])
+        if op_row["near_pass"]:
+            near_pass_count += 1
+        failure_reasons.extend(str(reason) for reason in op_row["failure_reasons"])
+
+    total_candidates = int(screening_summary.get("total_candidates") or len(candidates))
+    promotion_blocked_count = max(total_candidates - promotion_allowed_count, 0)
+    verdict_status = controlled_eval_summary.get("verdict_status")
+    next_recommendation = (
+        controlled_eval_summary.get("recommended_next_action")
+        or execution_summary.get("final_recommendation")
+    )
+    freshness = controlled_eval_summary.get("artifact_freshness")
+    if not isinstance(freshness, dict):
+        freshness = {}
+
+    return {
+        "total_candidates": total_candidates,
+        "linked_catalog_active_discovery_count": linked_count,
+        "sufficient_oos_evidence_count": sufficient_oos_count,
+        "promotion_allowed_count": promotion_allowed_count,
+        "promotion_blocked_count": promotion_blocked_count,
+        "near_pass_count": near_pass_count,
+        "top_promotion_blockers": _top_counts(blocked_reasons),
+        "top_failure_reasons": _top_counts(failure_reasons),
+        "selected_asset_explanations": asset_rows,
+        "campaign_verdict": verdict_status,
+        "next_recommendation": next_recommendation,
+        "safety_flags": {
+            "artifact_may_be_stale": freshness.get("artifact_may_be_stale") is True,
+            "controlled_validation_authorized": (
+                execution_summary.get("controlled_validation_authorized") is True
+            ),
+            "runner_adapter_status": execution_summary.get("runner_adapter_status"),
+            "mutates_paper_shadow_live_runtime": False,
+            "writes_development_work_queue": False,
+            "writes_research_action_queue": False,
+        },
+    }
+
+
 def _evidence_quality_bottleneck(
     *,
     controlled_eval_summary: dict[str, Any],
@@ -301,6 +433,7 @@ def collect_snapshot(
     execution_snapshot: dict[str, Any] | None = None,
     generated_at_utc: str | None = None,
     current_git_revision: str | None = None,
+    screening_evidence_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
     active_execution = execution_snapshot or execution.collect_snapshot(
@@ -331,6 +464,21 @@ def collect_snapshot(
     evidence_refs = []
     if controlled_eval_summary.get("path"):
         evidence_refs.append(str(controlled_eval_summary["path"]))
+    execution_summary = {
+        "report_kind": active_execution.get("report_kind"),
+        "execution_status": active_execution.get("execution_status"),
+        "controlled_validation_authorized": (
+            active_execution.get("controlled_validation_authorized") is True
+        ),
+        "runner_adapter_status": active_execution.get("runner_adapter_status"),
+        "executed_anything": active_execution.get("executed_anything") is True,
+        "final_recommendation": active_execution.get("final_recommendation"),
+    }
+    operator_summary = _operator_summary(
+        controlled_eval_summary=controlled_eval_summary,
+        execution_summary=execution_summary,
+        screening_evidence_payload=screening_evidence_payload,
+    )
 
     return {
         "report_kind": REPORT_KIND,
@@ -355,16 +503,7 @@ def collect_snapshot(
         "analysis_status": status,
         "final_recommendation": _final_recommendation(status),
         "counts": _counts(status),
-        "execution_summary": {
-            "report_kind": active_execution.get("report_kind"),
-            "execution_status": active_execution.get("execution_status"),
-            "controlled_validation_authorized": (
-                active_execution.get("controlled_validation_authorized") is True
-            ),
-            "runner_adapter_status": active_execution.get("runner_adapter_status"),
-            "executed_anything": active_execution.get("executed_anything") is True,
-            "final_recommendation": active_execution.get("final_recommendation"),
-        },
+        "execution_summary": execution_summary,
         "controlled_eval_report": controlled_eval_summary,
         "result_summary": {
             "completed_run_available": status == ANALYSIS_READY,
@@ -380,6 +519,7 @@ def collect_snapshot(
             "evidence_quality_bottleneck": evidence_quality_bottleneck,
             "evidence_refs": evidence_refs,
         },
+        "operator_summary": operator_summary,
         "next_required_step": (
             "connect controlled validation runner before result analysis"
             if status == ANALYSIS_BLOCKED_RUNNER_NOT_CONNECTED
