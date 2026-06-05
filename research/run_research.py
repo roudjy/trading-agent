@@ -2053,6 +2053,7 @@ def run_research(
     retry_failed_batches: bool = False,
     continue_latest: bool = False,
     preset: str | None = None,
+    preset_override: ResearchPreset | None = None,
     col_campaign_id: str | None = None,
 ):
     if continue_latest and resume:
@@ -2062,7 +2063,16 @@ def run_research(
     global _COL_CAMPAIGN_ID
     _COL_CAMPAIGN_ID = col_campaign_id
     preset_obj: ResearchPreset | None = None
-    if preset is not None:
+    if preset is not None and preset_override is not None:
+        raise RuntimeError("preset and preset_override are mutually exclusive")
+    if preset_override is not None:
+        preset_obj = preset_override
+        if not preset_obj.enabled:
+            raise RuntimeError(
+                f"preset_override {preset_obj.name!r} is disabled "
+                f"(status={preset_obj.status!r})"
+            )
+    elif preset is not None:
         preset_obj = get_preset(preset)
         if not preset_obj.enabled:
             raise RuntimeError(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from research import controlled_discovery_grid as grid
 from research import controlled_discovery_grid_execution as execution
 
@@ -124,3 +126,112 @@ def test_mapping_is_deterministic_for_same_row() -> None:
     assert first.validation_campaign_id == second.validation_campaign_id
     assert first.run_label == second.run_label
     assert first.output_subdir == second.output_subdir
+
+
+def test_execute_grid_row_returns_skipped_result_without_crash(tmp_path) -> None:
+    row = _row(
+        instrument_symbol="QQQ",
+        region="ETFs/context",
+        asset_class="etf",
+        behavior_preset_id="trend_pullback_continuation_daily_v1",
+        hypothesis_id="trend_pullback_behavior_v1",
+        timeframe="1d",
+    )
+
+    result = execution.execute_grid_row(row, output_dir=tmp_path / "combination_001")
+
+    assert result["status"] == "skipped"
+    assert result["blocker_class"] == "preset_asset_class_constraint_mismatch"
+    assert result["result_path"]
+    payload = json.loads((tmp_path / "combination_001" / "execution_result.v1.json").read_text(encoding="utf-8"))
+    assert payload["observation"]["status"] == "skipped"
+
+
+def test_execute_grid_row_marks_completed_when_runner_and_artifacts_succeed(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    row = _row(
+        instrument_symbol="AAPL",
+        region="US",
+        asset_class="equity",
+        behavior_preset_id="trend_continuation_daily_v1",
+        hypothesis_id="trend_continuation_behavior_v1",
+        timeframe="1d",
+    )
+
+    def _fake_runner(mapping: execution.GridExecutionMapping) -> None:
+        assert mapping.preset_override is not None
+
+    monkeypatch.setattr(
+        execution,
+        "_latest_artifact_snapshot",
+        lambda: {
+            "run_manifest": {"run_id": "run-001"},
+            "run_meta": {"preset_name": "qre_grid_exec"},
+            "screening_evidence": {
+                "candidates": [
+                    {
+                        "asset": "AAPL",
+                        "stage_result": "near_pass",
+                        "near_pass": {"is_near_pass": True},
+                        "promotion_guard": {"promotion_allowed": False, "blocked_by": []},
+                        "metrics": {"totaal_trades": 12},
+                        "validation_evidence": {"oos_trade_count": 5, "status": "insufficient_oos_trades"},
+                        "criteria": {"failed": [], "passed": ["sufficient_trades"]},
+                        "failure_reasons": [],
+                    }
+                ]
+            },
+            "run_candidates": {"candidates": []},
+            "run_campaign": {"status": "completed"},
+        },
+    )
+
+    result = execution.execute_grid_row(
+        row,
+        output_dir=tmp_path / "combination_002",
+        execution_runner=_fake_runner,
+    )
+
+    assert result["status"] == "completed"
+    assert result["outcome_class"] == "near_pass"
+    assert result["near_pass"] is True
+    assert result["trades_total"] == 12.0
+    assert result["oos_trades"] == 5
+
+
+def test_execute_grid_row_marks_failed_when_runner_raises(tmp_path, monkeypatch) -> None:
+    row = _row(
+        instrument_symbol="AAPL",
+        region="US",
+        asset_class="equity",
+        behavior_preset_id="trend_continuation_daily_v1",
+        hypothesis_id="trend_continuation_behavior_v1",
+        timeframe="1d",
+    )
+
+    def _boom(_mapping: execution.GridExecutionMapping) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        execution,
+        "_latest_artifact_snapshot",
+        lambda: {
+            "run_manifest": {"run_id": "run-001"},
+            "run_meta": {"preset_name": "qre_grid_exec"},
+            "screening_evidence": {"candidates": []},
+            "run_candidates": {"candidates": []},
+            "run_campaign": {"status": "failed"},
+        },
+    )
+
+    result = execution.execute_grid_row(
+        row,
+        output_dir=tmp_path / "combination_003",
+        execution_runner=_boom,
+    )
+
+    assert result["status"] == "failed"
+    assert result["blocker_class"] == "controlled_validation_failed"
+    assert result["error_class"] == "RuntimeError"

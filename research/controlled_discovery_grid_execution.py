@@ -9,7 +9,11 @@ do not raise as normal control flow; they return a deterministic
 
 from __future__ import annotations
 
+import datetime as dt
+import importlib
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Final
 
 from research.presets import ResearchPreset
@@ -32,6 +36,10 @@ BLOCKER_MISSING_METADATA: Final[str] = "missing_validation_input"
 BLOCKER_SAFETY_VIOLATION: Final[str] = "blocked_by_safety"
 BLOCKER_REGION_MISMATCH: Final[str] = "preset_region_constraint_mismatch"
 BLOCKER_ASSET_CLASS_MISMATCH: Final[str] = "preset_asset_class_constraint_mismatch"
+BLOCKER_CONTROLLED_VALIDATION_FAILED: Final[str] = "controlled_validation_failed"
+BLOCKER_UNKNOWN_EXECUTION_ERROR: Final[str] = "unknown_execution_error"
+
+RESULT_REPORT_KIND: Final[str] = "qre_controlled_discovery_grid_execution_result"
 
 
 @dataclass(frozen=True)
@@ -76,6 +84,27 @@ class GridExecutionMapping:
             "safety_flags": dict(self.safety_flags),
             "mapping_notes": list(self.mapping_notes),
         }
+
+
+@dataclass(frozen=True)
+class GridExecutionObservation:
+    status: str
+    outcome_class: str
+    blocker_class: str | None
+    error_class: str | None
+    trades_total: float | None
+    oos_trades: int | None
+    hd_trades: float | None
+    criteria_status: str | None
+    promotion_candidate: bool
+    near_pass: bool
+    safe_to_promote: bool
+    artifact_paths: dict[str, str]
+    candidate_count: int
+    started_at_utc: str
+    finished_at_utc: str
+    duration_seconds: float
+    execution_notes: tuple[str, ...]
 
 
 _CATALOG_PRESET_BY_ID: Final[dict[str, dict[str, Any]]] = {
@@ -386,3 +415,369 @@ def map_grid_row_to_execution(row: dict[str, Any]) -> GridExecutionMapping:
         mapping_notes=tuple(notes),
         preset_override=preset_override,
     )
+
+
+def _utcnow() -> dt.datetime:
+    return dt.datetime.now(dt.UTC)
+
+
+def _iso_utc(value: dt.datetime) -> str:
+    return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _latest_artifact_snapshot() -> dict[str, dict[str, Any] | None]:
+    return {
+        "run_manifest": _read_json(Path("research/run_manifest_latest.v1.json")),
+        "run_meta": _read_json(Path("research/run_meta_latest.v1.json")),
+        "screening_evidence": _read_json(Path("research/screening_evidence_latest.v1.json")),
+        "run_candidates": _read_json(Path("research/run_candidates_latest.v1.json")),
+        "run_campaign": _read_json(Path("research/run_campaign_latest.v1.json")),
+    }
+
+
+def _matching_screening_rows(
+    screening_payload: dict[str, Any] | None,
+    *,
+    asset_symbol: str,
+) -> list[dict[str, Any]]:
+    candidates = screening_payload.get("candidates") if isinstance(screening_payload, dict) else []
+    if not isinstance(candidates, list):
+        return []
+    return [
+        row
+        for row in candidates
+        if isinstance(row, dict) and str(row.get("asset") or "") == asset_symbol
+    ]
+
+
+def _stage_rank(row: dict[str, Any]) -> tuple[int, int, float]:
+    stage_result = str(row.get("stage_result") or "")
+    near_pass = bool((row.get("near_pass") or {}).get("is_near_pass"))
+    validation = row.get("validation_evidence") or {}
+    metrics = row.get("metrics") or {}
+    rank = {
+        "promotion_candidate": 6,
+        "needs_investigation": 5,
+        "near_pass": 4,
+        "screening_pass": 3,
+        "screening_reject": 2,
+        "unknown": 1,
+    }.get(stage_result, 0)
+    oos = int(validation.get("oos_trade_count") or 0)
+    trades = float(metrics.get("totaal_trades", 0.0) or 0.0)
+    return rank, 1 if near_pass else 0, oos + trades
+
+
+def _best_screening_row(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not rows:
+        return None
+    return max(rows, key=_stage_rank)
+
+
+def _criteria_status(best_row: dict[str, Any] | None) -> str | None:
+    if not best_row:
+        return None
+    blocked = list((best_row.get("promotion_guard") or {}).get("blocked_by") or [])
+    if blocked:
+        return ",".join(sorted(str(item) for item in blocked))
+    if (best_row.get("promotion_guard") or {}).get("promotion_allowed") is True:
+        return "promotion_allowed"
+    failed = list((best_row.get("criteria") or {}).get("failed") or [])
+    if failed:
+        return ",".join(sorted(str(item) for item in failed))
+    passed = list((best_row.get("criteria") or {}).get("passed") or [])
+    if passed:
+        return "criteria_passed_without_promotion"
+    return None
+
+
+def _derive_blocker(best_row: dict[str, Any] | None) -> str | None:
+    if not best_row:
+        return "missing_data"
+    failure_reasons = [str(item) for item in list(best_row.get("failure_reasons") or [])]
+    if "insufficient_trades" in failure_reasons:
+        return "insufficient_trades"
+    validation = best_row.get("validation_evidence") or {}
+    validation_status = str(validation.get("status") or "")
+    if validation_status == "no_oos_trades":
+        return "no_oos_evidence"
+    if validation_status == "insufficient_oos_trades":
+        return "insufficient_trades"
+    blocked = list((best_row.get("promotion_guard") or {}).get("blocked_by") or [])
+    if blocked:
+        return str(sorted(str(item) for item in blocked)[0])
+    return None
+
+
+def _derive_outcome(best_row: dict[str, Any] | None) -> str:
+    if not best_row:
+        return "unknown"
+    if (best_row.get("promotion_guard") or {}).get("promotion_allowed") is True:
+        return "promotion_candidate"
+    if bool((best_row.get("near_pass") or {}).get("is_near_pass")):
+        return "near_pass"
+    validation = best_row.get("validation_evidence") or {}
+    status = str(validation.get("status") or "")
+    if status == "sufficient_oos_evidence":
+        return "sufficient_oos_evidence"
+    if status == "no_oos_trades":
+        return "screening_pass_no_oos"
+    return str(best_row.get("stage_result") or "unknown")
+
+
+def _run_existing_research_path(mapping: GridExecutionMapping) -> None:
+    run_research_module = importlib.import_module("research.run_research")
+    run_research_module.run_research(preset_override=mapping.preset_override)
+
+
+def _write_execution_summary_sidecar(
+    *,
+    row: dict[str, Any],
+    mapping: GridExecutionMapping,
+    observation: GridExecutionObservation,
+    output_dir: Path,
+    artifacts: dict[str, dict[str, Any] | None],
+    matching_rows: list[dict[str, Any]],
+) -> dict[str, str]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = output_dir / "execution_result.v1.json"
+    payload = {
+        "report_kind": RESULT_REPORT_KIND,
+        "grid_row": {
+            "sequence_number": row["sequence_number"],
+            "instrument_symbol": row["instrument_symbol"],
+            "behavior_preset_id": row["behavior_preset_id"],
+            "hypothesis_id": row["hypothesis_id"],
+            "timeframe": row["timeframe"],
+            "region": row["region"],
+            "asset_class": row["asset_class"],
+        },
+        "mapping": mapping.to_payload(),
+        "observation": {
+            "status": observation.status,
+            "outcome_class": observation.outcome_class,
+            "blocker_class": observation.blocker_class,
+            "error_class": observation.error_class,
+            "trades_total": observation.trades_total,
+            "oos_trades": observation.oos_trades,
+            "hd_trades": observation.hd_trades,
+            "criteria_status": observation.criteria_status,
+            "promotion_candidate": observation.promotion_candidate,
+            "near_pass": observation.near_pass,
+            "safe_to_promote": observation.safe_to_promote,
+            "candidate_count": observation.candidate_count,
+            "started_at_utc": observation.started_at_utc,
+            "finished_at_utc": observation.finished_at_utc,
+            "duration_seconds": observation.duration_seconds,
+            "execution_notes": list(observation.execution_notes),
+        },
+        "artifact_snapshot": {
+            "run_manifest": artifacts["run_manifest"],
+            "run_meta": artifacts["run_meta"],
+            "run_campaign": artifacts["run_campaign"],
+            "matching_screening_rows": matching_rows,
+        },
+    }
+    summary_path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "execution_result": summary_path.as_posix(),
+        "run_manifest_latest": "research/run_manifest_latest.v1.json",
+        "run_meta_latest": "research/run_meta_latest.v1.json",
+        "screening_evidence_latest": "research/screening_evidence_latest.v1.json",
+        "run_candidates_latest": "research/run_candidates_latest.v1.json",
+        "run_campaign_latest": "research/run_campaign_latest.v1.json",
+    }
+
+
+def _skipped_observation(
+    *,
+    blocker_class: str,
+    started_at: dt.datetime,
+    finished_at: dt.datetime,
+    notes: tuple[str, ...],
+) -> GridExecutionObservation:
+    return GridExecutionObservation(
+        status="skipped",
+        outcome_class="skipped",
+        blocker_class=blocker_class,
+        error_class=None,
+        trades_total=None,
+        oos_trades=None,
+        hd_trades=None,
+        criteria_status=None,
+        promotion_candidate=False,
+        near_pass=False,
+        safe_to_promote=False,
+        artifact_paths={},
+        candidate_count=0,
+        started_at_utc=_iso_utc(started_at),
+        finished_at_utc=_iso_utc(finished_at),
+        duration_seconds=max((finished_at - started_at).total_seconds(), 0.0),
+        execution_notes=notes,
+    )
+
+
+def execute_grid_row(
+    row: dict[str, Any],
+    *,
+    output_dir: Path,
+    execution_runner: Any | None = None,
+) -> dict[str, Any]:
+    started_at = _utcnow()
+    mapping = map_grid_row_to_execution(row)
+    if mapping.status != "ready":
+        finished_at = _utcnow()
+        observation = _skipped_observation(
+            blocker_class=str(mapping.blocker_class),
+            started_at=started_at,
+            finished_at=finished_at,
+            notes=mapping.mapping_notes,
+        )
+        artifact_paths = _write_execution_summary_sidecar(
+            row=row,
+            mapping=mapping,
+            observation=observation,
+            output_dir=output_dir,
+            artifacts=_latest_artifact_snapshot(),
+            matching_rows=[],
+        )
+        return {
+            **row,
+            "status": observation.status,
+            "outcome_class": observation.outcome_class,
+            "blocker_class": observation.blocker_class,
+            "error_class": observation.error_class,
+            "trades_total": observation.trades_total,
+            "oos_trades": observation.oos_trades,
+            "hd_trades": observation.hd_trades,
+            "criteria_status": observation.criteria_status,
+            "promotion_candidate": observation.promotion_candidate,
+            "near_pass": observation.near_pass,
+            "safe_to_promote": observation.safe_to_promote,
+            "artifact_paths": artifact_paths,
+            "result_path": artifact_paths["execution_result"],
+            "validation_campaign_id": mapping.validation_campaign_id,
+            "strategy_or_preset_reference": mapping.strategy_or_preset_reference,
+            "run_label": mapping.run_label,
+            "output_subdir": mapping.output_subdir,
+            "started_at_utc": observation.started_at_utc,
+            "finished_at_utc": observation.finished_at_utc,
+            "duration_seconds": observation.duration_seconds,
+            "execution_notes": list(observation.execution_notes),
+        }
+
+    runner = execution_runner or _run_existing_research_path
+    try:
+        runner(mapping)
+        status = "completed"
+        error_class = None
+        blocker_class = None
+        execution_notes = ("existing_run_research_path_executed",)
+    except Exception as exc:  # pragma: no cover - exercised via tests with stubs
+        degenerate = type(exc).__name__ == "DegenerateResearchRunError"
+        status = "completed" if degenerate else "failed"
+        error_class = type(exc).__name__
+        blocker_class = (
+            "degenerate_no_survivors" if degenerate else BLOCKER_CONTROLLED_VALIDATION_FAILED
+        )
+        execution_notes = (
+            "existing_run_research_path_executed",
+            "exception_raised_during_execution",
+        )
+
+    finished_at = _utcnow()
+    artifacts = _latest_artifact_snapshot()
+    matching_rows = _matching_screening_rows(
+        artifacts["screening_evidence"],
+        asset_symbol=str(row["instrument_symbol"]),
+    )
+    best_row = _best_screening_row(matching_rows)
+    trades_total = (
+        float((best_row.get("metrics") or {}).get("totaal_trades", 0.0) or 0.0)
+        if best_row is not None
+        else None
+    )
+    oos_trades = (
+        int((best_row.get("validation_evidence") or {}).get("oos_trade_count") or 0)
+        if best_row is not None
+        else None
+    )
+    hd_trades = (
+        max(trades_total - float(oos_trades or 0), 0.0)
+        if trades_total is not None and oos_trades is not None
+        else None
+    )
+    promotion_candidate = bool(
+        best_row is not None
+        and (
+            (best_row.get("promotion_guard") or {}).get("promotion_allowed") is True
+            or str(best_row.get("stage_result") or "") == "promotion_candidate"
+        )
+    )
+    near_pass = bool(
+        best_row is not None and bool((best_row.get("near_pass") or {}).get("is_near_pass"))
+    )
+    observation = GridExecutionObservation(
+        status=status,
+        outcome_class=_derive_outcome(best_row),
+        blocker_class=blocker_class or _derive_blocker(best_row),
+        error_class=error_class if status == "failed" else None,
+        trades_total=trades_total,
+        oos_trades=oos_trades,
+        hd_trades=hd_trades,
+        criteria_status=_criteria_status(best_row),
+        promotion_candidate=promotion_candidate,
+        near_pass=near_pass,
+        safe_to_promote=promotion_candidate,
+        artifact_paths={},
+        candidate_count=len(matching_rows),
+        started_at_utc=_iso_utc(started_at),
+        finished_at_utc=_iso_utc(finished_at),
+        duration_seconds=max((finished_at - started_at).total_seconds(), 0.0),
+        execution_notes=execution_notes,
+    )
+    artifact_paths = _write_execution_summary_sidecar(
+        row=row,
+        mapping=mapping,
+        observation=observation,
+        output_dir=output_dir,
+        artifacts=artifacts,
+        matching_rows=matching_rows,
+    )
+    return {
+        **row,
+        "status": observation.status,
+        "outcome_class": observation.outcome_class,
+        "blocker_class": observation.blocker_class,
+        "error_class": observation.error_class,
+        "trades_total": observation.trades_total,
+        "oos_trades": observation.oos_trades,
+        "hd_trades": observation.hd_trades,
+        "criteria_status": observation.criteria_status,
+        "promotion_candidate": observation.promotion_candidate,
+        "near_pass": observation.near_pass,
+        "safe_to_promote": observation.safe_to_promote,
+        "artifact_paths": artifact_paths,
+        "result_path": artifact_paths["execution_result"],
+        "validation_campaign_id": mapping.validation_campaign_id,
+        "strategy_or_preset_reference": mapping.strategy_or_preset_reference,
+        "run_label": mapping.run_label,
+        "output_subdir": mapping.output_subdir,
+        "started_at_utc": observation.started_at_utc,
+        "finished_at_utc": observation.finished_at_utc,
+        "duration_seconds": observation.duration_seconds,
+        "execution_notes": list(observation.execution_notes),
+    }
