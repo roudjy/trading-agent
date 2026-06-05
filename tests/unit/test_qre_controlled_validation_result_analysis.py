@@ -252,6 +252,194 @@ def test_analysis_reads_completed_controlled_eval_report(tmp_path) -> None:
     assert snapshot["result_summary"]["evidence_refs"] == [report_path.as_posix()]
 
 
+def test_operator_summary_surfaces_hd_blockers_and_candidate_rollup(tmp_path) -> None:
+    report_path = tmp_path / "controlled_eval_latest.v1.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "verdict": {
+                    "status": "useful_observation",
+                    "reason_codes": [],
+                },
+                "campaigns_completed": 1,
+                "campaign_level_evidence_valid": True,
+                "recommended_next_action": "inspect_results",
+                "git_revision": "abc123",
+                "screening_evidence_summary": {
+                    "present": True,
+                    "total_candidates": 3,
+                    "passed_screening": 2,
+                    "rejected_screening": 1,
+                    "promotion_grade_candidates": 0,
+                    "sufficient_oos_evidence_candidates": 1,
+                    "qre_linkage_blocked_candidates": 0,
+                    "sufficient_oos_but_unlinked_candidates": 0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    execution_snapshot = {
+        "report_kind": "qre_controlled_validation_execution",
+        "selection_profile_name": "equities_exploratory_v1",
+        "execution_status": "execution_completed",
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "executed_anything": True,
+        "final_recommendation": "controlled_validation_execution_completed",
+        "controlled_eval_result": {
+            "returncode": 0,
+            "report_paths": {"report_json": report_path.as_posix()},
+        },
+    }
+    screening_evidence_payload = {
+        "candidates": [
+            {
+                "asset": "HD",
+                "preset_name": "trend_pullback_equities_4h",
+                "strategy_name": "trend_pullback_v1",
+                "interval": "4h",
+                "stage_result": "screening_pass",
+                "qre_validation_linkage_status": "linked_catalog_active_discovery",
+                "validation_evidence": {
+                    "status": "sufficient_oos_evidence",
+                    "oos_trade_count": 14,
+                    "min_oos_trades": 10,
+                },
+                "promotion_guard": {
+                    "promotion_allowed": False,
+                    "blocked_by": [
+                        "criteria_consistentie_failed",
+                        "criteria_trades_per_maand_failed",
+                        "criteria_win_rate_failed",
+                    ],
+                },
+                "failure_reasons": [],
+                "near_pass": {"is_near_pass": False},
+                "metrics": {
+                    "win_rate": 0.5,
+                    "trades_per_maand": 1.1,
+                    "consistentie": 0.333,
+                    "deflated_sharpe": 0.534,
+                },
+            },
+            {
+                "asset": "NVDA",
+                "preset_name": "trend_pullback_equities_4h",
+                "strategy_name": "trend_pullback_v1",
+                "interval": "4h",
+                "stage_result": "screening_pass",
+                "qre_validation_linkage_status": "linked_catalog_active_discovery",
+                "validation_evidence": {
+                    "status": "no_oos_trades",
+                    "oos_trade_count": 0,
+                    "min_oos_trades": 10,
+                },
+                "promotion_guard": {
+                    "promotion_allowed": False,
+                    "blocked_by": ["criteria_deflated_sharpe_failed"],
+                },
+                "failure_reasons": [],
+                "near_pass": {"is_near_pass": True},
+                "metrics": {
+                    "win_rate": 0.52,
+                    "trades_per_maand": 1.8,
+                    "consistentie": 0.4,
+                    "deflated_sharpe": 0.1,
+                },
+            },
+            {
+                "asset": "AMD",
+                "preset_name": "trend_pullback_equities_4h",
+                "strategy_name": "trend_pullback_v1",
+                "interval": "4h",
+                "stage_result": "screening_reject",
+                "qre_validation_linkage_status": "linked_catalog_active_discovery",
+                "validation_evidence": {
+                    "status": "no_oos_trades",
+                    "oos_trade_count": 0,
+                    "min_oos_trades": 10,
+                },
+                "promotion_guard": {
+                    "promotion_allowed": False,
+                    "blocked_by": [
+                        "criteria_expectancy_above_zero_failed",
+                        "criteria_sufficient_trades_failed",
+                    ],
+                },
+                "failure_reasons": ["insufficient_trades"],
+                "near_pass": {"is_near_pass": False},
+                "metrics": {
+                    "win_rate": 0.0,
+                    "trades_per_maand": 0.0,
+                    "consistentie": None,
+                    "deflated_sharpe": None,
+                },
+            },
+        ]
+    }
+
+    snapshot = analysis.collect_snapshot(
+        execution_snapshot=execution_snapshot,
+        generated_at_utc="2026-06-05T23:00:00Z",
+        current_git_revision="abc123",
+        screening_evidence_payload=screening_evidence_payload,
+    )
+
+    summary = snapshot["operator_summary"]
+    assert summary["total_candidates"] == 3
+    assert summary["linked_catalog_active_discovery_count"] == 3
+    assert summary["sufficient_oos_evidence_count"] == 1
+    assert summary["promotion_allowed_count"] == 0
+    assert summary["promotion_blocked_count"] == 3
+    assert summary["near_pass_count"] == 1
+    assert summary["campaign_verdict"] == "useful_observation"
+    assert summary["next_recommendation"] == "inspect_results"
+    assert summary["safety_flags"] == {
+        "artifact_may_be_stale": False,
+        "controlled_validation_authorized": True,
+        "runner_adapter_status": "connected",
+        "mutates_paper_shadow_live_runtime": False,
+        "writes_development_work_queue": False,
+        "writes_research_action_queue": False,
+    }
+    assert summary["top_promotion_blockers"][0] == {
+        "reason": "criteria_consistentie_failed",
+        "count": 1,
+    }
+    assert summary["top_failure_reasons"] == [
+        {"reason": "insufficient_trades", "count": 1}
+    ]
+    hd_row = next(
+        row for row in summary["selected_asset_explanations"] if row["asset"] == "HD"
+    )
+    assert hd_row == {
+        "asset": "HD",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence_status": "sufficient_oos_evidence",
+        "oos_trade_count": 14,
+        "min_oos_trades": 10,
+        "promotion_allowed": False,
+        "blocked_by": [
+            "criteria_consistentie_failed",
+            "criteria_trades_per_maand_failed",
+            "criteria_win_rate_failed",
+        ],
+        "failure_reasons": [],
+        "near_pass": False,
+        "metrics": {
+            "win_rate": 0.5,
+            "trades_per_maand": 1.1,
+            "consistentie": 0.333,
+            "deflated_sharpe": 0.534,
+        },
+    }
+
+
 def test_analysis_marks_no_campaign_completed_as_failure(tmp_path) -> None:
     report_path = tmp_path / "controlled_eval_latest.v1.json"
     report_path.write_text(
