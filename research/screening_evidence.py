@@ -672,6 +672,26 @@ def _coerce_metrics(raw: dict[str, Any]) -> dict[str, float | None]:
     }
 
 
+def _criteria_check_blockers(raw: dict[str, Any]) -> list[str]:
+    """Return operator-facing blockers for failed metric criteria checks.
+
+    The screening evidence schema keeps ``promotion_guard`` as a two-key
+    block. Failed criteria are therefore surfaced as additional
+    ``blocked_by`` reasons instead of adding a new schema key.
+    """
+    criteria_checks = raw.get("criteria_checks")
+    if not isinstance(criteria_checks, dict):
+        return []
+
+    blockers: list[str] = []
+    for key in sorted(criteria_checks):
+        if criteria_checks.get(key) is False:
+            bounded_key = _bounded_str(key, max_len=80)
+            if bounded_key:
+                blockers.append(f"criteria_{bounded_key}_failed")
+    return blockers
+
+
 def _criteria_split(
     *,
     screening_phase: str | None,
@@ -729,7 +749,8 @@ def _build_candidate_record(
     else:
         candidate_id = str(raw_id)
 
-    metrics = _coerce_metrics(screening_record.get("diagnostic_metrics") or {})
+    diagnostic_metrics_raw = screening_record.get("diagnostic_metrics") or {}
+    metrics = _coerce_metrics(diagnostic_metrics_raw)
     failure_reasons: list[str] = []
     reason_code = screening_record.get("reason_code")
     if reason_code:
@@ -782,11 +803,18 @@ def _build_candidate_record(
 
     sampling = dict(screening_record.get("sampling") or {})
 
+    criteria_blockers = _criteria_check_blockers(diagnostic_metrics_raw)
+    promotion_guard_blockers = (
+        list(paper_blocking_reasons) if paper_blocking_reasons else []
+    )
+    promotion_guard_blockers.extend(criteria_blockers)
     promotion_guard = {
         "promotion_allowed": (
-            stage_result == STAGE_RESULT_DOWNSTREAM_PROMOTION and not paper_blocked
+            stage_result == STAGE_RESULT_DOWNSTREAM_PROMOTION
+            and not paper_blocked
+            and not criteria_blockers
         ),
-        "blocked_by": list(paper_blocking_reasons) if paper_blocking_reasons else [],
+        "blocked_by": promotion_guard_blockers,
     }
 
     hypothesis_id = (

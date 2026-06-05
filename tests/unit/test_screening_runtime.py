@@ -502,6 +502,7 @@ def test_execute_screening_candidate_keeps_promoted_sample_when_later_sample_ins
     assert outcome["diagnostic_metrics"]["win_rate"] == 0.6
     assert outcome["diagnostic_metrics"]["totaal_trades"] == 12.0
     assert outcome["diagnostic_metrics"]["trades_per_maand"] == 1.0
+    assert outcome["diagnostic_metrics"]["criteria_checks"]
     assert outcome["sample_diagnostics_summary"] == {
         "sample_count": 2,
         "promoted_sample_count": 1,

@@ -1995,6 +1995,10 @@ def execute_screening_candidate_samples(
         if legacy_decision["status"] == SCREENING_PROMOTED and promoted_metrics is not None
         else last_metrics
     )
+    selected_criteria_checks = build_exploratory_criteria_checks(
+        selected_metrics,
+        int(getattr(engine, "min_trades", 0) or 0),
+    )
     diagnostic_metrics = {
         "expectancy": float(selected_metrics.get("expectancy", 0.0)),
         "profit_factor": float(selected_metrics.get("profit_factor", 0.0)),
@@ -2002,6 +2006,7 @@ def execute_screening_candidate_samples(
         "max_drawdown": float(selected_metrics.get("max_drawdown", 0.0)),
         "totaal_trades": float(selected_metrics.get("totaal_trades", 0.0) or 0.0),
         "trades_per_maand": float(selected_metrics.get("trades_per_maand", 0.0) or 0.0),
+        "criteria_checks": dict(selected_criteria_checks or {}),
     }
     return {
         "legacy_decision": legacy_decision,
