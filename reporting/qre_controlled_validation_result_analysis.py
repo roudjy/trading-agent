@@ -257,10 +257,14 @@ def _operator_summary(
     blocked_reasons: list[str] = []
     failure_reasons: list[str] = []
     asset_rows: list[dict[str, Any]] = []
+    runtime_gate_failed_assets: list[str] = []
+    public_result_criteria_blocked_assets: list[str] = []
+    near_pass_assets: list[str] = []
 
     for row in sorted(candidates, key=lambda item: str(item.get("asset") or "")):
         op_row = _candidate_operator_row(row)
         asset_rows.append(op_row)
+        asset = op_row["asset"]
         if op_row["qre_validation_linkage_status"] == "linked_catalog_active_discovery":
             linked_count += 1
         if op_row["validation_evidence_status"] == "sufficient_oos_evidence":
@@ -269,8 +273,16 @@ def _operator_summary(
             promotion_allowed_count += 1
         else:
             blocked_reasons.extend(str(reason) for reason in op_row["blocked_by"])
+        if op_row["failure_reasons"]:
+            runtime_gate_failed_assets.append(asset)
+        if (
+            op_row["stage_result"] == "screening_pass"
+            and op_row["promotion_allowed"] is False
+        ):
+            public_result_criteria_blocked_assets.append(asset)
         if op_row["near_pass"]:
             near_pass_count += 1
+            near_pass_assets.append(asset)
         failure_reasons.extend(str(reason) for reason in op_row["failure_reasons"])
 
     total_candidates = int(screening_summary.get("total_candidates") or len(candidates))
@@ -293,6 +305,9 @@ def _operator_summary(
         "near_pass_count": near_pass_count,
         "top_promotion_blockers": _top_counts(blocked_reasons),
         "top_failure_reasons": _top_counts(failure_reasons),
+        "runtime_gate_failed_assets": runtime_gate_failed_assets,
+        "public_result_criteria_blocked_assets": public_result_criteria_blocked_assets,
+        "near_pass_assets": near_pass_assets,
         "selected_asset_explanations": asset_rows,
         "campaign_verdict": verdict_status,
         "next_recommendation": next_recommendation,

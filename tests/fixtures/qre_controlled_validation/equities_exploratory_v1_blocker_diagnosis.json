@@ -1,0 +1,230 @@
+{
+  "execution_snapshot": {
+    "report_kind": "qre_controlled_validation_execution",
+    "selection_profile_name": "equities_exploratory_v1",
+    "execution_status": "execution_completed",
+    "controlled_validation_authorized": true,
+    "runner_adapter_status": "connected",
+    "executed_anything": true,
+    "final_recommendation": "controlled_validation_execution_completed"
+  },
+  "controlled_eval_report": {
+    "verdict": {
+      "status": "useful_observation",
+      "reason_codes": []
+    },
+    "campaigns_completed": 1,
+    "campaign_level_evidence_valid": true,
+    "recommended_next_action": "inspect_results",
+    "git_revision": "abc123",
+    "screening_evidence_summary": {
+      "present": true,
+      "total_candidates": 15,
+      "passed_screening": 6,
+      "rejected_screening": 9,
+      "promotion_grade_candidates": 0,
+      "sufficient_oos_evidence_candidates": 1,
+      "qre_linkage_blocked_candidates": 0,
+      "sufficient_oos_but_unlinked_candidates": 0
+    }
+  },
+  "screening_evidence_payload": {
+    "candidates": [
+      {
+        "asset": "AAPL",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_consistentie_failed", "criteria_deflated_sharpe_failed", "criteria_trades_per_maand_failed", "criteria_win_rate_failed"]},
+        "failure_reasons": [],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.49, "trades_per_maand": 1.3, "consistentie": 0.2, "deflated_sharpe": 0.1}
+      },
+      {
+        "asset": "AMD",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "AMZN",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "ASML",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_consistentie_failed", "criteria_deflated_sharpe_failed", "criteria_trades_per_maand_failed", "criteria_win_rate_failed"]},
+        "failure_reasons": [],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.47, "trades_per_maand": 1.0, "consistentie": 0.25, "deflated_sharpe": 0.2}
+      },
+      {
+        "asset": "AVGO",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "COST",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_consistentie_failed", "criteria_deflated_sharpe_failed", "criteria_trades_per_maand_failed", "criteria_win_rate_failed"]},
+        "failure_reasons": [],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.46, "trades_per_maand": 1.2, "consistentie": 0.3, "deflated_sharpe": 0.15}
+      },
+      {
+        "asset": "GOOGL",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "HD",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "sufficient_oos_evidence", "oos_trade_count": 14, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_consistentie_failed", "criteria_trades_per_maand_failed", "criteria_win_rate_failed"]},
+        "failure_reasons": [],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.5, "trades_per_maand": 1.1, "consistentie": 0.333, "deflated_sharpe": 0.534}
+      },
+      {
+        "asset": "JPM",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_consistentie_failed", "criteria_deflated_sharpe_failed", "criteria_trades_per_maand_failed", "criteria_win_rate_failed"]},
+        "failure_reasons": [],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.48, "trades_per_maand": 1.4, "consistentie": 0.31, "deflated_sharpe": 0.18}
+      },
+      {
+        "asset": "LLY",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "META",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "MSFT",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "NVDA",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "TSM",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_expectancy_above_zero_failed", "criteria_profit_factor_at_or_above_floor_failed", "criteria_sufficient_trades_failed"]},
+        "failure_reasons": ["insufficient_trades"],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.0, "trades_per_maand": 0.0, "consistentie": null, "deflated_sharpe": null}
+      },
+      {
+        "asset": "XOM",
+        "preset_name": "trend_pullback_equities_4h",
+        "strategy_name": "trend_pullback_v1",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {"status": "no_oos_trades", "oos_trade_count": 0, "min_oos_trades": 10},
+        "promotion_guard": {"promotion_allowed": false, "blocked_by": ["criteria_consistentie_failed", "criteria_deflated_sharpe_failed", "criteria_trades_per_maand_failed", "criteria_win_rate_failed"]},
+        "failure_reasons": [],
+        "near_pass": {"is_near_pass": false},
+        "metrics": {"win_rate": 0.47, "trades_per_maand": 1.2, "consistentie": 0.29, "deflated_sharpe": 0.17}
+      }
+    ]
+  }
+}
