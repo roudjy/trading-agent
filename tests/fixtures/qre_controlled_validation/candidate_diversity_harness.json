@@ -1,0 +1,615 @@
+{
+  "execution_snapshot": {
+    "report_kind": "qre_controlled_validation_execution",
+    "selection_profile_name": "candidate_diversity_harness_v1",
+    "execution_status": "execution_completed",
+    "controlled_validation_authorized": true,
+    "runner_adapter_status": "connected",
+    "executed_anything": true,
+    "final_recommendation": "controlled_validation_execution_completed"
+  },
+  "controlled_eval_report": {
+    "verdict": {
+      "status": "useful_observation",
+      "reason_codes": []
+    },
+    "campaigns_completed": 1,
+    "campaign_level_evidence_valid": true,
+    "recommended_next_action": "inspect_results",
+    "git_revision": "abc123",
+    "screening_evidence_summary": {
+      "present": true,
+      "total_candidates": 15,
+      "passed_screening": 11,
+      "rejected_screening": 4,
+      "promotion_grade_candidates": 1,
+      "sufficient_oos_evidence_candidates": 4,
+      "qre_linkage_blocked_candidates": 0,
+      "sufficient_oos_but_unlinked_candidates": 0
+    }
+  },
+  "screening_evidence_payload": {
+    "candidates": [
+      {
+        "asset": "ADYEN",
+        "asset_group": "NL_EU",
+        "region": "NL/EU",
+        "hypothesis_id": "post_shock_stabilization_behavior_v1",
+        "preset_name": "post_shock_stabilization_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_expectancy_above_zero_failed",
+            "criteria_sufficient_trades_failed"
+          ]
+        },
+        "failure_reasons": [
+          "insufficient_trades"
+        ],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.0,
+          "trades_per_maand": 0.0,
+          "consistentie": null,
+          "deflated_sharpe": null
+        },
+        "outcome_class": "reject_insufficient_trades",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "AIR",
+        "asset_group": "NL_EU",
+        "region": "NL/EU",
+        "hypothesis_id": "vol_compression_expansion_behavior_v1",
+        "preset_name": "vol_compression_breakout_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_consistentie_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.48,
+          "trades_per_maand": 1.5,
+          "consistentie": 0.19,
+          "deflated_sharpe": 0.16
+        },
+        "outcome_class": "reject_criteria_consistentie_failed",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "ASML",
+        "asset_group": "NL_EU",
+        "region": "NL/EU",
+        "hypothesis_id": "trend_pullback_behavior_v1",
+        "preset_name": "trend_pullback_continuation_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_trades_per_maand_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.5,
+          "trades_per_maand": 0.8,
+          "consistentie": 0.35,
+          "deflated_sharpe": 0.31
+        },
+        "outcome_class": "reject_criteria_trades_per_maand_failed",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "BABA",
+        "asset_group": "ASIA",
+        "region": "Asia/proxies",
+        "hypothesis_id": "relative_strength_region_behavior_v1",
+        "preset_name": "relative_strength_vs_region_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_win_rate_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.43,
+          "trades_per_maand": 1.9,
+          "consistentie": 0.39,
+          "deflated_sharpe": 0.27
+        },
+        "outcome_class": "reject_criteria_win_rate_failed",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "EWJ",
+        "asset_group": "ETF_CONTEXT",
+        "region": "ETFs/context",
+        "hypothesis_id": "index_regime_filter_behavior_v1",
+        "preset_name": "index_regime_filter_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "sufficient_oos_evidence",
+          "oos_trade_count": 12,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_win_rate_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": true
+        },
+        "metrics": {
+          "win_rate": 0.49,
+          "trades_per_maand": 1.8,
+          "consistentie": 0.42,
+          "deflated_sharpe": 0.41
+        },
+        "outcome_class": "near_pass",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "GOOGL",
+        "asset_group": "US",
+        "region": "US",
+        "hypothesis_id": "relative_strength_sector_behavior_v1",
+        "preset_name": "relative_strength_vs_sector_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_expectancy_above_zero_failed",
+            "criteria_sufficient_trades_failed"
+          ]
+        },
+        "failure_reasons": [
+          "insufficient_trades"
+        ],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.0,
+          "trades_per_maand": 0.0,
+          "consistentie": null,
+          "deflated_sharpe": null
+        },
+        "outcome_class": "reject_insufficient_trades",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "JPM",
+        "asset_group": "US",
+        "region": "US",
+        "hypothesis_id": "trend_continuation_behavior_v1",
+        "preset_name": "trend_continuation_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_consistentie_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.51,
+          "trades_per_maand": 1.6,
+          "consistentie": 0.22,
+          "deflated_sharpe": 0.19
+        },
+        "outcome_class": "reject_no_oos_evidence",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "NESN",
+        "asset_group": "NL_EU",
+        "region": "NL/EU",
+        "hypothesis_id": "relative_strength_sector_behavior_v1",
+        "preset_name": "relative_strength_vs_sector_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_expectancy_above_zero_failed",
+            "criteria_sufficient_trades_failed"
+          ]
+        },
+        "failure_reasons": [
+          "insufficient_trades"
+        ],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.0,
+          "trades_per_maand": 0.0,
+          "consistentie": null,
+          "deflated_sharpe": null
+        },
+        "outcome_class": "reject_insufficient_trades",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "NVDA",
+        "asset_group": "US",
+        "region": "US",
+        "hypothesis_id": "vol_compression_expansion_behavior_v1",
+        "preset_name": "vol_compression_breakout_4h_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_win_rate_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.44,
+          "trades_per_maand": 2.4,
+          "consistentie": 0.45,
+          "deflated_sharpe": 0.28
+        },
+        "outcome_class": "reject_no_oos_evidence",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "PRX",
+        "asset_group": "NL_EU",
+        "region": "NL/EU",
+        "hypothesis_id": "trend_continuation_behavior_v1",
+        "preset_name": "trend_continuation_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "sufficient_oos_evidence",
+          "oos_trade_count": 15,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": true,
+          "blocked_by": []
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.58,
+          "trades_per_maand": 2.8,
+          "consistentie": 0.63,
+          "deflated_sharpe": 0.78
+        },
+        "outcome_class": "promotion_eligible_fixture_candidate",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "QQQ",
+        "asset_group": "ETF_CONTEXT",
+        "region": "ETFs/context",
+        "hypothesis_id": "relative_strength_region_behavior_v1",
+        "preset_name": "relative_strength_vs_region_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "sufficient_oos_evidence",
+          "oos_trade_count": 11,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_trades_per_maand_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.54,
+          "trades_per_maand": 0.9,
+          "consistentie": 0.51,
+          "deflated_sharpe": 0.62
+        },
+        "outcome_class": "reject_criteria_trades_per_maand_failed",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "SMH",
+        "asset_group": "ETF_CONTEXT",
+        "region": "ETFs/context",
+        "hypothesis_id": "vol_compression_expansion_behavior_v1",
+        "preset_name": "vol_compression_breakout_4h_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "4h",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_consistentie_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.53,
+          "trades_per_maand": 1.7,
+          "consistentie": 0.18,
+          "deflated_sharpe": 0.25
+        },
+        "outcome_class": "reject_criteria_consistentie_failed",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "SONY",
+        "asset_group": "ASIA",
+        "region": "Asia/proxies",
+        "hypothesis_id": "post_shock_stabilization_behavior_v1",
+        "preset_name": "post_shock_stabilization_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_win_rate_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.41,
+          "trades_per_maand": 2.3,
+          "consistentie": 0.46,
+          "deflated_sharpe": 0.29
+        },
+        "outcome_class": "reject_criteria_win_rate_failed",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "TSLA",
+        "asset_group": "US",
+        "region": "US",
+        "hypothesis_id": "trend_pullback_behavior_v1",
+        "preset_name": "trend_pullback_continuation_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_reject",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "no_oos_trades",
+          "oos_trade_count": 0,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_expectancy_above_zero_failed",
+            "criteria_sufficient_trades_failed"
+          ]
+        },
+        "failure_reasons": [
+          "insufficient_trades"
+        ],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.0,
+          "trades_per_maand": 0.0,
+          "consistentie": null,
+          "deflated_sharpe": null
+        },
+        "outcome_class": "reject_insufficient_trades",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      },
+      {
+        "asset": "VGK",
+        "asset_group": "ETF_CONTEXT",
+        "region": "ETFs/context",
+        "hypothesis_id": "index_regime_filter_behavior_v1",
+        "preset_name": "index_regime_filter_daily_v1",
+        "strategy_name": "fixture_only_behavior_seed",
+        "interval": "1d",
+        "stage_result": "screening_pass",
+        "qre_validation_linkage_status": "linked_catalog_active_discovery",
+        "validation_evidence": {
+          "status": "sufficient_oos_evidence",
+          "oos_trade_count": 13,
+          "min_oos_trades": 10
+        },
+        "promotion_guard": {
+          "promotion_allowed": false,
+          "blocked_by": [
+            "criteria_consistentie_failed"
+          ]
+        },
+        "failure_reasons": [],
+        "near_pass": {
+          "is_near_pass": false
+        },
+        "metrics": {
+          "win_rate": 0.57,
+          "trades_per_maand": 2.2,
+          "consistentie": 0.24,
+          "deflated_sharpe": 0.66
+        },
+        "outcome_class": "sufficient_oos_but_not_promoted",
+        "fixture_candidate": true,
+        "not_real_market_evidence": true,
+        "no_paper_activation": true,
+        "no_shadow_activation": true,
+        "no_live_activation": true
+      }
+    ]
+  }
+}
