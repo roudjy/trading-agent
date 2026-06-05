@@ -35,6 +35,21 @@ REQUIRED_OPERATOR_GO_PHRASE: Final[str] = (
     "I authorize QRE controlled validation execution"
 )
 
+STALE_RUNTIME_ARTIFACT_RELATIVE_PATHS: Final[tuple[str, ...]] = (
+    "research/campaign_registry_latest.v1.json",
+    "research/campaign_queue_latest.v1.json",
+    "research/campaign_digest_latest.v1.json",
+    "research/screening_evidence_latest.v1.json",
+    "research/run_candidates_latest.v1.json",
+    "research/run_campaign_latest.v1.json",
+    "research/run_campaign_progress_latest.v1.json",
+    "research/run_state.v1.json",
+    "research/paper_readiness_latest.v1.json",
+    "logs/qre_controlled_validation_execution/controlled_eval_latest.v1.json",
+    "logs/qre_controlled_validation_execution/controlled_eval_latest.md",
+    "logs/qre_controlled_validation_execution/latest.json",
+)
+
 EXECUTION_BLOCKED_NOT_REQUESTED: Final[str] = "execution_blocked_not_requested"
 EXECUTION_BLOCKED_PREFLIGHT_NOT_READY: Final[str] = "execution_blocked_preflight_not_ready"
 EXECUTION_BLOCKED_BRIDGE_NOT_READY: Final[str] = "execution_blocked_bridge_not_ready"
@@ -153,6 +168,107 @@ def _runner_report_paths() -> dict[str, str]:
     }
 
 
+def _read_text_if_possible(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def _history_manifest_paths_for_campaign_id(campaign_id: str) -> list[Path]:
+    if not campaign_id:
+        return []
+    matches: list[Path] = []
+    history_root = REPO_ROOT / "research" / "history"
+    if not history_root.exists():
+        return matches
+    for candidate in history_root.glob("*/run_campaign_manifest.v1.json"):
+        text = _read_text_if_possible(candidate)
+        if campaign_id in text:
+            matches.append(candidate)
+    for candidate in history_root.glob("*/run_state.v1.json"):
+        text = _read_text_if_possible(candidate)
+        if campaign_id in text:
+            matches.append(candidate)
+    return matches
+
+
+def _stale_runtime_artifact_paths(missing_campaign_ids: list[str]) -> list[str]:
+    if not missing_campaign_ids:
+        return []
+
+    paths: list[str] = []
+    seen: set[str] = set()
+
+    for relative in STALE_RUNTIME_ARTIFACT_RELATIVE_PATHS:
+        path = REPO_ROOT / relative
+        if not path.is_file():
+            continue
+        text = _read_text_if_possible(path)
+        if any(campaign_id in text for campaign_id in missing_campaign_ids):
+            rel = _rel(path)
+            if rel not in seen:
+                seen.add(rel)
+                paths.append(rel)
+
+    for campaign_id in missing_campaign_ids:
+        for path in _history_manifest_paths_for_campaign_id(campaign_id):
+            rel = _rel(path)
+            if rel not in seen:
+                seen.add(rel)
+                paths.append(rel)
+
+    return sorted(paths)
+
+
+def _quarantine_runtime_artifact_command_preview(
+    stale_relative_paths: list[str],
+) -> list[str]:
+    if not stale_relative_paths:
+        return []
+    target_root = "logs/qre_controlled_validation_execution/quarantine/<timestamp>"
+    commands = [
+        f"$target = '{target_root}'",
+        "New-Item -ItemType Directory -Force -Path $target | Out-Null",
+    ]
+    for relative in stale_relative_paths:
+        destination = f"$target/{relative.replace('/', '__')}"
+        commands.append(
+            f"Move-Item -LiteralPath '{relative}' -Destination '{destination}' -Force"
+        )
+    return commands
+
+
+def _campaign_invariant_failure_diagnostics(
+    *,
+    completed_campaign_count: int,
+    campaign_completed_ledger_event_count: int,
+    missing_completed_ledger_event_ids: list[str],
+) -> dict[str, Any]:
+    stale_files = _stale_runtime_artifact_paths(missing_completed_ledger_event_ids)
+    return {
+        "stale_campaign_ids": list(missing_completed_ledger_event_ids),
+        "active_stale_files": stale_files,
+        "completed_campaign_count_per_source": {
+            "research/campaign_registry_latest.v1.json": completed_campaign_count,
+        },
+        "ledger_event_count_per_source": {
+            "research/campaign_evidence_ledger_latest.v1.jsonl": (
+                campaign_completed_ledger_event_count
+            ),
+        },
+        "suggested_operator_action": (
+            "Review the missing campaign_completed ledger events, then quarantine only "
+            "the listed generated runtime artifacts before re-running controlled validation."
+        ),
+        "safe_cleanup_available": bool(stale_files),
+        "safe_cleanup_mode": "operator_quarantine_only",
+        "quarantine_command_preview": _quarantine_runtime_artifact_command_preview(
+            stale_files
+        ),
+    }
+
+
 def _campaign_invariant_preflight() -> dict[str, Any]:
     try:
         import importlib
@@ -166,6 +282,7 @@ def _campaign_invariant_preflight() -> dict[str, Any]:
             "completed_campaign_count": 0,
             "campaign_completed_ledger_event_count": 0,
             "missing_completed_ledger_event_ids": [],
+            "diagnostics": {},
         }
 
     registry_path = getattr(registry_module, "REGISTRY_ARTIFACT_PATH", None)
@@ -178,6 +295,7 @@ def _campaign_invariant_preflight() -> dict[str, Any]:
             "completed_campaign_count": 0,
             "campaign_completed_ledger_event_count": 0,
             "missing_completed_ledger_event_ids": [],
+            "diagnostics": {},
         }
 
     try:
@@ -190,6 +308,7 @@ def _campaign_invariant_preflight() -> dict[str, Any]:
             "completed_campaign_count": 0,
             "campaign_completed_ledger_event_count": 0,
             "missing_completed_ledger_event_ids": [],
+            "diagnostics": {},
         }
 
     campaigns = registry.get("campaigns") if isinstance(registry, dict) else {}
@@ -217,11 +336,21 @@ def _campaign_invariant_preflight() -> dict[str, Any]:
         completed_campaign_ids - campaign_completed_ledger_ids
     )
     status = "failed" if missing_completed_ledger_event_ids else "passed"
+    diagnostics = (
+        _campaign_invariant_failure_diagnostics(
+            completed_campaign_count=len(completed_campaign_ids),
+            campaign_completed_ledger_event_count=len(campaign_completed_ledger_ids),
+            missing_completed_ledger_event_ids=missing_completed_ledger_event_ids,
+        )
+        if missing_completed_ledger_event_ids
+        else {}
+    )
     return {
         "status": status,
         "completed_campaign_count": len(completed_campaign_ids),
         "campaign_completed_ledger_event_count": len(campaign_completed_ledger_ids),
         "missing_completed_ledger_event_ids": missing_completed_ledger_event_ids,
+        "diagnostics": diagnostics,
     }
 
 

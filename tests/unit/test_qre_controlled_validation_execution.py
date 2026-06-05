@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from reporting import qre_controlled_validation_execution as execution
 
@@ -128,6 +129,27 @@ def test_campaign_invariant_violation_blocks_runner_before_launch(monkeypatch) -
             "missing_completed_ledger_event_ids": [
                 "col-20260604T203711765074Z-trend_pullback_equities_4h-3e5f6de0b6"
             ],
+            "diagnostics": {
+                "stale_campaign_ids": [
+                    "col-20260604T203711765074Z-trend_pullback_equities_4h-3e5f6de0b6"
+                ],
+                "active_stale_files": [
+                    "research/campaign_registry_latest.v1.json",
+                    "research/run_campaign_latest.v1.json",
+                ],
+                "completed_campaign_count_per_source": {
+                    "research/campaign_registry_latest.v1.json": 1,
+                },
+                "ledger_event_count_per_source": {
+                    "research/campaign_evidence_ledger_latest.v1.jsonl": 0,
+                },
+                "suggested_operator_action": "quarantine generated artifacts",
+                "safe_cleanup_available": True,
+                "safe_cleanup_mode": "operator_quarantine_only",
+                "quarantine_command_preview": [
+                    "$target = 'logs/qre_controlled_validation_execution/quarantine/<timestamp>'"
+                ],
+            },
         },
     )
 
@@ -159,7 +181,92 @@ def test_campaign_invariant_violation_blocks_runner_before_launch(monkeypatch) -
         "missing_completed_ledger_event_ids": [
             "col-20260604T203711765074Z-trend_pullback_equities_4h-3e5f6de0b6"
         ],
+        "diagnostics": {
+            "stale_campaign_ids": [
+                "col-20260604T203711765074Z-trend_pullback_equities_4h-3e5f6de0b6"
+            ],
+            "active_stale_files": [
+                "research/campaign_registry_latest.v1.json",
+                "research/run_campaign_latest.v1.json",
+            ],
+            "completed_campaign_count_per_source": {
+                "research/campaign_registry_latest.v1.json": 1,
+            },
+            "ledger_event_count_per_source": {
+                "research/campaign_evidence_ledger_latest.v1.jsonl": 0,
+            },
+            "suggested_operator_action": "quarantine generated artifacts",
+            "safe_cleanup_available": True,
+            "safe_cleanup_mode": "operator_quarantine_only",
+            "quarantine_command_preview": [
+                "$target = 'logs/qre_controlled_validation_execution/quarantine/<timestamp>'"
+            ],
+        },
     }
+
+
+def test_campaign_invariant_failure_diagnostics_surfaces_stale_runtime_files(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo_root = tmp_path
+    campaign_id = "col-20260604T203711765074Z-trend_pullback_equities_4h-3e5f6de0b6"
+
+    registry = repo_root / "research" / "campaign_registry_latest.v1.json"
+    registry.parent.mkdir(parents=True, exist_ok=True)
+    registry.write_text(
+        json.dumps({"campaigns": {campaign_id: {"state": "completed"}}}),
+        encoding="utf-8",
+    )
+
+    run_campaign = repo_root / "research" / "run_campaign_latest.v1.json"
+    run_campaign.write_text(
+        json.dumps({"campaign_id": campaign_id, "state": "completed"}),
+        encoding="utf-8",
+    )
+
+    history_manifest = (
+        repo_root
+        / "research"
+        / "history"
+        / "20260605T102349101321Z"
+        / "run_campaign_manifest.v1.json"
+    )
+    history_manifest.parent.mkdir(parents=True, exist_ok=True)
+    history_manifest.write_text(
+        json.dumps({"campaigns": [{"campaign_id": campaign_id}]}),
+        encoding="utf-8",
+    )
+
+    protected = repo_root / "registry.py"
+    protected.write_text("PROTECTED = True\n", encoding="utf-8")
+
+    monkeypatch.setattr(execution, "REPO_ROOT", repo_root)
+
+    diagnostics = execution._campaign_invariant_failure_diagnostics(
+        completed_campaign_count=1,
+        campaign_completed_ledger_event_count=0,
+        missing_completed_ledger_event_ids=[campaign_id],
+    )
+
+    assert diagnostics["stale_campaign_ids"] == [campaign_id]
+    assert diagnostics["active_stale_files"] == [
+        "research/campaign_registry_latest.v1.json",
+        "research/history/20260605T102349101321Z/run_campaign_manifest.v1.json",
+        "research/run_campaign_latest.v1.json",
+    ]
+    assert diagnostics["completed_campaign_count_per_source"] == {
+        "research/campaign_registry_latest.v1.json": 1,
+    }
+    assert diagnostics["ledger_event_count_per_source"] == {
+        "research/campaign_evidence_ledger_latest.v1.jsonl": 0,
+    }
+    assert diagnostics["safe_cleanup_available"] is True
+    assert diagnostics["safe_cleanup_mode"] == "operator_quarantine_only"
+    assert any(
+        "research/campaign_registry_latest.v1.json" in line
+        for line in diagnostics["quarantine_command_preview"]
+    )
+    assert all("registry.py" not in line for line in diagnostics["quarantine_command_preview"])
 
 
 def test_campaign_invariant_preflight_pass_allows_existing_runner_path(
