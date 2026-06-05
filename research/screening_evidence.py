@@ -40,6 +40,7 @@ import json
 import math
 from collections import Counter
 from datetime import UTC, datetime
+import json
 from pathlib import Path
 from typing import Any, Final
 
@@ -692,6 +693,71 @@ def _criteria_check_blockers(raw: dict[str, Any]) -> list[str]:
     return blockers
 
 
+def _public_result_identity_key(raw: dict[str, Any]) -> tuple[str, str, str] | None:
+    strategy_name = _bounded_str(
+        raw.get("strategy_name") or raw.get("strategy_id"),
+        max_len=160,
+    )
+    asset = _bounded_str(raw.get("asset"), max_len=80)
+    interval = _bounded_str(raw.get("interval"), max_len=40)
+    if not strategy_name or not asset or not interval:
+        return None
+    return (strategy_name, asset, interval)
+
+
+def _public_result_criteria_index(
+    public_result_rows: list[dict[str, Any]] | None,
+) -> dict[tuple[str, str, str], dict[str, Any]]:
+    index: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for row in public_result_rows or []:
+        if not isinstance(row, dict):
+            continue
+        key = _public_result_identity_key(row)
+        if key is None or key in index:
+            continue
+        index[key] = row
+    return index
+
+
+def _parsed_public_criteria_checks(public_result_row: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(public_result_row, dict):
+        return {}
+    raw = public_result_row.get("criteria_checks_json")
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str) or not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _merge_metric_fallbacks(
+    metrics: dict[str, float | None],
+    public_result_row: dict[str, Any] | None,
+) -> dict[str, float | None]:
+    if not isinstance(public_result_row, dict):
+        return metrics
+    merged = dict(metrics)
+    for key in ("deflated_sharpe", "consistentie"):
+        if merged.get(key) is None:
+            merged[key] = to_json_safe_float(public_result_row.get(key))
+    return merged
+
+
+def _unique_ordered(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        bounded = _bounded_str(value, max_len=160)
+        if bounded and bounded not in seen:
+            seen.add(bounded)
+            out.append(bounded)
+    return out
+
+
 def _criteria_split(
     *,
     screening_phase: str | None,
@@ -734,6 +800,7 @@ def _build_candidate_record(
     preset_name: str | None,
     screening_phase: str | None,
     qre_validation_linkage_authority: dict[str, Any] | None,
+    public_result_row: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Build one per-candidate evidence record (without fingerprint).
 
@@ -750,7 +817,10 @@ def _build_candidate_record(
         candidate_id = str(raw_id)
 
     diagnostic_metrics_raw = screening_record.get("diagnostic_metrics") or {}
-    metrics = _coerce_metrics(diagnostic_metrics_raw)
+    metrics = _merge_metric_fallbacks(
+        _coerce_metrics(diagnostic_metrics_raw),
+        public_result_row,
+    )
     failure_reasons: list[str] = []
     reason_code = screening_record.get("reason_code")
     if reason_code:
@@ -804,15 +874,22 @@ def _build_candidate_record(
     sampling = dict(screening_record.get("sampling") or {})
 
     criteria_blockers = _criteria_check_blockers(diagnostic_metrics_raw)
+    public_criteria_blockers = _criteria_check_blockers(
+        {"criteria_checks": _parsed_public_criteria_checks(public_result_row)}
+    )
+    all_criteria_blockers = _unique_ordered(
+        [*criteria_blockers, *public_criteria_blockers]
+    )
     promotion_guard_blockers = (
         list(paper_blocking_reasons) if paper_blocking_reasons else []
     )
-    promotion_guard_blockers.extend(criteria_blockers)
+    promotion_guard_blockers.extend(all_criteria_blockers)
+    promotion_guard_blockers = _unique_ordered(promotion_guard_blockers)
     promotion_guard = {
         "promotion_allowed": (
             stage_result == STAGE_RESULT_DOWNSTREAM_PROMOTION
             and not paper_blocked
-            and not criteria_blockers
+            and not all_criteria_blockers
         ),
         "blocked_by": promotion_guard_blockers,
     }
@@ -932,6 +1009,7 @@ def build_screening_evidence_payload(
     paper_blocked_index: dict[str, list[str]],
     promotion_status_index: dict[str, str] | None = None,
     qre_validation_linkage_authority: dict[str, Any] | None = None,
+    public_result_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the full ``screening_evidence_latest.v1.json`` payload.
 
@@ -946,6 +1024,7 @@ def build_screening_evidence_payload(
     diagnostic signal.
     """
     promotion_index: dict[str, str] = dict(promotion_status_index or {})
+    public_result_index = _public_result_criteria_index(public_result_rows)
     screening_record_by_id: dict[str, dict[str, Any]] = {}
     for screening_row in screening_records:
         cid = screening_row.get("candidate_id")
@@ -966,6 +1045,9 @@ def build_screening_evidence_payload(
         paper_blocking_reasons = list(
             paper_blocked_index.get(str(raw_id), []) if raw_id is not None else []
         )
+        public_result_row = public_result_index.get(
+            _public_result_identity_key(candidate) or ("", "", "")
+        )
         candidate_records.append(
             _build_candidate_record(
                 candidate=candidate,
@@ -976,6 +1058,7 @@ def build_screening_evidence_payload(
                 preset_name=preset_name,
                 screening_phase=screening_phase,
                 qre_validation_linkage_authority=qre_validation_linkage_authority,
+                public_result_row=public_result_row,
             )
         )
 

@@ -3713,6 +3713,7 @@ def run_research(
                 screening_pass_kinds=screening_pass_kinds_by_strategy,
                 paper_blocked_index=paper_blocked_index,
                 qre_validation_linkage_authority=qre_validation_linkage_authority,
+                public_result_rows=rows,
             )
             write_sidecar_atomic(SCREENING_EVIDENCE_PATH, evidence_payload)
             screening_evidence_payload = evidence_payload
