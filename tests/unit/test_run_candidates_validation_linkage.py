@@ -179,6 +179,46 @@ def test_run_candidate_executable_hypothesis_id_links_through_bridge() -> None:
     assert row["qre_validation_linkage_warnings"] == []
 
 
+
+
+def test_catalog_active_discovery_run_candidate_links_without_exact_qre_ids() -> None:
+    row = _row(
+        candidate=_candidate(hypothesis_id=EXECUTABLE_HYPOTHESIS_ID),
+        authority=_authority(
+            hypotheses={
+                "report_kind": "qre_hypothesis_candidates",
+                "hypotheses": [{"hypothesis_id": HYPOTHESIS_ID}],
+            },
+            plans={
+                "report_kind": "qre_hypothesis_validation_plan",
+                "validation_plans": [
+                    {
+                        "hypothesis_id": HYPOTHESIS_ID,
+                        "validation_plan_id": PLAN_ID,
+                    }
+                ],
+            },
+            manifests={
+                "report_kind": "qre_research_run_manifest",
+                "run_manifests": [
+                    {
+                        "run_manifest_id": RUN_MANIFEST_ID,
+                        "target_hypothesis_id": HYPOTHESIS_ID,
+                        "target_validation_plan_id": PLAN_ID,
+                    }
+                ],
+            },
+        ),
+    )
+
+    assert row["hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["executable_hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["validation_plan_id"] is None
+    assert row["run_manifest_id"] is None
+    assert row["qre_validation_linkage_status"] == "linked_catalog_active_discovery"
+    assert row["qre_validation_linkage_warnings"] == []
+
+
 def test_ambiguous_executable_bridge_fails_closed_for_run_candidates() -> None:
     authority = _authority(
         hypotheses={

@@ -149,6 +149,46 @@ def test_screening_evidence_executable_hypothesis_id_links_through_bridge() -> N
     assert row["qre_validation_linkage_warnings"] == []
 
 
+
+
+def test_catalog_active_discovery_hypothesis_links_without_exact_qre_ids() -> None:
+    row = _payload(
+        candidate={"hypothesis_id": EXECUTABLE_HYPOTHESIS_ID},
+        authority=_authority(
+            hypotheses={
+                "report_kind": "qre_hypothesis_candidates",
+                "hypotheses": [{"hypothesis_id": HYPOTHESIS_ID}],
+            },
+            plans={
+                "report_kind": "qre_hypothesis_validation_plan",
+                "validation_plans": [
+                    {
+                        "hypothesis_id": HYPOTHESIS_ID,
+                        "validation_plan_id": PLAN_ID,
+                    }
+                ],
+            },
+            manifests={
+                "report_kind": "qre_research_run_manifest",
+                "run_manifests": [
+                    {
+                        "run_manifest_id": RUN_MANIFEST_ID,
+                        "target_hypothesis_id": HYPOTHESIS_ID,
+                        "target_validation_plan_id": PLAN_ID,
+                    }
+                ],
+            },
+        ),
+    )["candidates"][0]
+
+    assert row["hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["executable_hypothesis_id"] == EXECUTABLE_HYPOTHESIS_ID
+    assert row["validation_plan_id"] is None
+    assert row["run_manifest_id"] is None
+    assert row["qre_validation_linkage_status"] == "linked_catalog_active_discovery"
+    assert row["qre_validation_linkage_warnings"] == []
+
+
 def test_ambiguous_executable_bridge_fails_closed_for_screening_evidence() -> None:
     authority = _authority(
         hypotheses={
@@ -206,7 +246,7 @@ def test_ambiguous_executable_bridge_fails_closed_for_screening_evidence() -> No
 
 
 
-def test_summary_surfaces_sufficient_oos_candidate_blocked_by_qre_linkage() -> None:
+def test_summary_no_longer_counts_catalog_linked_sufficient_oos_as_qre_blocked() -> None:
     payload = _payload(
         candidate={
             "candidate_id": "hd-candidate",
@@ -227,13 +267,13 @@ def test_summary_surfaces_sufficient_oos_candidate_blocked_by_qre_linkage() -> N
     row = payload["candidates"][0]
     summary = payload["summary"]
 
-    assert row["qre_validation_linkage_status"] == "unlinked_unknown_hypothesis_id"
+    assert row["qre_validation_linkage_status"] == "linked_catalog_active_discovery"
     assert row["validation_evidence"]["status"] == "sufficient_oos_evidence"
     assert row["validation_evidence"]["oos_trade_count"] == 14
     assert row["validation_evidence"]["min_oos_trades"] == 10
     assert summary["sufficient_oos_evidence_candidates"] == 1
-    assert summary["sufficient_oos_but_unlinked_candidates"] == 1
-    assert summary["qre_linkage_blocked_candidates"] == 1
+    assert summary["sufficient_oos_but_unlinked_candidates"] == 0
+    assert summary["qre_linkage_blocked_candidates"] == 0
     assert summary["promotion_grade_candidates"] == 0
 
 

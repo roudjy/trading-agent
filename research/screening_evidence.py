@@ -47,6 +47,7 @@ from reporting.qre_executable_hypothesis_identity_bridge_contract import (
     BRIDGE_STATUS_EXACT,
     build_bridge_index,
 )
+from research.strategy_hypothesis_catalog import list_active_discovery
 from research.screening_criteria import (
     EXPLORATORY_MAX_DRAWDOWN,
     EXPLORATORY_MIN_EXPECTANCY,
@@ -373,10 +374,14 @@ def build_qre_validation_linkage_authority(
 ) -> dict[str, Any]:
     """Build exact QRE validation-linkage authority for screening rows.
 
-    The authority is intentionally strict: it only links by an existing
-    ``hypothesis_id`` that is present in the QRE hypothesis artifact and
-    resolves to exactly one validation plan and exactly one run manifest.
-    Asset, symbol, timeframe, strategy, filename, and candidate-only
+    The authority is intentionally strict for exact QRE validation links:
+    exact linkage still requires a ``hypothesis_id`` present in the QRE
+    hypothesis artifact that resolves to exactly one validation plan and
+    exactly one run manifest.
+
+    Catalog ``active_discovery`` hypotheses are also exposed as bounded
+    lineage authority without fabricating validation-plan or run-manifest
+    IDs. Asset, symbol, timeframe, strategy, filename, and candidate-only
     matching are not used.
     """
     warnings: list[str] = []
@@ -477,6 +482,30 @@ def build_qre_validation_linkage_authority(
             "hypothesis_id": hypothesis_id,
             "validation_plan_id": plan_id,
             "run_manifest_id": manifest_ids[0],
+            "warnings": [],
+        }
+
+    qre_executable_hypothesis_ids = {
+        _bounded_str(item.get("executable_hypothesis_id"), max_len=160)
+        for item in hypotheses or []
+        if _bounded_str(item.get("executable_hypothesis_id"), max_len=160)
+    }
+    for active_row in list_active_discovery():
+        catalog_hypothesis_id = _bounded_str(
+            getattr(active_row, "hypothesis_id", None),
+            max_len=160,
+        )
+        if (
+            not catalog_hypothesis_id
+            or catalog_hypothesis_id in by_hypothesis_id
+            or catalog_hypothesis_id in qre_executable_hypothesis_ids
+        ):
+            continue
+        by_hypothesis_id[catalog_hypothesis_id] = {
+            "status": "linked_catalog_active_discovery",
+            "hypothesis_id": catalog_hypothesis_id,
+            "qre_authority_linkage_mode": "strategy_hypothesis_catalog",
+            "qre_authority_status": "catalog_active_discovery",
             "warnings": [],
         }
 
