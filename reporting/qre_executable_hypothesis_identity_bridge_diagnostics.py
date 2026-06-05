@@ -361,16 +361,25 @@ def _preset_row(
     *,
     qre_by_hypothesis_id: dict[str, Any],
     qre_by_executable_hypothesis_id: dict[str, Any],
+    catalog_authority: dict[str, Any],
 ) -> dict[str, Any]:
     hypothesis_id = _bounded_str(_get_field(preset, "hypothesis_id"), max_len=160)
     direct_entry = qre_by_hypothesis_id.get(hypothesis_id) if hypothesis_id else None
     bridge_entry = qre_by_executable_hypothesis_id.get(hypothesis_id) if hypothesis_id else None
-    entry = direct_entry if isinstance(direct_entry, dict) else bridge_entry
+    catalog_entry = catalog_authority.get(hypothesis_id) if hypothesis_id else None
+    if isinstance(direct_entry, dict):
+        entry = direct_entry
+    elif isinstance(bridge_entry, dict):
+        entry = bridge_entry
+    else:
+        entry = catalog_entry
     linkage_mode = None
     if isinstance(direct_entry, dict):
         linkage_mode = "direct_qre_hypothesis_id"
     elif isinstance(bridge_entry, dict):
         linkage_mode = "executable_hypothesis_bridge"
+    elif isinstance(catalog_entry, dict):
+        linkage_mode = "strategy_hypothesis_catalog"
     return {
         "preset_name": _bounded_str(_get_field(preset, "name"), max_len=160),
         "enabled": _bool_field(preset, "enabled"),
@@ -385,10 +394,12 @@ def _preset_row(
         "hypothesis_id_present_in_qre_authority": bool(entry),
         "qre_authority_linkage_mode": linkage_mode,
         "qre_authority_status": (
-            _bounded_str(entry.get("status") or entry.get("bridge_status"), max_len=80)
-            if isinstance(entry, dict)
-            else None
-        ),
+            "catalog_active_discovery"
+            if linkage_mode == "strategy_hypothesis_catalog"
+            else _bounded_str(entry.get("status") or entry.get("bridge_status"), max_len=80)
+        )
+        if isinstance(entry, dict)
+        else None,
     }
 
 
@@ -477,6 +488,7 @@ def _presets_snapshot(
     presets: Any,
     qre_by_hypothesis_id: dict[str, Any],
     qre_by_executable_hypothesis_id: dict[str, Any],
+    catalog_authority: dict[str, Any],
 ) -> tuple[dict[str, Any], list[str]]:
     preset_items, warnings = _coerce_presets(presets)
     rows = [
@@ -484,6 +496,7 @@ def _presets_snapshot(
             preset,
             qre_by_hypothesis_id=qre_by_hypothesis_id,
             qre_by_executable_hypothesis_id=qre_by_executable_hypothesis_id,
+            catalog_authority=catalog_authority,
         )
         for preset in preset_items[:PRESET_ROW_LIMIT]
     ]
@@ -654,11 +667,19 @@ def _controlled_validation_bridge_readiness(
         linkage_mode = row.get("qre_authority_linkage_mode")
         qre_status = row.get("qre_authority_status")
         has_complete_authority_linkage = qre_status in {"linked_exact_ids", "bridge_exact"}
+        has_catalog_authority = (
+            linkage_mode == "strategy_hypothesis_catalog"
+            and qre_status == "catalog_active_discovery"
+        )
         validation_plan_id_present = has_complete_authority_linkage and bool(linkage_mode)
         run_manifest_id_present = validation_plan_id_present
-        ready = in_qre_authority and validation_plan_id_present and run_manifest_id_present
+        ready = in_qre_authority and (
+            validation_plan_id_present and run_manifest_id_present or has_catalog_authority
+        )
 
-        if not in_qre_authority:
+        if ready:
+            primary_blocker = PRIMARY_BLOCKER_NONE
+        elif not in_qre_authority:
             primary_blocker = PRIMARY_BLOCKER_EXECUTABLE_ID_MISSING
         elif not validation_plan_id_present:
             primary_blocker = "validation_plan_id_missing_for_executable_hypothesis"
@@ -700,6 +721,65 @@ def _final_recommendation(bridge: dict[str, Any]) -> str:
     return FINAL_RECOMMENDATION_INPUTS_FAILED_CLOSED
 
 
+
+def _default_catalog_authority() -> tuple[dict[str, Any], list[str]]:
+    warnings: list[str] = []
+    try:
+        import importlib
+
+        preset_module = importlib.import_module("research.presets")
+        catalog_module = importlib.import_module("research.strategy_hypothesis_catalog")
+    except Exception as exc:  # pragma: no cover - defensive diagnostic guard
+        return {}, [f"catalog_authority_unavailable:{type(exc).__name__}"]
+
+    preset_names_by_hypothesis_id: dict[str, list[str]] = {}
+    for preset in getattr(preset_module, "PRESETS", ()):
+        if not bool(getattr(preset, "enabled", False)):
+            continue
+        if bool(getattr(preset, "diagnostic_only", False)):
+            continue
+        if bool(getattr(preset, "excluded_from_daily_scheduler", False)):
+            continue
+        if bool(getattr(preset, "excluded_from_candidate_promotion", False)):
+            continue
+        if str(getattr(preset, "status", "")) != "stable":
+            continue
+
+        hypothesis_id = getattr(preset, "hypothesis_id", None)
+        preset_name = getattr(preset, "name", None)
+        if hypothesis_id and preset_name:
+            preset_names_by_hypothesis_id.setdefault(str(hypothesis_id), []).append(
+                str(preset_name)
+            )
+
+    authority: dict[str, Any] = {}
+    for hypothesis in getattr(catalog_module, "STRATEGY_HYPOTHESIS_CATALOG", ()):
+        hypothesis_id = str(getattr(hypothesis, "hypothesis_id", "") or "")
+        status = str(getattr(hypothesis, "status", "") or "")
+        if not hypothesis_id or status != "active_discovery":
+            continue
+
+        preset_names = sorted(set(preset_names_by_hypothesis_id.get(hypothesis_id, [])))
+        if not preset_names:
+            warnings.append(
+                f"catalog_active_discovery_without_stable_preset:{hypothesis_id}"
+            )
+            continue
+
+        authority[hypothesis_id] = {
+            "hypothesis_id": hypothesis_id,
+            "strategy_family": str(getattr(hypothesis, "strategy_family", "") or ""),
+            "status": status,
+            "preset_names": preset_names,
+            "source_refs": [
+                f"research.strategy_hypothesis_catalog#{hypothesis_id}",
+                *[f"research.presets#{name}" for name in preset_names],
+            ],
+        }
+
+    return authority, warnings
+
+
 def collect_snapshot(
     *,
     hypothesis_artifact_path: Path | None = None,
@@ -707,6 +787,7 @@ def collect_snapshot(
     run_manifest_artifact_path: Path | None = None,
     generated_at_utc: str | None = None,
     presets: Any = None,
+    catalog_authority: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     generated = generated_at_utc or _utcnow()
     (
@@ -719,10 +800,17 @@ def collect_snapshot(
         plan_artifact_path=plan_artifact_path or DEFAULT_PLAN_ARTIFACT_PATH,
         run_manifest_artifact_path=run_manifest_artifact_path or DEFAULT_RUN_MANIFEST_ARTIFACT_PATH,
     )
+    if catalog_authority is None:
+        resolved_catalog_authority, catalog_authority_warnings = _default_catalog_authority()
+    else:
+        resolved_catalog_authority = catalog_authority
+        catalog_authority_warnings = []
+
     executable_presets, preset_warnings = _presets_snapshot(
         presets=presets,
         qre_by_hypothesis_id=qre_by_hypothesis_id,
         qre_by_executable_hypothesis_id=qre_by_executable_hypothesis_id,
+        catalog_authority=resolved_catalog_authority,
     )
     bridge = _bridge_snapshot_from_rows(
         qre_authority=qre_authority,
@@ -733,7 +821,7 @@ def collect_snapshot(
         per_preset=executable_presets["per_preset"],
     )
     validation_warnings = _bounded_unique(
-        [*authority_warnings, *preset_warnings],
+        [*authority_warnings, *catalog_authority_warnings, *preset_warnings],
         max_items=WARNING_LIMIT,
     )
     return {

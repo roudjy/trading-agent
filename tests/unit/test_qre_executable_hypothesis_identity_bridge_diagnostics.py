@@ -109,6 +109,7 @@ def _snapshot(
     authority_ids: list[str],
     presets: list[dict],
     executable_bridge_by_hypothesis_id: dict[str, str] | None = None,
+    catalog_authority: dict | None = {},
 ) -> dict:
     authorities = _write_authorities(
         tmp_path,
@@ -121,6 +122,7 @@ def _snapshot(
         run_manifest_artifact_path=authorities["manifests"],
         generated_at_utc=FROZEN,
         presets=presets,
+        catalog_authority=catalog_authority,
     )
 
 
@@ -305,6 +307,97 @@ def test_partial_match_fails_closed_and_reports_missing_id(tmp_path: Path) -> No
     assert snap["bridge"]["primary_blocker"] == ("executable_hypothesis_id_not_in_qre_authority")
 
 
+
+
+
+
+def test_catalog_active_discovery_authority_makes_executable_preset_ready(
+    tmp_path: Path,
+) -> None:
+    authorities = _write_authorities(tmp_path, ["qre-hyp-generated"])
+    snap = diag.collect_snapshot(
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+        presets=[_preset("trend_pullback_equities_4h", "trend_pullback_v1")],
+        catalog_authority={
+            "trend_pullback_v1": {
+                "hypothesis_id": "trend_pullback_v1",
+                "strategy_family": "trend_pullback",
+                "status": "active_discovery",
+                "preset_names": ["trend_pullback_equities_4h"],
+            }
+        },
+    )
+
+    assert snap["bridge"]["executable_ids_present_in_qre_authority"] == [
+        "trend_pullback_v1"
+    ]
+    assert snap["bridge"]["executable_ids_missing_from_qre_authority"] == []
+    assert snap["bridge"]["primary_blocker"] == "no_primary_blocker"
+    assert snap["bridge"]["regeneration_linkage_expected"] is True
+    assert snap["final_recommendation"] == (
+        "executable_hypothesis_identity_bridge_ready_for_regeneration"
+    )
+
+    readiness = snap["controlled_validation_bridge_readiness"]
+    assert readiness["ready"] is True
+    assert readiness["ready_count"] == 1
+    assert readiness["blocked_count"] == 0
+    assert readiness["rows"] == [
+        {
+            "preset_name": "trend_pullback_equities_4h",
+            "executable_hypothesis_id": "trend_pullback_v1",
+            "in_qre_authority": True,
+            "qre_authority_linkage_mode": "strategy_hypothesis_catalog",
+            "qre_authority_status": "catalog_active_discovery",
+            "validation_plan_id_present": False,
+            "run_manifest_id_present": False,
+            "ready": True,
+            "primary_blocker": "no_primary_blocker",
+        }
+    ]
+    _assert_safety(snap)
+
+
+
+
+def test_default_catalog_authority_makes_real_executable_presets_ready(
+    tmp_path: Path,
+) -> None:
+    authorities = _write_authorities(tmp_path, ["qre-hyp-generated"])
+    snap = diag.collect_snapshot(
+        hypothesis_artifact_path=authorities["hypotheses"],
+        plan_artifact_path=authorities["plans"],
+        run_manifest_artifact_path=authorities["manifests"],
+        generated_at_utc=FROZEN,
+        presets=[
+            _preset("trend_pullback_equities_4h", "trend_pullback_v1"),
+            _preset(
+                "vol_compression_breakout_crypto_4h",
+                "volatility_compression_breakout_v0",
+            ),
+        ],
+        catalog_authority=None,
+    )
+
+    assert snap["bridge"]["executable_ids_present_in_qre_authority"] == [
+        "trend_pullback_v1",
+        "volatility_compression_breakout_v0",
+    ]
+    assert snap["bridge"]["executable_ids_missing_from_qre_authority"] == []
+    assert snap["bridge"]["primary_blocker"] == "no_primary_blocker"
+    assert snap["controlled_validation_bridge_readiness"]["ready"] is True
+    assert {
+        row["qre_authority_linkage_mode"]
+        for row in snap["controlled_validation_bridge_readiness"]["rows"]
+    } == {"strategy_hypothesis_catalog"}
+    assert {
+        row["qre_authority_status"]
+        for row in snap["controlled_validation_bridge_readiness"]["rows"]
+    } == {"catalog_active_discovery"}
+    _assert_safety(snap)
 
 
 def test_controlled_validation_bridge_readiness_reports_missing_executable_authority(
