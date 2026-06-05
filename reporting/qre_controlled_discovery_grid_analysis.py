@@ -10,6 +10,8 @@ from typing import Any
 SUMMARY_FILENAME = "summary_latest.v1.json"
 OPERATOR_SUMMARY_FILENAME = "operator_summary.md"
 RESULTS_FILENAME = "combination_results.v1.jsonl"
+OOS_EVIDENCE_OUTCOME = "sufficient_oos_evidence"
+UNKNOWN_REQUIRES_ARTIFACT_INSPECTION = "unknown_requires_artifact_inspection"
 
 
 def _table(headers: list[str], rows: list[list[str]]) -> str:
@@ -81,6 +83,209 @@ def _top_rows(
     ]
 
 
+def _coerce_number(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _criteria_failure_classes(criteria_status: Any) -> list[str]:
+    if criteria_status is None:
+        return []
+    classes: list[str] = []
+    for token in str(criteria_status).split(","):
+        item = token.strip()
+        if not item:
+            continue
+        if item in {"promotion_allowed", "criteria_passed"}:
+            continue
+        classes.append(item)
+    return classes
+
+
+def _metric_consistency_diagnostics(row: dict[str, Any]) -> dict[str, Any]:
+    trades_total = _coerce_number(row.get("trades_total"))
+    oos_trades = _coerce_number(row.get("oos_trades"))
+    hd_trades = _coerce_number(row.get("hd_trades"))
+    warnings: list[str] = []
+    status = "consistent"
+    consistency = "consistent"
+    if trades_total is None and (oos_trades is not None or hd_trades is not None):
+        warnings.append("missing_total_trade_metric")
+        status = "inconsistent"
+        consistency = "missing_total_trade_metric"
+    elif (
+        trades_total is not None
+        and oos_trades is not None
+        and hd_trades is not None
+        and (oos_trades + hd_trades) > trades_total + 0.5
+    ):
+        warnings.append("oos_hd_exceeds_trades_total")
+        status = "inconsistent"
+        consistency = "oos_hd_exceeds_trades_total"
+    elif trades_total is not None and oos_trades is not None and oos_trades > trades_total + 0.5:
+        warnings.append("oos_trades_exceeds_trades_total")
+        status = "inconsistent"
+        consistency = "oos_trades_exceeds_trades_total"
+    elif trades_total is not None and hd_trades is not None and hd_trades > trades_total + 0.5:
+        warnings.append("hd_trades_exceeds_trades_total")
+        status = "inconsistent"
+        consistency = "hd_trades_exceeds_trades_total"
+
+    return {
+        "trades_total": trades_total,
+        "oos_trades": oos_trades,
+        "hd_trades": hd_trades,
+        "trades_total_vs_oos_hd_consistency": consistency,
+        "metric_consistency_status": status,
+        "metric_consistency_warnings": warnings,
+    }
+
+
+def _artifact_status(row: dict[str, Any]) -> str:
+    artifact_paths = row.get("artifact_paths")
+    has_artifact_paths = isinstance(artifact_paths, dict) and bool(artifact_paths)
+    has_result_path = bool(str(row.get("result_path") or "").strip())
+    if has_artifact_paths or has_result_path:
+        return "artifacts_present"
+    return "missing_artifacts"
+
+
+def _source_identity_blocker(row: dict[str, Any]) -> str | None:
+    blocker_class = str(row.get("source_identity_blocker_class") or "").strip()
+    if blocker_class:
+        return blocker_class
+    source_identity_status = str(row.get("source_identity_status") or "").strip()
+    provider_symbol_status = str(row.get("provider_symbol_status") or "").strip()
+    if source_identity_status == "missing_provider_symbol":
+        return "source_identity_missing_provider_symbol"
+    if provider_symbol_status == "candidate_alias_requires_verification":
+        return "source_identity_candidate_alias_unverified"
+    if provider_symbol_status == "provider_lookup_failed":
+        return "source_identity_provider_lookup_failed"
+    return None
+
+
+def _derive_row_diagnostics(row: dict[str, Any]) -> dict[str, Any]:
+    diagnostic = dict(row)
+    metric = _metric_consistency_diagnostics(row)
+    diagnostic.update(metric)
+    diagnostic["criteria_failure_classes"] = _criteria_failure_classes(
+        row.get("criteria_status")
+    )
+    diagnostic["artifact_status"] = _artifact_status(row)
+    diagnostic["source_identity_blocker_class"] = _source_identity_blocker(row)
+
+    blocker_class = str(row.get("blocker_class") or "").strip()
+    outcome_class = str(row.get("outcome_class") or "unknown").strip() or "unknown"
+    promotion_candidate = bool(row.get("promotion_candidate"))
+    oos_blocker = None
+    if outcome_class == OOS_EVIDENCE_OUTCOME and not promotion_candidate:
+        if metric["metric_consistency_status"] != "consistent":
+            oos_blocker = "oos_evidence_metric_inconsistent"
+        elif blocker_class == "degenerate_no_survivors":
+            oos_blocker = "oos_evidence_degenerate_no_survivors"
+        elif diagnostic["artifact_status"] == "missing_artifacts":
+            oos_blocker = "oos_evidence_missing_artifacts"
+        elif diagnostic["criteria_failure_classes"]:
+            oos_blocker = "oos_evidence_no_promotion_due_to_criteria"
+        elif blocker_class:
+            oos_blocker = "oos_evidence_quality_failed"
+        else:
+            oos_blocker = "oos_evidence_unknown_reason"
+    diagnostic["oos_evidence_blocker_class"] = oos_blocker
+    diagnostic["primary_blocker"] = (
+        oos_blocker
+        or blocker_class
+        or diagnostic["source_identity_blocker_class"]
+        or UNKNOWN_REQUIRES_ARTIFACT_INSPECTION
+    )
+    diagnostic["follow_up"] = (
+        "inspect_metric_consistency"
+        if oos_blocker == "oos_evidence_metric_inconsistent"
+        else "review_criteria_failures"
+        if oos_blocker == "oos_evidence_no_promotion_due_to_criteria"
+        else "inspect_missing_artifacts"
+        if oos_blocker == "oos_evidence_missing_artifacts"
+        else "resolve_source_identity"
+        if diagnostic["source_identity_blocker_class"]
+        else UNKNOWN_REQUIRES_ARTIFACT_INSPECTION
+        if outcome_class == "unknown"
+        else "bounded_follow_up"
+    )
+
+    derived_outcome_class = outcome_class
+    if outcome_class == "unknown":
+        if str(row.get("status") or "") == "execution_integration_deferred":
+            derived_outcome_class = "unknown"
+        elif diagnostic["source_identity_blocker_class"]:
+            derived_outcome_class = diagnostic["source_identity_blocker_class"]
+        elif blocker_class and blocker_class not in {
+            "execution_integration_deferred",
+            "controlled_validation_failed",
+            "unknown_execution_error",
+        }:
+            derived_outcome_class = blocker_class
+        else:
+            derived_outcome_class = UNKNOWN_REQUIRES_ARTIFACT_INSPECTION
+    diagnostic["derived_outcome_class"] = derived_outcome_class
+    diagnostic["safe_to_promote"] = False if outcome_class == OOS_EVIDENCE_OUTCOME else bool(
+        row.get("safe_to_promote")
+    )
+    diagnostic["near_pass"] = False if outcome_class == OOS_EVIDENCE_OUTCOME else bool(
+        row.get("near_pass")
+    )
+    diagnostic["promotion_candidate"] = False if outcome_class == OOS_EVIDENCE_OUTCOME else promotion_candidate
+    return diagnostic
+
+
+def _diagnostic_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [_derive_row_diagnostics(row) for row in rows]
+
+
+def _top_oos_follow_up_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    selected = [
+        row
+        for row in rows
+        if str(row.get("outcome_class") or "") == OOS_EVIDENCE_OUTCOME
+        and not bool(row.get("promotion_candidate"))
+    ]
+    selected.sort(
+        key=lambda row: (
+            0 if row.get("metric_consistency_status") == "consistent" else 1,
+            len(row.get("criteria_failure_classes") or []),
+            1 if row.get("source_identity_blocker_class") else 0,
+            -(row.get("trades_total") or 0.0),
+            -(row.get("oos_trades") or 0.0),
+            int(row.get("sequence_number") or 0),
+        )
+    )
+    top_rows: list[dict[str, Any]] = []
+    for row in selected[:10]:
+        top_rows.append(
+            {
+                "sequence_number": int(row.get("sequence_number") or 0),
+                "instrument_symbol": str(row.get("instrument_symbol") or ""),
+                "behavior_preset_id": str(row.get("behavior_preset_id") or ""),
+                "promotion_candidate": False,
+                "near_pass": False,
+                "safe_to_promote": False,
+                "primary_blocker": row.get("primary_blocker"),
+                "criteria_failure_classes": row.get("criteria_failure_classes"),
+                "metric_consistency_status": row.get("metric_consistency_status"),
+                "follow_up": row.get("follow_up"),
+                "trades_total": row.get("trades_total"),
+                "oos_trades": row.get("oos_trades"),
+                "hd_trades": row.get("hd_trades"),
+                "source_identity_blocker_class": row.get("source_identity_blocker_class"),
+            }
+        )
+    return top_rows
+
+
 def build_summary(
     *,
     run_dir: Path,
@@ -88,22 +293,26 @@ def build_summary(
     total_planned: int | None = None,
 ) -> dict[str, Any]:
     latest_results = _latest_result_rows(results)
+    diagnostic_rows = _diagnostic_rows(latest_results)
     blocker_counter = Counter(
-        str(row.get("blocker_class") or "unknown") for row in latest_results
+        str(row.get("blocker_class") or "unknown") for row in diagnostic_rows
     )
     outcome_counter = Counter(
-        str(row.get("outcome_class") or "unknown") for row in latest_results
+        str(row.get("derived_outcome_class") or "unknown") for row in diagnostic_rows
     )
-    status_counter = Counter(str(row.get("status") or "unknown") for row in latest_results)
+    status_counter = Counter(str(row.get("status") or "unknown") for row in diagnostic_rows)
+    oos_blocker_counter = Counter(
+        str(row.get("oos_evidence_blocker_class") or "none") for row in diagnostic_rows
+    )
 
     deferred_count = status_counter.get("execution_integration_deferred", 0)
     summary = {
         "report_kind": "qre_controlled_discovery_grid_analysis",
         "run_dir": run_dir.as_posix(),
-        "result_count": len(latest_results),
+        "result_count": len(diagnostic_rows),
         "counts": {
-            "total_combinations_planned": int(total_planned or len(latest_results)),
-            "total_attempted": len(latest_results),
+            "total_combinations_planned": int(total_planned or len(diagnostic_rows)),
+            "total_attempted": len(diagnostic_rows),
             "total_completed": status_counter.get("completed", 0),
             "total_skipped": status_counter.get("skipped", 0)
             + status_counter.get("skipped_invalid_metadata", 0)
@@ -120,24 +329,70 @@ def build_summary(
                 "criteria_consistentie_failed", 0
             ),
             "data_coverage_blocker": blocker_counter.get("data_coverage_blocker", 0),
+            "sufficient_oos_evidence": sum(
+                1
+                for row in diagnostic_rows
+                if str(row.get("outcome_class") or "") == OOS_EVIDENCE_OUTCOME
+            ),
+            "oos_evidence_quality_failed": oos_blocker_counter.get(
+                "oos_evidence_quality_failed", 0
+            ),
+            "oos_evidence_metric_inconsistent": oos_blocker_counter.get(
+                "oos_evidence_metric_inconsistent", 0
+            ),
+            "oos_evidence_no_promotion_due_to_criteria": oos_blocker_counter.get(
+                "oos_evidence_no_promotion_due_to_criteria", 0
+            ),
+            "oos_evidence_degenerate_no_survivors": oos_blocker_counter.get(
+                "oos_evidence_degenerate_no_survivors", 0
+            ),
+            "oos_evidence_missing_artifacts": oos_blocker_counter.get(
+                "oos_evidence_missing_artifacts", 0
+            ),
+            "oos_evidence_unknown_reason": oos_blocker_counter.get(
+                "oos_evidence_unknown_reason", 0
+            ),
             "near_pass": outcome_counter.get("near_pass", 0),
             "promotion_candidate": outcome_counter.get("promotion_candidate", 0),
             "unknown": outcome_counter.get("unknown", 0),
             "total_unknown": outcome_counter.get("unknown", 0),
         },
-        "by_region": _group_counts(latest_results, "region"),
-        "by_asset": _group_counts(latest_results, "instrument_symbol"),
-        "by_behavior_preset": _group_counts(latest_results, "behavior_preset_id"),
-        "by_outcome_class": _group_counts(latest_results, "outcome_class"),
-        "by_blocker_class": _group_counts(latest_results, "blocker_class"),
+        "by_region": _group_counts(diagnostic_rows, "region"),
+        "by_asset": _group_counts(diagnostic_rows, "instrument_symbol"),
+        "by_behavior_preset": _group_counts(diagnostic_rows, "behavior_preset_id"),
+        "by_outcome_class": _group_counts(diagnostic_rows, "derived_outcome_class"),
+        "by_blocker_class": _group_counts(diagnostic_rows, "blocker_class"),
+        "by_oos_evidence_blocker_class": _group_counts(
+            [row for row in diagnostic_rows if row.get("oos_evidence_blocker_class")],
+            "oos_evidence_blocker_class",
+        ),
         "top_near_pass": _top_rows(
-            latest_results,
+            diagnostic_rows,
             predicate=lambda row: bool(row.get("near_pass")),
         ),
         "top_promotion_candidates": _top_rows(
-            latest_results,
+            diagnostic_rows,
             predicate=lambda row: bool(row.get("promotion_candidate")),
         ),
+        "sufficient_oos_evidence_blockers": [
+            {
+                "sequence_number": int(row.get("sequence_number") or 0),
+                "instrument_symbol": str(row.get("instrument_symbol") or ""),
+                "behavior_preset_id": str(row.get("behavior_preset_id") or ""),
+                "oos_trades": row.get("oos_trades"),
+                "hd_trades": row.get("hd_trades"),
+                "trades_total": row.get("trades_total"),
+                "promotion_candidate": False,
+                "primary_blocker": row.get("primary_blocker"),
+                "criteria_failure_classes": row.get("criteria_failure_classes"),
+                "metric_consistency_status": row.get("metric_consistency_status"),
+                "metric_consistency_warnings": row.get("metric_consistency_warnings"),
+                "follow_up": row.get("follow_up"),
+            }
+            for row in diagnostic_rows
+            if row.get("oos_evidence_blocker_class")
+        ],
+        "top_oos_follow_up_diagnostics": _top_oos_follow_up_rows(diagnostic_rows),
         "next_action": "DEFER_EXECUTION_INTEGRATION"
         if deferred_count
         else "MERGE_AND_RUN_ON_VPS",
@@ -165,6 +420,31 @@ def render_operator_summary(summary: dict[str, Any]) -> str:
             ],
             ["criteria consistentie failed", str(counts["criteria_consistentie_failed"])],
             ["data coverage blocker", str(counts["data_coverage_blocker"])],
+            ["sufficient OOS evidence", str(counts["sufficient_oos_evidence"])],
+            [
+                "OOS blocker: quality failed",
+                str(counts["oos_evidence_quality_failed"]),
+            ],
+            [
+                "OOS blocker: metric inconsistent",
+                str(counts["oos_evidence_metric_inconsistent"]),
+            ],
+            [
+                "OOS blocker: no promotion due to criteria",
+                str(counts["oos_evidence_no_promotion_due_to_criteria"]),
+            ],
+            [
+                "OOS blocker: degenerate no survivors",
+                str(counts["oos_evidence_degenerate_no_survivors"]),
+            ],
+            [
+                "OOS blocker: missing artifacts",
+                str(counts["oos_evidence_missing_artifacts"]),
+            ],
+            [
+                "OOS blocker: unknown reason",
+                str(counts["oos_evidence_unknown_reason"]),
+            ],
             ["near pass", str(counts["near_pass"])],
             ["promotion candidate", str(counts["promotion_candidate"])],
             ["unknown", str(counts["unknown"])],
@@ -177,6 +457,78 @@ def render_operator_summary(summary: dict[str, Any]) -> str:
     preset_table = _table(
         ["Behavior preset", "Count"],
         [[row["value"], str(row["count"])] for row in summary["by_behavior_preset"]],
+    )
+    oos_rows = summary["sufficient_oos_evidence_blockers"] or [
+        {
+            "sequence_number": "-",
+            "instrument_symbol": "-",
+            "behavior_preset_id": "-",
+            "oos_trades": "-",
+            "hd_trades": "-",
+            "trades_total": "-",
+            "promotion_candidate": False,
+            "primary_blocker": "-",
+            "criteria_failure_classes": [],
+            "metric_consistency_status": "-",
+            "follow_up": "-",
+        }
+    ]
+    oos_table = _table(
+        [
+            "Sequence",
+            "Instrument",
+            "Preset",
+            "OOS trades",
+            "HD trades",
+            "Trades total",
+            "Promotion",
+            "Primary blocker",
+            "Criteria failures",
+            "Metric consistency",
+            "Follow-up",
+        ],
+        [
+            [
+                str(row["sequence_number"]),
+                str(row["instrument_symbol"]),
+                str(row["behavior_preset_id"]),
+                str(row["oos_trades"]),
+                str(row["hd_trades"]),
+                str(row["trades_total"]),
+                "false",
+                str(row["primary_blocker"]),
+                ", ".join(row["criteria_failure_classes"]) or "-",
+                str(row["metric_consistency_status"]),
+                str(row["follow_up"]),
+            ]
+            for row in oos_rows
+        ],
+    )
+    follow_up_rows = summary["top_oos_follow_up_diagnostics"] or [
+        {
+            "sequence_number": "-",
+            "instrument_symbol": "-",
+            "behavior_preset_id": "-",
+            "primary_blocker": "-",
+            "criteria_failure_classes": [],
+            "metric_consistency_status": "-",
+            "follow_up": "-",
+        }
+    ]
+    follow_up_table = _table(
+        ["Sequence", "Instrument", "Preset", "Primary blocker", "Criteria failures", "Metric consistency", "Follow-up"],
+        [
+            [
+                str(row["sequence_number"]),
+                str(row["instrument_symbol"]),
+                str(row["behavior_preset_id"]),
+                str(row["primary_blocker"]),
+                ", ".join(row["criteria_failure_classes"]) or "-",
+                str(row["metric_consistency_status"]),
+                str(row["follow_up"]),
+            ]
+            for row in follow_up_rows
+        ],
     )
     return "\n".join(
         [
@@ -196,7 +548,13 @@ def render_operator_summary(summary: dict[str, Any]) -> str:
             "## 4. Behavior preset coverage",
             preset_table,
             "",
-            "## 5. Next action",
+            "## 5. Sufficient OOS evidence blocker explanation",
+            oos_table,
+            "",
+            "## 6. Top OOS follow-up diagnostics",
+            follow_up_table,
+            "",
+            "## 7. Next action",
             f"- NEXT_ACTION: {summary['next_action']}",
         ]
     )
