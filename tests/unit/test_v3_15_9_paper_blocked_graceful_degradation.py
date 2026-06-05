@@ -67,6 +67,39 @@ def test_empty_paper_blocked_index_does_not_block_artifact() -> None:
     assert payload["candidates"][0]["promotion_guard"]["blocked_by"] == []
 
 
+def test_failed_criteria_checks_surface_as_promotion_guard_blockers() -> None:
+    record = _passing_record()
+    record["diagnostic_metrics"]["criteria_checks"] = {
+        "consistentie": False,
+        "deflated_sharpe": True,
+        "max_drawdown": True,
+        "trades_per_maand": False,
+        "win_rate": False,
+    }
+
+    payload = build_screening_evidence_payload(
+        run_id="run-1",
+        as_of_utc=datetime(2026, 4, 26, tzinfo=UTC),
+        git_revision="abc",
+        campaign_id="cmp-1",
+        col_campaign_id="cmp-1",
+        preset_name="preset_a",
+        screening_phase="exploratory",
+        candidates=[_candidate()],
+        screening_records=[record],
+        screening_pass_kinds={"s1": "promotion_grade"},
+        paper_blocked_index={},
+    )
+
+    guard = payload["candidates"][0]["promotion_guard"]
+    assert guard["promotion_allowed"] is False
+    assert guard["blocked_by"] == [
+        "criteria_consistentie_failed",
+        "criteria_trades_per_maand_failed",
+        "criteria_win_rate_failed",
+    ]
+
+
 def test_missing_sidecar_returns_empty_dict(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     # No file exists at research/paper_readiness_latest.v1.json
