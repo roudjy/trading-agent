@@ -100,6 +100,53 @@ def test_failed_criteria_checks_surface_as_promotion_guard_blockers() -> None:
     ]
 
 
+def test_public_result_criteria_checks_surface_as_promotion_guard_blockers() -> None:
+    record = _passing_record()
+    record["diagnostic_metrics"].pop("criteria_checks", None)
+    record["diagnostic_metrics"]["deflated_sharpe"] = None
+    record["diagnostic_metrics"]["consistentie"] = None
+
+    payload = build_screening_evidence_payload(
+        run_id="run-1",
+        as_of_utc=datetime(2026, 4, 26, tzinfo=UTC),
+        git_revision="abc",
+        campaign_id="cmp-1",
+        col_campaign_id="cmp-1",
+        preset_name="preset_a",
+        screening_phase="exploratory",
+        candidates=[_candidate()],
+        screening_records=[record],
+        screening_pass_kinds={"s1": "screening_pass"},
+        paper_blocked_index={},
+        public_result_rows=[
+            {
+                "strategy_name": "s1",
+                "asset": "BTC",
+                "interval": "1h",
+                "deflated_sharpe": 0.534,
+                "consistentie": 0.333,
+                "criteria_checks_json": (
+                    "{\"consistentie\": false, "
+                    "\"deflated_sharpe\": true, "
+                    "\"max_drawdown\": true, "
+                    "\"trades_per_maand\": false, "
+                    "\"win_rate\": false}"
+                ),
+            }
+        ],
+    )
+
+    row = payload["candidates"][0]
+    assert row["metrics"]["deflated_sharpe"] == 0.534
+    assert row["metrics"]["consistentie"] == 0.333
+    assert row["promotion_guard"]["promotion_allowed"] is False
+    assert row["promotion_guard"]["blocked_by"] == [
+        "criteria_consistentie_failed",
+        "criteria_trades_per_maand_failed",
+        "criteria_win_rate_failed",
+    ]
+
+
 def test_missing_sidecar_returns_empty_dict(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     # No file exists at research/paper_readiness_latest.v1.json
