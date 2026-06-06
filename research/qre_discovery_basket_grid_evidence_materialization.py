@@ -237,7 +237,14 @@ def _exact_blocker_category(
         return "grid_artifact_missing"
     if str(basket_row.get("source_identity_status") or "") == "candidate_alias_only":
         return "source_identity_blocked"
-    if metric_status == "metric_inconsistent":
+    if metric_status in {
+        "metric_inconsistent",
+        "inconsistent_oos_gt_total",
+        "missing_total_trades",
+        "missing_oos_trades",
+        "non_numeric_metric",
+        "aggregation_scope_mismatch",
+    }:
         return "metric_inconsistent"
     if preset_classification in {
         "mapping_missing",
