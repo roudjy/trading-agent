@@ -146,3 +146,19 @@ def test_render_operator_summary_and_write_outputs(tmp_path: Path) -> None:
         paths["operator_summary"]
         == "logs/qre_pre_shadow_paper_research_readiness/operator_summary.md"
     )
+
+
+def test_pre_shadow_readiness_reports_missing_source_sidecars_explicitly(
+    tmp_path: Path,
+) -> None:
+    _seed_complete_aapl_repo(tmp_path)
+    (tmp_path / "logs" / "qre_data_cache_manifest" / "latest.json").unlink()
+    (tmp_path / "logs" / "qre_data_source_quality_readiness" / "latest.json").unlink()
+
+    report = readiness.build_pre_shadow_paper_research_readiness(
+        repo_root=tmp_path,
+        max_candidates=2,
+    )
+
+    assert report["summary"]["source_readiness_linked"] is False
+    assert "missing" in str(report["summary"]["source_readiness_note"]).lower()

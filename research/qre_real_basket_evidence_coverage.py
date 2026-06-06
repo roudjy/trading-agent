@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from research import qre_real_basket_diagnosis as diagnosis
+from research import qre_grid_evidence_readiness_bridge as grid_bridge
 
 
 REPORT_KIND: Final[str] = "qre_real_basket_evidence_coverage"
@@ -141,6 +142,25 @@ def _completeness_status(score_pct: int) -> str:
     return "missing"
 
 
+def _source_cache_artifact_status(
+    supporting_artifacts: Mapping[str, Any],
+) -> dict[str, str]:
+    source_quality = supporting_artifacts.get("source_quality")
+    cache_manifest = supporting_artifacts.get("cache_manifest")
+    screening_evidence = supporting_artifacts.get("screening_evidence")
+    return {
+        "source_quality_sidecar_status": (
+            "present" if isinstance(source_quality, Mapping) else "missing"
+        ),
+        "cache_manifest_sidecar_status": (
+            "present" if isinstance(cache_manifest, Mapping) else "missing"
+        ),
+        "screening_evidence_sidecar_status": (
+            "present" if isinstance(screening_evidence, Mapping) else "missing"
+        ),
+    }
+
+
 def build_real_basket_evidence_coverage(
     *,
     repo_root: Path = Path("."),
@@ -151,14 +171,27 @@ def build_real_basket_evidence_coverage(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    bridge_report = grid_bridge.build_grid_evidence_readiness_bridge(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
     rows = base.get("rows")
     if not isinstance(rows, list):
         rows = []
+    bridge_rows = bridge_report.get("rows")
+    if not isinstance(bridge_rows, list):
+        bridge_rows = []
+    bridge_by_candidate = {
+        str(row.get("basket_id") or ""): row
+        for row in bridge_rows
+        if isinstance(row, Mapping)
+    }
 
     coverage_rows: list[dict[str, Any]] = []
     taxonomy_counter: Counter[str] = Counter()
     completeness_counter: Counter[str] = Counter()
     evidence_backed_zero = True
+    source_cache_status = _source_cache_artifact_status(supporting_artifacts)
 
     for row in rows:
         if not isinstance(row, Mapping):
@@ -166,13 +199,29 @@ def build_real_basket_evidence_coverage(
         evidence = row.get("current_evidence")
         if not isinstance(evidence, Mapping):
             evidence = {}
+        candidate_id = str(row.get("candidate_id") or "")
+        bridge_row = bridge_by_candidate.get(candidate_id, {})
         screening_rows = diagnosis._matching_screening_rows(  # type: ignore[attr-defined]
             supporting_artifacts.get("screening_evidence"),
             symbol=str(row.get("symbol") or ""),
             hypothesis_id=str(row.get("hypothesis_id") or ""),
         )
         validation_statuses = _validation_statuses(screening_rows)
+        bridge_screening_visible = bool(bridge_row.get("readiness_screening_evidence_visible"))
+        bridge_oos_visible = bool(bridge_row.get("readiness_oos_evidence_visible"))
+        bridge_sufficient_visible = bool(bridge_row.get("readiness_sufficient_oos_visible"))
+        if bridge_screening_visible and not validation_statuses:
+            if bridge_sufficient_visible:
+                validation_statuses = ["sufficient_oos_evidence"]
+            elif bridge_oos_visible:
+                validation_statuses = ["grid_oos_evidence_present"]
+            else:
+                validation_statuses = ["grid_screening_evidence_present"]
         flags = _completeness_flags(row=row, validation_statuses=validation_statuses)
+        if bridge_screening_visible:
+            flags["screening_evidence_present"] = True
+        if bridge_oos_visible or bridge_sufficient_visible:
+            flags["oos_evidence_known"] = True
         score = round(100 * sum(flags.values()) / len(_COMPLETENESS_FIELDS))
         status = _completeness_status(score)
         missing = _missing_evidence_taxonomy(
@@ -183,11 +232,20 @@ def build_real_basket_evidence_coverage(
             source_quality_ready=flags["source_quality_ready"],
             cache_rows=int(evidence.get("cache_coverage_rows") or 0),
             cache_ready=flags["cache_ready"],
-            screening_rows=int(evidence.get("screening_rows") or 0),
+            screening_rows=max(
+                int(evidence.get("screening_rows") or 0),
+                1 if bridge_screening_visible else 0,
+            ),
             validation_statuses=validation_statuses,
             campaign_rows=int(evidence.get("campaign_rows") or 0),
             candidate_rows=int(evidence.get("candidate_rows") or 0),
         )
+        if bridge_screening_visible and "screening_evidence_missing" in missing:
+            missing.remove("screening_evidence_missing")
+        if (bridge_oos_visible or bridge_sufficient_visible) and "oos_evidence_missing" in missing:
+            missing.remove("oos_evidence_missing")
+        if (bridge_oos_visible or bridge_sufficient_visible) and "oos_evidence_unknown" in missing:
+            missing.remove("oos_evidence_unknown")
         if flags["screening_evidence_present"] or flags["oos_evidence_known"]:
             evidence_backed_zero = False
         taxonomy_counter.update(missing)
@@ -210,11 +268,18 @@ def build_real_basket_evidence_coverage(
                 "evidence_counts": {
                     "campaign_lineage_rows": int(evidence.get("campaign_rows") or 0),
                     "candidate_lineage_rows": int(evidence.get("candidate_rows") or 0),
-                    "screening_rows": int(evidence.get("screening_rows") or 0),
+                    "screening_rows": max(
+                        int(evidence.get("screening_rows") or 0),
+                        1 if bridge_screening_visible else 0,
+                    ),
                     "source_quality_rows": int(evidence.get("source_quality_rows") or 0),
                     "cache_coverage_rows": int(evidence.get("cache_coverage_rows") or 0),
                     "cache_ready_rows": int(evidence.get("cache_ready_count") or 0),
                     "oos_trade_count_max": _oos_trade_count(screening_rows),
+                    "grid_matched_rows": int(bridge_row.get("matched_grid_rows_count") or 0),
+                    "grid_screening_visible_rows": 1 if bridge_screening_visible else 0,
+                    "grid_oos_visible_rows": 1 if bridge_oos_visible else 0,
+                    "grid_sufficient_oos_visible_rows": 1 if bridge_sufficient_visible else 0,
                 },
                 "screening_stage_result_counts": dict(
                     evidence.get("screening_stage_result_counts") or {}
@@ -226,6 +291,25 @@ def build_real_basket_evidence_coverage(
                 "evidence_completeness_score_pct": score,
                 "evidence_completeness_status": status,
                 "missing_evidence_taxonomy": missing,
+                "grid_readiness_bridge": {
+                    "readiness_bridge_status": str(
+                        bridge_row.get("readiness_bridge_status") or "blocked_no_grid_match"
+                    ),
+                    "readiness_evidence_status": str(
+                        bridge_row.get("readiness_evidence_status") or "blocked"
+                    ),
+                    "readiness_blocker_category": str(
+                        bridge_row.get("readiness_blocker_category") or "blocked_no_grid_match"
+                    ),
+                    "grid_evidence_present": bool(bridge_row.get("grid_evidence_present")),
+                    "grid_screening_evidence_present": bridge_screening_visible,
+                    "grid_oos_evidence_present": bridge_oos_visible,
+                    "grid_sufficient_oos_evidence_present": bridge_sufficient_visible,
+                    "criteria_failure_classes": list(
+                        bridge_row.get("criteria_failure_classes") or []
+                    ),
+                    "bridge_explanation": str(bridge_row.get("bridge_explanation") or ""),
+                },
                 "follow_up": (
                     "eligible_for_readonly_routing"
                     if score >= 85
@@ -274,10 +358,17 @@ def build_real_basket_evidence_coverage(
                 for row in coverage_rows
             ),
             "evidence_backed_zero_screening": evidence_backed_zero,
+            "source_cache_sidecar_status": source_cache_status,
+            "grid_readiness_bridge_status_counts": dict(
+                Counter(
+                    str((row.get("grid_readiness_bridge") or {}).get("readiness_bridge_status") or "")
+                    for row in coverage_rows
+                )
+            ),
             "operator_summary": (
                 "Real basket evidence coverage maps each production discovery basket to "
-                "lineage, screening, OOS, source, and cache readiness without mutating "
-                "campaigns or promotion state."
+                "lineage, screening, OOS, source, cache, and controlled-grid bridge readiness "
+                "without mutating campaigns or promotion state."
             ),
         },
         "rows": coverage_rows,

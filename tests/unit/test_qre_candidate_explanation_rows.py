@@ -112,6 +112,58 @@ def test_build_candidate_explanation_rows_fail_closed_when_optional_artifacts_mi
     assert aapl["synthesis_gate_state"] == "not_available_fail_closed"
 
 
+def test_candidate_explanations_surface_grid_bridge_blockers(
+    tmp_path: Path,
+) -> None:
+    _seed_complete_aapl_repo(tmp_path)
+    (tmp_path / "research" / "screening_evidence_latest.v1.json").write_text(
+        json.dumps({"candidates": []}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _write_json(
+        tmp_path / "logs" / "qre_discovery_basket_grid_evidence_materialization" / "latest.json",
+        {
+            "rows": [
+                {
+                    "basket_id": "seed::trend_pullback_continuation_daily_v1::AAPL",
+                    "asset": "AAPL",
+                    "provider_symbol": "AAPL",
+                    "preset": "trend_pullback_continuation_daily_v1",
+                    "matched_grid_rows_count": 1,
+                    "matched_grid_rows": [
+                        {
+                            "run_id": "grid-run-1",
+                            "sequence_number": 1,
+                            "instrument_symbol": "AAPL",
+                            "behavior_preset_id": "trend_pullback_continuation_daily_v1",
+                            "status": "completed",
+                            "outcome_class": "sufficient_oos_evidence",
+                            "criteria_status": "criteria_consistentie_failed",
+                        }
+                    ],
+                    "evidence_exists_in_grid": True,
+                    "source_identity_status": "provider_symbol_verified",
+                    "source_identity_blocker": "",
+                    "metric_consistency_status": "clean_consistent",
+                    "preset_executability_classification": "executable",
+                    "candidate_lineage_status": "missing",
+                    "oos_evidence_status": "sufficient_oos_evidence_present",
+                    "sufficient_oos_evidence_status": "present",
+                    "join_key_status": "grid_row_match_found",
+                    "exact_next_action": "materialize_candidate_lineage",
+                }
+            ]
+        },
+    )
+
+    report = candidate_rows.build_candidate_explanation_rows(repo_root=tmp_path, max_candidates=2)
+
+    rows = {row["symbol"]: row for row in report["rows"]}
+    aapl = rows["AAPL"]
+    assert aapl["grid_readiness_bridge_status"] == "blocked_candidate_lineage_missing"
+    assert aapl["primary_blocker"] == "blocked_candidate_lineage_missing"
+
+
 def test_build_oos_evidence_blockers_classifies_sufficient_and_missing_oos_states(
     tmp_path: Path,
 ) -> None:
