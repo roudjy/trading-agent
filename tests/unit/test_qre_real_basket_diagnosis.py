@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from reporting import qre_real_basket_diagnosis as diagnosis
+from research import qre_real_basket_diagnosis as diagnosis
 
 
 def _write_json(path: Path, payload: dict) -> None:
