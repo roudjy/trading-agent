@@ -85,8 +85,9 @@ def test_build_hypothesis_seed_feasibility_keeps_source_identity_blocked_seed_ex
 
     rows = {row["hypothesis_id"]: row for row in report["rows"]}
     row = rows["relative_strength_sector_behavior_v1"]
-    assert row["feasibility_state"] == "blocked_source_identity"
+    assert row["feasibility_state"] == "blocked_source_or_cache"
     assert row["recommended_follow_up"] == "require_identity_resolution"
+    assert row["top_blockers"][0]["value"] == "source_identity_blocked"
 
 
 def test_build_hypothesis_seed_feasibility_distinguishes_seed_only_hypotheses(
