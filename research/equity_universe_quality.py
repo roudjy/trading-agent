@@ -6,6 +6,7 @@ from collections import Counter
 from typing import Final
 
 from research.equity_universe_catalog import list_equity_instruments
+from research.equity_universe_identity import build_instrument_identity_report
 
 
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -43,6 +44,12 @@ def build_equity_universe_quality() -> dict[str, object]:
     instruments = list_equity_instruments()
     canonical_counts = Counter(item.canonical_id for item in instruments)
     symbol_counts = Counter(item.symbol for item in instruments)
+    identity_report = build_instrument_identity_report()
+    identity_rows = {
+        str(row["canonical_id"]): row
+        for row in identity_report["rows"]
+        if isinstance(row, dict) and "canonical_id" in row
+    }
     rows: list[dict[str, object]] = []
     for item in instruments:
         status, issues = _row_status(item)
@@ -66,9 +73,21 @@ def build_equity_universe_quality() -> dict[str, object]:
                 "status": status,
                 "issues": issues,
                 "ambiguous_mapping_warning": item.ambiguous_mapping_warning,
+                "identity_status": identity_rows.get(item.canonical_id, {}).get("identity_status", "UNKNOWN"),
+                "eligible_for_hypothesis_seed": bool(
+                    identity_rows.get(item.canonical_id, {}).get("eligible_for_hypothesis_seed")
+                )
+                and status == "OK",
+                "universe_readiness_status": "OK"
+                if status == "OK" and identity_rows.get(item.canonical_id, {}).get("identity_status") == "OK"
+                else "FAIL"
+                if status == "FAIL"
+                or identity_rows.get(item.canonical_id, {}).get("identity_status") == "FAIL"
+                else "WARN",
             }
         )
     status_counts = Counter(str(row["status"]) for row in rows)
+    readiness_counts = Counter(str(row["universe_readiness_status"]) for row in rows)
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -81,12 +100,16 @@ def build_equity_universe_quality() -> dict[str, object]:
             "ambiguous_mappings": sum(bool(row["ambiguous_mapping_warning"]) for row in rows),
             "duplicate_canonical_ids": sum("duplicate_canonical_id" in row["issues"] for row in rows),
             "duplicate_symbols": sum("duplicate_symbol" in row["issues"] for row in rows),
+            "universe_readiness_counts": dict(sorted(readiness_counts.items())),
+            "eligible_for_hypothesis_seed": sum(bool(row["eligible_for_hypothesis_seed"]) for row in rows),
+            "blocked_for_hypothesis_seed": sum(not bool(row["eligible_for_hypothesis_seed"]) for row in rows),
             "operator_summary": (
                 "Universe quality is metadata-only and fail-closed for ambiguity. "
                 "Warnings and failures do not authorize any trading or strategy output."
             ),
         },
         "rows": rows,
+        "status_vocabulary": ["OK", "WARN", "FAIL", "UNKNOWN"],
         "safety_invariants": {
             "research_only": True,
             "not_trade_signal": True,
