@@ -139,9 +139,9 @@ def test_matches_grid_row_by_provider_alias_and_explains_adapter_gap(tmp_path: P
         [
                 {
                     "sequence_number": 2,
-                    "instrument_symbol": "ADYEN.AS",
-                    "primary_data_provider_symbol": "ADYEN.AS",
-                    "provider_symbol_aliases": ["ADYEN.AS"],
+                    "instrument_symbol": "ASM.AS",
+                    "primary_data_provider_symbol": "ASM.AS",
+                    "provider_symbol_aliases": ["ASM.AS", "ASMI.AS"],
                     "behavior_preset_id": "relative_strength_vs_sector_daily_v1",
                     "hypothesis_id": "relative_strength_sector_behavior_v1",
                     "timeframe": "1d",
@@ -163,7 +163,7 @@ def test_matches_grid_row_by_provider_alias_and_explains_adapter_gap(tmp_path: P
         max_candidates=15,
     )
 
-    row = next(item for item in report["rows"] if item["asset"] == "ADYEN")
+    row = next(item for item in report["rows"] if item["asset"] == "ASMI")
     assert row["join_key_status"] == "grid_row_match_found"
     assert row["readiness_adapter_gap"] is True
     assert row["source_identity_blocker"] == "source_identity_blocked"

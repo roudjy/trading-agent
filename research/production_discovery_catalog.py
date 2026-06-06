@@ -176,19 +176,19 @@ def _asset(
 _ASSETS: Final[tuple[DiscoveryAsset, ...]] = (
     _asset("ASML", display_name="ASML Holding", region="NL/EU", country="Netherlands", exchange="NASDAQ", currency="USD", sector="Technology", industry="Semiconductor Equipment", notes="Dutch large-cap semiconductor equipment anchor."),
     _asset("ASMI", display_name="ASM International", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Technology", industry="Semiconductor Equipment", notes="Dutch semiconductor equipment exposure.", primary_data_provider_symbol=None, provider_symbol_aliases=("ASM.AS", "ASMI.AS"), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Canonical display symbol is retained; Yahoo-style provider aliases require verification before data-backed use."),
-    _asset("BESI", display_name="BE Semiconductor", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Technology", industry="Semiconductor Equipment", notes="Dutch semiconductor packaging exposure.", primary_data_provider_symbol=None, provider_symbol_aliases=("BESI.AS",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Provider alias is high-confidence but not statically verified in-repo."),
-    _asset("ADYEN", display_name="Adyen", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Financial Technology", industry="Payments", notes="Dutch fintech large-cap seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("ADYEN.AS",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Euronext Amsterdam suffix likely required by the active provider."),
+    _asset("BESI", display_name="BE Semiconductor", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Technology", industry="Semiconductor Equipment", notes="Dutch semiconductor packaging exposure.", primary_data_provider_symbol="BESI.AS", provider_symbol_aliases=("BESI.AS",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Single Euronext Amsterdam alias is treated as deterministic provider mapping for read-only discovery diagnostics."),
+    _asset("ADYEN", display_name="Adyen", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Financial Technology", industry="Payments", notes="Dutch fintech large-cap seed.", primary_data_provider_symbol="ADYEN.AS", provider_symbol_aliases=("ADYEN.AS",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Single Euronext Amsterdam alias is treated as deterministic provider mapping for read-only discovery diagnostics."),
     _asset("ING", display_name="ING Group", region="NL/EU", country="Netherlands", exchange="NYSE", currency="USD", sector="Financials", industry="Banking", notes="Banking regime anchor for Europe."),
     _asset("SHELL", display_name="Shell", region="NL/EU", country="United Kingdom", exchange="NYSE", currency="USD", sector="Energy", industry="Integrated Oil & Gas", notes="Europe energy supermajor proxy.", primary_data_provider_symbol="SHEL", provider_symbol_aliases=("SHEL.AS", "SHEL.L"), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Canonical display symbol differs from the active provider's primary NYSE symbol."),
-    _asset("PRX", display_name="Prosus", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Communication Services", industry="Internet Holdings", notes="Dutch internet holding exposure.", primary_data_provider_symbol=None, provider_symbol_aliases=("PRX.AS",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Provider likely requires Amsterdam exchange suffix."),
+    _asset("PRX", display_name="Prosus", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Communication Services", industry="Internet Holdings", notes="Dutch internet holding exposure.", primary_data_provider_symbol="PRX.AS", provider_symbol_aliases=("PRX.AS",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Single Euronext Amsterdam alias is treated as deterministic provider mapping for read-only discovery diagnostics."),
     _asset("SAP", display_name="SAP", region="NL/EU", country="Germany", exchange="NYSE", currency="USD", sector="Technology", industry="Enterprise Software", notes="Europe software leadership seed."),
-    _asset("SIE", display_name="Siemens", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Industrials", industry="Industrial Conglomerates", notes="Europe industrial trend seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("SIE.DE",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="German Xetra listing likely needs .DE provider suffix."),
+    _asset("SIE", display_name="Siemens", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Industrials", industry="Industrial Conglomerates", notes="Europe industrial trend seed.", primary_data_provider_symbol="SIE.DE", provider_symbol_aliases=("SIE.DE",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Single Xetra alias is treated as deterministic provider mapping for read-only discovery diagnostics."),
     _asset("LVMH", display_name="LVMH", region="NL/EU", country="France", exchange="EURONEXT", currency="EUR", sector="Consumer Discretionary", industry="Luxury Goods", notes="Europe consumer leadership seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("MC.PA", "LVMH.PA"), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Yahoo-style Paris symbol is commonly MC.PA; preserve canonical display symbol until verified."),
     _asset("NOVO-B", display_name="Novo Nordisk", region="NL/EU", country="Denmark", exchange="NYSE", currency="USD", sector="Health Care", industry="Pharmaceuticals", notes="Europe health-care leadership seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("NVO", "NOVO-B.CO"), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Catalog display symbol may refer to Copenhagen listing while provider may require ADR or local suffix."),
-    _asset("AIR", display_name="Airbus", region="NL/EU", country="France", exchange="EURONEXT", currency="EUR", sector="Industrials", industry="Aerospace & Defense", notes="Europe aerospace cycle seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("AIR.PA",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Paris listing likely requires .PA provider suffix."),
+    _asset("AIR", display_name="Airbus", region="NL/EU", country="France", exchange="EURONEXT", currency="EUR", sector="Industrials", industry="Aerospace & Defense", notes="Europe aerospace cycle seed.", primary_data_provider_symbol="AIR.PA", provider_symbol_aliases=("AIR.PA",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Single Paris alias is treated as deterministic provider mapping for read-only discovery diagnostics."),
     _asset("TTE", display_name="TotalEnergies", region="NL/EU", country="France", exchange="NYSE", currency="USD", sector="Energy", industry="Integrated Oil & Gas", notes="Europe energy trend seed.", primary_data_provider_symbol="TTE", provider_symbol_aliases=("TTE.PA",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Primary provider symbol matches NYSE ADR; local Paris alias retained for diagnostics only."),
-    _asset("IFX", display_name="Infineon", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Technology", industry="Semiconductors", notes="Europe semiconductor cycle seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("IFX.DE",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Xetra listing likely requires .DE provider suffix."),
-    _asset("NESN", display_name="Nestle", region="NL/EU", country="Switzerland", exchange="SIX", currency="CHF", sector="Consumer Staples", industry="Packaged Foods", notes="Defensive Europe large-cap seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("NESN.SW",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Swiss listing likely requires .SW provider suffix."),
+    _asset("IFX", display_name="Infineon", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Technology", industry="Semiconductors", notes="Europe semiconductor cycle seed.", primary_data_provider_symbol="IFX.DE", provider_symbol_aliases=("IFX.DE",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Single Xetra alias is treated as deterministic provider mapping for read-only discovery diagnostics."),
+    _asset("NESN", display_name="Nestle", region="NL/EU", country="Switzerland", exchange="SIX", currency="CHF", sector="Consumer Staples", industry="Packaged Foods", notes="Defensive Europe large-cap seed.", primary_data_provider_symbol="NESN.SW", provider_symbol_aliases=("NESN.SW",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Single SIX alias is treated as deterministic provider mapping for read-only discovery diagnostics."),
     _asset("AAPL", display_name="Apple", region="US", country="United States", exchange="NASDAQ", currency="USD", sector="Technology", industry="Consumer Electronics", notes="US mega-cap leadership anchor."),
     _asset("MSFT", display_name="Microsoft", region="US", country="United States", exchange="NASDAQ", currency="USD", sector="Technology", industry="Software", notes="US mega-cap software anchor."),
     _asset("NVDA", display_name="NVIDIA", region="US", country="United States", exchange="NASDAQ", currency="USD", sector="Technology", industry="Semiconductors", notes="US semiconductor momentum seed."),
@@ -407,15 +407,38 @@ def source_identity_diagnostics() -> list[dict[str, object]]:
                 "canonical_symbol": asset.symbol,
                 "canonical_instrument_id": asset.canonical_instrument_id,
                 "provider_symbol": provider_symbol,
+                "selected_provider_symbol": provider_symbol or (aliases[0] if aliases else None),
                 "candidate_aliases": aliases,
                 "provider_symbol_status": provider_status,
                 "source_identity_status": source_identity_status,
                 "source_identity_notes": str(payload["source_identity_notes"]),
+                "identity_confidence": (
+                    "high"
+                    if provider_status == "verified"
+                    else "medium"
+                    if len(aliases) == 1
+                    else "low"
+                ),
+                "ambiguity_warning": (
+                    ""
+                    if provider_status == "verified"
+                    else "multiple_candidate_aliases"
+                    if len(aliases) > 1
+                    else "candidate_alias_requires_verification"
+                ),
+                "verification_basis": (
+                    "deterministic_catalog_mapping"
+                    if provider_status == "verified"
+                    else "candidate_alias_only"
+                ),
                 "has_primary_provider_symbol": bool(provider_symbol),
                 "has_provider_aliases": bool(aliases),
                 "is_provider_symbol_verified": provider_status == "verified",
                 "is_candidate_alias_only": provider_status
                 == "candidate_alias_requires_verification",
+                "next_action": (
+                    "allow_grid_join" if provider_status == "verified" else "require_alias_verification"
+                ),
                 "source_identity_blocker_class": blocker_class,
             }
         )
