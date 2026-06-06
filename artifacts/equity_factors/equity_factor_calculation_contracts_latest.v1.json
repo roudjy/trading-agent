@@ -1,0 +1,616 @@
+{
+  "policy_vocabulary": {
+    "allowed_use": [
+      "hypothesis_seed",
+      "research_screening",
+      "operator_explanation"
+    ],
+    "forbidden_use": [
+      "direct_trade_signal",
+      "candidate_promotion",
+      "capital_allocation"
+    ]
+  },
+  "report_kind": "equity_factor_calculation_contracts",
+  "rows": [
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "accruals_ratio",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "cash_flow_statement_ready",
+        "multi_period_fundamentals"
+      ],
+      "required_fields": [
+        "net_income_ttm",
+        "operating_cash_flow_ttm",
+        "average_total_assets"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "adjusted_slope",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "regression_slope",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete",
+        "volatility_ready"
+      ],
+      "required_fields": [
+        "price_history_12m",
+        "volatility_12m"
+      ],
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "altman_z_score",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "working_capital",
+        "retained_earnings",
+        "ebit_ttm",
+        "market_cap",
+        "total_assets",
+        "total_liabilities"
+      ],
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "average_daily_value_traded",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "liquidity_proxy",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete",
+        "volume_history_complete"
+      ],
+      "required_fields": [
+        "average_daily_value_traded_90d"
+      ],
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "beneish_m_score",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "multi_period_fundamentals",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "days_sales_receivables",
+        "gross_margin_index",
+        "asset_quality_index",
+        "sales_growth_index",
+        "depreciation_index",
+        "sgai",
+        "leverage_index",
+        "total_accruals_to_assets"
+      ],
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "book_to_market",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "book_value_equity",
+        "market_cap"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "buyback_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "yield",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_returns_ready",
+        "shares_outstanding_ready"
+      ],
+      "required_fields": [
+        "net_buybacks_ttm",
+        "market_cap"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "debt_to_equity",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready"
+      ],
+      "required_fields": [
+        "total_debt",
+        "book_value_equity"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "dividend_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "yield",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_returns_ready"
+      ],
+      "required_fields": [
+        "dividends_paid_ttm",
+        "market_cap"
+      ],
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "earnings_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio_inverse",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "fundamental_point_in_time",
+        "currency_consistent"
+      ],
+      "required_fields": [
+        "market_cap",
+        "net_income_ttm"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "enterprise_value_to_ebit",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "enterprise_value_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "enterprise_value",
+        "ebit_ttm"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "fcf_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "fundamental_point_in_time",
+        "cash_flow_statement_ready"
+      ],
+      "required_fields": [
+        "market_cap",
+        "free_cash_flow_ttm"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "gross_profitability",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "gross_profit_ttm",
+        "total_assets"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "montier_c_score",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "multi_period_fundamentals",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "dsri",
+        "gmi",
+        "aqi",
+        "sgi",
+        "depi",
+        "lvgi",
+        "tata"
+      ],
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "net_debt_to_ebitda",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "net_debt",
+        "ebitda_ttm"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "piotroski_f_score",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "multi_period_fundamentals",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "roa",
+        "operating_cash_flow",
+        "gross_margin",
+        "asset_turnover",
+        "leverage_ratio"
+      ],
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "price_to_sales",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "income_statement_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "market_cap",
+        "revenue_ttm"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "return_on_assets",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "net_income_ttm",
+        "total_assets"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "roic",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_structure_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "nopat_ttm",
+        "invested_capital"
+      ],
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "shareholder_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_yield",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_returns_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "dividends_paid_ttm",
+        "net_buybacks_ttm",
+        "net_debt_change_ttm",
+        "market_cap"
+      ],
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "six_month_momentum",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "price_return",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete"
+      ],
+      "required_fields": [
+        "price_history_6m"
+      ],
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "factor_id": "twelve_month_momentum",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "price_return",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete"
+      ],
+      "required_fields": [
+        "price_history_12m"
+      ],
+      "restatement_risk": "low"
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "contract_count": 22,
+    "operator_summary": "Calculation contracts define required fields and quality gates for research intake only. Missing fundamental readiness must block factor use."
+  }
+}

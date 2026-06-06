@@ -1,0 +1,725 @@
+{
+  "report_kind": "equity_factor_catalog",
+  "rows": [
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Cash-conversion quality proxy based on accrual intensity.",
+      "display_name": "Accruals Ratio",
+      "factor_id": "accruals_ratio",
+      "family": "accounting_red_flags",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "cash_flow_statement_ready",
+        "multi_period_fundamentals"
+      ],
+      "required_fields": [
+        "net_income_ttm",
+        "operating_cash_flow_ttm",
+        "average_total_assets"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Regression-slope momentum adjusted for volatility and fit quality.",
+      "display_name": "Adjusted Slope",
+      "factor_id": "adjusted_slope",
+      "family": "momentum",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "regression_slope",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete",
+        "volatility_ready"
+      ],
+      "required_fields": [
+        "price_history_12m",
+        "volatility_12m"
+      ],
+      "research_only": true,
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Bankruptcy-risk style composite score.",
+      "display_name": "Altman Z-Score",
+      "factor_id": "altman_z_score",
+      "family": "risk_distress",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "working_capital",
+        "retained_earnings",
+        "ebit_ttm",
+        "market_cap",
+        "total_assets",
+        "total_liabilities"
+      ],
+      "research_only": true,
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Liquidity proxy based on trailing traded value.",
+      "display_name": "Average Daily Value Traded",
+      "factor_id": "average_daily_value_traded",
+      "family": "liquidity",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "liquidity_proxy",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete",
+        "volume_history_complete"
+      ],
+      "required_fields": [
+        "average_daily_value_traded_90d"
+      ],
+      "research_only": true,
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Fraud-risk style accounting diagnostic.",
+      "display_name": "Beneish M-Score",
+      "factor_id": "beneish_m_score",
+      "family": "accounting_red_flags",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "multi_period_fundamentals",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "days_sales_receivables",
+        "gross_margin_index",
+        "asset_quality_index",
+        "sales_growth_index",
+        "depreciation_index",
+        "sgai",
+        "leverage_index",
+        "total_accruals_to_assets"
+      ],
+      "research_only": true,
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Book equity divided by market capitalization.",
+      "display_name": "Book to Market",
+      "factor_id": "book_to_market",
+      "family": "valuation",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "book_value_equity",
+        "market_cap"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Net share repurchases relative to market capitalization.",
+      "display_name": "Buyback Yield",
+      "factor_id": "buyback_yield",
+      "family": "shareholder_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "yield",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_returns_ready",
+        "shares_outstanding_ready"
+      ],
+      "required_fields": [
+        "net_buybacks_ttm",
+        "market_cap"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Total debt relative to book equity.",
+      "display_name": "Debt to Equity",
+      "factor_id": "debt_to_equity",
+      "family": "financial_health",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready"
+      ],
+      "required_fields": [
+        "total_debt",
+        "book_value_equity"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Dividends paid relative to market capitalization.",
+      "display_name": "Dividend Yield",
+      "factor_id": "dividend_yield",
+      "family": "shareholder_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "yield",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_returns_ready"
+      ],
+      "required_fields": [
+        "dividends_paid_ttm",
+        "market_cap"
+      ],
+      "research_only": true,
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Inverse P/E style valuation signal using trailing earnings.",
+      "display_name": "Earnings Yield",
+      "factor_id": "earnings_yield",
+      "family": "valuation",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio_inverse",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "fundamental_point_in_time",
+        "currency_consistent"
+      ],
+      "required_fields": [
+        "market_cap",
+        "net_income_ttm"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Enterprise value relative to operating earnings.",
+      "display_name": "Enterprise Value to EBIT",
+      "factor_id": "enterprise_value_to_ebit",
+      "family": "valuation",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "enterprise_value_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "enterprise_value",
+        "ebit_ttm"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Free cash flow relative to market capitalization.",
+      "display_name": "Free Cash Flow Yield",
+      "factor_id": "fcf_yield",
+      "family": "valuation",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "fundamental_point_in_time",
+        "cash_flow_statement_ready"
+      ],
+      "required_fields": [
+        "market_cap",
+        "free_cash_flow_ttm"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Gross profit relative to total assets.",
+      "display_name": "Gross Profitability",
+      "factor_id": "gross_profitability",
+      "family": "quality",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "gross_profit_ttm",
+        "total_assets"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Accounting conservatism risk composite.",
+      "display_name": "Montier C-Score",
+      "factor_id": "montier_c_score",
+      "family": "accounting_red_flags",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "multi_period_fundamentals",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "dsri",
+        "gmi",
+        "aqi",
+        "sgi",
+        "depi",
+        "lvgi",
+        "tata"
+      ],
+      "research_only": true,
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Leverage measure relative to operating cash earnings.",
+      "display_name": "Net Debt to EBITDA",
+      "factor_id": "net_debt_to_ebitda",
+      "family": "financial_health",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "net_debt",
+        "ebitda_ttm"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Composite accounting quality and balance-sheet strength score.",
+      "display_name": "Piotroski F-Score",
+      "factor_id": "piotroski_f_score",
+      "family": "financial_health",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_score",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "multi_period_fundamentals",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "roa",
+        "operating_cash_flow",
+        "gross_margin",
+        "asset_turnover",
+        "leverage_ratio"
+      ],
+      "research_only": true,
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Market capitalization relative to trailing revenue.",
+      "display_name": "Price to Sales",
+      "factor_id": "price_to_sales",
+      "family": "valuation",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "income_statement_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "market_cap",
+        "revenue_ttm"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Net income relative to total assets.",
+      "display_name": "Return on Assets",
+      "factor_id": "return_on_assets",
+      "family": "quality",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "balance_sheet_ready",
+        "income_statement_ready"
+      ],
+      "required_fields": [
+        "net_income_ttm",
+        "total_assets"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Operating return relative to invested capital.",
+      "display_name": "Return on Invested Capital",
+      "factor_id": "roic",
+      "family": "quality",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "ratio",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_structure_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "nopat_ttm",
+        "invested_capital"
+      ],
+      "research_only": true,
+      "restatement_risk": "high"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Composite of dividend, net buyback, and debt paydown yield.",
+      "display_name": "Shareholder Yield",
+      "factor_id": "shareholder_yield",
+      "family": "shareholder_yield",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "composite_yield",
+      "lookahead_bias_risk": "requires_report_lag_governance",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": true,
+      "quality_gate_requirements": [
+        "capital_returns_ready",
+        "fundamental_point_in_time"
+      ],
+      "required_fields": [
+        "dividends_paid_ttm",
+        "net_buybacks_ttm",
+        "net_debt_change_ttm",
+        "market_cap"
+      ],
+      "research_only": true,
+      "restatement_risk": "medium"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Price appreciation over the trailing six months.",
+      "display_name": "Six Month Momentum",
+      "factor_id": "six_month_momentum",
+      "family": "momentum",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "price_return",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete"
+      ],
+      "required_fields": [
+        "price_history_6m"
+      ],
+      "research_only": true,
+      "restatement_risk": "low"
+    },
+    {
+      "allowed_use": [
+        "hypothesis_seed",
+        "research_screening",
+        "operator_explanation"
+      ],
+      "description": "Price appreciation over the trailing twelve months.",
+      "display_name": "Twelve Month Momentum",
+      "factor_id": "twelve_month_momentum",
+      "family": "momentum",
+      "forbidden_use": [
+        "direct_trade_signal",
+        "candidate_promotion",
+        "capital_allocation"
+      ],
+      "formula_kind": "price_return",
+      "lookahead_bias_risk": "requires_price_window_integrity",
+      "missing_value_policy": "block_factor",
+      "not_trade_signal": true,
+      "point_in_time_required": false,
+      "quality_gate_requirements": [
+        "price_history_complete"
+      ],
+      "required_fields": [
+        "price_history_12m"
+      ],
+      "research_only": true,
+      "restatement_risk": "low"
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "factor_definition_count": 22,
+    "factor_families": [
+      "accounting_red_flags",
+      "financial_health",
+      "liquidity",
+      "momentum",
+      "quality",
+      "risk_distress",
+      "shareholder_yield",
+      "valuation"
+    ],
+    "factor_family_count": 8,
+    "operator_summary": "Equity factor definitions are research-only calculation contracts. They are not executable strategies, not direct trade signals, and not capital-allocation authority."
+  }
+}
