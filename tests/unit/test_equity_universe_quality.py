@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from packages.qre_research import equity_universe_quality as quality
+from research import equity_universe_quality as quality
 
 
 def test_quality_report_flags_ambiguity_and_has_closed_statuses() -> None:

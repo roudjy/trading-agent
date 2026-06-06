@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Final
 
-from packages.qre_research.equity_universe_catalog import list_equity_instruments
+from research.equity_universe_catalog import list_equity_instruments
 
 
 SCHEMA_VERSION: Final[str] = "1.0"

@@ -6,14 +6,14 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Any, Final
 
-from packages.qre_research.equity_regions import (
+from research.equity_regions import (
     ASIA_DEVELOPED_COUNTRIES,
     EUROPE_COUNTRIES,
     NORDIC_COUNTRIES,
     QUALITY_SECTORS,
     UNIVERSE_DEFINITIONS,
 )
-from packages.qre_research.equity_universe_seed_data import SEED_ROWS
+from research.equity_universe_seed_data import SEED_ROWS
 
 
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -71,9 +71,7 @@ class EquityInstrument:
 def _macro_region(country: str) -> str:
     if country in EUROPE_COUNTRIES:
         return "Europe"
-    if country == "United States":
-        return "North America"
-    if country == "Canada":
+    if country in {"United States", "Canada"}:
         return "North America"
     if country in ASIA_DEVELOPED_COUNTRIES:
         return "Asia Developed"
@@ -119,7 +117,6 @@ def _universe_ids(row: dict[str, object]) -> tuple[str, ...]:
 def list_equity_instruments() -> list[EquityInstrument]:
     instruments: list[EquityInstrument] = []
     for row in SEED_ROWS:
-        provider_symbol = str(row.get("provider_symbol") or "")
         symbol = str(row["symbol"])
         exchange = str(row["exchange"])
         country = str(row["country"])
@@ -127,7 +124,7 @@ def list_equity_instruments() -> list[EquityInstrument]:
             EquityInstrument(
                 canonical_id=f"{exchange}:{symbol}",
                 symbol=symbol,
-                provider_symbol=provider_symbol,
+                provider_symbol=str(row.get("provider_symbol") or ""),
                 candidate_provider_symbols=tuple(row.get("candidate_provider_symbols") or ()),
                 display_name=str(row["name"]),
                 asset_class="equity",

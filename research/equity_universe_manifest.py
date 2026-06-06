@@ -8,13 +8,11 @@ import os
 from pathlib import Path
 from typing import Final
 
-from packages.qre_research.equity_universe_catalog import (
+from research.equity_universe_catalog import (
     build_equity_universe_catalog,
     build_equity_universe_summary,
 )
-from packages.qre_research.equity_universe_quality import (
-    build_equity_universe_quality,
-)
+from research.equity_universe_quality import build_equity_universe_quality
 
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("artifacts/universe")
@@ -55,7 +53,7 @@ def write_outputs(*, repo_root: Path = Path("."), output_dir: Path = DEFAULT_OUT
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m packages.qre_research.equity_universe_manifest",
+        prog="python -m research.equity_universe_manifest",
         description="Write deterministic read-only equity-universe artifacts.",
     )
     parser.add_argument("--write", action="store_true")
@@ -73,4 +71,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-

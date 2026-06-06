@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from packages.qre_research import equity_universe_catalog as catalog
+from research import equity_universe_catalog as catalog
 
 
 def test_required_universe_ids_and_counts_exist() -> None:
@@ -29,4 +29,3 @@ def test_catalog_is_deterministic_and_research_only() -> None:
     assert left["safety_invariants"]["research_only"] is True
     assert left["safety_invariants"]["paper_shadow_live_forbidden"] is True
     assert all(row["asset_class"] == "equity" for row in left["instruments"])
-

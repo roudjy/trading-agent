@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from packages.qre_research import equity_universe_manifest as manifest
+from research import equity_universe_manifest as manifest
 
 
 def test_manifest_write_outputs(tmp_path: Path) -> None:
@@ -25,4 +25,3 @@ def test_manifest_main_payload_shape() -> None:
     }
     assert payload["catalog"]["summary"]["instrument_count"] >= 100
     assert payload["quality"]["summary"]["ambiguous_mappings"] >= 1
-
