@@ -36,6 +36,11 @@ class DiscoveryAsset:
     liquidity_tier: str
     data_source: str
     source_quality_status: str
+    primary_data_provider_symbol: str | None
+    provider_symbol_aliases: tuple[str, ...]
+    provider_symbol_status: str
+    source_identity_status: str
+    source_identity_notes: str
     enabled_for_discovery: bool
     enabled_for_validation: bool
     not_alpha_claim: bool
@@ -59,6 +64,11 @@ class DiscoveryAsset:
             "liquidity_tier": self.liquidity_tier,
             "data_source": self.data_source,
             "source_quality_status": self.source_quality_status,
+            "primary_data_provider_symbol": self.primary_data_provider_symbol,
+            "provider_symbol_aliases": list(self.provider_symbol_aliases),
+            "provider_symbol_status": self.provider_symbol_status,
+            "source_identity_status": self.source_identity_status,
+            "source_identity_notes": self.source_identity_notes,
             "enabled_for_discovery": self.enabled_for_discovery,
             "enabled_for_validation": self.enabled_for_validation,
             "not_alpha_claim": self.not_alpha_claim,
@@ -126,6 +136,11 @@ def _asset(
     liquidity_tier: str = "high",
     data_source: str = "existing_data_boundary",
     source_quality_status: str = "reviewed_seed_only",
+    primary_data_provider_symbol: str | None = "",
+    provider_symbol_aliases: tuple[str, ...] = (),
+    provider_symbol_status: str = "verified",
+    source_identity_status: str = "provider_symbol_verified",
+    source_identity_notes: str = "",
 ) -> DiscoveryAsset:
     return DiscoveryAsset(
         symbol=symbol,
@@ -141,6 +156,13 @@ def _asset(
         liquidity_tier=liquidity_tier,
         data_source=data_source,
         source_quality_status=source_quality_status,
+        primary_data_provider_symbol=symbol
+        if primary_data_provider_symbol == ""
+        else primary_data_provider_symbol,
+        provider_symbol_aliases=provider_symbol_aliases,
+        provider_symbol_status=provider_symbol_status,
+        source_identity_status=source_identity_status,
+        source_identity_notes=source_identity_notes or notes,
         enabled_for_discovery=True,
         enabled_for_validation=True,
         not_alpha_claim=True,
@@ -153,20 +175,20 @@ def _asset(
 
 _ASSETS: Final[tuple[DiscoveryAsset, ...]] = (
     _asset("ASML", display_name="ASML Holding", region="NL/EU", country="Netherlands", exchange="NASDAQ", currency="USD", sector="Technology", industry="Semiconductor Equipment", notes="Dutch large-cap semiconductor equipment anchor."),
-    _asset("ASMI", display_name="ASM International", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Technology", industry="Semiconductor Equipment", notes="Dutch semiconductor equipment exposure."),
-    _asset("BESI", display_name="BE Semiconductor", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Technology", industry="Semiconductor Equipment", notes="Dutch semiconductor packaging exposure."),
-    _asset("ADYEN", display_name="Adyen", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Financial Technology", industry="Payments", notes="Dutch fintech large-cap seed."),
+    _asset("ASMI", display_name="ASM International", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Technology", industry="Semiconductor Equipment", notes="Dutch semiconductor equipment exposure.", primary_data_provider_symbol=None, provider_symbol_aliases=("ASM.AS", "ASMI.AS"), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Canonical display symbol is retained; Yahoo-style provider aliases require verification before data-backed use."),
+    _asset("BESI", display_name="BE Semiconductor", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Technology", industry="Semiconductor Equipment", notes="Dutch semiconductor packaging exposure.", primary_data_provider_symbol=None, provider_symbol_aliases=("BESI.AS",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Provider alias is high-confidence but not statically verified in-repo."),
+    _asset("ADYEN", display_name="Adyen", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Financial Technology", industry="Payments", notes="Dutch fintech large-cap seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("ADYEN.AS",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Euronext Amsterdam suffix likely required by the active provider."),
     _asset("ING", display_name="ING Group", region="NL/EU", country="Netherlands", exchange="NYSE", currency="USD", sector="Financials", industry="Banking", notes="Banking regime anchor for Europe."),
-    _asset("SHELL", display_name="Shell", region="NL/EU", country="United Kingdom", exchange="NYSE", currency="USD", sector="Energy", industry="Integrated Oil & Gas", notes="Europe energy supermajor proxy."),
-    _asset("PRX", display_name="Prosus", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Communication Services", industry="Internet Holdings", notes="Dutch internet holding exposure."),
+    _asset("SHELL", display_name="Shell", region="NL/EU", country="United Kingdom", exchange="NYSE", currency="USD", sector="Energy", industry="Integrated Oil & Gas", notes="Europe energy supermajor proxy.", primary_data_provider_symbol="SHEL", provider_symbol_aliases=("SHEL.AS", "SHEL.L"), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Canonical display symbol differs from the active provider's primary NYSE symbol."),
+    _asset("PRX", display_name="Prosus", region="NL/EU", country="Netherlands", exchange="EURONEXT", currency="EUR", sector="Communication Services", industry="Internet Holdings", notes="Dutch internet holding exposure.", primary_data_provider_symbol=None, provider_symbol_aliases=("PRX.AS",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Provider likely requires Amsterdam exchange suffix."),
     _asset("SAP", display_name="SAP", region="NL/EU", country="Germany", exchange="NYSE", currency="USD", sector="Technology", industry="Enterprise Software", notes="Europe software leadership seed."),
-    _asset("SIE", display_name="Siemens", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Industrials", industry="Industrial Conglomerates", notes="Europe industrial trend seed."),
-    _asset("LVMH", display_name="LVMH", region="NL/EU", country="France", exchange="EURONEXT", currency="EUR", sector="Consumer Discretionary", industry="Luxury Goods", notes="Europe consumer leadership seed."),
-    _asset("NOVO-B", display_name="Novo Nordisk", region="NL/EU", country="Denmark", exchange="NYSE", currency="USD", sector="Health Care", industry="Pharmaceuticals", notes="Europe health-care leadership seed."),
-    _asset("AIR", display_name="Airbus", region="NL/EU", country="France", exchange="EURONEXT", currency="EUR", sector="Industrials", industry="Aerospace & Defense", notes="Europe aerospace cycle seed."),
-    _asset("TTE", display_name="TotalEnergies", region="NL/EU", country="France", exchange="NYSE", currency="USD", sector="Energy", industry="Integrated Oil & Gas", notes="Europe energy trend seed."),
-    _asset("IFX", display_name="Infineon", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Technology", industry="Semiconductors", notes="Europe semiconductor cycle seed."),
-    _asset("NESN", display_name="Nestle", region="NL/EU", country="Switzerland", exchange="SIX", currency="CHF", sector="Consumer Staples", industry="Packaged Foods", notes="Defensive Europe large-cap seed."),
+    _asset("SIE", display_name="Siemens", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Industrials", industry="Industrial Conglomerates", notes="Europe industrial trend seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("SIE.DE",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="German Xetra listing likely needs .DE provider suffix."),
+    _asset("LVMH", display_name="LVMH", region="NL/EU", country="France", exchange="EURONEXT", currency="EUR", sector="Consumer Discretionary", industry="Luxury Goods", notes="Europe consumer leadership seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("MC.PA", "LVMH.PA"), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Yahoo-style Paris symbol is commonly MC.PA; preserve canonical display symbol until verified."),
+    _asset("NOVO-B", display_name="Novo Nordisk", region="NL/EU", country="Denmark", exchange="NYSE", currency="USD", sector="Health Care", industry="Pharmaceuticals", notes="Europe health-care leadership seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("NVO", "NOVO-B.CO"), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Catalog display symbol may refer to Copenhagen listing while provider may require ADR or local suffix."),
+    _asset("AIR", display_name="Airbus", region="NL/EU", country="France", exchange="EURONEXT", currency="EUR", sector="Industrials", industry="Aerospace & Defense", notes="Europe aerospace cycle seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("AIR.PA",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Paris listing likely requires .PA provider suffix."),
+    _asset("TTE", display_name="TotalEnergies", region="NL/EU", country="France", exchange="NYSE", currency="USD", sector="Energy", industry="Integrated Oil & Gas", notes="Europe energy trend seed.", primary_data_provider_symbol="TTE", provider_symbol_aliases=("TTE.PA",), provider_symbol_status="verified", source_identity_status="provider_symbol_verified", source_identity_notes="Primary provider symbol matches NYSE ADR; local Paris alias retained for diagnostics only."),
+    _asset("IFX", display_name="Infineon", region="NL/EU", country="Germany", exchange="XETRA", currency="EUR", sector="Technology", industry="Semiconductors", notes="Europe semiconductor cycle seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("IFX.DE",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Xetra listing likely requires .DE provider suffix."),
+    _asset("NESN", display_name="Nestle", region="NL/EU", country="Switzerland", exchange="SIX", currency="CHF", sector="Consumer Staples", industry="Packaged Foods", notes="Defensive Europe large-cap seed.", primary_data_provider_symbol=None, provider_symbol_aliases=("NESN.SW",), provider_symbol_status="candidate_alias_requires_verification", source_identity_status="candidate_alias_only", source_identity_notes="Swiss listing likely requires .SW provider suffix."),
     _asset("AAPL", display_name="Apple", region="US", country="United States", exchange="NASDAQ", currency="USD", sector="Technology", industry="Consumer Electronics", notes="US mega-cap leadership anchor."),
     _asset("MSFT", display_name="Microsoft", region="US", country="United States", exchange="NASDAQ", currency="USD", sector="Technology", industry="Software", notes="US mega-cap software anchor."),
     _asset("NVDA", display_name="NVIDIA", region="US", country="United States", exchange="NASDAQ", currency="USD", sector="Technology", industry="Semiconductors", notes="US semiconductor momentum seed."),
@@ -360,6 +382,46 @@ def list_presets() -> list[DiscoveryPreset]:
     return list(_PRESETS)
 
 
+def source_identity_diagnostics() -> list[dict[str, object]]:
+    diagnostics: list[dict[str, object]] = []
+    for asset in list_assets():
+        payload = asset.to_payload()
+        provider_symbol = payload["primary_data_provider_symbol"]
+        aliases = list(payload["provider_symbol_aliases"])
+        provider_status = str(payload["provider_symbol_status"])
+        source_identity_status = str(payload["source_identity_status"])
+        if provider_status == "candidate_alias_requires_verification":
+            blocker_class = "source_identity_candidate_alias_unverified"
+        elif not provider_symbol:
+            blocker_class = "source_identity_missing_provider_symbol"
+        elif provider_status == "provider_lookup_failed":
+            blocker_class = "source_identity_provider_lookup_failed"
+        elif asset.region == "ETFs/context" and asset.asset_class == "etf":
+            blocker_class = "source_identity_provider_symbol_verified"
+        else:
+            blocker_class = "source_identity_provider_symbol_verified"
+        diagnostics.append(
+            {
+                "instrument_symbol": asset.symbol,
+                "region": asset.region,
+                "canonical_symbol": asset.symbol,
+                "canonical_instrument_id": asset.canonical_instrument_id,
+                "provider_symbol": provider_symbol,
+                "candidate_aliases": aliases,
+                "provider_symbol_status": provider_status,
+                "source_identity_status": source_identity_status,
+                "source_identity_notes": str(payload["source_identity_notes"]),
+                "has_primary_provider_symbol": bool(provider_symbol),
+                "has_provider_aliases": bool(aliases),
+                "is_provider_symbol_verified": provider_status == "verified",
+                "is_candidate_alias_only": provider_status
+                == "candidate_alias_requires_verification",
+                "source_identity_blocker_class": blocker_class,
+            }
+        )
+    return diagnostics
+
+
 def _asset_matches_preset(asset: DiscoveryAsset, preset: DiscoveryPreset) -> bool:
     return (
         asset.enabled_for_discovery
@@ -431,6 +493,9 @@ def build_bounded_candidate_basket(*, max_candidates: int = 15) -> list[dict[str
                 "symbol": selected.symbol,
                 "region": selected.region,
                 "asset_class": selected.asset_class,
+                "primary_data_provider_symbol": selected.primary_data_provider_symbol,
+                "provider_symbol_status": selected.provider_symbol_status,
+                "source_identity_status": selected.source_identity_status,
                 "preset_id": preset.preset_id,
                 "hypothesis_id": preset.hypothesis_id,
                 "behavior_family": preset.behavior_family,
@@ -455,6 +520,7 @@ def production_discovery_catalog_payload(*, max_candidates: int = 15) -> dict[st
         "module_version": MODULE_VERSION,
         "assets": [asset.to_payload() for asset in list_assets()],
         "presets": [preset.to_payload() for preset in list_presets()],
+        "source_identity_diagnostics": source_identity_diagnostics(),
         "bounded_candidate_basket": build_bounded_candidate_basket(
             max_candidates=max_candidates
         ),
