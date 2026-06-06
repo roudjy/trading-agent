@@ -122,7 +122,8 @@ def test_build_source_usefulness_v0_distinguishes_useful_and_blocked_symbols(
 
     rows = {row["symbol"]: row for row in usefulness["rows"]}
     assert rows["AAPL"]["usefulness_state"] == "useful_for_readonly_research"
-    assert rows["ADYEN"]["usefulness_state"] == "blocked_by_source_identity"
+    assert rows["ADYEN"]["usefulness_state"] == "blocked_by_source_or_cache"
+    assert rows["ADYEN"]["recommended_action"] == "require_identity_or_source_readiness"
 
 
 def test_write_outputs_materializes_learning_and_source_reports(tmp_path: Path) -> None:

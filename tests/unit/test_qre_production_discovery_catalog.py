@@ -101,9 +101,17 @@ def test_known_european_symbols_expose_candidate_provider_aliases_without_overcl
     assert assets["NOVO-B"]["provider_symbol_aliases"] == ["NVO", "NOVO-B.CO"]
     assert assets["PRX"]["provider_symbol_aliases"] == ["PRX.AS"]
     assert assets["SIE"]["provider_symbol_aliases"] == ["SIE.DE"]
-    assert assets["ADYEN"]["provider_symbol_status"] == "candidate_alias_requires_verification"
+    assert assets["ADYEN"]["provider_symbol_status"] == "verified"
+    assert assets["BESI"]["provider_symbol_status"] == "verified"
+    assert assets["AIR"]["provider_symbol_status"] == "verified"
+    assert assets["IFX"]["provider_symbol_status"] == "verified"
+    assert assets["NESN"]["provider_symbol_status"] == "verified"
+    assert assets["PRX"]["provider_symbol_status"] == "verified"
+    assert assets["SIE"]["provider_symbol_status"] == "verified"
+    assert assets["ASMI"]["provider_symbol_status"] == "candidate_alias_requires_verification"
     assert assets["NOVO-B"]["provider_symbol_status"] == "candidate_alias_requires_verification"
-    assert assets["ADYEN"]["primary_data_provider_symbol"] is None
+    assert assets["ADYEN"]["primary_data_provider_symbol"] == "ADYEN.AS"
+    assert assets["BESI"]["primary_data_provider_symbol"] == "BESI.AS"
     assert assets["NOVO-B"]["primary_data_provider_symbol"] is None
 
 
@@ -116,12 +124,19 @@ def test_source_identity_diagnostics_classify_verified_and_unverified_symbols() 
         "source_identity_provider_symbol_verified"
     )
     assert diagnostics["ADYEN"]["source_identity_blocker_class"] == (
+        "source_identity_provider_symbol_verified"
+    )
+    assert diagnostics["ASMI"]["source_identity_blocker_class"] == (
         "source_identity_candidate_alias_unverified"
     )
     assert diagnostics["SHELL"]["provider_symbol"] == "SHEL"
     assert diagnostics["SHELL"]["is_provider_symbol_verified"] is True
-    assert diagnostics["ADYEN"]["is_provider_symbol_verified"] is False
-    assert diagnostics["ADYEN"]["is_candidate_alias_only"] is True
+    assert diagnostics["ADYEN"]["is_provider_symbol_verified"] is True
+    assert diagnostics["ADYEN"]["selected_provider_symbol"] == "ADYEN.AS"
+    assert diagnostics["ADYEN"]["identity_confidence"] == "high"
+    assert diagnostics["ASMI"]["is_provider_symbol_verified"] is False
+    assert diagnostics["ASMI"]["is_candidate_alias_only"] is True
+    assert diagnostics["ASMI"]["ambiguity_warning"] == "multiple_candidate_aliases"
     assert diagnostics["SPY"]["source_identity_blocker_class"] == (
         "source_identity_provider_symbol_verified"
     )
