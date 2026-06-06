@@ -149,6 +149,20 @@ def build_candidate_explanation_rows(
             {},
         )
         paper_status = str(paper_row.get("readiness_status") or "not_available_fail_closed")
+        bridge_status = str(
+            ((row.get("grid_readiness_bridge") or {}).get("readiness_bridge_status"))
+            or "blocked_no_grid_match"
+        )
+        primary_blocker = (
+            bridge_status
+            if bridge_status.startswith("blocked_")
+            else str(
+                failure_row.get("blocker_code")
+                or ((row.get("grid_readiness_bridge") or {}).get("readiness_blocker_category"))
+                or row.get("diagnosis_reason_code")
+                or "unknown"
+            )
+        )
         rows.append(
             {
                 "candidate_id": candidate_id,
@@ -167,6 +181,13 @@ def build_candidate_explanation_rows(
                     else "missing"
                 ),
                 "oos_status": _oos_status(row),
+                "grid_readiness_bridge_status": str(
+                    ((row.get("grid_readiness_bridge") or {}).get("readiness_bridge_status"))
+                    or "blocked_no_grid_match"
+                ),
+                "grid_readiness_bridge_explanation": str(
+                    ((row.get("grid_readiness_bridge") or {}).get("bridge_explanation")) or ""
+                ),
                 "paper_readiness_status": paper_status,
                 "paper_readiness_blockers": list(paper_row.get("blocking_reasons") or []),
                 "synthesis_gate_state": synthesis_state,
@@ -178,9 +199,7 @@ def build_candidate_explanation_rows(
                 "safe_next_action": str(
                     failure_row.get("recommended_action") or "keep_blocked"
                 ),
-                "primary_blocker": str(
-                    failure_row.get("blocker_code") or row.get("diagnosis_reason_code") or "unknown"
-                ),
+                "primary_blocker": primary_blocker,
                 "operator_explanation": (
                     f"{row.get('symbol')} remains {paper_status} for paper and "
                     f"{synthesis_state} for synthesis; next action is "

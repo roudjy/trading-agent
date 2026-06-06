@@ -39,6 +39,34 @@ def _all_true(*values: bool) -> bool:
     return all(bool(value) for value in values)
 
 
+def _source_readiness_note(
+    *,
+    coverage_summary: Mapping[str, Any],
+    diagnosis_summary: Mapping[str, Any],
+    source_readiness_linked: bool,
+) -> str:
+    if source_readiness_linked:
+        return "Source/cache readiness sidecars are present and at least one basket is source-ready."
+    artifact_availability = diagnosis_summary.get("artifact_availability")
+    if not isinstance(artifact_availability, Mapping):
+        artifact_availability = {}
+    source_quality_present = bool(artifact_availability.get("source_quality"))
+    cache_manifest_present = bool(artifact_availability.get("cache_manifest"))
+    if not source_quality_present and not cache_manifest_present:
+        return "Source quality and cache manifest sidecars are missing or not generated in this environment."
+    if not source_quality_present:
+        return "Source quality readiness sidecar is missing, stale, or not deployed in this environment."
+    if not cache_manifest_present:
+        return "Cache manifest sidecar is missing, stale, or not deployed in this environment."
+    sidecar_status = coverage_summary.get("source_cache_sidecar_status")
+    if isinstance(sidecar_status, Mapping):
+        if str(sidecar_status.get("source_quality_sidecar_status") or "") != "present":
+            return "Source quality readiness sidecar is not present for the current readiness write."
+        if str(sidecar_status.get("cache_manifest_sidecar_status") or "") != "present":
+            return "Cache manifest sidecar is not present for the current readiness write."
+    return "Source/cache sidecars are present, but no basket currently qualifies as source-ready."
+
+
 def _readiness_state(
     *,
     diagnosis_exists: bool,
@@ -166,6 +194,8 @@ def build_pre_shadow_paper_research_readiness(
     failure_summary = failure.get("summary") or {}
     reason_meta = reasons.get("meta") or {}
     kpi_summary = kpis.get("summary") or {}
+    coverage_summary = coverage.get("summary") or {}
+    diagnosis_summary = diagnosis.get("summary") or {}
 
     diagnosis_exists = len(diagnosis_rows) > 0
     routing_evidence_backed = bool(routing_summary.get("routing_ready_count")) or bool(
@@ -180,6 +210,11 @@ def build_pre_shadow_paper_research_readiness(
         or int(failure_summary.get("non_actionable_count") or 0) > 0
     )
     source_readiness_linked = float(kpi_summary.get("source_ready_basket_pct") or 0.0) > 0.0
+    source_readiness_note = _source_readiness_note(
+        coverage_summary=coverage_summary,
+        diagnosis_summary=diagnosis_summary,
+        source_readiness_linked=source_readiness_linked,
+    )
     candidate_blockers_explainable = len(candidate_rows_list) > 0 and float(
         kpi_summary.get("unknown_failure_rate") or 100.0
     ) < 100.0
@@ -239,6 +274,7 @@ def build_pre_shadow_paper_research_readiness(
             "reason_record_count": int(reason_meta.get("record_count") or 0),
             "failure_action_present": failure_action_present,
             "source_readiness_linked": source_readiness_linked,
+            "source_readiness_note": source_readiness_note,
             "candidate_blockers_explainable": candidate_blockers_explainable,
             "oos_blockers_explainable": oos_blockers_explainable,
             "operator_report_complete": operator_report_complete,
@@ -254,7 +290,7 @@ def build_pre_shadow_paper_research_readiness(
         },
         "supporting_reports": {
             "diagnosis": diagnosis.get("summary"),
-            "coverage": coverage.get("summary"),
+            "coverage": coverage_summary,
             "routing": routing_summary,
             "sampling": sampling_summary,
             "reason_records": reason_meta,
@@ -289,6 +325,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
             ["reason_records_traceable", str(summary.get("reason_records_traceable") or False)],
             ["failure_action_present", str(summary.get("failure_action_present") or False)],
             ["source_readiness_linked", str(summary.get("source_readiness_linked") or False)],
+            ["source_readiness_note", str(summary.get("source_readiness_note") or "")],
             ["candidate_blockers_explainable", str(summary.get("candidate_blockers_explainable") or False)],
             ["oos_blockers_explainable", str(summary.get("oos_blockers_explainable") or False)],
             ["operator_report_complete", str(summary.get("operator_report_complete") or False)],
