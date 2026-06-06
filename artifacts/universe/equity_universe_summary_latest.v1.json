@@ -1,0 +1,286 @@
+{
+  "country_counts": {
+    "Australia": 6,
+    "Belgium": 6,
+    "Canada": 6,
+    "Denmark": 6,
+    "Finland": 3,
+    "France": 12,
+    "Germany": 13,
+    "Hong Kong": 6,
+    "Italy": 2,
+    "Japan": 12,
+    "Netherlands": 16,
+    "Norway": 4,
+    "Singapore": 5,
+    "Spain": 2,
+    "Sweden": 6,
+    "Switzerland": 10,
+    "United Kingdom": 10,
+    "United States": 33
+  },
+  "currency_counts": {
+    "AUD": 6,
+    "CHF": 10,
+    "DKK": 5,
+    "EUR": 50,
+    "GBP": 10,
+    "HKD": 6,
+    "JPY": 12,
+    "NOK": 3,
+    "SEK": 6,
+    "SGD": 5,
+    "USD": 45
+  },
+  "exchange_counts": {
+    "ASX": 6,
+    "Bolsa de Madrid": 2,
+    "Borsa Italiana": 2,
+    "Dual Listing": 1,
+    "Euronext Amsterdam": 15,
+    "Euronext Brussels": 5,
+    "Euronext Paris": 10,
+    "HKEX": 6,
+    "LSE": 10,
+    "NASDAQ": 12,
+    "NASDAQ ADR": 2,
+    "NYSE": 27,
+    "NYSE ADR": 4,
+    "Nasdaq Copenhagen": 5,
+    "Nasdaq Helsinki": 3,
+    "Nasdaq Stockholm": 6,
+    "Oslo Bors": 3,
+    "SGX": 5,
+    "SIX Swiss Exchange": 10,
+    "TSE": 12,
+    "Xetra": 12
+  },
+  "largest_universes": [
+    {
+      "countries": [
+        "Australia",
+        "Belgium",
+        "Canada",
+        "Denmark",
+        "Finland",
+        "France",
+        "Germany",
+        "Hong Kong",
+        "Italy",
+        "Japan",
+        "Netherlands",
+        "Norway",
+        "Singapore",
+        "Spain",
+        "Sweden",
+        "Switzerland",
+        "United Kingdom",
+        "United States"
+      ],
+      "instrument_count": 158,
+      "primary_currencies": [
+        "AUD",
+        "CHF",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "JPY",
+        "NOK",
+        "SEK",
+        "SGD",
+        "USD"
+      ],
+      "universe_id": "global_developed_liquid"
+    },
+    {
+      "countries": [
+        "Australia",
+        "Belgium",
+        "Canada",
+        "Denmark",
+        "Finland",
+        "France",
+        "Germany",
+        "Hong Kong",
+        "Italy",
+        "Japan",
+        "Netherlands",
+        "Norway",
+        "Singapore",
+        "Spain",
+        "Sweden",
+        "Switzerland",
+        "United Kingdom",
+        "United States"
+      ],
+      "instrument_count": 158,
+      "primary_currencies": [
+        "AUD",
+        "CHF",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "JPY",
+        "NOK",
+        "SEK",
+        "SGD",
+        "USD"
+      ],
+      "universe_id": "global_ex_crypto_research_universe"
+    },
+    {
+      "countries": [
+        "Belgium",
+        "Denmark",
+        "Finland",
+        "France",
+        "Germany",
+        "Italy",
+        "Netherlands",
+        "Norway",
+        "Spain",
+        "Sweden",
+        "Switzerland",
+        "United Kingdom"
+      ],
+      "instrument_count": 73,
+      "primary_currencies": [
+        "CHF",
+        "DKK",
+        "EUR",
+        "GBP",
+        "NOK",
+        "SEK",
+        "USD"
+      ],
+      "universe_id": "europe_large_mid"
+    },
+    {
+      "countries": [
+        "United States"
+      ],
+      "instrument_count": 33,
+      "primary_currencies": [
+        "USD"
+      ],
+      "universe_id": "us_large_mid"
+    },
+    {
+      "countries": [
+        "Australia",
+        "Hong Kong",
+        "Japan",
+        "Singapore"
+      ],
+      "instrument_count": 29,
+      "primary_currencies": [
+        "AUD",
+        "HKD",
+        "JPY",
+        "SGD"
+      ],
+      "universe_id": "asia_developed_liquid"
+    },
+    {
+      "countries": [
+        "United States"
+      ],
+      "instrument_count": 25,
+      "primary_currencies": [
+        "USD"
+      ],
+      "universe_id": "us_quality_liquid"
+    },
+    {
+      "countries": [
+        "Denmark",
+        "Finland",
+        "Norway",
+        "Sweden"
+      ],
+      "instrument_count": 19,
+      "primary_currencies": [
+        "DKK",
+        "EUR",
+        "NOK",
+        "SEK",
+        "USD"
+      ],
+      "universe_id": "nordics_equities"
+    },
+    {
+      "countries": [
+        "Belgium",
+        "Denmark",
+        "France",
+        "Germany",
+        "Netherlands",
+        "Norway",
+        "Sweden",
+        "Switzerland"
+      ],
+      "instrument_count": 17,
+      "primary_currencies": [
+        "CHF",
+        "EUR",
+        "NOK",
+        "SEK",
+        "USD"
+      ],
+      "universe_id": "europe_small_mid"
+    },
+    {
+      "countries": [
+        "Netherlands"
+      ],
+      "instrument_count": 16,
+      "primary_currencies": [
+        "EUR",
+        "USD"
+      ],
+      "universe_id": "nl_equities"
+    },
+    {
+      "countries": [
+        "Germany"
+      ],
+      "instrument_count": 13,
+      "primary_currencies": [
+        "EUR",
+        "USD"
+      ],
+      "universe_id": "germany_equities"
+    }
+  ],
+  "report_kind": "equity_universe_summary",
+  "schema_version": "1.0",
+  "summary": {
+    "total_countries": 18,
+    "total_currencies": 11,
+    "total_exchanges": 21,
+    "total_instruments": 158
+  },
+  "universe_counts": {
+    "asia_developed_liquid": 29,
+    "australia_liquid_equities": 6,
+    "belgium_equities": 6,
+    "canada_liquid_equities": 6,
+    "europe_large_mid": 73,
+    "europe_small_mid": 17,
+    "france_equities": 12,
+    "germany_equities": 13,
+    "global_developed_liquid": 158,
+    "global_ex_crypto_research_universe": 158,
+    "hong_kong_liquid_equities": 6,
+    "japan_large_mid": 12,
+    "nl_equities": 16,
+    "nordics_equities": 19,
+    "singapore_liquid_equities": 5,
+    "switzerland_equities": 10,
+    "uk_equities": 10,
+    "us_large_mid": 33,
+    "us_quality_liquid": 25
+  }
+}
