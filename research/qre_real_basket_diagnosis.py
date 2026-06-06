@@ -462,7 +462,7 @@ def write_outputs(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m reporting.qre_real_basket_diagnosis",
+        prog="python -m research.qre_real_basket_diagnosis",
         description="Build a read-only diagnosis over the production discovery seed basket.",
     )
     parser.add_argument("--max-candidates", type=int, default=15)
