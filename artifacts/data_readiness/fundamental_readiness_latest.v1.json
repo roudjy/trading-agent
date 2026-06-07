@@ -1,0 +1,1005 @@
+{
+  "block_reason_vocabulary": [
+    "MISSING_SOURCE_MANIFEST",
+    "MISSING_POINT_IN_TIME_POLICY",
+    "MISSING_REQUIRED_FIELD",
+    "MISSING_CURRENCY_NORMALIZATION",
+    "MISSING_REPORT_LAG_POLICY",
+    "MISSING_RESTATEMENT_POLICY",
+    "FACTOR_FIELD_COVERAGE_UNKNOWN",
+    "UNIVERSE_IDENTITY_NOT_READY",
+    "SOURCE_LICENSE_UNKNOWN",
+    "SOURCE_QUALITY_UNKNOWN",
+    "UNKNOWN"
+  ],
+  "factor_rows": [
+    {
+      "currency_normalization_required": false,
+      "factor_id": "accruals_ratio",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "net_income_ttm",
+        "operating_cash_flow_ttm",
+        "average_total_assets"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "adjusted_slope",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "readiness_block_reasons": [
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": false,
+      "required_fields": [
+        "price_history_12m",
+        "volatility_12m"
+      ],
+      "restatement_risk": "low",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "altman_z_score",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "working_capital",
+        "retained_earnings",
+        "ebit_ttm",
+        "market_cap",
+        "total_assets",
+        "total_liabilities"
+      ],
+      "restatement_risk": "high",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "average_daily_value_traded",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "readiness_block_reasons": [
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": false,
+      "required_fields": [
+        "average_daily_value_traded_90d"
+      ],
+      "restatement_risk": "low",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "beneish_m_score",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "days_sales_receivables",
+        "gross_margin_index",
+        "asset_quality_index",
+        "sales_growth_index",
+        "depreciation_index",
+        "sgai",
+        "leverage_index",
+        "total_accruals_to_assets"
+      ],
+      "restatement_risk": "high",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "book_to_market",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "book_value_equity",
+        "market_cap"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "buyback_yield",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "net_buybacks_ttm",
+        "market_cap"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "debt_to_equity",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "total_debt",
+        "book_value_equity"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "dividend_yield",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "dividends_paid_ttm",
+        "market_cap"
+      ],
+      "restatement_risk": "low",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": true,
+      "factor_id": "earnings_yield",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_CURRENCY_NORMALIZATION",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "market_cap",
+        "net_income_ttm"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "enterprise_value_to_ebit",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "enterprise_value",
+        "ebit_ttm"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "fcf_yield",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "market_cap",
+        "free_cash_flow_ttm"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "gross_profitability",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "gross_profit_ttm",
+        "total_assets"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "montier_c_score",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "dsri",
+        "gmi",
+        "aqi",
+        "sgi",
+        "depi",
+        "lvgi",
+        "tata"
+      ],
+      "restatement_risk": "high",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "net_debt_to_ebitda",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "net_debt",
+        "ebitda_ttm"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "piotroski_f_score",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "roa",
+        "operating_cash_flow",
+        "gross_margin",
+        "asset_turnover",
+        "leverage_ratio"
+      ],
+      "restatement_risk": "high",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "price_to_sales",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "market_cap",
+        "revenue_ttm"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "return_on_assets",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "net_income_ttm",
+        "total_assets"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "roic",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "nopat_ttm",
+        "invested_capital"
+      ],
+      "restatement_risk": "high",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "shareholder_yield",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": true,
+      "required_fields": [
+        "dividends_paid_ttm",
+        "net_buybacks_ttm",
+        "net_debt_change_ttm",
+        "market_cap"
+      ],
+      "restatement_risk": "medium",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "six_month_momentum",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "readiness_block_reasons": [
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": false,
+      "required_fields": [
+        "price_history_6m"
+      ],
+      "restatement_risk": "low",
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "twelve_month_momentum",
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "readiness_block_reasons": [
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "report_lag_required": false,
+      "required_fields": [
+        "price_history_12m"
+      ],
+      "restatement_risk": "low",
+      "source_manifest_required": true
+    }
+  ],
+  "readiness_status_vocabulary": [
+    "READY",
+    "NOT_READY",
+    "PARTIAL",
+    "UNKNOWN"
+  ],
+  "recipe_rows": [
+    {
+      "currency_normalization_required": true,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_CURRENCY_NORMALIZATION",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "asia_developed_quality_value_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "book_to_market",
+        "earnings_yield"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "asia_developed_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "defensive_quality_momentum_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "return_on_assets",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": true,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_CURRENCY_NORMALIZATION",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "eu_quality_value_momentum_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "roic",
+        "earnings_yield",
+        "twelve_month_momentum"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "europe_large_mid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "europe_deep_value_financial_health_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "book_to_market",
+        "price_to_sales",
+        "piotroski_f_score",
+        "altman_z_score"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "europe_large_mid",
+        "europe_small_mid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "europe_small_mid_quality_value_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "gross_profitability",
+        "book_to_market",
+        "accruals_ratio"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "europe_small_mid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "global_developed_quality_momentum_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": true,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_CURRENCY_NORMALIZATION",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "global_developed_value_quality_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "book_to_market",
+        "earnings_yield",
+        "return_on_assets"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "low_accrual_quality_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "accruals_ratio",
+        "gross_profitability",
+        "return_on_assets"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "magic_formula_style_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "enterprise_value_to_ebit",
+        "roic"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "nl_quality_large_liquid_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "average_daily_value_traded"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "nl_equities"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "nordics_quality_compounders_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "nordics_equities"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN",
+        "UNIVERSE_IDENTITY_NOT_READY"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "piotroski_value_style_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "book_to_market",
+        "piotroski_f_score"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "switzerland_defensive_quality_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "return_on_assets",
+        "gross_profitability",
+        "dividend_yield"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "switzerland_equities"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "us_quality_momentum_large_mid_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "us_large_mid",
+        "us_quality_liquid"
+      ],
+      "universe_identity_dependency": true
+    },
+    {
+      "currency_normalization_required": false,
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "readiness_block_reasons": [
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_REQUIRED_FIELD",
+        "MISSING_RESTATEMENT_POLICY",
+        "MISSING_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "readiness_status": "NOT_READY",
+      "recipe_id": "us_shareholder_yield_quality_v0",
+      "report_lag_required": true,
+      "required_factor_ids": [
+        "shareholder_yield",
+        "return_on_assets",
+        "gross_profitability"
+      ],
+      "restatement_risk": "present",
+      "source_manifest_dependency": true,
+      "target_universe_ids": [
+        "us_large_mid",
+        "us_quality_liquid"
+      ],
+      "universe_identity_dependency": true
+    }
+  ],
+  "report_kind": "fundamental_readiness",
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "factor_rows": 22,
+    "not_ready_count": 37,
+    "operator_summary": "Fundamental readiness is fail-closed until source manifests, point-in-time policy, report-lag policy, and field coverage manifests exist.",
+    "partial_count": 0,
+    "ready_count": 0,
+    "recipe_rows": 15,
+    "top_block_reasons": {
+      "MISSING_CURRENCY_NORMALIZATION": 4,
+      "MISSING_POINT_IN_TIME_POLICY": 33,
+      "MISSING_REPORT_LAG_POLICY": 33,
+      "MISSING_REQUIRED_FIELD": 37,
+      "MISSING_RESTATEMENT_POLICY": 33,
+      "MISSING_SOURCE_MANIFEST": 37,
+      "SOURCE_LICENSE_UNKNOWN": 37,
+      "SOURCE_QUALITY_UNKNOWN": 37,
+      "UNIVERSE_IDENTITY_NOT_READY": 11
+    },
+    "unknown_count": 0
+  }
+}

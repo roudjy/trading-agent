@@ -1,0 +1,602 @@
+{
+  "field_coverage_status_vocabulary": [
+    "COVERED",
+    "MISSING",
+    "PARTIAL",
+    "UNKNOWN"
+  ],
+  "report_kind": "factor_field_coverage",
+  "rows": [
+    {
+      "currency_normalization_required": false,
+      "factor_id": "accruals_ratio",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "net_income_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "operating_cash_flow_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "average_total_assets"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "net_income_ttm",
+        "operating_cash_flow_ttm",
+        "average_total_assets"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "adjusted_slope",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "price_history_12m"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "volatility_12m"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "report_lag_required": false,
+      "required_fields": [
+        "price_history_12m",
+        "volatility_12m"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "altman_z_score",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "working_capital"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "retained_earnings"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "ebit_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "total_assets"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "total_liabilities"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "working_capital",
+        "retained_earnings",
+        "ebit_ttm",
+        "market_cap",
+        "total_assets",
+        "total_liabilities"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "average_daily_value_traded",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "average_daily_value_traded_90d"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "report_lag_required": false,
+      "required_fields": [
+        "average_daily_value_traded_90d"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "beneish_m_score",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "days_sales_receivables"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "gross_margin_index"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "asset_quality_index"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "sales_growth_index"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "depreciation_index"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "sgai"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "leverage_index"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "total_accruals_to_assets"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "days_sales_receivables",
+        "gross_margin_index",
+        "asset_quality_index",
+        "sales_growth_index",
+        "depreciation_index",
+        "sgai",
+        "leverage_index",
+        "total_accruals_to_assets"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "book_to_market",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "book_value_equity"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "book_value_equity",
+        "market_cap"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "buyback_yield",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "net_buybacks_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "net_buybacks_ttm",
+        "market_cap"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "debt_to_equity",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "total_debt"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "book_value_equity"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "total_debt",
+        "book_value_equity"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "dividend_yield",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "dividends_paid_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "dividends_paid_ttm",
+        "market_cap"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": true,
+      "factor_id": "earnings_yield",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "net_income_ttm"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "market_cap",
+        "net_income_ttm"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "enterprise_value_to_ebit",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "enterprise_value"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "ebit_ttm"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "enterprise_value",
+        "ebit_ttm"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "fcf_yield",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "free_cash_flow_ttm"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "market_cap",
+        "free_cash_flow_ttm"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "gross_profitability",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "gross_profit_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "total_assets"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "gross_profit_ttm",
+        "total_assets"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "montier_c_score",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "dsri"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "gmi"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "aqi"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "sgi"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "depi"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "lvgi"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "tata"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "dsri",
+        "gmi",
+        "aqi",
+        "sgi",
+        "depi",
+        "lvgi",
+        "tata"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "net_debt_to_ebitda",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "net_debt"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "ebitda_ttm"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "net_debt",
+        "ebitda_ttm"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "piotroski_f_score",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "roa"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "operating_cash_flow"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "gross_margin"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "asset_turnover"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "leverage_ratio"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "roa",
+        "operating_cash_flow",
+        "gross_margin",
+        "asset_turnover",
+        "leverage_ratio"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "price_to_sales",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "revenue_ttm"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "market_cap",
+        "revenue_ttm"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "return_on_assets",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "net_income_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "total_assets"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "net_income_ttm",
+        "total_assets"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "roic",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "nopat_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "invested_capital"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "nopat_ttm",
+        "invested_capital"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "shareholder_yield",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "dividends_paid_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "net_buybacks_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "net_debt_change_ttm"
+        },
+        {
+          "coverage_status": "MISSING",
+          "field_name": "market_cap"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": true,
+      "report_lag_required": true,
+      "required_fields": [
+        "dividends_paid_ttm",
+        "net_buybacks_ttm",
+        "net_debt_change_ttm",
+        "market_cap"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "six_month_momentum",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "price_history_6m"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "report_lag_required": false,
+      "required_fields": [
+        "price_history_6m"
+      ],
+      "source_manifest_required": true
+    },
+    {
+      "currency_normalization_required": false,
+      "factor_id": "twelve_month_momentum",
+      "field_coverage": [
+        {
+          "coverage_status": "MISSING",
+          "field_name": "price_history_12m"
+        }
+      ],
+      "field_coverage_status": "MISSING",
+      "point_in_time_required": false,
+      "report_lag_required": false,
+      "required_fields": [
+        "price_history_12m"
+      ],
+      "source_manifest_required": true
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "covered_count": 0,
+    "factor_count": 22,
+    "missing_count": 22,
+    "operator_summary": "Field coverage is fail-closed until a deterministic source manifest exists. This report does not claim any real fundamental field availability.",
+    "partial_count": 0,
+    "unknown_count": 0
+  }
+}
