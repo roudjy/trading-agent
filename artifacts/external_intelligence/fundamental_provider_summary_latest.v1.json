@@ -1,0 +1,63 @@
+{
+  "report_kind": "fundamental_provider_summary",
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "no_api_integration": true,
+    "no_data_fetch": true,
+    "no_vendor_activation": true,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "active_read_only": 0,
+    "blocked": 0,
+    "candidate": 8,
+    "deprecated": 0,
+    "highest_priority_candidates": [
+      {
+        "implementation_priority": 1,
+        "provider_id": "sec_companyfacts",
+        "provider_name": "SEC EDGAR Company Facts",
+        "reason": "Highest-priority public candidate for US fundamentals, but still untrusted until full source-manifest and policy gates exist.",
+        "source_status": "candidate"
+      },
+      {
+        "implementation_priority": 2,
+        "provider_id": "openfigi_symbology",
+        "provider_name": "OpenFIGI",
+        "reason": "High-priority symbology candidate. Useful for canonical identity, not for factor fields.",
+        "source_status": "candidate"
+      },
+      {
+        "implementation_priority": 3,
+        "provider_id": "euronext_issuer_metadata",
+        "provider_name": "Euronext Public Issuer Metadata",
+        "reason": "High-value identity context candidate for EU listings; not a factor field source.",
+        "source_status": "candidate"
+      },
+      {
+        "implementation_priority": 4,
+        "provider_id": "nasdaq_listings_metadata",
+        "provider_name": "Nasdaq Listings Metadata",
+        "reason": "Useful for US symbology/listing metadata only; not a valuation source.",
+        "source_status": "candidate"
+      },
+      {
+        "implementation_priority": 4,
+        "provider_id": "nyse_listings_metadata",
+        "provider_name": "NYSE Listings Metadata",
+        "reason": "Useful for US venue metadata only; no trust assignment to fundamentals.",
+        "source_status": "candidate"
+      }
+    ],
+    "manual_research_only": 3,
+    "operator_summary": "Provider registry is research-only candidate governance. No data has been fetched, no provider is trusted by default, and no source becomes active without license review, source manifests, quality gates, and point-in-time policy.",
+    "quality_gated": 0,
+    "staging": 2,
+    "total_providers": 13
+  }
+}
