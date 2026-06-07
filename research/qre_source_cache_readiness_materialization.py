@@ -149,11 +149,8 @@ def _materialized_cache_manifest(
     payload = payload if isinstance(payload, Mapping) else {}
     summary = payload.get("summary") if isinstance(payload.get("summary"), Mapping) else {}
     cache_roots = payload.get("cache_roots")
-    files = payload.get("files")
     if not isinstance(cache_roots, list):
         cache_roots = []
-    if not isinstance(files, list):
-        files = []
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": "qre_materialized_cache_manifest",
@@ -168,9 +165,9 @@ def _materialized_cache_manifest(
             "missing_roots": int(summary.get("missing_roots") or 0),
             "manifest_content_hash": summary.get("manifest_content_hash"),
             "research_ready": bool(summary.get("research_ready")),
+            "file_row_count": int(summary.get("cache_file_count") or 0),
         },
         "cache_roots": [row for row in cache_roots if isinstance(row, Mapping)],
-        "files": [row for row in files if isinstance(row, Mapping)],
         "safety_invariants": {
             "read_only": True,
             "mutates_cache": False,
