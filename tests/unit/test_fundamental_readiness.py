@@ -20,5 +20,7 @@ def test_point_in_time_and_report_lag_requirements_fail_closed() -> None:
     for row in point_in_time_rows:
         assert "MISSING_POINT_IN_TIME_POLICY" in row["readiness_block_reasons"]
         assert "MISSING_REPORT_LAG_POLICY" in row["readiness_block_reasons"]
-        assert "REPORT_LAG_POLICY_UNKNOWN" in row["readiness_block_reasons"]
+        assert "REPORT_LAG_UNKNOWN" in row["readiness_block_reasons"]
+        assert "MISSING_RESTATEMENT_POLICY" in row["readiness_block_reasons"]
+        assert "RESTATEMENT_POLICY_UNKNOWN" in row["readiness_block_reasons"]
 

@@ -10,12 +10,18 @@ from typing import Final
 
 from research.data_readiness.factor_field_coverage import build_factor_field_coverage
 from research.data_readiness.fundamental_readiness import build_fundamental_readiness
+from research.data_readiness.point_in_time_policy import build_point_in_time_policy
+from research.data_readiness.report_lag_policy import build_report_lag_policy
+from research.data_readiness.restatement_policy import build_restatement_policy
 
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("artifacts/data_readiness")
 WRITE_PREFIX: Final[str] = "artifacts/data_readiness/"
 READINESS_NAME: Final[str] = "fundamental_readiness_latest.v1.json"
 COVERAGE_NAME: Final[str] = "factor_field_coverage_latest.v1.json"
+POINT_IN_TIME_NAME: Final[str] = "point_in_time_policy_latest.v1.json"
+REPORT_LAG_NAME: Final[str] = "report_lag_policy_latest.v1.json"
+RESTATEMENT_NAME: Final[str] = "restatement_policy_latest.v1.json"
 
 
 def _validate_write_target(path: Path) -> None:
@@ -34,13 +40,28 @@ def write_outputs(*, repo_root: Path = Path("."), output_dir: Path = DEFAULT_OUT
     base.mkdir(parents=True, exist_ok=True)
     readiness_path = base / READINESS_NAME
     coverage_path = base / COVERAGE_NAME
-    for path in (readiness_path, coverage_path):
+    point_in_time_path = base / POINT_IN_TIME_NAME
+    report_lag_path = base / REPORT_LAG_NAME
+    restatement_path = base / RESTATEMENT_NAME
+    for path in (
+        readiness_path,
+        coverage_path,
+        point_in_time_path,
+        report_lag_path,
+        restatement_path,
+    ):
         _validate_write_target(path)
     _write_json(readiness_path, build_fundamental_readiness())
     _write_json(coverage_path, build_factor_field_coverage())
+    _write_json(point_in_time_path, build_point_in_time_policy())
+    _write_json(report_lag_path, build_report_lag_policy())
+    _write_json(restatement_path, build_restatement_policy())
     return {
         "fundamental_readiness": readiness_path.relative_to(repo_root).as_posix(),
         "factor_field_coverage": coverage_path.relative_to(repo_root).as_posix(),
+        "point_in_time_policy": point_in_time_path.relative_to(repo_root).as_posix(),
+        "report_lag_policy": report_lag_path.relative_to(repo_root).as_posix(),
+        "restatement_policy": restatement_path.relative_to(repo_root).as_posix(),
     }
 
 
@@ -54,6 +75,9 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "fundamental_readiness": build_fundamental_readiness(),
         "factor_field_coverage": build_factor_field_coverage(),
+        "point_in_time_policy": build_point_in_time_policy(),
+        "report_lag_policy": build_report_lag_policy(),
+        "restatement_policy": build_restatement_policy(),
     }
     if args.write:
         payload["_artifact_paths"] = write_outputs()
