@@ -1,0 +1,923 @@
+{
+  "policy_vocabulary": {
+    "blocked_reason_codes": [
+      "FEASIBLE",
+      "BLOCKED_MISSING_UNIVERSE",
+      "BLOCKED_MISSING_FACTOR",
+      "BLOCKED_UNIVERSE_QUALITY_FAIL",
+      "BLOCKED_IDENTITY_AMBIGUITY",
+      "BLOCKED_DATA_READINESS_MISSING",
+      "BLOCKED_FACTOR_FIELD_COVERAGE_MISSING",
+      "BLOCKED_UNKNOWN"
+    ],
+    "forbidden_outputs": [
+      "buy_list",
+      "sell_list",
+      "trade_signal",
+      "strategy_registration",
+      "executable_strategy",
+      "candidate_promotion",
+      "paper_candidate",
+      "shadow_candidate",
+      "live_candidate",
+      "capital_allocation",
+      "broker_execution"
+    ],
+    "output_type": [
+      "hypothesis_seed_candidates"
+    ]
+  },
+  "report_kind": "equity_factor_recipes",
+  "rows": [
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Research-intake recipe for quality and valuation behaviors in Asia developed liquid equities.",
+      "display_name": "Asia Developed Quality Value v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "universe_quality_fail",
+        "missing_required_factor_field"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only recipe for testing whether quality-plus-value behaviors deserve hypothesis intake in Asia developed universes.",
+      "optional_factor_ids": [
+        "six_month_momentum",
+        "average_daily_value_traded"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "valuation_rank",
+        "liquidity_guardrail"
+      ],
+      "recipe_id": "asia_developed_quality_value_v0",
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "book_to_market",
+        "earnings_yield"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "asia_developed_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Quality and defensive-stability intake recipe with momentum confirmation.",
+      "display_name": "Defensive Quality Momentum v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "universe_quality_fail",
+        "data_readiness_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only recipe for defensive compounder behavior; not a buy list.",
+      "optional_factor_ids": [
+        "dividend_yield",
+        "average_daily_value_traded"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "momentum_rank",
+        "defensive_overlay"
+      ],
+      "recipe_id": "defensive_quality_momentum_v0",
+      "required_factor_ids": [
+        "return_on_assets",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Broad Europe large/mid research recipe combining quality, value, and momentum components.",
+      "display_name": "Europe Quality Value Momentum v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "source_manifest_missing",
+        "currency_normalization_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only intake recipe for Europe quality/value/momentum interactions.",
+      "optional_factor_ids": [
+        "gross_profitability",
+        "adjusted_slope"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "valuation_rank",
+        "momentum_rank"
+      ],
+      "recipe_id": "eu_quality_value_momentum_v0",
+      "required_factor_ids": [
+        "roic",
+        "earnings_yield",
+        "twelve_month_momentum"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "europe_large_mid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Deep-value research intake with a financial-health guardrail for Europe.",
+      "display_name": "Europe Deep Value Financial Health v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "universe_quality_fail",
+        "restatement_policy_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "medium_or_high",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only deep-value intake recipe that blocks on weak accounting readiness.",
+      "optional_factor_ids": [
+        "debt_to_equity",
+        "net_debt_to_ebitda"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "deep_value_rank",
+        "financial_health_rank"
+      ],
+      "recipe_id": "europe_deep_value_financial_health_v0",
+      "required_factor_ids": [
+        "book_to_market",
+        "price_to_sales",
+        "piotroski_f_score",
+        "altman_z_score"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_small_mid",
+      "target_universe_ids": [
+        "europe_large_mid",
+        "europe_small_mid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Europe small/mid quality-plus-value intake recipe for later hypothesis screening.",
+      "display_name": "Europe Small Mid Quality Value v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "field_coverage_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "medium_or_high",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only small/midcap intake recipe; no trade output is allowed.",
+      "optional_factor_ids": [
+        "return_on_assets",
+        "average_daily_value_traded"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "value_rank",
+        "accounting_cleanliness_rank"
+      ],
+      "recipe_id": "europe_small_mid_quality_value_v0",
+      "required_factor_ids": [
+        "gross_profitability",
+        "book_to_market",
+        "accruals_ratio"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "small_mid",
+      "target_universe_ids": [
+        "europe_small_mid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Global developed quality and momentum intake recipe.",
+      "display_name": "Global Developed Quality Momentum v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "data_readiness_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only global developed quality/momentum intake definition.",
+      "optional_factor_ids": [
+        "adjusted_slope",
+        "average_daily_value_traded"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "momentum_rank"
+      ],
+      "recipe_id": "global_developed_quality_momentum_v0",
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Global developed value-plus-quality intake recipe.",
+      "display_name": "Global Developed Value Quality v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "point_in_time_policy_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only value/quality intake recipe for global developed equities.",
+      "optional_factor_ids": [
+        "fcf_yield",
+        "gross_profitability"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "value_rank",
+        "quality_rank"
+      ],
+      "recipe_id": "global_developed_value_quality_v0",
+      "required_factor_ids": [
+        "book_to_market",
+        "earnings_yield",
+        "return_on_assets"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Accounting-quality intake recipe using low accruals and profitability signals.",
+      "display_name": "Low Accrual Quality v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "restatement_policy_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only low-accrual quality intake recipe; blocked until accounting field coverage is known.",
+      "optional_factor_ids": [
+        "piotroski_f_score"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "accounting_cleanliness_rank",
+        "quality_rank"
+      ],
+      "recipe_id": "low_accrual_quality_v0",
+      "required_factor_ids": [
+        "accruals_ratio",
+        "gross_profitability",
+        "return_on_assets"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Research-only recipe inspired by EBIT yield plus return on capital ranking.",
+      "display_name": "Magic Formula Style v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "enterprise_value_field_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only intake recipe capturing magic-formula style behavior without creating tradable output.",
+      "optional_factor_ids": [
+        "average_daily_value_traded"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "value_rank",
+        "quality_rank"
+      ],
+      "recipe_id": "magic_formula_style_v0",
+      "required_factor_ids": [
+        "enterprise_value_to_ebit",
+        "roic"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Netherlands quality and liquidity intake recipe for large liquid names.",
+      "display_name": "NL Quality Large Liquid v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "universe_quality_fail"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only Dutch large/liquid intake recipe. Universe membership is not a signal.",
+      "optional_factor_ids": [
+        "return_on_assets",
+        "dividend_yield"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "liquidity_rank"
+      ],
+      "recipe_id": "nl_quality_large_liquid_v0",
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "average_daily_value_traded"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large",
+      "target_universe_ids": [
+        "nl_equities"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Nordics quality-compounder intake recipe.",
+      "display_name": "Nordics Quality Compounders v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "report_lag_policy_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only Nordics quality-compounder intake definition.",
+      "optional_factor_ids": [
+        "dividend_yield",
+        "accruals_ratio"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "momentum_rank",
+        "compounder_stability_rank"
+      ],
+      "recipe_id": "nordics_quality_compounders_v0",
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "nordics_equities"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Research-only value style recipe requiring Piotroski support.",
+      "display_name": "Piotroski Value Style v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "multi_period_fundamentals_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only Piotroski-style intake recipe.",
+      "optional_factor_ids": [
+        "altman_z_score",
+        "debt_to_equity"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "value_rank",
+        "financial_health_rank"
+      ],
+      "recipe_id": "piotroski_value_style_v0",
+      "required_factor_ids": [
+        "book_to_market",
+        "piotroski_f_score"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "Defensive quality intake recipe over Swiss equities.",
+      "display_name": "Switzerland Defensive Quality v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "currency_normalization_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high_or_medium",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only Swiss defensive-quality intake definition.",
+      "optional_factor_ids": [
+        "six_month_momentum"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "defensive_quality_rank",
+        "income_support_rank"
+      ],
+      "recipe_id": "switzerland_defensive_quality_v0",
+      "required_factor_ids": [
+        "return_on_assets",
+        "gross_profitability",
+        "dividend_yield"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "switzerland_equities"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "US quality and momentum intake recipe for liquid large/mid equities.",
+      "display_name": "US Quality Momentum Large Mid v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "field_coverage_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only US quality/momentum intake definition.",
+      "optional_factor_ids": [
+        "adjusted_slope",
+        "average_daily_value_traded"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "quality_rank",
+        "momentum_rank",
+        "liquidity_guardrail"
+      ],
+      "recipe_id": "us_quality_momentum_large_mid_v0",
+      "required_factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "us_large_mid",
+        "us_quality_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    },
+    {
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS_MISSING"
+      ],
+      "data_readiness_required": "fundamental_manifest_required",
+      "description": "US shareholder-yield plus quality intake recipe.",
+      "display_name": "US Shareholder Yield Quality v0",
+      "exclusion_rules": [
+        "identity_ambiguity",
+        "capital_returns_data_missing"
+      ],
+      "feasibility_status": "BLOCKED_DATA_READINESS_MISSING",
+      "forbidden_outputs": [
+        "buy_list",
+        "sell_list",
+        "trade_signal",
+        "strategy_registration",
+        "executable_strategy",
+        "candidate_promotion",
+        "paper_candidate",
+        "shadow_candidate",
+        "live_candidate",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "identity_readiness_required": "OK",
+      "liquidity_gate": "high",
+      "live_activation_allowed": false,
+      "not_trade_signal": true,
+      "operator_explanation": "Research-only shareholder-yield intake recipe for US large/mid equities.",
+      "optional_factor_ids": [
+        "buyback_yield",
+        "dividend_yield"
+      ],
+      "output_type": "hypothesis_seed_candidates",
+      "paper_activation_allowed": false,
+      "ranking_components": [
+        "shareholder_return_rank",
+        "quality_rank"
+      ],
+      "recipe_id": "us_shareholder_yield_quality_v0",
+      "required_factor_ids": [
+        "shareholder_yield",
+        "return_on_assets",
+        "gross_profitability"
+      ],
+      "research_only": true,
+      "shadow_activation_allowed": false,
+      "size_gate": "large_mid",
+      "target_universe_ids": [
+        "us_large_mid",
+        "us_quality_liquid"
+      ],
+      "universe_readiness_allowed": [
+        "OK",
+        "WARN"
+      ]
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "blocked_reason_counts": {
+      "BLOCKED_DATA_READINESS_MISSING": 15,
+      "BLOCKED_FACTOR_FIELD_COVERAGE_MISSING": 0,
+      "BLOCKED_IDENTITY_AMBIGUITY": 0,
+      "BLOCKED_MISSING_FACTOR": 0,
+      "BLOCKED_MISSING_UNIVERSE": 0,
+      "BLOCKED_UNIVERSE_QUALITY_FAIL": 0,
+      "BLOCKED_UNKNOWN": 0,
+      "FEASIBLE": 0
+    },
+    "blocked_recipe_count": 15,
+    "feasible_recipe_count": 0,
+    "operator_summary": "Screener recipes are deterministic research-intake definitions only. They can emit blocked visibility for hypothesis intake, but never trade, promote, or execute.",
+    "recipe_count": 15
+  }
+}
