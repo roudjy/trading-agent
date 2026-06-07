@@ -1,0 +1,517 @@
+{
+  "asia_by_country": {
+    "Australia": 6,
+    "Hong Kong": 6,
+    "Japan": 12,
+    "Singapore": 5
+  },
+  "available_artifacts": [
+    "artifacts/equity_factors/equity_factor_calculation_contracts_latest.v1.json",
+    "artifacts/equity_factors/equity_factor_catalog_latest.v1.json",
+    "artifacts/equity_factors/equity_factor_recipes_latest.v1.json",
+    "artifacts/identity/instrument_identity_latest.v1.json",
+    "artifacts/universe/equity_universe_catalog_latest.v1.json",
+    "artifacts/universe/equity_universe_quality_latest.v1.json",
+    "artifacts/universe/equity_universe_summary_latest.v1.json"
+  ],
+  "currency_counts": {
+    "AUD": 6,
+    "CHF": 10,
+    "DKK": 5,
+    "EUR": 50,
+    "GBP": 10,
+    "HKD": 6,
+    "JPY": 12,
+    "NOK": 3,
+    "SEK": 6,
+    "SGD": 5,
+    "USD": 45
+  },
+  "disclaimer": "Research-only report. No buy/sell recommendations, no trade signals, no strategy registration, no paper/shadow/live activation, and no broker/risk/execution authority.",
+  "europe_by_country": {
+    "Belgium": 6,
+    "Denmark": 6,
+    "Finland": 3,
+    "France": 12,
+    "Germany": 13,
+    "Italy": 2,
+    "Netherlands": 16,
+    "Norway": 4,
+    "Spain": 2,
+    "Sweden": 6,
+    "Switzerland": 10,
+    "United Kingdom": 10
+  },
+  "exchange_counts": {
+    "ASX": 6,
+    "Bolsa de Madrid": 2,
+    "Borsa Italiana": 2,
+    "Dual Listing": 1,
+    "Euronext Amsterdam": 15,
+    "Euronext Brussels": 5,
+    "Euronext Paris": 10,
+    "HKEX": 6,
+    "LSE": 10,
+    "NASDAQ": 12,
+    "NASDAQ ADR": 2,
+    "NYSE": 27,
+    "NYSE ADR": 4,
+    "Nasdaq Copenhagen": 5,
+    "Nasdaq Helsinki": 3,
+    "Nasdaq Stockholm": 6,
+    "Oslo Bors": 3,
+    "SGX": 5,
+    "SIX Swiss Exchange": 10,
+    "TSE": 12,
+    "Xetra": 12
+  },
+  "identity_summary": {
+    "ambiguous_mappings": 16,
+    "blocked_for_hypothesis_seed": 16,
+    "duplicate_canonical_ids": 0,
+    "duplicate_provider_symbols": 0,
+    "duplicate_symbols": 0,
+    "eligible_for_hypothesis_seed": 142,
+    "fail_instruments": 0,
+    "instrument_count": 158,
+    "ok_instruments": 142,
+    "operator_summary": "Instrument identity is deterministic metadata only. Ambiguity, missing mappings, and duplicate identifiers remain visible and block escalation to hypothesis seeds.",
+    "unknown_instruments": 0,
+    "warn_instruments": 16
+  },
+  "largest_universes": [
+    {
+      "count": 158,
+      "countries_covered": [
+        "Australia",
+        "Belgium",
+        "Canada",
+        "Denmark",
+        "Finland",
+        "France",
+        "Germany",
+        "Hong Kong",
+        "Italy",
+        "Japan",
+        "Netherlands",
+        "Norway",
+        "Singapore",
+        "Spain",
+        "Sweden",
+        "Switzerland",
+        "United Kingdom",
+        "United States"
+      ],
+      "primary_currencies": [
+        "AUD",
+        "CHF",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "JPY",
+        "NOK",
+        "SEK",
+        "SGD",
+        "USD"
+      ],
+      "universe_id": "global_developed_liquid"
+    },
+    {
+      "count": 158,
+      "countries_covered": [
+        "Australia",
+        "Belgium",
+        "Canada",
+        "Denmark",
+        "Finland",
+        "France",
+        "Germany",
+        "Hong Kong",
+        "Italy",
+        "Japan",
+        "Netherlands",
+        "Norway",
+        "Singapore",
+        "Spain",
+        "Sweden",
+        "Switzerland",
+        "United Kingdom",
+        "United States"
+      ],
+      "primary_currencies": [
+        "AUD",
+        "CHF",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "JPY",
+        "NOK",
+        "SEK",
+        "SGD",
+        "USD"
+      ],
+      "universe_id": "global_ex_crypto_research_universe"
+    },
+    {
+      "count": 73,
+      "countries_covered": [
+        "Belgium",
+        "Denmark",
+        "Finland",
+        "France",
+        "Germany",
+        "Italy",
+        "Netherlands",
+        "Norway",
+        "Spain",
+        "Sweden",
+        "Switzerland",
+        "United Kingdom"
+      ],
+      "primary_currencies": [
+        "CHF",
+        "DKK",
+        "EUR",
+        "GBP",
+        "NOK",
+        "SEK",
+        "USD"
+      ],
+      "universe_id": "europe_large_mid"
+    },
+    {
+      "count": 33,
+      "countries_covered": [
+        "United States"
+      ],
+      "primary_currencies": [
+        "USD"
+      ],
+      "universe_id": "us_large_mid"
+    },
+    {
+      "count": 29,
+      "countries_covered": [
+        "Australia",
+        "Hong Kong",
+        "Japan",
+        "Singapore"
+      ],
+      "primary_currencies": [
+        "AUD",
+        "HKD",
+        "JPY",
+        "SGD"
+      ],
+      "universe_id": "asia_developed_liquid"
+    },
+    {
+      "count": 25,
+      "countries_covered": [
+        "United States"
+      ],
+      "primary_currencies": [
+        "USD"
+      ],
+      "universe_id": "us_quality_liquid"
+    },
+    {
+      "count": 19,
+      "countries_covered": [
+        "Denmark",
+        "Finland",
+        "Norway",
+        "Sweden"
+      ],
+      "primary_currencies": [
+        "DKK",
+        "EUR",
+        "NOK",
+        "SEK",
+        "USD"
+      ],
+      "universe_id": "nordics_equities"
+    },
+    {
+      "count": 17,
+      "countries_covered": [
+        "Belgium",
+        "Denmark",
+        "France",
+        "Germany",
+        "Netherlands",
+        "Norway",
+        "Sweden",
+        "Switzerland"
+      ],
+      "primary_currencies": [
+        "CHF",
+        "EUR",
+        "NOK",
+        "SEK",
+        "USD"
+      ],
+      "universe_id": "europe_small_mid"
+    },
+    {
+      "count": 16,
+      "countries_covered": [
+        "Netherlands"
+      ],
+      "primary_currencies": [
+        "EUR",
+        "USD"
+      ],
+      "universe_id": "nl_equities"
+    },
+    {
+      "count": 13,
+      "countries_covered": [
+        "Germany"
+      ],
+      "primary_currencies": [
+        "EUR",
+        "USD"
+      ],
+      "universe_id": "germany_equities"
+    }
+  ],
+  "missing_artifacts": [
+    "artifacts/data_readiness/fundamental_readiness_latest.v1.json",
+    "artifacts/hypothesis_discovery/equity_factor_hypothesis_seeds_latest.v1.json"
+  ],
+  "nl_instruments": [
+    "ABN",
+    "AD",
+    "ADYEN",
+    "AKZA",
+    "ASMI",
+    "ASML",
+    "BESI",
+    "DSFIR",
+    "HEIA",
+    "INGA",
+    "PHIA",
+    "PRX",
+    "REN",
+    "SHELL",
+    "UNA",
+    "WKL"
+  ],
+  "recipes_by_target_universe": {
+    "asia_developed_liquid": 1,
+    "europe_large_mid": 2,
+    "europe_small_mid": 2,
+    "global_developed_liquid": 6,
+    "nl_equities": 1,
+    "nordics_equities": 1,
+    "switzerland_equities": 1,
+    "us_large_mid": 2,
+    "us_quality_liquid": 2
+  },
+  "report_kind": "qre_equity_universe_operator_report",
+  "required_universe_ids_present": {
+    "asia_developed_liquid": true,
+    "europe_large_mid": true,
+    "europe_small_mid": true,
+    "global_developed_liquid": true,
+    "global_ex_crypto_research_universe": true,
+    "nl_equities": true,
+    "nordics_equities": true,
+    "switzerland_equities": true,
+    "us_large_mid": true,
+    "us_quality_liquid": true
+  },
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "ambiguous_mappings": 16,
+    "blocked_recipes": 15,
+    "duplicate_canonical_ids": 0,
+    "factor_definitions": 22,
+    "factor_families": 8,
+    "fail_instruments": 0,
+    "feasible_recipes": 0,
+    "ok_instruments": 142,
+    "recipe_count": 15,
+    "total_countries": 18,
+    "total_currencies": 11,
+    "total_exchanges": 21,
+    "total_instruments": 158,
+    "unknown_instruments": 0,
+    "warn_instruments": 16
+  },
+  "universe_inventory": [
+    {
+      "asset_class": "equity",
+      "instrument_count": 29,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Asia Developed",
+      "universe_id": "asia_developed_liquid"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 6,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Australia",
+      "universe_id": "australia_liquid_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 6,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Belgium",
+      "universe_id": "belgium_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 6,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Canada",
+      "universe_id": "canada_liquid_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 73,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Europe",
+      "universe_id": "europe_large_mid"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 17,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Europe",
+      "universe_id": "europe_small_mid"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 12,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "France",
+      "universe_id": "france_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 13,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Germany",
+      "universe_id": "germany_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 158,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Global Developed",
+      "universe_id": "global_developed_liquid"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 158,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Global",
+      "universe_id": "global_ex_crypto_research_universe"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 6,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Hong Kong",
+      "universe_id": "hong_kong_liquid_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 12,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Japan",
+      "universe_id": "japan_large_mid"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 16,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Netherlands",
+      "universe_id": "nl_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 19,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Nordics",
+      "universe_id": "nordics_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 5,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Singapore",
+      "universe_id": "singapore_liquid_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 10,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "Switzerland",
+      "universe_id": "switzerland_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 10,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "United Kingdom",
+      "universe_id": "uk_equities"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 33,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "United States",
+      "universe_id": "us_large_mid"
+    },
+    {
+      "asset_class": "equity",
+      "instrument_count": 25,
+      "notes": "research_only",
+      "readiness": "WARN",
+      "region": "United States",
+      "universe_id": "us_quality_liquid"
+    }
+  ],
+  "us_by_sector": {
+    "Communication Services": 2,
+    "Consumer Discretionary": 3,
+    "Consumer Staples": 5,
+    "Energy": 2,
+    "Financials": 7,
+    "Health Care": 4,
+    "Industrials": 3,
+    "Technology": 7
+  }
+}
