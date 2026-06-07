@@ -40,6 +40,15 @@ def _all_true(*values: bool) -> bool:
     return all(bool(value) for value in values)
 
 
+def _float_or_default(value: Any, default: float) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _source_readiness_note(
     *,
     coverage_summary: Mapping[str, Any],
@@ -237,14 +246,16 @@ def build_pre_shadow_paper_research_readiness(
         source_cache_summary=source_cache_summary,
         source_readiness_linked=source_readiness_linked,
     )
-    candidate_blockers_explainable = len(candidate_rows_list) > 0 and float(
-        kpi_summary.get("unknown_failure_rate") or 100.0
+    candidate_blockers_explainable = len(candidate_rows_list) > 0 and _float_or_default(
+        kpi_summary.get("unknown_failure_rate"),
+        100.0,
     ) < 100.0
     oos_blockers_explainable = len(oos_rows) > 0 and bool(
         (oos.get("summary") or {}).get("final_recommendation") == "oos_evidence_blockers_ready"
     )
-    operator_report_complete = float(
-        kpi_summary.get("operator_explanation_completeness_score") or 0.0
+    operator_report_complete = _float_or_default(
+        kpi_summary.get("operator_explanation_completeness_score"),
+        0.0,
     ) > 0.0
     synthesis_still_blocked = int(kpi_summary.get("trusted_loop_maturity_state") == "working_capability") or int(
         kpi_summary.get("trusted_loop_maturity_state") == "operator_trusted_candidate"
