@@ -17,6 +17,7 @@ from research import qre_real_basket_evidence_coverage as evidence_coverage
 from research import qre_reason_records_v1 as reason_records
 from research import qre_routing_readiness_from_basket as routing_readiness
 from research import qre_sampling_readiness_from_basket as sampling_readiness
+from research import qre_source_cache_readiness_materialization as source_cache_materialization
 from research import qre_trusted_loop_operator_kpis as trusted_kpis
 
 
@@ -43,10 +44,26 @@ def _source_readiness_note(
     *,
     coverage_summary: Mapping[str, Any],
     diagnosis_summary: Mapping[str, Any],
+    source_cache_summary: Mapping[str, Any],
     source_readiness_linked: bool,
 ) -> str:
     if source_readiness_linked:
         return "Source/cache readiness sidecars are present and at least one basket is source-ready."
+    if source_cache_summary:
+        missing_sidecars = list(source_cache_summary.get("missing_sidecars") or [])
+        present_not_ready = list(source_cache_summary.get("present_not_ready_sidecars") or [])
+        if missing_sidecars:
+            return (
+                "Source/cache readiness sidecars are explicitly missing: "
+                + ", ".join(str(value) for value in missing_sidecars)
+                + "."
+            )
+        if present_not_ready:
+            return (
+                "Source/cache readiness sidecars are present but not research-ready: "
+                + ", ".join(str(value) for value in present_not_ready)
+                + "."
+            )
     artifact_availability = diagnosis_summary.get("artifact_availability")
     if not isinstance(artifact_availability, Mapping):
         artifact_availability = {}
@@ -167,6 +184,9 @@ def build_pre_shadow_paper_research_readiness(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    source_cache = source_cache_materialization.build_source_cache_readiness_materialization(
+        repo_root=repo_root,
+    )
     feasibility = hypothesis_feasibility.build_hypothesis_seed_feasibility(
         repo_root=repo_root,
         max_candidates=max_candidates,
@@ -196,6 +216,7 @@ def build_pre_shadow_paper_research_readiness(
     kpi_summary = kpis.get("summary") or {}
     coverage_summary = coverage.get("summary") or {}
     diagnosis_summary = diagnosis.get("summary") or {}
+    source_cache_summary = source_cache.get("summary") or {}
 
     diagnosis_exists = len(diagnosis_rows) > 0
     routing_evidence_backed = bool(routing_summary.get("routing_ready_count")) or bool(
@@ -213,6 +234,7 @@ def build_pre_shadow_paper_research_readiness(
     source_readiness_note = _source_readiness_note(
         coverage_summary=coverage_summary,
         diagnosis_summary=diagnosis_summary,
+        source_cache_summary=source_cache_summary,
         source_readiness_linked=source_readiness_linked,
     )
     candidate_blockers_explainable = len(candidate_rows_list) > 0 and float(
@@ -298,6 +320,7 @@ def build_pre_shadow_paper_research_readiness(
             "candidate_explanations": candidates.get("summary"),
             "oos_blockers": oos.get("summary"),
             "trusted_loop_kpis": kpi_summary,
+            "source_cache_materialization": source_cache_summary,
             "hypothesis_seed_feasibility": feasibility.get("summary"),
             "failure_recurrence_learning": recurrence.get("summary"),
         },
