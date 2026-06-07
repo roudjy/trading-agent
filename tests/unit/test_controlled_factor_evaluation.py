@@ -59,6 +59,24 @@ def test_controlled_factor_evaluation_blocks_when_seed_is_blocked(monkeypatch) -
     assert row["allowed_next_action"] == "add_source_manifest"
 
 
+def test_controlled_factor_evaluation_maps_license_policy_blockers(monkeypatch) -> None:
+    monkeypatch.setattr(
+        evaluation,
+        "build_equity_factor_hypothesis_seeds",
+        lambda: {"rows": [_seed_row(feasibility_status="BLOCKED", blocked_reason_codes=["LICENSE_REVIEW_REQUIRED"])]},
+    )
+    monkeypatch.setattr(evaluation, "build_fundamental_readiness", lambda: _factor_readiness())
+    monkeypatch.setattr(
+        evaluation,
+        "build_equity_factor_calculation_contracts",
+        lambda: _factor_contracts(),
+    )
+
+    row = evaluation.build_controlled_factor_evaluation_readiness()["rows"][0]
+    assert "BLOCKED_SOURCE_LICENSE_POLICY" in row["blocked_reason_codes"]
+    assert row["allowed_next_action"] == "operator_review"
+
+
 def test_controlled_factor_evaluation_not_ready_when_point_in_time_policy_missing(monkeypatch) -> None:
     monkeypatch.setattr(
         evaluation,

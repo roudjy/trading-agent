@@ -7,16 +7,15 @@
   "report_kind": "controlled_factor_evaluation_readiness",
   "rows": [
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_DATA_READINESS",
+        "BLOCKED_FIELD_COVERAGE",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
         "BLOCKED_CURRENCY_NORMALIZATION",
         "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
-        "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::asia_developed_quality_value_v0",
@@ -63,16 +62,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::defensive_quality_momentum_v0",
@@ -115,17 +113,16 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
+        "BLOCKED_FIELD_COVERAGE",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
         "BLOCKED_CURRENCY_NORMALIZATION",
         "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
-        "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::eu_quality_value_momentum_v0",
@@ -169,16 +166,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::europe_deep_value_financial_health_v0",
@@ -232,16 +228,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::europe_small_mid_quality_value_v0",
@@ -287,16 +282,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::global_developed_quality_momentum_v0",
@@ -340,17 +334,16 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
+        "BLOCKED_FIELD_COVERAGE",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
         "BLOCKED_CURRENCY_NORMALIZATION",
         "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
-        "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::global_developed_value_quality_v0",
@@ -393,16 +386,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::low_accrual_quality_v0",
@@ -446,16 +438,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::magic_formula_style_v0",
@@ -497,16 +488,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::nl_quality_large_liquid_v0",
@@ -550,16 +540,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::nordics_quality_compounders_v0",
@@ -603,16 +592,15 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_IDENTITY_AMBIGUITY",
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::piotroski_value_style_v0",
@@ -657,15 +645,14 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::switzerland_defensive_quality_v0",
@@ -709,15 +696,14 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::us_quality_momentum_large_mid_v0",
@@ -762,15 +748,14 @@
       ]
     },
     {
-      "allowed_next_action": "add_source_manifest",
+      "allowed_next_action": "add_field_coverage_manifest",
       "blocked_reason_codes": [
         "BLOCKED_DATA_READINESS",
-        "BLOCKED_POINT_IN_TIME_POLICY",
-        "MISSING_REPORT_LAG_POLICY",
         "BLOCKED_FIELD_COVERAGE",
-        "MISSING_RESTATEMENT_POLICY",
-        "BLOCKED_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "BLOCKED_SOURCE_LICENSE_POLICY",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "BLOCKED_REPORT_LAG_POLICY",
+        "BLOCKED_RESTATEMENT_POLICY",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "evaluation_id": "controlled_factor_eval::equity_factor_seed::us_shareholder_yield_quality_v0",
@@ -838,10 +823,9 @@
       "BLOCKED_FIELD_COVERAGE": 15,
       "BLOCKED_IDENTITY_AMBIGUITY": 11,
       "BLOCKED_POINT_IN_TIME_POLICY": 15,
-      "BLOCKED_SOURCE_MANIFEST": 15,
-      "MISSING_REPORT_LAG_POLICY": 15,
-      "MISSING_RESTATEMENT_POLICY": 15,
-      "SOURCE_LICENSE_UNKNOWN": 15,
+      "BLOCKED_REPORT_LAG_POLICY": 15,
+      "BLOCKED_RESTATEMENT_POLICY": 15,
+      "BLOCKED_SOURCE_LICENSE_POLICY": 15,
       "SOURCE_QUALITY_UNKNOWN": 15
     }
   }

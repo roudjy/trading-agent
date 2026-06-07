@@ -10,17 +10,23 @@ from research.equity_factors.factor_catalog import build_equity_factor_catalog
 from research.equity_factors.recipe_catalog import build_equity_factor_recipe_catalog
 from research.equity_universe_catalog import build_equity_universe_catalog
 from research.equity_universe_quality import build_equity_universe_quality
+from research.external_intelligence.source_manifest_registry import build_source_manifest_registry
+from research.external_intelligence.source_manifest_schema import FUNDAMENTAL_SOURCE_TYPES
 
 
 SCHEMA_VERSION: Final[str] = "1.0"
 READINESS_VOCABULARY: Final[tuple[str, ...]] = ("READY", "NOT_READY", "PARTIAL", "UNKNOWN")
 BLOCK_REASON_VOCABULARY: Final[tuple[str, ...]] = (
     "MISSING_SOURCE_MANIFEST",
+    "LICENSE_REVIEW_REQUIRED",
     "MISSING_POINT_IN_TIME_POLICY",
+    "POINT_IN_TIME_UNKNOWN",
     "MISSING_REQUIRED_FIELD",
     "MISSING_CURRENCY_NORMALIZATION",
     "MISSING_REPORT_LAG_POLICY",
+    "REPORT_LAG_POLICY_UNKNOWN",
     "MISSING_RESTATEMENT_POLICY",
+    "RESTATEMENT_POLICY_UNKNOWN",
     "FACTOR_FIELD_COVERAGE_UNKNOWN",
     "UNIVERSE_IDENTITY_NOT_READY",
     "SOURCE_LICENSE_UNKNOWN",
@@ -29,22 +35,59 @@ BLOCK_REASON_VOCABULARY: Final[tuple[str, ...]] = (
 )
 
 
+def _fundamental_source_blockers() -> dict[str, object]:
+    snapshot = build_source_manifest_registry()
+    fundamental_rows = [
+        row for row in snapshot["rows"] if str(row["source_type"]) in FUNDAMENTAL_SOURCE_TYPES
+    ]
+    if not fundamental_rows:
+        return {
+            "source_manifest_present": False,
+            "block_reasons": ["MISSING_SOURCE_MANIFEST"],
+        }
+
+    policy_by_source = snapshot["policy_by_source"]
+    block_reasons = {"MISSING_REQUIRED_FIELD", "FACTOR_FIELD_COVERAGE_UNKNOWN", "SOURCE_QUALITY_UNKNOWN"}
+    if any(
+        str(policy_by_source[str(row["source_id"])]["license_policy_status"]) == "UNKNOWN"
+        for row in fundamental_rows
+    ):
+        block_reasons.add("SOURCE_LICENSE_UNKNOWN")
+    if any(
+        "LICENSE_REVIEW_REQUIRED" in row["manifest_block_reasons"]
+        or str(policy_by_source[str(row["source_id"])]["license_policy_status"]) == "WARN"
+        for row in fundamental_rows
+    ):
+        block_reasons.add("LICENSE_REVIEW_REQUIRED")
+    if any(str(row["point_in_time_support"]) == "unknown" for row in fundamental_rows):
+        block_reasons.add("POINT_IN_TIME_UNKNOWN")
+    if any(str(row["report_lag_support"]) == "unknown" for row in fundamental_rows):
+        block_reasons.add("REPORT_LAG_POLICY_UNKNOWN")
+    if any(str(row["restatement_history_support"]) == "unknown" for row in fundamental_rows):
+        block_reasons.add("RESTATEMENT_POLICY_UNKNOWN")
+    return {
+        "source_manifest_present": True,
+        "block_reasons": sorted(block_reasons),
+    }
+
+
 def _factor_row(
     factor_row: dict[str, object],
     coverage_row: dict[str, object],
+    *,
+    source_blockers: dict[str, object],
 ) -> dict[str, object]:
-    block_reasons = [
-        "MISSING_SOURCE_MANIFEST",
-        "MISSING_REQUIRED_FIELD",
-        "SOURCE_LICENSE_UNKNOWN",
-        "SOURCE_QUALITY_UNKNOWN",
-    ]
+    block_reasons = set(str(item) for item in source_blockers["block_reasons"])
     if factor_row["point_in_time_required"]:
-        block_reasons.extend(
-            ["MISSING_POINT_IN_TIME_POLICY", "MISSING_REPORT_LAG_POLICY", "MISSING_RESTATEMENT_POLICY"]
+        block_reasons.update(
+            [
+                "MISSING_POINT_IN_TIME_POLICY",
+                "MISSING_REPORT_LAG_POLICY",
+                "MISSING_RESTATEMENT_POLICY",
+            ]
         )
     if coverage_row["currency_normalization_required"]:
-        block_reasons.append("MISSING_CURRENCY_NORMALIZATION")
+        block_reasons.add("MISSING_CURRENCY_NORMALIZATION")
     return {
         "factor_id": factor_row["factor_id"],
         "required_fields": list(factor_row["required_fields"]),
@@ -53,9 +96,10 @@ def _factor_row(
         "restatement_risk": factor_row["restatement_risk"],
         "currency_normalization_required": bool(coverage_row["currency_normalization_required"]),
         "source_manifest_required": True,
+        "source_manifest_present": bool(source_blockers["source_manifest_present"]),
         "field_coverage_status": coverage_row["field_coverage_status"],
         "readiness_status": "NOT_READY",
-        "readiness_block_reasons": sorted(set(block_reasons)),
+        "readiness_block_reasons": sorted(block_reasons),
     }
 
 
@@ -64,6 +108,7 @@ def build_fundamental_readiness() -> dict[str, object]:
     factor_coverage_rows = {
         row["factor_id"]: row for row in build_factor_field_coverage()["rows"]
     }
+    source_blockers = _fundamental_source_blockers()
     quality_rows = build_equity_universe_quality()["rows"]
     recipe_rows = build_equity_factor_recipe_catalog()["rows"]
     instrument_universes = {
@@ -79,19 +124,28 @@ def build_fundamental_readiness() -> dict[str, object]:
             if readiness == "FAIL":
                 universe_quality_by_universe[universe_id] = "FAIL"
     factor_rows = [
-        _factor_row(row, factor_coverage_rows[str(row["factor_id"])]) for row in factor_catalog
+        _factor_row(
+            row,
+            factor_coverage_rows[str(row["factor_id"])],
+            source_blockers=source_blockers,
+        )
+        for row in factor_catalog
     ]
     factor_rows.sort(key=lambda item: str(item["factor_id"]))
     factor_readiness = {row["factor_id"]: row for row in factor_rows}
 
     recipe_readiness_rows: list[dict[str, object]] = []
     for row in recipe_rows:
-        block_reasons = {"MISSING_SOURCE_MANIFEST", "SOURCE_LICENSE_UNKNOWN", "SOURCE_QUALITY_UNKNOWN"}
+        block_reasons = set(str(item) for item in source_blockers["block_reasons"])
         if any(
             factor_readiness[factor_id]["point_in_time_required"] for factor_id in row["required_factor_ids"]
         ):
             block_reasons.update(
-                {"MISSING_POINT_IN_TIME_POLICY", "MISSING_REPORT_LAG_POLICY", "MISSING_RESTATEMENT_POLICY"}
+                {
+                    "MISSING_POINT_IN_TIME_POLICY",
+                    "MISSING_REPORT_LAG_POLICY",
+                    "MISSING_RESTATEMENT_POLICY",
+                }
             )
         if any(
             factor_readiness[factor_id]["currency_normalization_required"]
@@ -110,6 +164,7 @@ def build_fundamental_readiness() -> dict[str, object]:
                 "target_universe_ids": list(row["target_universe_ids"]),
                 "required_factor_ids": list(row["required_factor_ids"]),
                 "source_manifest_dependency": True,
+                "source_manifest_present": bool(source_blockers["source_manifest_present"]),
                 "universe_identity_dependency": True,
                 "point_in_time_required": any(
                     factor_readiness[factor_id]["point_in_time_required"]

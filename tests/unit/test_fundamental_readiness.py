@@ -8,8 +8,9 @@ def test_missing_source_manifest_and_required_fields_block_readiness() -> None:
     assert report["summary"]["ready_count"] == 0
     assert report["summary"]["not_ready_count"] == report["summary"]["factor_rows"] + report["summary"]["recipe_rows"]
     first_factor = report["factor_rows"][0]
-    assert "MISSING_SOURCE_MANIFEST" in first_factor["readiness_block_reasons"]
+    assert "LICENSE_REVIEW_REQUIRED" in first_factor["readiness_block_reasons"]
     assert "MISSING_REQUIRED_FIELD" in first_factor["readiness_block_reasons"]
+    assert first_factor["source_manifest_present"] is True
 
 
 def test_point_in_time_and_report_lag_requirements_fail_closed() -> None:
@@ -19,4 +20,5 @@ def test_point_in_time_and_report_lag_requirements_fail_closed() -> None:
     for row in point_in_time_rows:
         assert "MISSING_POINT_IN_TIME_POLICY" in row["readiness_block_reasons"]
         assert "MISSING_REPORT_LAG_POLICY" in row["readiness_block_reasons"]
+        assert "REPORT_LAG_POLICY_UNKNOWN" in row["readiness_block_reasons"]
 

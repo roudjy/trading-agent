@@ -1,11 +1,15 @@
 {
   "block_reason_vocabulary": [
     "MISSING_SOURCE_MANIFEST",
+    "LICENSE_REVIEW_REQUIRED",
     "MISSING_POINT_IN_TIME_POLICY",
+    "POINT_IN_TIME_UNKNOWN",
     "MISSING_REQUIRED_FIELD",
     "MISSING_CURRENCY_NORMALIZATION",
     "MISSING_REPORT_LAG_POLICY",
+    "REPORT_LAG_POLICY_UNKNOWN",
     "MISSING_RESTATEMENT_POLICY",
+    "RESTATEMENT_POLICY_UNKNOWN",
     "FACTOR_FIELD_COVERAGE_UNKNOWN",
     "UNIVERSE_IDENTITY_NOT_READY",
     "SOURCE_LICENSE_UNKNOWN",
@@ -19,12 +23,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -35,6 +42,7 @@
         "average_total_assets"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -43,9 +51,12 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -55,6 +66,7 @@
         "volatility_12m"
       ],
       "restatement_risk": "low",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -63,12 +75,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -82,6 +97,7 @@
         "total_liabilities"
       ],
       "restatement_risk": "high",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -90,9 +106,12 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -101,6 +120,7 @@
         "average_daily_value_traded_90d"
       ],
       "restatement_risk": "low",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -109,12 +129,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -130,6 +153,7 @@
         "total_accruals_to_assets"
       ],
       "restatement_risk": "high",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -138,12 +162,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -153,6 +180,7 @@
         "market_cap"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -161,12 +189,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -176,6 +207,7 @@
         "market_cap"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -184,12 +216,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -199,6 +234,7 @@
         "book_value_equity"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -207,12 +243,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -222,6 +261,7 @@
         "market_cap"
       ],
       "restatement_risk": "low",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -230,13 +270,16 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_CURRENCY_NORMALIZATION",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -246,6 +289,7 @@
         "net_income_ttm"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -254,12 +298,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -269,6 +316,7 @@
         "ebit_ttm"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -277,12 +325,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -292,6 +343,7 @@
         "free_cash_flow_ttm"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -300,12 +352,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -315,6 +370,7 @@
         "total_assets"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -323,12 +379,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -343,6 +402,7 @@
         "tata"
       ],
       "restatement_risk": "high",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -351,12 +411,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -366,6 +429,7 @@
         "ebitda_ttm"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -374,12 +438,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -392,6 +459,7 @@
         "leverage_ratio"
       ],
       "restatement_risk": "high",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -400,12 +468,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -415,6 +486,7 @@
         "revenue_ttm"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -423,12 +495,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -438,6 +513,7 @@
         "total_assets"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -446,12 +522,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -461,6 +540,7 @@
         "invested_capital"
       ],
       "restatement_risk": "high",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -469,12 +549,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -486,6 +569,7 @@
         "market_cap"
       ],
       "restatement_risk": "medium",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -494,9 +578,12 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -505,6 +592,7 @@
         "price_history_6m"
       ],
       "restatement_risk": "low",
+      "source_manifest_present": true,
       "source_manifest_required": true
     },
     {
@@ -513,9 +601,12 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -524,6 +615,7 @@
         "price_history_12m"
       ],
       "restatement_risk": "low",
+      "source_manifest_present": true,
       "source_manifest_required": true
     }
   ],
@@ -539,13 +631,16 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_CURRENCY_NORMALIZATION",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -559,6 +654,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "asia_developed_liquid"
       ],
@@ -569,12 +665,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -588,6 +687,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "global_developed_liquid"
       ],
@@ -598,13 +698,16 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_CURRENCY_NORMALIZATION",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -618,6 +721,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "europe_large_mid"
       ],
@@ -628,12 +732,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -648,6 +755,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "europe_large_mid",
         "europe_small_mid"
@@ -659,12 +767,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -678,6 +789,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "europe_small_mid"
       ],
@@ -688,12 +800,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -707,6 +822,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "global_developed_liquid"
       ],
@@ -717,13 +833,16 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_CURRENCY_NORMALIZATION",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -737,6 +856,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "global_developed_liquid"
       ],
@@ -747,12 +867,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -766,6 +889,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "global_developed_liquid"
       ],
@@ -776,12 +900,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -794,6 +921,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "global_developed_liquid"
       ],
@@ -804,12 +932,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -823,6 +954,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "nl_equities"
       ],
@@ -833,12 +965,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -852,6 +987,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "nordics_equities"
       ],
@@ -862,12 +998,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN",
         "UNIVERSE_IDENTITY_NOT_READY"
       ],
@@ -880,6 +1019,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "global_developed_liquid"
       ],
@@ -890,12 +1030,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -908,6 +1051,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "switzerland_equities"
       ],
@@ -918,12 +1062,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -936,6 +1083,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "us_large_mid",
         "us_quality_liquid"
@@ -947,12 +1095,15 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
         "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
-        "MISSING_SOURCE_MANIFEST",
-        "SOURCE_LICENSE_UNKNOWN",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -965,6 +1116,7 @@
       ],
       "restatement_risk": "present",
       "source_manifest_dependency": true,
+      "source_manifest_present": true,
       "target_universe_ids": [
         "us_large_mid",
         "us_quality_liquid"
@@ -990,13 +1142,16 @@
     "ready_count": 0,
     "recipe_rows": 15,
     "top_block_reasons": {
+      "FACTOR_FIELD_COVERAGE_UNKNOWN": 37,
+      "LICENSE_REVIEW_REQUIRED": 37,
       "MISSING_CURRENCY_NORMALIZATION": 4,
       "MISSING_POINT_IN_TIME_POLICY": 33,
       "MISSING_REPORT_LAG_POLICY": 33,
       "MISSING_REQUIRED_FIELD": 37,
       "MISSING_RESTATEMENT_POLICY": 33,
-      "MISSING_SOURCE_MANIFEST": 37,
-      "SOURCE_LICENSE_UNKNOWN": 37,
+      "POINT_IN_TIME_UNKNOWN": 37,
+      "REPORT_LAG_POLICY_UNKNOWN": 37,
+      "RESTATEMENT_POLICY_UNKNOWN": 37,
       "SOURCE_QUALITY_UNKNOWN": 37,
       "UNIVERSE_IDENTITY_NOT_READY": 11
     },

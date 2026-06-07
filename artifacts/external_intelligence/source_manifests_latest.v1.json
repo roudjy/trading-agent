@@ -1,0 +1,2302 @@
+{
+  "license_policy_rows": [
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "alpha_vantage_candidate",
+      "source_id": "alpha_vantage_candidate_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "companies_house_metadata",
+      "source_id": "companies_house_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "eodhd_candidate",
+      "source_id": "eodhd_candidate_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "euronext_issuer_metadata",
+      "source_id": "euronext_issuer_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "license_policy_status": "UNKNOWN",
+      "license_terms_status": "unknown",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "financial_datasets_mcp",
+      "source_id": "financial_datasets_mcp_manifest",
+      "warnings": [
+        "connector_wrapper_requires_underlying_source_manifest",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "financial_modeling_prep_candidate",
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "nasdaq_listings_metadata",
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "nyse_listings_metadata",
+      "source_id": "nyse_listings_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "license_policy_status": "UNKNOWN",
+      "license_terms_status": "unknown",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "openbb_connector",
+      "source_id": "openbb_connector_manifest",
+      "warnings": [
+        "connector_wrapper_requires_underlying_source_manifest",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "openfigi_symbology",
+      "source_id": "openfigi_symbology_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "sec_companyfacts",
+      "source_id": "sec_companyfacts_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "stooq_price_context",
+      "source_id": "stooq_price_context_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "license_terms_status": "reviewed_restricted",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "yahoo_finance_yfinance",
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "warnings": [
+        "reviewed_restricted_source_requires_narrow_manual_use",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    }
+  ],
+  "policy_by_source": {
+    "alpha_vantage_candidate_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "alpha_vantage_candidate",
+      "source_id": "alpha_vantage_candidate_manifest",
+      "warnings": []
+    },
+    "companies_house_metadata_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "companies_house_metadata",
+      "source_id": "companies_house_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "eodhd_candidate_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "eodhd_candidate",
+      "source_id": "eodhd_candidate_manifest",
+      "warnings": []
+    },
+    "euronext_issuer_metadata_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "euronext_issuer_metadata",
+      "source_id": "euronext_issuer_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "financial_datasets_mcp_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "license_policy_status": "UNKNOWN",
+      "license_terms_status": "unknown",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "financial_datasets_mcp",
+      "source_id": "financial_datasets_mcp_manifest",
+      "warnings": [
+        "connector_wrapper_requires_underlying_source_manifest",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "financial_modeling_prep_candidate_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "financial_modeling_prep_candidate",
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "warnings": []
+    },
+    "nasdaq_listings_metadata_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "nasdaq_listings_metadata",
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "nyse_listings_metadata_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "nyse_listings_metadata",
+      "source_id": "nyse_listings_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "openbb_connector_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "license_policy_status": "UNKNOWN",
+      "license_terms_status": "unknown",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "openbb_connector",
+      "source_id": "openbb_connector_manifest",
+      "warnings": [
+        "connector_wrapper_requires_underlying_source_manifest",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "openfigi_symbology_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "openfigi_symbology",
+      "source_id": "openfigi_symbology_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "sec_companyfacts_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "sec_companyfacts",
+      "source_id": "sec_companyfacts_manifest",
+      "warnings": []
+    },
+    "stooq_price_context_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "stooq_price_context",
+      "source_id": "stooq_price_context_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    "yahoo_finance_yfinance_manifest": {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "license_terms_status": "reviewed_restricted",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "yahoo_finance_yfinance",
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "warnings": [
+        "reviewed_restricted_source_requires_narrow_manual_use",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    }
+  },
+  "provider_rows": [
+    {
+      "activation_requirements": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "quality_gate_signed_off",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs"
+      ],
+      "authentication_required": true,
+      "cost_model": "freemium_candidate",
+      "currency_normalization_support": "unknown",
+      "expected_freshness": "daily_or_slower_unknown",
+      "expected_latency": "api_latency_unknown",
+      "factor_field_coverage_potential": [
+        "balance_sheet_ready",
+        "cash_flow_statement_ready",
+        "income_statement_ready",
+        "price_history_complete"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 7,
+      "known_limitations": [
+        "license_terms_not_reviewed",
+        "point_in_time_semantics_unknown",
+        "rate_limits_not_modeled"
+      ],
+      "license_terms_reference": "provider_public_terms_reference_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "Candidate only. No keys, no fetching, no trust assignment in this phase.",
+      "point_in_time_support": "unknown",
+      "provider_category": "fundamental_api_candidate",
+      "provider_id": "alpha_vantage_candidate",
+      "provider_name": "Alpha Vantage",
+      "region_coverage": [
+        "Asia",
+        "Europe",
+        "US"
+      ],
+      "report_lag_support": "unknown",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "risk_level": "medium",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "operator_manual_review",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "manual_research_context",
+        "metadata_context",
+        "operator_explanation"
+      ],
+      "asset_coverage": [
+        "uk_equities_metadata"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_manual_research",
+      "currency_normalization_support": "not_applicable",
+      "expected_freshness": "issuer_registry_schedule_unknown",
+      "expected_latency": "manual_lookup",
+      "factor_field_coverage_potential": [
+        "filing_presence_context",
+        "issuer_identity_context"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 11,
+      "known_limitations": [
+        "manual_context_only",
+        "not_a_fundamental_dataset"
+      ],
+      "license_terms_reference": "companies_house_terms_manual_review_required",
+      "license_terms_status": "public_site_review_required",
+      "operator_notes": "Useful for issuer metadata context only; not a direct factor source.",
+      "point_in_time_support": "metadata_only",
+      "provider_category": "issuer_registry_metadata",
+      "provider_id": "companies_house_metadata",
+      "provider_name": "Companies House",
+      "region_coverage": [
+        "United Kingdom"
+      ],
+      "report_lag_support": "unknown",
+      "required_quality_gates": [
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "risk_level": "low",
+      "source_status": "manual_research_only"
+    },
+    {
+      "activation_requirements": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "quality_gate_signed_off",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs"
+      ],
+      "authentication_required": true,
+      "cost_model": "paid_candidate",
+      "currency_normalization_support": "unknown",
+      "expected_freshness": "daily_or_vendor_defined",
+      "expected_latency": "api_latency_unknown",
+      "factor_field_coverage_potential": [
+        "balance_sheet_ready",
+        "cash_flow_statement_ready",
+        "dividend_history_context",
+        "income_statement_ready",
+        "price_history_complete"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 6,
+      "known_limitations": [
+        "license_terms_not_reviewed",
+        "paid_vendor_candidate_only",
+        "point_in_time_semantics_unknown"
+      ],
+      "license_terms_reference": "provider_public_terms_reference_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "Candidate only. Paid/vendor status alone does not imply trust or readiness.",
+      "point_in_time_support": "unknown",
+      "provider_category": "fundamental_api_candidate",
+      "provider_id": "eodhd_candidate",
+      "provider_name": "EOD Historical Data",
+      "region_coverage": [
+        "Asia",
+        "Europe",
+        "Global",
+        "US"
+      ],
+      "report_lag_support": "unknown",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "risk_level": "medium",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "europe_equities_metadata"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_metadata_candidate",
+      "currency_normalization_support": "metadata_only",
+      "expected_freshness": "exchange_maintenance_schedule_unknown",
+      "expected_latency": "manual_or_http_metadata",
+      "factor_field_coverage_potential": [
+        "issuer_metadata",
+        "listing_metadata",
+        "venue_context"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 3,
+      "known_limitations": [
+        "license_terms_not_reviewed",
+        "metadata_not_fundamentals"
+      ],
+      "license_terms_reference": "euronext_public_terms_manual_review_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "High-value identity context candidate for EU listings; not a factor field source.",
+      "point_in_time_support": "metadata_only",
+      "provider_category": "exchange_metadata_candidate",
+      "provider_id": "euronext_issuer_metadata",
+      "provider_name": "Euronext Public Issuer Metadata",
+      "region_coverage": [
+        "Belgium",
+        "France",
+        "Ireland",
+        "Netherlands",
+        "Portugal"
+      ],
+      "report_lag_support": "not_applicable",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "not_applicable",
+      "risk_level": "low",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "quality_gate_signed_off",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "connector_discovery",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "unknown_until_manifested"
+      ],
+      "authentication_required": "unknown",
+      "cost_model": "unknown",
+      "currency_normalization_support": "unknown",
+      "expected_freshness": "unknown",
+      "expected_latency": "unknown",
+      "factor_field_coverage_potential": [
+        "unknown_until_manifested"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 12,
+      "known_limitations": [
+        "connector_only",
+        "no_license_review",
+        "no_source_manifest"
+      ],
+      "license_terms_reference": "operator_manifest_required",
+      "license_terms_status": "unknown",
+      "operator_notes": "Staging only. Connector discovery does not imply data trust or source authority.",
+      "point_in_time_support": "unknown",
+      "provider_category": "connector_candidate",
+      "provider_id": "financial_datasets_mcp",
+      "provider_name": "Financial Datasets MCP",
+      "region_coverage": [
+        "unknown_until_manifested"
+      ],
+      "report_lag_support": "unknown",
+      "required_quality_gates": [
+        "connector_contract_reviewed",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "risk_level": "medium",
+      "source_status": "staging"
+    },
+    {
+      "activation_requirements": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "quality_gate_signed_off",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs"
+      ],
+      "authentication_required": true,
+      "cost_model": "freemium_or_paid_candidate",
+      "currency_normalization_support": "unknown",
+      "expected_freshness": "vendor_defined_unknown",
+      "expected_latency": "api_latency_unknown",
+      "factor_field_coverage_potential": [
+        "balance_sheet_ready",
+        "cash_flow_statement_ready",
+        "enterprise_value_ready",
+        "income_statement_ready",
+        "price_history_complete"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 5,
+      "known_limitations": [
+        "license_terms_not_reviewed",
+        "point_in_time_semantics_unknown",
+        "restatement_support_unknown"
+      ],
+      "license_terms_reference": "provider_public_terms_reference_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "Candidate only. No API integration or key management in this PR.",
+      "point_in_time_support": "unknown",
+      "provider_category": "fundamental_api_candidate",
+      "provider_id": "financial_modeling_prep_candidate",
+      "provider_name": "Financial Modeling Prep",
+      "region_coverage": [
+        "Asia",
+        "Europe",
+        "Global",
+        "US"
+      ],
+      "report_lag_support": "unknown",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "risk_level": "medium",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "us_listings_metadata"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_metadata_candidate",
+      "currency_normalization_support": "metadata_only",
+      "expected_freshness": "listing_file_schedule_unknown",
+      "expected_latency": "manual_or_http_metadata",
+      "factor_field_coverage_potential": [
+        "issuer_metadata",
+        "listing_metadata",
+        "venue_context"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 4,
+      "known_limitations": [
+        "license_terms_not_reviewed",
+        "metadata_not_fundamentals"
+      ],
+      "license_terms_reference": "nasdaq_public_terms_manual_review_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "Useful for US symbology/listing metadata only; not a valuation source.",
+      "point_in_time_support": "metadata_only",
+      "provider_category": "exchange_metadata_candidate",
+      "provider_id": "nasdaq_listings_metadata",
+      "provider_name": "Nasdaq Listings Metadata",
+      "region_coverage": [
+        "United States"
+      ],
+      "report_lag_support": "not_applicable",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "not_applicable",
+      "risk_level": "low",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "us_listings_metadata"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_metadata_candidate",
+      "currency_normalization_support": "metadata_only",
+      "expected_freshness": "listing_file_schedule_unknown",
+      "expected_latency": "manual_or_http_metadata",
+      "factor_field_coverage_potential": [
+        "issuer_metadata",
+        "listing_metadata",
+        "venue_context"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 4,
+      "known_limitations": [
+        "license_terms_not_reviewed",
+        "metadata_not_fundamentals"
+      ],
+      "license_terms_reference": "nyse_public_terms_manual_review_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "Useful for US venue metadata only; no trust assignment to fundamentals.",
+      "point_in_time_support": "metadata_only",
+      "provider_category": "exchange_metadata_candidate",
+      "provider_id": "nyse_listings_metadata",
+      "provider_name": "NYSE Listings Metadata",
+      "region_coverage": [
+        "United States"
+      ],
+      "report_lag_support": "not_applicable",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "not_applicable",
+      "risk_level": "low",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "quality_gate_signed_off",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "connector_discovery",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "multi_asset_connector_surface"
+      ],
+      "authentication_required": "unknown",
+      "cost_model": "connector_only_unknown",
+      "currency_normalization_support": "unknown",
+      "expected_freshness": "depends_on_downstream_provider",
+      "expected_latency": "depends_on_downstream_provider",
+      "factor_field_coverage_potential": [
+        "connector_surface_only"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 13,
+      "known_limitations": [
+        "connector_only",
+        "downstream_license_status_unknown",
+        "not_a_trusted_source"
+      ],
+      "license_terms_reference": "operator_manifest_required",
+      "license_terms_status": "unknown",
+      "operator_notes": "Staging only. Connector indirection cannot bypass source manifest and licensing policy.",
+      "point_in_time_support": "unknown",
+      "provider_category": "connector_candidate",
+      "provider_id": "openbb_connector",
+      "provider_name": "OpenBB",
+      "region_coverage": [
+        "Global"
+      ],
+      "report_lag_support": "unknown",
+      "required_quality_gates": [
+        "downstream_provider_manifest_defined",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "risk_level": "medium",
+      "source_status": "staging"
+    },
+    {
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs",
+        "multi_listing_symbology"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_or_limited_use_candidate",
+      "currency_normalization_support": "metadata_only",
+      "expected_freshness": "symbology_reference_schedule_unknown",
+      "expected_latency": "api_or_manual_lookup_unknown",
+      "factor_field_coverage_potential": [
+        "identity_only_not_fundamentals"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 2,
+      "known_limitations": [
+        "not_a_fundamental_source",
+        "symbology_only"
+      ],
+      "license_terms_reference": "openfigi_terms_manual_review_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "High-priority symbology candidate. Useful for canonical identity, not for factor fields.",
+      "point_in_time_support": "identity_only",
+      "provider_category": "symbology_candidate",
+      "provider_id": "openfigi_symbology",
+      "provider_name": "OpenFIGI",
+      "region_coverage": [
+        "Global"
+      ],
+      "report_lag_support": "not_applicable",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "not_applicable",
+      "risk_level": "low",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "quality_gate_signed_off",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "us_equities"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_access_candidate",
+      "currency_normalization_support": "mostly_usd_but_policy_required",
+      "expected_freshness": "filing_driven",
+      "expected_latency": "public_endpoint_latency_unknown",
+      "factor_field_coverage_potential": [
+        "balance_sheet_ready",
+        "cash_flow_statement_ready",
+        "income_statement_ready",
+        "multi_period_fundamentals"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 1,
+      "known_limitations": [
+        "point_in_time_policy_not_defined",
+        "restatement_policy_not_defined",
+        "us_only"
+      ],
+      "license_terms_reference": "sec_edgar_terms_manual_review_required",
+      "license_terms_status": "public_source_review_required",
+      "operator_notes": "Highest-priority public candidate for US fundamentals, but still untrusted until full source-manifest and policy gates exist.",
+      "point_in_time_support": "candidate_with_policy_required",
+      "provider_category": "public_fundamental_filings",
+      "provider_id": "sec_companyfacts",
+      "provider_name": "SEC EDGAR Company Facts",
+      "region_coverage": [
+        "United States"
+      ],
+      "report_lag_support": "candidate_with_policy_required",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "candidate_with_policy_required",
+      "risk_level": "low",
+      "source_status": "candidate"
+    },
+    {
+      "activation_requirements": [
+        "operator_manual_review",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "manual_research_context",
+        "metadata_context",
+        "operator_explanation"
+      ],
+      "asset_coverage": [
+        "public_price_context"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_manual_research",
+      "currency_normalization_support": "unknown",
+      "expected_freshness": "unknown",
+      "expected_latency": "manual_lookup",
+      "factor_field_coverage_potential": [
+        "price_context_only"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 14,
+      "known_limitations": [
+        "manual_context_only",
+        "not_a_fundamental_source"
+      ],
+      "license_terms_reference": "stooq_terms_manual_review_required",
+      "license_terms_status": "manual_review_required",
+      "operator_notes": "Only relevant as manual price context. It does not address fundamental field coverage.",
+      "point_in_time_support": "unknown",
+      "provider_category": "public_price_context",
+      "provider_id": "stooq_price_context",
+      "provider_name": "Stooq",
+      "region_coverage": [
+        "Europe",
+        "Global",
+        "US"
+      ],
+      "report_lag_support": "not_applicable",
+      "required_quality_gates": [
+        "license_reviewed",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "not_applicable",
+      "risk_level": "low",
+      "source_status": "manual_research_only"
+    },
+    {
+      "activation_requirements": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "quality_gate_signed_off",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_defined"
+      ],
+      "allowed_use": [
+        "manual_research_context",
+        "metadata_context",
+        "operator_explanation"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs",
+        "price_context"
+      ],
+      "authentication_required": false,
+      "cost_model": "public_convenience_candidate",
+      "currency_normalization_support": "unknown",
+      "expected_freshness": "unknown",
+      "expected_latency": "library_dependent",
+      "factor_field_coverage_potential": [
+        "convenience_only_untrusted"
+      ],
+      "forbidden_use": [
+        "trade_signal",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper_activation",
+        "shadow_activation",
+        "live_activation",
+        "capital_allocation",
+        "broker_execution"
+      ],
+      "implementation_priority": 15,
+      "known_limitations": [
+        "licensing_uncertainty",
+        "point_in_time_semantics_unknown",
+        "restatement_semantics_unknown"
+      ],
+      "license_terms_reference": "manual_license_review_required_before_any_manifest",
+      "license_terms_status": "licensing_warning",
+      "operator_notes": "Manual-research-only with explicit licensing warning. Not trusted for gated factor evaluation.",
+      "point_in_time_support": "unknown",
+      "provider_category": "public_convenience_dataset",
+      "provider_id": "yahoo_finance_yfinance",
+      "provider_name": "Yahoo Finance / yfinance",
+      "region_coverage": [
+        "Global"
+      ],
+      "report_lag_support": "unknown",
+      "required_quality_gates": [
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "source_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "risk_level": "high",
+      "source_status": "manual_research_only"
+    }
+  ],
+  "report_kind": "source_manifest_registry",
+  "rows": [
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "report_lag_policy_defined",
+        "restatement_policy_defined"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs"
+      ],
+      "authentication_required": true,
+      "corporate_action_adjustment_support": "unknown",
+      "cost_model": "free_limited",
+      "currency_normalization_support": "unknown",
+      "exchange_coverage": [],
+      "expected_freshness": "daily_or_slower_unknown",
+      "expected_latency": "api_latency_unknown",
+      "factor_field_coverage_claims": [
+        "balance_sheet_statement",
+        "cash_flow_statement",
+        "income_statement"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "license_terms_not_reviewed",
+        "policy_not_defined"
+      ],
+      "license_terms_reference": "alpha_vantage_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "unknown_without_policy",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Stub manifest only. No API integration or data fetch.",
+      "point_in_time_support": "unknown",
+      "provider_id": "alpha_vantage_candidate",
+      "region_coverage": [
+        "Asia",
+        "Europe",
+        "US"
+      ],
+      "report_lag_support": "unknown",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "source_quality_reviewed"
+      ],
+      "restatement_history_support": "unknown",
+      "schema_version": "1.0",
+      "source_category": "free_api_limited",
+      "source_id": "alpha_vantage_candidate_manifest",
+      "source_name": "Alpha Vantage Candidate Manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data",
+      "survivorship_bias_risk": "unknown"
+    },
+    {
+      "access_method": "manual_download",
+      "activation_requirements": [
+        "operator_manual_review"
+      ],
+      "allowed_use": [
+        "manual_research_context",
+        "metadata_context",
+        "operator_explanation"
+      ],
+      "asset_coverage": [
+        "uk_equities_metadata"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unsupported",
+      "cost_model": "free",
+      "currency_normalization_support": "unsupported",
+      "exchange_coverage": [],
+      "expected_freshness": "issuer_registry_schedule_unknown",
+      "expected_latency": "manual_lookup",
+      "factor_field_coverage_claims": [
+        "issuer_identity_context"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "manual_context_only",
+        "not_fundamental_data"
+      ],
+      "license_terms_reference": "companies_house_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "metadata_only",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Manual metadata context only. Does not support automated readiness.",
+      "point_in_time_support": "unsupported",
+      "provider_id": "companies_house_metadata",
+      "region_coverage": [
+        "United Kingdom"
+      ],
+      "report_lag_support": "unsupported",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "license_reviewed",
+        "metadata_context_reviewed"
+      ],
+      "restatement_history_support": "unsupported",
+      "schema_version": "1.0",
+      "source_category": "manual_only",
+      "source_id": "companies_house_metadata_manifest",
+      "source_name": "Companies House Metadata Manifest",
+      "source_status": "manual_research_only",
+      "source_type": "issuer_metadata",
+      "survivorship_bias_risk": "metadata_only"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "operator_license_approval",
+        "point_in_time_policy_defined",
+        "source_manifest_quality_pass"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs"
+      ],
+      "authentication_required": true,
+      "corporate_action_adjustment_support": "unknown",
+      "cost_model": "paid",
+      "currency_normalization_support": "unknown",
+      "exchange_coverage": [],
+      "expected_freshness": "vendor_defined_unknown",
+      "expected_latency": "api_latency_unknown",
+      "factor_field_coverage_claims": [
+        "balance_sheet_statement",
+        "cash_flow_statement",
+        "dividend_history",
+        "income_statement"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "paid_vendor_candidate_only",
+        "policy_not_defined"
+      ],
+      "license_terms_reference": "eodhd_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "unknown_without_policy",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Candidate only. Paid status does not imply trust or activation.",
+      "point_in_time_support": "unknown",
+      "provider_id": "eodhd_candidate",
+      "region_coverage": [
+        "Asia",
+        "Europe",
+        "Global",
+        "US"
+      ],
+      "report_lag_support": "unknown",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "source_quality_reviewed"
+      ],
+      "restatement_history_support": "unknown",
+      "schema_version": "1.0",
+      "source_category": "paid_vendor_candidate",
+      "source_id": "eodhd_candidate_manifest",
+      "source_name": "EOD Historical Data Candidate Manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data",
+      "survivorship_bias_risk": "unknown"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "source_manifest_quality_pass"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "europe_equities_metadata"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unsupported",
+      "cost_model": "free",
+      "currency_normalization_support": "unsupported",
+      "exchange_coverage": [
+        "EPA",
+        "XAMS",
+        "XBRU",
+        "XDUB",
+        "XLIS"
+      ],
+      "expected_freshness": "exchange_maintenance_schedule_unknown",
+      "expected_latency": "manual_or_http_metadata",
+      "factor_field_coverage_claims": [
+        "issuer_metadata",
+        "listing_metadata",
+        "venue_context"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "metadata_not_fundamentals"
+      ],
+      "license_terms_reference": "euronext_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "metadata_only",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Identity and listing context only. Does not satisfy factor fields.",
+      "point_in_time_support": "unsupported",
+      "provider_id": "euronext_issuer_metadata",
+      "region_coverage": [
+        "Belgium",
+        "France",
+        "Ireland",
+        "Netherlands",
+        "Portugal"
+      ],
+      "report_lag_support": "unsupported",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed"
+      ],
+      "restatement_history_support": "unsupported",
+      "schema_version": "1.0",
+      "source_category": "public_with_terms",
+      "source_id": "euronext_issuer_metadata_manifest",
+      "source_name": "Euronext Issuer Metadata Manifest",
+      "source_status": "candidate",
+      "source_type": "issuer_metadata",
+      "survivorship_bias_risk": "metadata_only"
+    },
+    {
+      "access_method": "connector",
+      "activation_requirements": [
+        "downstream_provider_manifest_defined",
+        "operator_license_approval"
+      ],
+      "allowed_use": [
+        "connector_discovery",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "unknown_until_manifested"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unknown",
+      "cost_model": "unknown",
+      "currency_normalization_support": "unknown",
+      "exchange_coverage": [],
+      "expected_freshness": "depends_on_downstream_provider",
+      "expected_latency": "depends_on_downstream_provider",
+      "factor_field_coverage_claims": [
+        "connector_surface_only"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "connector_only",
+        "downstream_source_not_manifested"
+      ],
+      "license_terms_reference": "operator_manifest_required",
+      "license_terms_status": "unknown",
+      "lookahead_bias_risk": "unknown",
+      "manifest_block_reasons": [
+        "ACCESS_METHOD_UNKNOWN",
+        "MISSING_LICENSE_TERMS",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "FAIL",
+      "operator_notes": "Connector wrapper only. Underlying provider trust must be explicit.",
+      "point_in_time_support": "unknown",
+      "provider_id": "financial_datasets_mcp",
+      "region_coverage": [
+        "unknown_until_manifested"
+      ],
+      "report_lag_support": "unknown",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "connector_contract_reviewed",
+        "downstream_provider_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "schema_version": "1.0",
+      "source_category": "connector_wrapper",
+      "source_id": "financial_datasets_mcp_manifest",
+      "source_name": "Financial Datasets MCP Manifest",
+      "source_status": "staging",
+      "source_type": "connector_staging",
+      "survivorship_bias_risk": "unknown"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "operator_license_approval",
+        "point_in_time_policy_defined",
+        "source_manifest_quality_pass"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs"
+      ],
+      "authentication_required": true,
+      "corporate_action_adjustment_support": "unknown",
+      "cost_model": "mixed",
+      "currency_normalization_support": "unknown",
+      "exchange_coverage": [],
+      "expected_freshness": "vendor_defined_unknown",
+      "expected_latency": "api_latency_unknown",
+      "factor_field_coverage_claims": [
+        "balance_sheet_statement",
+        "cash_flow_statement",
+        "enterprise_value",
+        "income_statement"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "policy_not_defined",
+        "terms_not_reviewed"
+      ],
+      "license_terms_reference": "fmp_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "unknown_without_policy",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Candidate only. No integration or claims of readiness.",
+      "point_in_time_support": "unknown",
+      "provider_id": "financial_modeling_prep_candidate",
+      "region_coverage": [
+        "Asia",
+        "Europe",
+        "Global",
+        "US"
+      ],
+      "report_lag_support": "unknown",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "source_quality_reviewed"
+      ],
+      "restatement_history_support": "unknown",
+      "schema_version": "1.0",
+      "source_category": "paid_vendor_candidate",
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "source_name": "Financial Modeling Prep Candidate Manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data",
+      "survivorship_bias_risk": "unknown"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "source_manifest_quality_pass"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "us_listings_metadata"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unsupported",
+      "cost_model": "free",
+      "currency_normalization_support": "unsupported",
+      "exchange_coverage": [
+        "XNAS"
+      ],
+      "expected_freshness": "listing_file_schedule_unknown",
+      "expected_latency": "manual_or_http_metadata",
+      "factor_field_coverage_claims": [
+        "issuer_metadata",
+        "listing_metadata",
+        "venue_context"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "metadata_not_fundamentals"
+      ],
+      "license_terms_reference": "nasdaq_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "metadata_only",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Listing metadata only. Does not support factor readiness.",
+      "point_in_time_support": "unsupported",
+      "provider_id": "nasdaq_listings_metadata",
+      "region_coverage": [
+        "United States"
+      ],
+      "report_lag_support": "unsupported",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed"
+      ],
+      "restatement_history_support": "unsupported",
+      "schema_version": "1.0",
+      "source_category": "public_with_terms",
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "source_name": "Nasdaq Listings Metadata Manifest",
+      "source_status": "candidate",
+      "source_type": "listing_metadata",
+      "survivorship_bias_risk": "metadata_only"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "source_manifest_quality_pass"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "us_listings_metadata"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unsupported",
+      "cost_model": "free",
+      "currency_normalization_support": "unsupported",
+      "exchange_coverage": [
+        "XNYS"
+      ],
+      "expected_freshness": "listing_file_schedule_unknown",
+      "expected_latency": "manual_or_http_metadata",
+      "factor_field_coverage_claims": [
+        "issuer_metadata",
+        "listing_metadata",
+        "venue_context"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "metadata_not_fundamentals"
+      ],
+      "license_terms_reference": "nyse_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "metadata_only",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Listing metadata only. Does not support factor readiness.",
+      "point_in_time_support": "unsupported",
+      "provider_id": "nyse_listings_metadata",
+      "region_coverage": [
+        "United States"
+      ],
+      "report_lag_support": "unsupported",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed"
+      ],
+      "restatement_history_support": "unsupported",
+      "schema_version": "1.0",
+      "source_category": "public_with_terms",
+      "source_id": "nyse_listings_metadata_manifest",
+      "source_name": "NYSE Listings Metadata Manifest",
+      "source_status": "candidate",
+      "source_type": "listing_metadata",
+      "survivorship_bias_risk": "metadata_only"
+    },
+    {
+      "access_method": "connector",
+      "activation_requirements": [
+        "downstream_provider_manifest_defined",
+        "operator_license_approval"
+      ],
+      "allowed_use": [
+        "connector_discovery",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "multi_asset_connector_surface"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unknown",
+      "cost_model": "unknown",
+      "currency_normalization_support": "unknown",
+      "exchange_coverage": [],
+      "expected_freshness": "depends_on_downstream_provider",
+      "expected_latency": "depends_on_downstream_provider",
+      "factor_field_coverage_claims": [
+        "connector_surface_only"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "connector_only",
+        "downstream_source_not_manifested"
+      ],
+      "license_terms_reference": "operator_manifest_required",
+      "license_terms_status": "unknown",
+      "lookahead_bias_risk": "unknown",
+      "manifest_block_reasons": [
+        "MISSING_LICENSE_TERMS",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "FAIL",
+      "operator_notes": "Connector only. Underlying provider must carry its own manifest and policy.",
+      "point_in_time_support": "unknown",
+      "provider_id": "openbb_connector",
+      "region_coverage": [
+        "Global"
+      ],
+      "report_lag_support": "unknown",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "connector_contract_reviewed",
+        "downstream_provider_manifest_defined"
+      ],
+      "restatement_history_support": "unknown",
+      "schema_version": "1.0",
+      "source_category": "connector_wrapper",
+      "source_id": "openbb_connector_manifest",
+      "source_name": "OpenBB Connector Manifest",
+      "source_status": "staging",
+      "source_type": "connector_staging",
+      "survivorship_bias_risk": "unknown"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "source_manifest_quality_pass"
+      ],
+      "allowed_use": [
+        "identity_mapping",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs",
+        "multi_listing_symbology"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unsupported",
+      "cost_model": "free_limited",
+      "currency_normalization_support": "unsupported",
+      "exchange_coverage": [],
+      "expected_freshness": "symbology_reference_schedule_unknown",
+      "expected_latency": "api_or_manual_lookup_unknown",
+      "factor_field_coverage_claims": [
+        "identity_only_not_fundamentals"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "not_fundamental_source",
+        "symbology_only"
+      ],
+      "license_terms_reference": "openfigi_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "identity_only",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Identity context only. Must not unlock fundamental readiness.",
+      "point_in_time_support": "unsupported",
+      "provider_id": "openfigi_symbology",
+      "region_coverage": [
+        "Global"
+      ],
+      "report_lag_support": "unsupported",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "identity_mapping_quality_gate",
+        "license_reviewed"
+      ],
+      "restatement_history_support": "unsupported",
+      "schema_version": "1.0",
+      "source_category": "free_api_limited",
+      "source_id": "openfigi_symbology_manifest",
+      "source_name": "OpenFIGI Symbology Manifest",
+      "source_status": "candidate",
+      "source_type": "identity_symbology",
+      "survivorship_bias_risk": "identity_only"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_quality_pass"
+      ],
+      "allowed_use": [
+        "fundamental_field_candidate",
+        "metadata_context",
+        "operator_explanation",
+        "source_candidate_research"
+      ],
+      "asset_coverage": [
+        "us_equities"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unsupported",
+      "cost_model": "free",
+      "currency_normalization_support": "partially_supported",
+      "exchange_coverage": [
+        "XNAS",
+        "XNYS"
+      ],
+      "expected_freshness": "filing_driven",
+      "expected_latency": "public_endpoint_latency_unknown",
+      "factor_field_coverage_claims": [
+        "balance_sheet_statement",
+        "cash_flow_statement",
+        "income_statement",
+        "multi_period_fundamentals"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "point_in_time_policy_not_defined",
+        "restatement_policy_not_defined",
+        "us_only"
+      ],
+      "license_terms_reference": "sec_edgar_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "unknown_without_policy",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Manifest present but policy not ready. This does not unlock factor readiness.",
+      "point_in_time_support": "partially_supported",
+      "provider_id": "sec_companyfacts",
+      "region_coverage": [
+        "United States"
+      ],
+      "report_lag_support": "unknown",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_quality_reviewed"
+      ],
+      "restatement_history_support": "unknown",
+      "schema_version": "1.0",
+      "source_category": "public_with_terms",
+      "source_id": "sec_companyfacts_manifest",
+      "source_name": "SEC EDGAR Company Facts Manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data",
+      "survivorship_bias_risk": "unknown_without_policy"
+    },
+    {
+      "access_method": "manual_download",
+      "activation_requirements": [
+        "operator_manual_review"
+      ],
+      "allowed_use": [
+        "manual_research_context",
+        "metadata_context",
+        "operator_explanation"
+      ],
+      "asset_coverage": [
+        "public_price_context"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unsupported",
+      "cost_model": "free",
+      "currency_normalization_support": "unsupported",
+      "exchange_coverage": [],
+      "expected_freshness": "unknown",
+      "expected_latency": "manual_lookup",
+      "factor_field_coverage_claims": [
+        "price_context_only"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "manual_context_only",
+        "not_fundamental_source"
+      ],
+      "license_terms_reference": "stooq_terms_review_required",
+      "license_terms_status": "review_required",
+      "lookahead_bias_risk": "manual_context_only",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Manual market context only. Does not address factor fields.",
+      "point_in_time_support": "unsupported",
+      "provider_id": "stooq_price_context",
+      "region_coverage": [
+        "Europe",
+        "Global",
+        "US"
+      ],
+      "report_lag_support": "unsupported",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "license_reviewed"
+      ],
+      "restatement_history_support": "unsupported",
+      "schema_version": "1.0",
+      "source_category": "manual_only",
+      "source_id": "stooq_price_context_manifest",
+      "source_name": "Stooq Price Context Manifest",
+      "source_status": "manual_research_only",
+      "source_type": "market_price_context",
+      "survivorship_bias_risk": "unknown"
+    },
+    {
+      "access_method": "static_manifest",
+      "activation_requirements": [
+        "operator_manual_review"
+      ],
+      "allowed_use": [
+        "manual_research_context",
+        "metadata_context",
+        "operator_explanation"
+      ],
+      "asset_coverage": [
+        "equities",
+        "etfs",
+        "price_context"
+      ],
+      "authentication_required": false,
+      "corporate_action_adjustment_support": "unknown",
+      "cost_model": "free",
+      "currency_normalization_support": "unknown",
+      "exchange_coverage": [],
+      "expected_freshness": "unknown",
+      "expected_latency": "library_dependent",
+      "factor_field_coverage_claims": [
+        "convenience_only_untrusted"
+      ],
+      "forbidden_use": [
+        "broker_execution",
+        "buy_list",
+        "candidate_promotion",
+        "capital_allocation",
+        "fundamental_field_readiness",
+        "live_activation",
+        "paper_activation",
+        "sell_list",
+        "shadow_activation",
+        "strategy_registration",
+        "trade_signal"
+      ],
+      "known_limitations": [
+        "licensing_uncertainty",
+        "manual_context_only"
+      ],
+      "license_terms_reference": "yahoo_finance_manual_research_restricted",
+      "license_terms_status": "reviewed_restricted",
+      "lookahead_bias_risk": "unknown",
+      "manifest_block_reasons": [
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_notes": "Reviewed-restricted manual context only. Not valid for automated readiness.",
+      "point_in_time_support": "unknown",
+      "provider_id": "yahoo_finance_yfinance",
+      "region_coverage": [
+        "Global"
+      ],
+      "report_lag_support": "unknown",
+      "reproducibility_method": "static_registry_stub_only",
+      "required_quality_gates": [
+        "license_reviewed",
+        "operator_manual_review"
+      ],
+      "restatement_history_support": "unknown",
+      "schema_version": "1.0",
+      "source_category": "manual_only",
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "source_name": "Yahoo Finance / yfinance Manifest",
+      "source_status": "manual_research_only",
+      "source_type": "manual_research_context",
+      "survivorship_bias_risk": "unknown"
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "no_api_integration": true,
+    "no_data_fetch": true,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "active_read_only_eligible_providers": [],
+    "fundamental_candidate_sources": [
+      "alpha_vantage_candidate_manifest",
+      "eodhd_candidate_manifest",
+      "financial_modeling_prep_candidate_manifest",
+      "sec_companyfacts_manifest"
+    ],
+    "identity_only_sources": [
+      "openfigi_symbology_manifest"
+    ],
+    "license_policy_counts": {
+      "UNKNOWN": 2,
+      "WARN": 11
+    },
+    "license_terms_status_counts": {
+      "review_required": 10,
+      "reviewed_restricted": 1,
+      "unknown": 2
+    },
+    "manifest_status_counts": {
+      "FAIL": 2,
+      "WARN": 11
+    },
+    "metadata_only_sources": [
+      "companies_house_metadata_manifest",
+      "euronext_issuer_metadata_manifest",
+      "nasdaq_listings_metadata_manifest",
+      "nyse_listings_metadata_manifest"
+    ],
+    "operator_summary": "Source manifests are deterministic stubs only. No data has been fetched, no provider is activated, and manifest presence alone does not unlock recipe, hypothesis, or controlled evaluation readiness.",
+    "providers_blocked_by_license_policy": [
+      "alpha_vantage_candidate",
+      "companies_house_metadata",
+      "eodhd_candidate",
+      "euronext_issuer_metadata",
+      "financial_datasets_mcp",
+      "financial_modeling_prep_candidate",
+      "nasdaq_listings_metadata",
+      "nyse_listings_metadata",
+      "openbb_connector",
+      "openfigi_symbology",
+      "sec_companyfacts",
+      "stooq_price_context",
+      "yahoo_finance_yfinance"
+    ],
+    "providers_blocked_by_policy_gaps": [
+      "alpha_vantage_candidate",
+      "eodhd_candidate",
+      "financial_modeling_prep_candidate",
+      "sec_companyfacts"
+    ],
+    "quality_gated_eligible_providers": [],
+    "source_category_counts": {
+      "connector_wrapper": 2,
+      "free_api_limited": 2,
+      "manual_only": 3,
+      "paid_vendor_candidate": 2,
+      "public_with_terms": 4
+    },
+    "source_type_counts": {
+      "connector_staging": 2,
+      "fundamental_statement_data": 4,
+      "identity_symbology": 1,
+      "issuer_metadata": 2,
+      "listing_metadata": 2,
+      "manual_research_context": 1,
+      "market_price_context": 1
+    },
+    "total_manifests": 13
+  }
+}

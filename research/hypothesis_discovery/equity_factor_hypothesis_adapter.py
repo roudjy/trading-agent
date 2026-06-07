@@ -216,7 +216,13 @@ def build_equity_factor_hypothesis_seeds() -> dict[str, object]:
         )
         required_next_action = (
             "add_source_manifest"
-            if "MISSING_SOURCE_MANIFEST" in blocked_reason_codes
+            if {
+                "MISSING_SOURCE_MANIFEST",
+                "LICENSE_REVIEW_REQUIRED",
+                "SOURCE_LICENSE_UNKNOWN",
+                "SOURCE_QUALITY_UNKNOWN",
+            }
+            & set(blocked_reason_codes)
             else "resolve_identity_ambiguity"
             if "BLOCKED_IDENTITY_AMBIGUITY" in blocked_reason_codes
             else "fix_recipe_references"

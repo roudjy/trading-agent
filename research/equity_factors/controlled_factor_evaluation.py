@@ -39,8 +39,15 @@ def _map_seed_block_reasons(seed_reasons: list[str]) -> list[str]:
             "BLOCKED_DATA_READINESS_MISSING": "BLOCKED_DATA_READINESS",
             "MISSING_SOURCE_MANIFEST": "BLOCKED_SOURCE_MANIFEST",
             "MISSING_POINT_IN_TIME_POLICY": "BLOCKED_POINT_IN_TIME_POLICY",
+            "POINT_IN_TIME_UNKNOWN": "BLOCKED_POINT_IN_TIME_POLICY",
+            "MISSING_REPORT_LAG_POLICY": "BLOCKED_REPORT_LAG_POLICY",
+            "REPORT_LAG_POLICY_UNKNOWN": "BLOCKED_REPORT_LAG_POLICY",
+            "MISSING_RESTATEMENT_POLICY": "BLOCKED_RESTATEMENT_POLICY",
+            "RESTATEMENT_POLICY_UNKNOWN": "BLOCKED_RESTATEMENT_POLICY",
             "MISSING_REQUIRED_FIELD": "BLOCKED_FIELD_COVERAGE",
             "FACTOR_FIELD_COVERAGE_UNKNOWN": "BLOCKED_FIELD_COVERAGE",
+            "LICENSE_REVIEW_REQUIRED": "BLOCKED_SOURCE_LICENSE_POLICY",
+            "SOURCE_LICENSE_UNKNOWN": "BLOCKED_SOURCE_LICENSE_POLICY",
             "BLOCKED_IDENTITY_AMBIGUITY": "BLOCKED_IDENTITY_AMBIGUITY",
             "UNIVERSE_IDENTITY_NOT_READY": "BLOCKED_IDENTITY_AMBIGUITY",
             "MISSING_CURRENCY_NORMALIZATION": "BLOCKED_CURRENCY_NORMALIZATION",
@@ -57,6 +64,10 @@ def _allowed_next_action(blocked_reason_codes: list[str], readiness_status: str)
         return "add_field_coverage_manifest"
     if "BLOCKED_POINT_IN_TIME_POLICY" in blocked_reason_codes:
         return "add_point_in_time_policy"
+    if {"BLOCKED_REPORT_LAG_POLICY", "BLOCKED_RESTATEMENT_POLICY", "BLOCKED_SOURCE_LICENSE_POLICY"} & set(
+        blocked_reason_codes
+    ):
+        return "operator_review"
     if "BLOCKED_CURRENCY_NORMALIZATION" in blocked_reason_codes:
         return "add_currency_normalization_policy"
     if "BLOCKED_OOS_POLICY" in blocked_reason_codes:

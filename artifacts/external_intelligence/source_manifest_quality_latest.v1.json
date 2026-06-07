@@ -1,0 +1,252 @@
+{
+  "report_kind": "source_manifest_quality",
+  "rows": [
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "alpha_vantage_candidate",
+      "source_category": "free_api_limited",
+      "source_id": "alpha_vantage_candidate_manifest",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "companies_house_metadata",
+      "source_category": "manual_only",
+      "source_id": "companies_house_metadata_manifest",
+      "source_type": "issuer_metadata"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "eodhd_candidate",
+      "source_category": "paid_vendor_candidate",
+      "source_id": "eodhd_candidate_manifest",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "euronext_issuer_metadata",
+      "source_category": "public_with_terms",
+      "source_id": "euronext_issuer_metadata_manifest",
+      "source_type": "issuer_metadata"
+    },
+    {
+      "license_policy_status": "UNKNOWN",
+      "manifest_block_reasons": [
+        "ACCESS_METHOD_UNKNOWN",
+        "MISSING_LICENSE_TERMS",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "FAIL",
+      "provider_id": "financial_datasets_mcp",
+      "source_category": "connector_wrapper",
+      "source_id": "financial_datasets_mcp_manifest",
+      "source_type": "connector_staging"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "financial_modeling_prep_candidate",
+      "source_category": "paid_vendor_candidate",
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "nasdaq_listings_metadata",
+      "source_category": "public_with_terms",
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "source_type": "listing_metadata"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "nyse_listings_metadata",
+      "source_category": "public_with_terms",
+      "source_id": "nyse_listings_metadata_manifest",
+      "source_type": "listing_metadata"
+    },
+    {
+      "license_policy_status": "UNKNOWN",
+      "manifest_block_reasons": [
+        "MISSING_LICENSE_TERMS",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "FAIL",
+      "provider_id": "openbb_connector",
+      "source_category": "connector_wrapper",
+      "source_id": "openbb_connector_manifest",
+      "source_type": "connector_staging"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "openfigi_symbology",
+      "source_category": "free_api_limited",
+      "source_id": "openfigi_symbology_manifest",
+      "source_type": "identity_symbology"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "sec_companyfacts",
+      "source_category": "public_with_terms",
+      "source_id": "sec_companyfacts_manifest",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "stooq_price_context",
+      "source_category": "manual_only",
+      "source_id": "stooq_price_context_manifest",
+      "source_type": "market_price_context"
+    },
+    {
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "provider_id": "yahoo_finance_yfinance",
+      "source_category": "manual_only",
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "source_type": "manual_research_context"
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "no_api_integration": true,
+    "no_data_fetch": true,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "active_read_only_eligible_providers": [],
+    "fundamental_candidate_sources": [
+      "alpha_vantage_candidate_manifest",
+      "eodhd_candidate_manifest",
+      "financial_modeling_prep_candidate_manifest",
+      "sec_companyfacts_manifest"
+    ],
+    "identity_only_sources": [
+      "openfigi_symbology_manifest"
+    ],
+    "license_policy_counts": {
+      "UNKNOWN": 2,
+      "WARN": 11
+    },
+    "license_terms_status_counts": {
+      "review_required": 10,
+      "reviewed_restricted": 1,
+      "unknown": 2
+    },
+    "manifest_status_counts": {
+      "FAIL": 2,
+      "WARN": 11
+    },
+    "metadata_only_sources": [
+      "companies_house_metadata_manifest",
+      "euronext_issuer_metadata_manifest",
+      "nasdaq_listings_metadata_manifest",
+      "nyse_listings_metadata_manifest"
+    ],
+    "operator_summary": "Source manifests are deterministic stubs only. No data has been fetched, no provider is activated, and manifest presence alone does not unlock recipe, hypothesis, or controlled evaluation readiness.",
+    "providers_blocked_by_license_policy": [
+      "alpha_vantage_candidate",
+      "companies_house_metadata",
+      "eodhd_candidate",
+      "euronext_issuer_metadata",
+      "financial_datasets_mcp",
+      "financial_modeling_prep_candidate",
+      "nasdaq_listings_metadata",
+      "nyse_listings_metadata",
+      "openbb_connector",
+      "openfigi_symbology",
+      "sec_companyfacts",
+      "stooq_price_context",
+      "yahoo_finance_yfinance"
+    ],
+    "providers_blocked_by_policy_gaps": [
+      "alpha_vantage_candidate",
+      "eodhd_candidate",
+      "financial_modeling_prep_candidate",
+      "sec_companyfacts"
+    ],
+    "quality_gated_eligible_providers": [],
+    "source_category_counts": {
+      "connector_wrapper": 2,
+      "free_api_limited": 2,
+      "manual_only": 3,
+      "paid_vendor_candidate": 2,
+      "public_with_terms": 4
+    },
+    "source_type_counts": {
+      "connector_staging": 2,
+      "fundamental_statement_data": 4,
+      "identity_symbology": 1,
+      "issuer_metadata": 2,
+      "listing_metadata": 2,
+      "manual_research_context": 1,
+      "market_price_context": 1
+    },
+    "total_manifests": 13
+  }
+}
