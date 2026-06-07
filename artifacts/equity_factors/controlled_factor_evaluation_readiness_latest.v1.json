@@ -1,0 +1,848 @@
+{
+  "readiness_status_vocabulary": [
+    "READY_FOR_CONTROLLED_EVAL",
+    "NOT_READY",
+    "BLOCKED"
+  ],
+  "report_kind": "controlled_factor_evaluation_readiness",
+  "rows": [
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_CURRENCY_NORMALIZATION",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::asia_developed_quality_value_v0",
+      "factor_ids": [
+        "roic",
+        "gross_profitability",
+        "book_to_market",
+        "earnings_yield"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": true,
+      "required_data_fields": [
+        "book_value_equity",
+        "gross_profit_ttm",
+        "invested_capital",
+        "market_cap",
+        "net_income_ttm",
+        "nopat_ttm",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::asia_developed_quality_value_v0",
+      "source_recipe_id": "asia_developed_quality_value_v0",
+      "target_universe_ids": [
+        "asia_developed_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::defensive_quality_momentum_v0",
+      "factor_ids": [
+        "return_on_assets",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "gross_profit_ttm",
+        "net_income_ttm",
+        "price_history_12m",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::defensive_quality_momentum_v0",
+      "source_recipe_id": "defensive_quality_momentum_v0",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_CURRENCY_NORMALIZATION",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::eu_quality_value_momentum_v0",
+      "factor_ids": [
+        "roic",
+        "earnings_yield",
+        "twelve_month_momentum"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": true,
+      "required_data_fields": [
+        "invested_capital",
+        "market_cap",
+        "net_income_ttm",
+        "nopat_ttm",
+        "price_history_12m"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::eu_quality_value_momentum_v0",
+      "source_recipe_id": "eu_quality_value_momentum_v0",
+      "target_universe_ids": [
+        "europe_large_mid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::europe_deep_value_financial_health_v0",
+      "factor_ids": [
+        "book_to_market",
+        "price_to_sales",
+        "piotroski_f_score",
+        "altman_z_score"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "asset_turnover",
+        "book_value_equity",
+        "ebit_ttm",
+        "gross_margin",
+        "leverage_ratio",
+        "market_cap",
+        "operating_cash_flow",
+        "retained_earnings",
+        "revenue_ttm",
+        "roa",
+        "total_assets",
+        "total_liabilities",
+        "working_capital"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::europe_deep_value_financial_health_v0",
+      "source_recipe_id": "europe_deep_value_financial_health_v0",
+      "target_universe_ids": [
+        "europe_large_mid",
+        "europe_small_mid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::europe_small_mid_quality_value_v0",
+      "factor_ids": [
+        "gross_profitability",
+        "book_to_market",
+        "accruals_ratio"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "average_total_assets",
+        "book_value_equity",
+        "gross_profit_ttm",
+        "market_cap",
+        "net_income_ttm",
+        "operating_cash_flow_ttm",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::europe_small_mid_quality_value_v0",
+      "source_recipe_id": "europe_small_mid_quality_value_v0",
+      "target_universe_ids": [
+        "europe_small_mid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::global_developed_quality_momentum_v0",
+      "factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "gross_profit_ttm",
+        "invested_capital",
+        "nopat_ttm",
+        "price_history_12m",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::global_developed_quality_momentum_v0",
+      "source_recipe_id": "global_developed_quality_momentum_v0",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_CURRENCY_NORMALIZATION",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::global_developed_value_quality_v0",
+      "factor_ids": [
+        "book_to_market",
+        "earnings_yield",
+        "return_on_assets"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": true,
+      "required_data_fields": [
+        "book_value_equity",
+        "market_cap",
+        "net_income_ttm",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::global_developed_value_quality_v0",
+      "source_recipe_id": "global_developed_value_quality_v0",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::low_accrual_quality_v0",
+      "factor_ids": [
+        "accruals_ratio",
+        "gross_profitability",
+        "return_on_assets"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "average_total_assets",
+        "gross_profit_ttm",
+        "net_income_ttm",
+        "operating_cash_flow_ttm",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::low_accrual_quality_v0",
+      "source_recipe_id": "low_accrual_quality_v0",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::magic_formula_style_v0",
+      "factor_ids": [
+        "enterprise_value_to_ebit",
+        "roic"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "ebit_ttm",
+        "enterprise_value",
+        "invested_capital",
+        "nopat_ttm"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::magic_formula_style_v0",
+      "source_recipe_id": "magic_formula_style_v0",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::nl_quality_large_liquid_v0",
+      "factor_ids": [
+        "roic",
+        "gross_profitability",
+        "average_daily_value_traded"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "average_daily_value_traded_90d",
+        "gross_profit_ttm",
+        "invested_capital",
+        "nopat_ttm",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::nl_quality_large_liquid_v0",
+      "source_recipe_id": "nl_quality_large_liquid_v0",
+      "target_universe_ids": [
+        "nl_equities"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::nordics_quality_compounders_v0",
+      "factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "gross_profit_ttm",
+        "invested_capital",
+        "nopat_ttm",
+        "price_history_12m",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::nordics_quality_compounders_v0",
+      "source_recipe_id": "nordics_quality_compounders_v0",
+      "target_universe_ids": [
+        "nordics_equities"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_IDENTITY_AMBIGUITY",
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::piotroski_value_style_v0",
+      "factor_ids": [
+        "book_to_market",
+        "piotroski_f_score"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "asset_turnover",
+        "book_value_equity",
+        "gross_margin",
+        "leverage_ratio",
+        "market_cap",
+        "operating_cash_flow",
+        "roa"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::piotroski_value_style_v0",
+      "source_recipe_id": "piotroski_value_style_v0",
+      "target_universe_ids": [
+        "global_developed_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::switzerland_defensive_quality_v0",
+      "factor_ids": [
+        "return_on_assets",
+        "gross_profitability",
+        "dividend_yield"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "dividends_paid_ttm",
+        "gross_profit_ttm",
+        "market_cap",
+        "net_income_ttm",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::switzerland_defensive_quality_v0",
+      "source_recipe_id": "switzerland_defensive_quality_v0",
+      "target_universe_ids": [
+        "switzerland_equities"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::us_quality_momentum_large_mid_v0",
+      "factor_ids": [
+        "roic",
+        "gross_profitability",
+        "twelve_month_momentum"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "gross_profit_ttm",
+        "invested_capital",
+        "nopat_ttm",
+        "price_history_12m",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::us_quality_momentum_large_mid_v0",
+      "source_recipe_id": "us_quality_momentum_large_mid_v0",
+      "target_universe_ids": [
+        "us_large_mid",
+        "us_quality_liquid"
+      ]
+    },
+    {
+      "allowed_next_action": "add_source_manifest",
+      "blocked_reason_codes": [
+        "BLOCKED_DATA_READINESS",
+        "BLOCKED_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "BLOCKED_FIELD_COVERAGE",
+        "MISSING_RESTATEMENT_POLICY",
+        "BLOCKED_SOURCE_MANIFEST",
+        "SOURCE_LICENSE_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "evaluation_id": "controlled_factor_eval::equity_factor_seed::us_shareholder_yield_quality_v0",
+      "factor_ids": [
+        "shareholder_yield",
+        "return_on_assets",
+        "gross_profitability"
+      ],
+      "forbidden_actions": [
+        "trade",
+        "buy_list",
+        "sell_list",
+        "strategy_registration",
+        "candidate_promotion",
+        "paper",
+        "shadow",
+        "live",
+        "capital_allocation"
+      ],
+      "operator_explanation": "Controlled factor evaluation remains blocked until source manifests, field coverage, point-in-time policy, OOS policy, cost model, and null model are all explicitly present.",
+      "readiness_status": "BLOCKED",
+      "required_cost_model": true,
+      "required_currency_normalization": false,
+      "required_data_fields": [
+        "dividends_paid_ttm",
+        "gross_profit_ttm",
+        "market_cap",
+        "net_buybacks_ttm",
+        "net_debt_change_ttm",
+        "net_income_ttm",
+        "total_assets"
+      ],
+      "required_null_model": true,
+      "required_oos_policy": true,
+      "required_point_in_time_policy": true,
+      "required_source_manifests": [
+        "fundamental_source_manifest_v1"
+      ],
+      "source_hypothesis_seed_id": "equity_factor_seed::us_shareholder_yield_quality_v0",
+      "source_recipe_id": "us_shareholder_yield_quality_v0",
+      "target_universe_ids": [
+        "us_large_mid",
+        "us_quality_liquid"
+      ]
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "blocked_count": 15,
+    "evaluation_count": 15,
+    "not_ready_count": 0,
+    "operator_summary": "Controlled factor evaluation is architecture-only at this stage. Rows stay blocked or not-ready until data and policy manifests are explicitly present.",
+    "ready_for_controlled_eval_count": 0,
+    "top_block_reasons": {
+      "BLOCKED_CURRENCY_NORMALIZATION": 3,
+      "BLOCKED_DATA_READINESS": 15,
+      "BLOCKED_FIELD_COVERAGE": 15,
+      "BLOCKED_IDENTITY_AMBIGUITY": 11,
+      "BLOCKED_POINT_IN_TIME_POLICY": 15,
+      "BLOCKED_SOURCE_MANIFEST": 15,
+      "MISSING_REPORT_LAG_POLICY": 15,
+      "MISSING_RESTATEMENT_POLICY": 15,
+      "SOURCE_LICENSE_UNKNOWN": 15,
+      "SOURCE_QUALITY_UNKNOWN": 15
+    }
+  }
+}
