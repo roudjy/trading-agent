@@ -1,0 +1,206 @@
+{
+  "block_reason_vocabulary": [
+    "MISSING_REPORT_LAG_POLICY",
+    "REPORT_LAG_UNKNOWN",
+    "REPORT_LAG_UNSUPPORTED"
+  ],
+  "policy_status_vocabulary": [
+    "SUPPORTED",
+    "PARTIALLY_SUPPORTED",
+    "UNSUPPORTED",
+    "UNKNOWN",
+    "REQUIRED",
+    "NOT_REQUIRED",
+    "POLICY_MISSING",
+    "REVIEW_REQUIRED",
+    "FAIL_CLOSED"
+  ],
+  "report_kind": "report_lag_policy",
+  "requirement_vocabulary": [
+    "REQUIRED",
+    "NOT_REQUIRED"
+  ],
+  "rows": [
+    {
+      "block_reasons": [
+        "MISSING_REPORT_LAG_POLICY",
+        "REPORT_LAG_UNKNOWN"
+      ],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "POLICY_MISSING",
+      "provider_id": "alpha_vantage_candidate",
+      "requirement_status": "REQUIRED",
+      "source_id": "alpha_vantage_candidate_manifest",
+      "source_type": "fundamental_statement_data",
+      "support_status": "UNKNOWN"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "companies_house_metadata",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "companies_house_metadata_manifest",
+      "source_type": "issuer_metadata",
+      "support_status": "UNSUPPORTED"
+    },
+    {
+      "block_reasons": [
+        "MISSING_REPORT_LAG_POLICY",
+        "REPORT_LAG_UNKNOWN"
+      ],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "POLICY_MISSING",
+      "provider_id": "eodhd_candidate",
+      "requirement_status": "REQUIRED",
+      "source_id": "eodhd_candidate_manifest",
+      "source_type": "fundamental_statement_data",
+      "support_status": "UNKNOWN"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "euronext_issuer_metadata",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "euronext_issuer_metadata_manifest",
+      "source_type": "issuer_metadata",
+      "support_status": "UNSUPPORTED"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "UNKNOWN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "financial_datasets_mcp",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "financial_datasets_mcp_manifest",
+      "source_type": "connector_staging",
+      "support_status": "UNKNOWN"
+    },
+    {
+      "block_reasons": [
+        "MISSING_REPORT_LAG_POLICY",
+        "REPORT_LAG_UNKNOWN"
+      ],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "POLICY_MISSING",
+      "provider_id": "financial_modeling_prep_candidate",
+      "requirement_status": "REQUIRED",
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "source_type": "fundamental_statement_data",
+      "support_status": "UNKNOWN"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "nasdaq_listings_metadata",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "source_type": "listing_metadata",
+      "support_status": "UNSUPPORTED"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "nyse_listings_metadata",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "nyse_listings_metadata_manifest",
+      "source_type": "listing_metadata",
+      "support_status": "UNSUPPORTED"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "UNKNOWN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "openbb_connector",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "openbb_connector_manifest",
+      "source_type": "connector_staging",
+      "support_status": "UNKNOWN"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "openfigi_symbology",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "openfigi_symbology_manifest",
+      "source_type": "identity_symbology",
+      "support_status": "UNSUPPORTED"
+    },
+    {
+      "block_reasons": [
+        "MISSING_REPORT_LAG_POLICY",
+        "REPORT_LAG_UNKNOWN"
+      ],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "POLICY_MISSING",
+      "provider_id": "sec_companyfacts",
+      "requirement_status": "REQUIRED",
+      "source_id": "sec_companyfacts_manifest",
+      "source_type": "fundamental_statement_data",
+      "support_status": "UNKNOWN"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "stooq_price_context",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "stooq_price_context_manifest",
+      "source_type": "market_price_context",
+      "support_status": "UNSUPPORTED"
+    },
+    {
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "operator_explanation": "Report-lag policy remains fail-closed until filing latency semantics and review status are explicit.",
+      "policy_status": "NOT_REQUIRED",
+      "provider_id": "yahoo_finance_yfinance",
+      "requirement_status": "NOT_REQUIRED",
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "source_type": "manual_research_context",
+      "support_status": "UNKNOWN"
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "no_data_fetch": true,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "not_required_count": 9,
+    "operator_summary": "Report-lag policy is deterministic and fail-closed. Manifest presence does not imply usable filing-lag semantics.",
+    "policy_status_counts": {
+      "NOT_REQUIRED": 9,
+      "POLICY_MISSING": 4
+    },
+    "required_count": 4,
+    "source_count": 13
+  },
+  "support_vocabulary": [
+    "SUPPORTED",
+    "PARTIALLY_SUPPORTED",
+    "UNSUPPORTED",
+    "UNKNOWN"
+  ]
+}
