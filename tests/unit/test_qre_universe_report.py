@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from reporting import qre_universe_report
+from research import qre_universe_report
 
 
 def test_universe_report_is_deterministic_and_contains_required_ids() -> None:

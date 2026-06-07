@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 from typing import Final
 
-from research.equity_factor_manifest import DEFAULT_OUTPUT_DIR as FACTOR_ARTIFACT_DIR
 from research.equity_factors.factor_catalog import build_equity_factor_catalog
 from research.equity_factors.recipe_catalog import build_equity_factor_recipe_catalog
 from research.equity_universe_catalog import build_equity_universe_catalog, build_equity_universe_summary
@@ -251,7 +250,7 @@ def write_outputs(*, repo_root: Path = REPO_ROOT, output_dir: Path = OUTPUT_DIR)
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m reporting.qre_universe_report",
+        prog="python -m research.qre_universe_report",
         description="Write read-only QRE equity universe operator reports.",
     )
     parser.add_argument("--write", action="store_true")
