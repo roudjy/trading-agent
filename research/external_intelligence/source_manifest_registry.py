@@ -446,7 +446,7 @@ SOURCE_MANIFEST_ROWS: Final[tuple[dict[str, object], ...]] = (
         "source_type": "fundamental_statement_data",
         "source_category": "public_with_terms",
         "source_status": "candidate",
-        "access_method": "static_manifest",
+        "access_method": "public_api",
         "authentication_required": False,
         "cost_model": "free",
         "license_terms_status": "review_required",
@@ -456,8 +456,8 @@ SOURCE_MANIFEST_ROWS: Final[tuple[dict[str, object], ...]] = (
             "broker_execution","buy_list","candidate_promotion","capital_allocation","fundamental_field_readiness",
             "live_activation","paper_activation","sell_list","shadow_activation","strategy_registration","trade_signal",
         ],
-        "expected_latency": "public_endpoint_latency_unknown",
-        "expected_freshness": "filing_driven",
+        "expected_latency": "public_companyfacts_endpoint_latency_unknown",
+        "expected_freshness": "filing_driven_public_disclosure_unknown_lag",
         "asset_coverage": ["us_equities"],
         "region_coverage": ["United States"],
         "exchange_coverage": ["XNYS", "XNAS"],
@@ -469,9 +469,16 @@ SOURCE_MANIFEST_ROWS: Final[tuple[dict[str, object], ...]] = (
         "corporate_action_adjustment_support": "unsupported",
         "survivorship_bias_risk": "unknown_without_policy",
         "lookahead_bias_risk": "unknown_without_policy",
-        "known_limitations": ["point_in_time_policy_not_defined", "restatement_policy_not_defined", "us_only"],
+        "known_limitations": [
+            "market_cap_not_manifested",
+            "point_in_time_policy_not_defined",
+            "report_lag_policy_not_defined",
+            "restatement_policy_not_defined",
+            "us_only",
+        ],
         "required_quality_gates": [
             "field_coverage_manifest_defined",
+            "issuer_to_symbol_mapping_reviewed",
             "license_reviewed",
             "point_in_time_policy_defined",
             "report_lag_policy_defined",
@@ -480,6 +487,7 @@ SOURCE_MANIFEST_ROWS: Final[tuple[dict[str, object], ...]] = (
         ],
         "activation_requirements": [
             "field_coverage_manifest_defined",
+            "issuer_to_symbol_mapping_reviewed",
             "license_reviewed",
             "point_in_time_policy_defined",
             "report_lag_policy_defined",
@@ -490,13 +498,16 @@ SOURCE_MANIFEST_ROWS: Final[tuple[dict[str, object], ...]] = (
         "schema_version": SCHEMA_VERSION,
         "manifest_status": "WARN",
         "manifest_block_reasons": [
-            "FACTOR_FIELD_COVERAGE_UNKNOWN",
             "LICENSE_REVIEW_REQUIRED",
             "REPORT_LAG_POLICY_UNKNOWN",
             "RESTATEMENT_POLICY_UNKNOWN",
             "SOURCE_QUALITY_UNKNOWN",
         ],
-        "operator_notes": "Manifest present but policy not ready. This does not unlock factor readiness.",
+        "operator_notes": (
+            "Manifest present as a public US-fundamentals candidate only. "
+            "Terms review, issuer mapping review, report-lag policy, restatement policy, and source-quality review "
+            "must pass before any automated readiness unlock is allowed."
+        ),
     },
     {
         "source_id": "stooq_price_context_manifest",

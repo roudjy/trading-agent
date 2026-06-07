@@ -37,6 +37,6 @@
 - nyse_listings_metadata_manifest: status=WARN, license_policy=WARN, type=listing_metadata, category=public_with_terms, blockers=LICENSE_REVIEW_REQUIRED
 - openbb_connector_manifest: status=FAIL, license_policy=UNKNOWN, type=connector_staging, category=connector_wrapper, blockers=MISSING_LICENSE_TERMS, SOURCE_QUALITY_UNKNOWN
 - openfigi_symbology_manifest: status=WARN, license_policy=WARN, type=identity_symbology, category=free_api_limited, blockers=LICENSE_REVIEW_REQUIRED
-- sec_companyfacts_manifest: status=WARN, license_policy=WARN, type=fundamental_statement_data, category=public_with_terms, blockers=FACTOR_FIELD_COVERAGE_UNKNOWN, LICENSE_REVIEW_REQUIRED, REPORT_LAG_POLICY_UNKNOWN, RESTATEMENT_POLICY_UNKNOWN, SOURCE_QUALITY_UNKNOWN
+- sec_companyfacts_manifest: status=WARN, license_policy=WARN, type=fundamental_statement_data, category=public_with_terms, blockers=LICENSE_REVIEW_REQUIRED, REPORT_LAG_POLICY_UNKNOWN, RESTATEMENT_POLICY_UNKNOWN, SOURCE_QUALITY_UNKNOWN
 - stooq_price_context_manifest: status=WARN, license_policy=WARN, type=market_price_context, category=manual_only, blockers=LICENSE_REVIEW_REQUIRED
 - yahoo_finance_yfinance_manifest: status=WARN, license_policy=WARN, type=manual_research_context, category=manual_only, blockers=SOURCE_QUALITY_UNKNOWN
