@@ -93,6 +93,7 @@ def test_materialization_surfaces_present_ready_sidecars_and_writes_artifacts(
     assert report["summary"]["source_cache_readiness_linked"] is True
     assert report["summary"]["cache_coverage_row_count"] == 1
     assert report["summary"]["source_quality_row_count"] == 1
+    assert "files" not in report["materialized_cache_manifest"]
     assert paths["latest"] == "logs/qre_source_cache_readiness_materialization/latest.json"
     assert paths["cache_manifest_artifact"] == "artifacts/cache/cache_manifest_latest.v1.json"
     assert paths["cache_coverage_artifact"] == "artifacts/cache/cache_coverage_latest.v1.json"
