@@ -1917,9 +1917,11 @@
       "survivorship_bias_risk": "unknown"
     },
     {
-      "access_method": "static_manifest",
+      "access_method": "public_api",
       "activation_requirements": [
+        "alias_resolution_reviewed",
         "identity_mapping_quality_gate",
+        "operator_api_usage_approval",
         "source_manifest_quality_pass"
       ],
       "allowed_use": [
@@ -1938,8 +1940,8 @@
       "cost_model": "free_limited",
       "currency_normalization_support": "unsupported",
       "exchange_coverage": [],
-      "expected_freshness": "symbology_reference_schedule_unknown",
-      "expected_latency": "api_or_manual_lookup_unknown",
+      "expected_freshness": "reference_master_update_schedule_unknown",
+      "expected_latency": "symbology_api_latency_unknown",
       "factor_field_coverage_claims": [
         "identity_only_not_fundamentals"
       ],
@@ -1957,6 +1959,8 @@
         "trade_signal"
       ],
       "known_limitations": [
+        "api_key_may_be_required_for_scaled_use",
+        "fundamental_fields_unsupported",
         "not_fundamental_source",
         "symbology_only"
       ],
@@ -1967,7 +1971,7 @@
         "LICENSE_REVIEW_REQUIRED"
       ],
       "manifest_status": "WARN",
-      "operator_notes": "Identity context only. Must not unlock fundamental readiness.",
+      "operator_notes": "Identity context only. Alias-resolution review and license review are required before any read-only identity usage, and this manifest must never unlock fundamental field readiness.",
       "point_in_time_support": "unsupported",
       "provider_id": "openfigi_symbology",
       "region_coverage": [
@@ -1976,6 +1980,7 @@
       "report_lag_support": "unsupported",
       "reproducibility_method": "static_registry_stub_only",
       "required_quality_gates": [
+        "alias_resolution_reviewed",
         "identity_mapping_quality_gate",
         "license_reviewed"
       ],
