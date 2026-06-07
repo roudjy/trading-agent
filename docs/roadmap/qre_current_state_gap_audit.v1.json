@@ -1,0 +1,915 @@
+{
+  "schema_version": "1.0",
+  "generated_at_utc": "2026-06-07T11:50:21Z",
+  "git": {
+    "branch": "docs/qre-roadmap-gap-audit-current-state",
+    "head_sha": "294a71800dc4e491d658f5bb86888cbe43ca2592",
+    "origin_main_sha": "294a71800dc4e491d658f5bb86888cbe43ca2592",
+    "working_tree_clean": true
+  },
+  "documents_reviewed": [
+    {
+      "document_id": "agents",
+      "path": "AGENTS.md",
+      "found": true,
+      "status": "governance",
+      "notes": "Contains active rules but source-of-truth wording for registry path is partly stale."
+    },
+    {
+      "document_id": "claude",
+      "path": "CLAUDE.md",
+      "found": true,
+      "status": "governance",
+      "notes": "Confirms post-package feature track and runtime prohibitions."
+    },
+    {
+      "document_id": "github_pr_lifecycle",
+      "path": "docs/governance/github_pr_lifecycle.md",
+      "found": true,
+      "status": "governance",
+      "notes": "Canonical PR protocol."
+    },
+    {
+      "document_id": "no_touch_paths",
+      "path": "docs/governance/no_touch_paths.md",
+      "found": true,
+      "status": "governance",
+      "notes": "Important policy context."
+    },
+    {
+      "document_id": "execution_authority",
+      "path": "docs/governance/execution_authority.md",
+      "found": true,
+      "status": "governance",
+      "notes": "Canonical authority hierarchy."
+    },
+    {
+      "document_id": "adr_014",
+      "path": "docs/adr/ADR-014-truth-authority-settlement.md",
+      "found": true,
+      "status": "governance",
+      "notes": "Canonical authority mapping."
+    },
+    {
+      "document_id": "adr_015",
+      "path": "docs/adr/ADR-015-claude-agent-governance.md",
+      "found": true,
+      "status": "governance",
+      "notes": "Canonical agent governance."
+    },
+    {
+      "document_id": "roadmap_scope_status",
+      "path": "docs/governance/roadmap_scope_status.md",
+      "found": true,
+      "status": "reference_only",
+      "notes": "Critical repo-local scope interpretation for active vs deferred addendum items."
+    },
+    {
+      "document_id": "roadmap_v6",
+      "path": "docs/roadmap/Roadmap v6.md",
+      "found": true,
+      "status": "canonical",
+      "notes": "Canonical product sequence."
+    },
+    {
+      "document_id": "roadmap_v6_addendum_1",
+      "path": "docs/roadmap/Roadmap v6 Addendum.md",
+      "found": true,
+      "status": "addendum",
+      "notes": "Mechanistic diagnostics and external intelligence intake."
+    },
+    {
+      "document_id": "roadmap_v6_addendum_2",
+      "path": "docs/roadmap/Roadmap v6 Addendum 2 - State Sequential Knowledge Retrieval.md",
+      "found": true,
+      "status": "addendum",
+      "notes": "State, sequential, knowledge, retrieval."
+    },
+    {
+      "document_id": "roadmap_v6_addendum_3",
+      "path": "docs/roadmap/Roadmap v6 Addendum 3 - Source Identity Data Quality and Throughput Intelligence.md",
+      "found": true,
+      "status": "addendum",
+      "notes": "Source identity, quality, throughput."
+    },
+    {
+      "document_id": "roadmap_v6_addendum_4",
+      "path": "docs/roadmap/Roadmap v6 Addendum 4 - Trusted Loop Readiness and Operator Trust.md",
+      "found": true,
+      "status": "addendum",
+      "notes": "Trusted-loop maturity interpretation."
+    },
+    {
+      "document_id": "ade_operating_manual",
+      "path": "docs/roadmap/qre_roadmap_v6_ade_operating_manual.md",
+      "found": true,
+      "status": "reference_only",
+      "notes": "Execution manual, not product authority."
+    },
+    {
+      "document_id": "qre_ade_target_state",
+      "path": "docs/strategy/QRE_ADE_How_To_Target_State_Roadmap.md",
+      "found": true,
+      "status": "reference_only",
+      "notes": "Target-state strategy document."
+    },
+    {
+      "document_id": "autonomous_development",
+      "path": "docs/roadmap/autonomous_development.txt",
+      "found": true,
+      "status": "canonical",
+      "notes": "Canonical ADE track."
+    },
+    {
+      "document_id": "step5_design",
+      "path": "docs/governance/step5_design.md",
+      "found": true,
+      "status": "reference_only",
+      "notes": "Design planning only; blocked."
+    }
+  ],
+  "claim_ledger": [
+    {
+      "claim_id": "gov_001",
+      "claim": "No current paper/shadow/live activation exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/qre_pre_shadow_paper_research_readiness.py",
+        "logs/qre_pre_shadow_paper_research_readiness/latest.json",
+        "research/qre_universe_report.py"
+      ],
+      "explanation": "Current read-only surfaces explicitly forbid paper/shadow/live authority and readiness summary keeps synthesis/runtime blocked.",
+      "roadmap_implication": "Runtime phases remain deferred."
+    },
+    {
+      "claim_id": "gov_002",
+      "claim": "registry.py remains the strategy registration source of truth.",
+      "status": "PARTIALLY_VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "AGENTS.md",
+        "research/registry.py",
+        "docs/adr/ADR-014-truth-authority-settlement.md"
+      ],
+      "explanation": "The authority claim is correct in substance, but the actual file is research/registry.py rather than a repo-root registry.py.",
+      "roadmap_implication": "Future roadmap docs should reference the actual path."
+    },
+    {
+      "claim_id": "gov_003",
+      "claim": "research_latest.json and strategy_matrix.csv remain frozen public contracts.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "AGENTS.md",
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "explanation": "Both files exist and remain designated frozen outputs.",
+      "roadmap_implication": "No roadmap item should mutate them without explicit contract scope."
+    },
+    {
+      "claim_id": "gov_004",
+      "claim": "Diagnostics do not trade.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "reporting/intelligent_routing_diagnostic_signals.py",
+        "research/qre_pre_shadow_paper_research_readiness.py",
+        "research/external_intelligence/source_manifest_registry.py"
+      ],
+      "explanation": "Safety invariants across diagnostic modules explicitly forbid runtime trading authority.",
+      "roadmap_implication": "Diagnostics can expand only as read-only authority-safe surfaces."
+    },
+    {
+      "claim_id": "evidence_001",
+      "claim": "Controlled discovery grid exists and has been run.",
+      "status": "PARTIALLY_VERIFIED",
+      "confidence": "MEDIUM",
+      "evidence_paths": [
+        "research/controlled_discovery_grid.py",
+        "research/qre_discovery_basket_grid_evidence_materialization.py",
+        "logs/qre_discovery_basket_grid_evidence_materialization/latest.json"
+      ],
+      "explanation": "The modules exist, but the current local checkout has no research/controlled_discovery_grid_runs directory, so current local evidence only proves the runner/planner surfaces exist, not that local current run artifacts are present.",
+      "roadmap_implication": "Readiness claims must distinguish local current state from prior VPS/history state."
+    },
+    {
+      "claim_id": "evidence_002",
+      "claim": "Grid evidence is partially readiness-visible.",
+      "status": "REJECTED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "logs/qre_grid_evidence_readiness_bridge/latest.json",
+        "logs/qre_discovery_basket_grid_evidence_materialization/latest.json"
+      ],
+      "explanation": "Current local bridge state is blocked_no_grid_match for all 15 baskets because local grid-run artifacts are absent.",
+      "roadmap_implication": "Need local artifact restoration or rerun before claiming bridge visibility."
+    },
+    {
+      "claim_id": "evidence_003",
+      "claim": "No basket is currently routing-ready.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "logs/qre_pre_shadow_paper_research_readiness/latest.json"
+      ],
+      "explanation": "Current readiness artifact shows routing_ready_count=0.",
+      "roadmap_implication": "Routing calibration remains future work."
+    },
+    {
+      "claim_id": "evidence_004",
+      "claim": "No basket is currently sampling-ready.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "logs/qre_pre_shadow_paper_research_readiness/latest.json"
+      ],
+      "explanation": "Current readiness artifact shows sampling_ready_count=0.",
+      "roadmap_implication": "Sampling calibration remains future work."
+    },
+    {
+      "claim_id": "evidence_005",
+      "claim": "Candidate/campaign lineage remains a blocker.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "logs/qre_pre_shadow_paper_research_readiness/latest.json",
+        "research/qre_real_basket_evidence_coverage.py"
+      ],
+      "explanation": "Current readiness coverage still reports campaign and candidate lineage gaps, and candidate blockers are not fully explainable.",
+      "roadmap_implication": "Lineage bridge is on the critical path."
+    },
+    {
+      "claim_id": "frontdoor_001",
+      "claim": "Universe foundation exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/equity_universe_catalog.py",
+        "artifacts/universe/equity_universe_summary_latest.v1.json"
+      ],
+      "explanation": "Deterministic 158-instrument universe foundation is present.",
+      "roadmap_implication": "Ready for hardening and later expansion, not re-foundation."
+    },
+    {
+      "claim_id": "frontdoor_002",
+      "claim": "Universe quality gates exist.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/equity_universe_quality.py",
+        "artifacts/universe/equity_universe_quality_latest.v1.json"
+      ],
+      "explanation": "Quality statuses and ambiguity-based seed blocking are implemented.",
+      "roadmap_implication": "Use as gate input, not as proof of source truth."
+    },
+    {
+      "claim_id": "frontdoor_003",
+      "claim": "Factor catalog exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/equity_factors/factor_catalog.py",
+        "artifacts/equity_factors/equity_factor_catalog_latest.v1.json"
+      ],
+      "explanation": "22 research-only factor definitions are present.",
+      "roadmap_implication": "Next steps are policy/data, not new factor proliferation."
+    },
+    {
+      "claim_id": "frontdoor_004",
+      "claim": "Screener recipes exist.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/equity_factors/recipe_catalog.py",
+        "artifacts/equity_factors/equity_factor_recipes_latest.v1.json"
+      ],
+      "explanation": "15 deterministic recipes are present.",
+      "roadmap_implication": "Recipe feasibility remains blocked by readiness."
+    },
+    {
+      "claim_id": "frontdoor_005",
+      "claim": "Operator universe report exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/qre_universe_report.py",
+        "artifacts/universe/equity_universe_operator_report_latest.json"
+      ],
+      "explanation": "Operator report exists and is deterministic.",
+      "roadmap_implication": "Needs freshness and integration hardening."
+    },
+    {
+      "claim_id": "frontdoor_006",
+      "claim": "Fundamental data readiness gate exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/data_readiness/fundamental_readiness.py",
+        "artifacts/data_readiness/fundamental_readiness_latest.v1.json"
+      ],
+      "explanation": "Factor and recipe readiness are computed fail-closed.",
+      "roadmap_implication": "Current blockers can now be made more specific."
+    },
+    {
+      "claim_id": "frontdoor_007",
+      "claim": "Hypothesis seed adapter exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/hypothesis_discovery/equity_factor_hypothesis_adapter.py",
+        "artifacts/hypothesis_discovery/equity_factor_hypothesis_seeds_latest.v1.json"
+      ],
+      "explanation": "Seed records are materialized as blocked or feasible; all current seeds are blocked.",
+      "roadmap_implication": "Do not conflate seed presence with feasibility."
+    },
+    {
+      "claim_id": "frontdoor_008",
+      "claim": "Controlled factor evaluation scaffold exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/equity_factors/controlled_factor_evaluation.py",
+        "artifacts/equity_factors/controlled_factor_evaluation_readiness_latest.v1.json"
+      ],
+      "explanation": "Evaluation readiness is implemented as a blocked/not-ready scaffold.",
+      "roadmap_implication": "Real factor evaluation is still forbidden."
+    },
+    {
+      "claim_id": "frontdoor_009",
+      "claim": "Recipes are currently blocked by data readiness.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "artifacts/equity_factors/equity_factor_recipes_latest.v1.json",
+        "artifacts/data_readiness/fundamental_readiness_latest.v1.json"
+      ],
+      "explanation": "Feasible recipe count is zero and readiness blockers are explicit.",
+      "roadmap_implication": "Next work is source/policy closure."
+    },
+    {
+      "claim_id": "frontdoor_010",
+      "claim": "Hypothesis seeds are currently blocked.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "artifacts/hypothesis_discovery/equity_factor_hypothesis_seeds_latest.v1.json"
+      ],
+      "explanation": "Feasible_seed_count is zero and blocked_reason_codes are populated.",
+      "roadmap_implication": "Need readiness closure before seed feasibility."
+    },
+    {
+      "claim_id": "frontdoor_011",
+      "claim": "Controlled factor evaluation is currently blocked.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "artifacts/equity_factors/controlled_factor_evaluation_readiness_latest.v1.json"
+      ],
+      "explanation": "All 15 evaluation rows are blocked.",
+      "roadmap_implication": "Real factor evaluation remains out of scope."
+    },
+    {
+      "claim_id": "frontdoor_012",
+      "claim": "Fundamental provider candidate registry exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/external_intelligence/fundamental_provider_registry.py",
+        "artifacts/external_intelligence/fundamental_provider_summary_latest.v1.json"
+      ],
+      "explanation": "13 provider candidates are represented.",
+      "roadmap_implication": "Next steps are manifest and policy hardening."
+    },
+    {
+      "claim_id": "frontdoor_013",
+      "claim": "No provider is quality_gated or active_read_only.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "artifacts/external_intelligence/fundamental_provider_summary_latest.v1.json",
+        "artifacts/external_intelligence/source_manifest_quality_latest.v1.json"
+      ],
+      "explanation": "Counts remain zero for both categories.",
+      "roadmap_implication": "Source trust remains blocked."
+    },
+    {
+      "claim_id": "frontdoor_014",
+      "claim": "Source manifest/license policy exists.",
+      "status": "VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/external_intelligence/source_manifest_schema.py",
+        "research/external_intelligence/source_license_policy.py",
+        "research/external_intelligence/source_manifest_registry.py",
+        "artifacts/external_intelligence/source_manifest_quality_latest.v1.json"
+      ],
+      "explanation": "Schema, policy, stub manifests, and reporting are implemented.",
+      "roadmap_implication": "Next step is PIT/report-lag/restatement policy and source hardening."
+    },
+    {
+      "claim_id": "addendum2_001",
+      "claim": "Research memory exists.",
+      "status": "PARTIALLY_VERIFIED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "research/qre_research_memory_coverage.py",
+        "packages/qre_research/research_memory.py",
+        "tests/unit/test_qre_research_memory_coverage.py",
+        "tests/unit/test_qre_research_memory.py"
+      ],
+      "explanation": "Modules and tests exist, but current local generated artifacts are absent.",
+      "roadmap_implication": "This is a working scaffold/capability that needs current artifact generation and hardening."
+    },
+    {
+      "claim_id": "addendum2_002",
+      "claim": "Knowledge graph, entity resolution, retrieval index, and rank fusion are implemented.",
+      "status": "REJECTED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "packages/qre_research/research_memory.py",
+        "packages/qre_research/retrieval_coverage.py"
+      ],
+      "explanation": "Only lightweight keyword/tag retrieval scaffolds were verified; no full graph/entity-resolution/rank-fusion stack was found.",
+      "roadmap_implication": "Those remain future epics."
+    },
+    {
+      "claim_id": "addendum4_001",
+      "claim": "Operator-trusted capability has been achieved.",
+      "status": "REJECTED",
+      "confidence": "HIGH",
+      "evidence_paths": [
+        "logs/qre_pre_shadow_paper_research_readiness/latest.json",
+        "docs/roadmap/Roadmap v6 Addendum 4 - Trusted Loop Readiness and Operator Trust.md"
+      ],
+      "explanation": "Current readiness summary says trusted_loop_maturity_state=working_capability, not operator-trusted.",
+      "roadmap_implication": "Do not advance autonomy or runtime phases based on current state."
+    }
+  ],
+  "gap_items": [
+    {
+      "gap_id": "gap_001",
+      "source_document": "Roadmap v6",
+      "topic": "Read-only research readiness loop",
+      "roadmap_intent": "deterministic behavior-first research intelligence loop",
+      "current_implementation": "Implemented as diagnosis, coverage, routing, sampling, candidate explanation, KPI, and readiness reporters.",
+      "category": "WORKING_CAPABILITY_NEEDS_EXPANSION",
+      "owner_domain": "QRE_RESEARCH",
+      "maturity": "working",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "research/qre_pre_shadow_paper_research_readiness.py",
+        "logs/qre_pre_shadow_paper_research_readiness/latest.json"
+      ],
+      "missing": [
+        "evidence-complete baskets",
+        "routing-ready baskets",
+        "sampling-ready baskets",
+        "fully explainable candidate blockers"
+      ],
+      "next_action_type": "integrate",
+      "priority": "P0",
+      "recommended_epic": "evidence_lineage_and_readiness_closure",
+      "recommended_user_stories": [
+        "bridge local source/cache sidecars into readiness with current artifacts",
+        "close candidate/campaign lineage gaps",
+        "rerun readiness against refreshed evidence"
+      ]
+    },
+    {
+      "gap_id": "gap_002",
+      "source_document": "Roadmap v6 Addendum 1",
+      "topic": "Diagnostic routing families",
+      "roadmap_intent": "diagnostic-aware routing signals",
+      "current_implementation": "Schema/projector and governance docs exist; most families are not active diagnostic engines.",
+      "category": "WORKING_SCAFFOLD",
+      "owner_domain": "DIAGNOSTICS",
+      "maturity": "scaffold",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "reporting/intelligent_routing_diagnostic_signals.py",
+        "docs/governance/intelligent_routing_diagnostic_signals.md"
+      ],
+      "missing": [
+        "evidence-producing diagnostic engines",
+        "current local diagnostic artifacts for most families"
+      ],
+      "next_action_type": "build",
+      "priority": "P2",
+      "recommended_epic": "null_model_and_diagnostics_maturity",
+      "recommended_user_stories": [
+        "implement bounded null-model baseline",
+        "implement one additional diagnostic family with fail-closed artifact"
+      ]
+    },
+    {
+      "gap_id": "gap_003",
+      "source_document": "Roadmap v6 Addendum 2",
+      "topic": "Knowledge graph and entity resolution",
+      "roadmap_intent": "state, knowledge, retrieval intelligence",
+      "current_implementation": "Only lightweight keyword/tag retrieval and failure-retrieval scaffolds verified.",
+      "category": "NOT_PRESENT",
+      "owner_domain": "QRE_RESEARCH",
+      "maturity": "none",
+      "evidence_quality": "medium",
+      "evidence_paths": [
+        "packages/qre_research/research_memory.py",
+        "packages/qre_research/retrieval_coverage.py"
+      ],
+      "missing": [
+        "knowledge graph",
+        "entity resolution",
+        "rank fusion",
+        "explicit ontology module"
+      ],
+      "next_action_type": "build",
+      "priority": "P2",
+      "recommended_epic": "research_memory_and_retrieval",
+      "recommended_user_stories": [
+        "define ontology scaffold",
+        "define deterministic entity resolution rules",
+        "add graph/read model"
+      ]
+    },
+    {
+      "gap_id": "gap_004",
+      "source_document": "Roadmap v6 Addendum 3",
+      "topic": "Provider candidate registry",
+      "roadmap_intent": "governed source intake",
+      "current_implementation": "Implemented and deterministic.",
+      "category": "OPERATOR_TRUSTED_FOR_CURRENT_PHASE",
+      "owner_domain": "SOURCE_DATA",
+      "maturity": "trusted",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "research/external_intelligence/fundamental_provider_registry.py",
+        "artifacts/external_intelligence/fundamental_provider_summary_latest.v1.json"
+      ],
+      "missing": [],
+      "next_action_type": "harden",
+      "priority": "P1",
+      "recommended_epic": "source_manifest_and_policy_hardening",
+      "recommended_user_stories": [
+        "review priority provider candidates",
+        "keep candidate-only fail-closed status until policy passes"
+      ]
+    },
+    {
+      "gap_id": "gap_005",
+      "source_document": "Roadmap v6 Addendum 3",
+      "topic": "Source manifest schema and license policy",
+      "roadmap_intent": "manifest contract and terms policy before trust",
+      "current_implementation": "Implemented as deterministic stubs and fail-closed policy evaluation.",
+      "category": "OPERATOR_TRUSTED_FOR_CURRENT_PHASE",
+      "owner_domain": "SOURCE_DATA",
+      "maturity": "trusted",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "research/external_intelligence/source_manifest_schema.py",
+        "research/external_intelligence/source_license_policy.py",
+        "artifacts/external_intelligence/source_manifest_quality_latest.v1.json"
+      ],
+      "missing": [
+        "reviewed licenses",
+        "reviewed allowed-use policies"
+      ],
+      "next_action_type": "operator_review",
+      "priority": "P1",
+      "recommended_epic": "source_manifest_and_policy_hardening",
+      "recommended_user_stories": [
+        "review SEC Companyfacts terms",
+        "review OpenFIGI terms",
+        "classify reviewed_allowed vs reviewed_restricted"
+      ]
+    },
+    {
+      "gap_id": "gap_006",
+      "source_document": "Roadmap v6 Addendum 3",
+      "topic": "Point-in-time/report-lag/restatement policy",
+      "roadmap_intent": "policy gates before factor trust",
+      "current_implementation": "Missing; current readiness artifacts block on these conditions.",
+      "category": "BLOCKED_BY_GOVERNANCE_OR_DATA",
+      "owner_domain": "SOURCE_DATA",
+      "maturity": "blocked",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "artifacts/data_readiness/fundamental_readiness_latest.v1.json",
+        "artifacts/equity_factors/controlled_factor_evaluation_readiness_latest.v1.json"
+      ],
+      "missing": [
+        "point-in-time policy",
+        "report-lag policy",
+        "restatement policy"
+      ],
+      "next_action_type": "write_policy",
+      "priority": "P0",
+      "recommended_epic": "pit_report_lag_restatement_policy",
+      "recommended_user_stories": [
+        "define policy vocabularies",
+        "wire policy blockers into source readiness",
+        "regenerate readiness artifacts"
+      ]
+    },
+    {
+      "gap_id": "gap_007",
+      "source_document": "Roadmap v6 Addendum 3",
+      "topic": "Factor field coverage",
+      "roadmap_intent": "explicit field coverage before factor feasibility",
+      "current_implementation": "Coverage scaffolds exist but all rows remain blocked.",
+      "category": "WORKING_SCAFFOLD",
+      "owner_domain": "SOURCE_DATA",
+      "maturity": "scaffold",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "research/data_readiness/factor_field_coverage.py",
+        "artifacts/data_readiness/fundamental_readiness_latest.v1.json"
+      ],
+      "missing": [
+        "reviewed field manifests",
+        "provider-to-field coverage truth"
+      ],
+      "next_action_type": "write_policy",
+      "priority": "P0",
+      "recommended_epic": "factor_field_coverage_manifest",
+      "recommended_user_stories": [
+        "define field manifest schema",
+        "map factors to required fields with reviewed sources"
+      ]
+    },
+    {
+      "gap_id": "gap_008",
+      "source_document": "Roadmap v6 Addendum 4",
+      "topic": "Trusted-loop operator trust",
+      "roadmap_intent": "move from scaffold to operator-trusted capability",
+      "current_implementation": "Current readiness says working_capability, not operator-trusted.",
+      "category": "BLOCKED_BY_GOVERNANCE_OR_DATA",
+      "owner_domain": "ADE",
+      "maturity": "blocked",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "logs/qre_pre_shadow_paper_research_readiness/latest.json",
+        "docs/roadmap/Roadmap v6 Addendum 4 - Trusted Loop Readiness and Operator Trust.md"
+      ],
+      "missing": [
+        "higher evidence density",
+        "lineage closure",
+        "current generated KPI artifacts",
+        "operator review criteria satisfaction"
+      ],
+      "next_action_type": "operator_review",
+      "priority": "P0",
+      "recommended_epic": "trusted_loop_final_review",
+      "recommended_user_stories": [
+        "generate current KPI and memory artifacts",
+        "close blocker explainability gaps",
+        "prepare trust review packet"
+      ]
+    },
+    {
+      "gap_id": "gap_009",
+      "source_document": "QRE_ADE_How_To_Target_State_Roadmap",
+      "topic": "Research memory and failure retrieval",
+      "roadmap_intent": "preserve learnings and avoid repeated mistakes",
+      "current_implementation": "Implemented in bounded read-only form but current local artifacts are absent.",
+      "category": "WORKING_CAPABILITY_NEEDS_EXPANSION",
+      "owner_domain": "QRE_RESEARCH",
+      "maturity": "working",
+      "evidence_quality": "medium",
+      "evidence_paths": [
+        "research/qre_research_memory_coverage.py",
+        "packages/qre_research/research_memory.py",
+        "tests/unit/test_qre_research_memory_coverage.py"
+      ],
+      "missing": [
+        "current generated artifacts on local main",
+        "broader retrieval linkage"
+      ],
+      "next_action_type": "run_validation",
+      "priority": "P1",
+      "recommended_epic": "research_memory_hardening",
+      "recommended_user_stories": [
+        "generate current memory/failure artifacts",
+        "review retrieval usefulness on real current repo state"
+      ]
+    },
+    {
+      "gap_id": "gap_010",
+      "source_document": "Roadmap v6",
+      "topic": "Grid evidence into readiness",
+      "roadmap_intent": "use discovery evidence safely in readiness loop",
+      "current_implementation": "Bridge modules exist, but current local state resolves to blocked_no_grid_match because local run artifacts are absent.",
+      "category": "PRESENT_BUT_NOT_WORKING",
+      "owner_domain": "QRE_RESEARCH",
+      "maturity": "working",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "research/qre_grid_evidence_readiness_bridge.py",
+        "logs/qre_grid_evidence_readiness_bridge/latest.json",
+        "logs/qre_discovery_basket_grid_evidence_materialization/latest.json"
+      ],
+      "missing": [
+        "local controlled-grid run artifacts",
+        "candidate/campaign lineage bridge"
+      ],
+      "next_action_type": "generate_data",
+      "priority": "P0",
+      "recommended_epic": "grid_evidence_lineage_bridge",
+      "recommended_user_stories": [
+        "restore or regenerate local grid-run artifacts",
+        "add candidate/campaign lineage bridge",
+        "rerun readiness bridge"
+      ]
+    },
+    {
+      "gap_id": "gap_011",
+      "source_document": "Roadmap v6 Addendum 2",
+      "topic": "Related failure retrieval",
+      "roadmap_intent": "retrieve similar failure contexts",
+      "current_implementation": "Implemented as lightweight failure retrieval.",
+      "category": "WORKING_CAPABILITY_NEEDS_EXPANSION",
+      "owner_domain": "QRE_RESEARCH",
+      "maturity": "working",
+      "evidence_quality": "strong",
+      "evidence_paths": [
+        "research/qre_research_memory_coverage.py",
+        "tests/unit/test_qre_research_memory_coverage.py"
+      ],
+      "missing": [
+        "current local generated artifacts",
+        "broader retrieval recall/precision review"
+      ],
+      "next_action_type": "harden",
+      "priority": "P1",
+      "recommended_epic": "research_memory_hardening",
+      "recommended_user_stories": [
+        "generate current artifacts",
+        "add contradiction-tracking hooks"
+      ]
+    },
+    {
+      "gap_id": "gap_012",
+      "source_document": "Roadmap v6 Addendum 2",
+      "topic": "Knowledge graph / entity resolution / rank fusion",
+      "roadmap_intent": "richer retrieval and knowledge structure",
+      "current_implementation": "No meaningful implementation found.",
+      "category": "NOT_PRESENT",
+      "owner_domain": "QRE_RESEARCH",
+      "maturity": "none",
+      "evidence_quality": "medium",
+      "evidence_paths": [
+        "packages/qre_research/research_memory.py",
+        "packages/qre_research/retrieval_coverage.py"
+      ],
+      "missing": [
+        "graph model",
+        "entity resolution",
+        "rank fusion"
+      ],
+      "next_action_type": "build",
+      "priority": "P2",
+      "recommended_epic": "knowledge_and_retrieval_v1",
+      "recommended_user_stories": [
+        "ontology scaffold",
+        "entity-resolution rules",
+        "retrieval/rank-fusion design"
+      ]
+    }
+  ],
+  "summary_counts": {
+    "NOT_PRESENT": 10,
+    "PRESENT_BUT_NOT_WORKING": 4,
+    "WORKING_SCAFFOLD": 10,
+    "WORKING_CAPABILITY_NEEDS_EXPANSION": 13,
+    "OPERATOR_TRUSTED_FOR_CURRENT_PHASE": 8,
+    "DEFERRED_BY_ROADMAP": 8,
+    "BLOCKED_BY_GOVERNANCE_OR_DATA": 6
+  },
+  "critical_path": [
+    {
+      "rank": 1,
+      "title": "Point-in-time / report-lag / restatement policy",
+      "reason": "Current factor, seed, and controlled-evaluation readiness are all blocked on these missing policies.",
+      "blocks": [
+        "factor feasibility",
+        "seed feasibility",
+        "controlled factor evaluation"
+      ],
+      "unblocks": [
+        "source hardening",
+        "more specific readiness pass/fail states"
+      ],
+      "recommended_pr_epic": "pit_report_lag_restatement_policy"
+    },
+    {
+      "rank": 2,
+      "title": "Factor field coverage manifest",
+      "reason": "All factor and recipe rows are blocked by missing trusted field coverage.",
+      "blocks": [
+        "fundamental readiness",
+        "recipe feasibility"
+      ],
+      "unblocks": [
+        "credible source-to-factor readiness"
+      ],
+      "recommended_pr_epic": "factor_field_coverage_manifest"
+    },
+    {
+      "rank": 3,
+      "title": "SEC Companyfacts manifest hardening",
+      "reason": "Highest-priority public fundamentals candidate remains license/policy blocked.",
+      "blocks": [
+        "future US fundamental readiness"
+      ],
+      "unblocks": [
+        "reviewed candidate source path"
+      ],
+      "recommended_pr_epic": "sec_companyfacts_manifest_hardening"
+    },
+    {
+      "rank": 4,
+      "title": "OpenFIGI manifest hardening",
+      "reason": "Identity/symbology trust still needs reviewed manifest semantics.",
+      "blocks": [
+        "cleaner source identity paths"
+      ],
+      "unblocks": [
+        "identity readiness hardening"
+      ],
+      "recommended_pr_epic": "openfigi_identity_manifest_hardening"
+    },
+    {
+      "rank": 5,
+      "title": "Grid candidate/campaign lineage bridge",
+      "reason": "Lineage remains a key blocker in trusted-loop readiness.",
+      "blocks": [
+        "candidate blocker explainability",
+        "evidence-complete basket closure"
+      ],
+      "unblocks": [
+        "more accurate readiness closure"
+      ],
+      "recommended_pr_epic": "grid_candidate_campaign_lineage_bridge"
+    },
+    {
+      "rank": 6,
+      "title": "Source/cache sidecar materialization",
+      "reason": "Current local trusted-loop reports depend on sidecar visibility.",
+      "blocks": [
+        "readiness rerun quality"
+      ],
+      "unblocks": [
+        "more faithful current local status"
+      ],
+      "recommended_pr_epic": "source_cache_sidecar_materialization"
+    },
+    {
+      "rank": 7,
+      "title": "Controlled discovery grid local artifact restoration or rerun",
+      "reason": "Local bridge cannot prove readiness visibility without local run artifacts.",
+      "blocks": [
+        "grid-readiness claims"
+      ],
+      "unblocks": [
+        "targeted evidence rerun"
+      ],
+      "recommended_pr_epic": "controlled_grid_local_artifact_refresh"
+    },
+    {
+      "rank": 8,
+      "title": "Targeted readiness rerun",
+      "reason": "Current local readiness is more conservative than prior VPS/history claims.",
+      "blocks": [
+        "accurate operator trust review"
+      ],
+      "unblocks": [
+        "updated readiness evidence"
+      ],
+      "recommended_pr_epic": "targeted_readiness_rerun"
+    },
+    {
+      "rank": 9,
+      "title": "Candidate blocker explainability closure",
+      "reason": "candidate_blockers_explainable remains false.",
+      "blocks": [
+        "trusted-loop maturity"
+      ],
+      "unblocks": [
+        "operator trust"
+      ],
+      "recommended_pr_epic": "candidate_blocker_explainability"
+    },
+    {
+      "rank": 10,
+      "title": "Evidence-complete basket closure",
+      "reason": "No basket is evidence complete.",
+      "blocks": [
+        "routing/sampling trust"
+      ],
+      "unblocks": [
+        "readiness maturity"
+      ],
+      "recommended_pr_epic": "evidence_complete_basket_closure"
+    }
+  ]
+}
