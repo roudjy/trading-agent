@@ -1,0 +1,232 @@
+{
+  "report_kind": "source_license_policy",
+  "rows": [
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "alpha_vantage_candidate",
+      "source_id": "alpha_vantage_candidate_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "companies_house_metadata",
+      "source_id": "companies_house_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "eodhd_candidate",
+      "source_id": "eodhd_candidate_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "euronext_issuer_metadata",
+      "source_id": "euronext_issuer_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "license_policy_status": "UNKNOWN",
+      "license_terms_status": "unknown",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "financial_datasets_mcp",
+      "source_id": "financial_datasets_mcp_manifest",
+      "warnings": [
+        "connector_wrapper_requires_underlying_source_manifest",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "financial_modeling_prep_candidate",
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "nasdaq_listings_metadata",
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "nyse_listings_metadata",
+      "source_id": "nyse_listings_metadata_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "license_policy_status": "UNKNOWN",
+      "license_terms_status": "unknown",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "openbb_connector",
+      "source_id": "openbb_connector_manifest",
+      "warnings": [
+        "connector_wrapper_requires_underlying_source_manifest",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "openfigi_symbology",
+      "source_id": "openfigi_symbology_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "sec_companyfacts",
+      "source_id": "sec_companyfacts_manifest",
+      "warnings": []
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "license_policy_status": "WARN",
+      "license_terms_status": "review_required",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "stooq_price_context",
+      "source_id": "stooq_price_context_manifest",
+      "warnings": [
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    },
+    {
+      "allowed_for_active_read_only": false,
+      "allowed_for_quality_gate": false,
+      "block_reasons": [],
+      "license_policy_status": "WARN",
+      "license_terms_status": "reviewed_restricted",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "provider_id": "yahoo_finance_yfinance",
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "warnings": [
+        "reviewed_restricted_source_requires_narrow_manual_use",
+        "source_type_does_not_satisfy_fundamental_field_readiness"
+      ]
+    }
+  ],
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "mutates_frozen_contracts": false,
+    "mutates_registry": false,
+    "no_api_integration": true,
+    "no_data_fetch": true,
+    "not_trade_signal": true,
+    "paper_shadow_live_forbidden": true,
+    "research_only": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "active_read_only_eligible_providers": [],
+    "license_policy_counts": {
+      "UNKNOWN": 2,
+      "WARN": 11
+    },
+    "license_terms_status_counts": {
+      "review_required": 10,
+      "reviewed_restricted": 1,
+      "unknown": 2
+    },
+    "providers_blocked_by_license_policy": [
+      "alpha_vantage_candidate",
+      "companies_house_metadata",
+      "eodhd_candidate",
+      "euronext_issuer_metadata",
+      "financial_datasets_mcp",
+      "financial_modeling_prep_candidate",
+      "nasdaq_listings_metadata",
+      "nyse_listings_metadata",
+      "openbb_connector",
+      "openfigi_symbology",
+      "sec_companyfacts",
+      "stooq_price_context",
+      "yahoo_finance_yfinance"
+    ],
+    "quality_gated_eligible_providers": []
+  }
+}
