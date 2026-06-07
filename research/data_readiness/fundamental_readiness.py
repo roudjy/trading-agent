@@ -68,7 +68,7 @@ def _fundamental_source_blockers() -> dict[str, object]:
         if row["requirement_status"] == "REQUIRED"
     }
     policy_by_source = snapshot["policy_by_source"]
-    block_reasons = {"MISSING_REQUIRED_FIELD", "FACTOR_FIELD_COVERAGE_UNKNOWN", "SOURCE_QUALITY_UNKNOWN"}
+    block_reasons = {"SOURCE_QUALITY_UNKNOWN"}
     if any(
         str(policy_by_source[str(row["source_id"])]["license_policy_status"]) == "UNKNOWN"
         for row in fundamental_rows
@@ -102,6 +102,7 @@ def _factor_row(
     source_blockers: dict[str, object],
 ) -> dict[str, object]:
     block_reasons = set(str(item) for item in source_blockers["block_reasons"])
+    block_reasons.update(str(item) for item in coverage_row["coverage_block_reasons"])
     if not factor_row["point_in_time_required"]:
         block_reasons.difference_update(
             {
@@ -109,7 +110,7 @@ def _factor_row(
                 "POINT_IN_TIME_UNKNOWN",
                 "POINT_IN_TIME_UNSUPPORTED",
                 "MISSING_REPORT_LAG_POLICY",
-                "REPORT_LAG_POLICY_UNKNOWN",
+                "REPORT_LAG_UNKNOWN",
                 "REPORT_LAG_UNSUPPORTED",
                 "MISSING_RESTATEMENT_POLICY",
                 "RESTATEMENT_POLICY_UNKNOWN",
@@ -176,7 +177,7 @@ def build_fundamental_readiness() -> dict[str, object]:
                     "POINT_IN_TIME_UNKNOWN",
                     "POINT_IN_TIME_UNSUPPORTED",
                     "MISSING_REPORT_LAG_POLICY",
-                    "REPORT_LAG_POLICY_UNKNOWN",
+                    "REPORT_LAG_UNKNOWN",
                     "REPORT_LAG_UNSUPPORTED",
                     "MISSING_RESTATEMENT_POLICY",
                     "RESTATEMENT_POLICY_UNKNOWN",
@@ -193,7 +194,15 @@ def build_fundamental_readiness() -> dict[str, object]:
             for universe_id in row["target_universe_ids"]
         ):
             block_reasons.add("UNIVERSE_IDENTITY_NOT_READY")
-        block_reasons.add("MISSING_REQUIRED_FIELD")
+        coverage_statuses = [
+            factor_readiness[factor_id]["field_coverage_status"]
+            for factor_id in row["required_factor_ids"]
+            if factor_id in factor_readiness
+        ]
+        if any(status in {"UNKNOWN", "PARTIAL"} for status in coverage_statuses):
+            block_reasons.add("FACTOR_FIELD_COVERAGE_UNKNOWN")
+        if any(status in {"MISSING", "PARTIAL"} for status in coverage_statuses):
+            block_reasons.add("MISSING_REQUIRED_FIELD")
         recipe_readiness_rows.append(
             {
                 "recipe_id": row["recipe_id"],

@@ -23,14 +23,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "accruals_ratio",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -54,10 +53,8 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
-        "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "REPORT_LAG_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -73,7 +70,7 @@
     {
       "currency_normalization_required": false,
       "factor_id": "altman_z_score",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
@@ -107,10 +104,8 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
-        "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "REPORT_LAG_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -125,14 +120,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "beneish_m_score",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -158,7 +152,7 @@
     {
       "currency_normalization_required": false,
       "factor_id": "book_to_market",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
@@ -188,7 +182,6 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": true,
       "readiness_block_reasons": [
-        "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
@@ -212,14 +205,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "debt_to_equity",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -239,7 +231,7 @@
     {
       "currency_normalization_required": false,
       "factor_id": "dividend_yield",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
@@ -266,7 +258,7 @@
     {
       "currency_normalization_required": true,
       "factor_id": "earnings_yield",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
@@ -294,14 +286,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "enterprise_value_to_ebit",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -321,7 +312,7 @@
     {
       "currency_normalization_required": false,
       "factor_id": "fcf_yield",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
@@ -348,14 +339,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "gross_profitability",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -375,14 +365,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "montier_c_score",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -407,14 +396,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "net_debt_to_ebitda",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -434,14 +422,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "piotroski_f_score",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -464,7 +451,7 @@
     {
       "currency_normalization_required": false,
       "factor_id": "price_to_sales",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
@@ -491,14 +478,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "return_on_assets",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -518,14 +504,13 @@
     {
       "currency_normalization_required": false,
       "factor_id": "roic",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -545,7 +530,7 @@
     {
       "currency_normalization_required": false,
       "factor_id": "shareholder_yield",
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "readiness_block_reasons": [
         "FACTOR_FIELD_COVERAGE_UNKNOWN",
@@ -577,10 +562,8 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
-        "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "REPORT_LAG_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -598,10 +581,8 @@
       "field_coverage_status": "MISSING",
       "point_in_time_required": false,
       "readiness_block_reasons": [
-        "FACTOR_FIELD_COVERAGE_UNKNOWN",
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_REQUIRED_FIELD",
-        "REPORT_LAG_UNKNOWN",
         "SOURCE_QUALITY_UNKNOWN"
       ],
       "readiness_status": "NOT_READY",
@@ -866,7 +847,6 @@
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -899,7 +879,6 @@
         "LICENSE_REVIEW_REQUIRED",
         "MISSING_POINT_IN_TIME_POLICY",
         "MISSING_REPORT_LAG_POLICY",
-        "MISSING_REQUIRED_FIELD",
         "MISSING_RESTATEMENT_POLICY",
         "POINT_IN_TIME_UNKNOWN",
         "REPORT_LAG_UNKNOWN",
@@ -1137,15 +1116,15 @@
     "ready_count": 0,
     "recipe_rows": 15,
     "top_block_reasons": {
-      "FACTOR_FIELD_COVERAGE_UNKNOWN": 37,
+      "FACTOR_FIELD_COVERAGE_UNKNOWN": 32,
       "LICENSE_REVIEW_REQUIRED": 37,
       "MISSING_CURRENCY_NORMALIZATION": 4,
       "MISSING_POINT_IN_TIME_POLICY": 33,
       "MISSING_REPORT_LAG_POLICY": 33,
-      "MISSING_REQUIRED_FIELD": 37,
+      "MISSING_REQUIRED_FIELD": 25,
       "MISSING_RESTATEMENT_POLICY": 33,
       "POINT_IN_TIME_UNKNOWN": 33,
-      "REPORT_LAG_UNKNOWN": 37,
+      "REPORT_LAG_UNKNOWN": 33,
       "RESTATEMENT_POLICY_UNKNOWN": 33,
       "SOURCE_QUALITY_UNKNOWN": 37,
       "UNIVERSE_IDENTITY_NOT_READY": 11

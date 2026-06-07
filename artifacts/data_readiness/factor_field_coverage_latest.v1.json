@@ -8,23 +8,56 @@
   "report_kind": "factor_field_coverage",
   "rows": [
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "accruals_ratio",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "net_income_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "net_income_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "operating_cash_flow_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "operating_cash_flow_ttm",
+          "required_claim_families": [
+            "cash_flow_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "average_total_assets"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "average_total_assets",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -35,16 +68,31 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "adjusted_slope",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "price_history_12m"
+          "field_name": "price_history_12m",
+          "required_claim_families": [
+            "price_history"
+          ]
         },
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "volatility_12m"
+          "field_name": "volatility_12m",
+          "required_claim_families": [
+            "volatility_context"
+          ]
         }
       ],
       "field_coverage_status": "MISSING",
@@ -57,35 +105,100 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "altman_z_score",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "working_capital"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "working_capital",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "retained_earnings"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "retained_earnings",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "ebit_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "ebit_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         },
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "total_assets"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "total_assets",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "total_liabilities"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "total_liabilities",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -99,12 +212,22 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "average_daily_value_traded",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "average_daily_value_traded_90d"
+          "field_name": "average_daily_value_traded_90d",
+          "required_claim_families": [
+            "price_history",
+            "volume_history"
+          ]
         }
       ],
       "field_coverage_status": "MISSING",
@@ -116,43 +239,110 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "beneish_m_score",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "days_sales_receivables"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "days_sales_receivables",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "gross_margin_index"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "gross_margin_index",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "asset_quality_index"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "asset_quality_index",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "sales_growth_index"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "sales_growth_index",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "depreciation_index"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "depreciation_index",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "sgai"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "sgai",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "leverage_index"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "leverage_index",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "total_accruals_to_assets"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "total_accruals_to_assets",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -168,19 +358,40 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "book_to_market",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "book_value_equity"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "book_value_equity",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         },
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -190,16 +401,31 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "buyback_yield",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "net_buybacks_ttm"
+          "field_name": "net_buybacks_ttm",
+          "required_claim_families": [
+            "capital_returns"
+          ]
         },
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         }
       ],
       "field_coverage_status": "MISSING",
@@ -212,19 +438,44 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "debt_to_equity",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "total_debt"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "total_debt",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "book_value_equity"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "book_value_equity",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -234,19 +485,41 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "dividend_yield",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "dividends_paid_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "dividends_paid_ttm",
+          "required_claim_families": [
+            "dividend_history",
+            "cash_flow_statement"
+          ]
         },
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -256,19 +529,40 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": true,
       "factor_id": "earnings_yield",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "net_income_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "net_income_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -278,19 +572,41 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "enterprise_value_to_ebit",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "enterprise_value"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "financial_modeling_prep_candidate_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "enterprise_value",
+          "required_claim_families": [
+            "enterprise_value"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "ebit_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "ebit_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -300,19 +616,40 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "fcf_yield",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "free_cash_flow_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "free_cash_flow_ttm",
+          "required_claim_families": [
+            "cash_flow_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -322,19 +659,44 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "gross_profitability",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "gross_profit_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "gross_profit_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "total_assets"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "total_assets",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -344,39 +706,98 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "montier_c_score",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "dsri"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "dsri",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "gmi"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "gmi",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "aqi"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "aqi",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "sgi"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "sgi",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "depi"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "depi",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "lvgi"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "lvgi",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "tata"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "tata",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -391,19 +812,44 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "net_debt_to_ebitda",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "net_debt"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "net_debt",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "ebitda_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "ebitda_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -413,31 +859,77 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "piotroski_f_score",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "roa"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "roa",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "operating_cash_flow"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "operating_cash_flow",
+          "required_claim_families": [
+            "cash_flow_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "gross_margin"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "gross_margin",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "asset_turnover"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "asset_turnover",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "leverage_ratio"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "leverage_ratio",
+          "required_claim_families": [
+            "multi_period_fundamentals"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -450,19 +942,40 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "price_to_sales",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "revenue_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "revenue_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -472,19 +985,44 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "return_on_assets",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "net_income_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "net_income_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "total_assets"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "total_assets",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -494,19 +1032,44 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN"
+      ],
       "currency_normalization_required": false,
       "factor_id": "roic",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "nopat_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "nopat_ttm",
+          "required_claim_families": [
+            "income_statement"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "invested_capital"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "invested_capital",
+          "required_claim_families": [
+            "balance_sheet_statement"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "UNKNOWN",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -516,27 +1079,67 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "shareholder_yield",
       "field_coverage": [
         {
-          "coverage_status": "MISSING",
-          "field_name": "dividends_paid_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "dividends_paid_ttm",
+          "required_claim_families": [
+            "dividend_history",
+            "cash_flow_statement"
+          ]
         },
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "net_buybacks_ttm"
+          "field_name": "net_buybacks_ttm",
+          "required_claim_families": [
+            "capital_returns"
+          ]
         },
         {
-          "coverage_status": "MISSING",
-          "field_name": "net_debt_change_ttm"
+          "active_source_ids": [],
+          "candidate_source_ids": [
+            "alpha_vantage_candidate_manifest",
+            "eodhd_candidate_manifest",
+            "financial_modeling_prep_candidate_manifest",
+            "sec_companyfacts_manifest"
+          ],
+          "coverage_reason": "candidate_source_claim_present_but_not_quality_gated",
+          "coverage_status": "UNKNOWN",
+          "field_name": "net_debt_change_ttm",
+          "required_claim_families": [
+            "capital_returns",
+            "cash_flow_statement"
+          ]
         },
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "market_cap"
+          "field_name": "market_cap",
+          "required_claim_families": [
+            "market_cap_context"
+          ]
         }
       ],
-      "field_coverage_status": "MISSING",
+      "field_coverage_status": "PARTIAL",
       "point_in_time_required": true,
       "report_lag_required": true,
       "required_fields": [
@@ -548,12 +1151,21 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "six_month_momentum",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "price_history_6m"
+          "field_name": "price_history_6m",
+          "required_claim_families": [
+            "price_history"
+          ]
         }
       ],
       "field_coverage_status": "MISSING",
@@ -565,12 +1177,21 @@
       "source_manifest_required": true
     },
     {
+      "coverage_block_reasons": [
+        "MISSING_REQUIRED_FIELD"
+      ],
       "currency_normalization_required": false,
       "factor_id": "twelve_month_momentum",
       "field_coverage": [
         {
+          "active_source_ids": [],
+          "candidate_source_ids": [],
+          "coverage_reason": "no_manifest_claim_for_required_field",
           "coverage_status": "MISSING",
-          "field_name": "price_history_12m"
+          "field_name": "price_history_12m",
+          "required_claim_families": [
+            "price_history"
+          ]
         }
       ],
       "field_coverage_status": "MISSING",
@@ -594,9 +1215,9 @@
   "summary": {
     "covered_count": 0,
     "factor_count": 22,
-    "missing_count": 22,
-    "operator_summary": "Field coverage is fail-closed until a deterministic source manifest exists. This report does not claim any real fundamental field availability.",
-    "partial_count": 0,
-    "unknown_count": 0
+    "missing_count": 5,
+    "operator_summary": "Field coverage is fail-closed. Candidate manifest claims can make coverage more specific, but no field is treated as covered until a quality-gated or active read-only source exists.",
+    "partial_count": 7,
+    "unknown_count": 10
   }
 }

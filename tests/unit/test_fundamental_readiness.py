@@ -9,7 +9,6 @@ def test_missing_source_manifest_and_required_fields_block_readiness() -> None:
     assert report["summary"]["not_ready_count"] == report["summary"]["factor_rows"] + report["summary"]["recipe_rows"]
     first_factor = report["factor_rows"][0]
     assert "LICENSE_REVIEW_REQUIRED" in first_factor["readiness_block_reasons"]
-    assert "MISSING_REQUIRED_FIELD" in first_factor["readiness_block_reasons"]
     assert first_factor["source_manifest_present"] is True
 
 
@@ -23,4 +22,12 @@ def test_point_in_time_and_report_lag_requirements_fail_closed() -> None:
         assert "REPORT_LAG_UNKNOWN" in row["readiness_block_reasons"]
         assert "MISSING_RESTATEMENT_POLICY" in row["readiness_block_reasons"]
         assert "RESTATEMENT_POLICY_UNKNOWN" in row["readiness_block_reasons"]
+
+
+def test_field_coverage_blockers_are_more_specific() -> None:
+    report = build_fundamental_readiness()
+    rows = {row["factor_id"]: row for row in report["factor_rows"]}
+    assert "FACTOR_FIELD_COVERAGE_UNKNOWN" in rows["roic"]["readiness_block_reasons"]
+    assert "MISSING_REQUIRED_FIELD" not in rows["roic"]["readiness_block_reasons"]
+    assert "MISSING_REQUIRED_FIELD" in rows["earnings_yield"]["readiness_block_reasons"]
 
