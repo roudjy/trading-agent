@@ -162,3 +162,79 @@ def test_pre_shadow_readiness_reports_missing_source_sidecars_explicitly(
 
     assert report["summary"]["source_readiness_linked"] is False
     assert "missing" in str(report["summary"]["source_readiness_note"]).lower()
+
+
+def test_candidate_blockers_explainable_accepts_zero_unknown_failure_rate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        readiness.basket_diagnosis,
+        "build_real_basket_diagnosis",
+        lambda **_: {"rows": [{}], "summary": {}},
+    )
+    monkeypatch.setattr(
+        readiness.evidence_coverage,
+        "build_real_basket_evidence_coverage",
+        lambda **_: {"rows": [{}], "summary": {}},
+    )
+    monkeypatch.setattr(
+        readiness.routing_readiness,
+        "build_routing_readiness_from_basket",
+        lambda **_: {"summary": {"evidence_backed_zero_ready": True, "routing_ready_count": 0}},
+    )
+    monkeypatch.setattr(
+        readiness.sampling_readiness,
+        "build_sampling_readiness_from_basket",
+        lambda **_: {"summary": {"evidence_backed_zero_ready": True, "sampling_ready_count": 0}},
+    )
+    monkeypatch.setattr(
+        readiness.reason_records,
+        "build_reason_records_snapshot",
+        lambda **_: {"meta": {"record_count": 1}},
+    )
+    monkeypatch.setattr(
+        readiness.failure_action,
+        "build_failure_action_from_basket",
+        lambda **_: {"summary": {"actionable_count": 1, "non_actionable_count": 0}},
+    )
+    monkeypatch.setattr(
+        readiness.candidate_rows,
+        "build_candidate_explanation_rows",
+        lambda **_: {"rows": [{}], "summary": {"candidate_count": 1}},
+    )
+    monkeypatch.setattr(
+        readiness.oos_blockers,
+        "build_oos_evidence_blockers",
+        lambda **_: {"rows": [{}], "summary": {"final_recommendation": "oos_evidence_blockers_ready"}},
+    )
+    monkeypatch.setattr(
+        readiness.trusted_kpis,
+        "build_trusted_loop_operator_kpis",
+        lambda **_: {
+            "summary": {
+                "unknown_failure_rate": 0.0,
+                "operator_explanation_completeness_score": 100.0,
+                "source_ready_basket_pct": 0.0,
+                "trusted_loop_maturity_state": "working_capability",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        readiness.source_cache_materialization,
+        "build_source_cache_readiness_materialization",
+        lambda **_: {"summary": {"missing_sidecars": ["cache_manifest"], "present_not_ready_sidecars": []}},
+    )
+    monkeypatch.setattr(
+        readiness.hypothesis_feasibility,
+        "build_hypothesis_seed_feasibility",
+        lambda **_: {"rows": []},
+    )
+    monkeypatch.setattr(
+        readiness.recurrence_learning,
+        "build_failure_recurrence_learning",
+        lambda **_: {"summary": {}},
+    )
+
+    report = readiness.build_pre_shadow_paper_research_readiness()
+
+    assert report["summary"]["candidate_blockers_explainable"] is True
