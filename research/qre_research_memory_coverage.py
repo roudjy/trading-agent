@@ -12,6 +12,8 @@ from typing import Any, Final
 from research import qre_failure_action_from_basket as failure_action
 from research import qre_reason_records_v1 as reason_records
 from research import qre_real_basket_diagnosis as basket_diagnosis
+from research.qre_entity_resolution import resolve_entities_from_text
+from research.qre_research_ontology import classify_research_text
 
 
 MEMORY_REPORT_KIND: Final[str] = "qre_research_memory_coverage"
@@ -45,6 +47,30 @@ def _digest(payload: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def _ontology_tags_for_record(*, record_kind: str, metadata: Mapping[str, Any]) -> tuple[str, ...]:
+    tags: set[str] = {"data_readiness", "evidence"}
+
+    if record_kind == "basket":
+        tags.update({"basket", "candidate", "diagnostic"})
+    elif record_kind == "failure_action":
+        tags.update({"failure", "policy_action", "readiness"})
+    elif record_kind == "reason_record":
+        tags.update({"diagnostic", "retrieval"})
+
+    if metadata.get("symbol"):
+        tags.add("identity")
+    if metadata.get("preset_id"):
+        tags.add("strategy_context")
+    if metadata.get("hypothesis_id"):
+        tags.add("hypothesis")
+    if metadata.get("blocker_code"):
+        tags.add("failure")
+    if metadata.get("reason_code") or metadata.get("reason_codes"):
+        tags.add("diagnostic")
+
+    return tuple(sorted(tags))
+
+
 def _memory_entry(
     *,
     artifact_id: str,
@@ -54,6 +80,19 @@ def _memory_entry(
     text_preview: str,
     metadata: Mapping[str, Any],
 ) -> dict[str, Any]:
+    ontology_tags = _ontology_tags_for_record(record_kind=record_kind, metadata=metadata)
+    classification = classify_research_text(
+        title=title,
+        artifact_path=artifact_id,
+        ontology_tags=ontology_tags,
+        text_preview=text_preview,
+    )
+    resolved_entities = resolve_entities_from_text(
+        title=title,
+        artifact_path=artifact_id,
+        text_preview=text_preview,
+        ontology_tags=classification.ontology_tags,
+    )
     return {
         "artifact_id": artifact_id,
         "record_kind": record_kind,
@@ -61,6 +100,25 @@ def _memory_entry(
         "title": title,
         "keywords": _tokenize(title, text_preview, metadata),
         "metadata": dict(sorted(metadata.items())),
+        "ontology_tags": list(classification.ontology_tags),
+        "ontology_classification": {
+            "asset_class": classification.asset_class,
+            "research_scope": classification.research_scope,
+            "readiness_state": classification.readiness_state,
+            "blocker_classes": list(classification.blocker_classes),
+            "explanation": classification.explanation,
+        },
+        "resolved_entities": [
+            {
+                "entity_id": entity.entity_id,
+                "entity_type": entity.entity_type,
+                "label": entity.label,
+                "confidence": entity.confidence,
+                "ambiguity_status": entity.ambiguity_status,
+                "evidence": list(entity.evidence),
+            }
+            for entity in resolved_entities
+        ],
         "text_preview": text_preview[:280],
     }
 
@@ -167,6 +225,23 @@ def build_research_memory_coverage(
 
     entries.sort(key=lambda row: (str(row["record_kind"]), str(row["artifact_id"])))
     kind_counts = Counter(str(row["record_kind"]) for row in entries)
+    research_scope_counts = Counter(
+        str((row.get("ontology_classification") or {}).get("research_scope") or "unknown")
+        for row in entries
+    )
+    asset_class_counts = Counter(
+        str((row.get("ontology_classification") or {}).get("asset_class") or "unknown")
+        for row in entries
+    )
+    readiness_state_counts = Counter(
+        str((row.get("ontology_classification") or {}).get("readiness_state") or "unknown")
+        for row in entries
+    )
+    ontology_tag_counts = Counter(
+        str(tag)
+        for row in entries
+        for tag in row.get("ontology_tags") or []
+    )
     candidate_ids = sorted(
         {
             str(row.get("subject_id") or "")
@@ -191,13 +266,18 @@ def build_research_memory_coverage(
             ),
             "indexed_candidate_count": len(candidate_ids),
             "record_kind_counts": dict(sorted(kind_counts.items())),
+            "ontology_research_scope_counts": dict(sorted(research_scope_counts.items())),
+            "ontology_asset_class_counts": dict(sorted(asset_class_counts.items())),
+            "ontology_readiness_state_counts": dict(sorted(readiness_state_counts.items())),
+            "ontology_tag_counts": dict(sorted(ontology_tag_counts.items())),
             "memory_content_hash": _digest({"entries": entries}),
             "final_recommendation": (
                 "research_memory_coverage_ready" if entries else "research_memory_coverage_missing"
             ),
             "operator_summary": (
                 "Research memory coverage indexes current read-only basket, failure-action, "
-                "and durable reason-record surfaces without adding authority or runtime behavior."
+                "and durable reason-record surfaces with context-only ontology classification "
+                "without adding authority or runtime behavior."
             ),
         },
         "entries": entries,
@@ -206,6 +286,7 @@ def build_research_memory_coverage(
             "uses_embeddings": False,
             "uses_vector_db": False,
             "uses_llm_authority": False,
+            "ontology_context_only": True,
             "paper_shadow_live_forbidden": True,
             "broker_risk_execution_forbidden": True,
         },
@@ -231,6 +312,21 @@ def _failure_similarity(left: Mapping[str, Any], right: Mapping[str, Any]) -> in
     return score
 
 
+
+def _retrieval_match_payload(candidate: Mapping[str, Any], *, score: int) -> dict[str, Any]:
+    return {
+        "subject_id": candidate.get("subject_id"),
+        "artifact_id": candidate.get("artifact_id"),
+        "title": candidate.get("title"),
+        "score": score,
+        "record_kind": candidate.get("record_kind"),
+        "blocker_code": (candidate.get("metadata") or {}).get("blocker_code"),
+        "recommended_action": (candidate.get("metadata") or {}).get("recommended_action"),
+        "ontology_tags": list(candidate.get("ontology_tags") or []),
+        "ontology_classification": dict(candidate.get("ontology_classification") or {}),
+        "resolved_entities": list(candidate.get("resolved_entities") or []),
+        "metadata": dict(candidate.get("metadata") or {}),
+    }
 def build_failure_retrieval(
     memory: Mapping[str, Any],
     *,
@@ -259,18 +355,7 @@ def build_failure_retrieval(
             score = _failure_similarity(entry, candidate)
             if score <= 0:
                 continue
-            matches.append(
-                {
-                    "subject_id": other_subject,
-                    "artifact_id": candidate.get("artifact_id"),
-                    "title": candidate.get("title"),
-                    "score": score,
-                    "blocker_code": (candidate.get("metadata") or {}).get("blocker_code"),
-                    "recommended_action": (candidate.get("metadata") or {}).get(
-                        "recommended_action"
-                    ),
-                }
-            )
+            matches.append(_retrieval_match_payload(candidate, score=score))
         matches.sort(key=lambda row: (-int(row["score"]), str(row["subject_id"])))
         retrieval_rows.append(
             {
@@ -284,6 +369,15 @@ def build_failure_retrieval(
         )
 
     blocker_counts = Counter(str(row.get("blocker_code") or "") for row in retrieval_rows)
+    matched_subject_count = len(
+        {
+            str(match.get("subject_id") or "")
+            for row in retrieval_rows
+            for match in row.get("similar_failures", [])
+            if str(match.get("subject_id") or "")
+        }
+    )
+    unmatched_subject_count = len([row for row in retrieval_rows if not row.get("similar_failures")])
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": FAILURE_REPORT_KIND,
@@ -292,6 +386,8 @@ def build_failure_retrieval(
             "retrievable_failure_subject_count": sum(
                 1 for row in retrieval_rows if row.get("similar_failures")
             ),
+            "matched_failure_subject_count": matched_subject_count,
+            "unmatched_failure_subject_count": unmatched_subject_count,
             "blocker_counts": dict(sorted(blocker_counts.items())),
             "final_recommendation": (
                 "failure_retrieval_ready" if retrieval_rows else "failure_retrieval_not_ready"
