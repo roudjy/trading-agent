@@ -12,6 +12,7 @@ from typing import Any, Final
 from research import qre_failure_action_from_basket as failure_action
 from research import qre_reason_records_v1 as reason_records
 from research import qre_real_basket_diagnosis as basket_diagnosis
+from research.qre_research_ontology import classify_research_text
 
 
 MEMORY_REPORT_KIND: Final[str] = "qre_research_memory_coverage"
@@ -45,6 +46,30 @@ def _digest(payload: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def _ontology_tags_for_record(*, record_kind: str, metadata: Mapping[str, Any]) -> tuple[str, ...]:
+    tags: set[str] = {"data_readiness", "evidence"}
+
+    if record_kind == "basket":
+        tags.update({"basket", "candidate", "diagnostic"})
+    elif record_kind == "failure_action":
+        tags.update({"failure", "policy_action", "readiness"})
+    elif record_kind == "reason_record":
+        tags.update({"diagnostic", "retrieval"})
+
+    if metadata.get("symbol"):
+        tags.add("identity")
+    if metadata.get("preset_id"):
+        tags.add("strategy_context")
+    if metadata.get("hypothesis_id"):
+        tags.add("hypothesis")
+    if metadata.get("blocker_code"):
+        tags.add("failure")
+    if metadata.get("reason_code") or metadata.get("reason_codes"):
+        tags.add("diagnostic")
+
+    return tuple(sorted(tags))
+
+
 def _memory_entry(
     *,
     artifact_id: str,
@@ -54,6 +79,13 @@ def _memory_entry(
     text_preview: str,
     metadata: Mapping[str, Any],
 ) -> dict[str, Any]:
+    ontology_tags = _ontology_tags_for_record(record_kind=record_kind, metadata=metadata)
+    classification = classify_research_text(
+        title=title,
+        artifact_path=artifact_id,
+        ontology_tags=ontology_tags,
+        text_preview=text_preview,
+    )
     return {
         "artifact_id": artifact_id,
         "record_kind": record_kind,
@@ -61,6 +93,14 @@ def _memory_entry(
         "title": title,
         "keywords": _tokenize(title, text_preview, metadata),
         "metadata": dict(sorted(metadata.items())),
+        "ontology_tags": list(classification.ontology_tags),
+        "ontology_classification": {
+            "asset_class": classification.asset_class,
+            "research_scope": classification.research_scope,
+            "readiness_state": classification.readiness_state,
+            "blocker_classes": list(classification.blocker_classes),
+            "explanation": classification.explanation,
+        },
         "text_preview": text_preview[:280],
     }
 
@@ -167,6 +207,23 @@ def build_research_memory_coverage(
 
     entries.sort(key=lambda row: (str(row["record_kind"]), str(row["artifact_id"])))
     kind_counts = Counter(str(row["record_kind"]) for row in entries)
+    research_scope_counts = Counter(
+        str((row.get("ontology_classification") or {}).get("research_scope") or "unknown")
+        for row in entries
+    )
+    asset_class_counts = Counter(
+        str((row.get("ontology_classification") or {}).get("asset_class") or "unknown")
+        for row in entries
+    )
+    readiness_state_counts = Counter(
+        str((row.get("ontology_classification") or {}).get("readiness_state") or "unknown")
+        for row in entries
+    )
+    ontology_tag_counts = Counter(
+        str(tag)
+        for row in entries
+        for tag in row.get("ontology_tags") or []
+    )
     candidate_ids = sorted(
         {
             str(row.get("subject_id") or "")
@@ -191,13 +248,18 @@ def build_research_memory_coverage(
             ),
             "indexed_candidate_count": len(candidate_ids),
             "record_kind_counts": dict(sorted(kind_counts.items())),
+            "ontology_research_scope_counts": dict(sorted(research_scope_counts.items())),
+            "ontology_asset_class_counts": dict(sorted(asset_class_counts.items())),
+            "ontology_readiness_state_counts": dict(sorted(readiness_state_counts.items())),
+            "ontology_tag_counts": dict(sorted(ontology_tag_counts.items())),
             "memory_content_hash": _digest({"entries": entries}),
             "final_recommendation": (
                 "research_memory_coverage_ready" if entries else "research_memory_coverage_missing"
             ),
             "operator_summary": (
                 "Research memory coverage indexes current read-only basket, failure-action, "
-                "and durable reason-record surfaces without adding authority or runtime behavior."
+                "and durable reason-record surfaces with context-only ontology classification "
+                "without adding authority or runtime behavior."
             ),
         },
         "entries": entries,
@@ -206,6 +268,7 @@ def build_research_memory_coverage(
             "uses_embeddings": False,
             "uses_vector_db": False,
             "uses_llm_authority": False,
+            "ontology_context_only": True,
             "paper_shadow_live_forbidden": True,
             "broker_risk_execution_forbidden": True,
         },
