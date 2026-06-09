@@ -97,3 +97,15 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
     markdown = (tmp_path / paths["operator_summary"]).read_text(encoding="utf-8")
     assert paths["latest"] == "logs/qre_research_memory_current_artifacts/latest.json"
     assert "# QRE Research Memory Current Artifacts" in markdown
+
+def test_memory_coverage_entries_include_resolved_entities():
+    from pathlib import Path
+
+    from research import qre_research_memory_coverage as coverage
+
+    report = coverage.build_research_memory_coverage(repo_root=Path("."), max_candidates=3)
+    entries = report["entries"]
+
+    assert entries
+    assert all("resolved_entities" in entry for entry in entries)
+    assert all(isinstance(entry["resolved_entities"], list) for entry in entries)

@@ -12,6 +12,7 @@ from typing import Any, Final
 from research import qre_failure_action_from_basket as failure_action
 from research import qre_reason_records_v1 as reason_records
 from research import qre_real_basket_diagnosis as basket_diagnosis
+from research.qre_entity_resolution import resolve_entities_from_text
 from research.qre_research_ontology import classify_research_text
 
 
@@ -86,6 +87,12 @@ def _memory_entry(
         ontology_tags=ontology_tags,
         text_preview=text_preview,
     )
+    resolved_entities = resolve_entities_from_text(
+        title=title,
+        artifact_path=artifact_id,
+        text_preview=text_preview,
+        ontology_tags=classification.ontology_tags,
+    )
     return {
         "artifact_id": artifact_id,
         "record_kind": record_kind,
@@ -101,6 +108,17 @@ def _memory_entry(
             "blocker_classes": list(classification.blocker_classes),
             "explanation": classification.explanation,
         },
+        "resolved_entities": [
+            {
+                "entity_id": entity.entity_id,
+                "entity_type": entity.entity_type,
+                "label": entity.label,
+                "confidence": entity.confidence,
+                "ambiguity_status": entity.ambiguity_status,
+                "evidence": list(entity.evidence),
+            }
+            for entity in resolved_entities
+        ],
         "text_preview": text_preview[:280],
     }
 
