@@ -109,3 +109,23 @@ def test_memory_coverage_entries_include_resolved_entities():
     assert entries
     assert all("resolved_entities" in entry for entry in entries)
     assert all(isinstance(entry["resolved_entities"], list) for entry in entries)
+
+def test_failure_retrieval_matches_include_context_fields():
+    from pathlib import Path
+
+    from research import qre_research_memory_coverage as coverage
+
+    memory = coverage.build_research_memory_coverage(repo_root=Path("."), max_candidates=15)
+    retrieval = coverage.build_failure_retrieval(memory)
+
+    assert "summary" in retrieval
+    assert "matched_failure_subject_count" in retrieval["summary"]
+    assert "unmatched_failure_subject_count" in retrieval["summary"]
+
+    rows = retrieval.get("rows") or []
+    for row in rows:
+        for match in row.get("similar_failures") or []:
+            assert "ontology_tags" in match
+            assert "ontology_classification" in match
+            assert "resolved_entities" in match
+            assert "metadata" in match

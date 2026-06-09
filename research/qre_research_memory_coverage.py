@@ -312,6 +312,21 @@ def _failure_similarity(left: Mapping[str, Any], right: Mapping[str, Any]) -> in
     return score
 
 
+
+def _retrieval_match_payload(candidate: Mapping[str, Any], *, score: int) -> dict[str, Any]:
+    return {
+        "subject_id": candidate.get("subject_id"),
+        "artifact_id": candidate.get("artifact_id"),
+        "title": candidate.get("title"),
+        "score": score,
+        "record_kind": candidate.get("record_kind"),
+        "blocker_code": (candidate.get("metadata") or {}).get("blocker_code"),
+        "recommended_action": (candidate.get("metadata") or {}).get("recommended_action"),
+        "ontology_tags": list(candidate.get("ontology_tags") or []),
+        "ontology_classification": dict(candidate.get("ontology_classification") or {}),
+        "resolved_entities": list(candidate.get("resolved_entities") or []),
+        "metadata": dict(candidate.get("metadata") or {}),
+    }
 def build_failure_retrieval(
     memory: Mapping[str, Any],
     *,
@@ -340,18 +355,7 @@ def build_failure_retrieval(
             score = _failure_similarity(entry, candidate)
             if score <= 0:
                 continue
-            matches.append(
-                {
-                    "subject_id": other_subject,
-                    "artifact_id": candidate.get("artifact_id"),
-                    "title": candidate.get("title"),
-                    "score": score,
-                    "blocker_code": (candidate.get("metadata") or {}).get("blocker_code"),
-                    "recommended_action": (candidate.get("metadata") or {}).get(
-                        "recommended_action"
-                    ),
-                }
-            )
+            matches.append(_retrieval_match_payload(candidate, score=score))
         matches.sort(key=lambda row: (-int(row["score"]), str(row["subject_id"])))
         retrieval_rows.append(
             {
@@ -365,6 +369,15 @@ def build_failure_retrieval(
         )
 
     blocker_counts = Counter(str(row.get("blocker_code") or "") for row in retrieval_rows)
+    matched_subject_count = len(
+        {
+            str(match.get("subject_id") or "")
+            for row in retrieval_rows
+            for match in row.get("similar_failures", [])
+            if str(match.get("subject_id") or "")
+        }
+    )
+    unmatched_subject_count = len([row for row in retrieval_rows if not row.get("similar_failures")])
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": FAILURE_REPORT_KIND,
@@ -373,6 +386,8 @@ def build_failure_retrieval(
             "retrievable_failure_subject_count": sum(
                 1 for row in retrieval_rows if row.get("similar_failures")
             ),
+            "matched_failure_subject_count": matched_subject_count,
+            "unmatched_failure_subject_count": unmatched_subject_count,
             "blocker_counts": dict(sorted(blocker_counts.items())),
             "final_recommendation": (
                 "failure_retrieval_ready" if retrieval_rows else "failure_retrieval_not_ready"
