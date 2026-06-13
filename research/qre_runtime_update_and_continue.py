@@ -91,6 +91,7 @@ def run_continuation(
     env: dict[str, str] | None = None,
     command_runner: CommandRunner | None = None,
     skip_git_update: bool = False,
+    controlled_packet: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     before = _protected_fingerprints()
     generated = _utcnow()
@@ -124,7 +125,11 @@ def run_continuation(
 
     continuation_packet: dict[str, Any] | None = None
     if not blockers:
-        continuation_packet = research_loop.run_autonomous_loop(max_cycles=max_cycles, write=write)
+        continuation_packet = research_loop.run_autonomous_loop(
+            controlled_packet=controlled_packet,
+            max_cycles=max_cycles,
+            write=write,
+        )
 
     _assert_protected_unchanged(before)
     snapshot = {
@@ -212,4 +217,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

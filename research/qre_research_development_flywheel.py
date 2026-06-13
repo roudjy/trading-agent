@@ -121,6 +121,7 @@ def run_flywheel(
                     env=env,
                     command_runner=runtime_command_runner,
                     skip_git_update=skip_runtime_git_update,
+                    controlled_packet=controlled_packet,
                 )
 
     states = {
@@ -284,4 +285,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
