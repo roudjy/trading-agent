@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
+from research import qre_cache_only_metric_path as cache_metric_path
 from research import qre_controlled_discovery_subset_adapter as subset_adapter
 from research import qre_controlled_subset_candidate_feasibility as feasibility
 from research import qre_controlled_subset_candidate_plan as candidate_plan
@@ -269,31 +270,11 @@ def _run_group_id(records: list[dict[str, Any]], loops: int) -> str:
 
 
 def _bounded_metric_evidence(records: list[dict[str, Any]]) -> dict[str, Any]:
-    per_asset = [
-        {
-            "symbol": str(record["instrument_symbol"]),
-            "metric_readiness": "blocked",
-            "blocker": "safe_metric_runner_missing_or_cache_unavailable",
-            "next_action": "add_cache_only_metric_path",
-        }
-        for record in sorted(records, key=lambda item: str(item["instrument_symbol"]))
-    ]
-    return {
-        "metric_mode": "bounded_metric_evidence",
-        "true_metrics_available": False,
-        "bounded_metric_evidence_available": True,
-        "per_asset": per_asset,
-        "trade_count": None,
-        "oos_return": None,
-        "max_drawdown": None,
-        "sharpe": None,
-        "deflated_sharpe": None,
-        "metric_source": "controlled_subset_screening_dry_run_executor",
-        "evidence_statement": (
-            "True metrics are unavailable because no safe cache-only exact-universe "
-            "metric path exists yet; bounded evidence confirms the next implementation target."
-        ),
-    }
+    assets = [str(record["instrument_symbol"]) for record in records]
+    return cache_metric_path.build_cache_only_metric_evidence(
+        assets=assets,
+        timeframe=EXPECTED_TIMEFRAME,
+    )
 
 
 def _build_loop(
@@ -336,15 +317,26 @@ def _build_loop(
         "candidate_promotion_allowed": False,
     }
     metric_evidence = _bounded_metric_evidence(records)
+    true_metrics_available = metric_evidence["true_metrics_available"] is True
+    metric_blockers = sorted(
+        {
+            str(row.get("blocker"))
+            for row in metric_evidence.get("per_asset", [])
+            if isinstance(row, dict) and row.get("blocker")
+        }
+    )
     analysis = {
         "analysis_id": f"{run_group_id}__analysis__{loop_index}",
         "metric_evidence_mode": metric_evidence["metric_mode"],
-        "true_metrics_available": False,
+        "true_metrics_available": true_metrics_available,
         "analysis_statement": (
-            "Controlled campaign intent is materially complete, but true metrics remain "
-            "blocked by missing safe cache-only exact-universe metric execution."
+            "Controlled campaign intent has cache-only exact-universe metric evidence "
+            "from local read-only artifacts."
+            if true_metrics_available
+            else "Controlled campaign intent is materially complete, but true metrics remain "
+            "blocked by incomplete safe cache-only exact-universe metric evidence."
         ),
-        "content_blockers": ["safe_metric_runner_missing_or_cache_unavailable"],
+        "content_blockers": [] if true_metrics_available else (metric_blockers or [cache_metric_path.SAFE_METRIC_BLOCKER]),
         "safety_blockers": [],
     }
     learning = {
@@ -352,16 +344,27 @@ def _build_loop(
         "consumes_previous_learning_feedback_id": (
             previous_learning.get("learning_feedback_id") if previous_learning else None
         ),
-        "learning_result": "bounded_metric_evidence_requires_safe_metric_runner",
+        "learning_result": (
+            "cache_only_metric_evidence_available"
+            if true_metrics_available
+            else "bounded_metric_evidence_requires_safe_metric_runner"
+        ),
         "learning_statement": (
-            "Do not rotate the controlled universe. The hypothesis/preset path is ready "
+            "Do not rotate the controlled universe. The cache-only metric evidence path "
+            "is available from local artifacts; keep any follow-up bounded by review gates."
+            if true_metrics_available
+            else "Do not rotate the controlled universe. The hypothesis/preset path is ready "
             "for metric collection, but the next implementation target is a cache-only "
             "no-public-output-mutation metric runner."
         ),
     }
     next_action = {
         "next_action_id": f"{run_group_id}__next_action__{loop_index}",
-        "recommended_action": "add_cache_only_metric_path",
+        "recommended_action": (
+            "operator_review_cache_only_metric_evidence"
+            if true_metrics_available
+            else "add_cache_only_metric_path"
+        ),
         "operator_command_after_next_pr": (
             "python -m research.qre_controlled_research_run --write --loops 2"
         ),
