@@ -152,6 +152,11 @@ def test_daily_digest_includes_flywheel_state(tmp_path: Path) -> None:
     )
     packet = digest.run_daily_status_digest(
         loop_latest_path=Path("logs/qre_autonomous_market_research_loop/latest.json"),
+        build_request_latest_path=tmp_path / "missing" / "latest_build_request.json",
+        build_consumer_latest_path=tmp_path / "missing" / "consumer_latest.json",
+        backend_results_dir=tmp_path / "missing" / "backend_results",
+        pr_auto_merge_latest_path=tmp_path / "missing" / "pr_gate_latest.json",
+        runtime_continuation_latest_path=tmp_path / "missing" / "runtime_latest.json",
         flywheel_latest_path=tmp_path / "flywheel" / "latest.json",
         output_dir=tmp_path / "daily",
         write=True,
