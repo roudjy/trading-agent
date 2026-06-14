@@ -53,6 +53,7 @@ def test_consumer_uses_mocked_safe_backend_and_records_consumption(tmp_path: Pat
                     "code_changed": True,
                     "tests_run": True,
                     "pr_created": True,
+                    "safe_for_auto_merge": True,
                     "pr_metadata": {
                         "number": 524,
                         "branch": "feat/qre-add-cache-only-metric-path",
@@ -86,5 +87,6 @@ def test_consumer_uses_mocked_safe_backend_and_records_consumption(tmp_path: Pat
     assert snapshot["code_changed"] is True
     assert snapshot["tests_run"] is True
     assert snapshot["pr_created"] is True
+    assert snapshot["safe_for_auto_merge"] is True
     assert snapshot["pr_metadata"]["number"] == 524
 

@@ -105,14 +105,19 @@ def run_flywheel(
             command_runner=build_command_runner,
         )
         if build_snapshot.get("pr_created") is True:
+            pr_metadata = (
+                dict(build_snapshot["pr_metadata"])
+                if isinstance(build_snapshot.get("pr_metadata"), dict)
+                else None
+            )
+            if pr_metadata is not None:
+                pr_metadata["safe_for_auto_merge"] = build_snapshot.get("safe_for_auto_merge")
             pr_snapshot = merge_gate.run_gate(
                 build_request_path=build_request_path,
                 write=write,
                 env=env,
                 command_runner=merge_command_runner,
-                pr_metadata=build_snapshot.get("pr_metadata")
-                if isinstance(build_snapshot.get("pr_metadata"), dict)
-                else None,
+                pr_metadata=pr_metadata,
             )
             if pr_snapshot.get("pr_auto_merged") is True:
                 continuation_snapshot = continuation.run_continuation(
