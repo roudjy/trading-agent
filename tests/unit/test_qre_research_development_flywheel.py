@@ -19,6 +19,7 @@ def _build_runner(cmd: list[str], env: dict[str, str]) -> tuple[int, str, str]:
                 "code_changed": True,
                 "tests_run": True,
                 "pr_created": True,
+                "safe_for_auto_merge": True,
                 "pr_metadata": {
                     "number": 524,
                     "branch": "feat/qre-add-cache-only-metric-path",
@@ -37,6 +38,28 @@ def _build_runner(cmd: list[str], env: dict[str, str]) -> tuple[int, str, str]:
 
 
 def _merge_runner(cmd: list[str]) -> tuple[int, str, str]:
+    if cmd[:3] == ["gh", "pr", "view"]:
+        return (
+            0,
+            json.dumps(
+                {
+                    "number": 524,
+                    "title": "feat: add cache only metric path",
+                    "state": "OPEN",
+                    "mergeCommit": None,
+                    "headRefName": "feat/qre-add-cache-only-metric-path",
+                    "baseRefName": "main",
+                    "statusCheckRollup": [
+                        {"name": "lint/ruff", "status": "COMPLETED", "conclusion": "SUCCESS"},
+                        {"name": "unit smoke + unit", "status": "COMPLETED", "conclusion": "SUCCESS"},
+                    ],
+                    "changedFiles": 2,
+                    "url": "https://github.com/roudjy/trading-agent/pull/524",
+                    "mergeable": "MERGEABLE",
+                }
+            ),
+            "",
+        )
     return (0, "merged", "")
 
 

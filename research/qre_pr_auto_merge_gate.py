@@ -40,6 +40,27 @@ FORBIDDEN_EXACT_PATHS: Final[tuple[str, ...]] = (
     "research/research_latest.json",
     "research/strategy_matrix.csv",
 )
+GH_PR_VIEW_FIELDS: Final[str] = (
+    "number,title,state,mergeCommit,headRefName,baseRefName,statusCheckRollup,"
+    "changedFiles,url,mergeable"
+)
+BLOCKING_CHECK_CONCLUSIONS: Final[set[str]] = {
+    "ACTION_REQUIRED",
+    "CANCELLED",
+    "FAILURE",
+    "NEUTRAL",
+    "STARTUP_FAILURE",
+    "STALE",
+    "TIMED_OUT",
+}
+PENDING_CHECK_STATES: Final[set[str]] = {
+    "EXPECTED",
+    "IN_PROGRESS",
+    "PENDING",
+    "QUEUED",
+    "REQUESTED",
+    "WAITING",
+}
 
 
 CommandRunner = Callable[[list[str]], tuple[int, str, str]]
@@ -87,6 +108,11 @@ def _path_forbidden(path: str) -> bool:
     )
 
 
+def _protected_output(path: str) -> bool:
+    normalized = path.replace("\\", "/").lstrip("./")
+    return normalized in FORBIDDEN_EXACT_PATHS
+
+
 def _metadata_from_sources(
     *,
     consumer_latest_path: Path,
@@ -98,7 +124,97 @@ def _metadata_from_sources(
     if not consumer:
         return None
     metadata = consumer.get("pr_metadata")
-    return metadata if isinstance(metadata, dict) else None
+    if not isinstance(metadata, dict):
+        return None
+    metadata = dict(metadata)
+    if "safe_for_auto_merge" in consumer:
+        metadata["safe_for_auto_merge"] = consumer.get("safe_for_auto_merge")
+    return metadata
+
+
+def _pr_number(metadata: dict[str, Any]) -> str:
+    return str(metadata.get("number") or metadata.get("pr_number") or "").strip()
+
+
+def _query_live_pr_status(
+    pr_number: str,
+    *,
+    command_runner: CommandRunner,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    rc, stdout, stderr = command_runner(
+        ["gh", "pr", "view", pr_number, "--json", GH_PR_VIEW_FIELDS]
+    )
+    diagnostic = {
+        "returncode": rc,
+        "stderr": stderr[:2000],
+    }
+    if rc != 0:
+        return None, diagnostic
+    try:
+        parsed = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        diagnostic["parse_error"] = str(exc)
+        return None, diagnostic
+    if not isinstance(parsed, dict):
+        diagnostic["parse_error"] = "gh pr view did not return a JSON object"
+        return None, diagnostic
+    return parsed, diagnostic
+
+
+def _check_label(check: dict[str, Any]) -> str:
+    for key in ("name", "context", "workflowName"):
+        value = check.get(key)
+        if value:
+            return str(value)
+    return "<unnamed>"
+
+
+def _check_status(check: dict[str, Any]) -> str:
+    return str(check.get("status") or check.get("state") or "").upper()
+
+
+def _check_conclusion(check: dict[str, Any]) -> str:
+    return str(check.get("conclusion") or "").upper()
+
+
+def _live_check_summary(live_pr: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    rollup = live_pr.get("statusCheckRollup")
+    checks = rollup if isinstance(rollup, list) else []
+    summary: dict[str, Any] = {
+        "success": 0,
+        "skipped": 0,
+        "pending": 0,
+        "failed": 0,
+        "blocking": [],
+    }
+    blocking = summary["blocking"]
+    if not checks:
+        blocking.append({"check": "<none>", "reason": "no_live_checks"})
+        return False, summary
+    for raw_check in checks:
+        if not isinstance(raw_check, dict):
+            continue
+        label = _check_label(raw_check)
+        status = _check_status(raw_check)
+        conclusion = _check_conclusion(raw_check)
+        state = str(raw_check.get("state") or "").upper()
+        if conclusion == "SKIPPED":
+            summary["skipped"] += 1
+            continue
+        if conclusion == "SUCCESS" or state == "SUCCESS":
+            summary["success"] += 1
+            continue
+        if conclusion in BLOCKING_CHECK_CONCLUSIONS or state in {"ERROR", "FAILURE", "FAILED"}:
+            summary["failed"] += 1
+            blocking.append({"check": label, "reason": conclusion or state or "failed"})
+            continue
+        if status in PENDING_CHECK_STATES or state in PENDING_CHECK_STATES or not conclusion:
+            summary["pending"] += 1
+            blocking.append({"check": label, "reason": status or state or "pending"})
+            continue
+        summary["failed"] += 1
+        blocking.append({"check": label, "reason": conclusion or state or status or "unknown"})
+    return not blocking, summary
 
 
 def evaluate_pr_gate(
@@ -125,15 +241,51 @@ def evaluate_pr_gate(
     if metadata is None:
         blockers.append("pr_metadata_missing")
         metadata = {}
+    runner = command_runner or _default_command_runner
+    pr_number = _pr_number(metadata)
+    live_pr: dict[str, Any] | None = None
+    live_query_diagnostic: dict[str, Any] | None = None
+    live_pr_status_queried = False
+    live_check_summary = {
+        "success": 0,
+        "skipped": 0,
+        "pending": 0,
+        "failed": 0,
+        "blocking": [],
+    }
+    ci_source = "artifact_metadata"
+    pr_green = metadata.get("ci_status") == "green"
+    if pr_number:
+        live_pr_status_queried = True
+        live_pr, live_query_diagnostic = _query_live_pr_status(
+            pr_number,
+            command_runner=runner,
+        )
+        if live_pr is None:
+            blockers.append("live_pr_status_unavailable")
+            pr_green = False
+            ci_source = "live_gh_pr_view_unavailable"
+        else:
+            pr_green, live_check_summary = _live_check_summary(live_pr)
+            ci_source = "live_gh_pr_view"
     changed_files = [str(item) for item in metadata.get("changed_files") or []]
     forbidden_paths = sorted(path for path in changed_files if _path_forbidden(path))
+    protected_paths = sorted(path for path in changed_files if _protected_output(path))
     if build_request.get("safe_for_ade_build") is not True:
         blockers.append("build_request_not_safe_for_ade_build")
     if build_request.get("execution_allowed") is True:
         blockers.append("build_request_execution_allowed_true")
-    if metadata.get("ci_status") != "green":
+    if metadata.get("safe_for_auto_merge") is not True:
+        blockers.append("safe_for_auto_merge_not_true")
+    if not pr_green:
         blockers.append("ci_not_green")
-    if metadata.get("mergeable") is not True:
+    live_state = str(live_pr.get("state") or "") if live_pr else None
+    live_mergeable = str(live_pr.get("mergeable") or "") if live_pr else None
+    if live_pr is not None and live_state != "OPEN":
+        blockers.append("pr_not_open")
+    if live_pr is not None and live_mergeable != "MERGEABLE":
+        blockers.append("pr_not_mergeable")
+    if live_pr is None and metadata.get("mergeable") is not True:
         blockers.append("pr_not_mergeable")
     if not str(metadata.get("branch") or "").startswith("feat/qre-"):
         blockers.append("branch_not_automated_qre_pattern")
@@ -141,6 +293,8 @@ def evaluate_pr_gate(
         blockers.append("pr_title_mismatch")
     if forbidden_paths:
         blockers.append("forbidden_paths_touched")
+    if protected_paths:
+        blockers.append("protected_outputs_mutated")
     if not auto_merge_requested:
         blockers.append("auto_merge_not_enabled")
 
@@ -148,8 +302,6 @@ def evaluate_pr_gate(
     merge_performed = False
     merge_result: dict[str, Any] | None = None
     if auto_merge_allowed:
-        runner = command_runner or _default_command_runner
-        pr_number = str(metadata.get("number") or metadata.get("pr_number") or "")
         if not pr_number:
             blockers.append("pr_number_missing")
             auto_merge_allowed = False
@@ -168,7 +320,13 @@ def evaluate_pr_gate(
         "request_id": build_request.get("request_id"),
         "pr_number": metadata.get("number") or metadata.get("pr_number"),
         "ci_observed": bool(metadata),
-        "pr_green": metadata.get("ci_status") == "green",
+        "pr_green": pr_green,
+        "ci_source": ci_source,
+        "live_pr_status_queried": live_pr_status_queried,
+        "live_pr_state": live_state,
+        "live_pr_mergeable": live_mergeable,
+        "live_check_summary": live_check_summary,
+        "live_query_diagnostic": live_query_diagnostic,
         "auto_merge_requested": auto_merge_requested,
         "auto_merge_allowed": auto_merge_allowed,
         "manual_governance_required": bool(blockers),
@@ -181,7 +339,7 @@ def evaluate_pr_gate(
         "execution_allowed": False,
         "campaign_launcher_called": False,
         "run_research_called": False,
-        "protected_outputs_mutated": False,
+        "protected_outputs_mutated": bool(protected_paths),
         "final_recommendation": (
             "pr_auto_merged" if merge_performed else "manual_governance_required_or_not_green"
         ),
