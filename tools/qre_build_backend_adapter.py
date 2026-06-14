@@ -13,6 +13,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
+import shutil
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,6 +25,7 @@ SCHEMA_VERSION: Final[str] = "1.0"
 REPORT_KIND: Final[str] = "qre_build_backend_adapter_result"
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_build_request_consumer/backend_results")
 BACKENDS: Final[tuple[str, ...]] = ("codex_cli", "claude_cli")
+KNOWN_WINDOWS_CODEX_PS1: Final[Path] = Path(r"C:\Users\joery.van.rooij\node\codex.ps1")
 
 
 class AdapterError(RuntimeError):
@@ -63,6 +66,128 @@ def _run(cmd: list[str], *, timeout: int = 3600) -> tuple[int, str, str]:
     return (result.returncode, result.stdout or "", result.stderr or "")
 
 
+def _command_parts(value: str) -> list[str]:
+    return shlex.split(value, posix=os.name != "nt")
+
+
+def _path_exists(path: str) -> bool:
+    try:
+        return Path(path).exists()
+    except OSError:
+        return False
+
+
+def _command_kind(path_or_command: str) -> str:
+    suffix = Path(path_or_command).suffix.lower()
+    if suffix == ".ps1":
+        return "powershell_ps1"
+    if suffix == ".cmd":
+        return "cmd"
+    if suffix == ".bat":
+        return "bat"
+    if suffix == ".exe":
+        return "exe"
+    return "executable"
+
+
+def _wrap_backend_command(base_command: list[str], backend_args: list[str]) -> list[str]:
+    if not base_command:
+        return []
+    command_path = base_command[0]
+    if Path(command_path).suffix.lower() == ".ps1":
+        return [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            command_path,
+            *base_command[1:],
+            *backend_args,
+        ]
+    return [*base_command, *backend_args]
+
+
+def _resolve_backend_command(backend: str) -> dict[str, Any]:
+    if backend == "codex_cli":
+        command_override = os.environ.get("QRE_CODEX_COMMAND", "").strip()
+        path_override = os.environ.get("QRE_CODEX_PATH", "").strip()
+        executable = "codex"
+        missing_reason = "codex_cli_not_found"
+        known_fallback = KNOWN_WINDOWS_CODEX_PS1
+    elif backend == "claude_cli":
+        command_override = os.environ.get("QRE_CLAUDE_COMMAND", "").strip()
+        path_override = os.environ.get("QRE_CLAUDE_PATH", "").strip()
+        executable = "claude"
+        missing_reason = "claude_cli_not_found"
+        known_fallback = None
+    else:
+        raise AdapterError(f"unsupported backend: {backend}")
+
+    source = ""
+    base_command: list[str] = []
+    command_path = ""
+    if command_override:
+        source = "command_env"
+        base_command = _command_parts(command_override)
+        command_path = base_command[0] if base_command else command_override
+    elif path_override:
+        source = "path_env"
+        command_path = path_override
+        if not _path_exists(command_path):
+            return {
+                "resolved": False,
+                "source": source,
+                "kind": "missing",
+                "path": command_path,
+                "base_command": [],
+                "blocked_reason": missing_reason,
+                "stderr": f"{backend} path not found: {command_path}",
+            }
+        base_command = [command_path]
+    else:
+        discovered = shutil.which(executable)
+        if discovered:
+            source = "path_lookup"
+            command_path = discovered
+            base_command = [discovered]
+        elif known_fallback is not None and known_fallback.exists():
+            source = "known_windows_fallback"
+            command_path = str(known_fallback)
+            base_command = [command_path]
+        else:
+            return {
+                "resolved": False,
+                "source": "not_found",
+                "kind": "missing",
+                "path": "",
+                "base_command": [],
+                "blocked_reason": missing_reason,
+                "stderr": f"{backend} command not found",
+            }
+
+    if not base_command:
+        return {
+            "resolved": False,
+            "source": source,
+            "kind": "missing",
+            "path": command_path,
+            "base_command": [],
+            "blocked_reason": missing_reason,
+            "stderr": f"{backend} command was empty",
+        }
+
+    return {
+        "resolved": True,
+        "source": source,
+        "kind": _command_kind(command_path),
+        "path": command_path,
+        "base_command": base_command,
+        "blocked_reason": None,
+        "stderr": "",
+    }
+
+
 def _prompt(request: dict[str, Any], request_path: Path) -> str:
     acceptance = "\n".join(f"- {item}" for item in request.get("acceptance_commands") or [])
     forbidden = "\n".join(f"- {item}" for item in request.get("forbidden_actions") or [])
@@ -99,12 +224,11 @@ def _prompt(request: dict[str, Any], request_path: Path) -> str:
     )
 
 
-def _backend_command(backend: str, prompt: str) -> list[str]:
+def _backend_args(backend: str, prompt: str) -> list[str]:
     if backend == "codex_cli":
-        return ["codex", "exec", "--sandbox", "danger-full-access", prompt]
+        return ["exec", "--sandbox", "danger-full-access", prompt]
     if backend == "claude_cli":
         return [
-            "claude",
             "--print",
             "--permission-mode",
             "bypassPermissions",
@@ -210,11 +334,19 @@ def build_backend_result(
     backend_rc = 0
     backend_stdout = ""
     backend_stderr = ""
-    if execute:
-        backend_rc, backend_stdout, backend_stderr = _run(
-            _backend_command(backend, _prompt(request, build_request_path)),
-            timeout=7200,
+    backend_resolution = _resolve_backend_command(backend)
+    backend_command: list[str] = []
+    blocked_reason = backend_resolution.get("blocked_reason")
+    if backend_resolution["resolved"]:
+        backend_command = _wrap_backend_command(
+            list(backend_resolution["base_command"]),
+            _backend_args(backend, _prompt(request, build_request_path)),
         )
+        if execute:
+            backend_rc, backend_stdout, backend_stderr = _run(backend_command, timeout=7200)
+    else:
+        backend_rc = -1
+        backend_stderr = str(backend_resolution.get("stderr") or blocked_reason or "")
 
     branch = _current_branch()
     changed = _changed_paths(branch)
@@ -231,7 +363,7 @@ def build_backend_result(
     else:
         metadata["changed_files"] = changed
 
-    tests_passed = bool(execute and backend_rc == 0)
+    tests_passed = bool(execute and backend_resolution["resolved"] and backend_rc == 0)
     safe_for_auto_merge = bool(
         pr_created
         and tests_passed
@@ -246,11 +378,15 @@ def build_backend_result(
         "backend": backend,
         "request_id": request.get("request_id"),
         "build_request_path": build_request_path.as_posix(),
-        "build_request_consumed": backend_rc == 0 and pr_created,
-        "build_started": execute,
+        "build_request_consumed": backend_resolution["resolved"] and backend_rc == 0 and pr_created,
+        "build_started": bool(execute and backend_resolution["resolved"]),
+        "backend_command_resolved": backend_resolution["resolved"],
+        "backend_command_source": backend_resolution["source"],
+        "backend_command_kind": backend_resolution["kind"],
+        "backend_command_path": backend_resolution["path"],
         "branch_created": bool(branch and branch == request.get("recommended_branch")),
         "code_changed": bool(changed),
-        "tests_run": bool(execute),
+        "tests_run": bool(execute and backend_resolution["resolved"]),
         "pr_created": pr_created,
         "pr_metadata": metadata,
         "pr_number": metadata.get("number") or metadata.get("pr_number"),
@@ -263,6 +399,7 @@ def build_backend_result(
         "backend_returncode": backend_rc,
         "backend_stdout_tail": backend_stdout[-4000:],
         "backend_stderr_tail": backend_stderr[-4000:],
+        "blocked_reason": blocked_reason,
         "paper_shadow_live_allowed": False,
         "broker_risk_allowed": False,
         "execution_allowed": False,
