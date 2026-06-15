@@ -1,8 +1,8 @@
 """Deterministic QRE routing calibration scaffold.
 
-This module recommends read-only evidence routing targets from existing context.
-It does not mutate queues, candidates, campaigns, strategies, presets, or
-execution state.
+This module recommends read-only routing targets from existing source, data,
+readiness, and diagnostic evidence. It does not mutate queues, candidates,
+campaigns, strategies, presets, or execution state.
 """
 
 from __future__ import annotations
@@ -29,12 +29,60 @@ ROUTING_TARGETS: tuple[str, ...] = (
 )
 
 
+SOURCE_EVIDENCE_MARKERS: tuple[str, ...] = (
+    "source_quality",
+    "source_manifest",
+    "identity_confidence",
+    "source_identity",
+    "provider_symbol",
+    "companyfacts",
+    "openfigi",
+)
+
+DATA_EVIDENCE_MARKERS: tuple[str, ...] = (
+    "cache_ready",
+    "cache_manifest",
+    "coverage",
+    "row_count",
+    "file_count",
+    "duckdb",
+    "parquet",
+    "polars",
+)
+
+READINESS_EVIDENCE_MARKERS: tuple[str, ...] = (
+    "readiness_state",
+    "routing_readiness",
+    "sampling_readiness",
+    "follow_up",
+    "primary_reason_code",
+    "supporting_reason_codes",
+    "ready",
+    "blocked",
+    "fail_closed",
+)
+
+DIAGNOSTIC_EVIDENCE_MARKERS: tuple[str, ...] = (
+    "transition_state",
+    "state_transition",
+    "decision_quality",
+    "risk_state",
+    "density_state",
+    "tail_entropy",
+    "diagnostic",
+    "null_challenge",
+)
+
+
 @dataclass(frozen=True)
 class RoutingCalibration:
     subject_id: str
     routing_targets: tuple[str, ...]
     routing_priority: int
     routing_decision: str
+    evidence_support_state: str
+    evidence_categories: tuple[str, ...]
+    evidence_ref_count: int
     explanation: str
 
 
@@ -42,8 +90,115 @@ def _text(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
+def _stringify(value: Any) -> str:
+    if isinstance(value, Mapping):
+        return " ".join(_stringify(item) for item in value.values())
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return " ".join(_stringify(item) for item in value)
+    return _text(value)
+
+
 def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
     return any(marker in text for marker in markers)
+
+
+def _mapping_truthy(mapping: Mapping[str, Any] | None, keys: tuple[str, ...]) -> bool:
+    if not isinstance(mapping, Mapping):
+        return False
+    return any(bool(mapping.get(key)) for key in keys)
+
+
+def _evidence_categories(record: Mapping[str, Any]) -> tuple[str, ...]:
+    categories: set[str] = set()
+    evidence_presence = record.get("evidence_presence")
+    if isinstance(evidence_presence, Mapping):
+        if _mapping_truthy(
+            evidence_presence,
+            (
+                "source_quality_ready",
+                "source_identity_ready",
+                "manifest_ready",
+                "source_identity_status",
+                "provider_symbol_status",
+                "identity_confidence",
+            ),
+        ):
+            categories.add("source")
+        if _mapping_truthy(
+            evidence_presence,
+            (
+                "cache_ready",
+                "coverage_present",
+                "data_ready",
+                "cache_coverage_ready",
+                "parquet_snapshot_ready",
+                "duckdb_catalog_ready",
+            ),
+        ):
+            categories.add("data")
+        if _mapping_truthy(
+            evidence_presence,
+            (
+                "routing_ready",
+                "sampling_ready",
+                "readiness_ready",
+                "readiness_state_ready",
+                "follow_up_ready",
+            ),
+        ):
+            categories.add("readiness")
+        if _mapping_truthy(
+            evidence_presence,
+            (
+                "diagnostic_ready",
+                "state_transition_ready",
+                "tail_entropy_ready",
+                "transition_state",
+                "risk_state",
+                "density_state",
+            ),
+        ):
+            categories.add("diagnostic")
+
+    combined_text = " ".join(
+        [
+            _stringify(record.get("title")),
+            _stringify(record.get("text_preview")),
+            _stringify(record.get("metadata")),
+            _stringify(record.get("artifact_id")),
+            _stringify(record.get("source")),
+            _stringify(record.get("readiness_state")),
+            _stringify(record.get("blocker_class")),
+            _stringify(record.get("routing_readiness_state")),
+            _stringify(record.get("sampling_readiness_state")),
+            _stringify(record.get("transition_state")),
+            _stringify(record.get("risk_state")),
+            _stringify(record.get("density_state")),
+            _stringify(record.get("quality_status")),
+            _stringify(record.get("manifest_status")),
+            _stringify(record.get("identity_confidence")),
+        ]
+    )
+
+    if _contains_any(combined_text, SOURCE_EVIDENCE_MARKERS):
+        categories.add("source")
+    if _contains_any(combined_text, DATA_EVIDENCE_MARKERS):
+        categories.add("data")
+    if _contains_any(combined_text, READINESS_EVIDENCE_MARKERS):
+        categories.add("readiness")
+    if _contains_any(combined_text, DIAGNOSTIC_EVIDENCE_MARKERS):
+        categories.add("diagnostic")
+
+    return tuple(sorted(categories))
+
+
+def _evidence_ref_count(record: Mapping[str, Any]) -> int:
+    evidence_refs = record.get("evidence_refs")
+    if isinstance(evidence_refs, list):
+        return sum(1 for ref in evidence_refs if str(ref or "").strip())
+    if evidence_refs:
+        return 1
+    return 0
 
 
 def calibrate_routing_context(record: Mapping[str, Any]) -> RoutingCalibration:
@@ -61,7 +216,12 @@ def calibrate_routing_context(record: Mapping[str, Any]) -> RoutingCalibration:
     title = _text(record.get("title"))
     text_preview = _text(record.get("text_preview"))
     artifact_id = _text(record.get("artifact_id"))
-    metadata_text = " ".join([title, text_preview, artifact_id, str(record.get("metadata") or "").lower()])
+    metadata_text = " ".join(
+        [title, text_preview, artifact_id, _stringify(record.get("metadata")), _stringify(record.get("evidence_presence"))]
+    )
+
+    evidence_categories = _evidence_categories(record)
+    evidence_ref_count = _evidence_ref_count(record)
 
     targets: set[str] = set()
     priority = 0
@@ -75,11 +235,31 @@ def calibrate_routing_context(record: Mapping[str, Any]) -> RoutingCalibration:
             routing_targets=("excluded_scope_archive",),
             routing_priority=0,
             routing_decision="route_to_archive_only",
+            evidence_support_state="archive_only",
+            evidence_categories=("archive",),
+            evidence_ref_count=evidence_ref_count,
             explanation="Excluded/legacy context is routed to archive only, not active research calibration.",
         )
 
     targets.add("sampling_calibration")
     priority += 10
+
+    if "source" in evidence_categories:
+        targets.add("source_quality")
+        priority += 20
+
+    if "data" in evidence_categories:
+        targets.add("data_readiness")
+        priority += 20
+
+    if "readiness" in evidence_categories:
+        targets.add("sampling_calibration")
+        priority += 10
+
+    if "diagnostic" in evidence_categories:
+        targets.add("state_transition_diagnostics")
+        targets.add("tail_entropy_hardening")
+        priority += 20
 
     if readiness_state in {"blocked", "not_ready", "fail_closed"} or _contains_any(
         blocker_class, ("missing", "blocked", "unknown")
@@ -90,7 +270,7 @@ def calibrate_routing_context(record: Mapping[str, Any]) -> RoutingCalibration:
 
     if _contains_any(metadata_text, ("source_manifest", "provider", "companyfacts", "openfigi", "source_quality")):
         targets.add("source_quality")
-        priority += 20
+        priority += 15
 
     if _contains_any(metadata_text, ("identity", "symbol", "figi", "isin", "ticker", "ambiguous")):
         targets.add("identity_resolution")
@@ -116,12 +296,22 @@ def calibrate_routing_context(record: Mapping[str, Any]) -> RoutingCalibration:
         targets.add("failure_retrieval")
         priority += 20
 
+    priority += len(evidence_categories) * 8
+    priority += min(evidence_ref_count, 3) * 2
+
     if not targets:
         targets.add("operator_review")
 
-    if priority >= 60:
+    if len(evidence_categories) >= 3:
+        evidence_support_state = "evidence_backed"
+    elif evidence_categories:
+        evidence_support_state = "partial_evidence"
+    else:
+        evidence_support_state = "heuristic_only"
+
+    if priority >= 70:
         decision = "route_high_priority"
-    elif priority >= 25:
+    elif priority >= 35:
         decision = "route_standard"
     else:
         decision = "route_low_priority"
@@ -131,7 +321,13 @@ def calibrate_routing_context(record: Mapping[str, Any]) -> RoutingCalibration:
         routing_targets=tuple(sorted(targets)),
         routing_priority=priority,
         routing_decision=decision,
-        explanation="Deterministic routing calibration context only; no queue or campaign mutation authority.",
+        evidence_support_state=evidence_support_state,
+        evidence_categories=evidence_categories,
+        evidence_ref_count=evidence_ref_count,
+        explanation=(
+            "Deterministic routing calibration context only; no queue or campaign "
+            f"mutation authority. Evidence categories: {', '.join(evidence_categories) or 'none'}."
+        ),
     )
 
 
@@ -143,8 +339,10 @@ def routing_calibration_manifest() -> dict[str, object]:
     return {
         "schema_version": SCHEMA_VERSION,
         "routing_targets": list(ROUTING_TARGETS),
+        "evidence_categories": ["source", "data", "readiness", "diagnostic"],
         "authority": {
             "routing_calibration_is_context_only": True,
+            "evidence_backed_context_only": True,
             "not_queue_mutation": True,
             "not_candidate_promotion": True,
             "not_campaign_mutation": True,
