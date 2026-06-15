@@ -11,9 +11,16 @@ def test_routing_manifest_is_context_only():
     assert manifest["schema_version"] == "1.0"
     assert "sampling_calibration" in manifest["routing_targets"]
     assert "excluded_scope_archive" in manifest["routing_targets"]
+    assert manifest["evidence_categories"] == [
+        "source",
+        "data",
+        "readiness",
+        "diagnostic",
+    ]
 
     authority = manifest["authority"]
     assert authority["routing_calibration_is_context_only"] is True
+    assert authority["evidence_backed_context_only"] is True
     assert authority["not_queue_mutation"] is True
     assert authority["not_candidate_promotion"] is True
     assert authority["not_campaign_mutation"] is True
@@ -42,6 +49,46 @@ def test_crypto_legacy_routes_to_archive_only():
 
     assert result.routing_targets == ("excluded_scope_archive",)
     assert result.routing_decision == "route_to_archive_only"
+    assert result.evidence_support_state == "archive_only"
+
+
+def test_source_data_readiness_and_diagnostic_evidence_raise_priority():
+    result = calibrate_routing_context(
+        {
+            "subject_id": "candidate:evidence",
+            "asset_class": "equity",
+            "research_scope": "target_equity_research",
+            "readiness_state": "blocked",
+            "blocker_class": "missing_required_field",
+            "title": "OpenFIGI source_manifest cache coverage state transition tail entropy",
+            "evidence_presence": {
+                "source_quality_ready": True,
+                "cache_ready": True,
+                "routing_ready": True,
+                "diagnostic_ready": True,
+            },
+            "evidence_refs": [
+                "logs/qre_data_source_quality_readiness/latest.json",
+                "logs/qre_data_cache_manifest/latest.json",
+                "logs/qre_state_transition_diagnostics/latest.json",
+                "logs/qre_tail_entropy_hardening/latest.json",
+            ],
+        }
+    )
+
+    assert result.evidence_support_state == "evidence_backed"
+    assert set(result.evidence_categories) == {
+        "data",
+        "diagnostic",
+        "readiness",
+        "source",
+    }
+    assert result.evidence_ref_count == 4
+    assert "source_quality" in result.routing_targets
+    assert "data_readiness" in result.routing_targets
+    assert "state_transition_diagnostics" in result.routing_targets
+    assert "tail_entropy_hardening" in result.routing_targets
+    assert result.routing_decision in {"route_standard", "route_high_priority"}
 
 
 def test_source_quality_and_identity_route_targets():
