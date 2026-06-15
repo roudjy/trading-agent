@@ -15,7 +15,7 @@ def test_tail_entropy_report_is_ready_and_context_only():
     assert report["schema_version"] == "1.0"
     assert report["report_kind"] == "qre_tail_entropy_hardening_report"
     assert report["summary"]["tail_entropy_hardening_ready"] is True
-    assert report["summary"]["final_recommendation"] == "tail_entropy_hardening_scaffold_ready"
+    assert report["summary"]["final_recommendation"] == "tail_entropy_evidence_density_ready"
 
     safety = report["safety_invariants"]
     assert safety["read_only"] is True
@@ -25,6 +25,7 @@ def test_tail_entropy_report_is_ready_and_context_only():
     assert safety["mutates_candidate_state"] is False
     assert safety["mutates_strategies"] is False
     assert safety["mutates_frozen_contracts"] is False
+    assert safety["evidence_density_context_only"] is True
     assert safety["promotion_forbidden"] is True
     assert safety["paper_shadow_live_forbidden"] is True
     assert safety["broker_risk_execution_forbidden"] is True
@@ -38,6 +39,11 @@ def test_tail_entropy_report_has_diagnostics_and_counts():
     assert len(report["diagnostics"]) == 3
     assert "risk_state_counts" in report["summary"]
     assert "tail_entropy_blocked" in report["summary"]["risk_state_counts"]
+    assert "density_state_counts" in report["summary"]
+    assert report["summary"]["challenged_density_count"] == 3
+    assert report["summary"]["sparse_density_count"] == 1
+    assert all("evidence_density_ratio" in row for row in report["diagnostics"])
+    assert all("density_state" in row for row in report["diagnostics"])
 
 
 def test_tail_entropy_report_accepts_custom_observation_sets():
@@ -47,12 +53,15 @@ def test_tail_entropy_report_accepts_custom_observation_sets():
                 "subject_id": "candidate:custom",
                 "observations": [0.90, 0.01, -0.01, 0.01, -0.01, 0.01],
                 "description": "custom concentrated sample",
+                "evidence_refs": ["logs/custom/latest.json"],
+                "null_challenges": ["custom_null"],
             }
         ]
     )
 
     assert report["summary"]["observation_set_count"] == 1
     assert report["diagnostics"][0]["risk_state"] == "tail_entropy_blocked"
+    assert report["diagnostics"][0]["density_state"] == "thin_density"
 
 
 def test_tail_entropy_operator_summary_renders():
@@ -61,7 +70,7 @@ def test_tail_entropy_operator_summary_renders():
 
     assert "# QRE Tail Entropy Hardening" in text
     assert "final_recommendation" in text
-    assert "tail_entropy_hardening_scaffold_ready" in text
+    assert "tail_entropy_evidence_density_ready" in text
 
 
 def test_tail_entropy_write_outputs_stays_in_allowlist(tmp_path: Path):

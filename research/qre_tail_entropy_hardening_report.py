@@ -35,18 +35,40 @@ def _sample_observation_sets() -> list[dict[str, Any]]:
             "subject_id": "sample:balanced",
             "observations": [0.01, -0.01, 0.02, -0.02, 0.015, -0.015],
             "description": "Balanced positive/negative sample.",
+            "evidence_refs": [
+                "logs/qre_state_transition_diagnostics/latest.json",
+                "logs/qre_null_model_baseline/latest.json",
+            ],
+            "null_challenges": [
+                "sign_entropy_null",
+                "random_walk_null",
+            ],
         },
         {
             "subject_id": "sample:single_trade_concentration",
             "observations": [0.90, 0.01, -0.01, 0.01, -0.01, 0.01],
             "description": "One observation dominates total absolute contribution.",
+            "evidence_refs": ["logs/qre_null_model_baseline/latest.json"],
+            "null_challenges": ["single_trade_concentration_null"],
         },
         {
             "subject_id": "sample:insufficient",
             "observations": [0.01, -0.01],
             "description": "Insufficient observations for trusted tail/entropy assessment.",
+            "evidence_refs": [],
+            "null_challenges": ["insufficient_return_data_null"],
         },
     ]
+
+
+def _density_state(*, evidence_ref_count: int, null_challenge_count: int, observation_count: int) -> str:
+    if observation_count < 5:
+        return "missing_density"
+    if evidence_ref_count == 0 or null_challenge_count == 0:
+        return "partial_density"
+    if evidence_ref_count < 2 or null_challenge_count < 2:
+        return "thin_density"
+    return "density_ready"
 
 
 def build_tail_entropy_hardening_report(
@@ -60,7 +82,21 @@ def build_tail_entropy_hardening_report(
     diagnostics = []
     for row in rows:
         observations = row.get("observations") if isinstance(row, Mapping) else []
+        evidence_refs = row.get("evidence_refs") if isinstance(row, Mapping) else []
+        null_challenges = row.get("null_challenges") if isinstance(row, Mapping) else []
         diagnostic = diagnose_tail_entropy(observations if isinstance(observations, list) else [])
+        evidence_ref_count = len(evidence_refs) if isinstance(evidence_refs, list) else 0
+        null_challenge_count = len(null_challenges) if isinstance(null_challenges, list) else 0
+        evidence_density_ratio = (
+            round(evidence_ref_count / diagnostic.observation_count, 6)
+            if diagnostic.observation_count
+            else 0.0
+        )
+        density_state = _density_state(
+            evidence_ref_count=evidence_ref_count,
+            null_challenge_count=null_challenge_count,
+            observation_count=diagnostic.observation_count,
+        )
         diagnostics.append(
             {
                 "subject_id": str(row.get("subject_id") or "unknown"),
@@ -73,12 +109,19 @@ def build_tail_entropy_hardening_report(
                 "largest_abs_contribution_share": diagnostic.largest_abs_contribution_share,
                 "negative_contribution_share": diagnostic.negative_contribution_share,
                 "sign_entropy_bits": diagnostic.sign_entropy_bits,
+                "evidence_ref_count": evidence_ref_count,
+                "null_challenge_count": null_challenge_count,
+                "evidence_density_ratio": evidence_density_ratio,
+                "density_state": density_state,
                 "risk_state": diagnostic.risk_state,
                 "explanation": diagnostic.explanation,
             }
         )
 
     risk_state_counts = Counter(item["risk_state"] for item in diagnostics)
+    density_state_counts = Counter(item["density_state"] for item in diagnostics)
+    sparse_density_count = sum(1 for item in diagnostics if item["density_state"] == "missing_density")
+    challenged_density_count = sum(1 for item in diagnostics if item["null_challenge_count"] > 0)
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -88,10 +131,14 @@ def build_tail_entropy_hardening_report(
             "observation_set_count": len(rows),
             "diagnostic_count": len(diagnostics),
             "risk_state_counts": dict(sorted(risk_state_counts.items())),
-            "final_recommendation": "tail_entropy_hardening_scaffold_ready",
+            "density_state_counts": dict(sorted(density_state_counts.items())),
+            "sparse_density_count": sparse_density_count,
+            "challenged_density_count": challenged_density_count,
+            "final_recommendation": "tail_entropy_evidence_density_ready",
             "operator_summary": (
-                "Tail/entropy hardening diagnostics are available as deterministic, "
-                "read-only context. They identify fragility but do not mutate candidates."
+                "Tail/entropy hardening diagnostics are available as deterministic, read-only "
+                "context with evidence-density and null-challenge annotations. They identify "
+                "fragility but do not mutate candidates."
             ),
         },
         "manifest": manifest,
@@ -108,6 +155,7 @@ def build_tail_entropy_hardening_report(
             "mutates_candidate_state": False,
             "mutates_strategies": False,
             "mutates_frozen_contracts": False,
+            "evidence_density_context_only": True,
             "promotion_forbidden": True,
             "paper_shadow_live_forbidden": True,
             "broker_risk_execution_forbidden": True,
@@ -128,6 +176,8 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
             f"- tail_entropy_hardening_ready: {summary.get('tail_entropy_hardening_ready')}",
             f"- observation_set_count: {summary.get('observation_set_count')}",
             f"- diagnostic_count: {summary.get('diagnostic_count')}",
+            f"- sparse_density_count: {summary.get('sparse_density_count')}",
+            f"- challenged_density_count: {summary.get('challenged_density_count')}",
             f"- final_recommendation: {summary.get('final_recommendation')}",
             "",
         ]
