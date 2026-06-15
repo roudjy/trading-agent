@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Final
 
 from research import qre_real_basket_evidence_coverage as evidence_coverage
+from research import qre_failure_action_from_basket as failure_action
+from research import qre_reason_records_v1 as reason_records
 
 
 REPORT_KIND: Final[str] = "qre_evidence_complete_basket_closure"
@@ -30,6 +32,36 @@ CHECKLIST_ORDER: Final[tuple[tuple[str, str], ...]] = (
 )
 
 
+def _index_by_candidate(rows: Sequence[Mapping[str, Any]], *, key: str = "candidate_id") -> dict[str, dict[str, Any]]:
+    indexed: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        subject_id = str(row.get(key) or "")
+        if subject_id and subject_id not in indexed:
+            indexed[subject_id] = dict(row)
+    return indexed
+
+
+def _index_reason_records(records: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+    indexed: dict[str, dict[str, Any]] = {}
+    for record in records:
+        subject_id = str(record.get("subject_id") or "")
+        if not subject_id:
+            continue
+        bucket = indexed.setdefault(
+            subject_id,
+            {"record_ids": [], "record_families": [], "reason_codes": [], "evidence_refs": []},
+        )
+        for field in ("record_ids", "record_families", "reason_codes", "evidence_refs"):
+            values = record.get(field)
+            if not isinstance(values, Sequence) or isinstance(values, str | bytes):
+                continue
+            for value in values:
+                text = str(value or "").strip()
+                if text and text not in bucket[field]:
+                    bucket[field].append(text)
+    return indexed
+
+
 def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     head = "| " + " | ".join(headers) + " |"
     divider = "| " + " | ".join(["---"] * len(headers)) + " |"
@@ -42,6 +74,15 @@ def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(flags, Mapping):
         flags = {}
     missing_taxonomy = list(row.get("missing_evidence_taxonomy") or [])
+    reason_record_refs = row.get("reason_record_refs")
+    if not isinstance(reason_record_refs, Mapping):
+        reason_record_refs = {}
+    reason_record_ids = list(reason_record_refs.get("record_ids") or [])
+    reason_record_count = len(reason_record_ids)
+    reason_record_present = reason_record_count > 0
+    failure_action = row.get("failure_action")
+    if not isinstance(failure_action, Mapping):
+        failure_action = {}
     checklist = [
         {
             "check_id": check_id,
@@ -49,43 +90,27 @@ def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
         }
         for check_id, flag_key in CHECKLIST_ORDER
     ]
+    closure_criteria = {
+        "evidence_complete": str(row.get("evidence_completeness_status") or "") == "complete",
+        "no_missing_evidence_taxonomy": not missing_taxonomy,
+        "reason_records_present": reason_record_present,
+        "failure_action_present": bool(failure_action),
+    }
     unknown_like = [value for value in missing_taxonomy if "unknown" in str(value)]
-    if str(row.get("evidence_completeness_status") or "") == "complete" and not missing_taxonomy:
+    if all(closure_criteria.values()):
         closure_status = "evidence_complete"
         exact_next_action = "keep_fail_closed"
         operator_explanation = (
-            f"{row.get('symbol')} has a closed evidence-complete checklist for the current non-execution phase."
+            f"{row.get('symbol')} has a closed evidence-complete checklist with durable reason records "
+            f"for the current non-execution phase."
         )
     else:
         closure_status = "blocked_not_evidence_complete"
-        if "source_identity_blocked" in missing_taxonomy:
-            exact_next_action = "require_identity_resolution"
-        elif any(
-            blocker in missing_taxonomy
-            for blocker in (
-                "source_quality_rows_missing",
-                "source_quality_not_ready",
-                "cache_coverage_missing",
-                "cache_coverage_not_ready",
-            )
-        ):
-            exact_next_action = "restore_or_harden_source_cache_sidecars"
-        elif any(
-            blocker in missing_taxonomy
-            for blocker in ("screening_evidence_missing", "oos_evidence_missing", "oos_evidence_unknown")
-        ):
-            exact_next_action = "restore_or_run_grid_artifacts"
-        elif any(
-            blocker in missing_taxonomy
-            for blocker in ("campaign_lineage_missing", "candidate_lineage_missing")
-        ):
-            exact_next_action = "close_lineage_gaps"
-        else:
-            exact_next_action = "keep_fail_closed"
+        exact_next_action = str(failure_action.get("recommended_action") or "keep_fail_closed")
         operator_explanation = (
             f"{row.get('symbol')} is not evidence-complete because the exact blockers are: "
             + ", ".join(missing_taxonomy or ["none_recorded_fail_closed"])
-            + "."
+            + f"; reason_records={reason_record_count}; failure_action={exact_next_action}."
         )
     return {
         "candidate_id": row.get("candidate_id"),
@@ -96,9 +121,15 @@ def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
         "evidence_completeness_status": row.get("evidence_completeness_status"),
         "closure_status": closure_status,
         "checklist": checklist,
+        "closure_criteria": closure_criteria,
         "exact_blockers": missing_taxonomy,
         "unknown_blockers": unknown_like,
         "unknown_blocker_count": len(unknown_like),
+        "reason_record_count": reason_record_count,
+        "reason_record_ids": reason_record_ids,
+        "reason_record_families": list(reason_record_refs.get("record_families") or []),
+        "reason_record_evidence_refs": list(reason_record_refs.get("evidence_refs") or []),
+        "failure_action": dict(failure_action),
         "follow_up": row.get("follow_up"),
         "exact_next_action": exact_next_action,
         "operator_explanation": operator_explanation,
@@ -114,10 +145,34 @@ def build_evidence_complete_basket_closure(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    reason_snapshot = reason_records.build_reason_records_snapshot(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
+    failure_report = failure_action.build_failure_action_from_basket(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
     rows = coverage.get("rows")
     if not isinstance(rows, list):
         rows = []
-    closure_rows = [_row_closure(row) for row in rows if isinstance(row, Mapping)]
+    reason_rows = reason_snapshot.get("records")
+    if not isinstance(reason_rows, list):
+        reason_rows = []
+    failure_rows = failure_report.get("rows")
+    if not isinstance(failure_rows, list):
+        failure_rows = []
+    reason_index = _index_reason_records([row for row in reason_rows if isinstance(row, Mapping)])
+    failure_index = _index_by_candidate([row for row in failure_rows if isinstance(row, Mapping)])
+    closure_rows = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        subject_id = str(row.get("candidate_id") or "")
+        enriched_row = dict(row)
+        enriched_row["reason_record_refs"] = dict(reason_index.get(subject_id) or {})
+        enriched_row["failure_action"] = dict(failure_index.get(subject_id) or {})
+        closure_rows.append(_row_closure(enriched_row))
     closure_rows.sort(
         key=lambda row: (
             str(row["closure_status"]) != "evidence_complete",
@@ -131,6 +186,16 @@ def build_evidence_complete_basket_closure(
     )
     unknown_blocker_count = sum(int(row["unknown_blocker_count"]) for row in closure_rows)
     complete_count = sum(1 for row in closure_rows if row["closure_status"] == "evidence_complete")
+    reason_record_subject_count = len(reason_index)
+    reason_record_coverage_ratio = (
+        round(reason_record_subject_count / len(closure_rows), 3) if closure_rows else 0.0
+    )
+    actionable_failure_action_count = sum(
+        1 for row in failure_rows if bool((row.get("actionability") or {}).get("is_actionable"))
+    )
+    complete_input_rows = [
+        row for row in closure_rows if str(row.get("evidence_completeness_status") or "") == "complete"
+    ]
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -138,9 +203,19 @@ def build_evidence_complete_basket_closure(
             "basket_count": len(closure_rows),
             "evidence_complete_count": complete_count,
             "not_evidence_complete_count": len(closure_rows) - complete_count,
+            "reason_record_subject_count": reason_record_subject_count,
+            "reason_record_coverage_ratio": reason_record_coverage_ratio,
+            "failure_actionable_count": actionable_failure_action_count,
             "closure_status_counts": dict(sorted(closure_counts.items())),
             "exact_blocker_counts": dict(sorted(blocker_counts.items())),
             "unknown_blocker_count": unknown_blocker_count,
+            "all_complete_baskets_have_reason_records": all(
+                row["closure_status"] != "evidence_complete" or row["reason_record_count"] > 0
+                for row in closure_rows
+            ),
+            "all_input_complete_rows_have_reason_records": all(
+                row["reason_record_count"] > 0 for row in complete_input_rows
+            ),
             "all_non_complete_baskets_have_exact_blockers": all(
                 row["closure_status"] == "evidence_complete" or len(row["exact_blockers"]) > 0
                 for row in closure_rows
@@ -150,13 +225,19 @@ def build_evidence_complete_basket_closure(
                 for row in closure_rows
             ),
             "final_recommendation": (
-                "at_least_one_basket_evidence_complete"
+                "evidence_complete_reason_records_ready"
                 if complete_count > 0
-                else "no_basket_evidence_complete_exact_blockers_enumerated"
+                and reason_record_subject_count > 0
+                and all(
+                    row["closure_status"] != "evidence_complete" or row["reason_record_count"] > 0
+                    for row in closure_rows
+                )
+                else "no_basket_evidence_complete_reason_records_preserved"
             ),
             "operator_summary": (
                 "Evidence-complete basket closure proves either that a basket is complete for the current "
-                "non-execution phase or that every incomplete basket has an explicit blocker set with no hidden unlock."
+                "non-execution phase with durable reason records or that every incomplete basket has an "
+                "explicit blocker set with preserved negative results and bounded failure-action mapping."
             ),
         },
         "rows": closure_rows,
@@ -186,10 +267,21 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                 [
                     ["basket_count", str(summary.get("basket_count") or 0)],
                     ["evidence_complete_count", str(summary.get("evidence_complete_count") or 0)],
+                    ["reason_record_subject_count", str(summary.get("reason_record_subject_count") or 0)],
+                    ["reason_record_coverage_ratio", str(summary.get("reason_record_coverage_ratio") or 0.0)],
+                    ["failure_actionable_count", str(summary.get("failure_actionable_count") or 0)],
                     ["unknown_blocker_count", str(summary.get("unknown_blocker_count") or 0)],
                     [
                         "all_non_complete_baskets_have_exact_blockers",
                         str(summary.get("all_non_complete_baskets_have_exact_blockers") or False),
+                    ],
+                    [
+                        "all_complete_baskets_have_reason_records",
+                        str(summary.get("all_complete_baskets_have_reason_records") or False),
+                    ],
+                    [
+                        "all_input_complete_rows_have_reason_records",
+                        str(summary.get("all_input_complete_rows_have_reason_records") or False),
                     ],
                     [
                         "all_non_complete_baskets_have_no_unknown_blockers",
