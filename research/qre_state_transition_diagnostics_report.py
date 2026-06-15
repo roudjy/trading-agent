@@ -59,18 +59,112 @@ def _sample_transition_rows() -> list[dict[str, Any]]:
     ]
 
 
+def _sample_sequence_rows() -> list[dict[str, Any]]:
+    return [
+        {"subject_id": "sample:candidate:progress", "step_index": 1, "state": "candidate_discovered"},
+        {"subject_id": "sample:candidate:progress", "step_index": 2, "state": "screened"},
+        {"subject_id": "sample:candidate:progress", "step_index": 3, "state": "validation_candidate"},
+        {"subject_id": "sample:candidate:progress", "step_index": 4, "state": "validated"},
+        {"subject_id": "sample:candidate:blocked", "step_index": 1, "state": "candidate_discovered"},
+        {"subject_id": "sample:candidate:blocked", "step_index": 2, "state": "blocked"},
+        {"subject_id": "sample:candidate:blocked", "step_index": 3, "state": "fail_closed"},
+    ]
+
+
+def _diagnose_sequence_rows(rows: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[Mapping[str, Any]]] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        subject_id = str(row.get("subject_id") or "unknown")
+        grouped.setdefault(subject_id, []).append(row)
+
+    diagnostics: list[dict[str, Any]] = []
+    for subject_id, subject_rows in sorted(grouped.items()):
+        ordered = sorted(subject_rows, key=lambda row: int(row.get("step_index") or 0))
+        states = [str(row.get("state") or "unknown") for row in ordered]
+        if not states:
+            diagnostics.append(
+                {
+                    "subject_id": subject_id,
+                    "sequence_length": 0,
+                    "state_sequence": [],
+                    "dwell_state": "unknown",
+                    "dwell_steps": 0,
+                    "regime_duration_steps": 0,
+                    "sparse_data": True,
+                    "sequence_state": "blocked",
+                    "explanation": "Sequence rows are missing; state duration diagnostics fail closed.",
+                }
+            )
+            continue
+
+        dwell_state = states[-1]
+        dwell_steps = 1
+        for state in reversed(states[:-1]):
+            if state != dwell_state:
+                break
+            dwell_steps += 1
+
+        longest_run_state = states[0]
+        longest_run_steps = 1
+        run_state = states[0]
+        run_steps = 1
+        for state in states[1:]:
+            if state == run_state:
+                run_steps += 1
+            else:
+                if run_steps > longest_run_steps:
+                    longest_run_state = run_state
+                    longest_run_steps = run_steps
+                run_state = state
+                run_steps = 1
+        if run_steps > longest_run_steps:
+            longest_run_state = run_state
+            longest_run_steps = run_steps
+
+        sparse_data = len(states) < 2
+        diagnostics.append(
+            {
+                "subject_id": subject_id,
+                "sequence_length": len(states),
+                "state_sequence": states,
+                "dwell_state": dwell_state,
+                "dwell_steps": dwell_steps,
+                "regime_duration_steps": len(states),
+                "longest_run_state": longest_run_state,
+                "longest_run_steps": longest_run_steps,
+                "sparse_data": sparse_data,
+                "sequence_state": "blocked" if sparse_data else "ready",
+                "explanation": (
+                    "Sequence is sparse and fails closed."
+                    if sparse_data
+                    else "State sequence and dwell duration are deterministic diagnostic context only."
+                ),
+            }
+        )
+
+    return diagnostics
+
+
 def build_state_transition_diagnostics_report(
     *,
     repo_root: Path = Path("."),
     transition_rows: list[Mapping[str, Any]] | None = None,
+    sequence_rows: list[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     manifest = transition_diagnostic_manifest()
     rows = list(transition_rows) if transition_rows is not None else _sample_transition_rows()
+    sequence_input = list(sequence_rows) if sequence_rows is not None else _sample_sequence_rows()
     diagnostics = diagnose_transition_rows(rows)
+    sequence_diagnostics = _diagnose_sequence_rows(sequence_input)
 
     transition_state_counts = Counter(item.transition_state for item in diagnostics)
     new_state_counts = Counter(item.new_state for item in diagnostics)
     reason_counts = Counter(item.transition_reason for item in diagnostics)
+    sequence_state_counts = Counter(item["sequence_state"] for item in sequence_diagnostics)
+    sparse_sequence_count = sum(1 for item in sequence_diagnostics if item["sparse_data"])
+    longest_regime_duration = max((int(item["regime_duration_steps"]) for item in sequence_diagnostics), default=0)
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -78,18 +172,24 @@ def build_state_transition_diagnostics_report(
         "summary": {
             "state_transition_diagnostics_ready": True,
             "transition_row_count": len(rows),
+            "sequence_row_count": len(sequence_input),
             "diagnostic_count": len(diagnostics),
+            "sequence_diagnostic_count": len(sequence_diagnostics),
             "transition_state_counts": dict(sorted(transition_state_counts.items())),
             "new_state_counts": dict(sorted(new_state_counts.items())),
             "transition_reason_counts": dict(sorted(reason_counts.items())),
-            "final_recommendation": "state_transition_diagnostics_scaffold_ready",
+            "sequence_state_counts": dict(sorted(sequence_state_counts.items())),
+            "sparse_sequence_count": sparse_sequence_count,
+            "longest_regime_duration_steps": longest_regime_duration,
+            "final_recommendation": "state_transition_sequence_duration_ready",
             "operator_summary": (
-                "State-transition diagnostics are available as deterministic, read-only "
-                "context. They explain transitions but do not mutate candidate state."
+                "State-transition, sequence, and dwell-duration diagnostics are available as "
+                "deterministic, read-only context. They explain progression but do not mutate candidate state."
             ),
         },
         "manifest": manifest,
         "transition_rows": rows,
+        "sequence_rows": sequence_input,
         "diagnostics": [
             {
                 "subject_id": item.subject_id,
@@ -104,6 +204,7 @@ def build_state_transition_diagnostics_report(
             }
             for item in diagnostics
         ],
+        "sequence_diagnostics": sequence_diagnostics,
         "safety_invariants": {
             "read_only": True,
             "uses_network": False,
@@ -115,6 +216,7 @@ def build_state_transition_diagnostics_report(
             "mutates_candidate_state": False,
             "mutates_strategies": False,
             "mutates_frozen_contracts": False,
+            "sparse_data_fails_closed": True,
             "promotion_forbidden": True,
             "paper_shadow_live_forbidden": True,
             "broker_risk_execution_forbidden": True,
@@ -134,7 +236,9 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
             "",
             f"- state_transition_diagnostics_ready: {summary.get('state_transition_diagnostics_ready')}",
             f"- transition_row_count: {summary.get('transition_row_count')}",
+            f"- sequence_row_count: {summary.get('sequence_row_count')}",
             f"- diagnostic_count: {summary.get('diagnostic_count')}",
+            f"- sequence_diagnostic_count: {summary.get('sequence_diagnostic_count')}",
             f"- final_recommendation: {summary.get('final_recommendation')}",
             "",
         ]
