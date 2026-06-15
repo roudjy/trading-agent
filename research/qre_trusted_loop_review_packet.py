@@ -17,6 +17,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final
 
+from reporting import qre_trusted_loop_readiness as trusted_readiness
+from research import qre_evidence_complete_basket_closure as basket_closure
+from research import qre_failure_action_from_basket as failure_action
+from research import qre_reason_records_v1 as reason_records
+from research import qre_research_memory_current_artifacts as research_memory
+from research import qre_routing_calibration_report as routing_calibration
+from research import qre_sampling_calibration_report as sampling_calibration
+
 
 REPORT_KIND: Final[str] = "qre_trusted_loop_review_packet"
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -115,32 +123,159 @@ def _path_state(repo_root: Path, relative_path: str) -> dict[str, Any]:
     }
 
 
+def _truthy(summary: Mapping[str, Any], key: str) -> bool:
+    return bool(summary.get(key))
+
+
+def _trusted_loop_level(
+    *,
+    readiness_state: str,
+    readiness_summary: Mapping[str, Any],
+    reason_summary: Mapping[str, Any],
+    failure_summary: Mapping[str, Any],
+    basket_summary: Mapping[str, Any],
+    routing_summary: Mapping[str, Any],
+    sampling_summary: Mapping[str, Any],
+    memory_summary: Mapping[str, Any],
+) -> tuple[str, str, list[str], str]:
+    blockers: list[str] = []
+    if readiness_state != "operator_trusted":
+        blockers.append(f"readiness_state:{readiness_state}")
+    if int(reason_summary.get("record_count") or 0) == 0:
+        blockers.append("reason_records_missing")
+    if int(basket_summary.get("evidence_complete_count") or 0) == 0:
+        blockers.append("evidence_complete_basket_missing")
+    if int(failure_summary.get("actionable_count") or 0) == 0:
+        blockers.append("failure_actionable_context_missing")
+    if str(routing_summary.get("final_recommendation") or "") != "routing_calibration_evidence_ready":
+        blockers.append("routing_calibration_not_evidence_ready")
+    if str(sampling_summary.get("final_recommendation") or "") != "sampling_calibration_evidence_ready":
+        blockers.append("sampling_calibration_not_evidence_ready")
+    if str(memory_summary.get("summary", {}).get("final_recommendation") or "") != "research_memory_current_artifacts_ready":
+        blockers.append("research_memory_not_ready")
+    if not _truthy(readiness_summary, "operator_report_available"):
+        blockers.append("operator_report_missing")
+    if str(readiness_summary.get("contradiction_visibility", {}).get("status") or "") != "visible":
+        blockers.append("contradiction_visibility_incomplete")
+    if str(readiness_summary.get("source_lineage", {}).get("status") or "") != "complete":
+        blockers.append("source_lineage_incomplete")
+    if str(readiness_summary.get("repeatability_status") or "") != "operator_approved_repeatability_evidence_present":
+        blockers.append("repeatability_or_operator_approval_missing")
+
+    if blockers:
+        if readiness_state == "operator_trusted_candidate":
+            level = "2"
+            verdict = "evidence_backed_operator_review_required"
+            exact_next_action = "refresh_missing_trusted_loop_evidence"
+        elif readiness_state == "working_capability":
+            level = "1"
+            verdict = "read_only_context_fail_closed"
+            exact_next_action = "restore_trusted_loop_readiness_evidence"
+        elif readiness_state == "scaffold":
+            level = "1"
+            verdict = "scaffold_fail_closed"
+            exact_next_action = "materialize_trusted_loop_evidence_chain"
+        else:
+            level = "2"
+            verdict = "operator_trust_review_required"
+            exact_next_action = "refresh_trusted_loop_evidence"
+        return level, verdict, blockers, exact_next_action
+
+    return "3", "operator_trusted", [], "maintain_operator_trusted_read_only_mode"
+
+
 def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str, Any]:
+    readiness_packet = trusted_readiness.collect_snapshot()
+    reason_snapshot = reason_records.build_reason_records_snapshot(repo_root=repo_root)
+    failure_packet = failure_action.build_failure_action_from_basket(repo_root=repo_root)
+    closure_packet = basket_closure.build_evidence_complete_basket_closure(repo_root=repo_root)
+    routing_packet = routing_calibration.build_routing_calibration_report(repo_root=repo_root)
+    sampling_packet = sampling_calibration.build_sampling_calibration_report(repo_root=repo_root)
+    memory_packet = research_memory.build_research_memory_current_artifacts(repo_root=repo_root)
+
     protected_artifacts = [
         _path_state(repo_root, "research/research_latest.json"),
         _path_state(repo_root, "research/strategy_matrix.csv"),
     ]
 
     implemented_count = sum(1 for row in CAPABILITY_ROWS if str(row.get("status", "")).startswith("implemented"))
+    readiness_summary = readiness_packet if isinstance(readiness_packet, Mapping) else {}
+    reason_summary = reason_snapshot.get("meta") if isinstance(reason_snapshot.get("meta"), Mapping) else {}
+    failure_summary = failure_packet.get("summary") if isinstance(failure_packet.get("summary"), Mapping) else {}
+    basket_summary = closure_packet.get("summary") if isinstance(closure_packet.get("summary"), Mapping) else {}
+    routing_summary = routing_packet.get("summary") if isinstance(routing_packet.get("summary"), Mapping) else {}
+    sampling_summary = sampling_packet.get("summary") if isinstance(sampling_packet.get("summary"), Mapping) else {}
+    memory_summary = memory_packet if isinstance(memory_packet, Mapping) else {}
+    trust_level, trust_verdict, trust_blockers, exact_next_action = _trusted_loop_level(
+        readiness_state=str(readiness_summary.get("readiness_state") or "scaffold"),
+        readiness_summary=readiness_summary,
+        reason_summary=reason_summary,
+        failure_summary=failure_summary,
+        basket_summary=basket_summary,
+        routing_summary=routing_summary,
+        sampling_summary=sampling_summary,
+        memory_summary=memory_summary,
+    )
 
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
         "summary": {
-            "trusted_loop_review_ready": True,
+            "trusted_loop_review_ready": trust_verdict == "operator_trusted",
+            "trust_level": trust_level,
+            "trust_verdict": trust_verdict,
+            "trust_blocker_count": len(trust_blockers),
+            "trust_blockers": trust_blockers,
+            "exact_next_action": exact_next_action,
+            "readiness_state": str(readiness_summary.get("readiness_state") or "scaffold"),
+            "reason_record_count": int(reason_summary.get("record_count") or 0),
+            "failure_actionable_count": int(failure_summary.get("actionable_count") or 0),
+            "evidence_complete_basket_count": int(basket_summary.get("evidence_complete_count") or 0),
+            "routing_evidence_ready": str(routing_summary.get("final_recommendation") or "")
+            == "routing_calibration_evidence_ready",
+            "sampling_evidence_ready": str(sampling_summary.get("final_recommendation") or "")
+            == "sampling_calibration_evidence_ready",
+            "research_memory_ready": str(
+                (memory_summary.get("summary") or {}).get("final_recommendation") or ""
+            )
+            == "research_memory_current_artifacts_ready",
+            "contradiction_visibility": (
+                readiness_summary.get("contradiction_visibility")
+                if isinstance(readiness_summary.get("contradiction_visibility"), Mapping)
+                else {}
+            ),
+            "source_lineage": (
+                readiness_summary.get("source_lineage")
+                if isinstance(readiness_summary.get("source_lineage"), Mapping)
+                else {}
+            ),
+            "repeatability_status": str(readiness_summary.get("repeatability_status") or "unknown"),
             "capability_count": len(CAPABILITY_ROWS),
             "implemented_capability_count": implemented_count,
             "report_surface_count": len(REPORT_SURFACES),
-            "final_recommendation": "trusted_loop_ready_for_operator_review_not_execution",
+            "final_recommendation": (
+                "trusted_loop_operator_trusted"
+                if trust_verdict == "operator_trusted"
+                else "trusted_loop_operator_review_required"
+            ),
             "operator_summary": (
-                "Roadmap A-E trusted-loop scaffolds and report surfaces are present as "
-                "deterministic, read-only/context-only diagnostics. The system is ready "
-                "for operator review of research-loop evidence, not for paper/shadow/live "
-                "or broker/risk/execution activation."
+                "Roadmap A-F trusted-loop scaffolds and report surfaces are present as "
+                "deterministic, read-only/context-only diagnostics. The packet now requires "
+                "durable reason records, closure evidence, calibrated routing/sampling, and "
+                "trusted-loop readiness before it will report operator trust."
             ),
         },
         "capabilities": list(CAPABILITY_ROWS),
         "report_surfaces": list(REPORT_SURFACES),
+        "evidence_inputs": {
+            "trusted_loop_readiness": readiness_packet,
+            "reason_records": reason_snapshot,
+            "failure_action": failure_packet,
+            "basket_closure": closure_packet,
+            "routing_calibration": routing_packet,
+            "sampling_calibration": sampling_packet,
+            "research_memory": memory_packet,
+        },
         "protected_artifacts": protected_artifacts,
         "current_scope_policy": {
             "crypto_legacy": "excluded_from_current_research_scope_and_archive_only",
@@ -209,15 +344,30 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
 
 def render_operator_summary(packet: Mapping[str, Any]) -> str:
     summary = packet.get("summary") if isinstance(packet.get("summary"), Mapping) else {}
+    trust_blockers = summary.get("trust_blockers") if isinstance(summary.get("trust_blockers"), list) else []
     return "\n".join(
         [
             "# QRE Trusted Loop Review Packet",
             "",
             f"- {summary.get('operator_summary') or ''}",
             "",
+            "## Trust Verdict",
+            "",
+            f"- trust_level: {summary.get('trust_level')}",
+            f"- trust_verdict: {summary.get('trust_verdict')}",
+            f"- exact_next_action: {summary.get('exact_next_action')}",
+            f"- trusted_loop_review_ready: {summary.get('trusted_loop_review_ready')}",
+            f"- readiness_state: {summary.get('readiness_state')}",
+            f"- reason_record_count: {summary.get('reason_record_count')}",
+            f"- failure_actionable_count: {summary.get('failure_actionable_count')}",
+            f"- evidence_complete_basket_count: {summary.get('evidence_complete_basket_count')}",
+            f"- routing_evidence_ready: {summary.get('routing_evidence_ready')}",
+            f"- sampling_evidence_ready: {summary.get('sampling_evidence_ready')}",
+            f"- research_memory_ready: {summary.get('research_memory_ready')}",
+            f"- trust_blockers: {', '.join(str(item) for item in trust_blockers) or 'none'}",
+            "",
             "## Current Status",
             "",
-            f"- trusted_loop_review_ready: {summary.get('trusted_loop_review_ready')}",
             f"- capability_count: {summary.get('capability_count')}",
             f"- implemented_capability_count: {summary.get('implemented_capability_count')}",
             f"- report_surface_count: {summary.get('report_surface_count')}",
