@@ -12,9 +12,18 @@ def test_sampling_manifest_is_context_only():
     assert "prefer_sampling" in manifest["sampling_decisions"]
     assert "crypto_legacy" in manifest["excluded_asset_classes"]
     assert "target_equity_research" in manifest["preferred_research_scopes"]
+    assert manifest["evidence_categories"] == [
+        "source",
+        "data",
+        "readiness",
+        "diagnostic",
+        "null",
+        "regime",
+    ]
 
     authority = manifest["authority"]
     assert authority["sampling_calibration_is_context_only"] is True
+    assert authority["evidence_backed_context_only"] is True
     assert authority["not_candidate_promotion"] is True
     assert authority["not_campaign_mutation"] is True
     assert authority["not_strategy_registration"] is True
@@ -41,6 +50,51 @@ def test_crypto_legacy_is_excluded():
     assert result.sampling_decision == "exclude_sampling"
     assert result.sampling_score == -100
     assert "asset_class:crypto_legacy" in result.penalty_axes
+    assert result.evidence_support_state == "archive_only"
+
+
+def test_source_data_null_and_regime_evidence_raise_priority():
+    result = calibrate_sampling_context(
+        {
+            "subject_id": "candidate:evidence",
+            "asset_class": "fundamental_equity",
+            "research_scope": "target_equity_research",
+            "readiness_state": "ready",
+            "comparison_state": "candidate_above_baseline",
+            "title": "OpenFIGI source_manifest cache coverage null_model regime sequence tail entropy",
+            "evidence_presence": {
+                "source_quality_ready": True,
+                "cache_ready": True,
+                "readiness_ready": True,
+                "diagnostic_ready": True,
+                "null_model_ready": True,
+                "regime_ready": True,
+            },
+            "evidence_refs": [
+                "logs/qre_data_source_quality_readiness/latest.json",
+                "logs/qre_data_cache_manifest/latest.json",
+                "logs/qre_null_model_baseline/latest.json",
+                "logs/qre_state_transition_diagnostics/latest.json",
+                "logs/qre_tail_entropy_hardening/latest.json",
+            ],
+        }
+    )
+
+    assert result.evidence_support_state == "evidence_backed"
+    assert set(result.evidence_categories) == {
+        "data",
+        "diagnostic",
+        "null",
+        "readiness",
+        "regime",
+        "source",
+    }
+    assert result.evidence_ref_count == 5
+    assert "evidence:source_ready" in result.preferred_axes
+    assert "evidence:data_ready" in result.preferred_axes
+    assert "evidence:null_model_ready" in result.preferred_axes
+    assert "evidence:regime_ready" in result.preferred_axes
+    assert result.sampling_decision in {"prefer_sampling", "allow_sampling"}
 
 
 def test_excluded_research_scope_is_excluded():
