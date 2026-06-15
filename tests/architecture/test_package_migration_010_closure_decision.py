@@ -46,6 +46,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "historical_accounting.py",
         "source_lifecycle.py",
         "source_quality_readiness.py",
+        "symbology_resolver.py",
     ],
     "qre_artifacts": ["README.md", "__init__.py", "public_outputs.py"],
     "qre_diagnostics": [
