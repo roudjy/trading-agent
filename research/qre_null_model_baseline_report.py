@@ -8,6 +8,7 @@ fetch data, or authorize paper/shadow/live execution.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from collections.abc import Mapping
@@ -29,6 +30,38 @@ OPERATOR_SUMMARY_NAME: Final[str] = "operator_summary.md"
 WRITE_PREFIX: Final[str] = "logs/qre_null_model_baseline/"
 
 
+def _stable_hash_int(value: str) -> int:
+    return int(hashlib.sha256(value.encode("utf-8")).hexdigest()[:8], 16)
+
+
+def _deterministic_random_walk(rows: list[dict[str, Any]], *, start: float) -> list[float]:
+    value = start
+    series: list[float] = []
+    for index, row in enumerate(rows, start=1):
+        direction = 1 if _stable_hash_int(str(row.get("candidate_id") or row.get("score") or index)) % 2 == 0 else -1
+        step = 0.005 * index
+        value += direction * step
+        series.append(value)
+    return series
+
+
+def _deterministic_shuffle(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(rows, key=lambda row: (_stable_hash_int(str(row.get("candidate_id") or "")), str(row.get("candidate_id") or "")))
+
+
+def _martingale_like_series(rows: list[dict[str, Any]], *, seed: float) -> list[float]:
+    series: list[float] = []
+    running = seed
+    for index, row in enumerate(rows, start=1):
+        if index == 1:
+            running = float(row.get("score") or 0.0)
+        else:
+            prior_values = [float(item.get("score") or 0.0) for item in rows[: index - 1]]
+            running = sum(prior_values) / len(prior_values)
+        series.append(running)
+    return series
+
+
 def build_null_model_baseline_report(*, repo_root: Path = Path(".")) -> dict[str, Any]:
     manifest = null_model_manifest()
 
@@ -46,12 +79,44 @@ def build_null_model_baseline_report(*, repo_root: Path = Path(".")) -> dict[str
         )
         for row in sample_rows
     ]
+    random_walk_baseline = _deterministic_random_walk(sample_rows, start=float(baseline_metric or 0.0))
+    shuffled_rows = _deterministic_shuffle(sample_rows)
+    martingale_baseline = _martingale_like_series(sample_rows, seed=float(baseline_metric or 0.0))
+
+    suite_families = {
+        "random_walk": random_walk_baseline,
+        "shuffled_surrogate": [float(row.get("score") or 0.0) for row in shuffled_rows],
+        "martingale_like": martingale_baseline,
+    }
+    suite_comparisons: list[dict[str, Any]] = []
+    for family, baseline_series in suite_families.items():
+        for row, baseline_value in zip(sample_rows, baseline_series, strict=True):
+            comparison = compare_metric_to_baseline(
+                candidate_metric=row.get("score"),
+                baseline_metric=baseline_value,
+                baseline_type=family,
+            )
+            suite_comparisons.append(
+                {
+                    "family": family,
+                    "candidate_id": row["candidate_id"],
+                    "candidate_metric": comparison.candidate_metric,
+                    "baseline_metric": comparison.baseline_metric,
+                    "delta_vs_baseline": comparison.delta_vs_baseline,
+                    "comparison_state": comparison.comparison_state,
+                    "explanation": comparison.explanation,
+                }
+            )
 
     comparison_counts: dict[str, int] = {}
     for comparison in sample_comparisons:
         comparison_counts[comparison.comparison_state] = (
             comparison_counts.get(comparison.comparison_state, 0) + 1
         )
+    suite_comparison_counts: dict[str, int] = {}
+    for comparison in suite_comparisons:
+        state = str(comparison["comparison_state"])
+        suite_comparison_counts[state] = suite_comparison_counts.get(state, 0) + 1
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -59,13 +124,17 @@ def build_null_model_baseline_report(*, repo_root: Path = Path(".")) -> dict[str
         "summary": {
             "null_model_baseline_ready": True,
             "baseline_type_count": len(manifest["baseline_types"]),
+            "baseline_family_count": len(suite_families),
             "sample_row_count": len(sample_rows),
             "sample_baseline_metric": baseline_metric,
             "sample_comparison_counts": dict(sorted(comparison_counts.items())),
-            "final_recommendation": "null_model_baseline_scaffold_ready",
+            "suite_comparison_count": len(suite_comparisons),
+            "suite_comparison_counts": dict(sorted(suite_comparison_counts.items())),
+            "final_recommendation": "null_model_baseline_suite_ready",
             "operator_summary": (
-                "Null-model baseline scaffold is available as deterministic, read-only "
-                "diagnostic context only. It does not promote candidates or authorize execution."
+                "Null-model baseline suite is deterministic, read-only diagnostic context only. "
+                "Random walk, shuffled surrogate, and martingale-like comparisons do not promote "
+                "candidates or authorize execution."
             ),
         },
         "manifest": manifest,
@@ -81,6 +150,12 @@ def build_null_model_baseline_report(*, repo_root: Path = Path(".")) -> dict[str
             }
             for item in sample_comparisons
         ],
+        "suite_baselines": {
+            "random_walk": random_walk_baseline,
+            "shuffled_surrogate": [float(row.get("score") or 0.0) for row in shuffled_rows],
+            "martingale_like": martingale_baseline,
+        },
+        "suite_comparisons": suite_comparisons,
         "safety_invariants": {
             "read_only": True,
             "uses_network": False,
@@ -91,6 +166,7 @@ def build_null_model_baseline_report(*, repo_root: Path = Path(".")) -> dict[str
             "mutates_candidates": False,
             "mutates_strategies": False,
             "mutates_frozen_contracts": False,
+            "no_edge_baselines_do_not_authorize_promotion": True,
             "promotion_forbidden": True,
             "paper_shadow_live_forbidden": True,
             "broker_risk_execution_forbidden": True,
