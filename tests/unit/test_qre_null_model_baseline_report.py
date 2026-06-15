@@ -15,7 +15,7 @@ def test_null_model_baseline_report_is_ready_and_context_only():
     assert report["schema_version"] == "1.0"
     assert report["report_kind"] == "qre_null_model_baseline_report"
     assert report["summary"]["null_model_baseline_ready"] is True
-    assert report["summary"]["final_recommendation"] == "null_model_baseline_scaffold_ready"
+    assert report["summary"]["final_recommendation"] == "null_model_baseline_suite_ready"
 
     safety = report["safety_invariants"]
     assert safety["read_only"] is True
@@ -24,6 +24,7 @@ def test_null_model_baseline_report_is_ready_and_context_only():
     assert safety["mutates_candidates"] is False
     assert safety["mutates_strategies"] is False
     assert safety["mutates_frozen_contracts"] is False
+    assert safety["no_edge_baselines_do_not_authorize_promotion"] is True
     assert safety["promotion_forbidden"] is True
     assert safety["paper_shadow_live_forbidden"] is True
     assert safety["broker_risk_execution_forbidden"] is True
@@ -34,6 +35,9 @@ def test_null_model_baseline_report_has_sample_comparisons():
 
     assert report["summary"]["sample_row_count"] == 3
     assert len(report["sample_comparisons"]) == 3
+    assert report["summary"]["baseline_family_count"] == 3
+    assert report["summary"]["suite_comparison_count"] == 9
+    assert len(report["suite_comparisons"]) == 9
     assert "sample_comparison_counts" in report["summary"]
 
 
@@ -43,7 +47,7 @@ def test_null_model_baseline_operator_summary_renders():
 
     assert "# QRE Null Model Baseline" in text
     assert "final_recommendation" in text
-    assert "null_model_baseline_scaffold_ready" in text
+    assert "null_model_baseline_suite_ready" in text
 
 
 def test_null_model_baseline_write_outputs_stays_in_allowlist(tmp_path: Path):
