@@ -43,6 +43,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "__init__.py",
         "cache_manifest.py",
         "contracts.py",
+        "source_lifecycle.py",
         "source_quality_readiness.py",
     ],
     "qre_artifacts": ["README.md", "__init__.py", "public_outputs.py"],
