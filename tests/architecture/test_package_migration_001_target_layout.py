@@ -145,6 +145,7 @@ def test_package_migration_001_qre_data_has_only_bounded_read_only_seed() -> Non
         "__init__.py",
         "cache_manifest.py",
         "contracts.py",
+        "source_lifecycle.py",
         "source_quality_readiness.py",
     ], target
 
@@ -176,6 +177,7 @@ def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_path("packages/qre_data/README.md") == DOMAIN_QRE
     assert classify_path("packages/qre_data/cache_manifest.py") == DOMAIN_QRE
     assert classify_path("packages/qre_data/contracts.py") == DOMAIN_QRE
+    assert classify_path("packages/qre_data/source_lifecycle.py") == DOMAIN_QRE
     assert classify_path("packages/qre_data/source_quality_readiness.py") == DOMAIN_QRE
     assert classify_path("packages/qre_artifacts/README.md") == DOMAIN_QRE
     assert classify_path("packages/qre_artifacts/public_outputs.py") == DOMAIN_QRE
@@ -192,6 +194,7 @@ def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_module("packages.qre_research.universe") == DOMAIN_QRE
     assert classify_module("packages.qre_data.cache_manifest") == DOMAIN_QRE
     assert classify_module("packages.qre_data.contracts") == DOMAIN_QRE
+    assert classify_module("packages.qre_data.source_lifecycle") == DOMAIN_QRE
     assert classify_module("packages.qre_data.source_quality_readiness") == DOMAIN_QRE
     assert classify_module("packages.qre_artifacts.public_outputs") == DOMAIN_QRE
     assert classify_module("packages.qre_diagnostics.research_diagnostics_loop") == DOMAIN_QRE
