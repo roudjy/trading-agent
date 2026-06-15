@@ -43,6 +43,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "__init__.py",
         "cache_manifest.py",
         "contracts.py",
+        "historical_accounting.py",
         "source_lifecycle.py",
         "source_quality_readiness.py",
     ],
