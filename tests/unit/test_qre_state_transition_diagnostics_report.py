@@ -15,7 +15,7 @@ def test_state_transition_report_is_ready_and_context_only():
     assert report["schema_version"] == "1.0"
     assert report["report_kind"] == "qre_state_transition_diagnostics_report"
     assert report["summary"]["state_transition_diagnostics_ready"] is True
-    assert report["summary"]["final_recommendation"] == "state_transition_diagnostics_scaffold_ready"
+    assert report["summary"]["final_recommendation"] == "state_transition_sequence_duration_ready"
 
     safety = report["safety_invariants"]
     assert safety["read_only"] is True
@@ -25,6 +25,7 @@ def test_state_transition_report_is_ready_and_context_only():
     assert safety["mutates_candidate_state"] is False
     assert safety["mutates_strategies"] is False
     assert safety["mutates_frozen_contracts"] is False
+    assert safety["sparse_data_fails_closed"] is True
     assert safety["promotion_forbidden"] is True
     assert safety["paper_shadow_live_forbidden"] is True
     assert safety["broker_risk_execution_forbidden"] is True
@@ -36,8 +37,12 @@ def test_state_transition_report_has_diagnostics_and_counts():
     assert report["summary"]["transition_row_count"] == 3
     assert report["summary"]["diagnostic_count"] == 3
     assert len(report["diagnostics"]) == 3
+    assert report["summary"]["sequence_row_count"] == 7
+    assert report["summary"]["sequence_diagnostic_count"] == 2
+    assert len(report["sequence_diagnostics"]) == 2
     assert "positive_progress_transition" in report["summary"]["transition_state_counts"]
     assert "terminal_negative_transition" in report["summary"]["transition_state_counts"]
+    assert "ready" in report["summary"]["sequence_state_counts"]
 
 
 def test_state_transition_report_accepts_custom_rows():
@@ -56,13 +61,29 @@ def test_state_transition_report_accepts_custom_rows():
     assert report["diagnostics"][0]["transition_state"] == "terminal_negative_transition"
 
 
+def test_state_transition_report_accepts_sparse_sequence_rows():
+    report = build_state_transition_diagnostics_report(
+        sequence_rows=[
+            {
+                "subject_id": "candidate:sparse",
+                "step_index": 1,
+                "state": "candidate_discovered",
+            }
+        ]
+    )
+
+    assert report["summary"]["sequence_row_count"] == 1
+    assert report["summary"]["sparse_sequence_count"] == 1
+    assert report["sequence_diagnostics"][0]["sequence_state"] == "blocked"
+
+
 def test_state_transition_operator_summary_renders():
     report = build_state_transition_diagnostics_report()
     text = render_operator_summary(report)
 
     assert "# QRE State Transition Diagnostics" in text
     assert "final_recommendation" in text
-    assert "state_transition_diagnostics_scaffold_ready" in text
+    assert "state_transition_sequence_duration_ready" in text
 
 
 def test_state_transition_write_outputs_stays_in_allowlist(tmp_path: Path):
