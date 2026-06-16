@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from research import qre_basket_evidence_density_materialization as density
 from research import qre_real_basket_diagnosis as diagnosis
 from research import qre_grid_evidence_readiness_bridge as grid_bridge
 
@@ -18,6 +19,7 @@ DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_real_basket_evidence_coverage")
 LATEST_NAME: Final[str] = "latest.json"
 OPERATOR_SUMMARY_NAME: Final[str] = "operator_summary.md"
 _WRITE_PREFIX: Final[str] = "logs/qre_real_basket_evidence_coverage/"
+_DENSITY_PATH: Final[Path] = Path("logs/qre_basket_evidence_density_materialization/latest.json")
 _COMPLETENESS_FIELDS: Final[tuple[str, ...]] = (
     "source_identity_ready",
     "source_quality_ready",
@@ -34,6 +36,16 @@ def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     divider = "| " + " | ".join(["---"] * len(headers)) + " |"
     body = ["| " + " | ".join(row) + " |" for row in rows]
     return "\n".join([head, divider, *body])
+
+
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
 def _validation_statuses(screening_rows: Sequence[Mapping[str, Any]]) -> list[str]:
@@ -161,6 +173,22 @@ def _source_cache_artifact_status(
     }
 
 
+def _density_by_candidate(payload: Mapping[str, Any] | None) -> dict[str, dict[str, Any]]:
+    if not isinstance(payload, Mapping):
+        return {}
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return {}
+    indexed: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        candidate_id = str(row.get("candidate_id") or "")
+        if candidate_id and candidate_id not in indexed:
+            indexed[candidate_id] = dict(row)
+    return indexed
+
+
 def build_real_basket_evidence_coverage(
     *,
     repo_root: Path = Path("."),
@@ -175,12 +203,19 @@ def build_real_basket_evidence_coverage(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    density_report = _read_json(repo_root / _DENSITY_PATH)
+    if density_report is None:
+        density_report = density.build_basket_evidence_density_materialization(
+            repo_root=repo_root,
+            max_candidates=max_candidates,
+        )
     rows = base.get("rows")
     if not isinstance(rows, list):
         rows = []
     bridge_rows = bridge_report.get("rows")
     if not isinstance(bridge_rows, list):
         bridge_rows = []
+    density_rows = _density_by_candidate(density_report)
     bridge_by_candidate = {
         str(row.get("basket_id") or ""): row
         for row in bridge_rows
@@ -201,15 +236,28 @@ def build_real_basket_evidence_coverage(
             evidence = {}
         candidate_id = str(row.get("candidate_id") or "")
         bridge_row = bridge_by_candidate.get(candidate_id, {})
+        density_row = density_rows.get(candidate_id, {})
         screening_rows = diagnosis._matching_screening_rows(  # type: ignore[attr-defined]
             supporting_artifacts.get("screening_evidence"),
             symbol=str(row.get("symbol") or ""),
             hypothesis_id=str(row.get("hypothesis_id") or ""),
         )
+        if int(density_row.get("screening_evidence_rows") or 0) > 0:
+            screening_rows = screening_rows[:]
+        density_screening_rows = int(density_row.get("screening_evidence_rows") or 0)
+        density_validation_statuses = list(density_row.get("validation_evidence_statuses") or [])
         validation_statuses = _validation_statuses(screening_rows)
+        if density_validation_statuses:
+            validation_statuses = density_validation_statuses
         bridge_screening_visible = bool(bridge_row.get("readiness_screening_evidence_visible"))
         bridge_oos_visible = bool(bridge_row.get("readiness_oos_evidence_visible"))
         bridge_sufficient_visible = bool(bridge_row.get("readiness_sufficient_oos_visible"))
+        density_screening_visible = density_screening_rows > 0
+        density_oos_known = str(density_row.get("oos_evidence_status") or "") in {
+            "sufficient_oos_evidence",
+            "insufficient_oos_evidence",
+            "no_oos_evidence",
+        }
         if bridge_screening_visible and not validation_statuses:
             if bridge_sufficient_visible:
                 validation_statuses = ["sufficient_oos_evidence"]
@@ -217,10 +265,16 @@ def build_real_basket_evidence_coverage(
                 validation_statuses = ["grid_oos_evidence_present"]
             else:
                 validation_statuses = ["grid_screening_evidence_present"]
+        if density_screening_visible and not validation_statuses:
+            validation_statuses = ["screening_evidence_present"]
         flags = _completeness_flags(row=row, validation_statuses=validation_statuses)
         if bridge_screening_visible:
             flags["screening_evidence_present"] = True
         if bridge_oos_visible or bridge_sufficient_visible:
+            flags["oos_evidence_known"] = True
+        if density_screening_visible:
+            flags["screening_evidence_present"] = True
+        if density_oos_known:
             flags["oos_evidence_known"] = True
         score = round(100 * sum(flags.values()) / len(_COMPLETENESS_FIELDS))
         status = _completeness_status(score)
@@ -228,23 +282,42 @@ def build_real_basket_evidence_coverage(
             diagnosis_class=str(row.get("diagnosis_class") or "unknown_fail_closed"),
             reason_code=str(row.get("reason_code") or "unknown"),
             provider_symbol_status=str(row.get("provider_symbol_status") or "unknown"),
-            source_quality_rows=int(evidence.get("source_quality_rows") or 0),
+            source_quality_rows=max(
+                int(evidence.get("source_quality_rows") or 0),
+                int(density_row.get("source_quality_rows") or 0),
+            ),
             source_quality_ready=flags["source_quality_ready"],
-            cache_rows=int(evidence.get("cache_coverage_rows") or 0),
+            cache_rows=max(
+                int(evidence.get("cache_coverage_rows") or 0),
+                int(density_row.get("cache_coverage_rows") or 0),
+            ),
             cache_ready=flags["cache_ready"],
             screening_rows=max(
                 int(evidence.get("screening_rows") or 0),
+                density_screening_rows,
                 1 if bridge_screening_visible else 0,
             ),
             validation_statuses=validation_statuses,
-            campaign_rows=int(evidence.get("campaign_rows") or 0),
-            candidate_rows=int(evidence.get("candidate_rows") or 0),
+            campaign_rows=max(
+                int(evidence.get("campaign_rows") or 0),
+                int(density_row.get("campaign_lineage_rows") or 0),
+            ),
+            candidate_rows=max(
+                int(evidence.get("candidate_rows") or 0),
+                int(density_row.get("candidate_lineage_rows") or 0),
+            ),
         )
         if bridge_screening_visible and "screening_evidence_missing" in missing:
+            missing.remove("screening_evidence_missing")
+        if density_screening_visible and "screening_evidence_missing" in missing:
             missing.remove("screening_evidence_missing")
         if (bridge_oos_visible or bridge_sufficient_visible) and "oos_evidence_missing" in missing:
             missing.remove("oos_evidence_missing")
         if (bridge_oos_visible or bridge_sufficient_visible) and "oos_evidence_unknown" in missing:
+            missing.remove("oos_evidence_unknown")
+        if density_oos_known and "oos_evidence_missing" in missing:
+            missing.remove("oos_evidence_missing")
+        if density_oos_known and "oos_evidence_unknown" in missing:
             missing.remove("oos_evidence_unknown")
         if flags["screening_evidence_present"] or flags["oos_evidence_known"]:
             evidence_backed_zero = False
@@ -266,20 +339,35 @@ def build_real_basket_evidence_coverage(
                 "source_identity_status": row.get("source_identity_status"),
                 "provider_symbol_status": row.get("provider_symbol_status"),
                 "evidence_counts": {
-                    "campaign_lineage_rows": int(evidence.get("campaign_rows") or 0),
-                    "candidate_lineage_rows": int(evidence.get("candidate_rows") or 0),
+                    "campaign_lineage_rows": max(
+                        int(evidence.get("campaign_rows") or 0),
+                        int(density_row.get("campaign_lineage_rows") or 0),
+                    ),
+                    "candidate_lineage_rows": max(
+                        int(evidence.get("candidate_rows") or 0),
+                        int(density_row.get("candidate_lineage_rows") or 0),
+                    ),
                     "screening_rows": max(
                         int(evidence.get("screening_rows") or 0),
+                        density_screening_rows,
                         1 if bridge_screening_visible else 0,
                     ),
-                    "source_quality_rows": int(evidence.get("source_quality_rows") or 0),
-                    "cache_coverage_rows": int(evidence.get("cache_coverage_rows") or 0),
+                    "source_quality_rows": max(
+                        int(evidence.get("source_quality_rows") or 0),
+                        int(density_row.get("source_quality_rows") or 0),
+                    ),
+                    "cache_coverage_rows": max(
+                        int(evidence.get("cache_coverage_rows") or 0),
+                        int(density_row.get("cache_coverage_rows") or 0),
+                    ),
                     "cache_ready_rows": int(evidence.get("cache_ready_count") or 0),
                     "oos_trade_count_max": _oos_trade_count(screening_rows),
                     "grid_matched_rows": int(bridge_row.get("matched_grid_rows_count") or 0),
                     "grid_screening_visible_rows": 1 if bridge_screening_visible else 0,
                     "grid_oos_visible_rows": 1 if bridge_oos_visible else 0,
                     "grid_sufficient_oos_visible_rows": 1 if bridge_sufficient_visible else 0,
+                    "density_screening_rows": density_screening_rows,
+                    "density_oos_known": 1 if density_oos_known else 0,
                 },
                 "screening_stage_result_counts": dict(
                     evidence.get("screening_stage_result_counts") or {}
