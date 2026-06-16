@@ -20,6 +20,7 @@ from typing import Any, Final
 from reporting import qre_trusted_loop_readiness as trusted_readiness
 from research import qre_evidence_complete_basket_closure as basket_closure
 from research import qre_failure_action_from_basket as failure_action
+from research import qre_basket_operator_action_plan as basket_action_plan
 from research import qre_reason_records_v1 as reason_records
 from research import qre_research_memory_current_artifacts as research_memory
 from research import qre_routing_calibration_report as routing_calibration
@@ -192,6 +193,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     routing_packet = routing_calibration.build_routing_calibration_report(repo_root=repo_root)
     sampling_packet = sampling_calibration.build_sampling_calibration_report(repo_root=repo_root)
     memory_packet = research_memory.build_research_memory_current_artifacts(repo_root=repo_root)
+    action_plan_packet = basket_action_plan.build_basket_operator_action_plan(repo_root=repo_root)
 
     protected_artifacts = [
         _path_state(repo_root, "research/research_latest.json"),
@@ -206,6 +208,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     routing_summary = routing_packet.get("summary") if isinstance(routing_packet.get("summary"), Mapping) else {}
     sampling_summary = sampling_packet.get("summary") if isinstance(sampling_packet.get("summary"), Mapping) else {}
     memory_summary = memory_packet if isinstance(memory_packet, Mapping) else {}
+    action_plan_summary = action_plan_packet.get("summary") if isinstance(action_plan_packet.get("summary"), Mapping) else {}
     trust_level, trust_verdict, trust_blockers, exact_next_action = _trusted_loop_level(
         readiness_state=str(readiness_summary.get("readiness_state") or "scaffold"),
         readiness_summary=readiness_summary,
@@ -239,6 +242,11 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
                 (memory_summary.get("summary") or {}).get("final_recommendation") or ""
             )
             == "research_memory_current_artifacts_ready",
+            "basket_operator_action_plan_ready": str(action_plan_summary.get("final_recommendation") or "")
+            == "basket_operator_action_plan_ready",
+            "basket_operator_action_plan_first_batch": list(
+                action_plan_summary.get("first_batch_candidate_symbols") or []
+            ),
             "contradiction_visibility": (
                 readiness_summary.get("contradiction_visibility")
                 if isinstance(readiness_summary.get("contradiction_visibility"), Mapping)
