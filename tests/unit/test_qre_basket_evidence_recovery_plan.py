@@ -78,6 +78,32 @@ def test_build_basket_evidence_recovery_plan_preserves_blockers_and_actions(tmp_
         },
     )
     monkeypatch.setattr(
+        recovery.lineage_diag,
+        "build_basket_lineage_recovery_diagnostics",
+        lambda **_: {
+            "rows": [
+                {
+                    "candidate_id": "cand-a",
+                    "symbol": "AAPL",
+                    "preset_id": "preset-a",
+                    "candidate_lineage_proof_status": "candidate_proven_campaign_missing",
+                    "campaign_lineage_proof_status": "gap",
+                    "lineage_recovery_reason": "candidate_lineage_proven_campaign_lineage_missing",
+                    "proof_source_refs": {"density": ["logs/qre_basket_evidence_density_materialization/latest.json#cand-a"]},
+                },
+                {
+                    "candidate_id": "cand-b",
+                    "symbol": "ASMI",
+                    "preset_id": "preset-b",
+                    "candidate_lineage_proof_status": "lineage_gap",
+                    "campaign_lineage_proof_status": "gap",
+                    "lineage_recovery_reason": "lineage_is_not_proven_by_current_local_artifacts",
+                    "proof_source_refs": {"density": ["logs/qre_basket_evidence_density_materialization/latest.json#cand-b"]},
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(
         recovery.coverage,
         "build_real_basket_evidence_coverage",
         lambda **_: {
@@ -189,11 +215,13 @@ def test_build_basket_evidence_recovery_plan_preserves_blockers_and_actions(tmp_
     assert report["summary"]["blocker_row_count"] == 4
     assert report["summary"]["reducible_blocker_count"] == 1
     assert report["summary"]["irreducible_blocker_count"] == 3
+    assert report["summary"]["lineage_diagnostic_row_count"] == 2
     rows = {row["symbol"]: row for row in report["rows"]}
     aapl = rows["AAPL"]
     assert aapl["blocker_count"] == 2
     assert aapl["exact_next_actions"] == ["collect_screening_evidence", "collect_oos_evidence"]
     assert aapl["reducible_blocker_count"] == 1
+    assert aapl["lineage_diagnostic"]["candidate_lineage_proof_status"] == "candidate_proven_campaign_missing"
     asmi = rows["ASMI"]
     assert asmi["blockers"][0]["exact_next_action"] == "require_identity_resolution"
     assert asmi["blockers"][0]["blocked_by_identity"] is True
@@ -254,10 +282,30 @@ def test_build_basket_next_action_queue_flattens_blockers_deterministically(tmp_
                 },
             ],
             "rows": [
-                {"symbol": "AAPL", "preset_id": "preset-a"},
-                {"symbol": "ASMI", "preset_id": "preset-b"},
+                {"candidate_id": "cand-a", "symbol": "AAPL", "preset_id": "preset-a", "evidence_completeness_score_pct": 86},
+                {"candidate_id": "cand-b", "symbol": "ASMI", "preset_id": "preset-b", "evidence_completeness_score_pct": 0},
             ],
             "summary": {"evidence_complete_count": 0},
+        },
+    )
+    monkeypatch.setattr(
+        queue.lineage_diag,
+        "build_basket_lineage_recovery_diagnostics",
+        lambda **_: {
+            "rows": [
+                {
+                    "candidate_id": "cand-a",
+                    "symbol": "AAPL",
+                    "candidate_lineage_proof_status": "candidate_proven_campaign_missing",
+                    "campaign_lineage_proof_status": "gap",
+                },
+                {
+                    "candidate_id": "cand-b",
+                    "symbol": "ASMI",
+                    "candidate_lineage_proof_status": "lineage_gap",
+                    "campaign_lineage_proof_status": "gap",
+                },
+            ]
         },
     )
 
@@ -269,10 +317,116 @@ def test_build_basket_next_action_queue_flattens_blockers_deterministically(tmp_
         "collect_screening_evidence": 1,
         "require_identity_resolution": 1,
     }
+    assert report["summary"]["top_candidate_symbols"] == ["AAPL"]
     rows = {row["symbol"]: row for row in report["rows"]}
     assert rows["AAPL"]["allowed_to_auto_run"] is False
     assert rows["ASMI"]["blocked_by_identity"] is True
     assert rows["ASMI"]["required_artifact"] == "research/production_discovery_catalog.py"
+    assert rows["AAPL"]["priority_bucket"] == "screening_second"
+    assert rows["ASMI"]["priority_bucket"] == "identity_first"
+    assert rows["AAPL"]["is_top_candidate"] is True
+    assert rows["AAPL"]["requires_operator_review"] is True
+
+
+def test_build_basket_next_action_queue_prioritizes_lineage_first_targets(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        queue.recovery_plan,
+        "build_basket_evidence_recovery_plan",
+        lambda **_: {
+            "blocker_rows": [
+                {
+                    "candidate_id": "cand-a",
+                    "symbol": "AAPL",
+                    "region": "US",
+                    "asset_class": "equity",
+                    "preset_id": "preset-a",
+                    "hypothesis_id": "hyp-a",
+                    "blocker_code": "campaign_lineage_missing",
+                    "blocker_family": "lineage",
+                    "current_status": "partial",
+                    "exact_next_action": "materialize_lineage_from_existing_artifacts",
+                    "required_artifact": "logs/qre_discovery_basket_grid_evidence_materialization/latest.json",
+                    "safe_action_type": "report_only",
+                    "blocked_by_identity": False,
+                    "blocked_by_source_cache": False,
+                    "blocked_by_lineage": True,
+                    "blocked_by_screening": False,
+                    "blocked_by_oos": False,
+                    "potential_clear_refs": ["logs/qre_discovery_basket_grid_evidence_materialization/latest.json"],
+                    "reason_record_refs": {"record_ids": ["rr-a"]},
+                    "operator_explanation": "AAPL remains blocked by campaign_lineage_missing; the bounded next action is materialize_lineage_from_existing_artifacts.",
+                },
+                {
+                    "candidate_id": "cand-n",
+                    "symbol": "NVDA",
+                    "region": "US",
+                    "asset_class": "equity",
+                    "preset_id": "preset-n",
+                    "hypothesis_id": "hyp-n",
+                    "blocker_code": "no_oos_evidence",
+                    "blocker_family": "oos",
+                    "current_status": "partial",
+                    "exact_next_action": "collect_oos_evidence",
+                    "required_artifact": "research/screening_evidence_latest.v1.json",
+                    "safe_action_type": "report_only",
+                    "blocked_by_identity": False,
+                    "blocked_by_source_cache": False,
+                    "blocked_by_lineage": True,
+                    "blocked_by_screening": False,
+                    "blocked_by_oos": True,
+                    "potential_clear_refs": ["research/screening_evidence_latest.v1.json"],
+                    "reason_record_refs": {"record_ids": ["rr-n"]},
+                    "operator_explanation": "NVDA remains blocked by no_oos_evidence; the bounded next action is collect_oos_evidence.",
+                },
+            ],
+            "rows": [
+                {
+                    "candidate_id": "cand-a",
+                    "symbol": "AAPL",
+                    "preset_id": "preset-a",
+                    "evidence_completeness_score_pct": 86,
+                },
+                {
+                    "candidate_id": "cand-n",
+                    "symbol": "NVDA",
+                    "preset_id": "preset-n",
+                    "evidence_completeness_score_pct": 86,
+                },
+            ],
+            "summary": {"evidence_complete_count": 0},
+        },
+    )
+    monkeypatch.setattr(
+        queue.lineage_diag,
+        "build_basket_lineage_recovery_diagnostics",
+        lambda **_: {
+            "rows": [
+                {
+                    "candidate_id": "cand-a",
+                    "symbol": "AAPL",
+                    "candidate_lineage_proof_status": "candidate_proven_campaign_missing",
+                    "campaign_lineage_proof_status": "gap",
+                },
+                {
+                    "candidate_id": "cand-n",
+                    "symbol": "NVDA",
+                    "candidate_lineage_proof_status": "candidate_proven_campaign_missing",
+                    "campaign_lineage_proof_status": "gap",
+                },
+            ]
+        },
+    )
+
+    report = queue.build_basket_next_action_queue(repo_root=tmp_path, max_candidates=2)
+
+    assert report["summary"]["top_candidate_symbols"] == ["AAPL", "NVDA"]
+    assert report["rows"][0]["priority_bucket"] == "lineage_first"
+    assert report["rows"][1]["priority_bucket"] == "lineage_first"
+    assert report["rows"][0]["recommended_batch"] == "batch_lineage_oos"
+    assert report["rows"][0]["allowed_command_template"] == "python -m research.qre_basket_lineage_recovery_diagnostics --write"
 
 
 def test_write_outputs_use_only_allowlisted_log_paths(tmp_path: Path, monkeypatch) -> None:
@@ -294,6 +448,11 @@ def test_write_outputs_use_only_allowlisted_log_paths(tmp_path: Path, monkeypatc
     monkeypatch.setattr(
         recovery.identity_diag,
         "build_source_identity_diagnostics",
+        lambda **_: {"rows": []},
+    )
+    monkeypatch.setattr(
+        recovery.lineage_diag,
+        "build_basket_lineage_recovery_diagnostics",
         lambda **_: {"rows": []},
     )
 
