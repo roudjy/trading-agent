@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from research import qre_basket_evidence_density_materialization as density
+from research import qre_basket_lineage_recovery_diagnostics as lineage_diag
 from research import qre_discovery_source_identity_diagnostics as identity_diag
 from research import qre_evidence_complete_basket_closure as closure
 from research import qre_real_basket_evidence_coverage as coverage
@@ -166,6 +167,7 @@ def _blocker_profile(
     candidate_row: Mapping[str, Any],
     coverage_row: Mapping[str, Any],
     density_row: Mapping[str, Any],
+    lineage_row: Mapping[str, Any],
     identity_row: Mapping[str, Any],
 ) -> dict[str, Any]:
     family = _BLOCKER_FAMILY.get(blocker_code, "unknown")
@@ -200,6 +202,7 @@ def _blocker_profile(
         artifact_refs = _dedupe_refs(
             density_row.get("candidate_lineage_refs") or [],
             density_row.get("campaign_lineage_refs") or [],
+            lineage_row.get("proof_source_refs", {}).get("density") if isinstance(lineage_row.get("proof_source_refs"), Mapping) else [],
             artifact_refs,
         )
     elif blocker_code == "source_identity_blocked":
@@ -218,9 +221,11 @@ def _blocker_profile(
             density_row.get("source_quality_rows") or 0
         ) > 0
     elif blocker_code in {"campaign_lineage_missing", "candidate_lineage_missing"}:
-        recoverable = int(density_row.get("candidate_lineage_rows") or 0) > 0 and int(
-            density_row.get("campaign_lineage_rows") or 0
-        ) > 0
+        recoverable = str(lineage_row.get("candidate_lineage_proof_status") or "") in {
+            "lineage_visible",
+            "candidate_proven_campaign_missing",
+        }
+        recoverable = recoverable or str(lineage_row.get("campaign_lineage_proof_status") or "") == "proven"
     elif blocker_code == "screening_evidence_missing":
         recoverable = int(density_row.get("screening_evidence_rows") or 0) > 0
     elif blocker_code in {
@@ -245,6 +250,9 @@ def _blocker_profile(
         "blocked_by_lineage": family == "lineage",
         "blocked_by_screening": family == "screening",
         "blocked_by_oos": family == "oos",
+        "lineage_proof_status": str(lineage_row.get("candidate_lineage_proof_status") or "gap"),
+        "campaign_lineage_proof_status": str(lineage_row.get("campaign_lineage_proof_status") or "gap"),
+        "lineage_recovery_reason": str(lineage_row.get("lineage_recovery_reason") or ""),
         "current_status": str(coverage_row.get("evidence_completeness_status") or "missing"),
         "allowed_to_auto_run": False,
         "safe_action_type": "report_only",
@@ -271,6 +279,10 @@ def build_basket_evidence_recovery_plan(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    lineage_report = lineage_diag.build_basket_lineage_recovery_diagnostics(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
     coverage_report = coverage.build_real_basket_evidence_coverage(
         repo_root=repo_root,
         max_candidates=max_candidates,
@@ -282,6 +294,7 @@ def build_basket_evidence_recovery_plan(
     identity_report = identity_diag.build_source_identity_diagnostics(max_candidates=max_candidates)
 
     density_rows = _index_by_candidate(_candidate_rows(density_report))
+    lineage_rows = _index_by_candidate(_candidate_rows(lineage_report))
     coverage_rows = _index_by_candidate(_candidate_rows(coverage_report))
     closure_rows = _index_by_candidate(_candidate_rows(closure_report))
     identity_rows = {
@@ -305,6 +318,7 @@ def build_basket_evidence_recovery_plan(
 
     for candidate_id in candidate_ids:
         density_row = density_rows.get(candidate_id, {})
+        lineage_row = lineage_rows.get(candidate_id, {})
         coverage_row = coverage_rows.get(candidate_id, {})
         closure_row = closure_rows.get(candidate_id, {})
         symbol = str(
@@ -328,6 +342,7 @@ def build_basket_evidence_recovery_plan(
                 candidate_row=closure_row or coverage_row or density_row,
                 coverage_row=coverage_row,
                 density_row=density_row,
+                lineage_row=lineage_row,
                 identity_row=identity_row,
             )
             blocker_records.append(record)
@@ -454,6 +469,7 @@ def build_basket_evidence_recovery_plan(
                     "candidate_lineage": list(density_row.get("candidate_lineage_refs") or []),
                     "campaign_lineage": list(density_row.get("campaign_lineage_refs") or []),
                 },
+                "lineage_diagnostic": dict(lineage_row),
                 "operator_explanation": (
                     f"{symbol} remains blocked by {', '.join(blocker_codes) or 'no recorded blockers'}; "
                     f"recoverable actions are {', '.join(next_actions) or 'none'}."
@@ -487,6 +503,20 @@ def build_basket_evidence_recovery_plan(
             "blocker_recovery_class_counts": dict(sorted(recovery_class_counts.items())),
             "exact_next_action_counts": dict(sorted(action_counts.items())),
             "evidence_complete_count": int(closure_summary.get("evidence_complete_count") or 0),
+            "lineage_diagnostic_row_count": len(lineage_rows),
+            "lineage_proven_candidate_count": sum(
+                1
+                for row in lineage_rows.values()
+                if str(row.get("candidate_lineage_proof_status") or "") in {
+                    "lineage_visible",
+                    "candidate_proven_campaign_missing",
+                }
+            ),
+            "lineage_proven_campaign_count": sum(
+                1
+                for row in lineage_rows.values()
+                if str(row.get("campaign_lineage_proof_status") or "") == "proven"
+            ),
             "final_recommendation": (
                 "basket_evidence_recovery_plan_ready" if rows else "basket_evidence_recovery_plan_missing"
             ),

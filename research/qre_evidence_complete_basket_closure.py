@@ -31,6 +31,15 @@ CHECKLIST_ORDER: Final[tuple[tuple[str, str], ...]] = (
     ("candidate_lineage_present", "candidate_lineage_present"),
 )
 
+KNOWN_OOS_GAP_BLOCKERS: Final[frozenset[str]] = frozenset(
+    {
+        "oos_evidence_missing",
+        "oos_evidence_unknown",
+        "no_oos_evidence",
+        "insufficient_oos_evidence",
+    }
+)
+
 
 def _index_by_candidate(rows: Sequence[Mapping[str, Any]], *, key: str = "candidate_id") -> dict[str, dict[str, Any]]:
     indexed: dict[str, dict[str, Any]] = {}
@@ -96,7 +105,11 @@ def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
         "reason_records_present": reason_record_present,
         "failure_action_present": bool(failure_action),
     }
-    unknown_like = [value for value in missing_taxonomy if "unknown" in str(value)]
+    unknown_like = [
+        value
+        for value in missing_taxonomy
+        if "unknown" in str(value) and str(value) not in KNOWN_OOS_GAP_BLOCKERS
+    ]
     if all(closure_criteria.values()):
         closure_status = "evidence_complete"
         exact_next_action = "keep_fail_closed"

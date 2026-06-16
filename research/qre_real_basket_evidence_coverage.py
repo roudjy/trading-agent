@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from research import qre_basket_evidence_density_materialization as density
+from research import qre_basket_lineage_recovery_diagnostics as lineage_diag
 from research import qre_real_basket_diagnosis as diagnosis
 from research import qre_grid_evidence_readiness_bridge as grid_bridge
 
@@ -209,6 +210,10 @@ def build_real_basket_evidence_coverage(
             repo_root=repo_root,
             max_candidates=max_candidates,
         )
+    lineage_report = lineage_diag.build_basket_lineage_recovery_diagnostics(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
     rows = base.get("rows")
     if not isinstance(rows, list):
         rows = []
@@ -216,6 +221,7 @@ def build_real_basket_evidence_coverage(
     if not isinstance(bridge_rows, list):
         bridge_rows = []
     density_rows = _density_by_candidate(density_report)
+    lineage_rows = _density_by_candidate(lineage_report)
     bridge_by_candidate = {
         str(row.get("basket_id") or ""): row
         for row in bridge_rows
@@ -237,6 +243,7 @@ def build_real_basket_evidence_coverage(
         candidate_id = str(row.get("candidate_id") or "")
         bridge_row = bridge_by_candidate.get(candidate_id, {})
         density_row = density_rows.get(candidate_id, {})
+        lineage_row = lineage_rows.get(candidate_id, {})
         screening_rows = diagnosis._matching_screening_rows(  # type: ignore[attr-defined]
             supporting_artifacts.get("screening_evidence"),
             symbol=str(row.get("symbol") or ""),
@@ -268,6 +275,15 @@ def build_real_basket_evidence_coverage(
         if density_screening_visible and not validation_statuses:
             validation_statuses = ["screening_evidence_present"]
         flags = _completeness_flags(row=row, validation_statuses=validation_statuses)
+        candidate_lineage_proof_status = str(lineage_row.get("candidate_lineage_proof_status") or "")
+        campaign_lineage_proof_status = str(lineage_row.get("campaign_lineage_proof_status") or "")
+        if candidate_lineage_proof_status in {
+            "lineage_visible",
+            "candidate_proven_campaign_missing",
+        }:
+            flags["candidate_lineage_present"] = True
+        if campaign_lineage_proof_status == "proven":
+            flags["campaign_lineage_present"] = True
         if bridge_screening_visible:
             flags["screening_evidence_present"] = True
         if bridge_oos_visible or bridge_sufficient_visible:
@@ -319,6 +335,13 @@ def build_real_basket_evidence_coverage(
             missing.remove("oos_evidence_missing")
         if density_oos_known and "oos_evidence_unknown" in missing:
             missing.remove("oos_evidence_unknown")
+        if candidate_lineage_proof_status in {
+            "lineage_visible",
+            "candidate_proven_campaign_missing",
+        } and "candidate_lineage_missing" in missing:
+            missing.remove("candidate_lineage_missing")
+        if campaign_lineage_proof_status == "proven" and "campaign_lineage_missing" in missing:
+            missing.remove("campaign_lineage_missing")
         if flags["screening_evidence_present"] or flags["oos_evidence_known"]:
             evidence_backed_zero = False
         taxonomy_counter.update(missing)
@@ -398,6 +421,7 @@ def build_real_basket_evidence_coverage(
                     ),
                     "bridge_explanation": str(bridge_row.get("bridge_explanation") or ""),
                 },
+                "lineage_recovery_diagnostic": dict(lineage_row),
                 "follow_up": (
                     "eligible_for_readonly_routing"
                     if score >= 85

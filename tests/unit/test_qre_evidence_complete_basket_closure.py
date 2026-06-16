@@ -193,6 +193,77 @@ def test_closure_requires_exact_blockers_without_unknowns(monkeypatch) -> None:
     assert report["summary"]["final_recommendation"] == "no_basket_evidence_complete_reason_records_preserved"
 
 
+def test_closure_treats_explicit_oos_gap_states_as_known_blockers(monkeypatch) -> None:
+    monkeypatch.setattr(
+        closure.evidence_coverage,
+        "build_real_basket_evidence_coverage",
+        lambda **_: {
+            "rows": [
+                {
+                    "candidate_id": "c4",
+                    "symbol": "NVDA",
+                    "preset_id": "trend_pullback_continuation_daily_v1",
+                    "diagnosis_class": "diagnosable",
+                    "evidence_completeness_score_pct": 42,
+                    "evidence_completeness_status": "thin",
+                    "missing_evidence_taxonomy": [
+                        "oos_evidence_unknown",
+                        "no_oos_evidence",
+                        "oos_evidence_missing",
+                    ],
+                    "follow_up": "collect_more_evidence",
+                    "evidence_presence": {
+                        "source_identity_ready": True,
+                        "source_quality_ready": True,
+                        "cache_ready": True,
+                        "screening_evidence_present": True,
+                        "oos_evidence_known": False,
+                        "campaign_lineage_present": False,
+                        "candidate_lineage_present": False,
+                    },
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        closure.reason_records,
+        "build_reason_records_snapshot",
+        lambda **_: {
+            "records": [
+                {
+                    "subject_id": "c4",
+                    "record_ids": ["qrr_c4_reason_1"],
+                    "record_families": ["basket_diagnosis"],
+                    "reason_codes": ["oos_evidence_unknown"],
+                    "evidence_refs": ["research/screening_evidence_latest.v1.json"],
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        closure.failure_action,
+        "build_failure_action_from_basket",
+        lambda **_: {
+            "rows": [
+                {
+                    "candidate_id": "c4",
+                    "recommended_action": "collect_oos_evidence",
+                    "actionability": {"is_actionable": True, "status": "actionable"},
+                }
+            ]
+        },
+    )
+
+    report = closure.build_evidence_complete_basket_closure()
+    row = report["rows"][0]
+    assert row["closure_status"] == "blocked_not_evidence_complete"
+    assert "oos_evidence_unknown" in row["exact_blockers"]
+    assert row["unknown_blocker_count"] == 0
+    assert row["exact_next_action"] == "collect_oos_evidence"
+    assert report["summary"]["unknown_blocker_count"] == 0
+    assert report["summary"]["all_non_complete_baskets_have_no_unknown_blockers"] is True
+
+
 def test_closure_fails_closed_when_reason_records_missing_for_complete_basket(monkeypatch) -> None:
     monkeypatch.setattr(
         closure.evidence_coverage,

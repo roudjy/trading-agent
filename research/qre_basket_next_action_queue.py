@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from research import qre_basket_evidence_recovery_plan as recovery_plan
+from research import qre_basket_lineage_recovery_diagnostics as lineage_diag
 
 
 REPORT_KIND: Final[str] = "qre_basket_next_action_queue"
@@ -40,6 +41,61 @@ def _blocker_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     return [dict(row) for row in rows if isinstance(row, Mapping)]
 
 
+def _priority_bucket(row: Mapping[str, Any]) -> str:
+    if bool(row.get("blocked_by_identity")):
+        return "identity_first"
+    if bool(row.get("blocked_by_lineage")) and int(row.get("candidate_score") or 0) >= 80:
+        return "lineage_first"
+    if bool(row.get("blocked_by_source_cache")):
+        return "source_cache_first"
+    if bool(row.get("blocked_by_screening")):
+        return "screening_second"
+    if bool(row.get("blocked_by_oos")):
+        return "oos_second"
+    if bool(row.get("blocked_by_lineage")):
+        return "lineage_followup"
+    return "operator_review"
+
+
+def _priority_rank(row: Mapping[str, Any]) -> int:
+    bucket = _priority_bucket(row)
+    return {
+        "identity_first": 0,
+        "lineage_first": 1,
+        "source_cache_first": 2,
+        "screening_second": 3,
+        "oos_second": 4,
+        "lineage_followup": 5,
+        "operator_review": 6,
+    }.get(bucket, 99)
+
+
+def _recommended_batch(row: Mapping[str, Any]) -> str:
+    if bool(row.get("blocked_by_identity")):
+        return "batch_identity_review"
+    if bool(row.get("blocked_by_lineage")) and int(row.get("candidate_score") or 0) >= 80:
+        return "batch_lineage_oos"
+    if bool(row.get("blocked_by_source_cache")):
+        return "batch_source_cache_expansion"
+    if bool(row.get("blocked_by_screening")) or bool(row.get("blocked_by_oos")):
+        return "batch_screening_oos_collection"
+    if bool(row.get("blocked_by_lineage")):
+        return "batch_lineage_repair"
+    return "batch_operator_review"
+
+
+def _safe_command_template(row: Mapping[str, Any]) -> str:
+    if bool(row.get("blocked_by_identity")):
+        return "python -m research.qre_discovery_source_identity_diagnostics --write"
+    if bool(row.get("blocked_by_lineage")):
+        return "python -m research.qre_basket_lineage_recovery_diagnostics --write"
+    if bool(row.get("blocked_by_source_cache")):
+        return "python -m research.qre_basket_evidence_density_materialization --write"
+    if bool(row.get("blocked_by_screening")) or bool(row.get("blocked_by_oos")):
+        return "python -m research.qre_evidence_complete_basket_closure --write"
+    return "python -m research.qre_basket_next_action_queue --write"
+
+
 def build_basket_next_action_queue(
     *,
     repo_root: Path = Path("."),
@@ -49,9 +105,29 @@ def build_basket_next_action_queue(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    lineage_report = lineage_diag.build_basket_lineage_recovery_diagnostics(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
+    candidate_rows = {
+        str(row.get("candidate_id") or ""): dict(row)
+        for row in _candidate_rows(report)
+    }
     blocker_rows = _blocker_rows(report)
+    lineage_rows = {
+        str(row.get("candidate_id") or ""): dict(row)
+        for row in _candidate_rows(lineage_report)
+    }
     queue_rows: list[dict[str, Any]] = []
     for row in blocker_rows:
+        lineage_row = lineage_rows.get(str(row.get("candidate_id") or ""), {})
+        candidate_score = int(
+            candidate_rows.get(str(row.get("candidate_id") or ""), {}).get(
+                "evidence_completeness_score_pct",
+                row.get("evidence_completeness_score_pct") or 0,
+            )
+            or 0
+        )
         queue_rows.append(
             {
                 "candidate_id": row.get("candidate_id"),
@@ -72,6 +148,38 @@ def build_basket_next_action_queue(
                 "blocked_by_lineage": bool(row.get("blocked_by_lineage")),
                 "blocked_by_screening": bool(row.get("blocked_by_screening")),
                 "blocked_by_oos": bool(row.get("blocked_by_oos")),
+                "candidate_score": candidate_score,
+                "lineage_proof_status": str(lineage_row.get("candidate_lineage_proof_status") or ""),
+                "campaign_lineage_proof_status": str(lineage_row.get("campaign_lineage_proof_status") or ""),
+                "priority_bucket": _priority_bucket({**row, "candidate_score": candidate_score}),
+                "priority_rank": _priority_rank({**row, "candidate_score": candidate_score}),
+                "dependency_order": (
+                    0
+                    if bool(row.get("blocked_by_identity"))
+                    else 1
+                    if bool(row.get("blocked_by_lineage")) and candidate_score >= 80
+                    else 2
+                    if bool(row.get("blocked_by_source_cache"))
+                    else 3
+                    if bool(row.get("blocked_by_screening"))
+                    else 4
+                    if bool(row.get("blocked_by_oos"))
+                    else 5
+                ),
+                "is_top_candidate": str(row.get("symbol") or "") in {"AAPL", "NVDA"},
+                "blocks_evidence_complete": True,
+                "recommended_batch": _recommended_batch({**row, "candidate_score": candidate_score}),
+                "rationale": (
+                    "identity before all else"
+                    if bool(row.get("blocked_by_identity"))
+                    else "lineage is the closest recoverable evidence chain"
+                    if bool(row.get("blocked_by_lineage")) and candidate_score >= 80
+                    else "source/cache coverage should precede deeper evidence collection"
+                    if bool(row.get("blocked_by_source_cache"))
+                    else "screening and OOS remain explicit evidence gaps"
+                ),
+                "allowed_command_template": _safe_command_template({**row, "candidate_score": candidate_score}),
+                "requires_operator_review": True,
                 "evidence_refs": list(row.get("potential_clear_refs") or []),
                 "reason_record_refs": dict(row.get("reason_record_refs") or {}),
                 "operator_explanation": str(row.get("operator_explanation") or ""),
@@ -79,6 +187,9 @@ def build_basket_next_action_queue(
         )
     queue_rows.sort(
         key=lambda row: (
+            int(row.get("priority_rank") or 99),
+            -int(row.get("candidate_score") or 0),
+            int(row.get("dependency_order") or 99),
             str(row.get("symbol") or ""),
             str(row.get("preset_id") or ""),
             str(row.get("blocker_code") or ""),
@@ -86,6 +197,7 @@ def build_basket_next_action_queue(
     )
     action_counts = Counter(str(row["exact_next_action"]) for row in queue_rows)
     blocker_counts = Counter(str(row["blocker_code"]) for row in queue_rows)
+    priority_counts = Counter(str(row["priority_bucket"]) for row in queue_rows)
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -93,9 +205,17 @@ def build_basket_next_action_queue(
             "row_count": len(queue_rows),
             "blocker_counts": dict(sorted(blocker_counts.items())),
             "exact_next_action_counts": dict(sorted(action_counts.items())),
+            "priority_bucket_counts": dict(sorted(priority_counts.items())),
+            "top_candidate_symbols": list(
+                dict.fromkeys(
+                    str(row.get("symbol") or "")
+                    for row in queue_rows
+                    if bool(row.get("is_top_candidate"))
+                )
+            ),
             "operator_summary": (
                 "Deterministic next-action queue enumerates every remaining basket blocker "
-                "as a read-only operator review item."
+                "as a read-only operator review item with lineage-first priority ordering."
             ),
             "final_recommendation": "basket_next_action_queue_ready" if queue_rows else "basket_next_action_queue_missing",
         },
@@ -127,11 +247,13 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
         ],
     )
     row_table = _table(
-        ["Symbol", "Blocker", "Action", "Artifact", "Auto-run"],
+        ["Symbol", "Blocker", "Priority", "Batch", "Action", "Artifact", "Auto-run"],
         [
             [
                 str(row.get("symbol") or ""),
                 str(row.get("blocker_code") or ""),
+                str(row.get("priority_bucket") or ""),
+                str(row.get("recommended_batch") or ""),
                 str(row.get("exact_next_action") or ""),
                 str(row.get("required_artifact") or ""),
                 str(bool(row.get("allowed_to_auto_run"))).lower(),
