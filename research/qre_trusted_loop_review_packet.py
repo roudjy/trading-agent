@@ -20,6 +20,7 @@ from typing import Any, Final
 from reporting import qre_trusted_loop_readiness as trusted_readiness
 from research import qre_evidence_complete_basket_closure as basket_closure
 from research import qre_failure_action_from_basket as failure_action
+from research import qre_first_batch_evidence_recovery_readiness as first_batch_readiness
 from research import qre_basket_operator_action_plan as basket_action_plan
 from research import qre_reason_records_v1 as reason_records
 from research import qre_research_memory_current_artifacts as research_memory
@@ -105,6 +106,11 @@ REPORT_SURFACES: tuple[dict[str, str], ...] = (
         "report_kind": "qre_routing_calibration_report",
         "path_hint": "logs/qre_routing_calibration/",
         "purpose": "routing calibration context",
+    },
+    {
+        "report_kind": "qre_first_batch_evidence_recovery_readiness",
+        "path_hint": "logs/qre_first_batch_evidence_recovery_readiness/",
+        "purpose": "bounded first-batch evidence recovery readiness plan",
     },
     {
         "report_kind": "qre_trusted_loop_review_packet",
@@ -194,6 +200,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     sampling_packet = sampling_calibration.build_sampling_calibration_report(repo_root=repo_root)
     memory_packet = research_memory.build_research_memory_current_artifacts(repo_root=repo_root)
     action_plan_packet = basket_action_plan.build_basket_operator_action_plan(repo_root=repo_root)
+    first_batch_readiness_packet = first_batch_readiness.build_first_batch_evidence_recovery_readiness(
+        repo_root=repo_root
+    )
 
     protected_artifacts = [
         _path_state(repo_root, "research/research_latest.json"),
@@ -247,6 +256,8 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "basket_operator_action_plan_first_batch": list(
                 action_plan_summary.get("first_batch_candidate_symbols") or []
             ),
+            "first_batch_readiness_available": str(first_batch_readiness_packet.get("report_kind") or "")
+            == "qre_first_batch_evidence_recovery_readiness",
             "contradiction_visibility": (
                 readiness_summary.get("contradiction_visibility")
                 if isinstance(readiness_summary.get("contradiction_visibility"), Mapping)
@@ -280,6 +291,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "reason_records": reason_snapshot,
             "failure_action": failure_packet,
             "basket_closure": closure_packet,
+            "first_batch_readiness": first_batch_readiness_packet,
             "routing_calibration": routing_packet,
             "sampling_calibration": sampling_packet,
             "research_memory": memory_packet,

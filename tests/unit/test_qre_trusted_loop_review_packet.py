@@ -97,6 +97,11 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
             }
         },
     )
+    monkeypatch.setattr(
+        packet_module.first_batch_readiness,
+        "build_first_batch_evidence_recovery_readiness",
+        lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
 
@@ -112,6 +117,7 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["research_memory_ready"] is True
     assert packet["summary"]["basket_operator_action_plan_ready"] is True
     assert packet["summary"]["basket_operator_action_plan_first_batch"] == ["AAPL", "NVDA"]
+    assert packet["summary"]["first_batch_readiness_available"] is True
     assert packet["summary"]["trust_blocker_count"] == 0
     assert packet["protected_artifacts"][0]["exists"] is True
     assert packet["protected_artifacts"][1]["exists"] is True
@@ -143,6 +149,11 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: {"summary": {"final_recommendation": "sampling_calibration_scaffold_ready"}})
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: {"summary": {"final_recommendation": "research_memory_current_artifacts_partial"}})
     monkeypatch.setattr(packet_module.basket_action_plan, "build_basket_operator_action_plan", lambda **_: {"summary": {"final_recommendation": "basket_operator_action_plan_ready", "first_batch_candidate_symbols": []}})
+    monkeypatch.setattr(
+        packet_module.first_batch_readiness,
+        "build_first_batch_evidence_recovery_readiness",
+        lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
 
@@ -169,6 +180,11 @@ def test_trusted_loop_review_packet_operator_summary_renders(
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: snapshots["sampling"])
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: snapshots["research_memory"])
     monkeypatch.setattr(packet_module.basket_action_plan, "build_basket_operator_action_plan", lambda **_: {"summary": {"final_recommendation": "basket_operator_action_plan_ready", "first_batch_candidate_symbols": ["AAPL"]}})
+    monkeypatch.setattr(
+        packet_module.first_batch_readiness,
+        "build_first_batch_evidence_recovery_readiness",
+        lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
     text = packet_module.render_operator_summary(packet)
@@ -192,6 +208,11 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
     monkeypatch.setattr(packet_module.routing_calibration, "build_routing_calibration_report", lambda **_: snapshots["routing"])
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: snapshots["sampling"])
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: snapshots["research_memory"])
+    monkeypatch.setattr(
+        packet_module.first_batch_readiness,
+        "build_first_batch_evidence_recovery_readiness",
+        lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
     paths = packet_module.write_outputs(packet, repo_root=tmp_path)
