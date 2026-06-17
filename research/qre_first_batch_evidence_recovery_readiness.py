@@ -34,6 +34,8 @@ SAFE_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_evidence_complete_basket_closure --write",
     "python -m research.qre_trusted_loop_review_packet --write",
     "python -m research.qre_first_batch_evidence_recovery_readiness --write",
+    "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
+    "python -m research.qre_bounded_first_batch_generation_decision --write",
 )
 UNSAFE_KEYWORDS: Final[tuple[str, ...]] = (
     "campaign_launcher",
@@ -115,6 +117,21 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_guarded_alias_bounded_generation_cascade" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_guarded_alias_bounded_generation_cascade":
+        return payload
+    return {
+        "overall_result": "guarded_alias_bounded_generation_cascade_unavailable",
+        "summary": {
+            "current_top_blocker": "guarded_alias_bounded_generation_cascade_unavailable",
+            "bounded_generation_decision_status": "guarded_alias_bounded_generation_cascade_unavailable",
+        },
+    }
 
 
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -412,6 +429,7 @@ def build_first_batch_evidence_recovery_readiness(
     closure_report = closure.build_evidence_complete_basket_closure(repo_root=repo_root, max_candidates=max_candidates)
     coverage_report = coverage.build_real_basket_evidence_coverage(repo_root=repo_root, max_candidates=max_candidates)
     recovery_report = recovery_plan.build_basket_evidence_recovery_plan(repo_root=repo_root, max_candidates=max_candidates)
+    guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
 
     density_by_candidate = _index_by_candidate(_candidate_rows(density_report))
     coverage_by_candidate = _index_by_candidate(_candidate_rows(coverage_report))
@@ -592,6 +610,13 @@ def build_first_batch_evidence_recovery_readiness(
             "safe_command_count": sum(1 for row in command_rows if row["classification"] == "safe_read_only"),
             "unsafe_or_unproven_count": sum(1 for row in command_rows if row["classification"] != "safe_read_only"),
         },
+        "guarded_alias_bounded_generation": {
+            "overall_result": str(guarded_report.get("overall_result") or ""),
+            "current_top_blocker": str((guarded_report.get("summary") or {}).get("current_top_blocker") or ""),
+            "bounded_generation_decision_status": str(
+                (guarded_report.get("summary") or {}).get("bounded_generation_decision_status") or ""
+            ),
+        },
         "operator_approval_matrix": approval_matrix,
         "stop_conditions": overall_stop_conditions,
         "expected_rerun_sequence": expected_rerun_sequence,
@@ -625,6 +650,12 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["second_line_lineage", ", ".join(str(item) for item in summary.get("second_line_lineage") or []) or "none"],
                     ["evidence_complete_count", str(summary.get("evidence_complete_count") or 0)],
                     ["unknown_blocker_count", str(summary.get("unknown_blocker_count") or 0)],
+                    [
+                        "guarded_alias_bounded_generation",
+                        str(
+                            ((report.get("guarded_alias_bounded_generation") or {}).get("overall_result") or "")
+                        ),
+                    ],
                 ],
             ),
             "",

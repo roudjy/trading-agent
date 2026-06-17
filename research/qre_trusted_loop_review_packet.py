@@ -119,6 +119,11 @@ REPORT_SURFACES: tuple[dict[str, str], ...] = (
         "purpose": "bounded first-batch recovery cascade with legacy artifact boundary analysis",
     },
     {
+        "report_kind": "qre_guarded_alias_bounded_generation_cascade",
+        "path_hint": "logs/qre_guarded_alias_bounded_generation_cascade/",
+        "purpose": "guarded alias policy, bounded generation decision, and acceptance/verifier packet",
+    },
+    {
         "report_kind": "qre_trusted_loop_review_packet",
         "path_hint": "logs/qre_trusted_loop_review/",
         "purpose": "final trusted-loop operator review packet",
@@ -133,6 +138,29 @@ def _path_state(repo_root: Path, relative_path: str) -> dict[str, Any]:
         "exists": path.exists(),
         "is_file": path.is_file(),
         "is_dir": path.is_dir(),
+    }
+
+
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_guarded_alias_bounded_generation_cascade" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_guarded_alias_bounded_generation_cascade":
+        return payload
+    return {
+        "report_kind": "qre_guarded_alias_bounded_generation_cascade_unavailable",
+        "overall_result": "guarded_alias_bounded_generation_cascade_unavailable",
+        "summary": {"current_top_blocker": "guarded_alias_bounded_generation_cascade_unavailable"},
     }
 
 
@@ -212,6 +240,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     first_batch_cascade_packet = first_batch_cascade.build_first_batch_evidence_recovery_cascade(
         repo_root=repo_root
     )
+    guarded_cascade_packet = _guarded_alias_bounded_generation_snapshot(repo_root)
 
     protected_artifacts = [
         _path_state(repo_root, "research/research_latest.json"),
@@ -273,6 +302,10 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "first_batch_recovery_cascade_top_blocker": str(
                 (first_batch_cascade_packet.get("first_batch_summary") or {}).get("current_top_blocker") or ""
             ),
+            "guarded_alias_bounded_generation_cascade_result": str(guarded_cascade_packet.get("overall_result") or ""),
+            "guarded_alias_bounded_generation_top_blocker": str(
+                (guarded_cascade_packet.get("summary") or {}).get("current_top_blocker") or ""
+            ),
             "contradiction_visibility": (
                 readiness_summary.get("contradiction_visibility")
                 if isinstance(readiness_summary.get("contradiction_visibility"), Mapping)
@@ -308,6 +341,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "basket_closure": closure_packet,
             "first_batch_readiness": first_batch_readiness_packet,
             "first_batch_recovery_cascade": first_batch_cascade_packet,
+            "guarded_alias_bounded_generation_cascade": guarded_cascade_packet,
             "routing_calibration": routing_packet,
             "sampling_calibration": sampling_packet,
             "research_memory": memory_packet,
@@ -400,6 +434,8 @@ def render_operator_summary(packet: Mapping[str, Any]) -> str:
             f"- routing_evidence_ready: {summary.get('routing_evidence_ready')}",
             f"- sampling_evidence_ready: {summary.get('sampling_evidence_ready')}",
             f"- research_memory_ready: {summary.get('research_memory_ready')}",
+            f"- guarded_alias_bounded_generation_cascade_result: {summary.get('guarded_alias_bounded_generation_cascade_result')}",
+            f"- guarded_alias_bounded_generation_top_blocker: {summary.get('guarded_alias_bounded_generation_top_blocker')}",
             f"- trust_blockers: {', '.join(str(item) for item in trust_blockers) or 'none'}",
             "",
             "## Current Status",

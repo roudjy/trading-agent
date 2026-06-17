@@ -27,6 +27,25 @@ def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     return "\n".join([head, divider, *body])
 
 
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_guarded_alias_bounded_generation_cascade" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_guarded_alias_bounded_generation_cascade":
+        return payload
+    return {"overall_result": "guarded_alias_bounded_generation_cascade_unavailable"}
+
+
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     rows = report.get("rows")
     if not isinstance(rows, list):
@@ -118,6 +137,8 @@ def build_basket_next_action_queue(
         str(row.get("candidate_id") or ""): dict(row)
         for row in _candidate_rows(lineage_report)
     }
+    guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
+    guarded_ready = str(guarded_report.get("overall_result") or "") == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
     queue_rows: list[dict[str, Any]] = []
     for row in blocker_rows:
         lineage_row = lineage_rows.get(str(row.get("candidate_id") or ""), {})
@@ -128,10 +149,21 @@ def build_basket_next_action_queue(
             )
             or 0
         )
+        symbol = str(row.get("symbol") or "")
+        exact_next_action = str(row.get("exact_next_action") or "")
+        allowed_command_template = _safe_command_template({**row, "candidate_score": candidate_score})
+        operator_explanation = str(row.get("operator_explanation") or "")
+        if guarded_ready and symbol in {"AAPL", "NVDA"}:
+            exact_next_action = "operator_approve_bounded_aapl_nvda_current_basket_grid_generation"
+            allowed_command_template = "python -m research.qre_bounded_first_batch_generation_decision --write"
+            operator_explanation = (
+                "Bounded current-basket generation decision packet is ready; "
+                "operator approval is required before any generation run."
+            )
         queue_rows.append(
             {
                 "candidate_id": row.get("candidate_id"),
-                "symbol": row.get("symbol"),
+                "symbol": symbol,
                 "region": row.get("region"),
                 "asset_class": row.get("asset_class"),
                 "preset_id": row.get("preset_id"),
@@ -139,7 +171,7 @@ def build_basket_next_action_queue(
                 "blocker_code": row.get("blocker_code"),
                 "blocker_family": row.get("blocker_family"),
                 "current_status": row.get("current_status"),
-                "exact_next_action": row.get("exact_next_action"),
+                "exact_next_action": exact_next_action,
                 "required_artifact": row.get("required_artifact"),
                 "safe_action_type": row.get("safe_action_type"),
                 "allowed_to_auto_run": False,
@@ -178,11 +210,11 @@ def build_basket_next_action_queue(
                     if bool(row.get("blocked_by_source_cache"))
                     else "screening and OOS remain explicit evidence gaps"
                 ),
-                "allowed_command_template": _safe_command_template({**row, "candidate_score": candidate_score}),
+                "allowed_command_template": allowed_command_template,
                 "requires_operator_review": True,
                 "evidence_refs": list(row.get("potential_clear_refs") or []),
                 "reason_record_refs": dict(row.get("reason_record_refs") or {}),
-                "operator_explanation": str(row.get("operator_explanation") or ""),
+                "operator_explanation": operator_explanation,
             }
         )
     queue_rows.sort(
@@ -217,6 +249,7 @@ def build_basket_next_action_queue(
                 "Deterministic next-action queue enumerates every remaining basket blocker "
                 "as a read-only operator review item with lineage-first priority ordering."
             ),
+            "guarded_alias_bounded_generation_cascade_result": str(guarded_report.get("overall_result") or ""),
             "final_recommendation": "basket_next_action_queue_ready" if queue_rows else "basket_next_action_queue_missing",
         },
         "rows": queue_rows,

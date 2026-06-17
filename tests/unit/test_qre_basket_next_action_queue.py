@@ -97,6 +97,13 @@ def test_build_basket_next_action_queue_prioritizes_first_batch_lineage(tmp_path
             ]
         },
     )
+    monkeypatch.setattr(
+        queue,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+        },
+    )
 
     report = queue.build_basket_next_action_queue(repo_root=tmp_path, max_candidates=3)
 
@@ -105,3 +112,7 @@ def test_build_basket_next_action_queue_prioritizes_first_batch_lineage(tmp_path
     assert report["rows"][1]["priority_bucket"] == "lineage_first"
     assert report["rows"][2]["priority_bucket"] == "identity_first"
     assert report["rows"][0]["allowed_to_auto_run"] is False
+    assert report["rows"][0]["exact_next_action"] == "operator_approve_bounded_aapl_nvda_current_basket_grid_generation"
+    assert report["rows"][1]["exact_next_action"] == "operator_approve_bounded_aapl_nvda_current_basket_grid_generation"
+    assert report["rows"][0]["allowed_command_template"] == "python -m research.qre_bounded_first_batch_generation_decision --write"
+    assert report["summary"]["guarded_alias_bounded_generation_cascade_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"

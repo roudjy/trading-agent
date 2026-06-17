@@ -30,6 +30,8 @@ SAFE_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_trusted_loop_review_packet --write",
     "python -m research.qre_first_batch_evidence_recovery_readiness --write",
     "python -m research.qre_first_batch_evidence_recovery_cascade --write",
+    "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
+    "python -m research.qre_bounded_first_batch_generation_decision --write",
 )
 NOT_ALLOWED_COMMANDS: Final[tuple[str, ...]] = (
     "any campaign mutation command",
@@ -44,6 +46,28 @@ def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     divider = "| " + " | ".join(["---"] * len(headers)) + " |"
     body = ["| " + " | ".join(row) + " |" for row in rows]
     return "\n".join([head, divider, *body])
+
+
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_guarded_alias_bounded_generation_cascade" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_guarded_alias_bounded_generation_cascade":
+        return payload
+    return {
+        "overall_result": "guarded_alias_bounded_generation_cascade_unavailable",
+        "summary": {"current_top_blocker": "guarded_alias_bounded_generation_cascade_unavailable"},
+    }
 
 
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -70,6 +94,7 @@ def build_basket_operator_action_plan(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
     lineage_report = lineage_diag.build_basket_lineage_recovery_diagnostics(
         repo_root=repo_root,
         max_candidates=max_candidates,
@@ -105,7 +130,11 @@ def build_basket_operator_action_plan(
     blocked_by_lineage = any(bool(row.get("blocked_by_lineage")) for row in first_batch_rows)
     blocked_by_screening = any(bool(row.get("blocked_by_screening")) for row in first_batch_rows)
     blocked_by_oos = any(bool(row.get("blocked_by_oos")) for row in first_batch_rows)
-    if blocked_by_identity:
+    guarded_ready = str(guarded_report.get("overall_result") or "") == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
+    if guarded_ready and first_batch_symbols == ["AAPL", "NVDA"]:
+        first_batch_name = "bounded_generation_operator_review"
+        top_actions = ["operator_approve_bounded_aapl_nvda_current_basket_grid_generation"]
+    elif blocked_by_identity:
         first_batch_name = "identity_review"
     elif blocked_by_lineage and not blocked_by_source_cache:
         first_batch_name = "lineage_repair"
@@ -161,6 +190,10 @@ def build_basket_operator_action_plan(
             "first_batch_recovery_cascade_top_blocker": str(
                 (cascade_report.get("first_batch_summary") or {}).get("current_top_blocker") or ""
             ),
+            "guarded_alias_bounded_generation_cascade_result": str(guarded_report.get("overall_result") or ""),
+            "guarded_alias_bounded_generation_top_blocker": str(
+                (guarded_report.get("summary") or {}).get("current_top_blocker") or ""
+            ),
             "final_recommendation": "basket_operator_action_plan_ready" if queue_rows else "basket_operator_action_plan_missing",
             "operator_summary": (
                 "Read-only operator action plan groups the closest evidence recovery steps into a bounded first batch "
@@ -185,12 +218,15 @@ def build_basket_operator_action_plan(
             "python -m research.qre_trusted_loop_review_packet --write",
             "python -m research.qre_first_batch_evidence_recovery_readiness --write",
             "python -m research.qre_first_batch_evidence_recovery_cascade --write",
+            "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
+            "python -m research.qre_bounded_first_batch_generation_decision --write",
         ],
         "expected_rerun_sequence": [
             "materialize_density",
             "diagnose_lineage",
             "refresh_first_batch_readiness",
             "refresh_first_batch_recovery_cascade",
+            "refresh_guarded_alias_bounded_generation_cascade",
             "refresh_recovery_plan",
             "refresh_next_action_queue",
             "refresh_closure",
@@ -240,6 +276,8 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["top_actions", ", ".join(str(item) for item in summary.get("top_actions") or []) or "none"],
                     ["cascade_result", str(summary.get("first_batch_recovery_cascade_result") or "")],
                     ["cascade_top_blocker", str(summary.get("first_batch_recovery_cascade_top_blocker") or "")],
+                    ["guarded_cascade_result", str(summary.get("guarded_alias_bounded_generation_cascade_result") or "")],
+                    ["guarded_cascade_top_blocker", str(summary.get("guarded_alias_bounded_generation_top_blocker") or "")],
                 ],
             ),
             "",

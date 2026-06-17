@@ -78,6 +78,25 @@ def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     return "\n".join([head, divider, *body])
 
 
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_guarded_alias_bounded_generation_cascade" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_guarded_alias_bounded_generation_cascade":
+        return payload
+    return {"overall_result": "guarded_alias_bounded_generation_cascade_unavailable"}
+
+
 def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
     flags = row.get("evidence_presence")
     if not isinstance(flags, Mapping):
@@ -177,6 +196,7 @@ def build_evidence_complete_basket_closure(
         failure_rows = []
     reason_index = _index_reason_records([row for row in reason_rows if isinstance(row, Mapping)])
     failure_index = _index_by_candidate([row for row in failure_rows if isinstance(row, Mapping)])
+    guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
     closure_rows = []
     for row in rows:
         if not isinstance(row, Mapping):
@@ -237,6 +257,7 @@ def build_evidence_complete_basket_closure(
                 row["closure_status"] == "evidence_complete" or int(row["unknown_blocker_count"]) == 0
                 for row in closure_rows
             ),
+            "guarded_alias_bounded_generation_cascade_result": str(guarded_report.get("overall_result") or ""),
             "final_recommendation": (
                 "evidence_complete_reason_records_ready"
                 if complete_count > 0
@@ -299,6 +320,10 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     [
                         "all_non_complete_baskets_have_no_unknown_blockers",
                         str(summary.get("all_non_complete_baskets_have_no_unknown_blockers") or False),
+                    ],
+                    [
+                        "guarded_alias_bounded_generation_cascade_result",
+                        str(summary.get("guarded_alias_bounded_generation_cascade_result") or ""),
                     ],
                     ["final_recommendation", str(summary.get("final_recommendation") or "")],
                 ],
