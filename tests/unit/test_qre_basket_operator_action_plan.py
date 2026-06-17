@@ -104,6 +104,14 @@ def test_operator_action_plan_prioritizes_aapl_and_nvda_first_batch(tmp_path: Pa
             ]
         },
     )
+    monkeypatch.setattr(
+        action_plan.first_batch_readiness,
+        "build_first_batch_evidence_recovery_readiness",
+        lambda **_: {
+            "report_kind": "qre_first_batch_evidence_recovery_readiness",
+            "first_batch_summary": {"first_batch": ["AAPL", "NVDA"]},
+        },
+    )
 
     report = action_plan.build_basket_operator_action_plan(repo_root=tmp_path, max_candidates=3)
 
@@ -122,11 +130,17 @@ def test_operator_action_plan_prioritizes_aapl_and_nvda_first_batch(tmp_path: Pa
     assert first_batch["NVDA"]["allowed_command_template"] == "python -m research.qre_evidence_complete_basket_closure --write"
     assert any("registration" in item for item in report["commands_not_allowed"])
     assert report["safe_commands_to_run_manually"][0] == "python -m research.qre_basket_evidence_density_materialization --write"
+    assert report["summary"]["first_batch_readiness_available"] is True
 
 
 def test_operator_action_plan_write_outputs_stays_allowlisted(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(action_plan.next_action_queue, "build_basket_next_action_queue", lambda **_: {"rows": [], "summary": {"row_count": 0}})
     monkeypatch.setattr(action_plan.lineage_diag, "build_basket_lineage_recovery_diagnostics", lambda **_: {"rows": []})
+    monkeypatch.setattr(
+        action_plan.first_batch_readiness,
+        "build_first_batch_evidence_recovery_readiness",
+        lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness", "first_batch_summary": {"first_batch": []}},
+    )
 
     report = action_plan.build_basket_operator_action_plan(repo_root=tmp_path, max_candidates=1)
     paths = action_plan.write_outputs(report, repo_root=tmp_path)
