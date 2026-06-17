@@ -26,6 +26,7 @@ def _seed_repo(tmp_path: Path) -> None:
             "candidates": [
                 {
                     "candidate_id": "cand-aapl",
+                    "current_status": "validated",
                     "asset": "AAPL",
                     "interval": "4h",
                     "strategy_name": "trend_pullback_v1",
@@ -33,6 +34,7 @@ def _seed_repo(tmp_path: Path) -> None:
                 },
                 {
                     "candidate_id": "cand-nvda",
+                    "current_status": "validated",
                     "asset": "NVDA",
                     "interval": "4h",
                     "strategy_name": "trend_pullback_v1",
@@ -114,6 +116,7 @@ def test_phase_one_artifact_classification_is_deterministic_and_fail_closed(tmp_
     assert first["first_batch_summary"]["first_batch"] == ["AAPL", "NVDA"]
     assert first["first_batch_summary"]["evidence_complete_count"] == 0
     assert first["first_batch_summary"]["trusted_loop_verdict"] == "read_only_context_fail_closed"
+    assert first["first_batch_summary"]["current_top_blocker"] == "legacy_schema_bridge_or_alias_analysis_required"
     assert first["safety_invariants"]["does_not_change_evidence_complete_count"] is True
 
     rows = {row["relative_path"]: row for row in first["artifact_discovery"]["rows"]}
@@ -123,6 +126,15 @@ def test_phase_one_artifact_classification_is_deterministic_and_fail_closed(tmp_
     assert rows["logs/qre_controlled_validation_execution/controlled_eval_latest.v1.json"]["classification_status"] == "legacy_validation_stdout_only"
     assert rows["research/history/20260604T170735770553Z/run_candidates.v1.json"]["classification_status"] == "missing_required_identity_fields"
     assert rows["research/history/20260604T170735770553Z/run_campaign_manifest.v1.json"]["classification_status"] == "legacy_validation_evidence_candidate"
+
+    locator = first["validation_result_locator"]["rows"]
+    assert len(locator) == 1
+    assert locator[0]["expected_result_count"] == 6
+    assert locator[0]["found_result_count"] == 2
+    assert locator[0]["missing_result_count"] == 4
+    assert locator[0]["can_use_as_oos_evidence"] is False
+    assert locator[0]["can_use_as_campaign_lineage"] is False
+    assert locator[0]["result_schema_status"] == "structured_validation_results_found"
 
 
 def test_generated_reports_are_not_treated_as_source_artifacts(tmp_path: Path, monkeypatch) -> None:
@@ -137,6 +149,21 @@ def test_generated_reports_are_not_treated_as_source_artifacts(tmp_path: Path, m
     rows = {row["relative_path"]: row for row in report["artifact_discovery"]["rows"]}
 
     assert rows["logs/qre_discovery_basket_grid_evidence_materialization/latest.json"]["classification_status"] == "generated_report_not_source_artifact"
+
+
+def test_results_written_without_structured_outputs_stays_fail_closed(tmp_path: Path, monkeypatch) -> None:
+    _seed_repo(tmp_path)
+    _stub_upstream(monkeypatch)
+    (tmp_path / "research" / "history").rename(tmp_path / "research" / "history_hidden")
+
+    report = cascade.build_first_batch_evidence_recovery_cascade(repo_root=tmp_path)
+
+    locator = report["validation_result_locator"]["rows"]
+    assert len(locator) == 1
+    assert locator[0]["expected_result_count"] == 6
+    assert locator[0]["found_result_count"] == 0
+    assert locator[0]["result_schema_status"] == "structured_validation_results_missing"
+    assert report["first_batch_summary"]["current_top_blocker"] == "legacy_results_missing"
 
 
 def test_write_outputs_stays_allowlisted(tmp_path: Path, monkeypatch) -> None:

@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import os
+import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
@@ -90,6 +91,8 @@ GENERATED_REPORT_MARKERS: Final[tuple[str, ...]] = (
     "qre_evidence_complete_basket_closure",
     "qre_trusted_loop_review",
 )
+RESULT_WRITTEN_PATTERN: Final[re.Pattern[str]] = re.compile(r"results_written=(?P<count>\d+)")
+VALIDATED_COUNT_PATTERN: Final[re.Pattern[str]] = re.compile(r"validated_count=(?P<count>\d+)")
 
 
 def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
@@ -373,6 +376,131 @@ def _iter_allowlisted_files(repo_root: Path) -> Iterable[Path]:
             yield path
 
 
+def _extract_expected_result_count(row: Mapping[str, Any]) -> int:
+    for field in ("expected_result_count", "validated_count"):
+        value = row.get(field)
+        if isinstance(value, int):
+            return value
+    payload = _read_json_payload(Path(row["path"]))
+    if isinstance(payload, Mapping):
+        summary = payload.get("summary")
+        if isinstance(summary, Mapping):
+            for field in ("validated_count", "result_success_count"):
+                value = summary.get(field)
+                if isinstance(value, int):
+                    return value
+        for field in ("validated_candidate_count", "result_success_count"):
+            value = payload.get(field)
+            if isinstance(value, int):
+                return value
+        stdout_tail = str(payload.get("stdout_tail") or "")
+        for pattern in (RESULT_WRITTEN_PATTERN, VALIDATED_COUNT_PATTERN):
+            match = pattern.search(stdout_tail)
+            if match:
+                return int(match.group("count"))
+    text = _read_text(Path(row["path"]))
+    for pattern in (RESULT_WRITTEN_PATTERN, VALIDATED_COUNT_PATTERN):
+        match = pattern.search(text)
+        if match:
+            return int(match.group("count"))
+    return 0
+
+
+def _extract_validation_candidate_rows(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, Mapping):
+        return []
+    rows = payload.get("candidates")
+    if not isinstance(rows, list):
+        rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return []
+    extracted: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        validation = row.get("validation")
+        if isinstance(validation, Mapping):
+            extracted.append(dict(row))
+    return extracted
+
+
+def _locate_validation_results(
+    repo_root: Path,
+    artifact_rows: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    stdout_rows = [
+        row
+        for row in artifact_rows
+        if row["classification_status"] == "legacy_validation_stdout_only"
+    ]
+    structured_rows = [
+        row
+        for row in artifact_rows
+        if row["relative_path"].startswith("research/history/")
+        and row["has_structured_results"]
+        and (
+            row["contains_validation_fields"]
+            or row["artifact_kind"] in {"legacy_candidate_results", "legacy_validation_state"}
+        )
+    ]
+    locator_rows: list[dict[str, Any]] = []
+    for stdout_row in stdout_rows:
+        expected_result_count = _extract_expected_result_count(stdout_row)
+        matched_structured: list[dict[str, Any]] = []
+        found_symbols: set[str] = set()
+        found_validated_count = 0
+        found_paths: list[str] = []
+        for candidate_row in structured_rows:
+            payload = _read_json_payload(Path(candidate_row["path"]))
+            validation_rows = _extract_validation_candidate_rows(payload)
+            if not validation_rows:
+                continue
+            matched_candidates = [
+                row for row in validation_rows if str(row.get("asset") or "") in TARGET_SYMBOLS
+            ]
+            if not matched_candidates:
+                continue
+            for item in matched_candidates:
+                found_symbols.add(str(item.get("asset") or ""))
+                validation_status = str(((item.get("validation") or {}).get("status")) or "")
+                current_status = str(item.get("current_status") or "")
+                if validation_status == "validated" or current_status == "validated":
+                    found_validated_count += 1
+            found_paths.append(candidate_row["relative_path"])
+            matched_structured.append(dict(candidate_row))
+        found_paths = sorted(set(found_paths))
+        result_schema_status = (
+            "structured_validation_results_found"
+            if found_paths
+            else "structured_validation_results_missing"
+        )
+        missing_result_count = max(expected_result_count - found_validated_count, 0) if expected_result_count else 0
+        locator_rows.append(
+            {
+                "stdout_trace_path": stdout_row["relative_path"],
+                "expected_result_count": expected_result_count,
+                "found_result_count": found_validated_count,
+                "missing_result_count": missing_result_count,
+                "found_result_paths": found_paths,
+                "matched_symbols": sorted(found_symbols),
+                "result_schema_status": result_schema_status,
+                "can_use_as_oos_evidence": False,
+                "can_use_as_campaign_lineage": False,
+                "why_or_why_not": (
+                    "structured_legacy_validation_rows_found_but_current_first_batch_daily_lineage_and_oos_proof_remain_unproven"
+                    if found_paths
+                    else "stdout_trace_exists_but_structured_validation_outputs_were_not_found"
+                ),
+            }
+        )
+    locator_rows.sort(key=lambda row: row["stdout_trace_path"])
+    return {
+        "rows": locator_rows,
+        "trace_count": len(locator_rows),
+        "structured_result_trace_count": sum(bool(row["found_result_paths"]) for row in locator_rows),
+    }
+
+
 def _phase_one_rows(repo_root: Path) -> list[dict[str, Any]]:
     rows = [classify_artifact(path, repo_root=repo_root) for path in _iter_allowlisted_files(repo_root)]
     filtered = [
@@ -400,6 +528,7 @@ def build_first_batch_evidence_recovery_cascade(
     )
     trusted_loop_report = trusted_loop.build_trusted_loop_review_packet(repo_root=repo_root)
     artifact_rows = _phase_one_rows(repo_root)
+    validation_locator = _locate_validation_results(repo_root, artifact_rows)
     counts = Counter(str(row["classification_status"]) for row in artifact_rows)
     closure_rows = closure_report.get("rows") if isinstance(closure_report.get("rows"), list) else []
     closure_by_symbol = {
@@ -429,16 +558,23 @@ def build_first_batch_evidence_recovery_cascade(
             }
         )
     files_scanned = sum(1 for _ in _iter_allowlisted_files(repo_root))
+    locator_rows = validation_locator["rows"]
+    current_top_blocker = (
+        "legacy_schema_bridge_or_alias_analysis_required"
+        if any(row["found_result_paths"] for row in locator_rows)
+        else "legacy_results_missing"
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
-        "overall_result": "IN_PROGRESS_PHASE_1",
+        "overall_result": "IN_PROGRESS_PHASE_2",
         "first_batch_summary": {
             "first_batch": list(FIRST_BATCH_SYMBOLS),
             "second_line": list(SECOND_LINE_SYMBOLS),
             "evidence_complete_count": int((closure_report.get("summary") or {}).get("evidence_complete_count") or 0),
             "unknown_blocker_count": int((closure_report.get("summary") or {}).get("unknown_blocker_count") or 0),
             "trusted_loop_verdict": str((trusted_loop_report.get("summary") or {}).get("trust_verdict") or ""),
+            "current_top_blocker": current_top_blocker,
             "top_blockers": {
                 symbol: list((closure_by_symbol.get(symbol, {}) or {}).get("exact_blockers") or [])
                 for symbol in FIRST_BATCH_SYMBOLS
@@ -451,6 +587,7 @@ def build_first_batch_evidence_recovery_cascade(
             "classification_counts": dict(sorted(counts.items())),
             "rows": artifact_rows,
         },
+        "validation_result_locator": validation_locator,
         "first_batch_candidates": first_batch_rows,
         "phase_reports": [
             {
@@ -464,6 +601,22 @@ def build_first_batch_evidence_recovery_cascade(
                     "classified_temp_fixture_report_registry_and_structured_legacy_artifacts",
                 ],
                 "why_continued_or_stopped": "continue_to_structured_result_location_if_legacy_candidates_exist",
+            },
+            {
+                "phase": "missing_validation_result_output_locator",
+                "result": "executed",
+                "blocker_before": "artifact_classification_completed_pending_result_location",
+                "blocker_after": current_top_blocker,
+                "artifacts_found": validation_locator["structured_result_trace_count"],
+                "actions_taken": [
+                    "matched_stdout_validation_traces_to_allowlisted_structured_history_outputs",
+                    "counted_expected_vs_found_validated_results",
+                ],
+                "why_continued_or_stopped": (
+                    "continue_to_bridge_and_alias_analysis"
+                    if current_top_blocker == "legacy_schema_bridge_or_alias_analysis_required"
+                    else "stop_if_only_stdout_trace_exists_without_structured_results"
+                ),
             }
         ],
         "current_stop_conditions": list(PHASE_ONE_STOP_CONDITIONS),
@@ -500,6 +653,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["candidate_artifacts", str(discovery.get("candidate_artifacts") or 0)],
                     ["evidence_complete_count", str(summary.get("evidence_complete_count") or 0)],
                     ["trusted_loop_verdict", str(summary.get("trusted_loop_verdict") or "")],
+                    ["current_top_blocker", str(summary.get("current_top_blocker") or "")],
                 ],
             ),
             "",
@@ -514,6 +668,22 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ]
                     for row in first_batch_rows
                 ],
+            ),
+            "",
+            "## 3. Validation locator",
+            _table(
+                ["Trace", "Expected", "Found", "Missing", "Schema status"],
+                [
+                    [
+                        str(row.get("stdout_trace_path") or ""),
+                        str(row.get("expected_result_count") or 0),
+                        str(row.get("found_result_count") or 0),
+                        str(row.get("missing_result_count") or 0),
+                        str(row.get("result_schema_status") or ""),
+                    ]
+                    for row in (report.get("validation_result_locator") or {}).get("rows", [])
+                ]
+                or [["none", "0", "0", "0", "none"]],
             ),
         ]
     )
