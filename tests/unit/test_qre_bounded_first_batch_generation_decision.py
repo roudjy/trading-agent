@@ -35,6 +35,12 @@ def test_bounded_generation_decision_requires_operator_approval(
     assert packet["operator_approval_required"] is True
     assert packet["auto_run_allowed"] is False
     assert "campaign_launcher" in packet["unsafe_command_candidates"]
+    envelope = {row["command"]: row for row in report["command_envelope"]["rows"]}
+    assert envelope["python -m research.qre_guarded_alias_bounded_generation_cascade --write"]["classification"] == "safe_report_only"
+    assert envelope["python -m research.controlled_discovery_grid --symbols AAPL,NVDA --preset trend_pullback_continuation_daily_v1 --timeframe daily_v1"]["classification"] == "approval_required_generation"
+    assert envelope["paper/shadow/live"]["classification"] == "forbidden_trading"
+    assert envelope["strategy synthesis"]["classification"] == "forbidden_mutation"
+    assert envelope["external data fetch"]["classification"] == "forbidden_external_fetch"
 
 
 def test_bounded_generation_decision_write_outputs_stays_allowlisted(

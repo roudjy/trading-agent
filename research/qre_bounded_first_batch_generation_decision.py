@@ -20,6 +20,34 @@ WRITE_PREFIX: Final[str] = "logs/qre_bounded_first_batch_generation_decision/"
 FIRST_BATCH_SYMBOLS: Final[tuple[str, ...]] = ("AAPL", "NVDA")
 TARGET_PRESET: Final[str] = "trend_pullback_continuation_daily_v1"
 TARGET_TIMEFRAME: Final[str] = "daily_v1"
+SAFE_REPORT_ONLY_COMMANDS: Final[tuple[str, ...]] = (
+    "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
+    "python -m research.qre_guarded_preset_timeframe_alias_policy --write",
+    "python -m research.qre_bounded_first_batch_generation_decision --write",
+)
+SAFE_PREFLIGHT_COMMANDS: Final[tuple[str, ...]] = ()
+APPROVAL_REQUIRED_GENERATION_COMMANDS: Final[tuple[str, ...]] = (
+    "python -m research.controlled_discovery_grid --symbols AAPL,NVDA --preset trend_pullback_continuation_daily_v1 --timeframe daily_v1",
+    "python -m research.controlled_validation --symbols AAPL,NVDA --preset trend_pullback_continuation_daily_v1 --timeframe daily_v1",
+)
+FORBIDDEN_COMMAND_FRAGMENTS: Final[dict[str, str]] = {
+    "campaign_launcher": "forbidden_mutation",
+    "run_campaign": "forbidden_mutation",
+    "campaign_queue": "forbidden_mutation",
+    "campaign_registry": "forbidden_mutation",
+    "paper": "forbidden_trading",
+    "shadow": "forbidden_trading",
+    "live": "forbidden_trading",
+    "broker": "forbidden_trading",
+    "risk": "forbidden_trading",
+    "execution": "forbidden_trading",
+    "strategy synthesis": "forbidden_mutation",
+    "strategy registration": "forbidden_mutation",
+    "candidate promotion": "forbidden_mutation",
+    "provider fetch": "forbidden_external_fetch",
+    "provider activation": "forbidden_external_fetch",
+    "external data fetch": "forbidden_external_fetch",
+}
 
 
 def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
@@ -27,6 +55,46 @@ def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     divider = "| " + " | ".join(["---"] * len(headers)) + " |"
     body = ["| " + " | ".join(row) + " |" for row in rows]
     return "\n".join([head, divider, *body])
+
+
+def classify_command_envelope(command: str) -> dict[str, Any]:
+    normalized = " ".join(str(command or "").split())
+    lowered = normalized.lower()
+    if normalized in SAFE_REPORT_ONLY_COMMANDS:
+        return {
+            "command": normalized,
+            "classification": "safe_report_only",
+            "operator_approval_required": False,
+            "auto_run_allowed": False,
+        }
+    if normalized in SAFE_PREFLIGHT_COMMANDS:
+        return {
+            "command": normalized,
+            "classification": "safe_preflight_only",
+            "operator_approval_required": False,
+            "auto_run_allowed": False,
+        }
+    if normalized in APPROVAL_REQUIRED_GENERATION_COMMANDS or "controlled_discovery_grid" in lowered or "controlled_validation" in lowered:
+        return {
+            "command": normalized,
+            "classification": "approval_required_generation",
+            "operator_approval_required": True,
+            "auto_run_allowed": False,
+        }
+    for fragment, classification in FORBIDDEN_COMMAND_FRAGMENTS.items():
+        if fragment in lowered:
+            return {
+                "command": normalized,
+                "classification": classification,
+                "operator_approval_required": True,
+                "auto_run_allowed": False,
+            }
+    return {
+        "command": normalized,
+        "classification": "unknown_requires_operator_review",
+        "operator_approval_required": True,
+        "auto_run_allowed": False,
+    }
 
 
 def build_bounded_first_batch_generation_decision(
@@ -48,6 +116,21 @@ def build_bounded_first_batch_generation_decision(
         for row in closure_rows
         if isinstance(row, Mapping)
     }
+    command_candidates = [
+        *SAFE_REPORT_ONLY_COMMANDS,
+        *APPROVAL_REQUIRED_GENERATION_COMMANDS,
+        "campaign_launcher",
+        "run_campaign",
+        "campaign_queue mutation",
+        "campaign_registry mutation",
+        "paper/shadow/live",
+        "broker/risk/execution",
+        "strategy synthesis",
+        "strategy registration",
+        "candidate promotion",
+        "provider activation",
+        "external data fetch",
+    ]
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -88,11 +171,10 @@ def build_bounded_first_batch_generation_decision(
                 "python -m research.qre_trusted_loop_review_packet --write",
             ],
             "safe_command_candidates": [
-                "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
-                "python -m research.qre_guarded_preset_timeframe_alias_policy --write",
-                "python -m research.qre_bounded_first_batch_generation_decision --write",
+                *SAFE_REPORT_ONLY_COMMANDS,
             ],
             "unsafe_command_candidates": [
+                *APPROVAL_REQUIRED_GENERATION_COMMANDS,
                 "campaign_launcher",
                 "run_campaign",
                 "campaign_queue mutation",
@@ -123,6 +205,9 @@ def build_bounded_first_batch_generation_decision(
                 "risk/",
                 "execution/",
             ],
+        },
+        "command_envelope": {
+            "rows": [classify_command_envelope(command) for command in command_candidates],
         },
         "safety_invariants": {
             "read_only": True,
@@ -160,6 +245,20 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                 [
                     [str(symbol), ",".join(str(v) for v in values or [])]
                     for symbol, values in blockers.items()
+                ],
+            ),
+            "",
+            "## 3. Command envelope",
+            _table(
+                ["Command", "Classification", "Approval", "Auto-run"],
+                [
+                    [
+                        str(row.get("command") or ""),
+                        str(row.get("classification") or ""),
+                        str(bool(row.get("operator_approval_required"))).lower(),
+                        str(bool(row.get("auto_run_allowed"))).lower(),
+                    ]
+                    for row in (report.get("command_envelope") or {}).get("rows", [])
                 ],
             ),
         ]
