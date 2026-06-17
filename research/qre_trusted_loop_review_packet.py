@@ -20,6 +20,7 @@ from typing import Any, Final
 from reporting import qre_trusted_loop_readiness as trusted_readiness
 from research import qre_evidence_complete_basket_closure as basket_closure
 from research import qre_failure_action_from_basket as failure_action
+from research import qre_first_batch_evidence_recovery_cascade as first_batch_cascade
 from research import qre_first_batch_evidence_recovery_readiness as first_batch_readiness
 from research import qre_basket_operator_action_plan as basket_action_plan
 from research import qre_reason_records_v1 as reason_records
@@ -113,6 +114,11 @@ REPORT_SURFACES: tuple[dict[str, str], ...] = (
         "purpose": "bounded first-batch evidence recovery readiness plan",
     },
     {
+        "report_kind": "qre_first_batch_evidence_recovery_cascade",
+        "path_hint": "logs/qre_first_batch_evidence_recovery_cascade/",
+        "purpose": "bounded first-batch recovery cascade with legacy artifact boundary analysis",
+    },
+    {
         "report_kind": "qre_trusted_loop_review_packet",
         "path_hint": "logs/qre_trusted_loop_review/",
         "purpose": "final trusted-loop operator review packet",
@@ -203,6 +209,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     first_batch_readiness_packet = first_batch_readiness.build_first_batch_evidence_recovery_readiness(
         repo_root=repo_root
     )
+    first_batch_cascade_packet = first_batch_cascade.build_first_batch_evidence_recovery_cascade(
+        repo_root=repo_root
+    )
 
     protected_artifacts = [
         _path_state(repo_root, "research/research_latest.json"),
@@ -258,6 +267,12 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             ),
             "first_batch_readiness_available": str(first_batch_readiness_packet.get("report_kind") or "")
             == "qre_first_batch_evidence_recovery_readiness",
+            "first_batch_recovery_cascade_available": str(first_batch_cascade_packet.get("report_kind") or "")
+            == "qre_first_batch_evidence_recovery_cascade",
+            "first_batch_recovery_cascade_result": str(first_batch_cascade_packet.get("overall_result") or ""),
+            "first_batch_recovery_cascade_top_blocker": str(
+                (first_batch_cascade_packet.get("first_batch_summary") or {}).get("current_top_blocker") or ""
+            ),
             "contradiction_visibility": (
                 readiness_summary.get("contradiction_visibility")
                 if isinstance(readiness_summary.get("contradiction_visibility"), Mapping)
@@ -292,6 +307,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "failure_action": failure_packet,
             "basket_closure": closure_packet,
             "first_batch_readiness": first_batch_readiness_packet,
+            "first_batch_recovery_cascade": first_batch_cascade_packet,
             "routing_calibration": routing_packet,
             "sampling_calibration": sampling_packet,
             "research_memory": memory_packet,

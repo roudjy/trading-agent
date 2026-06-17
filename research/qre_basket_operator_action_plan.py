@@ -10,6 +10,7 @@ from typing import Any, Final
 
 from research import qre_basket_lineage_recovery_diagnostics as lineage_diag
 from research import qre_basket_next_action_queue as next_action_queue
+from research import qre_first_batch_evidence_recovery_cascade as first_batch_cascade
 from research import qre_first_batch_evidence_recovery_readiness as first_batch_readiness
 
 
@@ -28,6 +29,7 @@ SAFE_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_evidence_complete_basket_closure --write",
     "python -m research.qre_trusted_loop_review_packet --write",
     "python -m research.qre_first_batch_evidence_recovery_readiness --write",
+    "python -m research.qre_first_batch_evidence_recovery_cascade --write",
 )
 NOT_ALLOWED_COMMANDS: Final[tuple[str, ...]] = (
     "any campaign mutation command",
@@ -61,6 +63,10 @@ def build_basket_operator_action_plan(
         max_candidates=max_candidates,
     )
     readiness_report = first_batch_readiness.build_first_batch_evidence_recovery_readiness(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
+    cascade_report = first_batch_cascade.build_first_batch_evidence_recovery_cascade(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
@@ -149,6 +155,12 @@ def build_basket_operator_action_plan(
             "commands_not_allowed_count": len(NOT_ALLOWED_COMMANDS),
             "first_batch_readiness_artifact": "logs/qre_first_batch_evidence_recovery_readiness/latest.json",
             "first_batch_readiness_available": str(readiness_report.get("report_kind") or "") == "qre_first_batch_evidence_recovery_readiness",
+            "first_batch_recovery_cascade_artifact": "logs/qre_first_batch_evidence_recovery_cascade/latest.json",
+            "first_batch_recovery_cascade_available": str(cascade_report.get("report_kind") or "") == "qre_first_batch_evidence_recovery_cascade",
+            "first_batch_recovery_cascade_result": str(cascade_report.get("overall_result") or ""),
+            "first_batch_recovery_cascade_top_blocker": str(
+                (cascade_report.get("first_batch_summary") or {}).get("current_top_blocker") or ""
+            ),
             "final_recommendation": "basket_operator_action_plan_ready" if queue_rows else "basket_operator_action_plan_missing",
             "operator_summary": (
                 "Read-only operator action plan groups the closest evidence recovery steps into a bounded first batch "
@@ -172,11 +184,13 @@ def build_basket_operator_action_plan(
             "python -m research.qre_evidence_complete_basket_closure --write",
             "python -m research.qre_trusted_loop_review_packet --write",
             "python -m research.qre_first_batch_evidence_recovery_readiness --write",
+            "python -m research.qre_first_batch_evidence_recovery_cascade --write",
         ],
         "expected_rerun_sequence": [
             "materialize_density",
             "diagnose_lineage",
             "refresh_first_batch_readiness",
+            "refresh_first_batch_recovery_cascade",
             "refresh_recovery_plan",
             "refresh_next_action_queue",
             "refresh_closure",
@@ -224,6 +238,8 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["recommended_first_batch", str(summary.get("recommended_first_batch") or "")],
                     ["top_candidates", ", ".join(str(item) for item in summary.get("top_candidates") or []) or "none"],
                     ["top_actions", ", ".join(str(item) for item in summary.get("top_actions") or []) or "none"],
+                    ["cascade_result", str(summary.get("first_batch_recovery_cascade_result") or "")],
+                    ["cascade_top_blocker", str(summary.get("first_batch_recovery_cascade_top_blocker") or "")],
                 ],
             ),
             "",

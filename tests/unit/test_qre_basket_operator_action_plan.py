@@ -112,6 +112,15 @@ def test_operator_action_plan_prioritizes_aapl_and_nvda_first_batch(tmp_path: Pa
             "first_batch_summary": {"first_batch": ["AAPL", "NVDA"]},
         },
     )
+    monkeypatch.setattr(
+        action_plan.first_batch_cascade,
+        "build_first_batch_evidence_recovery_cascade",
+        lambda **_: {
+            "report_kind": "qre_first_batch_evidence_recovery_cascade",
+            "overall_result": "PRESET_TIMEFRAME_ALIAS_BLOCKED",
+            "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
+        },
+    )
 
     report = action_plan.build_basket_operator_action_plan(repo_root=tmp_path, max_candidates=3)
 
@@ -131,6 +140,8 @@ def test_operator_action_plan_prioritizes_aapl_and_nvda_first_batch(tmp_path: Pa
     assert any("registration" in item for item in report["commands_not_allowed"])
     assert report["safe_commands_to_run_manually"][0] == "python -m research.qre_basket_evidence_density_materialization --write"
     assert report["summary"]["first_batch_readiness_available"] is True
+    assert report["summary"]["first_batch_recovery_cascade_available"] is True
+    assert report["summary"]["first_batch_recovery_cascade_result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED"
 
 
 def test_operator_action_plan_write_outputs_stays_allowlisted(tmp_path: Path, monkeypatch) -> None:
@@ -140,6 +151,11 @@ def test_operator_action_plan_write_outputs_stays_allowlisted(tmp_path: Path, mo
         action_plan.first_batch_readiness,
         "build_first_batch_evidence_recovery_readiness",
         lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness", "first_batch_summary": {"first_batch": []}},
+    )
+    monkeypatch.setattr(
+        action_plan.first_batch_cascade,
+        "build_first_batch_evidence_recovery_cascade",
+        lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_cascade", "first_batch_summary": {}, "overall_result": "PRESET_TIMEFRAME_ALIAS_BLOCKED"},
     )
 
     report = action_plan.build_basket_operator_action_plan(repo_root=tmp_path, max_candidates=1)
