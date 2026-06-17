@@ -9,6 +9,7 @@ def test_bounded_generation_decision_requires_operator_approval(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
+    monkeypatch.setattr(decision, "_git_status_paths", lambda _: [])
     monkeypatch.setattr(
         decision.alias_policy,
         "build_guarded_preset_timeframe_alias_policy",
@@ -41,12 +42,15 @@ def test_bounded_generation_decision_requires_operator_approval(
     assert envelope["paper/shadow/live"]["classification"] == "forbidden_trading"
     assert envelope["strategy synthesis"]["classification"] == "forbidden_mutation"
     assert envelope["external data fetch"]["classification"] == "forbidden_external_fetch"
+    assert report["preflight"]["approval_packet_ready"] is True
+    assert report["preflight"]["auto_run_allowed"] is False
 
 
 def test_bounded_generation_decision_write_outputs_stays_allowlisted(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
+    monkeypatch.setattr(decision, "_git_status_paths", lambda _: [])
     monkeypatch.setattr(
         decision.alias_policy,
         "build_guarded_preset_timeframe_alias_policy",
@@ -63,3 +67,29 @@ def test_bounded_generation_decision_write_outputs_stays_allowlisted(
 
     assert paths["latest"] == "logs/qre_bounded_first_batch_generation_decision/latest.json"
     assert paths["operator_summary"] == "logs/qre_bounded_first_batch_generation_decision/operator_summary.md"
+
+
+def test_bounded_generation_preflight_blocks_dirty_protected_paths(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        decision,
+        "_git_status_paths",
+        lambda _: ["research/research_latest.json", "logs/qre_guarded_alias_bounded_generation_cascade/latest.json"],
+    )
+    monkeypatch.setattr(
+        decision.alias_policy,
+        "build_guarded_preset_timeframe_alias_policy",
+        lambda **_: {"summary": {}},
+    )
+    monkeypatch.setattr(
+        decision.closure,
+        "build_evidence_complete_basket_closure",
+        lambda **_: {"rows": []},
+    )
+
+    report = decision.build_bounded_first_batch_generation_decision(repo_root=tmp_path)
+
+    assert report["preflight"]["preflight_status"] == "blocked_preflight"
+    assert "protected_path_dirty" in report["preflight"]["blocking_preflight_reasons"]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
@@ -48,6 +49,9 @@ FORBIDDEN_COMMAND_FRAGMENTS: Final[dict[str, str]] = {
     "provider activation": "forbidden_external_fetch",
     "external data fetch": "forbidden_external_fetch",
 }
+PROTECTED_PATHS: Final[tuple[str, ...]] = ("research/research_latest.json", "research/strategy_matrix.csv")
+STATUS_IGNORE_PREFIXES: Final[tuple[str, ...]] = ("logs/", ".tmp/")
+STATUS_IGNORE_EXACT: Final[frozenset[str]] = frozenset({"pr_body.md"})
 
 
 def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
@@ -97,6 +101,75 @@ def classify_command_envelope(command: str) -> dict[str, Any]:
     }
 
 
+def _git_status_paths(repo_root: Path) -> list[str]:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except OSError:
+        return []
+    if result.returncode != 0:
+        return []
+    paths: list[str] = []
+    for line in result.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        candidate = line[3:].strip()
+        if " -> " in candidate:
+            candidate = candidate.split(" -> ", 1)[1].strip()
+        candidate = candidate.replace("\\", "/")
+        if candidate:
+            paths.append(candidate)
+    return paths
+
+
+def _build_preflight(repo_root: Path) -> dict[str, Any]:
+    status_paths = _git_status_paths(repo_root)
+    relevant_dirty_paths = [
+        path
+        for path in status_paths
+        if not path.startswith(STATUS_IGNORE_PREFIXES)
+        and path not in STATUS_IGNORE_EXACT
+    ]
+    blocking_reasons: list[str] = []
+    if any(path in PROTECTED_PATHS for path in relevant_dirty_paths):
+        blocking_reasons.append("protected_path_dirty")
+    return {
+        "preflight_status": "approval_packet_ready" if not blocking_reasons else "blocked_preflight",
+        "blocking_preflight_reasons": blocking_reasons,
+        "approval_packet_ready": not blocking_reasons,
+        "auto_run_allowed": False,
+        "operator_decision_required": True,
+        "recommended_next_action": (
+            "operator_approve_bounded_aapl_nvda_current_basket_grid_generation"
+            if not blocking_reasons
+            else "clear_preflight_blockers_before_operator_review"
+        ),
+        "repo_clean_state_required": True,
+        "current_branch_main_state_required": True,
+        "frozen_contract_protection_required": True,
+        "protected_path_exclusion_required": True,
+        "output_path_allowlist_required": True,
+        "symbol_allowlist": list(FIRST_BATCH_SYMBOLS),
+        "target_preset_allowlist": [TARGET_PRESET],
+        "target_timeframe_allowlist": [TARGET_TIMEFRAME],
+        "no_strategy_synthesis": True,
+        "no_candidate_promotion": True,
+        "no_paper_shadow_live": True,
+        "no_broker_risk_execution": True,
+        "no_external_provider_fetch": True,
+        "logs_output_manifest_required": True,
+        "reason_records_required": True,
+        "downstream_rerun_sequence_required": True,
+        "operator_approval_required": True,
+    }
+
+
 def build_bounded_first_batch_generation_decision(
     *,
     repo_root: Path = Path("."),
@@ -131,6 +204,7 @@ def build_bounded_first_batch_generation_decision(
         "provider activation",
         "external data fetch",
     ]
+    preflight = _build_preflight(repo_root)
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -209,6 +283,7 @@ def build_bounded_first_batch_generation_decision(
         "command_envelope": {
             "rows": [classify_command_envelope(command) for command in command_candidates],
         },
+        "preflight": preflight,
         "safety_invariants": {
             "read_only": True,
             "operator_approval_required": True,
@@ -259,6 +334,17 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                         str(bool(row.get("auto_run_allowed"))).lower(),
                     ]
                     for row in (report.get("command_envelope") or {}).get("rows", [])
+                ],
+            ),
+            "",
+            "## 4. Preflight",
+            _table(
+                ["Field", "Value"],
+                [
+                    ["preflight_status", str((report.get("preflight") or {}).get("preflight_status") or "")],
+                    ["approval_packet_ready", str(bool((report.get("preflight") or {}).get("approval_packet_ready"))).lower()],
+                    ["blocking_preflight_reasons", ",".join(str(v) for v in (report.get("preflight") or {}).get("blocking_preflight_reasons") or []) or "none"],
+                    ["recommended_next_action", str((report.get("preflight") or {}).get("recommended_next_action") or "")],
                 ],
             ),
         ]
