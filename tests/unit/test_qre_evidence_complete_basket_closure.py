@@ -56,6 +56,11 @@ def _seed_complete_repo(tmp_path: Path) -> None:
 
 def test_closure_marks_complete_basket_without_blockers(monkeypatch) -> None:
     monkeypatch.setattr(
+        closure,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {"overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"},
+    )
+    monkeypatch.setattr(
         closure.evidence_coverage,
         "build_real_basket_evidence_coverage",
         lambda **_: {
@@ -120,9 +125,15 @@ def test_closure_marks_complete_basket_without_blockers(monkeypatch) -> None:
     assert report["summary"]["evidence_complete_count"] == 1
     assert report["summary"]["all_complete_baskets_have_reason_records"] is True
     assert report["summary"]["final_recommendation"] == "evidence_complete_reason_records_ready"
+    assert report["summary"]["guarded_alias_bounded_generation_cascade_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
 
 
 def test_closure_requires_exact_blockers_without_unknowns(monkeypatch) -> None:
+    monkeypatch.setattr(
+        closure,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {"overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"},
+    )
     monkeypatch.setattr(
         closure.evidence_coverage,
         "build_real_basket_evidence_coverage",
@@ -195,6 +206,11 @@ def test_closure_requires_exact_blockers_without_unknowns(monkeypatch) -> None:
 
 def test_closure_treats_explicit_oos_gap_states_as_known_blockers(monkeypatch) -> None:
     monkeypatch.setattr(
+        closure,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {"overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"},
+    )
+    monkeypatch.setattr(
         closure.evidence_coverage,
         "build_real_basket_evidence_coverage",
         lambda **_: {
@@ -266,6 +282,11 @@ def test_closure_treats_explicit_oos_gap_states_as_known_blockers(monkeypatch) -
 
 def test_closure_fails_closed_when_reason_records_missing_for_complete_basket(monkeypatch) -> None:
     monkeypatch.setattr(
+        closure,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {"overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"},
+    )
+    monkeypatch.setattr(
         closure.evidence_coverage,
         "build_real_basket_evidence_coverage",
         lambda **_: {
@@ -321,6 +342,11 @@ def test_closure_fails_closed_when_reason_records_missing_for_complete_basket(mo
 
 def test_closure_writes_outputs(tmp_path: Path, monkeypatch) -> None:
     _seed_complete_repo(tmp_path)
+    monkeypatch.setattr(
+        closure,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {"overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"},
+    )
     report = closure.build_evidence_complete_basket_closure(repo_root=tmp_path)
     paths = closure.write_outputs(report, repo_root=tmp_path)
     markdown = (tmp_path / paths["operator_summary"]).read_text(encoding="utf-8")

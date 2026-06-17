@@ -111,6 +111,15 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
             "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
         },
     )
+    monkeypatch.setattr(
+        packet_module,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "report_kind": "qre_guarded_alias_bounded_generation_cascade",
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {"current_top_blocker": "operator_approval_required_for_bounded_generation"},
+        },
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
 
@@ -129,6 +138,8 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["first_batch_readiness_available"] is True
     assert packet["summary"]["first_batch_recovery_cascade_available"] is True
     assert packet["summary"]["first_batch_recovery_cascade_result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED"
+    assert packet["summary"]["guarded_alias_bounded_generation_cascade_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
+    assert packet["summary"]["guarded_alias_bounded_generation_top_blocker"] == "operator_approval_required_for_bounded_generation"
     assert packet["summary"]["trust_blocker_count"] == 0
     assert packet["protected_artifacts"][0]["exists"] is True
     assert packet["protected_artifacts"][1]["exists"] is True
@@ -174,6 +185,15 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
             "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
         },
     )
+    monkeypatch.setattr(
+        packet_module,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "report_kind": "qre_guarded_alias_bounded_generation_cascade",
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {"current_top_blocker": "operator_approval_required_for_bounded_generation"},
+        },
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
 
@@ -214,6 +234,15 @@ def test_trusted_loop_review_packet_operator_summary_renders(
             "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
         },
     )
+    monkeypatch.setattr(
+        packet_module,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "report_kind": "qre_guarded_alias_bounded_generation_cascade",
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {"current_top_blocker": "operator_approval_required_for_bounded_generation"},
+        },
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
     text = packet_module.render_operator_summary(packet)
@@ -251,6 +280,15 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
             "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
         },
     )
+    monkeypatch.setattr(
+        packet_module,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "report_kind": "qre_guarded_alias_bounded_generation_cascade",
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {"current_top_blocker": "operator_approval_required_for_bounded_generation"},
+        },
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
     paths = packet_module.write_outputs(packet, repo_root=tmp_path)
@@ -265,6 +303,15 @@ def test_trusted_loop_review_packet_write_rejects_non_allowlisted_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    monkeypatch.setattr(
+        packet_module,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "report_kind": "qre_guarded_alias_bounded_generation_cascade",
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {"current_top_blocker": "operator_approval_required_for_bounded_generation"},
+        },
+    )
     monkeypatch.setattr(packet_module, "DEFAULT_OUTPUT_DIR", Path("bad"))
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
 

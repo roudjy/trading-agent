@@ -411,6 +411,17 @@ def _stub_reports(monkeypatch, tmp_path: Path) -> None:
             ],
         },
     )
+    monkeypatch.setattr(
+        readiness,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {
+                "current_top_blocker": "operator_approval_required_for_bounded_generation",
+                "bounded_generation_decision_status": "operator_approve_bounded_aapl_nvda_current_basket_grid_generation",
+            },
+        },
+    )
 
 
 def test_first_batch_readiness_report_is_deterministic_and_fail_closed(tmp_path: Path, monkeypatch) -> None:
@@ -430,6 +441,8 @@ def test_first_batch_readiness_report_is_deterministic_and_fail_closed(tmp_path:
     assert first["campaign_lineage_readiness"]["campaign_lineage_proven_count"] == 0
     assert first["authority_boundary"]["not_campaign_launcher"] is True
     assert first["safety_invariants"]["does_not_change_evidence_complete_count"] is True
+    assert first["guarded_alias_bounded_generation"]["overall_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
+    assert first["guarded_alias_bounded_generation"]["current_top_blocker"] == "operator_approval_required_for_bounded_generation"
 
     rows = {row["symbol"]: row for row in first["candidate_preconditions"]}
     assert rows["AAPL"]["campaign_lineage_status"] == "gap"
@@ -487,6 +500,15 @@ def test_trusted_loop_does_not_improve_trust_level_merely_because_readiness_exis
         packet_module.first_batch_readiness,
         "build_first_batch_evidence_recovery_readiness",
         lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
+    )
+    monkeypatch.setattr(
+        packet_module,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "report_kind": "qre_guarded_alias_bounded_generation_cascade",
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {"current_top_blocker": "operator_approval_required_for_bounded_generation"},
+        },
     )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)

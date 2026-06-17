@@ -121,15 +121,22 @@ def test_operator_action_plan_prioritizes_aapl_and_nvda_first_batch(tmp_path: Pa
             "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
         },
     )
+    monkeypatch.setattr(
+        action_plan,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {
+            "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
+            "summary": {
+                "current_top_blocker": "operator_approval_required_for_bounded_generation",
+            },
+        },
+    )
 
     report = action_plan.build_basket_operator_action_plan(repo_root=tmp_path, max_candidates=3)
 
-    assert report["summary"]["recommended_first_batch"] == "lineage_repair"
+    assert report["summary"]["recommended_first_batch"] == "bounded_generation_operator_review"
     assert report["summary"]["top_candidates"] == ["AAPL", "NVDA"]
-    assert report["summary"]["top_actions"] == [
-        "materialize_lineage_from_existing_artifacts",
-        "collect_oos_evidence",
-    ]
+    assert report["summary"]["top_actions"] == ["operator_approve_bounded_aapl_nvda_current_basket_grid_generation"]
     assert report["summary"]["blockers_targeted"] == {
         "campaign_lineage_missing": 1,
         "no_oos_evidence": 1,
@@ -142,6 +149,9 @@ def test_operator_action_plan_prioritizes_aapl_and_nvda_first_batch(tmp_path: Pa
     assert report["summary"]["first_batch_readiness_available"] is True
     assert report["summary"]["first_batch_recovery_cascade_available"] is True
     assert report["summary"]["first_batch_recovery_cascade_result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED"
+    assert report["summary"]["guarded_alias_bounded_generation_cascade_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
+    assert report["summary"]["guarded_alias_bounded_generation_top_blocker"] == "operator_approval_required_for_bounded_generation"
+    assert "python -m research.qre_guarded_alias_bounded_generation_cascade --write" in report["required_follow_up_reports"]
 
 
 def test_operator_action_plan_write_outputs_stays_allowlisted(tmp_path: Path, monkeypatch) -> None:
@@ -156,6 +166,11 @@ def test_operator_action_plan_write_outputs_stays_allowlisted(tmp_path: Path, mo
         action_plan.first_batch_cascade,
         "build_first_batch_evidence_recovery_cascade",
         lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_cascade", "first_batch_summary": {}, "overall_result": "PRESET_TIMEFRAME_ALIAS_BLOCKED"},
+    )
+    monkeypatch.setattr(
+        action_plan,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {"overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY", "summary": {"current_top_blocker": "operator_approval_required_for_bounded_generation"}},
     )
 
     report = action_plan.build_basket_operator_action_plan(repo_root=tmp_path, max_candidates=1)
