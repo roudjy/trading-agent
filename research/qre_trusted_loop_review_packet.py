@@ -124,6 +124,16 @@ REPORT_SURFACES: tuple[dict[str, str], ...] = (
         "purpose": "guarded alias policy, bounded generation decision, and acceptance/verifier packet",
     },
     {
+        "report_kind": "qre_structured_lineage_artifacts",
+        "path_hint": "logs/qre_structured_lineage_artifacts/",
+        "purpose": "structured lineage artifact contract and provisional lineage rows",
+    },
+    {
+        "report_kind": "qre_structured_oos_artifacts",
+        "path_hint": "logs/qre_structured_oos_artifacts/",
+        "purpose": "structured OOS artifact contract and provisional OOS rows",
+    },
+    {
         "report_kind": "qre_trusted_loop_review_packet",
         "path_hint": "logs/qre_trusted_loop_review/",
         "purpose": "final trusted-loop operator review packet",
@@ -161,6 +171,26 @@ def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any
         "report_kind": "qre_guarded_alias_bounded_generation_cascade_unavailable",
         "overall_result": "guarded_alias_bounded_generation_cascade_unavailable",
         "summary": {"current_top_blocker": "guarded_alias_bounded_generation_cascade_unavailable"},
+    }
+
+
+def _structured_artifact_snapshot(repo_root: Path, kind: str) -> dict[str, Any]:
+    if kind == "lineage":
+        payload = _read_json(repo_root / "logs" / "qre_structured_lineage_artifacts" / "latest.json")
+        report_kind = "qre_structured_lineage_artifacts"
+    else:
+        payload = _read_json(repo_root / "logs" / "qre_structured_oos_artifacts" / "latest.json")
+        report_kind = "qre_structured_oos_artifacts"
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == report_kind:
+        return payload
+    return {
+        "report_kind": f"{report_kind}_unavailable",
+        "summary": {
+            "final_recommendation": "request_invalid_fails_closed",
+            "artifact_count": 0,
+            "provisional_count": 0,
+            "accepted_count": 0,
+        },
     }
 
 
@@ -241,6 +271,8 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
         repo_root=repo_root
     )
     guarded_cascade_packet = _guarded_alias_bounded_generation_snapshot(repo_root)
+    structured_lineage_packet = _structured_artifact_snapshot(repo_root, "lineage")
+    structured_oos_packet = _structured_artifact_snapshot(repo_root, "oos")
 
     protected_artifacts = [
         _path_state(repo_root, "research/research_latest.json"),
@@ -256,6 +288,12 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     sampling_summary = sampling_packet.get("summary") if isinstance(sampling_packet.get("summary"), Mapping) else {}
     memory_summary = memory_packet if isinstance(memory_packet, Mapping) else {}
     action_plan_summary = action_plan_packet.get("summary") if isinstance(action_plan_packet.get("summary"), Mapping) else {}
+    structured_lineage_summary = (
+        structured_lineage_packet.get("summary") if isinstance(structured_lineage_packet.get("summary"), Mapping) else {}
+    )
+    structured_oos_summary = (
+        structured_oos_packet.get("summary") if isinstance(structured_oos_packet.get("summary"), Mapping) else {}
+    )
     trust_level, trust_verdict, trust_blockers, exact_next_action = _trusted_loop_level(
         readiness_state=str(readiness_summary.get("readiness_state") or "scaffold"),
         readiness_summary=readiness_summary,
@@ -301,6 +339,12 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "generation_command_discovery_final_recommendation": str(
                 action_plan_summary.get("generation_command_discovery_final_recommendation") or ""
             ),
+            "structured_lineage_artifact_status": str(structured_lineage_summary.get("final_recommendation") or ""),
+            "structured_lineage_artifact_count": int(structured_lineage_summary.get("artifact_count") or 0),
+            "structured_lineage_artifact_provisional_count": int(structured_lineage_summary.get("provisional_count") or 0),
+            "structured_oos_artifact_status": str(structured_oos_summary.get("final_recommendation") or ""),
+            "structured_oos_artifact_count": int(structured_oos_summary.get("artifact_count") or 0),
+            "structured_oos_artifact_provisional_count": int(structured_oos_summary.get("provisional_count") or 0),
             "first_batch_readiness_available": str(first_batch_readiness_packet.get("report_kind") or "")
             == "qre_first_batch_evidence_recovery_readiness",
             "first_batch_recovery_cascade_available": str(first_batch_cascade_packet.get("report_kind") or "")
@@ -349,6 +393,8 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "first_batch_readiness": first_batch_readiness_packet,
             "first_batch_recovery_cascade": first_batch_cascade_packet,
             "guarded_alias_bounded_generation_cascade": guarded_cascade_packet,
+            "structured_lineage_artifacts": structured_lineage_packet,
+            "structured_oos_artifacts": structured_oos_packet,
             "routing_calibration": routing_packet,
             "sampling_calibration": sampling_packet,
             "research_memory": memory_packet,
@@ -443,6 +489,10 @@ def render_operator_summary(packet: Mapping[str, Any]) -> str:
             f"- research_memory_ready: {summary.get('research_memory_ready')}",
             f"- guarded_alias_bounded_generation_cascade_result: {summary.get('guarded_alias_bounded_generation_cascade_result')}",
             f"- guarded_alias_bounded_generation_top_blocker: {summary.get('guarded_alias_bounded_generation_top_blocker')}",
+            f"- structured_lineage_artifact_status: {summary.get('structured_lineage_artifact_status')}",
+            f"- structured_lineage_artifact_count: {summary.get('structured_lineage_artifact_count')}",
+            f"- structured_oos_artifact_status: {summary.get('structured_oos_artifact_status')}",
+            f"- structured_oos_artifact_count: {summary.get('structured_oos_artifact_count')}",
             f"- trust_blockers: {', '.join(str(item) for item in trust_blockers) or 'none'}",
             "",
             "## Current Status",

@@ -145,10 +145,16 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["first_batch_recovery_cascade_result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED"
     assert packet["summary"]["guarded_alias_bounded_generation_cascade_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
     assert packet["summary"]["guarded_alias_bounded_generation_top_blocker"] == "operator_approval_required_for_bounded_generation"
+    assert packet["summary"]["structured_lineage_artifact_status"] == "request_invalid_fails_closed"
+    assert packet["summary"]["structured_lineage_artifact_count"] == 0
+    assert packet["summary"]["structured_oos_artifact_status"] == "request_invalid_fails_closed"
+    assert packet["summary"]["structured_oos_artifact_count"] == 0
     assert packet["summary"]["trust_blocker_count"] == 0
     assert packet["protected_artifacts"][0]["exists"] is True
     assert packet["protected_artifacts"][1]["exists"] is True
     assert packet["evidence_inputs"]["trusted_loop_readiness"]["readiness_state"] == "operator_trusted"
+    assert packet["evidence_inputs"]["structured_lineage_artifacts"]["summary"]["final_recommendation"] == "request_invalid_fails_closed"
+    assert packet["evidence_inputs"]["structured_oos_artifacts"]["summary"]["final_recommendation"] == "request_invalid_fails_closed"
 
 
 def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomplete(
@@ -221,6 +227,8 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
     assert "readiness_state:working_capability" in packet["summary"]["trust_blockers"]
     assert "reason_records_missing" in packet["summary"]["trust_blockers"]
     assert packet["summary"]["final_recommendation"] == "trusted_loop_operator_review_required"
+    assert packet["summary"]["structured_lineage_artifact_status"] == "request_invalid_fails_closed"
+    assert packet["summary"]["structured_oos_artifact_status"] == "request_invalid_fails_closed"
 
 
 def test_trusted_loop_review_packet_operator_summary_renders(
@@ -279,6 +287,7 @@ def test_trusted_loop_review_packet_operator_summary_renders(
     assert "# QRE Trusted Loop Review Packet" in text
     assert "trust_level: 3" in text
     assert "maintain_operator_trusted_read_only_mode" in text
+    assert "structured_lineage_artifact_status:" in text
     assert "Authority Boundary" in text
 
 

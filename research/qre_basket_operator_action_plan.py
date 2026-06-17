@@ -33,6 +33,8 @@ SAFE_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
     "python -m research.qre_bounded_first_batch_generation_decision --write",
     "python -m research.qre_bounded_aapl_nvda_current_basket_generation_discovery --write",
+    "python -m research.qre_structured_lineage_artifacts --write",
+    "python -m research.qre_structured_oos_artifacts --write",
 )
 NOT_ALLOWED_COMMANDS: Final[tuple[str, ...]] = (
     "any campaign mutation command",
@@ -86,6 +88,26 @@ def _generation_command_discovery_snapshot(repo_root: Path) -> dict[str, Any]:
     }
 
 
+def _structured_artifact_snapshot(repo_root: Path, kind: str) -> dict[str, Any]:
+    if kind == "lineage":
+        payload = _read_json(repo_root / "logs" / "qre_structured_lineage_artifacts" / "latest.json")
+        report_kind = "qre_structured_lineage_artifacts"
+    else:
+        payload = _read_json(repo_root / "logs" / "qre_structured_oos_artifacts" / "latest.json")
+        report_kind = "qre_structured_oos_artifacts"
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == report_kind:
+        return payload
+    return {
+        "report_kind": f"{report_kind}_unavailable",
+        "summary": {
+            "final_recommendation": "request_invalid_fails_closed",
+            "artifact_count": 0,
+            "provisional_count": 0,
+            "accepted_count": 0,
+        },
+    }
+
+
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     rows = report.get("rows")
     if not isinstance(rows, list):
@@ -114,6 +136,14 @@ def build_basket_operator_action_plan(
     generation_discovery_report = _generation_command_discovery_snapshot(repo_root)
     generation_discovery_summary = (
         generation_discovery_report.get("summary") if isinstance(generation_discovery_report.get("summary"), Mapping) else {}
+    )
+    structured_lineage_report = _structured_artifact_snapshot(repo_root, "lineage")
+    structured_oos_report = _structured_artifact_snapshot(repo_root, "oos")
+    structured_lineage_summary = (
+        structured_lineage_report.get("summary") if isinstance(structured_lineage_report.get("summary"), Mapping) else {}
+    )
+    structured_oos_summary = (
+        structured_oos_report.get("summary") if isinstance(structured_oos_report.get("summary"), Mapping) else {}
     )
     lineage_report = lineage_diag.build_basket_lineage_recovery_diagnostics(
         repo_root=repo_root,
@@ -223,6 +253,12 @@ def build_basket_operator_action_plan(
             "generation_command_discovery_final_recommendation": str(
                 generation_discovery_summary.get("final_recommendation") or ""
             ),
+            "structured_lineage_artifact_status": str(structured_lineage_summary.get("final_recommendation") or ""),
+            "structured_lineage_artifact_count": int(structured_lineage_summary.get("artifact_count") or 0),
+            "structured_lineage_artifact_provisional_count": int(structured_lineage_summary.get("provisional_count") or 0),
+            "structured_oos_artifact_status": str(structured_oos_summary.get("final_recommendation") or ""),
+            "structured_oos_artifact_count": int(structured_oos_summary.get("artifact_count") or 0),
+            "structured_oos_artifact_provisional_count": int(structured_oos_summary.get("provisional_count") or 0),
             "generation_command_discovery_top_blocker": str(
                 generation_discovery_summary.get("final_recommendation") or ""
             ),
@@ -252,6 +288,8 @@ def build_basket_operator_action_plan(
             "python -m research.qre_first_batch_evidence_recovery_cascade --write",
             "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
             "python -m research.qre_bounded_first_batch_generation_decision --write",
+            "python -m research.qre_structured_lineage_artifacts --write",
+            "python -m research.qre_structured_oos_artifacts --write",
         ],
         "expected_rerun_sequence": [
             "materialize_density",
@@ -310,6 +348,10 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["cascade_top_blocker", str(summary.get("first_batch_recovery_cascade_top_blocker") or "")],
                     ["guarded_cascade_result", str(summary.get("guarded_alias_bounded_generation_cascade_result") or "")],
                     ["guarded_cascade_top_blocker", str(summary.get("guarded_alias_bounded_generation_top_blocker") or "")],
+                    ["structured_lineage_artifact_status", str(summary.get("structured_lineage_artifact_status") or "")],
+                    ["structured_lineage_artifact_count", str(summary.get("structured_lineage_artifact_count") or 0)],
+                    ["structured_oos_artifact_status", str(summary.get("structured_oos_artifact_status") or "")],
+                    ["structured_oos_artifact_count", str(summary.get("structured_oos_artifact_count") or 0)],
                 ],
             ),
             "",

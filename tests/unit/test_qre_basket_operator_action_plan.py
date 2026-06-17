@@ -164,6 +164,10 @@ def test_operator_action_plan_prioritizes_aapl_and_nvda_first_batch(tmp_path: Pa
     assert report["summary"]["guarded_alias_bounded_generation_top_blocker"] == "operator_approval_required_for_bounded_generation"
     assert report["summary"]["generation_command_discovery_safe_command_found"] is False
     assert report["summary"]["generation_command_discovery_final_recommendation"] == "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND"
+    assert report["summary"]["structured_lineage_artifact_status"] == "request_invalid_fails_closed"
+    assert report["summary"]["structured_lineage_artifact_count"] == 0
+    assert report["summary"]["structured_oos_artifact_status"] == "request_invalid_fails_closed"
+    assert report["summary"]["structured_oos_artifact_count"] == 0
     assert "python -m research.qre_guarded_alias_bounded_generation_cascade --write" in report["required_follow_up_reports"]
 
 

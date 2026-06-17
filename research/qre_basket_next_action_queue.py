@@ -61,6 +61,26 @@ def _generation_command_discovery_snapshot(repo_root: Path) -> dict[str, Any]:
     }
 
 
+def _structured_artifact_snapshot(repo_root: Path, kind: str) -> dict[str, Any]:
+    if kind == "lineage":
+        payload = _read_json(repo_root / "logs" / "qre_structured_lineage_artifacts" / "latest.json")
+        report_kind = "qre_structured_lineage_artifacts"
+    else:
+        payload = _read_json(repo_root / "logs" / "qre_structured_oos_artifacts" / "latest.json")
+        report_kind = "qre_structured_oos_artifacts"
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == report_kind:
+        return payload
+    return {
+        "report_kind": f"{report_kind}_unavailable",
+        "summary": {
+            "final_recommendation": "request_invalid_fails_closed",
+            "artifact_count": 0,
+            "provisional_count": 0,
+            "accepted_count": 0,
+        },
+    }
+
+
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     rows = report.get("rows")
     if not isinstance(rows, list):
@@ -156,6 +176,14 @@ def build_basket_next_action_queue(
     generation_discovery_report = _generation_command_discovery_snapshot(repo_root)
     generation_discovery_summary = (
         generation_discovery_report.get("summary") if isinstance(generation_discovery_report.get("summary"), Mapping) else {}
+    )
+    structured_lineage_report = _structured_artifact_snapshot(repo_root, "lineage")
+    structured_oos_report = _structured_artifact_snapshot(repo_root, "oos")
+    structured_lineage_summary = (
+        structured_lineage_report.get("summary") if isinstance(structured_lineage_report.get("summary"), Mapping) else {}
+    )
+    structured_oos_summary = (
+        structured_oos_report.get("summary") if isinstance(structured_oos_report.get("summary"), Mapping) else {}
     )
     guarded_ready = str(guarded_report.get("overall_result") or "") == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
     generation_command_found = bool(generation_discovery_summary.get("safe_bounded_generation_command_found"))
@@ -283,6 +311,12 @@ def build_basket_next_action_queue(
             "generation_command_discovery_final_recommendation": str(
                 generation_discovery_summary.get("final_recommendation") or ""
             ),
+            "structured_lineage_artifact_status": str(structured_lineage_summary.get("final_recommendation") or ""),
+            "structured_lineage_artifact_count": int(structured_lineage_summary.get("artifact_count") or 0),
+            "structured_lineage_artifact_provisional_count": int(structured_lineage_summary.get("provisional_count") or 0),
+            "structured_oos_artifact_status": str(structured_oos_summary.get("final_recommendation") or ""),
+            "structured_oos_artifact_count": int(structured_oos_summary.get("artifact_count") or 0),
+            "structured_oos_artifact_provisional_count": int(structured_oos_summary.get("provisional_count") or 0),
             "final_recommendation": "basket_next_action_queue_ready" if queue_rows else "basket_next_action_queue_missing",
         },
         "rows": queue_rows,
@@ -310,6 +344,10 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
             ["expand_basket_coverage", str(summary.get("exact_next_action_counts", {}).get("expand_basket_coverage") or 0)],
             ["materialize_lineage_from_existing_artifacts", str(summary.get("exact_next_action_counts", {}).get("materialize_lineage_from_existing_artifacts") or 0)],
             ["require_identity_resolution", str(summary.get("exact_next_action_counts", {}).get("require_identity_resolution") or 0)],
+            ["structured_lineage_artifact_status", str(summary.get("structured_lineage_artifact_status") or "")],
+            ["structured_lineage_artifact_count", str(summary.get("structured_lineage_artifact_count") or 0)],
+            ["structured_oos_artifact_status", str(summary.get("structured_oos_artifact_status") or "")],
+            ["structured_oos_artifact_count", str(summary.get("structured_oos_artifact_count") or 0)],
         ],
     )
     row_table = _table(

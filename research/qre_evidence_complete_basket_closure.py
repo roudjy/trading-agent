@@ -97,6 +97,26 @@ def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any
     return {"overall_result": "guarded_alias_bounded_generation_cascade_unavailable"}
 
 
+def _structured_artifact_snapshot(repo_root: Path, kind: str) -> dict[str, Any]:
+    if kind == "lineage":
+        payload = _read_json(repo_root / "logs" / "qre_structured_lineage_artifacts" / "latest.json")
+        report_kind = "qre_structured_lineage_artifacts"
+    else:
+        payload = _read_json(repo_root / "logs" / "qre_structured_oos_artifacts" / "latest.json")
+        report_kind = "qre_structured_oos_artifacts"
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == report_kind:
+        return payload
+    return {
+        "report_kind": f"{report_kind}_unavailable",
+        "summary": {
+            "final_recommendation": "request_invalid_fails_closed",
+            "artifact_count": 0,
+            "provisional_count": 0,
+            "accepted_count": 0,
+        },
+    }
+
+
 def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
     flags = row.get("evidence_presence")
     if not isinstance(flags, Mapping):
@@ -197,6 +217,14 @@ def build_evidence_complete_basket_closure(
     reason_index = _index_reason_records([row for row in reason_rows if isinstance(row, Mapping)])
     failure_index = _index_by_candidate([row for row in failure_rows if isinstance(row, Mapping)])
     guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
+    structured_lineage_report = _structured_artifact_snapshot(repo_root, "lineage")
+    structured_oos_report = _structured_artifact_snapshot(repo_root, "oos")
+    structured_lineage_summary = (
+        structured_lineage_report.get("summary") if isinstance(structured_lineage_report.get("summary"), Mapping) else {}
+    )
+    structured_oos_summary = (
+        structured_oos_report.get("summary") if isinstance(structured_oos_report.get("summary"), Mapping) else {}
+    )
     closure_rows = []
     for row in rows:
         if not isinstance(row, Mapping):
@@ -258,6 +286,14 @@ def build_evidence_complete_basket_closure(
                 for row in closure_rows
             ),
             "guarded_alias_bounded_generation_cascade_result": str(guarded_report.get("overall_result") or ""),
+            "structured_lineage_artifact_status": str(structured_lineage_summary.get("final_recommendation") or ""),
+            "structured_lineage_artifact_count": int(structured_lineage_summary.get("artifact_count") or 0),
+            "structured_lineage_artifact_provisional_count": int(structured_lineage_summary.get("provisional_count") or 0),
+            "structured_lineage_artifact_accepted_count": int(structured_lineage_summary.get("accepted_count") or 0),
+            "structured_oos_artifact_status": str(structured_oos_summary.get("final_recommendation") or ""),
+            "structured_oos_artifact_count": int(structured_oos_summary.get("artifact_count") or 0),
+            "structured_oos_artifact_provisional_count": int(structured_oos_summary.get("provisional_count") or 0),
+            "structured_oos_artifact_accepted_count": int(structured_oos_summary.get("accepted_count") or 0),
             "final_recommendation": (
                 "evidence_complete_reason_records_ready"
                 if complete_count > 0
@@ -325,6 +361,10 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                         "guarded_alias_bounded_generation_cascade_result",
                         str(summary.get("guarded_alias_bounded_generation_cascade_result") or ""),
                     ],
+                    ["structured_lineage_artifact_status", str(summary.get("structured_lineage_artifact_status") or "")],
+                    ["structured_lineage_artifact_count", str(summary.get("structured_lineage_artifact_count") or 0)],
+                    ["structured_oos_artifact_status", str(summary.get("structured_oos_artifact_status") or "")],
+                    ["structured_oos_artifact_count", str(summary.get("structured_oos_artifact_count") or 0)],
                     ["final_recommendation", str(summary.get("final_recommendation") or "")],
                 ],
             ),
