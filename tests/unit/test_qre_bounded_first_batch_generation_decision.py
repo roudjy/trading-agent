@@ -44,6 +44,10 @@ def test_bounded_generation_decision_requires_operator_approval(
     assert envelope["external data fetch"]["classification"] == "forbidden_external_fetch"
     assert report["preflight"]["approval_packet_ready"] is True
     assert report["preflight"]["auto_run_allowed"] is False
+    assert report["runbook_contract"]["symbols"] == ["AAPL", "NVDA"]
+    assert report["runbook_contract"]["target_preset"] == "trend_pullback_continuation_daily_v1"
+    assert report["acceptance_contract"]["policy_version"] == decision.SCHEMA_VERSION
+    assert "stdout_only_traces" in report["acceptance_contract"]["rejection_conditions"]
 
 
 def test_bounded_generation_decision_write_outputs_stays_allowlisted(
