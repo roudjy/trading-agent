@@ -61,6 +61,16 @@ PHASE_ONE_STOP_CONDITIONS: Final[tuple[str, ...]] = (
     "stop_if_next_step_requires_mutating_campaign_or_registry_state",
     "stop_if_preset_or_timeframe_identity_cannot_be_proven_deterministically",
 )
+TARGET_PRESET_BY_SYMBOL: Final[dict[str, str]] = {
+    "AAPL": "trend_pullback_continuation_daily_v1",
+    "NVDA": "trend_pullback_continuation_daily_v1",
+    "TSM": "trend_pullback_continuation_daily_v1",
+}
+TARGET_TIMEFRAME_BY_SYMBOL: Final[dict[str, str]] = {
+    "AAPL": "daily_v1",
+    "NVDA": "daily_v1",
+    "TSM": "daily_v1",
+}
 AUTHORITY_BOUNDARY: Final[dict[str, Any]] = {
     "read_only_report_only": True,
     "not_campaign_launcher": True,
@@ -501,6 +511,67 @@ def _locate_validation_results(
     }
 
 
+def _analyze_legacy_compatibility(
+    repo_root: Path,
+    validation_locator: Mapping[str, Any],
+) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    for locator_row in validation_locator.get("rows") or []:
+        if not isinstance(locator_row, Mapping):
+            continue
+        for relative_path in locator_row.get("found_result_paths") or []:
+            payload = _read_json_payload(repo_root / relative_path)
+            for candidate_row in _extract_validation_candidate_rows(payload):
+                symbol = str(candidate_row.get("asset") or "")
+                if symbol not in TARGET_SYMBOLS:
+                    continue
+                legacy_preset = str(candidate_row.get("strategy_name") or "")
+                legacy_timeframe = str(candidate_row.get("interval") or "")
+                target_preset = TARGET_PRESET_BY_SYMBOL.get(symbol, "")
+                target_timeframe = TARGET_TIMEFRAME_BY_SYMBOL.get(symbol, "")
+                preset_outcome = (
+                    "alias_allowed_for_context_only"
+                    if legacy_preset == "trend_pullback_v1" and target_preset == "trend_pullback_continuation_daily_v1"
+                    else "alias_blocked_no_policy"
+                )
+                timeframe_outcome = (
+                    "alias_blocked_timeframe_mismatch"
+                    if legacy_timeframe == "4h" and target_timeframe == "daily_v1"
+                    else "alias_blocked_no_policy"
+                )
+                rows.append(
+                    {
+                        "symbol": symbol,
+                        "legacy_result_path": relative_path,
+                        "legacy_preset_id": legacy_preset,
+                        "target_preset_id": target_preset,
+                        "legacy_timeframe": legacy_timeframe,
+                        "target_timeframe": target_timeframe,
+                        "preset_alias_outcome": preset_outcome,
+                        "timeframe_alias_outcome": timeframe_outcome,
+                        "campaign_lineage_eligible": False,
+                        "oos_context_eligible": False,
+                        "bridge_status": "context_only_bridge_available",
+                        "result": (
+                            "legacy_result_can_inform_context_but_cannot_prove_current_daily_lineage_or_oos"
+                        ),
+                    }
+                )
+    rows.sort(key=lambda row: (row["symbol"], row["legacy_result_path"]))
+    return {
+        "rows": rows,
+        "alias_policy": "legacy_compatible_for_context_only",
+        "bridge_status": "context_only_bridge_available" if rows else "no_bridgeable_structured_results_found",
+        "result": (
+            "PRESET_TIMEFRAME_ALIAS_BLOCKED"
+            if any(row["timeframe_alias_outcome"] == "alias_blocked_timeframe_mismatch" for row in rows)
+            else "LEGACY_RESULTS_FOUND_BRIDGE_REQUIRED"
+            if rows
+            else "LEGACY_STDOUT_ONLY_RESULTS_MISSING"
+        ),
+    }
+
+
 def _phase_one_rows(repo_root: Path) -> list[dict[str, Any]]:
     rows = [classify_artifact(path, repo_root=repo_root) for path in _iter_allowlisted_files(repo_root)]
     filtered = [
@@ -529,6 +600,7 @@ def build_first_batch_evidence_recovery_cascade(
     trusted_loop_report = trusted_loop.build_trusted_loop_review_packet(repo_root=repo_root)
     artifact_rows = _phase_one_rows(repo_root)
     validation_locator = _locate_validation_results(repo_root, artifact_rows)
+    legacy_compatibility = _analyze_legacy_compatibility(repo_root, validation_locator)
     counts = Counter(str(row["classification_status"]) for row in artifact_rows)
     closure_rows = closure_report.get("rows") if isinstance(closure_report.get("rows"), list) else []
     closure_by_symbol = {
@@ -559,15 +631,16 @@ def build_first_batch_evidence_recovery_cascade(
         )
     files_scanned = sum(1 for _ in _iter_allowlisted_files(repo_root))
     locator_rows = validation_locator["rows"]
-    current_top_blocker = (
-        "legacy_schema_bridge_or_alias_analysis_required"
-        if any(row["found_result_paths"] for row in locator_rows)
-        else "legacy_results_missing"
-    )
+    if legacy_compatibility["result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED":
+        current_top_blocker = "preset_timeframe_alias_unproven"
+    elif any(row["found_result_paths"] for row in locator_rows):
+        current_top_blocker = "legacy_schema_bridge_or_alias_analysis_required"
+    else:
+        current_top_blocker = "legacy_results_missing"
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
-        "overall_result": "IN_PROGRESS_PHASE_2",
+        "overall_result": legacy_compatibility["result"],
         "first_batch_summary": {
             "first_batch": list(FIRST_BATCH_SYMBOLS),
             "second_line": list(SECOND_LINE_SYMBOLS),
@@ -588,6 +661,7 @@ def build_first_batch_evidence_recovery_cascade(
             "rows": artifact_rows,
         },
         "validation_result_locator": validation_locator,
+        "legacy_compatibility": legacy_compatibility,
         "first_batch_candidates": first_batch_rows,
         "phase_reports": [
             {
@@ -617,8 +691,31 @@ def build_first_batch_evidence_recovery_cascade(
                     if current_top_blocker == "legacy_schema_bridge_or_alias_analysis_required"
                     else "stop_if_only_stdout_trace_exists_without_structured_results"
                 ),
+            },
+            {
+                "phase": "legacy_schema_bridge_and_alias_analysis",
+                "result": legacy_compatibility["result"],
+                "blocker_before": "legacy_schema_bridge_or_alias_analysis_required",
+                "blocker_after": current_top_blocker,
+                "artifacts_found": len(legacy_compatibility["rows"]),
+                "actions_taken": [
+                    "normalized_legacy_first_batch_validation_rows_for_context_only",
+                    "blocked_direct_preset_and_timeframe_alias_for_current_daily_lineage",
+                ],
+                "why_continued_or_stopped": (
+                    "stop_at_preset_timeframe_boundary"
+                    if current_top_blocker == "preset_timeframe_alias_unproven"
+                    else "continue_if_further_safe_context_integration_is_available"
+                ),
             }
         ],
+        "fundamental_stop_condition": (
+            "preset_timeframe_alias_unproven"
+            if current_top_blocker == "preset_timeframe_alias_unproven"
+            else "legacy_results_missing"
+            if current_top_blocker == "legacy_results_missing"
+            else "operator_decision_required"
+        ),
         "current_stop_conditions": list(PHASE_ONE_STOP_CONDITIONS),
         "authority_boundary": dict(AUTHORITY_BOUNDARY),
         "safety_invariants": {
@@ -684,6 +781,23 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     for row in (report.get("validation_result_locator") or {}).get("rows", [])
                 ]
                 or [["none", "0", "0", "0", "none"]],
+            ),
+            "",
+            "## 4. Legacy compatibility",
+            _table(
+                ["Symbol", "Legacy preset", "Target preset", "Legacy tf", "Target tf", "Result"],
+                [
+                    [
+                        str(row.get("symbol") or ""),
+                        str(row.get("legacy_preset_id") or ""),
+                        str(row.get("target_preset_id") or ""),
+                        str(row.get("legacy_timeframe") or ""),
+                        str(row.get("target_timeframe") or ""),
+                        str(row.get("result") or ""),
+                    ]
+                    for row in (report.get("legacy_compatibility") or {}).get("rows", [])
+                ]
+                or [["none", "-", "-", "-", "-", "none"]],
             ),
         ]
     )

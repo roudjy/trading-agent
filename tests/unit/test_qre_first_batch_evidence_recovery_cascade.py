@@ -116,7 +116,8 @@ def test_phase_one_artifact_classification_is_deterministic_and_fail_closed(tmp_
     assert first["first_batch_summary"]["first_batch"] == ["AAPL", "NVDA"]
     assert first["first_batch_summary"]["evidence_complete_count"] == 0
     assert first["first_batch_summary"]["trusted_loop_verdict"] == "read_only_context_fail_closed"
-    assert first["first_batch_summary"]["current_top_blocker"] == "legacy_schema_bridge_or_alias_analysis_required"
+    assert first["first_batch_summary"]["current_top_blocker"] == "preset_timeframe_alias_unproven"
+    assert first["overall_result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED"
     assert first["safety_invariants"]["does_not_change_evidence_complete_count"] is True
 
     rows = {row["relative_path"]: row for row in first["artifact_discovery"]["rows"]}
@@ -135,6 +136,12 @@ def test_phase_one_artifact_classification_is_deterministic_and_fail_closed(tmp_
     assert locator[0]["can_use_as_oos_evidence"] is False
     assert locator[0]["can_use_as_campaign_lineage"] is False
     assert locator[0]["result_schema_status"] == "structured_validation_results_found"
+
+    compatibility = {row["symbol"]: row for row in first["legacy_compatibility"]["rows"]}
+    assert compatibility["AAPL"]["preset_alias_outcome"] == "alias_allowed_for_context_only"
+    assert compatibility["AAPL"]["timeframe_alias_outcome"] == "alias_blocked_timeframe_mismatch"
+    assert compatibility["AAPL"]["campaign_lineage_eligible"] is False
+    assert compatibility["NVDA"]["target_preset_id"] == "trend_pullback_continuation_daily_v1"
 
 
 def test_generated_reports_are_not_treated_as_source_artifacts(tmp_path: Path, monkeypatch) -> None:
