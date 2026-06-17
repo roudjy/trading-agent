@@ -27,6 +27,8 @@ SAFE_REPORT_ONLY_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_bounded_first_batch_generation_decision --write",
     "python -m research.qre_bounded_current_basket_generation_discovery --write",
     "python -m research.qre_bounded_aapl_nvda_current_basket_generation_discovery --write",
+    "python -m research.qre_artifact_authority --write",
+    "python -m research.qre_reason_record_contract --write",
 )
 SAFE_PREFLIGHT_COMMANDS: Final[tuple[str, ...]] = ()
 APPROVAL_REQUIRED_GENERATION_COMMANDS: Final[tuple[str, ...]] = (
