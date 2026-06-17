@@ -31,7 +31,7 @@ def test_generic_discovery_reports_request_driven_command_surface() -> None:
 
     assert report["report_kind"] == "qre_bounded_current_basket_generation_discovery"
     assert report["request"]["symbols"] == ["MSFT", "QQQ"]
-    assert report["summary"]["exact_scope_candidate_count"] == 3
+    assert report["summary"]["exact_scope_candidate_count"] == 4
     assert report["summary"]["safe_bounded_generation_command_found"] is False
     assert report["summary"]["final_recommendation"] == "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND"
 
@@ -50,6 +50,12 @@ def test_generic_discovery_classifies_candidate_commands() -> None:
     assert row_by_command[
         "python -m research.controlled_validation --symbols MSFT,QQQ --preset trend_pullback_continuation_daily_v1 --timeframe daily_v1"
     ]["classification"] == "approval_required_generation"
+    assert row_by_command[
+        "python -m research.qre_bounded_current_basket_generation_runner --request-file logs/qre_bounded_basket_request/latest.json --dry-run --write"
+    ]["classification"] == "report_only"
+    assert row_by_command[
+        "python -m research.qre_bounded_current_basket_generation_runner --request-file logs/qre_bounded_basket_request/latest.json --dry-run --write"
+    ]["classification"] == "report_only"
     assert row_by_command[
         "python -m research.qre_bounded_current_basket_generation_runner --request-file logs/qre_bounded_basket_request/latest.json"
     ]["classification"] == "unknown_requires_operator_review"

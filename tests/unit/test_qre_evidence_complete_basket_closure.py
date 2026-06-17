@@ -54,7 +54,7 @@ def _seed_complete_repo(tmp_path: Path) -> None:
     )
 
 
-def test_closure_marks_complete_basket_without_blockers(monkeypatch) -> None:
+def test_closure_marks_complete_basket_without_blockers(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(
         closure,
         "_guarded_alias_bounded_generation_snapshot",
@@ -116,7 +116,7 @@ def test_closure_marks_complete_basket_without_blockers(monkeypatch) -> None:
         },
     )
 
-    report = closure.build_evidence_complete_basket_closure()
+    report = closure.build_evidence_complete_basket_closure(repo_root=tmp_path)
     row = report["rows"][0]
     assert row["closure_status"] == "evidence_complete"
     assert row["exact_blockers"] == []
@@ -126,6 +126,10 @@ def test_closure_marks_complete_basket_without_blockers(monkeypatch) -> None:
     assert report["summary"]["all_complete_baskets_have_reason_records"] is True
     assert report["summary"]["final_recommendation"] == "evidence_complete_reason_records_ready"
     assert report["summary"]["guarded_alias_bounded_generation_cascade_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
+    assert report["summary"]["structured_lineage_artifact_status"] == "request_invalid_fails_closed"
+    assert report["summary"]["structured_lineage_artifact_count"] == 0
+    assert report["summary"]["structured_oos_artifact_status"] == "request_invalid_fails_closed"
+    assert report["summary"]["structured_oos_artifact_count"] == 0
 
 
 def test_closure_requires_exact_blockers_without_unknowns(monkeypatch) -> None:

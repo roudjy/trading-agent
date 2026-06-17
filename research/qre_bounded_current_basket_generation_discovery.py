@@ -22,6 +22,7 @@ WRITE_PREFIX: Final[str] = "logs/qre_bounded_current_basket_generation_discovery
 SAFE_REPORT_ONLY_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_bounded_basket_request --write",
     "python -m research.qre_bounded_current_basket_generation_discovery --write",
+    "python -m research.qre_bounded_current_basket_generation_runner --request-file logs/qre_bounded_basket_request/latest.json --dry-run --write",
 )
 
 FORBIDDEN_KEYWORDS: Final[dict[str, str]] = {

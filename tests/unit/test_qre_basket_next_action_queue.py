@@ -129,3 +129,7 @@ def test_build_basket_next_action_queue_prioritizes_first_batch_lineage(tmp_path
     assert report["summary"]["guarded_alias_bounded_generation_cascade_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
     assert report["summary"]["generation_command_discovery_safe_command_found"] is False
     assert report["summary"]["generation_command_discovery_final_recommendation"] == "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND"
+    assert report["summary"]["structured_lineage_artifact_status"] == "request_invalid_fails_closed"
+    assert report["summary"]["structured_lineage_artifact_count"] == 0
+    assert report["summary"]["structured_oos_artifact_status"] == "request_invalid_fails_closed"
+    assert report["summary"]["structured_oos_artifact_count"] == 0
