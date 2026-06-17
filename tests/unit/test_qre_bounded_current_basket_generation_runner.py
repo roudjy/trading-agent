@@ -50,6 +50,8 @@ def test_runner_emits_reason_records_and_downstream_manifest() -> None:
     assert "safe_bounded_generation_command_not_found" in report["preflight"]["blocking_preflight_reasons"]
     assert "python -m research.qre_artifact_authority --write" in report["downstream_rerun_manifest"]["commands"]
     assert "python -m research.qre_reason_record_contract --write" in report["downstream_rerun_manifest"]["commands"]
+    assert "python -m research.qre_structured_lineage_artifacts --write" in report["downstream_rerun_manifest"]["commands"]
+    assert "python -m research.qre_structured_oos_artifacts --write" in report["downstream_rerun_manifest"]["commands"]
 
 
 def test_runner_rejects_invalid_request_payload_fail_closed() -> None:
