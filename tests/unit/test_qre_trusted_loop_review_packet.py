@@ -94,6 +94,9 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
             "summary": {
                 "final_recommendation": "basket_operator_action_plan_ready",
                 "first_batch_candidate_symbols": ["AAPL", "NVDA"],
+                "generation_command_discovery_result": "qre_bounded_aapl_nvda_current_basket_generation_discovery",
+                "generation_command_discovery_safe_command_found": False,
+                "generation_command_discovery_final_recommendation": "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND",
             }
         },
     )
@@ -135,6 +138,8 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["research_memory_ready"] is True
     assert packet["summary"]["basket_operator_action_plan_ready"] is True
     assert packet["summary"]["basket_operator_action_plan_first_batch"] == ["AAPL", "NVDA"]
+    assert packet["summary"]["generation_command_discovery_safe_command_found"] is False
+    assert packet["summary"]["generation_command_discovery_final_recommendation"] == "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND"
     assert packet["summary"]["first_batch_readiness_available"] is True
     assert packet["summary"]["first_batch_recovery_cascade_available"] is True
     assert packet["summary"]["first_batch_recovery_cascade_result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED"
@@ -170,7 +175,19 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
     monkeypatch.setattr(packet_module.routing_calibration, "build_routing_calibration_report", lambda **_: {"summary": {"final_recommendation": "routing_calibration_scaffold_ready"}})
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: {"summary": {"final_recommendation": "sampling_calibration_scaffold_ready"}})
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: {"summary": {"final_recommendation": "research_memory_current_artifacts_partial"}})
-    monkeypatch.setattr(packet_module.basket_action_plan, "build_basket_operator_action_plan", lambda **_: {"summary": {"final_recommendation": "basket_operator_action_plan_ready", "first_batch_candidate_symbols": []}})
+    monkeypatch.setattr(
+        packet_module.basket_action_plan,
+        "build_basket_operator_action_plan",
+        lambda **_: {
+            "summary": {
+                "final_recommendation": "basket_operator_action_plan_ready",
+                "first_batch_candidate_symbols": [],
+                "generation_command_discovery_result": "qre_bounded_aapl_nvda_current_basket_generation_discovery",
+                "generation_command_discovery_safe_command_found": False,
+                "generation_command_discovery_final_recommendation": "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND",
+            }
+        },
+    )
     monkeypatch.setattr(
         packet_module.first_batch_readiness,
         "build_first_batch_evidence_recovery_readiness",
@@ -219,7 +236,19 @@ def test_trusted_loop_review_packet_operator_summary_renders(
     monkeypatch.setattr(packet_module.routing_calibration, "build_routing_calibration_report", lambda **_: snapshots["routing"])
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: snapshots["sampling"])
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: snapshots["research_memory"])
-    monkeypatch.setattr(packet_module.basket_action_plan, "build_basket_operator_action_plan", lambda **_: {"summary": {"final_recommendation": "basket_operator_action_plan_ready", "first_batch_candidate_symbols": ["AAPL"]}})
+    monkeypatch.setattr(
+        packet_module.basket_action_plan,
+        "build_basket_operator_action_plan",
+        lambda **_: {
+            "summary": {
+                "final_recommendation": "basket_operator_action_plan_ready",
+                "first_batch_candidate_symbols": ["AAPL"],
+                "generation_command_discovery_result": "qre_bounded_aapl_nvda_current_basket_generation_discovery",
+                "generation_command_discovery_safe_command_found": False,
+                "generation_command_discovery_final_recommendation": "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND",
+            }
+        },
+    )
     monkeypatch.setattr(
         packet_module.first_batch_readiness,
         "build_first_batch_evidence_recovery_readiness",
