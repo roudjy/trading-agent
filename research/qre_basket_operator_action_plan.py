@@ -10,6 +10,7 @@ from typing import Any, Final
 
 from research import qre_basket_lineage_recovery_diagnostics as lineage_diag
 from research import qre_basket_next_action_queue as next_action_queue
+from research import qre_first_batch_evidence_recovery_readiness as first_batch_readiness
 
 
 REPORT_KIND: Final[str] = "qre_basket_operator_action_plan"
@@ -26,6 +27,7 @@ SAFE_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_basket_next_action_queue --write",
     "python -m research.qre_evidence_complete_basket_closure --write",
     "python -m research.qre_trusted_loop_review_packet --write",
+    "python -m research.qre_first_batch_evidence_recovery_readiness --write",
 )
 NOT_ALLOWED_COMMANDS: Final[tuple[str, ...]] = (
     "any campaign mutation command",
@@ -55,6 +57,10 @@ def build_basket_operator_action_plan(
     max_candidates: int = 15,
 ) -> dict[str, Any]:
     queue_report = next_action_queue.build_basket_next_action_queue(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
+    readiness_report = first_batch_readiness.build_first_batch_evidence_recovery_readiness(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
@@ -141,6 +147,8 @@ def build_basket_operator_action_plan(
             "blockers_targeted": dict(expected_blocker_impact),
             "safe_command_count": len(SAFE_COMMANDS),
             "commands_not_allowed_count": len(NOT_ALLOWED_COMMANDS),
+            "first_batch_readiness_artifact": "logs/qre_first_batch_evidence_recovery_readiness/latest.json",
+            "first_batch_readiness_available": str(readiness_report.get("report_kind") or "") == "qre_first_batch_evidence_recovery_readiness",
             "final_recommendation": "basket_operator_action_plan_ready" if queue_rows else "basket_operator_action_plan_missing",
             "operator_summary": (
                 "Read-only operator action plan groups the closest evidence recovery steps into a bounded first batch "
@@ -163,10 +171,12 @@ def build_basket_operator_action_plan(
             "python -m research.qre_basket_next_action_queue --write",
             "python -m research.qre_evidence_complete_basket_closure --write",
             "python -m research.qre_trusted_loop_review_packet --write",
+            "python -m research.qre_first_batch_evidence_recovery_readiness --write",
         ],
         "expected_rerun_sequence": [
             "materialize_density",
             "diagnose_lineage",
+            "refresh_first_batch_readiness",
             "refresh_recovery_plan",
             "refresh_next_action_queue",
             "refresh_closure",
