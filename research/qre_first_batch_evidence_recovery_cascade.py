@@ -1,0 +1,569 @@
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
+from pathlib import Path
+from typing import Any, Final
+
+from research import qre_evidence_complete_basket_closure as closure
+from research import qre_first_batch_evidence_recovery_readiness as readiness
+from research import qre_trusted_loop_review_packet as trusted_loop
+
+
+REPORT_KIND: Final[str] = "qre_first_batch_evidence_recovery_cascade"
+SCHEMA_VERSION: Final[str] = "1.0"
+DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_first_batch_evidence_recovery_cascade")
+LATEST_NAME: Final[str] = "latest.json"
+OPERATOR_SUMMARY_NAME: Final[str] = "operator_summary.md"
+WRITE_PREFIX: Final[str] = "logs/qre_first_batch_evidence_recovery_cascade/"
+
+FIRST_BATCH_SYMBOLS: Final[tuple[str, ...]] = ("AAPL", "NVDA")
+SECOND_LINE_SYMBOLS: Final[tuple[str, ...]] = ("TSM",)
+TARGET_SYMBOLS: Final[frozenset[str]] = frozenset((*FIRST_BATCH_SYMBOLS, *SECOND_LINE_SYMBOLS))
+TARGET_PRESETS: Final[tuple[str, ...]] = (
+    "trend_pullback_v1",
+    "trend_pullback_continuation_daily_v1",
+    "trend_pullback_equities_4h",
+)
+TARGET_TIMEFRAMES: Final[tuple[str, ...]] = ("4h", "1d", "daily", "daily_v1")
+ALLOWLISTED_ROOTS: Final[tuple[str, ...]] = (
+    "logs",
+    "research",
+    "local_quarantine",
+    "backup",
+    "archived",
+    "artifacts",
+    ".tmp",
+    "tests/fixtures",
+)
+PROTECTED_DIRS: Final[frozenset[str]] = frozenset(
+    {
+        ".git",
+        ".venv",
+        "node_modules",
+        "dist",
+        "build",
+        "live",
+        "paper",
+        "shadow",
+        "broker",
+        "risk",
+        "execution",
+    }
+)
+PHASE_ONE_STOP_CONDITIONS: Final[tuple[str, ...]] = (
+    "stop_if_only_stdout_or_generated_reports_exist_without_structured_results",
+    "stop_if_next_step_requires_mutating_campaign_or_registry_state",
+    "stop_if_preset_or_timeframe_identity_cannot_be_proven_deterministically",
+)
+AUTHORITY_BOUNDARY: Final[dict[str, Any]] = {
+    "read_only_report_only": True,
+    "not_campaign_launcher": True,
+    "not_campaign_queue_mutation": True,
+    "not_campaign_registry_mutation": True,
+    "not_run_campaign_mutation": True,
+    "not_broad_research_run": True,
+    "not_strategy_synthesis": True,
+    "not_strategy_registration": True,
+    "not_candidate_promotion": True,
+    "not_routing_mutation": True,
+    "not_sampling_mutation": True,
+    "not_paper_shadow_live": True,
+    "not_broker_risk_execution": True,
+    "not_provider_activation": True,
+    "not_external_data_fetch": True,
+    "not_frozen_contract_mutation": True,
+    "not_research_latest_mutation": True,
+    "not_strategy_matrix_mutation": True,
+}
+GENERATED_REPORT_MARKERS: Final[tuple[str, ...]] = (
+    "qre_first_batch_evidence_recovery_readiness",
+    "qre_discovery_basket_grid_evidence_materialization",
+    "qre_grid_candidate_campaign_lineage_bridge",
+    "qre_basket_lineage_recovery_diagnostics",
+    "qre_basket_operator_action_plan",
+    "qre_basket_next_action_queue",
+    "qre_evidence_complete_basket_closure",
+    "qre_trusted_loop_review",
+)
+
+
+def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
+    head = "| " + " | ".join(headers) + " |"
+    divider = "| " + " | ".join(["---"] * len(headers)) + " |"
+    body = ["| " + " | ".join(row) + " |" for row in rows]
+    return "\n".join([head, divider, *body])
+
+
+def _read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
+def _read_json_payload(path: Path) -> Any | None:
+    if path.suffix.lower() not in {".json", ".jsonl"}:
+        return None
+    text = _read_text(path)
+    if not text.strip():
+        return None
+    if path.suffix.lower() == ".jsonl":
+        rows: list[Any] = []
+        for line in text.splitlines():
+            item = line.strip()
+            if not item:
+                continue
+            try:
+                rows.append(json.loads(item))
+            except json.JSONDecodeError:
+                return None
+        return rows
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def _read_csv_rows(path: Path) -> list[dict[str, str]] | None:
+    if path.suffix.lower() != ".csv":
+        return None
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            return [dict(row) for row in csv.DictReader(handle)]
+    except OSError:
+        return None
+
+
+def _flatten_strings(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        yield value
+        return
+    if isinstance(value, Mapping):
+        for item in value.values():
+            yield from _flatten_strings(item)
+        return
+    if isinstance(value, list):
+        for item in value:
+            yield from _flatten_strings(item)
+
+
+def _symbol_matches(value: Any) -> list[str]:
+    text = " ".join(_flatten_strings(value))
+    return sorted(symbol for symbol in TARGET_SYMBOLS if symbol in text)
+
+
+def _preset_matches(value: Any) -> list[str]:
+    text = " ".join(_flatten_strings(value))
+    return sorted(preset for preset in TARGET_PRESETS if preset in text)
+
+
+def _timeframe_matches(value: Any) -> list[str]:
+    text = " ".join(_flatten_strings(value))
+    return sorted(timeframe for timeframe in TARGET_TIMEFRAMES if timeframe in text)
+
+
+def _contains_any(value: Any, terms: Sequence[str]) -> bool:
+    if isinstance(value, str):
+        text = value.lower()
+    else:
+        try:
+            text = json.dumps(value, default=str).lower()
+        except TypeError:
+            text = str(value).lower()
+    return any(term.lower() in text for term in terms)
+
+
+def _infer_schema_family(payload: Any, text: str) -> str:
+    if isinstance(payload, Mapping):
+        report_kind = str(payload.get("report_kind") or "")
+        if report_kind:
+            return report_kind
+        if "run_id" in payload and "candidates" in payload:
+            return "run_candidates"
+        if "run_id" in payload and "batch_id" in payload:
+            return "run_batch_manifest"
+        if "campaign_id" in payload and "batches" in payload:
+            return "run_campaign_manifest"
+    if isinstance(payload, list):
+        return "jsonl_rows"
+    lowered = text.lower()
+    if "stdout_tail" in lowered:
+        return "legacy_stdout_trace"
+    return "unknown"
+
+
+def _infer_schema_version(payload: Any) -> str:
+    if isinstance(payload, Mapping):
+        for field in ("schema_version", "version"):
+            value = payload.get(field)
+            if value is not None:
+                return str(value)
+    return "unknown"
+
+
+def _root_type(relative_path: str) -> str:
+    for root in ALLOWLISTED_ROOTS:
+        normalized = root.replace("\\", "/").rstrip("/")
+        if relative_path == normalized or relative_path.startswith(normalized + "/"):
+            if normalized == ".tmp":
+                return "temp_smoke"
+            if normalized == "tests/fixtures":
+                return "test_fixture"
+            return normalized
+    return "unknown"
+
+
+def _artifact_kind(path: Path, payload: Any) -> str:
+    name = path.name.lower()
+    if "run_batch_state" in name:
+        return "legacy_validation_state"
+    if "run_batch_manifest" in name:
+        return "legacy_batch_manifest"
+    if "run_campaign_manifest" in name:
+        return "legacy_campaign_manifest"
+    if "run_candidates" in name:
+        return "legacy_candidate_results"
+    if "campaign_registry" in name:
+        return "campaign_registry_snapshot"
+    if "controlled_eval" in name:
+        return "controlled_validation_execution"
+    if "combination_results" in name or "execution_result" in name:
+        return "grid_execution_artifact"
+    if isinstance(payload, Mapping) and str(payload.get("report_kind") or "").startswith("qre_"):
+        return "generated_report"
+    return "unknown"
+
+
+def classify_artifact(path: Path, *, repo_root: Path = Path(".")) -> dict[str, Any]:
+    relative_path = path.relative_to(repo_root).as_posix()
+    root_type = _root_type(relative_path)
+    payload = _read_json_payload(path)
+    csv_rows = None if payload is not None else _read_csv_rows(path)
+    structured_value: Any = payload if payload is not None else csv_rows if csv_rows is not None else {}
+    text = _read_text(path)
+    artifact_kind = _artifact_kind(path, payload)
+    symbol_matches = _symbol_matches(structured_value if structured_value else text)
+    preset_matches = _preset_matches(structured_value if structured_value else text)
+    timeframe_matches = _timeframe_matches(structured_value if structured_value else text)
+    contains_candidate_id = _contains_any(structured_value if structured_value else text, ("candidate_id",))
+    contains_campaign_id = _contains_any(structured_value if structured_value else text, ("campaign_id", "col_campaign_id"))
+    contains_grid_run_id = _contains_any(structured_value if structured_value else text, ("grid_run_id", "grid_id"))
+    contains_run_id = _contains_any(structured_value if structured_value else text, ("run_id",))
+    contains_oos_fields = _contains_any(
+        structured_value if structured_value else text,
+        ("oos_trade_count", "oos_trades", "sufficient_oos_evidence", "no_oos_trades"),
+    )
+    contains_validation_fields = _contains_any(
+        structured_value if structured_value else text,
+        ("validated_count", "results_written", "validation", "result_success"),
+    )
+    contains_lineage_fields = _contains_any(
+        structured_value if structured_value else text,
+        ("source_artifact", "source_row_id", "run_manifest_id", "validation_plan_id", "campaign_id"),
+    )
+    stdout_only = isinstance(payload, Mapping) and "stdout_tail" in payload and not any(
+        key in payload for key in ("results", "validation_results", "rows", "candidates")
+    )
+    has_structured_results = bool(
+        (isinstance(payload, Mapping) and any(key in payload for key in ("rows", "candidates", "batches", "validation", "summary")))
+        or isinstance(payload, list)
+        or (csv_rows is not None and len(csv_rows) > 0)
+    )
+    schema_family = _infer_schema_family(payload, text)
+    schema_version = _infer_schema_version(payload)
+
+    classification_status = "irrelevant"
+    rejection_reason = ""
+    recommended_next_action = "keep_fail_closed"
+    safe_to_use_as_evidence = False
+    safe_to_restore_copy_only = False
+    operator_approval_required = False
+    downstream_expected_effect = "none"
+
+    if root_type == "temp_smoke":
+        classification_status = "smoke_temp_not_authoritative"
+        rejection_reason = "temp_smoke_root_not_authoritative"
+    elif root_type == "test_fixture":
+        classification_status = "test_fixture_not_authoritative"
+        rejection_reason = "fixture_root_not_authoritative"
+    elif artifact_kind == "generated_report" or schema_family in GENERATED_REPORT_MARKERS:
+        classification_status = "generated_report_not_source_artifact"
+        rejection_reason = "report_is_derived_not_source_evidence"
+    elif artifact_kind == "campaign_registry_snapshot":
+        classification_status = "registry_snapshot_not_lineage_proof"
+        rejection_reason = "registry_snapshot_cannot_prove_lineage_alone"
+    elif stdout_only:
+        classification_status = "legacy_validation_stdout_only"
+        rejection_reason = "stdout_tail_without_structured_results"
+        recommended_next_action = "locate_structured_validation_results"
+    elif artifact_kind == "legacy_campaign_manifest" and contains_campaign_id and contains_run_id:
+        classification_status = "legacy_validation_evidence_candidate"
+        safe_to_restore_copy_only = True
+        recommended_next_action = "locate_corresponding_symbol_level_validation_results"
+        downstream_expected_effect = "campaign_run_identity_available_for_safe_bridge_analysis"
+    elif symbol_matches and contains_validation_fields and has_structured_results:
+        if contains_campaign_id and contains_run_id:
+            classification_status = "legacy_validation_evidence_candidate"
+            safe_to_restore_copy_only = True
+            downstream_expected_effect = "legacy_validation_context_available_for_alias_analysis"
+            recommended_next_action = "analyze_schema_and_alias_compatibility"
+        else:
+            classification_status = "missing_required_identity_fields"
+            rejection_reason = "campaign_or_run_identity_missing"
+            recommended_next_action = "locate_more_complete_structured_artifact"
+    elif symbol_matches and has_structured_results:
+        classification_status = "restorable_candidate"
+        safe_to_restore_copy_only = True
+        recommended_next_action = "inspect_for_validation_and_lineage_fields"
+    elif not symbol_matches and artifact_kind == "legacy_candidate_results":
+        classification_status = "legacy_validation_results_missing"
+        rejection_reason = "results_written_context_present_but_first_batch_rows_not_found"
+        recommended_next_action = "continue_allowlisted_search"
+
+    return {
+        "path": str(path.resolve()),
+        "relative_path": relative_path,
+        "root_type": root_type,
+        "artifact_kind": artifact_kind,
+        "schema_family": schema_family,
+        "schema_version": schema_version,
+        "symbol_matches": symbol_matches,
+        "preset_matches": preset_matches,
+        "timeframe_matches": timeframe_matches,
+        "contains_candidate_id": contains_candidate_id,
+        "contains_campaign_id": contains_campaign_id,
+        "contains_grid_run_id": contains_grid_run_id,
+        "contains_run_id": contains_run_id,
+        "contains_oos_fields": contains_oos_fields,
+        "contains_validation_fields": contains_validation_fields,
+        "contains_lineage_fields": contains_lineage_fields,
+        "stdout_only": stdout_only,
+        "has_structured_results": has_structured_results,
+        "file_mtime": int(path.stat().st_mtime) if path.exists() else 0,
+        "file_size": int(path.stat().st_size) if path.exists() else 0,
+        "classification_status": classification_status,
+        "rejection_reason": rejection_reason,
+        "recommended_next_action": recommended_next_action,
+        "safe_to_use_as_evidence": safe_to_use_as_evidence,
+        "safe_to_restore_copy_only": safe_to_restore_copy_only,
+        "operator_approval_required": operator_approval_required,
+        "downstream_expected_effect": downstream_expected_effect,
+    }
+
+
+def _iter_allowlisted_files(repo_root: Path) -> Iterable[Path]:
+    for root in ALLOWLISTED_ROOTS:
+        base = repo_root / root
+        if not base.exists():
+            continue
+        if base.is_file():
+            yield base
+            continue
+        for path in sorted(base.rglob("*")):
+            if not path.is_file():
+                continue
+            relative_parts = path.relative_to(repo_root).parts
+            if any(part in PROTECTED_DIRS for part in relative_parts):
+                continue
+            yield path
+
+
+def _phase_one_rows(repo_root: Path) -> list[dict[str, Any]]:
+    rows = [classify_artifact(path, repo_root=repo_root) for path in _iter_allowlisted_files(repo_root)]
+    filtered = [
+        row for row in rows
+        if row["classification_status"] != "irrelevant"
+        or row["symbol_matches"]
+        or row["artifact_kind"] in {"campaign_registry_snapshot", "generated_report", "controlled_validation_execution", "legacy_campaign_manifest"}
+    ]
+    filtered.sort(key=lambda row: (row["classification_status"], row["relative_path"]))
+    return filtered
+
+
+def build_first_batch_evidence_recovery_cascade(
+    *,
+    repo_root: Path = Path("."),
+    max_candidates: int = 15,
+) -> dict[str, Any]:
+    readiness_report = readiness.build_first_batch_evidence_recovery_readiness(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
+    closure_report = closure.build_evidence_complete_basket_closure(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
+    trusted_loop_report = trusted_loop.build_trusted_loop_review_packet(repo_root=repo_root)
+    artifact_rows = _phase_one_rows(repo_root)
+    counts = Counter(str(row["classification_status"]) for row in artifact_rows)
+    closure_rows = closure_report.get("rows") if isinstance(closure_report.get("rows"), list) else []
+    closure_by_symbol = {
+        str(row.get("symbol") or ""): dict(row)
+        for row in closure_rows
+        if isinstance(row, Mapping)
+    }
+    first_batch_rows = []
+    for symbol in FIRST_BATCH_SYMBOLS:
+        closure_row = closure_by_symbol.get(symbol, {})
+        first_batch_rows.append(
+            {
+                "symbol": symbol,
+                "before_blockers": list(closure_row.get("exact_blockers") or []),
+                "artifact_signals": [
+                    {
+                        "relative_path": row["relative_path"],
+                        "classification_status": row["classification_status"],
+                        "preset_matches": row["preset_matches"],
+                        "timeframe_matches": row["timeframe_matches"],
+                    }
+                    for row in artifact_rows
+                    if symbol in row["symbol_matches"]
+                ][:10],
+                "stop_conditions": list(PHASE_ONE_STOP_CONDITIONS),
+                "authority_boundary": dict(AUTHORITY_BOUNDARY),
+            }
+        )
+    files_scanned = sum(1 for _ in _iter_allowlisted_files(repo_root))
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "report_kind": REPORT_KIND,
+        "overall_result": "IN_PROGRESS_PHASE_1",
+        "first_batch_summary": {
+            "first_batch": list(FIRST_BATCH_SYMBOLS),
+            "second_line": list(SECOND_LINE_SYMBOLS),
+            "evidence_complete_count": int((closure_report.get("summary") or {}).get("evidence_complete_count") or 0),
+            "unknown_blocker_count": int((closure_report.get("summary") or {}).get("unknown_blocker_count") or 0),
+            "trusted_loop_verdict": str((trusted_loop_report.get("summary") or {}).get("trust_verdict") or ""),
+            "top_blockers": {
+                symbol: list((closure_by_symbol.get(symbol, {}) or {}).get("exact_blockers") or [])
+                for symbol in FIRST_BATCH_SYMBOLS
+            },
+        },
+        "artifact_discovery": {
+            "phase": "controlled_grid_artifact_discovery_classifier",
+            "files_scanned": files_scanned,
+            "candidate_artifacts": len(artifact_rows),
+            "classification_counts": dict(sorted(counts.items())),
+            "rows": artifact_rows,
+        },
+        "first_batch_candidates": first_batch_rows,
+        "phase_reports": [
+            {
+                "phase": "controlled_grid_artifact_discovery_classifier",
+                "result": "executed",
+                "blocker_before": "campaign_lineage_missing,no_oos_evidence",
+                "blocker_after": "artifact_classification_completed_pending_result_location",
+                "artifacts_found": len(artifact_rows),
+                "actions_taken": [
+                    "scanned_allowlisted_local_roots",
+                    "classified_temp_fixture_report_registry_and_structured_legacy_artifacts",
+                ],
+                "why_continued_or_stopped": "continue_to_structured_result_location_if_legacy_candidates_exist",
+            }
+        ],
+        "current_stop_conditions": list(PHASE_ONE_STOP_CONDITIONS),
+        "authority_boundary": dict(AUTHORITY_BOUNDARY),
+        "safety_invariants": {
+            "read_only": True,
+            "mutates_campaigns": False,
+            "mutates_queues": False,
+            "mutates_frozen_contracts": False,
+            "does_not_change_evidence_complete_count": True,
+            "does_not_change_trusted_loop_level_without_real_evidence": True,
+        },
+        "upstream_context": {
+            "readiness_report_kind": readiness_report.get("report_kind"),
+            "readiness_first_batch": (readiness_report.get("first_batch_summary") or {}).get("first_batch") or [],
+        },
+    }
+
+
+def render_operator_summary(report: Mapping[str, Any]) -> str:
+    discovery = report.get("artifact_discovery") if isinstance(report.get("artifact_discovery"), Mapping) else {}
+    summary = report.get("first_batch_summary") if isinstance(report.get("first_batch_summary"), Mapping) else {}
+    first_batch_rows = report.get("first_batch_candidates") if isinstance(report.get("first_batch_candidates"), list) else []
+    return "\n".join(
+        [
+            "# QRE First-Batch Evidence Recovery Cascade",
+            "",
+            "## 1. Summary",
+            _table(
+                ["Field", "Value"],
+                [
+                    ["first_batch", ", ".join(str(v) for v in summary.get("first_batch") or []) or "none"],
+                    ["files_scanned", str(discovery.get("files_scanned") or 0)],
+                    ["candidate_artifacts", str(discovery.get("candidate_artifacts") or 0)],
+                    ["evidence_complete_count", str(summary.get("evidence_complete_count") or 0)],
+                    ["trusted_loop_verdict", str(summary.get("trusted_loop_verdict") or "")],
+                ],
+            ),
+            "",
+            "## 2. First batch candidates",
+            _table(
+                ["Symbol", "Before blockers", "Artifact signals"],
+                [
+                    [
+                        str(row.get("symbol") or ""),
+                        ",".join(str(v) for v in row.get("before_blockers") or []) or "none",
+                        str(len(row.get("artifact_signals") or [])),
+                    ]
+                    for row in first_batch_rows
+                ],
+            ),
+        ]
+    )
+
+
+def _validate_write_target(path: Path) -> None:
+    if WRITE_PREFIX not in path.as_posix():
+        raise ValueError(
+            f"qre_first_batch_evidence_recovery_cascade: refusing write outside allowlist: {path!r}"
+        )
+
+
+def write_outputs(
+    report: Mapping[str, Any],
+    *,
+    output_dir: Path = DEFAULT_OUTPUT_DIR,
+    repo_root: Path = Path("."),
+) -> dict[str, str]:
+    base = repo_root / output_dir
+    base.mkdir(parents=True, exist_ok=True)
+    latest = base / LATEST_NAME
+    summary_path = base / OPERATOR_SUMMARY_NAME
+    for target in (latest, summary_path):
+        _validate_write_target(target)
+    tmp_json = latest.with_suffix(latest.suffix + ".tmp")
+    tmp_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp_json, latest)
+    tmp_md = summary_path.with_suffix(summary_path.suffix + ".tmp")
+    tmp_md.write_text(render_operator_summary(report) + "\n", encoding="utf-8")
+    os.replace(tmp_md, summary_path)
+    return {
+        "latest": latest.relative_to(repo_root).as_posix(),
+        "operator_summary": summary_path.relative_to(repo_root).as_posix(),
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m research.qre_first_batch_evidence_recovery_cascade",
+        description="Build the read-only first-batch evidence recovery cascade report.",
+    )
+    parser.add_argument("--max-candidates", type=int, default=15)
+    parser.add_argument("--write", action="store_true")
+    args = parser.parse_args(argv)
+    report = build_first_batch_evidence_recovery_cascade(max_candidates=args.max_candidates)
+    if args.write:
+        report["_artifact_paths"] = write_outputs(report)
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
