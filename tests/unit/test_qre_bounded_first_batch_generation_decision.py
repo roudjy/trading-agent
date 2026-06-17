@@ -41,6 +41,7 @@ def test_bounded_generation_decision_requires_operator_approval(
     assert envelope["python -m research.qre_bounded_aapl_nvda_current_basket_generation_discovery --write"]["classification"] == "safe_report_only"
     assert envelope["python -m research.qre_artifact_authority --write"]["classification"] == "safe_report_only"
     assert envelope["python -m research.qre_reason_record_contract --write"]["classification"] == "safe_report_only"
+    assert envelope["python -m research.qre_bounded_current_basket_generation_runner --request-file logs/qre_bounded_basket_request/latest.json --dry-run --write"]["classification"] == "safe_report_only"
     assert envelope["python -m research.controlled_discovery_grid --symbols AAPL,NVDA --preset trend_pullback_continuation_daily_v1 --timeframe daily_v1"]["classification"] == "approval_required_generation"
     assert envelope["paper/shadow/live"]["classification"] == "forbidden_trading"
     assert envelope["strategy synthesis"]["classification"] == "forbidden_mutation"
