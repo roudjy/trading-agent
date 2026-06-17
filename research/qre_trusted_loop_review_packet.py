@@ -294,6 +294,13 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "basket_operator_action_plan_first_batch": list(
                 action_plan_summary.get("first_batch_candidate_symbols") or []
             ),
+            "generation_command_discovery_result": str(action_plan_summary.get("generation_command_discovery_result") or ""),
+            "generation_command_discovery_safe_command_found": bool(
+                action_plan_summary.get("generation_command_discovery_safe_command_found")
+            ),
+            "generation_command_discovery_final_recommendation": str(
+                action_plan_summary.get("generation_command_discovery_final_recommendation") or ""
+            ),
             "first_batch_readiness_available": str(first_batch_readiness_packet.get("report_kind") or "")
             == "qre_first_batch_evidence_recovery_readiness",
             "first_batch_recovery_cascade_available": str(first_batch_cascade_packet.get("report_kind") or "")

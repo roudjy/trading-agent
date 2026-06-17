@@ -32,6 +32,7 @@ SAFE_COMMANDS: Final[tuple[str, ...]] = (
     "python -m research.qre_first_batch_evidence_recovery_cascade --write",
     "python -m research.qre_guarded_alias_bounded_generation_cascade --write",
     "python -m research.qre_bounded_first_batch_generation_decision --write",
+    "python -m research.qre_bounded_aapl_nvda_current_basket_generation_discovery --write",
 )
 NOT_ALLOWED_COMMANDS: Final[tuple[str, ...]] = (
     "any campaign mutation command",
@@ -70,6 +71,21 @@ def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any
     }
 
 
+def _generation_command_discovery_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_bounded_aapl_nvda_current_basket_generation_discovery" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_bounded_aapl_nvda_current_basket_generation_discovery":
+        return payload
+    return {
+        "report_kind": "qre_bounded_aapl_nvda_current_basket_generation_discovery_unavailable",
+        "summary": {
+            "final_recommendation": "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND",
+            "safe_bounded_generation_command_found": False,
+        },
+    }
+
+
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     rows = report.get("rows")
     if not isinstance(rows, list):
@@ -95,6 +111,10 @@ def build_basket_operator_action_plan(
         max_candidates=max_candidates,
     )
     guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
+    generation_discovery_report = _generation_command_discovery_snapshot(repo_root)
+    generation_discovery_summary = (
+        generation_discovery_report.get("summary") if isinstance(generation_discovery_report.get("summary"), Mapping) else {}
+    )
     lineage_report = lineage_diag.build_basket_lineage_recovery_diagnostics(
         repo_root=repo_root,
         max_candidates=max_candidates,
@@ -131,9 +151,13 @@ def build_basket_operator_action_plan(
     blocked_by_screening = any(bool(row.get("blocked_by_screening")) for row in first_batch_rows)
     blocked_by_oos = any(bool(row.get("blocked_by_oos")) for row in first_batch_rows)
     guarded_ready = str(guarded_report.get("overall_result") or "") == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
-    if guarded_ready and first_batch_symbols == ["AAPL", "NVDA"]:
+    generation_command_found = bool(generation_discovery_summary.get("safe_bounded_generation_command_found"))
+    if guarded_ready and first_batch_symbols == ["AAPL", "NVDA"] and generation_command_found:
         first_batch_name = "bounded_generation_operator_review"
         top_actions = ["operator_approve_bounded_aapl_nvda_current_basket_grid_generation"]
+    elif guarded_ready and first_batch_symbols == ["AAPL", "NVDA"]:
+        first_batch_name = "bounded_generation_command_discovery_blocked"
+        top_actions = ["investigate_no_safe_bounded_command"]
     elif blocked_by_identity:
         first_batch_name = "identity_review"
     elif blocked_by_lineage and not blocked_by_source_cache:
@@ -193,6 +217,14 @@ def build_basket_operator_action_plan(
             "guarded_alias_bounded_generation_cascade_result": str(guarded_report.get("overall_result") or ""),
             "guarded_alias_bounded_generation_top_blocker": str(
                 (guarded_report.get("summary") or {}).get("current_top_blocker") or ""
+            ),
+            "generation_command_discovery_result": str(generation_discovery_report.get("report_kind") or ""),
+            "generation_command_discovery_safe_command_found": generation_command_found,
+            "generation_command_discovery_final_recommendation": str(
+                generation_discovery_summary.get("final_recommendation") or ""
+            ),
+            "generation_command_discovery_top_blocker": str(
+                generation_discovery_summary.get("final_recommendation") or ""
             ),
             "final_recommendation": "basket_operator_action_plan_ready" if queue_rows else "basket_operator_action_plan_missing",
             "operator_summary": (

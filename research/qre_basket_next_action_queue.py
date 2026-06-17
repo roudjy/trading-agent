@@ -46,6 +46,21 @@ def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any
     return {"overall_result": "guarded_alias_bounded_generation_cascade_unavailable"}
 
 
+def _generation_command_discovery_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_bounded_aapl_nvda_current_basket_generation_discovery" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_bounded_aapl_nvda_current_basket_generation_discovery":
+        return payload
+    return {
+        "report_kind": "qre_bounded_aapl_nvda_current_basket_generation_discovery_unavailable",
+        "summary": {
+            "final_recommendation": "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND",
+            "safe_bounded_generation_command_found": False,
+        },
+    }
+
+
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     rows = report.get("rows")
     if not isinstance(rows, list):
@@ -138,7 +153,12 @@ def build_basket_next_action_queue(
         for row in _candidate_rows(lineage_report)
     }
     guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
+    generation_discovery_report = _generation_command_discovery_snapshot(repo_root)
+    generation_discovery_summary = (
+        generation_discovery_report.get("summary") if isinstance(generation_discovery_report.get("summary"), Mapping) else {}
+    )
     guarded_ready = str(guarded_report.get("overall_result") or "") == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
+    generation_command_found = bool(generation_discovery_summary.get("safe_bounded_generation_command_found"))
     queue_rows: list[dict[str, Any]] = []
     for row in blocker_rows:
         lineage_row = lineage_rows.get(str(row.get("candidate_id") or ""), {})
@@ -153,12 +173,19 @@ def build_basket_next_action_queue(
         exact_next_action = str(row.get("exact_next_action") or "")
         allowed_command_template = _safe_command_template({**row, "candidate_score": candidate_score})
         operator_explanation = str(row.get("operator_explanation") or "")
-        if guarded_ready and symbol in {"AAPL", "NVDA"}:
+        if guarded_ready and symbol in {"AAPL", "NVDA"} and generation_command_found:
             exact_next_action = "operator_approve_bounded_aapl_nvda_current_basket_grid_generation"
             allowed_command_template = "python -m research.qre_bounded_first_batch_generation_decision --write"
             operator_explanation = (
                 "Bounded current-basket generation decision packet is ready; "
                 "operator approval is required before any generation run."
+            )
+        elif guarded_ready and symbol in {"AAPL", "NVDA"}:
+            exact_next_action = "investigate_no_safe_bounded_command"
+            allowed_command_template = "python -m research.qre_bounded_aapl_nvda_current_basket_generation_discovery --write"
+            operator_explanation = (
+                "No repo-local exact-scope bounded generation command can be proven safe and executable; "
+                "stop for operator review."
             )
         queue_rows.append(
             {
@@ -183,6 +210,7 @@ def build_basket_next_action_queue(
                 "candidate_score": candidate_score,
                 "lineage_proof_status": str(lineage_row.get("candidate_lineage_proof_status") or ""),
                 "campaign_lineage_proof_status": str(lineage_row.get("campaign_lineage_proof_status") or ""),
+                "generation_command_discovery_found": generation_command_found,
                 "priority_bucket": _priority_bucket({**row, "candidate_score": candidate_score}),
                 "priority_rank": _priority_rank({**row, "candidate_score": candidate_score}),
                 "dependency_order": (
@@ -250,6 +278,11 @@ def build_basket_next_action_queue(
                 "as a read-only operator review item with lineage-first priority ordering."
             ),
             "guarded_alias_bounded_generation_cascade_result": str(guarded_report.get("overall_result") or ""),
+            "generation_command_discovery_result": str(generation_discovery_report.get("report_kind") or ""),
+            "generation_command_discovery_safe_command_found": generation_command_found,
+            "generation_command_discovery_final_recommendation": str(
+                generation_discovery_summary.get("final_recommendation") or ""
+            ),
             "final_recommendation": "basket_next_action_queue_ready" if queue_rows else "basket_next_action_queue_missing",
         },
         "rows": queue_rows,

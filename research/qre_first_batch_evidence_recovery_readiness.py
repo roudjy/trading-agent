@@ -134,6 +134,21 @@ def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any
     }
 
 
+def _generation_command_discovery_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_bounded_aapl_nvda_current_basket_generation_discovery" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_bounded_aapl_nvda_current_basket_generation_discovery":
+        return payload
+    return {
+        "report_kind": "qre_bounded_aapl_nvda_current_basket_generation_discovery_unavailable",
+        "summary": {
+            "final_recommendation": "NO_SAFE_BOUNDED_GENERATION_COMMAND_FOUND",
+            "safe_bounded_generation_command_found": False,
+        },
+    }
+
+
 def _candidate_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     rows = report.get("rows")
     if not isinstance(rows, list):
@@ -430,6 +445,10 @@ def build_first_batch_evidence_recovery_readiness(
     coverage_report = coverage.build_real_basket_evidence_coverage(repo_root=repo_root, max_candidates=max_candidates)
     recovery_report = recovery_plan.build_basket_evidence_recovery_plan(repo_root=repo_root, max_candidates=max_candidates)
     guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
+    generation_discovery_report = _generation_command_discovery_snapshot(repo_root)
+    generation_discovery_summary = (
+        generation_discovery_report.get("summary") if isinstance(generation_discovery_report.get("summary"), Mapping) else {}
+    )
 
     density_by_candidate = _index_by_candidate(_candidate_rows(density_report))
     coverage_by_candidate = _index_by_candidate(_candidate_rows(coverage_report))
@@ -616,6 +635,13 @@ def build_first_batch_evidence_recovery_readiness(
             "bounded_generation_decision_status": str(
                 (guarded_report.get("summary") or {}).get("bounded_generation_decision_status") or ""
             ),
+        },
+        "generation_command_discovery": {
+            "report_kind": str(generation_discovery_report.get("report_kind") or ""),
+            "safe_bounded_generation_command_found": bool(
+                generation_discovery_summary.get("safe_bounded_generation_command_found")
+            ),
+            "final_recommendation": str(generation_discovery_summary.get("final_recommendation") or ""),
         },
         "operator_approval_matrix": approval_matrix,
         "stop_conditions": overall_stop_conditions,
