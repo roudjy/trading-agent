@@ -7,6 +7,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from research import qre_bounded_first_batch_generation_decision as generation_decision
+from research import qre_bounded_generation_artifact_acceptance_verifier as acceptance_verifier
 from research import qre_evidence_complete_basket_closure as closure
 from research import qre_first_batch_evidence_recovery_cascade as first_batch_cascade
 from research import qre_guarded_preset_timeframe_alias_policy as alias_policy
@@ -78,10 +80,42 @@ def _usage_row(
         "strategy_synthesis_readiness_allowed": False,
         "reason": str(alias_row.get("policy_reason") or ""),
         "exact_missing_evidence_required_for_upgrade": list(alias_row.get("required_evidence_for_upgrade") or []),
-        "next_action": "prepare_bounded_generation_decision_packet",
+        "next_action": "operator_approve_bounded_aapl_nvda_current_basket_grid_generation",
         "before_blockers": before_blockers,
         "after_blockers": before_blockers,
         "authority_boundary": dict(AUTHORITY_BOUNDARY),
+    }
+
+
+def _dry_run_simulation(*, usage_matrix: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    for usage_row in usage_matrix:
+        symbol = str(usage_row.get("symbol") or "")
+        before_blockers = list(usage_row.get("before_blockers") or [])
+        after_lineage = [item for item in before_blockers if item != "campaign_lineage_missing"]
+        after_oos = [item for item in before_blockers if item != "no_oos_evidence"]
+        after_both = [item for item in before_blockers if item not in {"campaign_lineage_missing", "no_oos_evidence"}]
+        rows.append(
+            {
+                "symbol": symbol,
+                "if_campaign_lineage_artifact_accepted": {
+                    "would_clear": "campaign_lineage_missing",
+                    "remaining_blockers": after_lineage,
+                },
+                "if_oos_artifact_accepted": {
+                    "would_clear": "no_oos_evidence",
+                    "remaining_blockers": after_oos,
+                },
+                "if_both_accepted": {
+                    "remaining_blockers": after_both,
+                    "evidence_complete_may_improve": len(after_both) == 0,
+                },
+            }
+        )
+    return {
+        "hypothetical_only": True,
+        "rows": rows,
+        "trusted_loop_effect": "remains_fail_closed_until_actual_accepted_artifacts_exist",
     }
 
 
@@ -102,6 +136,13 @@ def build_guarded_alias_bounded_generation_cascade(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
+    decision_report = generation_decision.build_bounded_first_batch_generation_decision(
+        repo_root=repo_root,
+        max_candidates=max_candidates,
+    )
+    verifier_report = acceptance_verifier.build_bounded_generation_artifact_acceptance_verifier(
+        repo_root=repo_root,
+    )
     alias_rows = _index_by_symbol(alias_report.get("rows") if isinstance(alias_report.get("rows"), list) else [])
     closure_rows = _index_by_symbol(closure_report.get("rows") if isinstance(closure_report.get("rows"), list) else [])
     usage_matrix = [
@@ -112,29 +153,35 @@ def build_guarded_alias_bounded_generation_cascade(
         )
         for symbol in FIRST_BATCH_SYMBOLS
     ]
+    simulation = _dry_run_simulation(usage_matrix=usage_matrix)
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
-        "overall_result": "DETERMINISTIC_ALIAS_ALLOWED_BUT_CONTEXT_ONLY",
+        "overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY",
         "summary": {
             "first_batch": list(FIRST_BATCH_SYMBOLS),
             "alias_policy_status": str(alias_report.get("summary", {}).get("final_recommendation") or ""),
             "legacy_context_only": all(bool(row.get("context_usage_allowed")) for row in usage_matrix),
             "evidence_complete_count": int((closure_report.get("summary") or {}).get("evidence_complete_count") or 0),
             "unknown_blocker_count": int((closure_report.get("summary") or {}).get("unknown_blocker_count") or 0),
-            "current_top_blocker": "bounded_generation_decision_required",
+            "current_top_blocker": "operator_approval_required_for_bounded_generation",
+            "bounded_generation_decision_status": str((decision_report.get("summary") or {}).get("final_recommendation") or ""),
+            "acceptance_verifier_status": str((verifier_report.get("summary") or {}).get("final_recommendation") or ""),
             "operator_summary": (
                 "Guarded alias analysis confirms legacy first-batch pullback evidence is context-only "
-                "and does not clear current daily lineage or OOS blockers."
+                "and the bounded current-basket generation packet is prepared without running generation."
             ),
         },
         "alias_policy": alias_report,
         "legacy_evidence_usage_matrix": usage_matrix,
+        "bounded_generation_decision": decision_report,
+        "artifact_acceptance_verifier": verifier_report,
+        "dry_run_simulation": simulation,
         "upstream_context": {
             "first_batch_recovery_cascade_result": str(recovery_cascade.get("overall_result") or ""),
             "first_batch_recovery_cascade_stop_condition": str(recovery_cascade.get("fundamental_stop_condition") or ""),
         },
-        "fundamental_stop_condition": "alias_policy_context_only",
+        "fundamental_stop_condition": "operator_approval_required_for_bounded_generation",
         "safety_invariants": {
             "read_only": True,
             "mutates_campaigns": False,
@@ -142,6 +189,7 @@ def build_guarded_alias_bounded_generation_cascade(
             "context_only_not_promoted_to_proof": True,
             "evidence_complete_count_unchanged": int((closure_report.get("summary") or {}).get("evidence_complete_count") or 0) == 0,
             "unknown_blocker_count_unchanged": int((closure_report.get("summary") or {}).get("unknown_blocker_count") or 0) == 0,
+            "no_actual_bounded_generation_run": True,
         },
         "authority_boundary": dict(AUTHORITY_BOUNDARY),
     }
@@ -163,6 +211,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["alias_policy_status", str(summary.get("alias_policy_status") or "")],
                     ["current_top_blocker", str(summary.get("current_top_blocker") or "")],
                     ["evidence_complete_count", str(summary.get("evidence_complete_count") or 0)],
+                    ["bounded_generation_decision_status", str(summary.get("bounded_generation_decision_status") or "")],
                 ],
             ),
             "",
@@ -179,6 +228,20 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                         str(row.get("next_action") or ""),
                     ]
                     for row in rows
+                ],
+            ),
+            "",
+            "## 3. Hypothetical dry run",
+            _table(
+                ["Symbol", "Campaign accepted", "OOS accepted", "Both accepted"],
+                [
+                    [
+                        str(row.get("symbol") or ""),
+                        str((row.get("if_campaign_lineage_artifact_accepted") or {}).get("remaining_blockers") or []),
+                        str((row.get("if_oos_artifact_accepted") or {}).get("remaining_blockers") or []),
+                        str((row.get("if_both_accepted") or {}).get("remaining_blockers") or []),
+                    ]
+                    for row in (report.get("dry_run_simulation") or {}).get("rows", [])
                 ],
             ),
         ]

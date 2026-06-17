@@ -61,19 +61,31 @@ def test_guarded_alias_cascade_keeps_legacy_evidence_context_only(
             "fundamental_stop_condition": "preset_timeframe_alias_unproven",
         },
     )
+    monkeypatch.setattr(
+        cascade.generation_decision,
+        "build_bounded_first_batch_generation_decision",
+        lambda **_: {"summary": {"final_recommendation": "operator_approve_bounded_aapl_nvda_current_basket_grid_generation"}},
+    )
+    monkeypatch.setattr(
+        cascade.acceptance_verifier,
+        "build_bounded_generation_artifact_acceptance_verifier",
+        lambda **_: {"summary": {"final_recommendation": "artifact_acceptance_verifier_ready"}},
+    )
 
     report = cascade.build_guarded_alias_bounded_generation_cascade(repo_root=tmp_path)
 
-    assert report["overall_result"] == "DETERMINISTIC_ALIAS_ALLOWED_BUT_CONTEXT_ONLY"
+    assert report["overall_result"] == "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"
     assert report["summary"]["evidence_complete_count"] == 0
     assert report["summary"]["unknown_blocker_count"] == 0
-    assert report["fundamental_stop_condition"] == "alias_policy_context_only"
+    assert report["fundamental_stop_condition"] == "operator_approval_required_for_bounded_generation"
+    assert report["summary"]["bounded_generation_decision_status"] == "operator_approve_bounded_aapl_nvda_current_basket_grid_generation"
     rows = {row["symbol"]: row for row in report["legacy_evidence_usage_matrix"]}
     assert rows["AAPL"]["context_usage_allowed"] is True
     assert rows["AAPL"]["campaign_lineage_proof_allowed"] is False
     assert rows["AAPL"]["evidence_completeness_allowed"] is False
     assert rows["AAPL"]["after_blockers"] == ["campaign_lineage_missing", "no_oos_evidence"]
     assert rows["NVDA"]["oos_proof_allowed"] is False
+    assert report["dry_run_simulation"]["hypothetical_only"] is True
 
 
 def test_guarded_alias_cascade_write_outputs_stays_allowlisted(
@@ -94,6 +106,16 @@ def test_guarded_alias_cascade_write_outputs_stays_allowlisted(
         cascade.first_batch_cascade,
         "build_first_batch_evidence_recovery_cascade",
         lambda **_: {},
+    )
+    monkeypatch.setattr(
+        cascade.generation_decision,
+        "build_bounded_first_batch_generation_decision",
+        lambda **_: {"summary": {}},
+    )
+    monkeypatch.setattr(
+        cascade.acceptance_verifier,
+        "build_bounded_generation_artifact_acceptance_verifier",
+        lambda **_: {"summary": {}},
     )
 
     report = cascade.build_guarded_alias_bounded_generation_cascade(repo_root=tmp_path)
