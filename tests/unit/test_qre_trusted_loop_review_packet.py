@@ -102,6 +102,15 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         "build_first_batch_evidence_recovery_readiness",
         lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
     )
+    monkeypatch.setattr(
+        packet_module.first_batch_cascade,
+        "build_first_batch_evidence_recovery_cascade",
+        lambda **_: {
+            "report_kind": "qre_first_batch_evidence_recovery_cascade",
+            "overall_result": "PRESET_TIMEFRAME_ALIAS_BLOCKED",
+            "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
+        },
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
 
@@ -118,6 +127,8 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["basket_operator_action_plan_ready"] is True
     assert packet["summary"]["basket_operator_action_plan_first_batch"] == ["AAPL", "NVDA"]
     assert packet["summary"]["first_batch_readiness_available"] is True
+    assert packet["summary"]["first_batch_recovery_cascade_available"] is True
+    assert packet["summary"]["first_batch_recovery_cascade_result"] == "PRESET_TIMEFRAME_ALIAS_BLOCKED"
     assert packet["summary"]["trust_blocker_count"] == 0
     assert packet["protected_artifacts"][0]["exists"] is True
     assert packet["protected_artifacts"][1]["exists"] is True
@@ -154,6 +165,15 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
         "build_first_batch_evidence_recovery_readiness",
         lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
     )
+    monkeypatch.setattr(
+        packet_module.first_batch_cascade,
+        "build_first_batch_evidence_recovery_cascade",
+        lambda **_: {
+            "report_kind": "qre_first_batch_evidence_recovery_cascade",
+            "overall_result": "PRESET_TIMEFRAME_ALIAS_BLOCKED",
+            "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
+        },
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
 
@@ -185,6 +205,15 @@ def test_trusted_loop_review_packet_operator_summary_renders(
         "build_first_batch_evidence_recovery_readiness",
         lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
     )
+    monkeypatch.setattr(
+        packet_module.first_batch_cascade,
+        "build_first_batch_evidence_recovery_cascade",
+        lambda **_: {
+            "report_kind": "qre_first_batch_evidence_recovery_cascade",
+            "overall_result": "PRESET_TIMEFRAME_ALIAS_BLOCKED",
+            "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
+        },
+    )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)
     text = packet_module.render_operator_summary(packet)
@@ -212,6 +241,15 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
         packet_module.first_batch_readiness,
         "build_first_batch_evidence_recovery_readiness",
         lambda **_: {"report_kind": "qre_first_batch_evidence_recovery_readiness"},
+    )
+    monkeypatch.setattr(
+        packet_module.first_batch_cascade,
+        "build_first_batch_evidence_recovery_cascade",
+        lambda **_: {
+            "report_kind": "qre_first_batch_evidence_recovery_cascade",
+            "overall_result": "PRESET_TIMEFRAME_ALIAS_BLOCKED",
+            "first_batch_summary": {"current_top_blocker": "preset_timeframe_alias_unproven"},
+        },
     )
 
     packet = packet_module.build_trusted_loop_review_packet(repo_root=tmp_path)

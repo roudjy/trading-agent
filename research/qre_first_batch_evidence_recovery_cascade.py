@@ -12,7 +12,6 @@ from typing import Any, Final
 
 from research import qre_evidence_complete_basket_closure as closure
 from research import qre_first_batch_evidence_recovery_readiness as readiness
-from research import qre_trusted_loop_review_packet as trusted_loop
 
 
 REPORT_KIND: Final[str] = "qre_first_batch_evidence_recovery_cascade"
@@ -21,6 +20,7 @@ DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_first_batch_evidence_recovery_c
 LATEST_NAME: Final[str] = "latest.json"
 OPERATOR_SUMMARY_NAME: Final[str] = "operator_summary.md"
 WRITE_PREFIX: Final[str] = "logs/qre_first_batch_evidence_recovery_cascade/"
+TRUSTED_LOOP_PATH: Final[Path] = Path("logs/qre_trusted_loop_review/latest.json")
 
 FIRST_BATCH_SYMBOLS: Final[tuple[str, ...]] = ("AAPL", "NVDA")
 SECOND_LINE_SYMBOLS: Final[tuple[str, ...]] = ("TSM",)
@@ -140,6 +140,11 @@ def _read_json_payload(path: Path) -> Any | None:
         return json.loads(text)
     except json.JSONDecodeError:
         return None
+
+
+def _read_json_mapping(path: Path) -> dict[str, Any] | None:
+    payload = _read_json_payload(path)
+    return payload if isinstance(payload, dict) else None
 
 
 def _read_csv_rows(path: Path) -> list[dict[str, str]] | None:
@@ -279,13 +284,15 @@ def classify_artifact(path: Path, *, repo_root: Path = Path(".")) -> dict[str, A
         structured_value if structured_value else text,
         ("source_artifact", "source_row_id", "run_manifest_id", "validation_plan_id", "campaign_id"),
     )
-    stdout_only = isinstance(payload, Mapping) and "stdout_tail" in payload and not any(
-        key in payload for key in ("results", "validation_results", "rows", "candidates")
-    )
     has_structured_results = bool(
         (isinstance(payload, Mapping) and any(key in payload for key in ("rows", "candidates", "batches", "validation", "summary")))
         or isinstance(payload, list)
         or (csv_rows is not None and len(csv_rows) > 0)
+    )
+    stdout_only = bool(
+        payload is not None
+        and _contains_any(structured_value if structured_value else text, ("stdout_tail", "results_written=", "validated_count="))
+        and not has_structured_results
     )
     schema_family = _infer_schema_family(payload, text)
     schema_version = _infer_schema_version(payload)
@@ -304,16 +311,16 @@ def classify_artifact(path: Path, *, repo_root: Path = Path(".")) -> dict[str, A
     elif root_type == "test_fixture":
         classification_status = "test_fixture_not_authoritative"
         rejection_reason = "fixture_root_not_authoritative"
+    elif stdout_only:
+        classification_status = "legacy_validation_stdout_only"
+        rejection_reason = "stdout_tail_without_structured_results"
+        recommended_next_action = "locate_structured_validation_results"
     elif artifact_kind == "generated_report" or schema_family in GENERATED_REPORT_MARKERS:
         classification_status = "generated_report_not_source_artifact"
         rejection_reason = "report_is_derived_not_source_evidence"
     elif artifact_kind == "campaign_registry_snapshot":
         classification_status = "registry_snapshot_not_lineage_proof"
         rejection_reason = "registry_snapshot_cannot_prove_lineage_alone"
-    elif stdout_only:
-        classification_status = "legacy_validation_stdout_only"
-        rejection_reason = "stdout_tail_without_structured_results"
-        recommended_next_action = "locate_structured_validation_results"
     elif artifact_kind == "legacy_campaign_manifest" and contains_campaign_id and contains_run_id:
         classification_status = "legacy_validation_evidence_candidate"
         safe_to_restore_copy_only = True
@@ -597,7 +604,7 @@ def build_first_batch_evidence_recovery_cascade(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
-    trusted_loop_report = trusted_loop.build_trusted_loop_review_packet(repo_root=repo_root)
+    trusted_loop_report = _read_json_mapping(repo_root / TRUSTED_LOOP_PATH) or {}
     artifact_rows = _phase_one_rows(repo_root)
     validation_locator = _locate_validation_results(repo_root, artifact_rows)
     legacy_compatibility = _analyze_legacy_compatibility(repo_root, validation_locator)

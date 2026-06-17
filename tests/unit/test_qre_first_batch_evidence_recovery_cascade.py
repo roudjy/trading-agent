@@ -64,6 +64,10 @@ def _seed_repo(tmp_path: Path) -> None:
         },
     )
     _write_json(
+        tmp_path / "logs" / "qre_trusted_loop_review" / "latest.json",
+        {"summary": {"trust_verdict": "read_only_context_fail_closed", "trust_level": "1"}},
+    )
+    _write_json(
         tmp_path / ".tmp" / "qre_grid_smoke_complete" / "combination_results.v1.jsonl",
         [
             {
@@ -97,11 +101,6 @@ def _stub_upstream(monkeypatch) -> None:
                 {"symbol": "NVDA", "exact_blockers": ["campaign_lineage_missing", "no_oos_evidence"]},
             ],
         },
-    )
-    monkeypatch.setattr(
-        cascade.trusted_loop,
-        "build_trusted_loop_review_packet",
-        lambda **_: {"summary": {"trust_verdict": "read_only_context_fail_closed", "trust_level": "1"}},
     )
 
 
