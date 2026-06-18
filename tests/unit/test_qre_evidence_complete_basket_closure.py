@@ -465,6 +465,65 @@ def test_accepted_lineage_only_clears_lineage_blocker_but_not_oos(monkeypatch, t
     assert any(item["blocker_code"] == "campaign_lineage_missing" for item in row["clearance_reason_records"])
 
 
+def test_accepted_lineage_clears_campaign_lineage_for_timeframe_alias_equivalent_scope(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        closure,
+        "_guarded_alias_bounded_generation_snapshot",
+        lambda *_: {"overall_result": "ALIAS_POLICY_CONTEXT_ONLY_BOUNDED_GENERATION_READY"},
+    )
+    monkeypatch.setattr(
+        closure.evidence_coverage,
+        "build_real_basket_evidence_coverage",
+        lambda **_: {
+            "rows": [
+                {
+                    "candidate_id": "c1",
+                    "symbol": "AAA",
+                    "preset_id": "trend_pullback_continuation_daily_v1",
+                    "timeframes": ["1d"],
+                    "diagnosis_class": "diagnosable",
+                    "evidence_completeness_score_pct": 57,
+                    "evidence_completeness_status": "partial",
+                    "missing_evidence_taxonomy": ["campaign_lineage_missing", "no_oos_evidence"],
+                    "follow_up": "collect_more_evidence",
+                    "evidence_presence": {
+                        "source_identity_ready": True,
+                        "source_quality_ready": True,
+                        "cache_ready": True,
+                        "screening_evidence_present": True,
+                        "oos_evidence_known": False,
+                        "campaign_lineage_present": False,
+                        "candidate_lineage_present": True,
+                    },
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        closure.reason_records,
+        "build_reason_records_snapshot",
+        lambda **_: {"records": []},
+    )
+    monkeypatch.setattr(
+        closure.failure_action,
+        "build_failure_action_from_basket",
+        lambda **_: {"rows": [{"candidate_id": "c1", "recommended_action": "collect_oos_evidence", "actionability": {"is_actionable": True, "status": "actionable"}}]},
+    )
+    verifier_report = _accepted_verifier_report(timeframe="daily_v1")
+    verifier_report["rows"][0]["accepted_for_oos_evidence"] = False
+    verifier_report["rows"][0]["accepted_oos_count"] = 0
+    verifier_report["rows"][0]["accepted_oos_records"] = []
+    verifier_report["summary"]["accepted_oos_candidate_count"] = 0
+    _write_json(tmp_path / "logs" / "qre_bounded_generation_artifact_acceptance_verifier" / "latest.json", verifier_report)
+
+    report = closure.build_evidence_complete_basket_closure(repo_root=tmp_path)
+    row = report["rows"][0]
+
+    assert "campaign_lineage_missing" not in row["exact_blockers"]
+    assert "no_oos_evidence" in row["exact_blockers"]
+    assert any(item["blocker_code"] == "campaign_lineage_missing" for item in row["clearance_reason_records"])
+
+
 def test_accepted_oos_only_clears_oos_blocker_but_not_lineage(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         closure,
