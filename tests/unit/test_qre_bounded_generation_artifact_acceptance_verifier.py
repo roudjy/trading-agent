@@ -119,6 +119,24 @@ def test_accepts_valid_structured_oos_artifact_from_materialized_adapter_record(
     assert report["summary"]["accepted_oos_candidate_count"] == 1
 
 
+def test_accepts_allowlisted_structured_log_source_artifact_refs(tmp_path: Path) -> None:
+    payload = _accepted_materialized_payload()
+    payload["lineage_candidates"][0]["source_ref"] = (
+        "logs/qre_controlled_validation_adapter_results/source_artifacts/approved-batch.v1.json"
+    )
+    payload["oos_candidates"][0]["source_ref"] = (
+        "logs/qre_controlled_validation_adapter_results/source_artifacts/approved-batch.v1.json"
+    )
+    _write_json(tmp_path / "logs" / "qre_controlled_validation_adapter_results" / "latest.json", payload)
+
+    report = verifier.build_bounded_generation_artifact_acceptance_verifier(repo_root=tmp_path)
+    row = report["rows"][0]
+
+    assert row["classification"] == "accepted_for_campaign_lineage"
+    assert row["accepted_for_campaign_lineage"] is True
+    assert row["accepted_for_oos_evidence"] is True
+
+
 def test_rejects_lineage_with_missing_candidate_campaign_or_generation_id(tmp_path: Path) -> None:
     payload = _accepted_materialized_payload()
     payload["lineage_candidates"][0]["candidate_id"] = ""
@@ -154,6 +172,22 @@ def test_rejects_oos_with_missing_window_metrics_and_cost_refs(tmp_path: Path) -
     assert "missing_oos_window" in row["oos_rejection_reasons"]
     assert "missing_oos_metrics" in row["oos_rejection_reasons"]
     assert "missing_cost_slippage_refs" in row["oos_rejection_reasons"]
+
+
+def test_rejects_oos_with_non_positive_trade_count(tmp_path: Path) -> None:
+    payload = _accepted_materialized_payload()
+    payload["oos_candidates"][0]["oos_metric_fields"] = {
+        "oos_trade_count": 0,
+        "oos_return_pct": 0.0,
+    }
+    _write_json(tmp_path / "logs" / "qre_controlled_validation_adapter_results" / "latest.json", payload)
+
+    report = verifier.build_bounded_generation_artifact_acceptance_verifier(repo_root=tmp_path)
+    row = report["rows"][0]
+
+    assert row["accepted_for_oos_evidence"] is False
+    assert row["accepted_oos_count"] == 0
+    assert "non_positive_oos_trade_count" in row["oos_rejection_reasons"]
 
 
 def test_rejects_context_only_stdout_legacy_provisional_and_fixture_materialized_records(tmp_path: Path) -> None:

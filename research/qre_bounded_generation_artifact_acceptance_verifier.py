@@ -20,6 +20,9 @@ OPERATOR_SUMMARY_NAME: Final[str] = "operator_summary.md"
 WRITE_PREFIX: Final[str] = "logs/qre_bounded_generation_artifact_acceptance_verifier/"
 SCAN_ROOTS: Final[tuple[str, ...]] = ("logs", "artifacts", "archived", "backup", "local_quarantine")
 SOURCE_ARTIFACT_PREFIXES: Final[tuple[str, ...]] = ("artifacts/",)
+STRUCTURED_LOG_SOURCE_PREFIXES: Final[tuple[str, ...]] = (
+    "logs/qre_controlled_validation_adapter_results/source_artifacts/",
+)
 
 
 def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
@@ -57,6 +60,8 @@ def _source_ref_reason(source_ref: str, *, allowlisted_paths: Sequence[str]) -> 
     lowered = normalized.lower()
     if not normalized:
         return "missing_source_artifact_ref"
+    if any(normalized.startswith(prefix) for prefix in STRUCTURED_LOG_SOURCE_PREFIXES):
+        return None
     if lowered.startswith("tests/") or "fixture" in lowered:
         return "fixture_only_source_ref"
     if lowered.startswith("logs/") or lowered.endswith(".md") or "operator_summary" in lowered:
@@ -145,6 +150,16 @@ def _validate_oos_candidate(
     metrics = candidate.get("oos_metric_fields")
     if not isinstance(metrics, Mapping) or not metrics:
         reasons.append("missing_oos_metrics")
+    else:
+        trade_count = metrics.get("oos_trade_count")
+        if trade_count in (None, ""):
+            reasons.append("missing_oos_trade_count")
+        else:
+            try:
+                if float(trade_count) <= 0:
+                    reasons.append("non_positive_oos_trade_count")
+            except (TypeError, ValueError):
+                reasons.append("invalid_oos_trade_count")
     if not _text_list(candidate.get("cost_slippage_assumption_refs")):
         reasons.append("missing_cost_slippage_refs")
     if not _text_list(candidate.get("reason_record_refs")):

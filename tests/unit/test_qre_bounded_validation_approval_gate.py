@@ -62,13 +62,13 @@ def test_scope_mismatch_blocks() -> None:
     assert report["approval_gate_status"] == "blocked_scope_mismatch"
 
 
-def test_forbidden_capability_blocks() -> None:
+def test_forbidden_capability_denylist_does_not_block_exact_approval() -> None:
     report = gate.build_bounded_validation_approval_gate(
         _approval(forbidden_capabilities=["strategy_synthesis"]),
         _request(),
         evaluated_at_utc="2026-06-18T18:30:00Z",
     )
-    assert report["approval_gate_status"] == "blocked_forbidden_capability"
+    assert report["approval_gate_status"] == "approval_valid_for_bounded_validation"
 
 
 def test_real_run_blocked_by_default() -> None:
