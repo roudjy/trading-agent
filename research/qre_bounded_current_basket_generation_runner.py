@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from collections.abc import Mapping, Sequence
@@ -9,6 +10,7 @@ from typing import Any, Final
 
 from research import qre_bounded_basket_request as basket_request
 from research import qre_bounded_current_basket_generation_discovery as discovery
+from research import qre_controlled_validation_adapter as validation_adapter
 
 
 REPORT_KIND: Final[str] = "qre_bounded_current_basket_generation_runner"
@@ -22,6 +24,8 @@ RUNNER_COMMAND: Final[str] = (
     "python -m research.qre_bounded_current_basket_generation_runner "
     "--request-file logs/qre_bounded_basket_request/latest.json --dry-run --write"
 )
+NON_AUTHORITATIVE_FLAG: Final[bool] = True
+EVIDENCE_AUTHORITY: Final[str] = "runner_context_until_verifier_acceptance"
 
 
 def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
@@ -59,6 +63,44 @@ def _request_from_file(request_file: Path | None) -> dict[str, Any] | None:
     return _read_json(request_file)
 
 
+def _source_from_file(source_file: Path | None) -> dict[str, Any] | None:
+    if source_file is None:
+        return None
+    return _read_json(source_file)
+
+
+def _unique_in_order(values: Sequence[str]) -> list[str]:
+    return list(dict.fromkeys(str(value) for value in values if str(value).strip()))
+
+
+def _canonical_runner_payload(report: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": report.get("schema_version", SCHEMA_VERSION),
+        "report_kind": report.get("report_kind", REPORT_KIND),
+        "runner_status": report.get("runner_status"),
+        "request_ref": report.get("request_ref"),
+        "controlled_validation_source_ref": report.get("controlled_validation_source_ref"),
+        "lineage_candidate_refs": list(report.get("lineage_candidate_refs", [])),
+        "oos_candidate_refs": list(report.get("oos_candidate_refs", [])),
+        "accepted_lineage_count": int(report.get("accepted_lineage_count", 0) or 0),
+        "accepted_oos_count": int(report.get("accepted_oos_count", 0) or 0),
+        "rejected_reasons": list(report.get("rejected_reasons", [])),
+        "can_clear_blockers": bool(report.get("can_clear_blockers", False)),
+        "can_authorize_execution": bool(report.get("can_authorize_execution", False)),
+        "can_synthesize_strategy": bool(report.get("can_synthesize_strategy", False)),
+        "can_promote_candidate": bool(report.get("can_promote_candidate", False)),
+        "can_activate_deployment": bool(report.get("can_activate_deployment", False)),
+        "non_authoritative": bool(report.get("non_authoritative", NON_AUTHORITATIVE_FLAG)),
+        "evidence_authority": report.get("evidence_authority", EVIDENCE_AUTHORITY),
+    }
+
+
+def compute_runner_hash(report: Mapping[str, Any]) -> str:
+    payload = _canonical_runner_payload(report)
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _reason_record(
     *,
     record_id: str,
@@ -85,6 +127,7 @@ def build_bounded_current_basket_generation_runner(
     request_payload: Mapping[str, Any] | None = None,
     *,
     repo_root: Path = Path("."),
+    controlled_validation_source: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     raw_request_payload = request_payload if isinstance(request_payload, Mapping) else None
     request_report = _request_snapshot(raw_request_payload)
@@ -111,6 +154,71 @@ def build_bounded_current_basket_generation_runner(
         blocking_reasons.append("forbidden_capabilities_present")
     if not safe_generation_command_found:
         blocking_reasons.append("safe_bounded_generation_command_not_found")
+    source_ref = (
+        str(controlled_validation_source.get("source_ref") or "")
+        if isinstance(controlled_validation_source, Mapping)
+        else ""
+    )
+    adapter_called = valid_request and bool(request.get("approval_ref")) and output_allowlisted and not forbidden_capabilities
+    if adapter_called:
+        adapter_result = validation_adapter.build_controlled_validation_adapter_result(
+            request,
+            controlled_validation_source=controlled_validation_source,
+        )
+    else:
+        adapter_result = {
+            "adapter_status": "blocked_invalid_bounded_request",
+            "request_ref": str(request.get("request_id") or ""),
+            "controlled_validation_source_ref": source_ref,
+            "lineage_candidate_refs": [],
+            "oos_candidate_refs": [],
+            "accepted_lineage_count": 0,
+            "accepted_oos_count": 0,
+            "rejected_reasons": list(blocking_reasons),
+            "can_clear_blockers": False,
+            "non_authoritative": True,
+            "evidence_authority": "adapter_not_called_preflight_failed",
+        }
+    adapter_status = str(adapter_result.get("adapter_status") or "")
+    accepted_lineage_count = int(adapter_result.get("accepted_lineage_count") or 0)
+    accepted_oos_count = int(adapter_result.get("accepted_oos_count") or 0)
+    adapter_rejected_reasons = list(adapter_result.get("rejected_reasons") or [])
+    adapter_has_required_counts = (
+        bool(adapter_result.get("can_clear_blockers"))
+        and accepted_lineage_count > 0
+        and accepted_oos_count > 0
+    )
+    can_clear_blockers = False
+    if adapter_has_required_counts:
+        adapter_rejected_reasons.append("verifier_acceptance_required_to_clear_blockers")
+    if not adapter_called:
+        runner_status = (
+            "blocked_missing_approval_ref"
+            if "missing_approval_ref" in blocking_reasons
+            else "blocked_output_path_not_allowlisted"
+            if "output_paths_not_allowlisted" in blocking_reasons
+            else "blocked_forbidden_capability"
+            if "forbidden_capabilities_present" in blocking_reasons
+            else "blocked_invalid_bounded_request"
+        )
+    elif adapter_status == "no_safe_controlled_validation_source":
+        runner_status = "no_safe_controlled_validation_source"
+    elif adapter_status == "accepted_structured_evidence":
+        runner_status = "adapter_accepted_structured_evidence"
+    elif adapter_status in {
+        "blocked_missing_candidate_id",
+        "blocked_missing_campaign_or_generation_id",
+        "blocked_missing_oos_window",
+        "blocked_missing_oos_metrics",
+        "blocked_missing_cost_slippage_refs",
+    }:
+        runner_status = "adapter_provisional_only"
+    elif adapter_status.startswith("rejected_") or adapter_status == "blocked_source_not_structured":
+        runner_status = "adapter_rejected_source"
+    else:
+        runner_status = "dry_run_only" if blocking_reasons else "runner_ready"
+    if adapter_rejected_reasons:
+        blocking_reasons.extend(adapter_rejected_reasons)
     generation_status = "not_executed"
     reason_records = [
         _reason_record(
@@ -144,7 +252,7 @@ def build_bounded_current_basket_generation_runner(
         if request_report.get("validation_status") == "valid"
         else "request_invalid_fails_closed"
     )
-    return {
+    report = {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
         "request": request,
@@ -170,11 +278,29 @@ def build_bounded_current_basket_generation_runner(
             "auto_run_allowed": False,
             "operator_decision_required": True,
             "safe_existing_generation_command_available": safe_generation_command_found,
+            "controlled_validation_adapter_called": adapter_called,
             "request_valid": valid_request,
             "approval_ref_present": bool(request.get("approval_ref")),
             "output_paths_allowlisted": output_allowlisted,
             "forbidden_capabilities_present": forbidden_capabilities,
         },
+        "runner_status": runner_status,
+        "request_ref": str(request.get("request_id") or ""),
+        "adapter_result_ref": "embedded:adapter_result",
+        "adapter_result": adapter_result,
+        "controlled_validation_source_ref": str(adapter_result.get("controlled_validation_source_ref") or source_ref),
+        "lineage_candidate_refs": list(adapter_result.get("lineage_candidate_refs") or []),
+        "oos_candidate_refs": list(adapter_result.get("oos_candidate_refs") or []),
+        "accepted_lineage_count": accepted_lineage_count,
+        "accepted_oos_count": accepted_oos_count,
+        "rejected_reasons": _unique_in_order([str(reason) for reason in blocking_reasons]),
+        "can_clear_blockers": can_clear_blockers,
+        "can_authorize_execution": False,
+        "can_synthesize_strategy": False,
+        "can_promote_candidate": False,
+        "can_activate_deployment": False,
+        "non_authoritative": NON_AUTHORITATIVE_FLAG,
+        "evidence_authority": EVIDENCE_AUTHORITY,
         "generation_manifest": {
             "generation_run_id": None,
             "generation_mode": "provisional_dry_run_only",
@@ -187,6 +313,11 @@ def build_bounded_current_basket_generation_runner(
             "approval_required": True,
             "auto_run_allowed": False,
             "final_recommendation": final_recommendation,
+            "controlled_validation_source_ref": str(adapter_result.get("controlled_validation_source_ref") or source_ref),
+            "adapter_status": adapter_status,
+            "accepted_lineage_count": accepted_lineage_count,
+            "accepted_oos_count": accepted_oos_count,
+            "can_clear_blockers": can_clear_blockers,
         },
         "command_manifest": {
             "runner_command": RUNNER_COMMAND,
@@ -223,8 +354,12 @@ def build_bounded_current_basket_generation_runner(
             "no_external_fetch": True,
             "no_runner_execution": True,
             "provisional_until_safe_command_exists": True,
+            "adapter_output_not_proof_by_itself": True,
+            "verifier_acceptance_required_to_clear_blockers": True,
         },
     }
+    report["hash"] = compute_runner_hash(report)
+    return report
 
 
 def render_operator_summary(report: Mapping[str, Any]) -> str:
@@ -294,11 +429,20 @@ def main(argv: list[str] | None = None) -> int:
         description="Build the provisional bounded current-basket generation runner report.",
     )
     parser.add_argument("--request-file", required=True)
+    parser.add_argument("--controlled-validation-source-file")
     parser.add_argument("--dry-run", action="store_true", default=True)
     parser.add_argument("--write", action="store_true")
     args = parser.parse_args(argv)
     request_payload = _request_from_file(Path(args.request_file))
-    report = build_bounded_current_basket_generation_runner(request_payload)
+    source_payload = _source_from_file(
+        Path(args.controlled_validation_source_file)
+        if args.controlled_validation_source_file
+        else None
+    )
+    report = build_bounded_current_basket_generation_runner(
+        request_payload,
+        controlled_validation_source=source_payload,
+    )
     if args.write:
         report["_artifact_paths"] = write_outputs(report)
     print(json.dumps(report, indent=2, sort_keys=True))
