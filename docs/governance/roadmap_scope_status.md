@@ -3,6 +3,14 @@
 > **Status:** governance index. Read-only operational decision aid for
 > ADE, planner, product-owner, and human operators.
 >
+> **Current sequencing note:** QRE implementation sequencing is now
+> governed by
+> [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md).
+> This document remains a historical/supporting scope index for Roadmap
+> v6 and addendum deferral doctrine. Do not use old Roadmap v6 or
+> v3.15.16 sequencing from this document as the immediate next work when
+> it conflicts with the QRE maturity roadmap.
+>
 > **Authority:** declares which roadmap documents are in active
 > execution scope and which are deferred. Does **not** grant
 > implementation, runtime, trading, paper, shadow, broker, risk, or
@@ -32,10 +40,11 @@ optimise for one outcome:
 Every queue item, ADR, sidecar, and diagnostic must justify itself
 against that question until a paper-ready candidate exists.
 
-## 2. Active vs deferred — canonical table
+## 2. Current authority and historical active vs deferred table
 
 | Roadmap document | Status | Allowed use |
 |---|---|---|
+| [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md) | **CANONICAL_CURRENT** | Active QRE implementation sequencing. Current next item after this authority cleanup: Phase 7C, `feat: add routing score scaffold`. |
 | [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — base phases v3.15.16 → v3.15.19 (minimal slices) | **DONE** | Completed minimal slices. Historical active execution scope. |
 | [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — base phases v3.15.20 and v3.16.x (minimal slices) | **ACTIVE** | Active execution scope under [`ADR-021`](../adr/ADR-021-roadmap-v6-core-path-reactivation.md). Minimal slices only (see §3). |
 | [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) — v4.x, v5.x, v6.x and non-minimal v3.16.x expansion | **DEFERRED** | Reference doctrine. Not active execution scope. |
@@ -45,9 +54,13 @@ against that question until a paper-ready candidate exists.
 | [`docs/roadmap/autonomous_development.txt`](../roadmap/autonomous_development.txt) — ADE base (A1–A24) | **ACTIVE** | Unchanged; ADE governance/queue/release-gate stays. |
 | [`docs/roadmap/autonomous_development.txt`](../roadmap/autonomous_development.txt) — Step 5 broad implementation | **BLOCKED** | Permanently blocked per ADR-017 and [`step5_design.md`](step5_design.md). Unchanged. |
 
-## 3. Active execution order (minimal Roadmap v6 path)
+## 3. Historical execution order (minimal Roadmap v6 path)
 
-The **active queue** is canonically declared in
+This section is historical/supporting reference. It records the older
+minimal Roadmap v6 path and does not override the current QRE maturity
+roadmap conveyor.
+
+The historical **active queue** was canonically declared in
 [`docs/development_work_queue/seed.jsonl`](../development_work_queue/seed.jsonl)
 under the strict JSONL schema enforced by
 [`reporting/development_work_queue.py`](../../reporting/development_work_queue.py)
@@ -374,3 +387,10 @@ operator-approved follow-up that will update those pins.
 - 2026-05-21: minimal v3.16.x implementation PR completes the
   operator-authorized minimal core path. No next active v4/v5/v6 or
   Addendum item is introduced.
+- 2026-06-18: current implementation sequencing authority moved to
+  [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md).
+  Roadmap v6, addenda, ADE operating manual, audit docs, and phase
+  prompts remain supporting or historical reference where they are not
+  explicitly incorporated into the QRE maturity roadmap. Current next
+  implementation item after authority cleanup: Phase 7C,
+  `feat: add routing score scaffold`.

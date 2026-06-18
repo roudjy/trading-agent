@@ -1,5 +1,11 @@
 # Quant Research Engine — Roadmap v6
 
+> Status note: This document is retained as historical/supporting
+> reference. The active implementation sequence is now governed by
+> `docs/roadmap/qre_maturity_roadmap_to_100.md`. Do not treat this
+> document as current execution authority where it conflicts with the QRE
+> maturity roadmap.
+
 ## Semantic Versioning Transition
 
 ---

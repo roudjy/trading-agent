@@ -8,6 +8,20 @@ read-only, fail-closed research posture toward a generic, bounded, reproducible 
 It is a roadmap and sequencing document only. It does not authorize new
 runtime capability by itself.
 
+## Current implementation authority
+
+This document is the active canonical roadmap for current QRE
+implementation sequencing.
+
+Older Roadmap v6, Addendum, ADE, audit, and prompt-library documents are
+historical or supporting references unless this roadmap explicitly
+incorporates them. Where those documents conflict with this roadmap, use
+this roadmap for current sequencing.
+
+After the Phase 7B preset feasibility mapper and the roadmap-authority
+alignment cleanup, the next implementation item is Phase 7C:
+`feat: add routing score scaffold`.
+
 ## Current baseline
 
 - QRE governance / infrastructure maturity: 65/100

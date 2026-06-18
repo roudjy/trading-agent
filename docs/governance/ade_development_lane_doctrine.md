@@ -33,7 +33,7 @@ governed by its own activation flow. None inherits from the others.
 | Authority | Scope | Source of activation |
 |---|---|---|
 | **ADE authority = development workflow automation only.** Propose roadmap items, plan, decompose, create branches, open PRs, run tests, watch CI, perform governance checks, emit reports, support operator control. | Repository code-modification workflow only. | Per-action: [`reporting.execution_authority.classify(...)`](execution_authority.md). Per-agent: `.claude/agents/*.md` frontmatter. Per-stage: `docs/governance/github_pr_lifecycle.md`. |
-| **QRE runtime authority is separate** from ADE authority. Govern routing, sampling, diagnostics, hypothesis discovery, evidence policy, candidate lifecycle, paper-readiness primitives, and (in future explicitly activated phases) paper/shadow/live runtime behavior. | Quant Research Engine product capability under `research/` and adjacent product surfaces. | Roadmap v6 phase activation + operator approval. See [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap v6.md) and [`docs/roadmap/qre_roadmap_v6_ade_operating_manual.md`](../roadmap/qre_roadmap_v6_ade_operating_manual.md) §3 mandatory domain split. |
+| **QRE runtime authority is separate** from ADE authority. Govern routing, sampling, diagnostics, hypothesis discovery, evidence policy, candidate lifecycle, paper-readiness primitives, and (in future explicitly activated phases) paper/shadow/live runtime behavior. | Quant Research Engine product capability under `research/` and adjacent product surfaces. | Current sequencing: [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md) + operator approval where required. Historical/reference context: [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap v6.md) and [`docs/roadmap/qre_roadmap_v6_ade_operating_manual.md`](../roadmap/qre_roadmap_v6_ade_operating_manual.md) §3 mandatory domain split. |
 | **Trading execution authority is permanently outside ADE authority.** Place / cancel / amend real-money orders, mutate live positions, move capital, instantiate live broker connectors, or otherwise produce real-money side effects. | Real broker, real capital, real orders. | Future Roadmap v6 phase v6.x only, under a separately governed activation that is **not** ADE. ADE never receives this authority. |
 
 The three authorities are listed in increasing distance from ADE. ADE
@@ -232,8 +232,10 @@ This doctrine is subordinate to and consistent with:
   — Phase 3 recorded-fixture simulator plan.
 - [`docs/roadmap/autonomous_development.txt`](../roadmap/autonomous_development.txt)
   — canonical ADE roadmap; A16 anchors this doc.
+- [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md)
+  — canonical current QRE implementation sequence.
 - [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap v6.md)
-  — canonical QRE product roadmap.
+  — historical/supporting QRE product-roadmap reference.
 - [`docs/roadmap/qre_roadmap_v6_ade_operating_manual.md`](../roadmap/qre_roadmap_v6_ade_operating_manual.md)
   — QRE Roadmap v6 + Addendum ADE operating manual.
 
