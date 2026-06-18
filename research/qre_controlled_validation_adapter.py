@@ -17,6 +17,7 @@ from research.qre_bounded_basket_request import (
     ALLOWED_OUTPUT_ROOTS,
     BoundedBasketRequest,
 )
+from research import qre_controlled_validation_source_metadata as source_metadata
 
 
 AdapterStatus = Literal[
@@ -304,6 +305,7 @@ def build_controlled_validation_adapter_result(
 
     source_status, source_reasons = _source_status(controlled_validation_source)
     source = _as_mapping(controlled_validation_source)
+    metadata_report = source_metadata.build_controlled_validation_source_metadata(source)
     source_ref = str(source.get("source_ref") or "").strip()
     if source_status is not None:
         return _finalize(
@@ -323,6 +325,8 @@ def build_controlled_validation_adapter_result(
                 "evidence_authority": EVIDENCE_AUTHORITY,
                 "can_authorize_execution": CAN_AUTHORIZE_EXECUTION,
                 "can_promote_candidate": CAN_PROMOTE_CANDIDATE,
+                "source_metadata_status": metadata_report["metadata_status"],
+                "source_metadata_reasons": list(metadata_report["reasons"]),
                 "lineage_candidates": [],
                 "oos_candidates": [],
             }
@@ -381,6 +385,8 @@ def build_controlled_validation_adapter_result(
             "evidence_authority": EVIDENCE_AUTHORITY,
             "can_authorize_execution": CAN_AUTHORIZE_EXECUTION,
             "can_promote_candidate": CAN_PROMOTE_CANDIDATE,
+            "source_metadata_status": metadata_report["metadata_status"],
+            "source_metadata_reasons": list(metadata_report["reasons"]),
             "lineage_candidates": lineage_candidates,
             "oos_candidates": oos_candidates,
         }

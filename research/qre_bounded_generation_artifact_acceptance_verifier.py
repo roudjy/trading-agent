@@ -198,6 +198,9 @@ def _classify_materialized_record(
     lineage_candidates = payload.get("lineage_candidates") if isinstance(payload.get("lineage_candidates"), list) else []
     oos_candidates = payload.get("oos_candidates") if isinstance(payload.get("oos_candidates"), list) else []
     request_ref = _text(payload.get("request_ref"))
+    source_metadata_status = _text(payload.get("source_metadata_status"))
+    source_metadata_reasons = _text_list(payload.get("source_metadata_reasons"))
+    metadata_valid = not source_metadata_status or source_metadata_status == "metadata_complete"
     authority_reasons = _validate_materialized_authority(authority)
     lineage_reasons: list[str] = []
     oos_reasons: list[str] = []
@@ -248,6 +251,11 @@ def _classify_materialized_record(
         dict.fromkeys(
             [
                 *authority_reasons,
+                *(
+                    [source_metadata_status, *source_metadata_reasons]
+                    if source_metadata_status and source_metadata_status != "metadata_complete"
+                    else []
+                ),
                 *lineage_reasons,
                 *oos_reasons,
                 *(
@@ -265,8 +273,8 @@ def _classify_materialized_record(
             ]
         )
     )
-    lineage_accepted = accepted_lineage_count > 0 and not authority_reasons and not lineage_reasons
-    oos_accepted = accepted_oos_count > 0 and not authority_reasons and not oos_reasons
+    lineage_accepted = accepted_lineage_count > 0 and metadata_valid and not authority_reasons and not lineage_reasons
+    oos_accepted = accepted_oos_count > 0 and metadata_valid and not authority_reasons and not oos_reasons
     if materialization_status == "materialized_accepted_structured_evidence" and lineage_accepted and oos_accepted:
         classification = "accepted_for_campaign_lineage"
     elif materialization_status == "materialized_accepted_structured_evidence" and lineage_accepted:
