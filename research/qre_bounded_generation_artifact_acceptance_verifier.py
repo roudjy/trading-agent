@@ -156,6 +156,37 @@ def _validate_oos_candidate(
     return reasons
 
 
+def _accepted_lineage_record(candidate: Mapping[str, Any], *, request_ref: str, verifier_ref: str) -> dict[str, Any]:
+    return {
+        "request_ref": request_ref,
+        "candidate_id": _text(candidate.get("candidate_id")),
+        "campaign_id": _text(candidate.get("campaign_id")),
+        "generation_id": _text(candidate.get("generation_id")),
+        "controlled_generation_id": _text(candidate.get("controlled_generation_id")),
+        "grid_run_id": _text(candidate.get("grid_run_id")),
+        "preset_id": _text(candidate.get("preset_id")),
+        "timeframe": _text(candidate.get("timeframe")),
+        "source_ref": _text(candidate.get("source_ref")),
+        "reason_record_refs": _text_list(candidate.get("reason_record_refs")),
+        "verifier_ref": verifier_ref,
+    }
+
+
+def _accepted_oos_record(candidate: Mapping[str, Any], *, request_ref: str, verifier_ref: str) -> dict[str, Any]:
+    return {
+        "request_ref": request_ref,
+        "candidate_id": _text(candidate.get("candidate_id")),
+        "preset_id": _text(candidate.get("preset_id")),
+        "timeframe": _text(candidate.get("timeframe")),
+        "source_ref": _text(candidate.get("source_ref")),
+        "oos_window": dict(candidate.get("oos_window")) if isinstance(candidate.get("oos_window"), Mapping) else {},
+        "oos_metric_fields": dict(candidate.get("oos_metric_fields")) if isinstance(candidate.get("oos_metric_fields"), Mapping) else {},
+        "cost_slippage_assumption_refs": _text_list(candidate.get("cost_slippage_assumption_refs")),
+        "reason_record_refs": _text_list(candidate.get("reason_record_refs")),
+        "verifier_ref": verifier_ref,
+    }
+
+
 def _classify_materialized_record(
     payload: Mapping[str, Any],
     *,
@@ -170,6 +201,8 @@ def _classify_materialized_record(
     authority_reasons = _validate_materialized_authority(authority)
     lineage_reasons: list[str] = []
     oos_reasons: list[str] = []
+    accepted_lineage_records: list[dict[str, Any]] = []
+    accepted_oos_records: list[dict[str, Any]] = []
 
     accepted_lineage_count = 0
     accepted_oos_count = 0
@@ -184,6 +217,13 @@ def _classify_materialized_record(
                 lineage_reasons.extend(candidate_reasons)
                 if not candidate_reasons:
                     accepted_lineage_count += 1
+                    accepted_lineage_records.append(
+                        _accepted_lineage_record(
+                            candidate,
+                            request_ref=request_ref,
+                            verifier_ref=f"{relative_path}#lineage:{_text(candidate.get('candidate_id'))}",
+                        )
+                    )
         for candidate in oos_candidates:
             if isinstance(candidate, Mapping):
                 candidate_reasons = _validate_oos_candidate(
@@ -194,6 +234,13 @@ def _classify_materialized_record(
                 oos_reasons.extend(candidate_reasons)
                 if not candidate_reasons:
                     accepted_oos_count += 1
+                    accepted_oos_records.append(
+                        _accepted_oos_record(
+                            candidate,
+                            request_ref=request_ref,
+                            verifier_ref=f"{relative_path}#oos:{_text(candidate.get('candidate_id'))}",
+                        )
+                    )
 
     payload_lineage_count = int(payload.get("accepted_lineage_count") or 0)
     payload_oos_count = int(payload.get("accepted_oos_count") or 0)
@@ -250,6 +297,8 @@ def _classify_materialized_record(
         "accepted_for_oos_evidence": oos_accepted,
         "accepted_lineage_count": accepted_lineage_count,
         "accepted_oos_count": accepted_oos_count,
+        "accepted_lineage_records": accepted_lineage_records,
+        "accepted_oos_records": accepted_oos_records,
         "accepted_for_screening_evidence": False,
         "materialization_status": materialization_status,
         "lineage_rejection_reasons": lineage_reasons,

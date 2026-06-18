@@ -39,6 +39,14 @@ KNOWN_OOS_GAP_BLOCKERS: Final[frozenset[str]] = frozenset(
         "insufficient_oos_evidence",
     }
 )
+ACCEPTED_OOS_BLOCKERS: Final[frozenset[str]] = frozenset(
+    {
+        "no_oos_evidence",
+        "oos_evidence_missing",
+        "oos_evidence_unknown",
+        "insufficient_oos_evidence",
+    }
+)
 
 
 def _index_by_candidate(rows: Sequence[Mapping[str, Any]], *, key: str = "candidate_id") -> dict[str, dict[str, Any]]:
@@ -97,6 +105,24 @@ def _guarded_alias_bounded_generation_snapshot(repo_root: Path) -> dict[str, Any
     return {"overall_result": "guarded_alias_bounded_generation_cascade_unavailable"}
 
 
+def _verifier_snapshot(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(
+        repo_root / "logs" / "qre_bounded_generation_artifact_acceptance_verifier" / "latest.json"
+    )
+    if isinstance(payload, dict) and str(payload.get("report_kind") or "") == "qre_bounded_generation_artifact_acceptance_verifier":
+        return payload
+    return {
+        "report_kind": "qre_bounded_generation_artifact_acceptance_verifier_unavailable",
+        "summary": {
+            "accepted_lineage_artifact_count": 0,
+            "accepted_oos_artifact_count": 0,
+            "accepted_lineage_candidate_count": 0,
+            "accepted_oos_candidate_count": 0,
+        },
+        "rows": [],
+    }
+
+
 def _structured_artifact_snapshot(repo_root: Path, kind: str) -> dict[str, Any]:
     if kind == "lineage":
         payload = _read_json(repo_root / "logs" / "qre_structured_lineage_artifacts" / "latest.json")
@@ -115,6 +141,112 @@ def _structured_artifact_snapshot(repo_root: Path, kind: str) -> dict[str, Any]:
             "accepted_count": 0,
         },
     }
+
+
+def _accepted_records(
+    verifier_report: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    rows = verifier_report.get("rows")
+    if not isinstance(rows, list):
+        return [], []
+    lineage_records: list[dict[str, Any]] = []
+    oos_records: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        if bool(row.get("accepted_for_campaign_lineage")):
+            lineage_records.extend(
+                dict(record)
+                for record in row.get("accepted_lineage_records") or []
+                if isinstance(record, Mapping)
+            )
+        if bool(row.get("accepted_for_oos_evidence")):
+            oos_records.extend(
+                dict(record)
+                for record in row.get("accepted_oos_records") or []
+                if isinstance(record, Mapping)
+            )
+    return lineage_records, oos_records
+
+
+def _timeframe_matches(record_timeframe: str, row_timeframes: Sequence[Any]) -> bool:
+    return not row_timeframes or record_timeframe in {str(value or "") for value in row_timeframes}
+
+
+def _find_lineage_acceptance(
+    row: Mapping[str, Any],
+    lineage_records: Sequence[Mapping[str, Any]],
+) -> dict[str, Any] | None:
+    candidate_id = str(row.get("candidate_id") or "")
+    preset_id = str(row.get("preset_id") or "")
+    timeframes = row.get("timeframes")
+    if not isinstance(timeframes, Sequence) or isinstance(timeframes, (str, bytes)):
+        timeframes = []
+    for record in lineage_records:
+        if str(record.get("candidate_id") or "") != candidate_id:
+            continue
+        if str(record.get("preset_id") or "") != preset_id:
+            continue
+        if not _timeframe_matches(str(record.get("timeframe") or ""), timeframes):
+            continue
+        return dict(record)
+    return None
+
+
+def _find_oos_acceptance(
+    row: Mapping[str, Any],
+    oos_records: Sequence[Mapping[str, Any]],
+) -> dict[str, Any] | None:
+    candidate_id = str(row.get("candidate_id") or "")
+    preset_id = str(row.get("preset_id") or "")
+    timeframes = row.get("timeframes")
+    if not isinstance(timeframes, Sequence) or isinstance(timeframes, (str, bytes)):
+        timeframes = []
+    for record in oos_records:
+        if str(record.get("candidate_id") or "") != candidate_id:
+            continue
+        if str(record.get("preset_id") or "") != preset_id:
+            continue
+        if not _timeframe_matches(str(record.get("timeframe") or ""), timeframes):
+            continue
+        return dict(record)
+    return None
+
+
+def _clearance_reason_record(
+    *,
+    blocker_code: str,
+    accepted_record: Mapping[str, Any],
+    candidate_id: str,
+) -> dict[str, Any]:
+    return {
+        "record_family": "accepted_structured_evidence_clearance",
+        "subject_id": candidate_id,
+        "blocker_code": blocker_code,
+        "reason_codes": [f"{blocker_code}_cleared_by_accepted_structured_evidence"],
+        "evidence_refs": [
+            str(accepted_record.get("verifier_ref") or ""),
+            str(accepted_record.get("source_ref") or ""),
+        ],
+        "request_ref": str(accepted_record.get("request_ref") or ""),
+        "preset_id": str(accepted_record.get("preset_id") or ""),
+        "timeframe": str(accepted_record.get("timeframe") or ""),
+    }
+
+
+def _recomputed_completeness(flags: Mapping[str, Any]) -> tuple[int, str]:
+    score = round(
+        100
+        * sum(bool(flags.get(flag_key)) for _, flag_key in CHECKLIST_ORDER)
+        / len(CHECKLIST_ORDER)
+    )
+    if score >= 85:
+        return score, "complete"
+    if score >= 55:
+        return score, "partial"
+    if score > 0:
+        return score, "thin"
+    return score, "missing"
 
 
 def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -181,6 +313,7 @@ def _row_closure(row: Mapping[str, Any]) -> dict[str, Any]:
         "reason_record_ids": reason_record_ids,
         "reason_record_families": list(reason_record_refs.get("record_families") or []),
         "reason_record_evidence_refs": list(reason_record_refs.get("evidence_refs") or []),
+        "clearance_reason_records": list(row.get("clearance_reason_records") or []),
         "failure_action": dict(failure_action),
         "follow_up": row.get("follow_up"),
         "exact_next_action": exact_next_action,
@@ -217,6 +350,8 @@ def build_evidence_complete_basket_closure(
     reason_index = _index_reason_records([row for row in reason_rows if isinstance(row, Mapping)])
     failure_index = _index_by_candidate([row for row in failure_rows if isinstance(row, Mapping)])
     guarded_report = _guarded_alias_bounded_generation_snapshot(repo_root)
+    verifier_report = _verifier_snapshot(repo_root)
+    accepted_lineage_records, accepted_oos_records = _accepted_records(verifier_report)
     structured_lineage_report = _structured_artifact_snapshot(repo_root, "lineage")
     structured_oos_report = _structured_artifact_snapshot(repo_root, "oos")
     structured_lineage_summary = (
@@ -233,6 +368,42 @@ def build_evidence_complete_basket_closure(
         enriched_row = dict(row)
         enriched_row["reason_record_refs"] = dict(reason_index.get(subject_id) or {})
         enriched_row["failure_action"] = dict(failure_index.get(subject_id) or {})
+        flags = (
+            dict(enriched_row.get("evidence_presence"))
+            if isinstance(enriched_row.get("evidence_presence"), Mapping)
+            else {}
+        )
+        missing = list(enriched_row.get("missing_evidence_taxonomy") or [])
+        clearance_reason_records: list[dict[str, Any]] = []
+        lineage_acceptance = _find_lineage_acceptance(enriched_row, accepted_lineage_records)
+        oos_acceptance = _find_oos_acceptance(enriched_row, accepted_oos_records)
+        if lineage_acceptance is not None:
+            flags["candidate_lineage_present"] = True
+            flags["campaign_lineage_present"] = True
+            missing = [item for item in missing if item != "campaign_lineage_missing"]
+            clearance_reason_records.append(
+                _clearance_reason_record(
+                    blocker_code="campaign_lineage_missing",
+                    accepted_record=lineage_acceptance,
+                    candidate_id=subject_id,
+                )
+            )
+        if oos_acceptance is not None:
+            flags["oos_evidence_known"] = True
+            missing = [item for item in missing if item not in ACCEPTED_OOS_BLOCKERS]
+            clearance_reason_records.append(
+                _clearance_reason_record(
+                    blocker_code="no_oos_evidence",
+                    accepted_record=oos_acceptance,
+                    candidate_id=subject_id,
+                )
+            )
+        score, completeness_status = _recomputed_completeness(flags)
+        enriched_row["evidence_presence"] = flags
+        enriched_row["missing_evidence_taxonomy"] = missing
+        enriched_row["evidence_completeness_score_pct"] = score
+        enriched_row["evidence_completeness_status"] = completeness_status
+        enriched_row["clearance_reason_records"] = clearance_reason_records
         closure_rows.append(_row_closure(enriched_row))
     closure_rows.sort(
         key=lambda row: (
@@ -290,10 +461,16 @@ def build_evidence_complete_basket_closure(
             "structured_lineage_artifact_count": int(structured_lineage_summary.get("artifact_count") or 0),
             "structured_lineage_artifact_provisional_count": int(structured_lineage_summary.get("provisional_count") or 0),
             "structured_lineage_artifact_accepted_count": int(structured_lineage_summary.get("accepted_count") or 0),
+            "verifier_accepted_lineage_count": int(
+                (verifier_report.get("summary") or {}).get("accepted_lineage_candidate_count") or 0
+            ),
             "structured_oos_artifact_status": str(structured_oos_summary.get("final_recommendation") or ""),
             "structured_oos_artifact_count": int(structured_oos_summary.get("artifact_count") or 0),
             "structured_oos_artifact_provisional_count": int(structured_oos_summary.get("provisional_count") or 0),
             "structured_oos_artifact_accepted_count": int(structured_oos_summary.get("accepted_count") or 0),
+            "verifier_accepted_oos_count": int(
+                (verifier_report.get("summary") or {}).get("accepted_oos_candidate_count") or 0
+            ),
             "final_recommendation": (
                 "evidence_complete_reason_records_ready"
                 if complete_count > 0
