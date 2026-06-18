@@ -118,6 +118,8 @@ def _canonical_payload(report: Mapping[str, Any]) -> dict[str, Any]:
         "request_symbols": list(report.get("request_symbols", [])),
         "preset_id": report.get("preset_id", ""),
         "timeframe": report.get("timeframe", ""),
+        "source_metadata_status": report.get("source_metadata_status", ""),
+        "source_metadata_reasons": list(report.get("source_metadata_reasons", [])),
         "lineage_candidates": list(report.get("lineage_candidates", [])),
         "oos_candidates": list(report.get("oos_candidates", [])),
         "accepted_lineage_count": int(report.get("accepted_lineage_count", 0) or 0),
@@ -157,6 +159,8 @@ def _materialize_from_source(source: Mapping[str, Any]) -> dict[str, Any]:
     request_symbols = _unique_in_order(request_payload.get("symbols") or source.get("symbols") or [])
     preset_id = str(request_payload.get("preset_id") or source.get("preset_id") or adapter_payload.get("preset_id") or "").strip()
     timeframe = str(request_payload.get("timeframe") or source.get("timeframe") or adapter_payload.get("timeframe") or "").strip()
+    source_metadata_status = str(adapter_payload.get("source_metadata_status") or "").strip()
+    source_metadata_reasons = _unique_in_order(adapter_payload.get("source_metadata_reasons") or [])
 
     source_missing_required_fields = not request_ref or not adapter_status
     if source_kind == "runner" and not source.get("adapter_result"):
@@ -210,6 +214,8 @@ def _materialize_from_source(source: Mapping[str, Any]) -> dict[str, Any]:
             "request_symbols": request_symbols,
             "preset_id": preset_id,
             "timeframe": timeframe,
+            "source_metadata_status": source_metadata_status,
+            "source_metadata_reasons": source_metadata_reasons,
             "lineage_candidates": lineage_candidates,
             "oos_candidates": oos_candidates,
             "accepted_lineage_count": accepted_lineage_count,
@@ -238,6 +244,8 @@ def _materialize_from_source(source: Mapping[str, Any]) -> dict[str, Any]:
         "request_symbols": request_symbols,
         "preset_id": preset_id,
         "timeframe": timeframe,
+        "source_metadata_status": source_metadata_status,
+        "source_metadata_reasons": source_metadata_reasons,
         "lineage_candidates": [],
         "oos_candidates": [],
         "accepted_lineage_count": 0,

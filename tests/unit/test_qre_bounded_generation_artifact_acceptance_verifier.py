@@ -43,6 +43,7 @@ def _structured_source(**overrides: object) -> dict[str, object]:
                 "candidate_id": "cand-001",
                 "campaign_id": "camp-001",
                 "generation_run_id": "gen-001",
+                "validation_status": "accepted",
                 "reason_record_refs": ["rr-lineage-001"],
             }
         ],
@@ -52,6 +53,7 @@ def _structured_source(**overrides: object) -> dict[str, object]:
                 "oos_window": {"start": "2025-01-01", "end": "2025-06-30"},
                 "oos_metric_fields": {"oos_trade_count": 24, "oos_return_pct": 3.1},
                 "cost_slippage_assumption_refs": ["cost-model-001"],
+                "validation_status": "accepted",
                 "reason_record_refs": ["rr-oos-001"],
             }
         ],
