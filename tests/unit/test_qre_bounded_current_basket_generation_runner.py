@@ -71,6 +71,7 @@ def test_runner_is_deterministic_and_fail_closed() -> None:
     assert first["accepted_lineage_count"] == 0
     assert first["accepted_oos_count"] == 0
     assert first["can_clear_blockers"] is False
+    assert first["controlled_validation_adapter_result_materialization_status"] == "materialized_no_safe_source"
     assert first["hash"] == runner.compute_runner_hash(first)
 
 
@@ -116,6 +117,7 @@ def test_runner_write_outputs_are_allowlisted(tmp_path: Path) -> None:
 
     assert paths["latest"] == "logs/qre_bounded_current_basket_generation_runner/latest.json"
     assert paths["operator_summary"] == "logs/qre_bounded_current_basket_generation_runner/operator_summary.md"
+    assert paths["controlled_validation_adapter_result_materialization"] == "logs/qre_controlled_validation_adapter_results/latest.json"
     payload = json.loads(
         (tmp_path / "logs" / "qre_bounded_current_basket_generation_runner" / "latest.json").read_text(encoding="utf-8")
     )
@@ -195,6 +197,7 @@ def test_runner_surfaces_adapter_accepted_counts_when_structured_source_is_accep
 
     assert report["runner_status"] == "adapter_accepted_structured_evidence"
     assert report["adapter_result"]["adapter_status"] == "accepted_structured_evidence"
+    assert report["controlled_validation_adapter_result_materialization"]["materialization_status"] == "materialized_accepted_structured_evidence"
     assert report["accepted_lineage_count"] == 1
     assert report["accepted_oos_count"] == 1
     assert report["lineage_candidate_refs"] == [

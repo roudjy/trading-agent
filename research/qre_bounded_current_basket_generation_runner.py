@@ -11,6 +11,7 @@ from typing import Any, Final
 from research import qre_bounded_basket_request as basket_request
 from research import qre_bounded_current_basket_generation_discovery as discovery
 from research import qre_controlled_validation_adapter as validation_adapter
+from research import qre_controlled_validation_adapter_result_materialization as adapter_materialization
 
 
 REPORT_KIND: Final[str] = "qre_bounded_current_basket_generation_runner"
@@ -358,6 +359,13 @@ def build_bounded_current_basket_generation_runner(
             "verifier_acceptance_required_to_clear_blockers": True,
         },
     }
+    report["controlled_validation_adapter_result_materialization"] = adapter_materialization.build_controlled_validation_adapter_result_materialization(
+        report
+    )
+    report["controlled_validation_adapter_result_materialization_ref"] = "embedded:controlled_validation_adapter_result_materialization"
+    report["controlled_validation_adapter_result_materialization_status"] = str(
+        (report.get("controlled_validation_adapter_result_materialization") or {}).get("materialization_status") or ""
+    )
     report["hash"] = compute_runner_hash(report)
     return report
 
@@ -417,9 +425,15 @@ def write_outputs(
     tmp_md = summary_path.with_suffix(summary_path.suffix + ".tmp")
     tmp_md.write_text(render_operator_summary(report) + "\n", encoding="utf-8")
     os.replace(tmp_md, summary_path)
+    materialization = report.get("controlled_validation_adapter_result_materialization")
+    if isinstance(materialization, Mapping):
+        materialization_paths = adapter_materialization.write_outputs(materialization, repo_root=repo_root)
+    else:
+        materialization_paths = {}
     return {
         "latest": latest.relative_to(repo_root).as_posix(),
         "operator_summary": summary_path.relative_to(repo_root).as_posix(),
+        **({"controlled_validation_adapter_result_materialization": materialization_paths.get("latest")} if materialization_paths else {}),
     }
 
 
