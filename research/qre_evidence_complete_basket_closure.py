@@ -47,6 +47,10 @@ ACCEPTED_OOS_BLOCKERS: Final[frozenset[str]] = frozenset(
         "insufficient_oos_evidence",
     }
 )
+TIMEFRAME_ALIASES: Final[dict[str, frozenset[str]]] = {
+    "daily_v1": frozenset({"daily_v1", "1d"}),
+    "1d": frozenset({"1d", "daily_v1"}),
+}
 
 
 def _index_by_candidate(rows: Sequence[Mapping[str, Any]], *, key: str = "candidate_id") -> dict[str, dict[str, Any]]:
@@ -170,7 +174,11 @@ def _accepted_records(
 
 
 def _timeframe_matches(record_timeframe: str, row_timeframes: Sequence[Any]) -> bool:
-    return not row_timeframes or record_timeframe in {str(value or "") for value in row_timeframes}
+    if not row_timeframes:
+        return True
+    record_aliases = TIMEFRAME_ALIASES.get(record_timeframe, frozenset({record_timeframe}))
+    row_aliases = {str(value or "") for value in row_timeframes}
+    return bool(record_aliases.intersection(row_aliases))
 
 
 def _find_lineage_acceptance(
