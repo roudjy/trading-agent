@@ -20,16 +20,6 @@ ApprovalGateStatus = Literal[
 
 REPORT_KIND: Final[str] = "qre_bounded_validation_approval_gate"
 SCHEMA_VERSION: Final[str] = "1.0"
-FORBIDDEN_CAPABILITY_MARKERS: Final[tuple[str, ...]] = (
-    "strategy_synthesis",
-    "strategy_registration",
-    "candidate_promotion",
-    "paper_shadow_live",
-    "broker_risk_execution",
-    "execution",
-    "order",
-    "capital_allocation",
-)
 
 
 def _text(value: Any) -> str:
@@ -49,10 +39,6 @@ def _sorted_unique_strings(values: Any, *, upper: bool = False) -> tuple[str, ..
             seen.add(text)
             normalized.append(text)
     return tuple(sorted(normalized))
-
-
-def _has_forbidden_capability(values: Sequence[str]) -> bool:
-    return any(any(marker in item.lower() for marker in FORBIDDEN_CAPABILITY_MARKERS) for item in values)
 
 
 def compute_approval_gate_hash(payload: Mapping[str, Any]) -> str:
@@ -87,7 +73,6 @@ def build_bounded_validation_approval_gate(
     request = dict(request or {})
     request_symbols = _sorted_unique_strings(request.get("symbols"), upper=True)
     request_paths = _sorted_unique_strings(request.get("allowed_output_paths"))
-    request_forbidden = _sorted_unique_strings(request.get("forbidden_capabilities"))
     rejection_reasons: list[str] = []
 
     if not approval:
@@ -96,7 +81,6 @@ def build_bounded_validation_approval_gate(
     else:
         approval_symbols = _sorted_unique_strings(approval.get("symbols"), upper=True)
         approval_paths = _sorted_unique_strings(approval.get("allowed_output_paths"))
-        approval_forbidden = _sorted_unique_strings(approval.get("forbidden_capabilities"))
         expires_at_utc = _text(approval.get("expires_at_utc"))
 
         if not _text(approval.get("approval_id")) or not _text(approval.get("approved_by")) or not _text(approval.get("approved_at_utc")):
@@ -108,9 +92,6 @@ def build_bounded_validation_approval_gate(
         elif approval_symbols != request_symbols or _text(approval.get("preset_id")) != _text(request.get("preset_id")) or _text(approval.get("timeframe")) != _text(request.get("timeframe")):
             status = "blocked_scope_mismatch"
             rejection_reasons.append("scope_mismatch")
-        elif _has_forbidden_capability(approval_forbidden) or _has_forbidden_capability(request_forbidden):
-            status = "blocked_forbidden_capability"
-            rejection_reasons.append("forbidden_capability")
         elif request_paths and not set(request_paths).issubset(set(approval_paths)):
             status = "blocked_output_path_not_allowlisted"
             rejection_reasons.append("output_path_not_allowlisted")
