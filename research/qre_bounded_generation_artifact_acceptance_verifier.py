@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from research import qre_bounded_first_batch_generation_decision as decision
+from research import qre_controlled_validation_adapter_result_materialization as adapter_materialization
 
 
 REPORT_KIND: Final[str] = "qre_bounded_generation_artifact_acceptance_verifier"
@@ -59,6 +60,72 @@ def classify_artifact(
     payload = _read_json(path)
     relative_path = path.relative_to(repo_root).as_posix()
     text = json.dumps(payload, sort_keys=True, default=str).lower() if payload is not None else ""
+    report_kind = str(payload.get("report_kind") or "") if isinstance(payload, Mapping) else ""
+    if report_kind == adapter_materialization.REPORT_KIND:
+        materialization_status = str(payload.get("materialization_status") or "")
+        authority = payload.get("authority") if isinstance(payload.get("authority"), Mapping) else {}
+        lineage_candidates = payload.get("lineage_candidates") if isinstance(payload.get("lineage_candidates"), list) else []
+        oos_candidates = payload.get("oos_candidates") if isinstance(payload.get("oos_candidates"), list) else []
+        accepted_lineage_count = int(payload.get("accepted_lineage_count") or 0)
+        accepted_oos_count = int(payload.get("accepted_oos_count") or 0)
+        lineage_accepted = any(
+            isinstance(candidate, Mapping)
+            and str(candidate.get("candidate_id") or "").strip()
+            and (
+                str(candidate.get("campaign_id") or "").strip()
+                or str(candidate.get("generation_id") or "").strip()
+                or str(candidate.get("controlled_generation_id") or "").strip()
+                or str(candidate.get("grid_run_id") or "").strip()
+            )
+            and bool(candidate.get("accepted_by_adapter", False))
+            for candidate in lineage_candidates
+        )
+        oos_accepted = any(
+            isinstance(candidate, Mapping)
+            and str(candidate.get("candidate_id") or "").strip()
+            and bool(candidate.get("oos_metric_fields"))
+            and bool(candidate.get("cost_slippage_assumption_refs"))
+            and bool(candidate.get("accepted_by_adapter", False))
+            for candidate in oos_candidates
+        )
+        has_authority = (
+            bool(authority.get("non_authoritative")) is True
+            and bool(authority.get("can_authorize_execution")) is False
+            and bool(authority.get("can_promote_candidate")) is False
+            and bool(authority.get("can_clear_blockers")) is False
+        )
+        if (
+            materialization_status == "materialized_accepted_structured_evidence"
+            and accepted_lineage_count > 0
+            and accepted_oos_count > 0
+            and lineage_accepted
+            and oos_accepted
+            and has_authority
+        ):
+            classification = "accepted_for_campaign_lineage"
+        elif materialization_status == "materialized_no_safe_source":
+            classification = "rejected_materialized_no_safe_source"
+        elif materialization_status == "materialized_rejected_source":
+            classification = "rejected_materialized_rejected_source"
+        elif materialization_status == "materialized_provisional_only":
+            classification = "rejected_materialized_provisional_only"
+        elif materialization_status in {
+            "blocked_invalid_runner_payload",
+            "blocked_invalid_adapter_payload",
+            "blocked_missing_required_fields",
+        }:
+            classification = "rejected_materialized_missing_required_fields"
+        else:
+            classification = "rejected_context_only"
+        return {
+            "path": str(path),
+            "relative_path": relative_path,
+            "classification": classification,
+            "accepted_for_campaign_lineage": classification == "accepted_for_campaign_lineage",
+            "accepted_for_oos_evidence": classification == "accepted_for_campaign_lineage",
+            "accepted_for_screening_evidence": False,
+            "materialization_status": materialization_status,
+        }
     target_symbols = {"aapl", "nvda"}
     has_target_symbol = any(symbol in text for symbol in target_symbols)
     has_target_preset = "trend_pullback_continuation_daily_v1" in text
@@ -75,7 +142,6 @@ def classify_artifact(
     has_reason_record_refs = _mapping_has_key(payload, "reason_record_refs")
     has_policy_version = _mapping_has_key(payload, "policy_version")
     has_operator_approval = _mapping_has_key(payload, "operator_approval_id") or _mapping_has_key(payload, "approval_manifest_ref")
-    report_kind = str(payload.get("report_kind") or "") if isinstance(payload, Mapping) else ""
     if report_kind.startswith("qre_"):
         classification = "rejected_context_only"
     elif relative_path.startswith(".tmp/") or "stdout_tail" in text:
