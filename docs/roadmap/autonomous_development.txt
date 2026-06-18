@@ -38,13 +38,18 @@ Build the actual Quant Research Engine product roadmap.
 
 This track is defined by the original Roadmap v6, which the operator maintains locally.
 
-After the Autonomous Development Track is complete, the project returns to the QRE Feature Build Track at:
+Historical note: when this document was written, it expected the project
+to return to the QRE Feature Build Track at:
 
 ```text
 v3.15.16 — Intelligent Routing Layer
 ```
 
-The next QRE feature sequence after that remains the Roadmap v6 product sequence:
+Current sequencing now lives in `docs/roadmap/qre_maturity_roadmap_to_100.md`.
+After the roadmap-authority cleanup, the next implementation item is
+Phase 7C: `feat: add routing score scaffold`.
+
+The historical QRE feature sequence after that was the Roadmap v6 product sequence:
 
 ```text
 v3.15.17 — Sampling Intelligence
@@ -311,13 +316,18 @@ The roadmap must not redefine or reconstruct the full Roadmap v6 product plan un
 
 ## Required future handoff statement
 
-After Autonomous Development Track completion, the next QRE Feature Build Track phase is:
+Historical note: after Autonomous Development Track completion, the next
+QRE Feature Build Track phase was:
 
 ```text
 v3.15.16 — Intelligent Routing Layer
 ```
 
-With product focus:
+Current sequencing now lives in `docs/roadmap/qre_maturity_roadmap_to_100.md`.
+After the roadmap-authority cleanup, the next implementation item is
+Phase 7C: `feat: add routing score scaffold`.
+
+With historical product focus:
 
 ```text
 behavior-aware routing
@@ -496,7 +506,7 @@ Autonomous Development Track is complete when all are true:
 6. Loop-closure blockers are real or cleared
 7. Operator inbox is actionable
 8. Governance/frozen/deploy/approval/authority health is visible
-9. Claude understands that the next product phase is v3.15.16 Intelligent Routing Layer from Roadmap v6
+9. Claude understands that current sequencing is governed by `docs/roadmap/qre_maturity_roadmap_to_100.md`
 10. No live/paper/shadow/risk/trading/broker/execution behavior has been changed during Autonomous Development hardening
 ```
 
@@ -507,8 +517,8 @@ When complete, produce a short handoff note:
 ```text
 Autonomous Development Track complete.
 Return to QRE Feature Build Track.
-Next product phase: v3.15.16 — Intelligent Routing Layer.
-Canonical product-roadmap source: operator-provided Roadmap v6.
+Next product phase: Phase 7C — feat: add routing score scaffold.
+Canonical product-roadmap source: docs/roadmap/qre_maturity_roadmap_to_100.md.
 ```
 
 \---
@@ -670,7 +680,7 @@ Output:
 
 ```text
 Autonomous Development Track complete.
-Next: QRE Feature Build Track v3.15.16 — Intelligent Routing Layer.
+Next: QRE maturity conveyor Phase 7C — feat: add routing score scaffold.
 ```
 
 \---
@@ -685,11 +695,16 @@ Claude must not rebuild Roadmap v6 unless explicitly instructed by the operator.
 
 Claude must keep all remaining work in the Autonomous Development Track until A3-A7 are complete.
 
-After completion, Claude must return to the QRE Feature Build Track at:
+Historical note: after completion, Claude was expected to return to the
+QRE Feature Build Track at:
 
 ```text
 v3.15.16 — Intelligent Routing Layer
 ```
+
+Current sequencing now lives in `docs/roadmap/qre_maturity_roadmap_to_100.md`.
+After the roadmap-authority cleanup, the next implementation item is
+Phase 7C: `feat: add routing score scaffold`.
 
 Claude must not jump to:
 
@@ -2144,7 +2159,6 @@ time-of-day or random-seed sensitivity.
   Level 6 stays permanently disabled per ADR-015 Doctrine 1.
   N5b Phase 4 production merge stays permanently denied for ADE.
 ```
-
 
 
 

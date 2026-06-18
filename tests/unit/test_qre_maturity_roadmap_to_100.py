@@ -14,6 +14,9 @@ def test_qre_maturity_roadmap_is_documentation_only() -> None:
     text = ROADMAP.read_text(encoding="utf-8")
 
     assert "This document is the canonical roadmap" in text
+    assert "active canonical roadmap for current QRE" in text
+    assert "Phase 7C" in text
+    assert "feat: add routing score scaffold" in text
     assert "generic, bounded, reproducible research engine" in text
     assert "AAPL/NVDA may appear only as first-batch fixture" in text
     assert "No AAPL/NVDA special-case logic belongs in core code paths." in text

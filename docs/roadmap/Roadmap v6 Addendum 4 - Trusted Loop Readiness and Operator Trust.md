@@ -7,6 +7,12 @@ Status: **DEFERRED / REFERENCE-ONLY**
 
 Implementation-scope sections: **NOT ACTIVE**
 
+Current QRE implementation sequencing is governed by
+[`docs/roadmap/qre_maturity_roadmap_to_100.md`](qre_maturity_roadmap_to_100.md).
+This addendum remains supporting doctrine and historical reference only
+unless the maturity roadmap or a future operator-approved ADR explicitly
+incorporates a subsection.
+
 This addendum is a documentation and readiness reference only. It does not
 activate Addendum 1, Addendum 2, Addendum 3, Addendum 4, strategy synthesis,
 paper, shadow, live, broker, risk, execution, dashboard mutation, source

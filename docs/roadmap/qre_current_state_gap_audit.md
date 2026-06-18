@@ -1,5 +1,12 @@
 # QRE Current State Gap Audit
 
+> Status note: This audit is retained as historical/reference material.
+> Its repository state, HEAD SHA, and next-action guidance predate PRs
+> #558 through #563. Current QRE implementation sequencing is governed
+> by `docs/roadmap/qre_maturity_roadmap_to_100.md`; after this
+> roadmap-authority cleanup, the next implementation item is Phase 7C:
+> `feat: add routing score scaffold`.
+
 ## 1. Executive Summary for Operator
 
 ### Where are we?

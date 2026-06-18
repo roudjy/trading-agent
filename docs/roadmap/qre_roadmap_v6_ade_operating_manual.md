@@ -1,5 +1,13 @@
 # QRE Roadmap v6 + Addendum — ADE Operating Manual
 
+> Status note: This document is retained as historical/supporting
+> reference. For current QRE implementation sequencing, use
+> `docs/roadmap/qre_maturity_roadmap_to_100.md`. This manual remains
+> reference material for doctrine, constraints, and historical ADE
+> execution context. Do not treat Roadmap v6, v3.15.16, or this manual as
+> current execution authority where they conflict with the QRE maturity
+> roadmap.
+
 ## 1\. Purpose
 
 This document translates **Roadmap v6** and the **Roadmap v6 Addendum** into an operational manual for ADE/Claude-driven roadmap execution.
@@ -23,7 +31,8 @@ The central operating rule is:
 
 ```text
 ADE governs how development work is proposed, classified, executed, tested, reviewed, merged, and reported.
-QRE Roadmap v6 governs what product functionality is built.
+The QRE maturity roadmap governs current implementation sequencing.
+Roadmap v6 remains historical/supporting product-roadmap context.
 The Addendum extends QRE research intelligence with diagnostics and public-data intake.
 Diagnostics do not trade.
 ```
@@ -34,13 +43,17 @@ Diagnostics do not trade.
 
 When documents appear to overlap, use this hierarchy.
 
-### 2.1 Product roadmap source
+### 2.1 Current implementation sequencing source
 
 ```text
-Roadmap v6
+docs/roadmap/qre_maturity_roadmap_to_100.md
 ```
 
-Roadmap v6 is the canonical QRE product roadmap. It defines the semantic maturity sequence:
+For current sequencing, use
+`docs/roadmap/qre_maturity_roadmap_to_100.md`.
+
+Roadmap v6 remains historical/supporting product-roadmap context. It
+defined the semantic maturity sequence:
 
 ```text
 v3.x — Research Intelligence \& Autonomous Discovery
@@ -519,12 +532,21 @@ hook bypass
 
 \---
 
-## 11\. Roadmap execution sequence
+## 11\. Historical Roadmap v6 execution sequence
 
-The immediate QRE Feature Build Track should resume at:
+The historical Roadmap v6 feature-build track previously resumed at:
 
 ```text
 v3.15.16 — Intelligent Routing Layer
+```
+
+That is no longer the active immediate-next instruction. The current
+active conveyor is governed by
+`docs/roadmap/qre_maturity_roadmap_to_100.md`. After Phase 7B and this
+roadmap-authority cleanup, the next implementation item is:
+
+```text
+Phase 7C - feat: add routing score scaffold
 ```
 
 Then proceed:
@@ -1285,15 +1307,16 @@ Approval rules:
 
 ## 16\. Success criteria for this operating manual
 
-This manual is successful when:
+This manual is successful as reference material when:
 
-1. Roadmap v6 remains the canonical QRE product roadmap.
-2. The Addendum is integrated as a diagnostic/external-intelligence extension, not a separate competing roadmap.
-3. ADE remains development-governance infrastructure, not trading execution.
-4. Diagnostics are prohibited from direct trading or capital/risk mutation.
-5. v3.15.16 through v3.15.20 have concrete implementation cards.
-6. v3.16/v4/v5/v6 have clear later-stage diagnostic roles without premature live use.
-7. Claude/ADE can execute phases with consistent branch, PR, CI, validation, and handoff discipline.
-8. Frozen contracts remain protected.
-9. The operator can understand what is allowed, what requires approval, and what is forbidden.
+1. Current sequencing authority points to the QRE maturity roadmap.
+2. Roadmap v6 remains historical/supporting product-roadmap context.
+3. The Addendum is integrated as diagnostic/external-intelligence reference, not a separate competing roadmap.
+4. ADE remains development-governance infrastructure, not trading execution.
+5. Diagnostics are prohibited from direct trading or capital/risk mutation.
+6. Historical v3.15.16 through v3.15.20 cards are not mistaken for current active prompts.
+7. v3.16/v4/v5/v6 have clear later-stage diagnostic roles without premature live use.
+8. Claude/ADE can execute phases with consistent branch, PR, CI, validation, and handoff discipline.
+9. Frozen contracts remain protected.
+10. The operator can understand what is allowed, what requires approval, and what is forbidden.
 

@@ -9,6 +9,12 @@ Implementation-scope sections: **NOT ACTIVE**
 
 Doctrine and §10 "Not Allowed" sections: **ACTIVE PROJECT-WIDE**
 
+Current QRE implementation sequencing is governed by
+[`docs/roadmap/qre_maturity_roadmap_to_100.md`](qre_maturity_roadmap_to_100.md).
+This addendum remains supporting doctrine and historical reference only
+unless the maturity roadmap or a future operator-approved ADR explicitly
+incorporates a subsection.
+
 This addendum is preserved verbatim as architectural reference. It is
 not active execution scope. No queue item, planner task, product-owner
 backlog entry, or autonomous PR runner unit may be derived from this

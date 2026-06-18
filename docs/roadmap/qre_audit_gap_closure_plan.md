@@ -1,5 +1,12 @@
 # QRE Audit Gap Closure Plan
 
+> Status note: This audit gap closure plan is retained as historical
+> reference. PRs #558 through #563 supersede the old next-PR guidance in
+> this document. Current implementation sequencing is governed by
+> `docs/roadmap/qre_maturity_roadmap_to_100.md`; after this
+> roadmap-authority cleanup, the next implementation item is Phase 7C:
+> `feat: add routing score scaffold`.
+
 Generated at UTC: `2026-06-15T00:00:00Z`
 
 ## Summary
@@ -104,8 +111,13 @@ This artifact is PR0 of the roadmap. It is a deterministic, read-only planning s
 - safe_to_paper: False
 - safe_to_live: False
 
-## Recommended Next PR
+## Historical Recommended Next PR
 
-After PR0, build PR1: `feat: add QRE source lifecycle and quality gate contract`.
+After PR0, this document recommended PR1: `feat: add QRE source lifecycle and quality gate contract`.
+
+That recommendation is historical. PRs #558 through #563 established the
+current QRE maturity conveyor, completed Phase 6, Phase 7A, and Phase
+7B, and made Phase 7C routing score scaffold the next implementation
+item after roadmap-authority alignment.
 
 Reason: source lifecycle and quality gates are the dependency root for approved providers, symbology, factor coverage, PIT accounting, cache trust, routing/sampling evidence, and final operator trust.

@@ -80,9 +80,10 @@ requirements) still follows the catalog-expansion-PR pattern in
 >
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.
+> Current QRE implementation sequencing is governed by
+> [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md).
 > Roadmap v6 ([`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md))
-> remains the canonical QRE product roadmap and the only source of
-> truth for product phase order and intent. This catalog is a
+> remains historical/supporting reference. This catalog is a
 > deterministic *seed* over that source plus the committed Addendum 1.
 >
 > The catalog grants **no** implementation, runtime, trading, paper,
@@ -198,14 +199,15 @@ not pre-authorize any of them.
 
 This catalog is **not** an authority surface. It does not classify
 implementation risk and does not grant any agent the right to
-implement, branch, merge, deploy, trade, or move capital. Roadmap v6
-remains canonical; per-action authority remains owned by
+implement, branch, merge, deploy, trade, or move capital. Current QRE
+sequencing remains owned by the QRE maturity roadmap; per-action authority remains owned by
 [`docs/governance/execution_authority.md`](execution_authority.md)
 and [`reporting/execution_authority.py`](../../reporting/execution_authority.py).
 
 | Concern | Owner |
 |---|---|
-| Canonical product roadmap | [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) |
+| Canonical current QRE implementation sequence | [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md) |
+| Historical product roadmap reference | [`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md) |
 | Diagnostic / external-intelligence extension | [`docs/roadmap/Roadmap v6 Addendum.md`](../roadmap/Roadmap%20v6%20Addendum.md) |
 | ADE governance roadmap | [`docs/roadmap/autonomous_development.txt`](../roadmap/autonomous_development.txt) |
 | ADE development-lane doctrine | [`docs/governance/ade_development_lane_doctrine.md`](ade_development_lane_doctrine.md) |
@@ -953,9 +955,9 @@ validation / fail-closed contract.
 ## 12. Future stages — A20 complete
 
 The A20 series is complete. No further A20 stages are planned.
-Future work continues under the QRE Feature Build Track on the
-Roadmap v6 phase order (v3.15.16 → v3.15.17 → v3.15.18 →
-v3.15.19 → v3.15.20 → v3.16.x → v4.x → v5.x → v6.x).
+Future work continues under the QRE maturity conveyor in
+[`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md).
+The Roadmap v6 phase order remains historical/supporting reference.
 
 ## 13. CLI
 

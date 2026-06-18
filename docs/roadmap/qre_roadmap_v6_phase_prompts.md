@@ -1,8 +1,16 @@
 # QRE Roadmap v6 + Addendum — Claude/ADE Phase Prompts
 
+> Status note: These prompts are historical/reference prompts. They must
+> not be used as active execution prompts without reconciling them
+> against `docs/roadmap/qre_maturity_roadmap_to_100.md`. The current
+> implementation sequence is governed by the QRE maturity roadmap, and
+> the next implementation item after the roadmap-authority alignment
+> cleanup is Phase 7C: `feat: add routing score scaffold`.
+
 ## Purpose
 
-This document contains ready-to-use prompts for Claude Code or ADE-guided development sessions.
+This document contains historical/reference prompts for Claude Code or
+ADE-guided development sessions.
 
 Use these prompts together with:
 
@@ -19,7 +27,8 @@ Each prompt assumes the repository PR lifecycle applies:
 new branch -> implementation -> tests -> PR -> CI -> review/merge protocol -> post-merge checks
 ```
 
-Do not paste all prompts at once. Use only the prompt for the active phase.
+Do not paste all prompts at once. Use only a prompt after confirming it
+is still authorized by the QRE maturity roadmap.
 
 ---
 
@@ -1323,9 +1332,9 @@ The roadmap must explicitly separate:
 
 Required statements:
 - Autonomous Development Track is temporary hardening work required before resuming product feature development.
-- QRE Feature Build Track remains governed by the original Roadmap v6.
-- The operator maintains Roadmap v6 locally and will provide it as needed.
-- After Autonomous Development Track completion, the next QRE Feature Build Track phase is v3.15.16 — Intelligent Routing Layer.
+- QRE Feature Build Track sequencing is now governed by `docs/roadmap/qre_maturity_roadmap_to_100.md`.
+- Roadmap v6 remains historical/supporting reference.
+- After the roadmap-authority alignment cleanup, the next QRE implementation item is Phase 7C: `feat: add routing score scaffold`.
 
 Do not reconstruct the full Roadmap v6 product plan unless explicitly requested by the operator.
 
@@ -1481,14 +1490,14 @@ Completion checklist:
 6. Loop-closure blockers are real or cleared.
 7. Operator inbox is actionable.
 8. Governance/frozen/deploy/approval/authority health is visible.
-9. Claude understands that the next product phase is v3.15.16 Intelligent Routing Layer from Roadmap v6.
+9. Claude understands that current sequencing is governed by `docs/roadmap/qre_maturity_roadmap_to_100.md`.
 10. No live/paper/shadow/risk/trading/broker/execution behavior has been changed during Autonomous Development hardening.
 
 Final output:
 Autonomous Development Track complete.
 Return to QRE Feature Build Track.
-Next product phase: v3.15.16 — Intelligent Routing Layer.
-Canonical product-roadmap source: operator-provided Roadmap v6.
+Next product phase: Phase 7C — feat: add routing score scaffold.
+Canonical product-roadmap source: docs/roadmap/qre_maturity_roadmap_to_100.md.
 
 Expected deliverables:
 - readiness report or handoff marker
