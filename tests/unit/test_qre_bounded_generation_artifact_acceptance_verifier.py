@@ -98,6 +98,7 @@ def test_accepts_valid_structured_lineage_artifact_from_materialized_adapter_rec
     assert row["classification"] == "accepted_for_campaign_lineage"
     assert row["accepted_for_campaign_lineage"] is True
     assert row["accepted_lineage_count"] == 1
+    assert row["accepted_lineage_records"][0]["candidate_id"] == "cand-001"
     assert report["summary"]["accepted_lineage_candidate_count"] == 1
 
 
@@ -112,6 +113,7 @@ def test_accepts_valid_structured_oos_artifact_from_materialized_adapter_record(
 
     assert row["accepted_for_oos_evidence"] is True
     assert row["accepted_oos_count"] == 1
+    assert row["accepted_oos_records"][0]["cost_slippage_assumption_refs"] == ["cost-model-001"]
     assert report["summary"]["accepted_oos_candidate_count"] == 1
 
 
