@@ -1,0 +1,41 @@
+﻿{
+    "schema_version":  "qre_bounded_validation_approval.v1",
+    "approval_id":  "qre_bounded_validation_first_batch_001",
+    "approved_by":  "operator:joery",
+    "approved_at_utc":  "2026-06-18T18:37:18Z",
+    "expiry_utc":  "2026-06-19T18:37:18Z",
+    "scope":  {
+                  "symbols":  [
+                                  "AAPL",
+                                  "NVDA"
+                              ],
+                  "preset_id":  "trend_pullback_continuation_daily_v1",
+                  "timeframe":  "daily_v1"
+              },
+    "allowed_command_class":  "bounded_controlled_validation",
+    "allowed_output_paths":  [
+                                 "logs/qre_bounded_current_basket_generation_runner/",
+                                 "logs/qre_controlled_validation_adapter_results/",
+                                 "logs/qre_bounded_generation_artifact_acceptance_verifier/",
+                                 "logs/qre_evidence_complete_basket_closure/"
+                             ],
+    "forbidden_capabilities":  [
+                                   "strategy_synthesis",
+                                   "strategy_registration",
+                                   "candidate_promotion",
+                                   "shadow_activation",
+                                   "paper_activation",
+                                   "live_activation",
+                                   "broker_access",
+                                   "risk_runtime",
+                                   "execution_runtime",
+                                   "order_generation",
+                                   "capital_allocation",
+                                   "unbounded_research_run"
+                               ],
+    "dry_run_allowed":  true,
+    "real_run_allowed":  true,
+    "evidence_acceptance_allowed":  true,
+    "external_fetch_allowed":  false,
+    "operator_note":  "Narrow approval for bounded Track 2/E1 validation evidence attempt only. No strategy synthesis, no candidate promotion, no shadow/paper/live, no broker/risk/execution, no external fetch."
+}
