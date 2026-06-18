@@ -400,6 +400,8 @@ def validate_adapter_result(result: Mapping[str, Any]) -> dict[str, Any]:
         rejection_reasons.append("can_authorize_execution_must_be_false")
     if canonical["can_promote_candidate"] is not False:
         rejection_reasons.append("can_promote_candidate_must_be_false")
+    if canonical["can_clear_blockers"] and canonical["adapter_status"] != "accepted_structured_evidence":
+        rejection_reasons.append("can_clear_blockers_requires_accepted_structured_evidence_status")
     computed_hash = compute_adapter_hash(result)
     if str(result.get("hash") or "") and str(result.get("hash")) != computed_hash:
         rejection_reasons.append("hash_mismatch")

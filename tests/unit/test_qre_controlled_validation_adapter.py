@@ -228,6 +228,20 @@ def test_adapter_cannot_authorize_strategy_candidate_or_deployment() -> None:
     assert validation["valid"] is True
 
 
+def test_adapter_rejects_clear_blocker_claim_without_accepted_status() -> None:
+    result = build_controlled_validation_adapter_result(
+        _request(),
+        controlled_validation_source=_structured_source(),
+    )
+    result["adapter_status"] = "adapter_ready"
+    validation = validate_adapter_result(result)
+    assert validation["valid"] is False
+    assert (
+        "can_clear_blockers_requires_accepted_structured_evidence_status"
+        in validation["rejection_reasons"]
+    )
+
+
 def test_core_adapter_logic_has_no_aapl_or_nvda_hardcoding() -> None:
     source = Path("research/qre_controlled_validation_adapter.py").read_text(encoding="utf-8")
     assert "AAPL" not in source
