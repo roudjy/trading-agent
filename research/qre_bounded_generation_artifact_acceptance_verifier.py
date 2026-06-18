@@ -19,6 +19,7 @@ LATEST_NAME: Final[str] = "latest.json"
 OPERATOR_SUMMARY_NAME: Final[str] = "operator_summary.md"
 WRITE_PREFIX: Final[str] = "logs/qre_bounded_generation_artifact_acceptance_verifier/"
 SCAN_ROOTS: Final[tuple[str, ...]] = ("logs", "artifacts", "archived", "backup", "local_quarantine")
+SOURCE_ARTIFACT_PREFIXES: Final[tuple[str, ...]] = ("artifacts/",)
 
 
 def _table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
@@ -39,6 +40,223 @@ def _read_json(path: Path) -> Any | None:
 
 def _mapping_has_key(payload: Any, key: str) -> bool:
     return isinstance(payload, Mapping) and key in payload
+
+
+def _text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _text_list(value: Any) -> list[str]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return []
+    return [text for item in value if (text := _text(item))]
+
+
+def _source_ref_reason(source_ref: str, *, allowlisted_paths: Sequence[str]) -> str | None:
+    normalized = source_ref.replace("\\", "/").strip()
+    lowered = normalized.lower()
+    if not normalized:
+        return "missing_source_artifact_ref"
+    if lowered.startswith("tests/") or "fixture" in lowered:
+        return "fixture_only_source_ref"
+    if lowered.startswith("logs/") or lowered.endswith(".md") or "operator_summary" in lowered:
+        return "generated_report_only_source_ref"
+    if "stdout" in lowered:
+        return "stdout_only_source_ref"
+    if "legacy_alias" in lowered or "alias_only" in lowered:
+        return "legacy_alias_only_source_ref"
+    if any(normalized.startswith(prefix) for prefix in SOURCE_ARTIFACT_PREFIXES):
+        return None
+    if any(normalized.startswith(prefix) for prefix in allowlisted_paths):
+        return None
+    return "source_artifact_path_not_allowlisted"
+
+
+def _validate_materialized_authority(authority: Mapping[str, Any]) -> list[str]:
+    reasons: list[str] = []
+    if authority.get("non_authoritative") is not True:
+        reasons.append("non_authoritative_must_be_true")
+    if not _text(authority.get("evidence_authority")):
+        reasons.append("missing_evidence_authority")
+    if authority.get("can_clear_blockers") is not False:
+        reasons.append("can_clear_blockers_must_be_false")
+    if authority.get("can_authorize_execution") is not False:
+        reasons.append("can_authorize_execution_must_be_false")
+    if authority.get("can_promote_candidate") is not False:
+        reasons.append("can_promote_candidate_must_be_false")
+    return reasons
+
+
+def _validate_lineage_candidate(
+    candidate: Mapping[str, Any],
+    *,
+    request_ref: str,
+    allowlisted_paths: Sequence[str],
+) -> list[str]:
+    reasons: list[str] = []
+    if _text(candidate.get("request_id")) != request_ref:
+        reasons.append("missing_request_ref")
+    if not _text(candidate.get("candidate_id")):
+        reasons.append("missing_candidate_id")
+    if not (
+        _text(candidate.get("campaign_id"))
+        or _text(candidate.get("generation_id"))
+        or _text(candidate.get("controlled_generation_id"))
+        or _text(candidate.get("grid_run_id"))
+    ):
+        reasons.append("missing_campaign_or_generation_id")
+    if not _text(candidate.get("preset_id")):
+        reasons.append("missing_preset_id")
+    if not _text(candidate.get("timeframe")):
+        reasons.append("missing_timeframe")
+    source_ref_reason = _source_ref_reason(_text(candidate.get("source_ref")), allowlisted_paths=allowlisted_paths)
+    if source_ref_reason:
+        reasons.append(source_ref_reason)
+    if not _text_list(candidate.get("reason_record_refs")):
+        reasons.append("missing_reason_records")
+    if candidate.get("accepted_by_adapter") is not True or candidate.get("accepted_for_campaign_lineage") is not True:
+        reasons.append("not_marked_accepted_for_campaign_lineage")
+    if _text_list(candidate.get("rejection_reasons")):
+        reasons.append("lineage_candidate_has_rejection_reasons")
+    return reasons
+
+
+def _validate_oos_candidate(
+    candidate: Mapping[str, Any],
+    *,
+    request_ref: str,
+    allowlisted_paths: Sequence[str],
+) -> list[str]:
+    reasons: list[str] = []
+    if _text(candidate.get("request_id")) != request_ref:
+        reasons.append("missing_request_ref")
+    if not _text(candidate.get("candidate_id")):
+        reasons.append("missing_candidate_id")
+    if not _text(candidate.get("preset_id")):
+        reasons.append("missing_preset_id")
+    if not _text(candidate.get("timeframe")):
+        reasons.append("missing_timeframe")
+    source_ref_reason = _source_ref_reason(_text(candidate.get("source_ref")), allowlisted_paths=allowlisted_paths)
+    if source_ref_reason:
+        reasons.append(source_ref_reason)
+    oos_window = candidate.get("oos_window")
+    if not isinstance(oos_window, Mapping) or not _text(oos_window.get("start")) or not _text(oos_window.get("end")):
+        reasons.append("missing_oos_window")
+    metrics = candidate.get("oos_metric_fields")
+    if not isinstance(metrics, Mapping) or not metrics:
+        reasons.append("missing_oos_metrics")
+    if not _text_list(candidate.get("cost_slippage_assumption_refs")):
+        reasons.append("missing_cost_slippage_refs")
+    if not _text_list(candidate.get("reason_record_refs")):
+        reasons.append("missing_reason_records")
+    if candidate.get("accepted_by_adapter") is not True or candidate.get("accepted_for_oos_evidence") is not True:
+        reasons.append("not_marked_accepted_for_oos_evidence")
+    if _text_list(candidate.get("rejection_reasons")):
+        reasons.append("oos_candidate_has_rejection_reasons")
+    return reasons
+
+
+def _classify_materialized_record(
+    payload: Mapping[str, Any],
+    *,
+    relative_path: str,
+    allowlisted_paths: Sequence[str],
+) -> dict[str, Any]:
+    materialization_status = _text(payload.get("materialization_status"))
+    authority = payload.get("authority") if isinstance(payload.get("authority"), Mapping) else {}
+    lineage_candidates = payload.get("lineage_candidates") if isinstance(payload.get("lineage_candidates"), list) else []
+    oos_candidates = payload.get("oos_candidates") if isinstance(payload.get("oos_candidates"), list) else []
+    request_ref = _text(payload.get("request_ref"))
+    authority_reasons = _validate_materialized_authority(authority)
+    lineage_reasons: list[str] = []
+    oos_reasons: list[str] = []
+
+    accepted_lineage_count = 0
+    accepted_oos_count = 0
+    if materialization_status == "materialized_accepted_structured_evidence" and not authority_reasons:
+        for candidate in lineage_candidates:
+            if isinstance(candidate, Mapping):
+                candidate_reasons = _validate_lineage_candidate(
+                    candidate,
+                    request_ref=request_ref,
+                    allowlisted_paths=allowlisted_paths,
+                )
+                lineage_reasons.extend(candidate_reasons)
+                if not candidate_reasons:
+                    accepted_lineage_count += 1
+        for candidate in oos_candidates:
+            if isinstance(candidate, Mapping):
+                candidate_reasons = _validate_oos_candidate(
+                    candidate,
+                    request_ref=request_ref,
+                    allowlisted_paths=allowlisted_paths,
+                )
+                oos_reasons.extend(candidate_reasons)
+                if not candidate_reasons:
+                    accepted_oos_count += 1
+
+    payload_lineage_count = int(payload.get("accepted_lineage_count") or 0)
+    payload_oos_count = int(payload.get("accepted_oos_count") or 0)
+    rejection_reasons = list(
+        dict.fromkeys(
+            [
+                *authority_reasons,
+                *lineage_reasons,
+                *oos_reasons,
+                *(
+                    ["accepted_lineage_count_mismatch"]
+                    if materialization_status == "materialized_accepted_structured_evidence"
+                    and payload_lineage_count != accepted_lineage_count
+                    else []
+                ),
+                *(
+                    ["accepted_oos_count_mismatch"]
+                    if materialization_status == "materialized_accepted_structured_evidence"
+                    and payload_oos_count != accepted_oos_count
+                    else []
+                ),
+            ]
+        )
+    )
+    lineage_accepted = accepted_lineage_count > 0 and not authority_reasons and not lineage_reasons
+    oos_accepted = accepted_oos_count > 0 and not authority_reasons and not oos_reasons
+    if materialization_status == "materialized_accepted_structured_evidence" and lineage_accepted and oos_accepted:
+        classification = "accepted_for_campaign_lineage"
+    elif materialization_status == "materialized_accepted_structured_evidence" and lineage_accepted:
+        classification = "accepted_for_campaign_lineage_only"
+    elif materialization_status == "materialized_accepted_structured_evidence" and oos_accepted:
+        classification = "accepted_for_oos_evidence_only"
+    elif materialization_status == "materialized_accepted_structured_evidence":
+        classification = "rejected_materialized_missing_required_fields"
+    elif materialization_status == "materialized_no_safe_source":
+        classification = "rejected_materialized_no_safe_source"
+    elif materialization_status == "materialized_rejected_source":
+        classification = "rejected_materialized_rejected_source"
+    elif materialization_status == "materialized_provisional_only":
+        classification = "rejected_materialized_provisional_only"
+    elif materialization_status in {
+        "blocked_invalid_runner_payload",
+        "blocked_invalid_adapter_payload",
+        "blocked_missing_required_fields",
+    }:
+        classification = "rejected_materialized_missing_required_fields"
+    else:
+        classification = "rejected_context_only"
+    return {
+        "path": str(relative_path),
+        "relative_path": relative_path,
+        "classification": classification,
+        "accepted_for_campaign_lineage": lineage_accepted,
+        "accepted_for_oos_evidence": oos_accepted,
+        "accepted_lineage_count": accepted_lineage_count,
+        "accepted_oos_count": accepted_oos_count,
+        "accepted_for_screening_evidence": False,
+        "materialization_status": materialization_status,
+        "lineage_rejection_reasons": lineage_reasons,
+        "oos_rejection_reasons": oos_reasons,
+        "rejection_reasons": rejection_reasons,
+        "request_ref": request_ref,
+    }
 
 
 def _iter_paths(repo_root: Path) -> list[Path]:
@@ -62,70 +280,7 @@ def classify_artifact(
     text = json.dumps(payload, sort_keys=True, default=str).lower() if payload is not None else ""
     report_kind = str(payload.get("report_kind") or "") if isinstance(payload, Mapping) else ""
     if report_kind == adapter_materialization.REPORT_KIND:
-        materialization_status = str(payload.get("materialization_status") or "")
-        authority = payload.get("authority") if isinstance(payload.get("authority"), Mapping) else {}
-        lineage_candidates = payload.get("lineage_candidates") if isinstance(payload.get("lineage_candidates"), list) else []
-        oos_candidates = payload.get("oos_candidates") if isinstance(payload.get("oos_candidates"), list) else []
-        accepted_lineage_count = int(payload.get("accepted_lineage_count") or 0)
-        accepted_oos_count = int(payload.get("accepted_oos_count") or 0)
-        lineage_accepted = any(
-            isinstance(candidate, Mapping)
-            and str(candidate.get("candidate_id") or "").strip()
-            and (
-                str(candidate.get("campaign_id") or "").strip()
-                or str(candidate.get("generation_id") or "").strip()
-                or str(candidate.get("controlled_generation_id") or "").strip()
-                or str(candidate.get("grid_run_id") or "").strip()
-            )
-            and bool(candidate.get("accepted_by_adapter", False))
-            for candidate in lineage_candidates
-        )
-        oos_accepted = any(
-            isinstance(candidate, Mapping)
-            and str(candidate.get("candidate_id") or "").strip()
-            and bool(candidate.get("oos_metric_fields"))
-            and bool(candidate.get("cost_slippage_assumption_refs"))
-            and bool(candidate.get("accepted_by_adapter", False))
-            for candidate in oos_candidates
-        )
-        has_authority = (
-            bool(authority.get("non_authoritative")) is True
-            and bool(authority.get("can_authorize_execution")) is False
-            and bool(authority.get("can_promote_candidate")) is False
-            and bool(authority.get("can_clear_blockers")) is False
-        )
-        if (
-            materialization_status == "materialized_accepted_structured_evidence"
-            and accepted_lineage_count > 0
-            and accepted_oos_count > 0
-            and lineage_accepted
-            and oos_accepted
-            and has_authority
-        ):
-            classification = "accepted_for_campaign_lineage"
-        elif materialization_status == "materialized_no_safe_source":
-            classification = "rejected_materialized_no_safe_source"
-        elif materialization_status == "materialized_rejected_source":
-            classification = "rejected_materialized_rejected_source"
-        elif materialization_status == "materialized_provisional_only":
-            classification = "rejected_materialized_provisional_only"
-        elif materialization_status in {
-            "blocked_invalid_runner_payload",
-            "blocked_invalid_adapter_payload",
-            "blocked_missing_required_fields",
-        }:
-            classification = "rejected_materialized_missing_required_fields"
-        else:
-            classification = "rejected_context_only"
-        return {
-            "path": str(path),
-            "relative_path": relative_path,
-            "classification": classification,
-            "accepted_for_campaign_lineage": classification == "accepted_for_campaign_lineage",
-            "accepted_for_oos_evidence": classification == "accepted_for_campaign_lineage",
-            "accepted_for_screening_evidence": False,
-            "materialization_status": materialization_status,
-        }
+        return _classify_materialized_record(payload, relative_path=relative_path, allowlisted_paths=allowlisted_paths)
     target_symbols = {"aapl", "nvda"}
     has_target_symbol = any(symbol in text for symbol in target_symbols)
     has_target_preset = "trend_pullback_continuation_daily_v1" in text
@@ -199,12 +354,22 @@ def build_bounded_generation_artifact_acceptance_verifier(
         for path in _iter_paths(repo_root)
     ]
     counts = Counter(str(row["classification"]) for row in rows)
+    accepted_lineage_candidate_count = sum(int(row.get("accepted_lineage_count") or 0) for row in rows)
+    accepted_oos_candidate_count = sum(int(row.get("accepted_oos_count") or 0) for row in rows)
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
         "summary": {
             "artifact_count": len(rows),
             "classification_counts": dict(sorted(counts.items())),
+            "accepted_lineage_artifact_count": sum(
+                1 for row in rows if bool(row.get("accepted_for_campaign_lineage"))
+            ),
+            "accepted_oos_artifact_count": sum(
+                1 for row in rows if bool(row.get("accepted_for_oos_evidence"))
+            ),
+            "accepted_lineage_candidate_count": accepted_lineage_candidate_count,
+            "accepted_oos_candidate_count": accepted_oos_candidate_count,
             "operator_summary": (
                 "Post-generation acceptance verifier remains read-only and classifies future "
                 "bounded artifacts against the explicit acceptance contract."
