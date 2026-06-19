@@ -92,6 +92,22 @@ def _seed_reports(
             "status": "ready" if source_quality_ready else "not_ready",
         },
     )
+    _write_json(
+        tmp_path / "logs" / "qre_source_identity_authority_normalization" / "latest.json",
+        {
+            "report_kind": "qre_source_identity_authority_normalization",
+            "summary": {
+                "status": "ready",
+                "ready_scope_count": 3 if source_quality_ready else 0,
+                "blocked_scope_count": 0 if source_quality_ready else 1,
+                "authority_status_counts": (
+                    {"normalized_context_ready": 3}
+                    if source_quality_ready
+                    else {"blocked_source_quality_not_ready": 1}
+                ),
+            },
+        },
+    )
 
 
 def test_shadow_readiness_gates_fail_closed_on_missing_oos_and_evidence_complete(tmp_path: Path) -> None:

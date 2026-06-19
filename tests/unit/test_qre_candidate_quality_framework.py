@@ -21,6 +21,29 @@ def _reason_contract() -> dict[str, object]:
     }
 
 
+def _source_authority_report(*, status: str = "normalized_context_ready") -> dict[str, object]:
+    return {
+        "report_kind": "qre_source_identity_authority_normalization",
+        "rows": [
+            {
+                "scope_key": "basket-eligible",
+                "authority_status": status,
+                "authority_reasons": [] if status == "normalized_context_ready" else ["source_quality_not_research_ready"],
+            },
+            {
+                "scope_key": "basket-1",
+                "authority_status": status,
+                "authority_reasons": [] if status == "normalized_context_ready" else ["source_quality_not_research_ready"],
+            },
+            {
+                "scope_key": "basket-a",
+                "authority_status": status,
+                "authority_reasons": [] if status == "normalized_context_ready" else ["source_quality_not_research_ready"],
+            },
+        ],
+    }
+
+
 def test_quality_report_blocks_when_candidates_missing() -> None:
     report = evaluate_candidate_quality(
         candidate_report={"rows": []},
@@ -29,6 +52,7 @@ def test_quality_report_blocks_when_candidates_missing() -> None:
         null_control_report=None,
         source_quality_status={"status": "missing", "research_ready": False},
         reason_record_contract=_reason_contract(),
+        source_authority_report=None,
     )
 
     assert report["summary"]["status"] == "blocked_candidate_missing"
@@ -68,6 +92,7 @@ def test_quality_report_blocks_incomplete_evidence() -> None:
         null_control_report=None,
         source_quality_status={"status": "ready", "research_ready": True},
         reason_record_contract=_reason_contract(),
+        source_authority_report=_source_authority_report(),
     )
 
     row = report["rows"][0]
@@ -128,6 +153,7 @@ def test_quality_report_can_become_operator_review_eligible() -> None:
         },
         source_quality_status={"status": "ready", "research_ready": True},
         reason_record_contract=_reason_contract(),
+        source_authority_report=_source_authority_report(),
     )
 
     row = report["rows"][0]
@@ -169,6 +195,7 @@ def test_quality_report_blocks_scope_mismatch() -> None:
         null_control_report=None,
         source_quality_status={"status": "ready", "research_ready": True},
         reason_record_contract=_reason_contract(),
+        source_authority_report=_source_authority_report(),
     )
 
     assert report["rows"][0]["quality_status"] == "blocked_scope_mismatch"
