@@ -47,6 +47,12 @@ def _ready_snapshots() -> dict[str, dict]:
         "research_memory": {
             "summary": {"final_recommendation": "research_memory_current_artifacts_ready"},
         },
+        "operational_controls": {
+            "summary": {
+                "trusted_loop_operational_controls_ready": True,
+                "exact_next_safe_action": "preserve_terminal_run_and_compare_before_rerun",
+            }
+        },
     }
 
 
@@ -86,6 +92,11 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         packet_module.research_memory,
         "build_research_memory_current_artifacts",
         lambda **_: snapshots["research_memory"],
+    )
+    monkeypatch.setattr(
+        packet_module.operational_controls,
+        "build_trusted_loop_operational_controls",
+        lambda **_: snapshots["operational_controls"],
     )
     monkeypatch.setattr(
         packet_module.basket_action_plan,
@@ -136,6 +147,8 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["routing_evidence_ready"] is True
     assert packet["summary"]["sampling_evidence_ready"] is True
     assert packet["summary"]["research_memory_ready"] is True
+    assert packet["summary"]["trusted_loop_operational_controls_ready"] is True
+    assert packet["summary"]["trusted_loop_operational_exact_next_action"] == "preserve_terminal_run_and_compare_before_rerun"
     assert packet["summary"]["basket_operator_action_plan_ready"] is True
     assert packet["summary"]["basket_operator_action_plan_first_batch"] == ["AAPL", "NVDA"]
     assert packet["summary"]["generation_command_discovery_safe_command_found"] is False
@@ -182,6 +195,16 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: {"summary": {"final_recommendation": "sampling_calibration_scaffold_ready"}})
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: {"summary": {"final_recommendation": "research_memory_current_artifacts_partial"}})
     monkeypatch.setattr(
+        packet_module.operational_controls,
+        "build_trusted_loop_operational_controls",
+        lambda **_: {
+            "summary": {
+                "trusted_loop_operational_controls_ready": False,
+                "exact_next_safe_action": "resume_from_existing_run_history",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.basket_action_plan,
         "build_basket_operator_action_plan",
         lambda **_: {
@@ -226,6 +249,7 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
     assert packet["summary"]["exact_next_action"] == "restore_trusted_loop_readiness_evidence"
     assert "readiness_state:working_capability" in packet["summary"]["trust_blockers"]
     assert "reason_records_missing" in packet["summary"]["trust_blockers"]
+    assert "operational_controls_not_ready" in packet["summary"]["trust_blockers"]
     assert packet["summary"]["final_recommendation"] == "trusted_loop_operator_review_required"
     assert packet["summary"]["structured_lineage_artifact_status"] == "request_invalid_fails_closed"
     assert packet["summary"]["structured_oos_artifact_status"] == "request_invalid_fails_closed"
@@ -244,6 +268,11 @@ def test_trusted_loop_review_packet_operator_summary_renders(
     monkeypatch.setattr(packet_module.routing_calibration, "build_routing_calibration_report", lambda **_: snapshots["routing"])
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: snapshots["sampling"])
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: snapshots["research_memory"])
+    monkeypatch.setattr(
+        packet_module.operational_controls,
+        "build_trusted_loop_operational_controls",
+        lambda **_: snapshots["operational_controls"],
+    )
     monkeypatch.setattr(
         packet_module.basket_action_plan,
         "build_basket_operator_action_plan",
@@ -304,6 +333,11 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
     monkeypatch.setattr(packet_module.routing_calibration, "build_routing_calibration_report", lambda **_: snapshots["routing"])
     monkeypatch.setattr(packet_module.sampling_calibration, "build_sampling_calibration_report", lambda **_: snapshots["sampling"])
     monkeypatch.setattr(packet_module.research_memory, "build_research_memory_current_artifacts", lambda **_: snapshots["research_memory"])
+    monkeypatch.setattr(
+        packet_module.operational_controls,
+        "build_trusted_loop_operational_controls",
+        lambda **_: snapshots["operational_controls"],
+    )
     monkeypatch.setattr(
         packet_module.first_batch_readiness,
         "build_first_batch_evidence_recovery_readiness",
