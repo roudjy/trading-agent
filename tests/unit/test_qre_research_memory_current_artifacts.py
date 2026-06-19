@@ -59,6 +59,16 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
             }
         },
     )
+    monkeypatch.setattr(
+        current_artifacts.throughput_bottlenecks,
+        "build_campaign_throughput_bottleneck_intelligence",
+        lambda **_: {
+            "summary": {
+                "campaign_throughput_bottleneck_intelligence_ready": True,
+                "bottleneck_count": 0,
+            }
+        },
+    )
 
     report = current_artifacts.build_research_memory_current_artifacts()
 
@@ -67,6 +77,7 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
     assert report["summary"]["retrieval_ready"] is True
     assert report["summary"]["artifact_continuity_ready"] is True
     assert report["summary"]["contradiction_staleness_ready"] is True
+    assert report["summary"]["campaign_throughput_bottleneck_intelligence_ready"] is True
     assert report["summary"]["final_recommendation"] == "research_memory_current_artifacts_ready"
 
 
@@ -143,11 +154,29 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.throughput_bottlenecks,
+        "build_campaign_throughput_bottleneck_intelligence",
+        lambda **_: {
+            "summary": {
+                "campaign_throughput_bottleneck_intelligence_ready": False,
+                "bottleneck_count": 3,
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.contradiction_staleness,
         "write_outputs",
         lambda report, repo_root: {
             "latest": "logs/qre_contradiction_staleness_intelligence/latest.json",
             "operator_summary": "logs/qre_contradiction_staleness_intelligence/operator_summary.md",
+        },
+    )
+    monkeypatch.setattr(
+        current_artifacts.throughput_bottlenecks,
+        "write_outputs",
+        lambda report, repo_root: {
+            "latest": "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json",
+            "operator_summary": "logs/qre_campaign_throughput_bottleneck_intelligence/operator_summary.md",
         },
     )
 
@@ -158,6 +187,7 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
     assert paths["latest"] == "logs/qre_research_memory_current_artifacts/latest.json"
     assert paths["artifact_continuity_latest"] == "logs/qre_read_only_artifact_continuity/latest.json"
     assert paths["contradiction_staleness_latest"] == "logs/qre_contradiction_staleness_intelligence/latest.json"
+    assert paths["campaign_throughput_bottleneck_latest"] == "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json"
     assert "# QRE Research Memory Current Artifacts" in markdown
 
 def test_memory_coverage_entries_include_resolved_entities():
