@@ -11,7 +11,8 @@ from typing import Any, Final, Mapping
 
 import pandas as pd
 
-from agent.backtesting.engine import BacktestEngine
+from agent.backtesting.engine import AssetContext, BacktestEngine, build_evaluation_folds
+from agent.backtesting.regime import build_regime_frame
 from agent.backtesting.strategies import trend_pullback_v1_strategie
 from research import qre_bounded_current_basket_generation_runner as runner
 from research import qre_bounded_generation_artifact_acceptance_verifier as verifier
@@ -121,6 +122,9 @@ def _normalize_approval_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         "real_run_allowed": bool(payload.get("real_run_allowed", False)),
         "external_fetch_allowed": bool(payload.get("external_fetch_allowed", False)),
         "evidence_acceptance_allowed": bool(payload.get("evidence_acceptance_allowed", False)),
+        "bounded_input_window": dict(scope.get("bounded_input_window") or {}),
+        "oos_window": dict(scope.get("oos_window") or {}),
+        "source_data_ref": str(scope.get("source_data_ref") or ""),
     }
 
 
@@ -214,6 +218,66 @@ def _load_stitched_local_cache_frame(
     return merged.astype(float)
 
 
+def _bounded_window_label(approval: Mapping[str, Any]) -> str:
+    bounded_window = approval.get("bounded_input_window")
+    if isinstance(bounded_window, Mapping):
+        label = str(bounded_window.get("selection_rule") or "").strip()
+        if label:
+            return label
+    return "single_symbol_full_local_cache_extent"
+
+
+def _normalize_window_bounds(window: Mapping[str, Any], *, field_name: str) -> tuple[str, str]:
+    start = str(window.get("start") or "").strip()
+    end = str(window.get("end") or "").strip()
+    if not start or not end:
+        raise ApprovedBoundedEvidenceError(f"missing {field_name} bounds")
+    return start, end
+
+
+def _restrict_frame_to_approval_window(
+    *,
+    frame: pd.DataFrame,
+    approval: Mapping[str, Any],
+) -> pd.DataFrame:
+    bounded_window = approval.get("bounded_input_window")
+    if not isinstance(bounded_window, Mapping) or not bounded_window:
+        return frame.copy()
+    start_text, end_text = _normalize_window_bounds(bounded_window, field_name="bounded_input_window")
+    start = pd.Timestamp(start_text)
+    end = pd.Timestamp(end_text)
+    restricted = frame.loc[(frame.index >= start) & (frame.index <= end)].copy()
+    if restricted.empty:
+        raise ApprovedBoundedEvidenceError("approved bounded_input_window produced empty local frame")
+    return restricted
+
+
+def _expected_oos_window(
+    *,
+    frame: pd.DataFrame,
+    engine: BacktestEngine,
+) -> tuple[pd.Timestamp, pd.Timestamp]:
+    folds = build_evaluation_folds(len(frame), engine.evaluation_config)
+    (_, _), (test_start, test_end) = folds[0]
+    return pd.Timestamp(frame.index[test_start]), pd.Timestamp(frame.index[test_end])
+
+
+def _validate_expected_oos_window(
+    *,
+    approval: Mapping[str, Any],
+    expected_start: pd.Timestamp,
+    expected_end: pd.Timestamp,
+) -> None:
+    configured = approval.get("oos_window")
+    if not isinstance(configured, Mapping) or not configured:
+        return
+    start_text, end_text = _normalize_window_bounds(configured, field_name="oos_window")
+    if expected_start.strftime("%Y-%m-%d") != start_text or expected_end.strftime("%Y-%m-%d") != end_text:
+        raise ApprovedBoundedEvidenceError(
+            "approved oos_window does not match deterministic single-split validation window"
+        )
+
+
 def _common_local_window(frames: Mapping[str, pd.DataFrame]) -> tuple[pd.Timestamp, pd.Timestamp]:
     starts = [frame.index.min() for frame in frames.values() if not frame.empty]
     ends = [frame.index.max() for frame in frames.values() if not frame.empty]
@@ -233,6 +297,7 @@ def _evaluate_symbol_with_local_cache(
     generation_run_id: str,
     frame: pd.DataFrame,
     source_ref: str,
+    approval: Mapping[str, Any],
 ) -> LocalEvaluation:
     strategy = trend_pullback_v1_strategie()
     engine = BacktestEngine(
@@ -241,16 +306,25 @@ def _evaluate_symbol_with_local_cache(
         evaluation_config={"mode": "single_split", "train_ratio": 0.7},
     )
     engine.interval = "1d"
-    trade_pnls, daily_returns, monthly_returns, trade_events, execution_events = engine._simuleer_detailed(
-        frame.copy(),
-        strategy,
-        symbol,
-        regime_window=None,
-        fold_index=0,
-        include_trade_events=True,
-        include_execution_events=True,
+    expected_start, expected_end = _expected_oos_window(frame=frame, engine=engine)
+    _validate_expected_oos_window(
+        approval=approval,
+        expected_start=expected_start,
+        expected_end=expected_end,
     )
-    metrics = engine._finalize_metrics(engine._metrics(trade_pnls, daily_returns, monthly_returns))
+    folds = build_evaluation_folds(len(frame), engine.evaluation_config)
+    context = AssetContext(
+        asset=symbol,
+        frame=frame.copy(),
+        regime_frame=build_regime_frame(frame.copy(), engine.regime_config),
+        folds=folds,
+        reference_frame=None,
+    )
+    metrics = engine._evaluate_windows(strategy, [context], use_train=False)
+    daily_returns = list(engine._last_window_samples.get("daily_returns", []))
+    trade_events = list(engine._last_window_streams.get("oos_trade_events", []))
+    execution_events = list(engine._last_window_streams.get("oos_execution_events", []))
+    oos_bar_count = int(sum(1 for entry in engine._last_window_streams.get("oos_bar_returns", []) if entry.get("asset") == symbol))
     reason_record_refs = [
         f"{source_ref}#reason:lineage:{symbol}",
         f"{source_ref}#reason:oos:{symbol}",
@@ -263,7 +337,7 @@ def _evaluate_symbol_with_local_cache(
         "deflated_sharpe": float(metrics.get("deflated_sharpe") or 0.0),
         "profit_factor": float(metrics.get("profit_factor") or 0.0),
         "expectancy": float(metrics.get("expectancy") or 0.0),
-        "daily_bar_count": int(len(frame)),
+        "daily_bar_count": oos_bar_count,
         "trade_event_count": int(len(trade_events)),
         "execution_event_count": int(len(execution_events)),
     }
@@ -271,8 +345,8 @@ def _evaluate_symbol_with_local_cache(
         symbol=symbol,
         candidate_id=candidate_id,
         generation_run_id=generation_run_id,
-        oos_window_start=pd.Timestamp(frame.index.min()).tz_localize(UTC).isoformat().replace("+00:00", "Z"),
-        oos_window_end=pd.Timestamp(frame.index.max()).tz_localize(UTC).isoformat().replace("+00:00", "Z"),
+        oos_window_start=expected_start.tz_localize(UTC).isoformat().replace("+00:00", "Z"),
+        oos_window_end=expected_end.tz_localize(UTC).isoformat().replace("+00:00", "Z"),
         oos_metric_fields=metric_fields,
         reason_record_refs=reason_record_refs,
         cost_slippage_assumption_refs=[cost_ref],
@@ -290,6 +364,7 @@ def build_approved_bounded_evidence_materialization(
     repo_root: Path = Path("."),
     generated_at_utc: str | None = None,
     persist_intermediate_outputs: bool = True,
+    approval_manifest_ref: str | None = None,
 ) -> dict[str, Any]:
     before = _protected_fingerprints(repo_root)
     generated_at = generated_at_utc or _utcnow()
@@ -327,6 +402,10 @@ def build_approved_bounded_evidence_materialization(
         symbol: frame.loc[(frame.index >= common_start) & (frame.index <= common_end)].copy()
         for symbol, frame in stitched_frames.items()
     }
+    bounded_frames = {
+        symbol: _restrict_frame_to_approval_window(frame=frame, approval=approval)
+        for symbol, frame in bounded_frames.items()
+    }
     if any(frame.empty for frame in bounded_frames.values()):
         raise ApprovedBoundedEvidenceError("empty bounded frame after overlap restriction")
 
@@ -353,6 +432,7 @@ def build_approved_bounded_evidence_materialization(
             generation_run_id=generation_run_id,
             frame=bounded_frames[symbol],
             source_ref=source_ref,
+            approval=approval,
         )
         for symbol in request["symbols"]
     ]
@@ -361,7 +441,7 @@ def build_approved_bounded_evidence_materialization(
         "report_kind": "qre_bounded_local_cache_controlled_validation_source",
         "generated_at_utc": generated_at,
         "approval_id": approval["approval_id"],
-        "approval_manifest_ref": DEFAULT_APPROVAL_PATH.as_posix(),
+        "approval_manifest_ref": approval_manifest_ref or DEFAULT_APPROVAL_PATH.as_posix(),
         "source_type": "structured_controlled_validation",
         "source_authority": "structured_source",
         "source_ref": source_ref,
@@ -373,6 +453,11 @@ def build_approved_bounded_evidence_materialization(
         "protected_paths_unchanged": True,
         "generation_run_id": generation_run_id,
         "timeframe_interval": interval,
+        "bounded_input_window": {
+            "start": bounded_frames[request["symbols"][0]].index.min().strftime("%Y-%m-%d"),
+            "end": bounded_frames[request["symbols"][0]].index.max().strftime("%Y-%m-%d"),
+            "label": _bounded_window_label(approval),
+        },
         "lineage_records": [
             {
                 "symbol": evaluation.symbol,
@@ -525,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         report = build_approved_bounded_evidence_materialization(
             approval_payload=approval_payload,
+            approval_manifest_ref=Path(args.approval_file).as_posix(),
         )
     except ApprovedBoundedEvidenceError as exc:
         print(
