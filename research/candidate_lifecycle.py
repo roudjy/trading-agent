@@ -22,7 +22,11 @@ per entry in the registry-v2 sidecar.
 
 from __future__ import annotations
 
+import hashlib
+import json
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 STATUS_MODEL_VERSION = "v3.12.0"
@@ -138,6 +142,237 @@ class InvalidTransitionError(Exception):
 
 class UnknownLegacyVerdictError(Exception):
     """Raised when a legacy verdict string has no defined mapping."""
+
+
+QRE_STATUS_MODEL_VERSION = "qre.v1"
+
+
+class QRECandidateLifecycleStatus(str, Enum):
+    DRAFT = "draft"
+    EVIDENCE_INCOMPLETE = "evidence_incomplete"
+    EVIDENCE_COMPLETE = "evidence_complete"
+    QUALITY_REVIEW = "quality_review"
+    PROMOTION_REVIEW = "promotion_review"
+    REJECTED = "rejected"
+    SUPPRESSED = "suppressed"
+    COOLDOWN = "cooldown"
+    RETIRED = "retired"
+    SHADOW_READINESS_CANDIDATE = "shadow_readiness_candidate"
+
+
+QRE_FULL_LIFECYCLE_GRAPH: dict[QRECandidateLifecycleStatus, frozenset[QRECandidateLifecycleStatus]] = {
+    QRECandidateLifecycleStatus.DRAFT: frozenset(
+        {
+            QRECandidateLifecycleStatus.EVIDENCE_INCOMPLETE,
+            QRECandidateLifecycleStatus.REJECTED,
+            QRECandidateLifecycleStatus.SUPPRESSED,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.EVIDENCE_INCOMPLETE: frozenset(
+        {
+            QRECandidateLifecycleStatus.EVIDENCE_COMPLETE,
+            QRECandidateLifecycleStatus.REJECTED,
+            QRECandidateLifecycleStatus.SUPPRESSED,
+            QRECandidateLifecycleStatus.COOLDOWN,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.EVIDENCE_COMPLETE: frozenset(
+        {
+            QRECandidateLifecycleStatus.QUALITY_REVIEW,
+            QRECandidateLifecycleStatus.REJECTED,
+            QRECandidateLifecycleStatus.SUPPRESSED,
+            QRECandidateLifecycleStatus.COOLDOWN,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.QUALITY_REVIEW: frozenset(
+        {
+            QRECandidateLifecycleStatus.PROMOTION_REVIEW,
+            QRECandidateLifecycleStatus.REJECTED,
+            QRECandidateLifecycleStatus.SUPPRESSED,
+            QRECandidateLifecycleStatus.COOLDOWN,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.PROMOTION_REVIEW: frozenset(
+        {
+            QRECandidateLifecycleStatus.SHADOW_READINESS_CANDIDATE,
+            QRECandidateLifecycleStatus.REJECTED,
+            QRECandidateLifecycleStatus.SUPPRESSED,
+            QRECandidateLifecycleStatus.COOLDOWN,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.SUPPRESSED: frozenset(
+        {
+            QRECandidateLifecycleStatus.EVIDENCE_INCOMPLETE,
+            QRECandidateLifecycleStatus.COOLDOWN,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.COOLDOWN: frozenset(
+        {
+            QRECandidateLifecycleStatus.EVIDENCE_INCOMPLETE,
+            QRECandidateLifecycleStatus.SUPPRESSED,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.SHADOW_READINESS_CANDIDATE: frozenset(
+        {
+            QRECandidateLifecycleStatus.REJECTED,
+            QRECandidateLifecycleStatus.COOLDOWN,
+            QRECandidateLifecycleStatus.RETIRED,
+        }
+    ),
+    QRECandidateLifecycleStatus.REJECTED: frozenset(),
+    QRECandidateLifecycleStatus.RETIRED: frozenset(),
+}
+
+
+class QREInvalidTransitionError(Exception):
+    """Raised when a QRE lifecycle transition is not allowed."""
+
+
+class QREDuplicateScopeError(Exception):
+    """Raised when two QRE candidate records share the same deterministic scope."""
+
+
+def _qre_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _qre_unique(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(value for value in values if value))
+
+
+def _scope_seed(scope: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "hypothesis_id": _qre_text(scope.get("hypothesis_id")),
+        "behavior_id": _qre_text(scope.get("behavior_id")),
+        "preset_id": _qre_text(scope.get("preset_id")),
+        "timeframe": _qre_text(scope.get("timeframe")),
+        "universe_or_basket_scope": _qre_text(scope.get("universe_or_basket_scope")),
+        "region": _qre_text(scope.get("region")),
+        "symbol": _qre_text(scope.get("symbol")),
+    }
+
+
+def compute_qre_scope_signature(scope: dict[str, Any]) -> str:
+    payload = _scope_seed(scope)
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def build_qre_candidate_identity(scope: dict[str, Any]) -> dict[str, str]:
+    signature = compute_qre_scope_signature(scope)
+    version_seed = {
+        **_scope_seed(scope),
+        "sampling_plan_ref": _qre_text(scope.get("sampling_plan_ref")),
+        "accepted_lineage_count": int(scope.get("accepted_lineage_count", 0) or 0),
+        "accepted_oos_count": int(scope.get("accepted_oos_count", 0) or 0),
+    }
+    version_raw = json.dumps(version_seed, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    version_hash = hashlib.sha256(version_raw.encode("utf-8")).hexdigest()
+    return {
+        "candidate_id": "qre_cand_" + signature[:16],
+        "scope_signature": signature,
+        "candidate_version": "qre_v_" + version_hash[:16],
+    }
+
+
+@dataclass(frozen=True)
+class QRETransitionContext:
+    accepted_lineage_count: int = 0
+    accepted_oos_count: int = 0
+    evidence_complete: bool = False
+    quality_gate_passed: bool = False
+    promotion_gate_passed: bool = False
+    readiness_gate_passed: bool = False
+    operator_shadow_authority: bool = False
+    rejected_scope: bool = False
+    suppressed_scope: bool = False
+    duplicate_scope: bool = False
+
+
+def validate_qre_transition(
+    from_: QRECandidateLifecycleStatus,
+    to_: QRECandidateLifecycleStatus,
+    *,
+    context: QRETransitionContext,
+) -> None:
+    allowed = QRE_FULL_LIFECYCLE_GRAPH.get(from_, frozenset())
+    if to_ not in allowed:
+        raise QREInvalidTransitionError(f"transition {from_.value!r} -> {to_.value!r} is not permitted")
+    if context.duplicate_scope:
+        raise QREInvalidTransitionError("duplicate_scope_blocked")
+    if to_ == QRECandidateLifecycleStatus.EVIDENCE_COMPLETE:
+        if not context.evidence_complete or context.accepted_lineage_count <= 0 or context.accepted_oos_count <= 0:
+            raise QREInvalidTransitionError("evidence_complete_requires_accepted_evidence")
+    if to_ == QRECandidateLifecycleStatus.QUALITY_REVIEW and not context.evidence_complete:
+        raise QREInvalidTransitionError("quality_review_requires_evidence_complete")
+    if to_ == QRECandidateLifecycleStatus.PROMOTION_REVIEW and not context.quality_gate_passed:
+        raise QREInvalidTransitionError("promotion_review_requires_quality_gate")
+    if to_ == QRECandidateLifecycleStatus.SHADOW_READINESS_CANDIDATE:
+        if not context.promotion_gate_passed:
+            raise QREInvalidTransitionError("shadow_readiness_requires_promotion_gate")
+        if not context.readiness_gate_passed:
+            raise QREInvalidTransitionError("shadow_readiness_requires_readiness_gate")
+        if not context.operator_shadow_authority:
+            raise QREInvalidTransitionError("shadow_readiness_requires_operator_authority")
+
+
+def build_qre_candidate_record(
+    scope: dict[str, Any],
+    *,
+    context: QRETransitionContext,
+) -> dict[str, Any]:
+    identity = build_qre_candidate_identity(scope)
+    blockers: list[str] = []
+    status = QRECandidateLifecycleStatus.DRAFT
+
+    if context.duplicate_scope:
+        blockers.append("duplicate_scope_blocked")
+        status = QRECandidateLifecycleStatus.SUPPRESSED
+    elif context.rejected_scope:
+        blockers.append("rejected_scope_cannot_become_candidate")
+        status = QRECandidateLifecycleStatus.REJECTED
+    elif context.suppressed_scope:
+        blockers.append("suppressed_scope_requires_material_novelty")
+        status = QRECandidateLifecycleStatus.SUPPRESSED
+    elif context.evidence_complete and context.accepted_lineage_count > 0 and context.accepted_oos_count > 0:
+        status = QRECandidateLifecycleStatus.EVIDENCE_COMPLETE
+    else:
+        blockers.append("accepted_evidence_incomplete")
+        status = QRECandidateLifecycleStatus.EVIDENCE_INCOMPLETE
+
+    return {
+        **identity,
+        "status_model_version": QRE_STATUS_MODEL_VERSION,
+        "scope": dict(_scope_seed(scope)),
+        "sampling_plan_ref": _qre_text(scope.get("sampling_plan_ref")),
+        "accepted_lineage_count": int(context.accepted_lineage_count),
+        "accepted_oos_count": int(context.accepted_oos_count),
+        "status": status.value,
+        "blockers": _qre_unique(blockers),
+        "authority": {
+            "non_authoritative": True,
+            "can_promote_candidate": False,
+            "can_activate_shadow": False,
+            "can_activate_paper": False,
+            "can_activate_live": False,
+        },
+    }
+
+
+def assert_unique_qre_scope(records: list[dict[str, Any]]) -> None:
+    seen: set[str] = set()
+    for record in records:
+        signature = _qre_text(record.get("scope_signature"))
+        if signature in seen:
+            raise QREDuplicateScopeError(f"duplicate scope signature: {signature}")
+        seen.add(signature)
 
 
 def is_active_in_v3_12(status: CandidateLifecycleStatus) -> bool:
