@@ -118,6 +118,16 @@ def build_sampling_plan_for_multiwindow_approval(
             minimum_warmup_period=10,
             regime_labels=["trend", "high_volatility"],
         )
+    else:
+        window_definitions = [
+            {
+                **dict(window),
+                "role": _text((window or {}).get("role")) or "oos",
+                "locked": True if window.get("locked") is None else bool(window.get("locked")),
+            }
+            for window in window_definitions
+            if isinstance(window, Mapping)
+        ]
     return sampling.build_preregistered_sampling_plan(
         hypothesis_ref=hypothesis_id,
         behavior_id="trend_pullback",
@@ -489,7 +499,14 @@ def build_preregistered_multiwindow_evidence_run(
         campaign_outcome = "insufficient_total_oos_trades"
     elif accepted_oos_count > 0:
         campaign_outcome = "partial_oos_evidence"
-    elif failed_window_count == len(window_results) and rejection_reasons and set(rejection_reasons) == {"non_positive_oos_trade_count"}:
+    elif (
+        failed_window_count == len(window_results)
+        and all(
+            int(item.get("oos_trade_count") or 0) <= 0
+            for window in window_results
+            for item in window.get("symbol_results", [])
+        )
+    ):
         campaign_outcome = "all_windows_non_positive_trade_count"
     else:
         campaign_outcome = "hypothesis_not_supported"

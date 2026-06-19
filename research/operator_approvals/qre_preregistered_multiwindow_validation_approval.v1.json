@@ -28,7 +28,9 @@
           "start": "2026-04-29",
           "end": "2026-05-07"
         },
-        "regime_label": "trend"
+        "regime_label": "trend",
+        "role": "oos",
+        "locked": true
       },
       {
         "window_id": "window_02",
@@ -40,7 +42,9 @@
           "start": "2026-05-29",
           "end": "2026-06-08"
         },
-        "regime_label": "high_volatility"
+        "regime_label": "high_volatility",
+        "role": "oos",
+        "locked": true
       }
     ]
   },
