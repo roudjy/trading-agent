@@ -372,14 +372,54 @@ def write_outputs(report: Mapping[str, Any], *, repo_root: Path = Path(".")) -> 
     }
 
 
+def read_null_control_suite_status(
+    *,
+    output_dir: Path = DEFAULT_OUTPUT_DIR,
+    repo_root: Path = Path("."),
+) -> dict[str, Any]:
+    latest = repo_root / output_dir / LATEST_NAME
+    if not latest.is_file():
+        return {
+            "status": "missing_null_control_suite",
+            "null_control_suite_ready": False,
+            "path": latest.relative_to(repo_root).as_posix(),
+            "fails_closed": True,
+        }
+    try:
+        payload = json.loads(latest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "status": "invalid_null_control_suite",
+            "null_control_suite_ready": False,
+            "path": latest.relative_to(repo_root).as_posix(),
+            "fails_closed": True,
+        }
+    status = _text(payload.get("status"))
+    ready = status == "suite_ready_preregistered_context"
+    return {
+        "status": "ready" if ready else "not_ready",
+        "null_control_suite_ready": ready,
+        "path": latest.relative_to(repo_root).as_posix(),
+        "fails_closed": not ready,
+        "suite_status": status,
+        "schema_version": payload.get("schema_version") if isinstance(payload, Mapping) else None,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m research.qre_null_control_falsification_suite",
         description="Build deterministic preregistered null/control suite context.",
     )
-    parser.add_argument("--sampling-plan-file", required=True)
+    parser.add_argument("--sampling-plan-file")
+    parser.add_argument("--status", action="store_true")
     parser.add_argument("--write", action="store_true")
     args = parser.parse_args(argv)
+    if args.status:
+        print(json.dumps(read_null_control_suite_status(), indent=2, sort_keys=True))
+        return 0
+    if not args.sampling_plan_file:
+        raise SystemExit("--sampling-plan-file is required unless --status is used")
     sampling_payload = json.loads(Path(args.sampling_plan_file).read_text(encoding="utf-8"))
     report = build_preregistered_null_control_suite(sampling_plan_payload=sampling_payload)
     if args.write:
@@ -395,6 +435,7 @@ __all__ = [
     "build_preregistered_null_control_suite",
     "compute_suite_hash",
     "evaluate_null_control_suite",
+    "read_null_control_suite_status",
     "render_operator_summary",
     "write_outputs",
 ]

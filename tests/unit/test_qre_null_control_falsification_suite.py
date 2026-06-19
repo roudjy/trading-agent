@@ -134,3 +134,19 @@ def test_write_outputs_and_core_module_have_no_symbol_hardcoding(tmp_path: Path)
     source = Path("research/qre_null_control_falsification_suite.py").read_text(encoding="utf-8")
     assert "AAPL" not in source
     assert "NVDA" not in source
+
+
+def test_status_reader_fails_closed_then_round_trips_ready(tmp_path: Path) -> None:
+    missing = suite.read_null_control_suite_status(repo_root=tmp_path)
+    assert missing["status"] == "missing_null_control_suite"
+    assert missing["null_control_suite_ready"] is False
+
+    report = suite.build_preregistered_null_control_suite(
+        sampling_plan_payload=_sampling_plan()
+    )
+    suite.write_outputs(report, repo_root=tmp_path)
+
+    ready = suite.read_null_control_suite_status(repo_root=tmp_path)
+    assert ready["status"] == "ready"
+    assert ready["null_control_suite_ready"] is True
+    assert ready["path"] == "logs/qre_null_control_falsification_suite/latest.json"
