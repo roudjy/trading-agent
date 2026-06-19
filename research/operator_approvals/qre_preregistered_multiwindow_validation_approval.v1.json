@@ -1,0 +1,76 @@
+{
+  "schema_version": "qre_bounded_validation_approval.v1",
+  "approval_id": "qre_preregistered_multiwindow_validation_001",
+  "approved_by": "operator:joery",
+  "approved_at_utc": "2026-06-19T14:15:00Z",
+  "expiry_utc": "2026-06-21T14:15:00Z",
+  "scope": {
+    "symbols": [
+      "AAPL",
+      "NVDA"
+    ],
+    "preset_id": "trend_pullback_continuation_daily_v1",
+    "timeframe": "daily_v1",
+    "source_data_ref": "data/cache/market/yfinance__{AAPL,NVDA}__1d__*.parquet",
+    "bounded_validation_range": {
+      "start": "2026-04-08",
+      "end": "2026-06-08",
+      "selection_rule": "shared_local_cache_intersection"
+    },
+    "window_definitions": [
+      {
+        "window_id": "window_01",
+        "bounded_input_window": {
+          "start": "2026-04-08",
+          "end": "2026-05-07"
+        },
+        "oos_window": {
+          "start": "2026-04-29",
+          "end": "2026-05-07"
+        },
+        "regime_label": "trend"
+      },
+      {
+        "window_id": "window_02",
+        "bounded_input_window": {
+          "start": "2026-05-08",
+          "end": "2026-06-08"
+        },
+        "oos_window": {
+          "start": "2026-05-29",
+          "end": "2026-06-08"
+        },
+        "regime_label": "high_volatility"
+      }
+    ]
+  },
+  "allowed_command_class": "bounded_controlled_validation",
+  "allowed_output_paths": [
+    "logs/qre_bounded_current_basket_generation_runner/",
+    "logs/qre_controlled_validation_adapter_results/",
+    "logs/qre_bounded_generation_artifact_acceptance_verifier/",
+    "logs/qre_evidence_complete_basket_closure/"
+  ],
+  "forbidden_capabilities": [
+    "strategy_synthesis",
+    "strategy_registration",
+    "candidate_promotion",
+    "shadow_activation",
+    "paper_activation",
+    "live_activation",
+    "broker_access",
+    "risk_runtime",
+    "execution_runtime",
+    "order_generation",
+    "capital_allocation",
+    "external_fetch",
+    "parameter_optimization",
+    "window_shopping",
+    "oos_window_relabeling"
+  ],
+  "dry_run_allowed": true,
+  "real_run_allowed": true,
+  "evidence_acceptance_allowed": true,
+  "external_fetch_allowed": false,
+  "operator_note": "Exact-scope preregistered multi-window local-only validation for the shared AAPL/NVDA daily cache intersection. Windows and regimes are locked before execution and were not selected on performance."
+}
