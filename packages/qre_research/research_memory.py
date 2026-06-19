@@ -29,6 +29,7 @@ DEFAULT_ARTIFACT_PATHS: Final[tuple[Path, ...]] = (
     Path("docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md"),
     Path("logs/qre_data_cache_manifest/latest.json"),
     Path("logs/qre_data_source_quality_readiness/latest.json"),
+    Path("logs/qre_hypothesis_disposition_memory/latest.json"),
 )
 _TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"[a-z0-9_./:-]+")
 _PREVIEW_LIMIT: Final[int] = 280
