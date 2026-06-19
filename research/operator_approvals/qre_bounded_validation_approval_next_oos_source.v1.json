@@ -1,0 +1,54 @@
+{
+  "schema_version": "qre_bounded_validation_approval.v1",
+  "approval_id": "qre_bounded_validation_next_oos_source_001",
+  "approved_by": "operator:joery",
+  "approved_at_utc": "2026-06-19T13:30:00Z",
+  "expiry_utc": "2026-06-21T13:30:00Z",
+  "scope": {
+    "symbols": [
+      "AAPL"
+    ],
+    "preset_id": "trend_pullback_continuation_daily_v1",
+    "timeframe": "daily_v1",
+    "source_data_ref": "data/cache/market/yfinance__AAPL__1d__*.parquet",
+    "bounded_input_window": {
+      "start": "2026-04-08",
+      "end": "2026-06-08",
+      "selection_rule": "single_symbol_full_local_cache_extent"
+    },
+    "oos_window": {
+      "start": "2026-05-20",
+      "end": "2026-06-08",
+      "selection_rule": "single_split_train_ratio_0.7_over_bounded_input_window"
+    }
+  },
+  "allowed_command_class": "bounded_controlled_validation",
+  "allowed_output_paths": [
+    "logs/qre_bounded_current_basket_generation_runner/",
+    "logs/qre_controlled_validation_adapter_results/",
+    "logs/qre_bounded_generation_artifact_acceptance_verifier/",
+    "logs/qre_evidence_complete_basket_closure/"
+  ],
+  "forbidden_capabilities": [
+    "strategy_synthesis",
+    "strategy_registration",
+    "candidate_promotion",
+    "shadow_activation",
+    "paper_activation",
+    "live_activation",
+    "broker_access",
+    "risk_runtime",
+    "execution_runtime",
+    "order_generation",
+    "capital_allocation",
+    "unbounded_research_run",
+    "external_fetch",
+    "parameter_optimization",
+    "oos_window_relabeling"
+  ],
+  "dry_run_allowed": true,
+  "real_run_allowed": true,
+  "evidence_acceptance_allowed": true,
+  "external_fetch_allowed": false,
+  "operator_note": "Exact-scope local-cache AAPL only bounded OOS attempt. Selection is based on evidence suitability and deterministic local cache extent, not performance. Zero trades remains a valid fail-closed outcome."
+}
