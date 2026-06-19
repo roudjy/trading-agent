@@ -10,6 +10,7 @@ from typing import Any, Final
 from packages.qre_research import research_memory
 from research import qre_campaign_throughput_bottleneck_intelligence as throughput_bottlenecks
 from research import qre_contradiction_staleness_intelligence as contradiction_staleness
+from research import qre_experiment_dedup_novelty_enforcement as novelty_enforcement
 from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_research_memory_coverage as memory_coverage
 
@@ -72,6 +73,13 @@ def build_research_memory_current_artifacts(
     throughput_ready = bool(
         throughput_summary.get("campaign_throughput_bottleneck_intelligence_ready")
     )
+    novelty_report = novelty_enforcement.build_experiment_dedup_novelty_enforcement(
+        repo_root=repo_root
+    )
+    novelty_summary = (
+        novelty_report.get("summary") if isinstance(novelty_report.get("summary"), Mapping) else {}
+    )
+    novelty_ready = bool(novelty_summary.get("experiment_dedup_novelty_enforcement_ready"))
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -84,6 +92,7 @@ def build_research_memory_current_artifacts(
             "artifact_continuity_ready": continuity_ready,
             "contradiction_staleness_ready": contradiction_ready,
             "campaign_throughput_bottleneck_intelligence_ready": throughput_ready,
+            "experiment_dedup_novelty_enforcement_ready": novelty_ready,
             "indexed_entry_count": int(memory_summary.get("indexed_entry_count") or 0),
             "indexed_candidate_count": int(memory_summary.get("indexed_candidate_count") or 0),
             "retrievable_failure_subject_count": int(
@@ -99,6 +108,9 @@ def build_research_memory_current_artifacts(
             "visible_campaign_throughput_bottleneck_count": int(
                 throughput_summary.get("bottleneck_count") or 0
             ),
+            "visible_experiment_duplicate_pressure_count": int(
+                novelty_summary.get("duplicate_pressure_count") or 0
+            ),
             "final_recommendation": (
                 "research_memory_current_artifacts_ready"
                 if package_ready
@@ -107,6 +119,7 @@ def build_research_memory_current_artifacts(
                 and continuity_ready
                 and contradiction_ready
                 and throughput_ready
+                and novelty_ready
                 else "research_memory_current_artifacts_partial"
             ),
             "operator_summary": (
@@ -120,6 +133,7 @@ def build_research_memory_current_artifacts(
         "artifact_continuity_summary": dict(continuity_summary),
         "contradiction_staleness_summary": dict(contradiction_summary),
         "campaign_throughput_bottleneck_summary": dict(throughput_summary),
+        "experiment_dedup_novelty_summary": dict(novelty_summary),
         "memory_artifacts": {
             "package_memory_path": str(package_status.get("path") or "logs/qre_research_memory/latest.json"),
             "coverage_path": "logs/qre_research_memory_coverage/latest.json",
@@ -127,6 +141,7 @@ def build_research_memory_current_artifacts(
             "artifact_continuity_path": "logs/qre_read_only_artifact_continuity/latest.json",
             "contradiction_staleness_path": "logs/qre_contradiction_staleness_intelligence/latest.json",
             "campaign_throughput_bottleneck_path": "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json",
+            "experiment_dedup_novelty_path": "logs/qre_experiment_dedup_novelty_enforcement/latest.json",
         },
         "safety_invariants": {
             "read_only": True,
@@ -160,12 +175,14 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["artifact_continuity_ready", str(summary.get("artifact_continuity_ready") or False)],
                     ["contradiction_staleness_ready", str(summary.get("contradiction_staleness_ready") or False)],
                     ["campaign_throughput_bottleneck_intelligence_ready", str(summary.get("campaign_throughput_bottleneck_intelligence_ready") or False)],
+                    ["experiment_dedup_novelty_enforcement_ready", str(summary.get("experiment_dedup_novelty_enforcement_ready") or False)],
                     ["indexed_entry_count", str(summary.get("indexed_entry_count") or 0)],
                     ["retrievable_failure_subject_count", str(summary.get("retrievable_failure_subject_count") or 0)],
                     ["artifact_continuity_materializable_target_count", str(summary.get("artifact_continuity_materializable_target_count") or 0)],
                     ["visible_contradiction_count", str(summary.get("visible_contradiction_count") or 0)],
                     ["visible_stale_or_superseded_count", str(summary.get("visible_stale_or_superseded_count") or 0)],
                     ["visible_campaign_throughput_bottleneck_count", str(summary.get("visible_campaign_throughput_bottleneck_count") or 0)],
+                    ["visible_experiment_duplicate_pressure_count", str(summary.get("visible_experiment_duplicate_pressure_count") or 0)],
                     ["final_recommendation", str(summary.get("final_recommendation") or "")],
                 ],
             ),
@@ -180,6 +197,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["artifact_continuity_path", str(artifacts.get("artifact_continuity_path") or "")],
                     ["contradiction_staleness_path", str(artifacts.get("contradiction_staleness_path") or "")],
                     ["campaign_throughput_bottleneck_path", str(artifacts.get("campaign_throughput_bottleneck_path") or "")],
+                    ["experiment_dedup_novelty_path", str(artifacts.get("experiment_dedup_novelty_path") or "")],
                 ],
             ),
             "",
@@ -212,6 +230,8 @@ def write_outputs(
     contradiction_paths = contradiction_staleness.write_outputs(contradiction_report, repo_root=repo_root)
     throughput_report = throughput_bottlenecks.build_campaign_throughput_bottleneck_intelligence(repo_root=repo_root)
     throughput_paths = throughput_bottlenecks.write_outputs(throughput_report, repo_root=repo_root)
+    novelty_report = novelty_enforcement.build_experiment_dedup_novelty_enforcement(repo_root=repo_root)
+    novelty_paths = novelty_enforcement.write_outputs(novelty_report, repo_root=repo_root)
 
     base = repo_root / DEFAULT_OUTPUT_DIR
     base.mkdir(parents=True, exist_ok=True)
@@ -233,6 +253,8 @@ def write_outputs(
         "contradiction_staleness_operator_summary": contradiction_paths["operator_summary"],
         "campaign_throughput_bottleneck_latest": throughput_paths["latest"],
         "campaign_throughput_bottleneck_operator_summary": throughput_paths["operator_summary"],
+        "experiment_dedup_novelty_latest": novelty_paths["latest"],
+        "experiment_dedup_novelty_operator_summary": novelty_paths["operator_summary"],
         "latest": latest.relative_to(repo_root).as_posix(),
         "operator_summary": summary_path.relative_to(repo_root).as_posix(),
     }
