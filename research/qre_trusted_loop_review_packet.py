@@ -23,6 +23,7 @@ from research import qre_failure_action_from_basket as failure_action
 from research import qre_first_batch_evidence_recovery_cascade as first_batch_cascade
 from research import qre_first_batch_evidence_recovery_readiness as first_batch_readiness
 from research import qre_basket_operator_action_plan as basket_action_plan
+from research import qre_contradiction_staleness_intelligence as contradiction_staleness
 from research import qre_reason_records_v1 as reason_records
 from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_research_memory_current_artifacts as research_memory
@@ -270,6 +271,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     sampling_packet = sampling_calibration.build_sampling_calibration_report(repo_root=repo_root)
     memory_packet = research_memory.build_research_memory_current_artifacts(repo_root=repo_root)
     continuity_packet = artifact_continuity.build_read_only_artifact_continuity(repo_root=repo_root)
+    contradiction_packet = contradiction_staleness.build_contradiction_staleness_intelligence(
+        repo_root=repo_root
+    )
     action_plan_packet = basket_action_plan.build_basket_operator_action_plan(repo_root=repo_root)
     operational_controls_packet = operational_controls.build_trusted_loop_operational_controls(
         repo_root=repo_root
@@ -302,6 +306,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     memory_summary = memory_packet if isinstance(memory_packet, Mapping) else {}
     continuity_summary = (
         continuity_packet.get("summary") if isinstance(continuity_packet.get("summary"), Mapping) else {}
+    )
+    contradiction_summary = (
+        contradiction_packet.get("summary") if isinstance(contradiction_packet.get("summary"), Mapping) else {}
     )
     action_plan_summary = action_plan_packet.get("summary") if isinstance(action_plan_packet.get("summary"), Mapping) else {}
     structured_lineage_summary = (
@@ -350,6 +357,14 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             == "research_memory_current_artifacts_ready",
             "artifact_continuity_ready": bool(continuity_summary.get("artifact_continuity_ready")),
             "artifact_continuity_exact_next_action": str(continuity_summary.get("exact_next_action") or ""),
+            "contradiction_staleness_ready": bool(contradiction_summary.get("contradiction_staleness_ready")),
+            "visible_contradiction_count": int(contradiction_summary.get("contradiction_count") or 0),
+            "visible_stale_or_superseded_count": int(
+                contradiction_summary.get("stale_or_superseded_count") or 0
+            ),
+            "contradiction_staleness_exact_next_action": str(
+                contradiction_summary.get("exact_next_action") or ""
+            ),
             "basket_operator_action_plan_ready": str(action_plan_summary.get("final_recommendation") or "")
             == "basket_operator_action_plan_ready",
             "trusted_loop_operational_controls_ready": bool(
@@ -436,6 +451,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "sampling_calibration": sampling_packet,
             "research_memory": memory_packet,
             "artifact_continuity": continuity_packet,
+            "contradiction_staleness": contradiction_packet,
             "operational_controls": operational_controls_packet,
             "shadow_readiness_gates": shadow_readiness_packet,
         },
@@ -529,6 +545,10 @@ def render_operator_summary(packet: Mapping[str, Any]) -> str:
             f"- research_memory_ready: {summary.get('research_memory_ready')}",
             f"- artifact_continuity_ready: {summary.get('artifact_continuity_ready')}",
             f"- artifact_continuity_exact_next_action: {summary.get('artifact_continuity_exact_next_action')}",
+            f"- contradiction_staleness_ready: {summary.get('contradiction_staleness_ready')}",
+            f"- visible_contradiction_count: {summary.get('visible_contradiction_count')}",
+            f"- visible_stale_or_superseded_count: {summary.get('visible_stale_or_superseded_count')}",
+            f"- contradiction_staleness_exact_next_action: {summary.get('contradiction_staleness_exact_next_action')}",
             f"- guarded_alias_bounded_generation_cascade_result: {summary.get('guarded_alias_bounded_generation_cascade_result')}",
             f"- guarded_alias_bounded_generation_top_blocker: {summary.get('guarded_alias_bounded_generation_top_blocker')}",
             f"- structured_lineage_artifact_status: {summary.get('structured_lineage_artifact_status')}",

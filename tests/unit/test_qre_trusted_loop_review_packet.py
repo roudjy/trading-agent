@@ -110,6 +110,18 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         },
     )
     monkeypatch.setattr(
+        packet_module.contradiction_staleness,
+        "build_contradiction_staleness_intelligence",
+        lambda **_: {
+            "summary": {
+                "contradiction_staleness_ready": True,
+                "contradiction_count": 0,
+                "stale_or_superseded_count": 0,
+                "exact_next_action": "preserve_contradiction_and_staleness_visibility",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -170,6 +182,9 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["research_memory_ready"] is True
     assert packet["summary"]["artifact_continuity_ready"] is True
     assert packet["summary"]["artifact_continuity_exact_next_action"] == "preserve_current_read_only_artifacts"
+    assert packet["summary"]["contradiction_staleness_ready"] is True
+    assert packet["summary"]["visible_contradiction_count"] == 0
+    assert packet["summary"]["visible_stale_or_superseded_count"] == 0
     assert packet["summary"]["trusted_loop_operational_controls_ready"] is True
     assert packet["summary"]["trusted_loop_operational_exact_next_action"] == "preserve_terminal_run_and_compare_before_rerun"
     assert packet["summary"]["shadow_readiness_status"] == "shadow_readiness_deferred"
@@ -226,6 +241,18 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
             "summary": {
                 "artifact_continuity_ready": False,
                 "exact_next_action": "materialize_read_only_qre_artifacts",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.contradiction_staleness,
+        "build_contradiction_staleness_intelligence",
+        lambda **_: {
+            "summary": {
+                "contradiction_staleness_ready": False,
+                "contradiction_count": 2,
+                "stale_or_superseded_count": 1,
+                "exact_next_action": "reconcile_stale_or_superseded_artifacts",
             }
         },
     )
@@ -324,6 +351,18 @@ def test_trusted_loop_review_packet_operator_summary_renders(
         },
     )
     monkeypatch.setattr(
+        packet_module.contradiction_staleness,
+        "build_contradiction_staleness_intelligence",
+        lambda **_: {
+            "summary": {
+                "contradiction_staleness_ready": True,
+                "contradiction_count": 0,
+                "stale_or_superseded_count": 0,
+                "exact_next_action": "preserve_contradiction_and_staleness_visibility",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -400,6 +439,18 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
             "summary": {
                 "artifact_continuity_ready": True,
                 "exact_next_action": "preserve_current_read_only_artifacts",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.contradiction_staleness,
+        "build_contradiction_staleness_intelligence",
+        lambda **_: {
+            "summary": {
+                "contradiction_staleness_ready": True,
+                "contradiction_count": 0,
+                "stale_or_superseded_count": 0,
+                "exact_next_action": "preserve_contradiction_and_staleness_visibility",
             }
         },
     )
