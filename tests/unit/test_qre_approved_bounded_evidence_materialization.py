@@ -128,3 +128,73 @@ def test_common_local_window_and_stitched_cache_are_local_only(tmp_path: Path) -
     assert len(right) == 6
     assert start.isoformat() == "2026-04-10T00:00:00"
     assert end.isoformat() == "2026-04-13T00:00:00"
+
+
+def test_restrict_frame_to_exact_approval_window() -> None:
+    frame = pd.DataFrame(
+        {
+            "open": [1, 2, 3, 4, 5],
+            "high": [1, 2, 3, 4, 5],
+            "low": [1, 2, 3, 4, 5],
+            "close": [1, 2, 3, 4, 5],
+            "volume": [10, 11, 12, 13, 14],
+        },
+        index=pd.date_range("2026-04-08", periods=5, freq="D"),
+    )
+
+    restricted = approved._restrict_frame_to_approval_window(
+        frame=frame,
+        approval={
+            "bounded_input_window": {
+                "start": "2026-04-09",
+                "end": "2026-04-11",
+            }
+        },
+    )
+
+    assert list(restricted.index.strftime("%Y-%m-%d")) == [
+        "2026-04-09",
+        "2026-04-10",
+        "2026-04-11",
+    ]
+
+
+def test_expected_oos_window_uses_validation_segment() -> None:
+    frame = pd.DataFrame(
+        {
+            "open": list(range(10)),
+            "high": list(range(10)),
+            "low": list(range(10)),
+            "close": list(range(10)),
+            "volume": [10] * 10,
+        },
+        index=pd.date_range("2026-04-08", periods=10, freq="D"),
+    )
+    engine = approved.BacktestEngine(
+        start_datum="2026-04-08",
+        eind_datum="2026-04-17",
+        evaluation_config={"mode": "single_split", "train_ratio": 0.7},
+    )
+
+    start, end = approved._expected_oos_window(frame=frame, engine=engine)
+
+    assert start.strftime("%Y-%m-%d") == "2026-04-15"
+    assert end.strftime("%Y-%m-%d") == "2026-04-17"
+
+
+def test_validate_expected_oos_window_rejects_manifest_mismatch() -> None:
+    try:
+        approved._validate_expected_oos_window(
+            approval={
+                "oos_window": {
+                    "start": "2026-04-16",
+                    "end": "2026-04-17",
+                }
+            },
+            expected_start=pd.Timestamp("2026-04-15"),
+            expected_end=pd.Timestamp("2026-04-17"),
+        )
+    except approved.ApprovedBoundedEvidenceError as exc:
+        assert "approved oos_window does not match" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("expected oos window mismatch to fail closed")
