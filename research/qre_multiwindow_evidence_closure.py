@@ -65,7 +65,8 @@ def build_multiwindow_evidence_closure(campaign_report: Mapping[str, Any]) -> di
     accepted_oos_count = int(campaign_report.get("accepted_oos_count") or 0)
     campaign_outcome = _text(campaign_report.get("campaign_outcome"))
     positive_oos_trade_count_total = int(campaign_report.get("positive_oos_trade_count_total") or 0)
-    null_control_status = _text((campaign_report.get("null_control_results") or {}).get("status"))
+    null_control_payload = campaign_report.get("null_control_results") if isinstance(campaign_report.get("null_control_results"), Mapping) else {}
+    null_control_status = _text(null_control_payload.get("status"))
     reason_records: list[dict[str, Any]] = []
     blockers_cleared: list[str] = []
     blockers_remaining: list[str] = []
@@ -100,7 +101,7 @@ def build_multiwindow_evidence_closure(campaign_report: Mapping[str, Any]) -> di
                 message="The preregistered campaign did not execute any windows.",
             )
         )
-    elif null_control_status == "failed":
+    elif null_control_status == "controls_failed":
         closure_status = "null_control_failed"
         hypothesis_disposition = "fail_closed_rejected"
         recommended_next_action = "reject_hypothesis"
@@ -110,6 +111,19 @@ def build_multiwindow_evidence_closure(campaign_report: Mapping[str, Any]) -> di
                 reason_code="null_control_failed",
                 evidence_refs=[],
                 message="Null/control requirements failed, so completion is blocked fail-closed.",
+            )
+        )
+    elif null_control_status in {"controls_not_run", "controls_incomplete", ""}:
+        closure_status = "blocked_missing_null_controls"
+        hypothesis_disposition = "insufficient_for_completion"
+        recommended_next_action = _text(null_control_payload.get("recommended_next_action")) or "materialize_missing_preregistered_controls"
+        blockers_remaining.append("null_controls_incomplete")
+        reason_records.append(
+            _reason_record(
+                record_id="rr_multiwindow_null_control_incomplete",
+                reason_code="null_controls_incomplete",
+                evidence_refs=[_text(campaign_report.get("campaign_id"))],
+                message="Preregistered null/control requirements are still incomplete, so evidence completion remains blocked.",
             )
         )
     elif campaign_outcome == "accepted_multiwindow_oos_evidence" and accepted_lineage_count > 0 and accepted_oos_count > 0:

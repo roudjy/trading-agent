@@ -133,6 +133,8 @@ def test_all_preregistered_windows_execute_in_order_and_failures_remain_visible(
     assert report["accepted_window_count"] == 1
     assert report["failed_window_count"] == 1
     assert report["window_results"][1]["rejection_reasons"] == ["non_positive_oos_trade_count"]
+    assert report["null_control_results"]["status"] in {"controls_incomplete", "controls_not_run"}
+    assert report["null_control_results"]["blockers"]
     assert report["can_promote_candidate"] is False
     assert report["can_activate_deployment"] is False
 

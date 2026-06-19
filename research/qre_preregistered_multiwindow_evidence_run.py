@@ -15,6 +15,7 @@ from research import qre_bounded_generation_artifact_acceptance_verifier as veri
 from research import qre_controlled_validation_adapter as adapter
 from research import qre_controlled_validation_adapter_result_materialization as materializer
 from research import qre_failure_to_action_mapper as failure_mapper
+from research import qre_null_control_falsification_suite as null_suite
 from research import qre_preregistered_multiwindow_validation as campaign_builder
 from research import qre_sampling_plan as sampling
 
@@ -170,6 +171,9 @@ def build_campaign_for_multiwindow_approval(
     sampling_plan_payload: Mapping[str, Any],
 ) -> dict[str, Any]:
     scope = approval_manifest.get("scope") if isinstance(approval_manifest.get("scope"), Mapping) else {}
+    suite = null_suite.build_preregistered_null_control_suite(
+        sampling_plan_payload=sampling_plan_payload
+    )
     return campaign_builder.build_preregistered_multiwindow_validation(
         sampling_plan_payload=sampling_plan_payload,
         approval_manifest=approval_manifest,
@@ -177,9 +181,7 @@ def build_campaign_for_multiwindow_approval(
         minimum_required_windows=2,
         minimum_total_oos_trades=1,
         per_window_minimum_oos_trades=1,
-        null_control_requirements=[
-            {"control_id": "null_daily_holdout", "required_for_evidence_complete": True}
-        ],
+        null_control_requirements=list(suite.get("control_definitions") or []),
     )
 
 
@@ -394,11 +396,19 @@ def build_preregistered_multiwindow_evidence_run(
         approval_manifest=approval_manifest,
         sampling_plan_payload=sampling_plan_payload,
     )
+    suite_sampling_plan_payload = dict(sampling_plan_payload)
+    if not suite_sampling_plan_payload.get("null_control_definitions") and campaign_plan.get("null_control_requirements"):
+        suite_sampling_plan_payload["null_control_definitions"] = list(
+            campaign_plan.get("null_control_requirements") or []
+        )
     if sampling_plan_payload["hash"] != campaign_plan["sampling_plan_hash"]:
         raise ValueError("sampling_plan_hash_mismatch")
     if campaign_plan["hash"] != campaign_builder.compute_campaign_hash(campaign_plan):
         raise ValueError("campaign_plan_hash_mismatch")
     if campaign_plan["status"] != "campaign_ready_preregistered_context":
+        suite = null_suite.build_preregistered_null_control_suite(
+            sampling_plan_payload=suite_sampling_plan_payload
+        )
         return {
             "schema_version": SCHEMA_VERSION,
             "report_kind": REPORT_KIND,
@@ -413,7 +423,7 @@ def build_preregistered_multiwindow_evidence_run(
             "failed_window_count": 0,
             "accepted_window_count": 0,
             "rejection_reasons": list(campaign_plan.get("blocked_reasons") or []),
-            "null_control_results": {"status": "not_run_due_to_blocked_campaign"},
+            "null_control_results": suite["evaluation"],
             "campaign_outcome": "blocked_approval",
             "can_clear_blockers": False,
             "can_promote_candidate": False,
@@ -510,6 +520,17 @@ def build_preregistered_multiwindow_evidence_run(
         campaign_outcome = "all_windows_non_positive_trade_count"
     else:
         campaign_outcome = "hypothesis_not_supported"
+    suite = null_suite.build_preregistered_null_control_suite(
+        sampling_plan_payload=suite_sampling_plan_payload
+    )
+    suite = null_suite.evaluate_null_control_suite(
+        suite,
+        candidate_context={
+            "campaign_id": campaign_plan["campaign_id"],
+            "sampling_plan_id": sampling_plan_payload["sampling_plan_id"],
+        },
+        control_results=[],
+    )
     report = {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -525,9 +546,9 @@ def build_preregistered_multiwindow_evidence_run(
         "failed_window_count": failed_window_count,
         "accepted_window_count": accepted_window_count,
         "rejection_reasons": rejection_reasons,
-        "null_control_results": {
-            "status": "not_run_due_to_no_accepted_oos" if accepted_oos_count == 0 else "pending_manual_null_control_review"
-        },
+        "null_control_results": dict(suite["evaluation"]),
+        "null_control_suite_ref": _text(suite.get("suite_id")),
+        "null_control_suite_status": _text(suite.get("status")),
         "campaign_outcome": campaign_outcome,
         "can_clear_blockers": False,
         "can_promote_candidate": False,

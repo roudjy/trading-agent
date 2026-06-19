@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Final, Literal
 
 from research import qre_bounded_validation_approval_gate as approval_gate
+from research import qre_null_control_falsification_suite as null_suite
 from research import qre_sampling_plan as sampling_plan
 
 
@@ -198,6 +199,10 @@ def build_preregistered_multiwindow_validation(
             "operator_review_required",
         ],
         "null_control_requirements": [dict(item) for item in null_control_requirements],
+        "null_control_suite_ref": "derived_from_sampling_plan",
+        "null_control_suite_status": null_suite.build_preregistered_null_control_suite(
+            sampling_plan_payload=sampling_plan_payload
+        )["status"],
         "minimum_required_windows": int(minimum_required_windows),
         "minimum_total_oos_trades": int(minimum_total_oos_trades),
         "per_window_minimum_oos_trades": int(per_window_minimum_oos_trades),
