@@ -37,6 +37,7 @@ DEFAULT_ARTIFACT_PATHS: Final[tuple[Path, ...]] = (
     Path("logs/qre_candidate_identity_lifecycle/latest.json"),
     Path("logs/qre_candidate_quality_framework/latest.json"),
     Path("logs/qre_multibasket_portfolio_intelligence/latest.json"),
+    Path("logs/qre_trusted_loop_operational_controls/latest.json"),
 )
 _TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"[a-z0-9_./:-]+")
 _PREVIEW_LIMIT: Final[int] = 280

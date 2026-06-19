@@ -27,6 +27,7 @@ from research import qre_reason_records_v1 as reason_records
 from research import qre_research_memory_current_artifacts as research_memory
 from research import qre_routing_calibration_report as routing_calibration
 from research import qre_sampling_calibration_report as sampling_calibration
+from research import qre_trusted_loop_operational_controls as operational_controls
 
 
 REPORT_KIND: Final[str] = "qre_trusted_loop_review_packet"
@@ -208,6 +209,7 @@ def _trusted_loop_level(
     routing_summary: Mapping[str, Any],
     sampling_summary: Mapping[str, Any],
     memory_summary: Mapping[str, Any],
+    operational_summary: Mapping[str, Any],
 ) -> tuple[str, str, list[str], str]:
     blockers: list[str] = []
     if readiness_state != "operator_trusted":
@@ -224,6 +226,8 @@ def _trusted_loop_level(
         blockers.append("sampling_calibration_not_evidence_ready")
     if str(memory_summary.get("summary", {}).get("final_recommendation") or "") != "research_memory_current_artifacts_ready":
         blockers.append("research_memory_not_ready")
+    if operational_summary.get("trusted_loop_operational_controls_ready") is not True:
+        blockers.append("operational_controls_not_ready")
     if not _truthy(readiness_summary, "operator_report_available"):
         blockers.append("operator_report_missing")
     if str(readiness_summary.get("contradiction_visibility", {}).get("status") or "") != "visible":
@@ -264,6 +268,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     sampling_packet = sampling_calibration.build_sampling_calibration_report(repo_root=repo_root)
     memory_packet = research_memory.build_research_memory_current_artifacts(repo_root=repo_root)
     action_plan_packet = basket_action_plan.build_basket_operator_action_plan(repo_root=repo_root)
+    operational_controls_packet = operational_controls.build_trusted_loop_operational_controls(
+        repo_root=repo_root
+    )
     first_batch_readiness_packet = first_batch_readiness.build_first_batch_evidence_recovery_readiness(
         repo_root=repo_root
     )
@@ -303,6 +310,11 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
         routing_summary=routing_summary,
         sampling_summary=sampling_summary,
         memory_summary=memory_summary,
+        operational_summary=(
+            operational_controls_packet.get("summary")
+            if isinstance(operational_controls_packet.get("summary"), Mapping)
+            else {}
+        ),
     )
 
     return {
@@ -329,6 +341,14 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             == "research_memory_current_artifacts_ready",
             "basket_operator_action_plan_ready": str(action_plan_summary.get("final_recommendation") or "")
             == "basket_operator_action_plan_ready",
+            "trusted_loop_operational_controls_ready": bool(
+                (operational_controls_packet.get("summary") or {}).get(
+                    "trusted_loop_operational_controls_ready"
+                )
+            ),
+            "trusted_loop_operational_exact_next_action": str(
+                (operational_controls_packet.get("summary") or {}).get("exact_next_safe_action") or ""
+            ),
             "basket_operator_action_plan_first_batch": list(
                 action_plan_summary.get("first_batch_candidate_symbols") or []
             ),
@@ -398,6 +418,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "routing_calibration": routing_packet,
             "sampling_calibration": sampling_packet,
             "research_memory": memory_packet,
+            "operational_controls": operational_controls_packet,
         },
         "protected_artifacts": protected_artifacts,
         "current_scope_policy": {
