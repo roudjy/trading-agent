@@ -27,6 +27,7 @@ from research import qre_reason_records_v1 as reason_records
 from research import qre_research_memory_current_artifacts as research_memory
 from research import qre_routing_calibration_report as routing_calibration
 from research import qre_sampling_calibration_report as sampling_calibration
+from research import qre_shadow_readiness_gates as shadow_readiness_gates
 from research import qre_trusted_loop_operational_controls as operational_controls
 
 
@@ -271,6 +272,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     operational_controls_packet = operational_controls.build_trusted_loop_operational_controls(
         repo_root=repo_root
     )
+    shadow_readiness_packet = shadow_readiness_gates.build_shadow_readiness_gates(
+        repo_root=repo_root
+    )
     first_batch_readiness_packet = first_batch_readiness.build_first_batch_evidence_recovery_readiness(
         repo_root=repo_root
     )
@@ -349,6 +353,12 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "trusted_loop_operational_exact_next_action": str(
                 (operational_controls_packet.get("summary") or {}).get("exact_next_safe_action") or ""
             ),
+            "shadow_readiness_status": str(
+                (shadow_readiness_packet.get("summary") or {}).get("readiness_status") or ""
+            ),
+            "shadow_readiness_next_action": str(
+                (shadow_readiness_packet.get("summary") or {}).get("exact_next_action") or ""
+            ),
             "basket_operator_action_plan_first_batch": list(
                 action_plan_summary.get("first_batch_candidate_symbols") or []
             ),
@@ -419,6 +429,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "sampling_calibration": sampling_packet,
             "research_memory": memory_packet,
             "operational_controls": operational_controls_packet,
+            "shadow_readiness_gates": shadow_readiness_packet,
         },
         "protected_artifacts": protected_artifacts,
         "current_scope_policy": {

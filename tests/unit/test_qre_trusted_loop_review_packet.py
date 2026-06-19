@@ -53,6 +53,12 @@ def _ready_snapshots() -> dict[str, dict]:
                 "exact_next_safe_action": "preserve_terminal_run_and_compare_before_rerun",
             }
         },
+        "shadow_readiness": {
+            "summary": {
+                "readiness_status": "shadow_readiness_deferred",
+                "exact_next_action": "produce_accepted_oos_and_evidence_complete_scope",
+            }
+        },
     }
 
 
@@ -97,6 +103,11 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
+    )
+    monkeypatch.setattr(
+        packet_module.shadow_readiness_gates,
+        "build_shadow_readiness_gates",
+        lambda **_: snapshots["shadow_readiness"],
     )
     monkeypatch.setattr(
         packet_module.basket_action_plan,
@@ -149,6 +160,8 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["research_memory_ready"] is True
     assert packet["summary"]["trusted_loop_operational_controls_ready"] is True
     assert packet["summary"]["trusted_loop_operational_exact_next_action"] == "preserve_terminal_run_and_compare_before_rerun"
+    assert packet["summary"]["shadow_readiness_status"] == "shadow_readiness_deferred"
+    assert packet["summary"]["shadow_readiness_next_action"] == "produce_accepted_oos_and_evidence_complete_scope"
     assert packet["summary"]["basket_operator_action_plan_ready"] is True
     assert packet["summary"]["basket_operator_action_plan_first_batch"] == ["AAPL", "NVDA"]
     assert packet["summary"]["generation_command_discovery_safe_command_found"] is False
@@ -201,6 +214,16 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
             "summary": {
                 "trusted_loop_operational_controls_ready": False,
                 "exact_next_safe_action": "resume_from_existing_run_history",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.shadow_readiness_gates,
+        "build_shadow_readiness_gates",
+        lambda **_: {
+            "summary": {
+                "readiness_status": "shadow_readiness_deferred",
+                "exact_next_action": "satisfy_candidate_quality_prerequisites",
             }
         },
     )
@@ -274,6 +297,11 @@ def test_trusted_loop_review_packet_operator_summary_renders(
         lambda **_: snapshots["operational_controls"],
     )
     monkeypatch.setattr(
+        packet_module.shadow_readiness_gates,
+        "build_shadow_readiness_gates",
+        lambda **_: snapshots["shadow_readiness"],
+    )
+    monkeypatch.setattr(
         packet_module.basket_action_plan,
         "build_basket_operator_action_plan",
         lambda **_: {
@@ -337,6 +365,11 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
+    )
+    monkeypatch.setattr(
+        packet_module.shadow_readiness_gates,
+        "build_shadow_readiness_gates",
+        lambda **_: snapshots["shadow_readiness"],
     )
     monkeypatch.setattr(
         packet_module.first_batch_readiness,
