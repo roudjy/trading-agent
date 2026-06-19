@@ -37,7 +37,7 @@ def test_complete_evidence_requires_all_criteria() -> None:
             accepted_oos_count=2,
             positive_oos_trade_count_total=4,
             campaign_outcome="accepted_multiwindow_oos_evidence",
-            null_control_results={"status": "passed"},
+            null_control_results={"status": "controls_passed_context_only"},
         )
     )
 
@@ -80,11 +80,25 @@ def test_null_control_failure_blocks_completion() -> None:
             accepted_oos_count=2,
             positive_oos_trade_count_total=4,
             campaign_outcome="accepted_multiwindow_oos_evidence",
-            null_control_results={"status": "failed"},
+            null_control_results={"status": "controls_failed"},
         )
     )
 
     assert report["closure_status"] == "null_control_failed"
+    assert report["evidence_complete_count"] == 0
+
+
+def test_missing_null_controls_block_completion_even_with_accepted_oos() -> None:
+    report = closure.build_multiwindow_evidence_closure(
+        _campaign(
+            accepted_oos_count=2,
+            positive_oos_trade_count_total=4,
+            campaign_outcome="accepted_multiwindow_oos_evidence",
+            null_control_results={"status": "controls_incomplete"},
+        )
+    )
+
+    assert report["closure_status"] == "blocked_missing_null_controls"
     assert report["evidence_complete_count"] == 0
 
 
