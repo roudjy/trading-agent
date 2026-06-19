@@ -33,6 +33,7 @@ DEFAULT_ARTIFACT_PATHS: Final[tuple[Path, ...]] = (
     Path("logs/intelligent_routing_minimal/latest.json"),
     Path("logs/sampling_intelligence_minimal/latest.json"),
     Path("logs/qre_candidate_quality_framework/latest.json"),
+    Path("logs/qre_multibasket_portfolio_intelligence/latest.json"),
 )
 
 _COVERAGE_SPECS: Final[tuple[dict[str, Any], ...]] = (
