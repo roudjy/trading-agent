@@ -12,6 +12,9 @@ from packages.qre_data.source_quality_readiness import read_source_quality_statu
 from research.qre_candidate_quality_framework import build_candidate_quality_framework
 from research.qre_candidate_identity_lifecycle import build_qre_candidate_identity_lifecycle
 from research.qre_evidence_breadth_framework import build_evidence_breadth_framework
+from research.qre_source_identity_authority_normalization import (
+    build_source_identity_authority_report,
+)
 from research.qre_trusted_loop_operational_controls import (
     build_trusted_loop_operational_controls,
 )
@@ -32,6 +35,7 @@ OPERATIONAL_CONTROLS_PATH: Final[Path] = Path("logs/qre_trusted_loop_operational
 TRUSTED_LOOP_REVIEW_PATH: Final[Path] = Path("logs/qre_trusted_loop_review/latest.json")
 DISPOSITION_MEMORY_PATH: Final[Path] = Path("logs/qre_hypothesis_disposition_memory/latest.json")
 MULTIWINDOW_CLOSURE_PATH: Final[Path] = Path("logs/qre_multiwindow_evidence_closure/latest.json")
+SOURCE_AUTHORITY_PATH: Final[Path] = Path("logs/qre_source_identity_authority_normalization/latest.json")
 
 
 def _text(value: Any) -> str:
@@ -92,6 +96,12 @@ def _load_operational_controls(repo_root: Path) -> dict[str, Any]:
     )
 
 
+def _load_source_authority_report(repo_root: Path) -> dict[str, Any]:
+    return _read_json(repo_root / SOURCE_AUTHORITY_PATH) or build_source_identity_authority_report(
+        repo_root=repo_root
+    )
+
+
 def _load_trusted_loop_review(repo_root: Path) -> dict[str, Any]:
     return _read_json(repo_root / TRUSTED_LOOP_REVIEW_PATH) or {}
 
@@ -103,6 +113,7 @@ def _prerequisite_state(
     null_control_report: Mapping[str, Any],
     lifecycle_report: Mapping[str, Any],
     source_quality_status: Mapping[str, Any],
+    source_authority_report: Mapping[str, Any],
     operational_controls_report: Mapping[str, Any],
     trusted_loop_review: Mapping[str, Any],
 ) -> dict[str, dict[str, Any]]:
@@ -165,9 +176,9 @@ def _prerequisite_state(
             "source_ref": BREADTH_PATH.as_posix(),
         },
         "source_quality": {
-            "passed": bool(source_quality_status.get("research_ready")),
-            "observed": source_quality_status.get("status"),
-            "source_ref": "logs/qre_data_source_quality_readiness/latest.json",
+            "passed": int(((source_authority_report.get("summary") or {}).get("blocked_scope_count")) or 0) == 0,
+            "observed": (source_authority_report.get("summary") or {}).get("authority_status_counts") or {},
+            "source_ref": SOURCE_AUTHORITY_PATH.as_posix(),
         },
         "replayability": {
             "passed": bool((operational_summary.get("trusted_loop_operational_controls_ready"))),
@@ -285,6 +296,7 @@ def build_shadow_readiness_gates(*, repo_root: Path = Path(".")) -> dict[str, An
     null_control_report = _load_null_control_report(repo_root)
     lifecycle_report = _load_lifecycle_report(repo_root)
     source_quality_status = read_source_quality_status(repo_root=repo_root)
+    source_authority_report = _load_source_authority_report(repo_root)
     operational_controls_report = _load_operational_controls(repo_root)
     trusted_loop_review = _load_trusted_loop_review(repo_root)
 
@@ -294,6 +306,7 @@ def build_shadow_readiness_gates(*, repo_root: Path = Path(".")) -> dict[str, An
         null_control_report=null_control_report,
         lifecycle_report=lifecycle_report,
         source_quality_status=source_quality_status,
+        source_authority_report=source_authority_report,
         operational_controls_report=operational_controls_report,
         trusted_loop_review=trusted_loop_review,
     )
@@ -342,6 +355,7 @@ def build_shadow_readiness_gates(*, repo_root: Path = Path(".")) -> dict[str, An
             "quality_report_kind": quality_report.get("report_kind"),
             "null_control_report_kind": null_control_report.get("report_kind"),
             "lifecycle_report_kind": lifecycle_report.get("report_kind"),
+            "source_authority_report_kind": source_authority_report.get("report_kind"),
             "operational_controls_report_kind": operational_controls_report.get("report_kind"),
             "trusted_loop_review_kind": trusted_loop_review.get("report_kind"),
             "source_quality_status": dict(source_quality_status),

@@ -28,6 +28,7 @@ DEFAULT_ARTIFACT_PATHS: Final[tuple[Path, ...]] = (
     Path("logs/qre_hypothesis_disposition_memory/latest.json"),
     Path("logs/qre_research_cycle_router/latest.json"),
     Path("logs/qre_evidence_breadth_framework/latest.json"),
+    Path("logs/qre_source_identity_authority_normalization/latest.json"),
     Path("logs/qre_preregistered_multiwindow_evidence_run/latest.json"),
     Path("logs/qre_multiwindow_evidence_closure/latest.json"),
 )
@@ -178,9 +179,20 @@ def _inadequate_sample_density_presets(breadth_rows: Sequence[Mapping[str, Any]]
     }
 
 
-def _recurring_failures(disposition_index: Mapping[str, Any], breadth_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def _recurring_failures(
+    disposition_index: Mapping[str, Any],
+    breadth_rows: Sequence[Mapping[str, Any]],
+    source_authority: Mapping[str, Any] | None,
+) -> dict[str, Any]:
     counts = Counter(str(reason) for row in breadth_rows for reason in row.get("blocker_reasons", []))
     counts.update(str(reason) for reason in disposition_index.get("failure_classes", []))
+    authority_rows = source_authority.get("rows") if isinstance(source_authority, Mapping) and isinstance(source_authority.get("rows"), list) else []
+    counts.update(
+        str(reason)
+        for row in authority_rows
+        if isinstance(row, Mapping)
+        for reason in row.get("authority_reasons", [])
+    )
     rows = [
         {"failure_or_blocker": key, "count": count}
         for key, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
@@ -192,6 +204,7 @@ def _recurring_failures(disposition_index: Mapping[str, Any], breadth_rows: Sequ
         "provenance": [
             _provenance("logs/qre_hypothesis_disposition_memory/latest.json"),
             _provenance("logs/qre_evidence_breadth_framework/latest.json"),
+            _provenance("logs/qre_source_identity_authority_normalization/latest.json"),
         ],
     }
 
@@ -282,6 +295,7 @@ def build_research_memory_retrieval(
     artifacts = {path.as_posix(): _read_json(repo_root / path) for path in artifact_paths}
     disposition_index = _disposition_index(artifacts.get("logs/qre_hypothesis_disposition_memory/latest.json"))
     breadth_rows = _breadth_rows(artifacts.get("logs/qre_evidence_breadth_framework/latest.json"))
+    source_authority = artifacts.get("logs/qre_source_identity_authority_normalization/latest.json")
     router = artifacts.get("logs/qre_research_cycle_router/latest.json")
     campaign = artifacts.get("logs/qre_preregistered_multiwindow_evidence_run/latest.json")
 
@@ -290,7 +304,7 @@ def build_research_memory_retrieval(
         _materially_similar_scope_rejected(disposition_index),
         _regimes_with_no_trades(disposition_index, campaign),
         _inadequate_sample_density_presets(breadth_rows),
-        _recurring_failures(disposition_index, breadth_rows),
+        _recurring_failures(disposition_index, breadth_rows, source_authority),
         _novel_remaining_directions(router),
         _contradictory_outcomes(disposition_index, breadth_rows),
         _stale_or_superseded_knowledge(artifacts, memory),

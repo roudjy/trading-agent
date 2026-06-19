@@ -17,6 +17,9 @@ from research.qre_reason_record_contract import (
     build_reason_record_contract_snapshot,
     validate_reason_record_contract,
 )
+from research.qre_source_identity_authority_normalization import (
+    build_source_identity_authority_report,
+)
 
 
 QualityStatus = Literal[
@@ -47,6 +50,7 @@ DEFAULT_CLOSURE_PATH: Final[Path] = Path("logs/qre_multiwindow_evidence_closure/
 DEFAULT_DISPOSITION_MEMORY_PATH: Final[Path] = Path("logs/qre_hypothesis_disposition_memory/latest.json")
 DEFAULT_NULL_CONTROL_PATH: Final[Path] = Path("logs/qre_null_control_falsification_suite/latest.json")
 DEFAULT_REASON_RECORD_CONTRACT_PATH: Final[Path] = Path("logs/qre_reason_record_contract/latest.json")
+DEFAULT_SOURCE_AUTHORITY_PATH: Final[Path] = Path("logs/qre_source_identity_authority_normalization/latest.json")
 MIN_ACCEPTED_OOS_TRADE_COUNT: Final[int] = 1
 
 
@@ -112,6 +116,12 @@ def _load_reason_record_contract(repo_root: Path) -> dict[str, Any]:
     return _read_json(repo_root / DEFAULT_REASON_RECORD_CONTRACT_PATH) or build_reason_record_contract_snapshot()
 
 
+def _load_source_authority_report(repo_root: Path) -> dict[str, Any]:
+    return _read_json(repo_root / DEFAULT_SOURCE_AUTHORITY_PATH) or build_source_identity_authority_report(
+        repo_root=repo_root
+    )
+
+
 def _breadth_index(breadth_report: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     rows = breadth_report.get("coverage_matrix") if isinstance(breadth_report.get("coverage_matrix"), list) else []
     indexed: dict[str, dict[str, Any]] = {}
@@ -175,6 +185,19 @@ def _find_control_family(rows: Sequence[Mapping[str, Any]], family: str) -> dict
     return None
 
 
+def _source_authority_index(source_authority_report: Mapping[str, Any] | None) -> dict[str, dict[str, Any]]:
+    rows = (
+        source_authority_report.get("rows")
+        if isinstance(source_authority_report, Mapping) and isinstance(source_authority_report.get("rows"), list)
+        else []
+    )
+    return {
+        _text(row.get("scope_key")): dict(row)
+        for row in rows
+        if isinstance(row, Mapping) and _text(row.get("scope_key"))
+    }
+
+
 def _quality_dimensions(
     *,
     candidate: Mapping[str, Any],
@@ -182,6 +205,7 @@ def _quality_dimensions(
     closure_report: Mapping[str, Any],
     null_control_report: Mapping[str, Any] | None,
     source_quality_status: Mapping[str, Any],
+    source_authority_row: Mapping[str, Any] | None,
 ) -> dict[str, dict[str, Any]]:
     accepted_lineage_count = int(candidate.get("accepted_lineage_count") or 0)
     accepted_oos_count = int(candidate.get("accepted_oos_count") or 0)
@@ -246,10 +270,21 @@ def _quality_dimensions(
             "reason_code": "reproducibility_not_authoritative",
         },
         "source_quality": {
-            "passed": bool(source_quality_status.get("research_ready"))
-            and not any("source_quality" in _text(reason) for reason in blocker_reasons),
-            "observed": _text(source_quality_status.get("status")) or "missing",
-            "reason_code": "source_quality_not_ready",
+            "passed": (
+                _text((source_authority_row or {}).get("authority_status")) == "normalized_context_ready"
+                if source_authority_row is not None
+                else bool(source_quality_status.get("research_ready"))
+                and not any("source_quality" in _text(reason) for reason in blocker_reasons)
+            ),
+            "observed": (
+                _text((source_authority_row or {}).get("authority_status"))
+                or _text(source_quality_status.get("status"))
+                or "missing"
+            ),
+            "reason_code": (
+                _text(((source_authority_row or {}).get("authority_reasons") or [None])[0])
+                or "source_quality_not_ready"
+            ),
         },
         "artifact_completeness": {
             "passed": accepted_lineage_count > 0 and accepted_oos_count > 0,
@@ -320,6 +355,7 @@ def evaluate_candidate_quality(
     null_control_report: Mapping[str, Any] | None,
     source_quality_status: Mapping[str, Any],
     reason_record_contract: Mapping[str, Any],
+    source_authority_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     lifecycle_rows = (
         candidate_report.get("rows")
@@ -369,6 +405,7 @@ def evaluate_candidate_quality(
         }
 
     breadth_by_scope = _breadth_index(breadth_report)
+    source_authority_by_scope = _source_authority_index(source_authority_report)
     rows: list[dict[str, Any]] = []
     for raw_candidate in lifecycle_rows:
         if not isinstance(raw_candidate, Mapping):
@@ -376,12 +413,14 @@ def evaluate_candidate_quality(
         candidate = dict(raw_candidate)
         scope_key = _candidate_scope_ref(candidate)
         scope_row = breadth_by_scope.get(scope_key)
+        source_authority_row = source_authority_by_scope.get(scope_key)
         dimensions = _quality_dimensions(
             candidate=candidate,
             scope_row=scope_row,
             closure_report=closure_report,
             null_control_report=null_control_report,
             source_quality_status=source_quality_status,
+            source_authority_row=source_authority_row,
         )
         status, blocker_codes = _determine_status(candidate=candidate, dimensions=dimensions)
         digest = _digest(
@@ -404,6 +443,9 @@ def evaluate_candidate_quality(
             "scope_key": scope_key,
             "scope_signature": candidate.get("scope_signature"),
             "source_scope_ref": candidate.get("source_scope_ref"),
+            "source_authority_ref": (
+                f"{DEFAULT_SOURCE_AUTHORITY_PATH.as_posix()}#rows::{scope_key}" if source_authority_row else None
+            ),
             "accepted_lineage_count": candidate.get("accepted_lineage_count"),
             "accepted_oos_count": candidate.get("accepted_oos_count"),
             "quality_dimensions": dimensions,
@@ -471,6 +513,7 @@ def evaluate_candidate_quality(
             "closure_report_kind": closure_report.get("report_kind"),
             "null_control_report_kind": (null_control_report or {}).get("report_kind"),
             "source_quality_status": dict(source_quality_status),
+            "source_authority_report_kind": (source_authority_report or {}).get("report_kind"),
             "reason_record_contract": {
                 "report_kind": reason_record_contract.get("report_kind"),
                 "validation_status": (
@@ -515,6 +558,7 @@ def build_candidate_quality_framework(*, repo_root: Path = Path(".")) -> dict[st
     if isinstance(null_control_report, Mapping):
         null_control_report = evaluate_null_control_suite(null_control_report)
     source_quality_status = read_source_quality_status(repo_root=repo_root)
+    source_authority_report = _load_source_authority_report(repo_root)
     reason_record_contract = _load_reason_record_contract(repo_root)
     return evaluate_candidate_quality(
         candidate_report=lifecycle_report,
@@ -523,6 +567,7 @@ def build_candidate_quality_framework(*, repo_root: Path = Path(".")) -> dict[st
         null_control_report=null_control_report,
         source_quality_status=source_quality_status,
         reason_record_contract=reason_record_contract,
+        source_authority_report=source_authority_report,
     )
 
 
