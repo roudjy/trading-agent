@@ -224,16 +224,15 @@ def _suppressed_scopes(record: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def build_research_cycle_router(
+def _build_research_cycle_router_from_payloads(
     *,
-    repo_root: Path = Path("."),
-    generated_at_utc: str | None = None,
-    disposition_memory_path: Path = DEFAULT_DISPOSITION_MEMORY_PATH,
-    research_memory_path: Path = DEFAULT_RESEARCH_MEMORY_PATH,
+    disposition_memory: Mapping[str, Any] | None,
+    research_memory: Mapping[str, Any] | None,
+    generated_at_utc: str | None,
+    disposition_memory_path: Path,
 ) -> dict[str, Any]:
-    disposition_memory = _read_json(repo_root / disposition_memory_path)
-    research_memory = _read_json(repo_root / research_memory_path)
-    if not isinstance(disposition_memory, Mapping):
+    record = disposition_memory.get("record") if isinstance(disposition_memory, Mapping) and isinstance(disposition_memory.get("record"), Mapping) else {}
+    if not isinstance(disposition_memory, Mapping) or not record:
         return {
             "schema_version": SCHEMA_VERSION,
             "report_kind": REPORT_KIND,
@@ -258,7 +257,6 @@ def build_research_cycle_router(
             },
         }
 
-    record = disposition_memory.get("record") if isinstance(disposition_memory.get("record"), Mapping) else {}
     disposition_scope = record.get("disposition_scope") if isinstance(record.get("disposition_scope"), Mapping) else {}
     source_behavior_id = _text(record.get("behavior_id"))
     source_preset_id = _text(record.get("preset_id"))
@@ -616,6 +614,23 @@ def build_research_cycle_router(
     }
     report["deterministic_hash"] = _digest(canonical)
     return report
+
+
+def build_research_cycle_router(
+    *,
+    repo_root: Path = Path("."),
+    generated_at_utc: str | None = None,
+    disposition_memory_path: Path = DEFAULT_DISPOSITION_MEMORY_PATH,
+    research_memory_path: Path = DEFAULT_RESEARCH_MEMORY_PATH,
+) -> dict[str, Any]:
+    disposition_memory = _read_json(repo_root / disposition_memory_path)
+    research_memory = _read_json(repo_root / research_memory_path)
+    return _build_research_cycle_router_from_payloads(
+        disposition_memory=disposition_memory,
+        research_memory=research_memory,
+        generated_at_utc=generated_at_utc,
+        disposition_memory_path=disposition_memory_path,
+    )
 
 
 def render_operator_summary(report: Mapping[str, Any]) -> str:

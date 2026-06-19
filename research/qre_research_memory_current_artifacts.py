@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from packages.qre_research import research_memory
+from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_research_memory_coverage as memory_coverage
 
 
@@ -52,6 +53,9 @@ def build_research_memory_current_artifacts(
     retrieval_ready = (
         str(retrieval_summary.get("final_recommendation") or "") == "failure_retrieval_ready"
     )
+    continuity = artifact_continuity.build_read_only_artifact_continuity(repo_root=repo_root)
+    continuity_summary = continuity.get("summary") if isinstance(continuity.get("summary"), Mapping) else {}
+    continuity_ready = bool(continuity_summary.get("artifact_continuity_ready"))
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -61,14 +65,18 @@ def build_research_memory_current_artifacts(
             "package_research_memory_ready": package_ready,
             "coverage_ready": coverage_ready,
             "retrieval_ready": retrieval_ready,
+            "artifact_continuity_ready": continuity_ready,
             "indexed_entry_count": int(memory_summary.get("indexed_entry_count") or 0),
             "indexed_candidate_count": int(memory_summary.get("indexed_candidate_count") or 0),
             "retrievable_failure_subject_count": int(
                 retrieval_summary.get("retrievable_failure_subject_count") or 0
             ),
+            "artifact_continuity_materializable_target_count": int(
+                continuity_summary.get("materializable_target_count") or 0
+            ),
             "final_recommendation": (
                 "research_memory_current_artifacts_ready"
-                if package_ready and coverage_ready and retrieval_ready
+                if package_ready and coverage_ready and retrieval_ready and continuity_ready
                 else "research_memory_current_artifacts_partial"
             ),
             "operator_summary": (
@@ -79,10 +87,12 @@ def build_research_memory_current_artifacts(
         "package_status": dict(package_status),
         "memory_coverage_summary": dict(memory_summary),
         "failure_retrieval_summary": dict(retrieval_summary),
+        "artifact_continuity_summary": dict(continuity_summary),
         "memory_artifacts": {
             "package_memory_path": str(package_status.get("path") or "logs/qre_research_memory/latest.json"),
             "coverage_path": "logs/qre_research_memory_coverage/latest.json",
             "failure_retrieval_path": "logs/qre_failure_retrieval/latest.json",
+            "artifact_continuity_path": "logs/qre_read_only_artifact_continuity/latest.json",
         },
         "safety_invariants": {
             "read_only": True,
@@ -113,8 +123,10 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["package_research_memory_ready", str(summary.get("package_research_memory_ready") or False)],
                     ["coverage_ready", str(summary.get("coverage_ready") or False)],
                     ["retrieval_ready", str(summary.get("retrieval_ready") or False)],
+                    ["artifact_continuity_ready", str(summary.get("artifact_continuity_ready") or False)],
                     ["indexed_entry_count", str(summary.get("indexed_entry_count") or 0)],
                     ["retrievable_failure_subject_count", str(summary.get("retrievable_failure_subject_count") or 0)],
+                    ["artifact_continuity_materializable_target_count", str(summary.get("artifact_continuity_materializable_target_count") or 0)],
                     ["final_recommendation", str(summary.get("final_recommendation") or "")],
                 ],
             ),
@@ -126,6 +138,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["package_memory_path", str(artifacts.get("package_memory_path") or "")],
                     ["coverage_path", str(artifacts.get("coverage_path") or "")],
                     ["failure_retrieval_path", str(artifacts.get("failure_retrieval_path") or "")],
+                    ["artifact_continuity_path", str(artifacts.get("artifact_continuity_path") or "")],
                 ],
             ),
             "",
@@ -152,6 +165,8 @@ def write_outputs(
     )
     retrieval = memory_coverage.build_failure_retrieval(memory)
     memory_paths = memory_coverage.write_outputs(memory, retrieval, repo_root=repo_root)
+    continuity_report = artifact_continuity.build_read_only_artifact_continuity(repo_root=repo_root)
+    continuity_paths = artifact_continuity.write_outputs(continuity_report, repo_root=repo_root)
 
     base = repo_root / DEFAULT_OUTPUT_DIR
     base.mkdir(parents=True, exist_ok=True)
@@ -167,6 +182,8 @@ def write_outputs(
     os.replace(tmp_md, summary_path)
     return {
         **memory_paths,
+        "artifact_continuity_latest": continuity_paths["latest"],
+        "artifact_continuity_operator_summary": continuity_paths["operator_summary"],
         "latest": latest.relative_to(repo_root).as_posix(),
         "operator_summary": summary_path.relative_to(repo_root).as_posix(),
     }
