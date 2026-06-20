@@ -79,6 +79,17 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
             }
         },
     )
+    monkeypatch.setattr(
+        current_artifacts.sequential_retrieval,
+        "build_research_state_sequential_retrieval",
+        lambda **_: {
+            "summary": {
+                "research_state_sequential_retrieval_ready": True,
+                "visible_sequence_row_count": 4,
+                "exact_next_action": "preserve_research_state_sequence_visibility",
+            }
+        },
+    )
 
     report = current_artifacts.build_research_memory_current_artifacts()
 
@@ -89,6 +100,7 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
     assert report["summary"]["contradiction_staleness_ready"] is True
     assert report["summary"]["campaign_throughput_bottleneck_intelligence_ready"] is True
     assert report["summary"]["experiment_dedup_novelty_enforcement_ready"] is True
+    assert report["summary"]["research_state_sequential_retrieval_ready"] is True
     assert report["summary"]["final_recommendation"] == "research_memory_current_artifacts_ready"
 
 
@@ -185,6 +197,17 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.sequential_retrieval,
+        "build_research_state_sequential_retrieval",
+        lambda **_: {
+            "summary": {
+                "research_state_sequential_retrieval_ready": False,
+                "visible_sequence_row_count": 0,
+                "exact_next_action": "restore_current_run_artifacts",
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.contradiction_staleness,
         "write_outputs",
         lambda report, repo_root: {
@@ -208,6 +231,14 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
             "operator_summary": "logs/qre_experiment_dedup_novelty_enforcement/operator_summary.md",
         },
     )
+    monkeypatch.setattr(
+        current_artifacts.sequential_retrieval,
+        "write_outputs",
+        lambda report, repo_root: {
+            "latest": "logs/qre_research_state_sequential_retrieval/latest.json",
+            "operator_summary": "logs/qre_research_state_sequential_retrieval/operator_summary.md",
+        },
+    )
 
     report = current_artifacts.build_research_memory_current_artifacts(repo_root=tmp_path)
     paths = current_artifacts.write_outputs(report, repo_root=tmp_path)
@@ -218,6 +249,7 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
     assert paths["contradiction_staleness_latest"] == "logs/qre_contradiction_staleness_intelligence/latest.json"
     assert paths["campaign_throughput_bottleneck_latest"] == "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json"
     assert paths["experiment_dedup_novelty_latest"] == "logs/qre_experiment_dedup_novelty_enforcement/latest.json"
+    assert paths["research_state_sequential_retrieval_latest"] == "logs/qre_research_state_sequential_retrieval/latest.json"
     assert "# QRE Research Memory Current Artifacts" in markdown
 
 def test_memory_coverage_entries_include_resolved_entities():

@@ -29,6 +29,7 @@ from research import qre_experiment_dedup_novelty_enforcement as novelty_enforce
 from research import qre_reason_records_v1 as reason_records
 from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_research_memory_current_artifacts as research_memory
+from research import qre_research_state_sequential_retrieval as sequential_retrieval
 from research import qre_routing_calibration_report as routing_calibration
 from research import qre_sampling_calibration_report as sampling_calibration
 from research import qre_shadow_readiness_gates as shadow_readiness_gates
@@ -282,6 +283,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     novelty_packet = novelty_enforcement.build_experiment_dedup_novelty_enforcement(
         repo_root=repo_root
     )
+    sequential_packet = sequential_retrieval.build_research_state_sequential_retrieval(
+        repo_root=repo_root
+    )
     action_plan_packet = basket_action_plan.build_basket_operator_action_plan(repo_root=repo_root)
     operational_controls_packet = operational_controls.build_trusted_loop_operational_controls(
         repo_root=repo_root
@@ -323,6 +327,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     )
     novelty_summary = (
         novelty_packet.get("summary") if isinstance(novelty_packet.get("summary"), Mapping) else {}
+    )
+    sequential_summary = (
+        sequential_packet.get("summary") if isinstance(sequential_packet.get("summary"), Mapping) else {}
     )
     action_plan_summary = action_plan_packet.get("summary") if isinstance(action_plan_packet.get("summary"), Mapping) else {}
     structured_lineage_summary = (
@@ -396,6 +403,15 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             ),
             "experiment_novelty_exact_next_action": str(
                 novelty_summary.get("exact_next_action") or ""
+            ),
+            "research_state_sequential_retrieval_ready": bool(
+                sequential_summary.get("research_state_sequential_retrieval_ready")
+            ),
+            "visible_research_state_sequence_count": int(
+                sequential_summary.get("visible_sequence_row_count") or 0
+            ),
+            "research_state_sequential_exact_next_action": str(
+                sequential_summary.get("exact_next_action") or ""
             ),
             "basket_operator_action_plan_ready": str(action_plan_summary.get("final_recommendation") or "")
             == "basket_operator_action_plan_ready",
@@ -486,6 +502,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "contradiction_staleness": contradiction_packet,
             "campaign_throughput_bottlenecks": throughput_packet,
             "experiment_dedup_novelty_enforcement": novelty_packet,
+            "research_state_sequential_retrieval": sequential_packet,
             "operational_controls": operational_controls_packet,
             "shadow_readiness_gates": shadow_readiness_packet,
         },
@@ -589,6 +606,9 @@ def render_operator_summary(packet: Mapping[str, Any]) -> str:
             f"- experiment_dedup_novelty_enforcement_ready: {summary.get('experiment_dedup_novelty_enforcement_ready')}",
             f"- visible_experiment_duplicate_pressure_count: {summary.get('visible_experiment_duplicate_pressure_count')}",
             f"- experiment_novelty_exact_next_action: {summary.get('experiment_novelty_exact_next_action')}",
+            f"- research_state_sequential_retrieval_ready: {summary.get('research_state_sequential_retrieval_ready')}",
+            f"- visible_research_state_sequence_count: {summary.get('visible_research_state_sequence_count')}",
+            f"- research_state_sequential_exact_next_action: {summary.get('research_state_sequential_exact_next_action')}",
             f"- guarded_alias_bounded_generation_cascade_result: {summary.get('guarded_alias_bounded_generation_cascade_result')}",
             f"- guarded_alias_bounded_generation_top_blocker: {summary.get('guarded_alias_bounded_generation_top_blocker')}",
             f"- structured_lineage_artifact_status: {summary.get('structured_lineage_artifact_status')}",
