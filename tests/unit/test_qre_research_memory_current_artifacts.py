@@ -91,6 +91,18 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
         },
     )
     monkeypatch.setattr(
+        current_artifacts.reason_record_normalization,
+        "build_reason_record_normalization",
+        lambda **_: {
+            "summary": {
+                "reason_record_normalization_ready": True,
+                "normalized_record_count": 5,
+                "invalid_record_count": 1,
+                "exact_next_action": "normalize_reason_record_contract_gaps_before_authority_upgrade",
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.remediation_planning,
         "build_incomplete_artifact_remediation_planning",
         lambda **_: {
@@ -112,6 +124,7 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
     assert report["summary"]["campaign_throughput_bottleneck_intelligence_ready"] is True
     assert report["summary"]["experiment_dedup_novelty_enforcement_ready"] is True
     assert report["summary"]["research_state_sequential_retrieval_ready"] is True
+    assert report["summary"]["reason_record_normalization_ready"] is True
     assert report["summary"]["incomplete_artifact_remediation_planning_ready"] is True
     assert report["summary"]["final_recommendation"] == "research_memory_current_artifacts_ready"
 
@@ -220,6 +233,18 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.reason_record_normalization,
+        "build_reason_record_normalization",
+        lambda **_: {
+            "summary": {
+                "reason_record_normalization_ready": False,
+                "normalized_record_count": 0,
+                "invalid_record_count": 3,
+                "exact_next_action": "normalize_reason_record_contract_gaps_before_authority_upgrade",
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.remediation_planning,
         "build_incomplete_artifact_remediation_planning",
         lambda **_: {
@@ -263,6 +288,14 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.reason_record_normalization,
+        "write_outputs",
+        lambda report, repo_root: {
+            "latest": "logs/qre_reason_record_normalization/latest.json",
+            "operator_summary": "logs/qre_reason_record_normalization/operator_summary.md",
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.remediation_planning,
         "write_outputs",
         lambda report, repo_root: {
@@ -281,6 +314,7 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
     assert paths["campaign_throughput_bottleneck_latest"] == "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json"
     assert paths["experiment_dedup_novelty_latest"] == "logs/qre_experiment_dedup_novelty_enforcement/latest.json"
     assert paths["research_state_sequential_retrieval_latest"] == "logs/qre_research_state_sequential_retrieval/latest.json"
+    assert paths["reason_record_normalization_latest"] == "logs/qre_reason_record_normalization/latest.json"
     assert paths["incomplete_artifact_remediation_planning_latest"] == "logs/qre_incomplete_artifact_remediation_planning/latest.json"
     assert "# QRE Research Memory Current Artifacts" in markdown
 

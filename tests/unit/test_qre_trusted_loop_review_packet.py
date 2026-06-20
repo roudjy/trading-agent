@@ -155,6 +155,18 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         },
     )
     monkeypatch.setattr(
+        packet_module.reason_record_normalization,
+        "build_reason_record_normalization",
+        lambda **_: {
+            "summary": {
+                "reason_record_normalization_ready": True,
+                "normalized_record_count": 7,
+                "invalid_record_count": 2,
+                "exact_next_action": "normalize_reason_record_contract_gaps_before_authority_upgrade",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.remediation_planning,
         "build_incomplete_artifact_remediation_planning",
         lambda **_: {
@@ -236,6 +248,10 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["research_state_sequential_retrieval_ready"] is True
     assert packet["summary"]["visible_research_state_sequence_count"] == 4
     assert packet["summary"]["research_state_sequential_exact_next_action"] == "preserve_research_state_sequence_visibility"
+    assert packet["summary"]["reason_record_normalization_ready"] is True
+    assert packet["summary"]["visible_reason_record_normalized_count"] == 7
+    assert packet["summary"]["visible_reason_record_invalid_count"] == 2
+    assert packet["summary"]["reason_record_normalization_exact_next_action"] == "normalize_reason_record_contract_gaps_before_authority_upgrade"
     assert packet["summary"]["incomplete_artifact_remediation_planning_ready"] is True
     assert packet["summary"]["visible_incomplete_artifact_remediation_count"] == 2
     assert packet["summary"]["incomplete_artifact_remediation_exact_next_action"] == "preserve_current_read_only_artifact_visibility"
@@ -262,6 +278,7 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["evidence_inputs"]["trusted_loop_readiness"]["readiness_state"] == "operator_trusted"
     assert packet["evidence_inputs"]["structured_lineage_artifacts"]["summary"]["final_recommendation"] == "request_invalid_fails_closed"
     assert packet["evidence_inputs"]["structured_oos_artifacts"]["summary"]["final_recommendation"] == "request_invalid_fails_closed"
+    assert packet["evidence_inputs"]["reason_record_normalization"]["summary"]["normalized_record_count"] == 7
 
 
 def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomplete(
