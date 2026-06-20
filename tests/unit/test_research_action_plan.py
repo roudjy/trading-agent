@@ -126,6 +126,7 @@ def test_completed_no_survivor_adds_gate_diagnostics() -> None:
                 "primary_blocker": "validation_or_promotion_gate",
                 "missing": ["gate_diagnostics"],
             },
+            next_allowed_actions=["inspect_gate_diagnostics"],
             synthesis_gate="blocked_insufficient_attribution",
             next_best_test="inspect_gate_diagnostics",
         )
@@ -133,6 +134,31 @@ def test_completed_no_survivor_adds_gate_diagnostics() -> None:
 
     assert payload["next_best_action"]["action_id"] == "inspect_gate_diagnostics"
     assert "inspect_gate_diagnostics" in _action_ids(payload)
+
+
+def test_attributed_gate_rejection_collects_campaign_evidence() -> None:
+    payload = _payload(
+        _state(
+            policy_state="can_spawn",
+            failure_attribution={
+                "state": "gate_rejection_attributed",
+                "attributed": True,
+                "primary_blocker": "validation_or_promotion_gate",
+                "missing": [],
+            },
+            next_allowed_actions=["collect_campaign_level_evidence"],
+            synthesis_gate="not_allowed_yet",
+            next_best_test="collect_campaign_level_evidence",
+        )
+    )
+
+    automatic_ids = _action_ids(payload)
+
+    assert payload["next_best_action"]["action_id"] == (
+        "collect_campaign_level_evidence"
+    )
+    assert "collect_campaign_level_evidence" in automatic_ids
+    assert "inspect_gate_diagnostics" not in automatic_ids
 
 
 def test_synthesis_blocked_state_prevents_automatic_synthesis() -> None:
@@ -157,12 +183,17 @@ def test_forbidden_trading_actions_are_always_present() -> None:
     assert {"broker_changes", "risk_changes", "execution_changes"} <= forbidden
 
 
-def test_missing_research_state_is_handled_gracefully(tmp_path: Path) -> None:
+def test_missing_research_state_is_handled_gracefully(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     payload = _payload(None, _statuses(research_state_status="missing"))
 
     assert payload["state_summary"]["source_research_state_status"] == "missing"
     assert payload["next_best_action"]["action_id"] == "inspect_gate_diagnostics"
     assert payload["synthesis_status"]["status"] == "blocked"
+
+    monkeypatch.chdir(tmp_path)
 
     rc = rap.main(
         [
