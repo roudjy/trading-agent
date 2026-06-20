@@ -60,6 +60,17 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
         },
     )
     monkeypatch.setattr(
+        current_artifacts.lineage_graph,
+        "build_qre_lineage_graph_v1",
+        lambda **_: {
+            "summary": {
+                "graph_status": "partial",
+                "candidate_count": 2,
+                "reason_record_count": 3,
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.throughput_bottlenecks,
         "build_campaign_throughput_bottleneck_intelligence",
         lambda **_: {
@@ -121,6 +132,7 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
     assert report["summary"]["retrieval_ready"] is True
     assert report["summary"]["artifact_continuity_ready"] is True
     assert report["summary"]["contradiction_staleness_ready"] is True
+    assert report["summary"]["lineage_graph_ready"] is True
     assert report["summary"]["campaign_throughput_bottleneck_intelligence_ready"] is True
     assert report["summary"]["experiment_dedup_novelty_enforcement_ready"] is True
     assert report["summary"]["research_state_sequential_retrieval_ready"] is True
@@ -202,6 +214,17 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.lineage_graph,
+        "build_qre_lineage_graph_v1",
+        lambda **_: {
+            "summary": {
+                "graph_status": "blocked",
+                "candidate_count": 0,
+                "reason_record_count": 0,
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.throughput_bottlenecks,
         "build_campaign_throughput_bottleneck_intelligence",
         lambda **_: {
@@ -264,6 +287,14 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.lineage_graph,
+        "write_outputs",
+        lambda report, repo_root: {
+            "latest": "logs/qre_lineage_graph_v1/latest.json",
+            "operator_summary": "logs/qre_lineage_graph_v1/operator_summary.md",
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.throughput_bottlenecks,
         "write_outputs",
         lambda report, repo_root: {
@@ -311,6 +342,7 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
     assert paths["latest"] == "logs/qre_research_memory_current_artifacts/latest.json"
     assert paths["artifact_continuity_latest"] == "logs/qre_read_only_artifact_continuity/latest.json"
     assert paths["contradiction_staleness_latest"] == "logs/qre_contradiction_staleness_intelligence/latest.json"
+    assert paths["lineage_graph_latest"] == "logs/qre_lineage_graph_v1/latest.json"
     assert paths["campaign_throughput_bottleneck_latest"] == "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json"
     assert paths["experiment_dedup_novelty_latest"] == "logs/qre_experiment_dedup_novelty_enforcement/latest.json"
     assert paths["research_state_sequential_retrieval_latest"] == "logs/qre_research_state_sequential_retrieval/latest.json"
