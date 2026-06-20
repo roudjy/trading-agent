@@ -90,6 +90,17 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
             }
         },
     )
+    monkeypatch.setattr(
+        current_artifacts.remediation_planning,
+        "build_incomplete_artifact_remediation_planning",
+        lambda **_: {
+            "summary": {
+                "remediation_planning_ready": True,
+                "remediation_count": 2,
+                "exact_next_action": "preserve_current_read_only_artifact_visibility",
+            }
+        },
+    )
 
     report = current_artifacts.build_research_memory_current_artifacts()
 
@@ -101,6 +112,7 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
     assert report["summary"]["campaign_throughput_bottleneck_intelligence_ready"] is True
     assert report["summary"]["experiment_dedup_novelty_enforcement_ready"] is True
     assert report["summary"]["research_state_sequential_retrieval_ready"] is True
+    assert report["summary"]["incomplete_artifact_remediation_planning_ready"] is True
     assert report["summary"]["final_recommendation"] == "research_memory_current_artifacts_ready"
 
 
@@ -208,6 +220,17 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.remediation_planning,
+        "build_incomplete_artifact_remediation_planning",
+        lambda **_: {
+            "summary": {
+                "remediation_planning_ready": False,
+                "remediation_count": 4,
+                "exact_next_action": "restore_inputs",
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.contradiction_staleness,
         "write_outputs",
         lambda report, repo_root: {
@@ -239,6 +262,14 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
             "operator_summary": "logs/qre_research_state_sequential_retrieval/operator_summary.md",
         },
     )
+    monkeypatch.setattr(
+        current_artifacts.remediation_planning,
+        "write_outputs",
+        lambda report, repo_root: {
+            "latest": "logs/qre_incomplete_artifact_remediation_planning/latest.json",
+            "operator_summary": "logs/qre_incomplete_artifact_remediation_planning/operator_summary.md",
+        },
+    )
 
     report = current_artifacts.build_research_memory_current_artifacts(repo_root=tmp_path)
     paths = current_artifacts.write_outputs(report, repo_root=tmp_path)
@@ -250,6 +281,7 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
     assert paths["campaign_throughput_bottleneck_latest"] == "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json"
     assert paths["experiment_dedup_novelty_latest"] == "logs/qre_experiment_dedup_novelty_enforcement/latest.json"
     assert paths["research_state_sequential_retrieval_latest"] == "logs/qre_research_state_sequential_retrieval/latest.json"
+    assert paths["incomplete_artifact_remediation_planning_latest"] == "logs/qre_incomplete_artifact_remediation_planning/latest.json"
     assert "# QRE Research Memory Current Artifacts" in markdown
 
 def test_memory_coverage_entries_include_resolved_entities():

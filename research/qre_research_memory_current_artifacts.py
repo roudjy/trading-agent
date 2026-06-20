@@ -11,6 +11,7 @@ from packages.qre_research import research_memory
 from research import qre_campaign_throughput_bottleneck_intelligence as throughput_bottlenecks
 from research import qre_contradiction_staleness_intelligence as contradiction_staleness
 from research import qre_experiment_dedup_novelty_enforcement as novelty_enforcement
+from research import qre_incomplete_artifact_remediation_planning as remediation_planning
 from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_research_state_sequential_retrieval as sequential_retrieval
 from research import qre_research_memory_coverage as memory_coverage
@@ -88,6 +89,13 @@ def build_research_memory_current_artifacts(
         sequential_report.get("summary") if isinstance(sequential_report.get("summary"), Mapping) else {}
     )
     sequential_ready = bool(sequential_summary.get("research_state_sequential_retrieval_ready"))
+    remediation_report = remediation_planning.build_incomplete_artifact_remediation_planning(
+        repo_root=repo_root
+    )
+    remediation_summary = (
+        remediation_report.get("summary") if isinstance(remediation_report.get("summary"), Mapping) else {}
+    )
+    remediation_ready = bool(remediation_summary.get("remediation_planning_ready"))
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -126,6 +134,13 @@ def build_research_memory_current_artifacts(
             "research_state_sequential_exact_next_action": str(
                 sequential_summary.get("exact_next_action") or ""
             ),
+            "incomplete_artifact_remediation_planning_ready": remediation_ready,
+            "visible_incomplete_artifact_remediation_count": int(
+                remediation_summary.get("remediation_count") or 0
+            ),
+            "incomplete_artifact_remediation_exact_next_action": str(
+                remediation_summary.get("exact_next_action") or ""
+            ),
             "final_recommendation": (
                 "research_memory_current_artifacts_ready"
                 if package_ready
@@ -136,6 +151,7 @@ def build_research_memory_current_artifacts(
                 and throughput_ready
                 and novelty_ready
                 and sequential_ready
+                and remediation_ready
                 else "research_memory_current_artifacts_partial"
             ),
             "operator_summary": (
@@ -151,6 +167,7 @@ def build_research_memory_current_artifacts(
         "campaign_throughput_bottleneck_summary": dict(throughput_summary),
         "experiment_dedup_novelty_summary": dict(novelty_summary),
         "research_state_sequential_retrieval_summary": dict(sequential_summary),
+        "incomplete_artifact_remediation_planning_summary": dict(remediation_summary),
         "memory_artifacts": {
             "package_memory_path": str(package_status.get("path") or "logs/qre_research_memory/latest.json"),
             "coverage_path": "logs/qre_research_memory_coverage/latest.json",
@@ -160,6 +177,7 @@ def build_research_memory_current_artifacts(
             "campaign_throughput_bottleneck_path": "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json",
             "experiment_dedup_novelty_path": "logs/qre_experiment_dedup_novelty_enforcement/latest.json",
             "research_state_sequential_retrieval_path": "logs/qre_research_state_sequential_retrieval/latest.json",
+            "incomplete_artifact_remediation_planning_path": "logs/qre_incomplete_artifact_remediation_planning/latest.json",
         },
         "safety_invariants": {
             "read_only": True,
@@ -204,6 +222,9 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["research_state_sequential_retrieval_ready", str(summary.get("research_state_sequential_retrieval_ready") or False)],
                     ["visible_research_state_sequence_count", str(summary.get("visible_research_state_sequence_count") or 0)],
                     ["research_state_sequential_exact_next_action", str(summary.get("research_state_sequential_exact_next_action") or "")],
+                    ["incomplete_artifact_remediation_planning_ready", str(summary.get("incomplete_artifact_remediation_planning_ready") or False)],
+                    ["visible_incomplete_artifact_remediation_count", str(summary.get("visible_incomplete_artifact_remediation_count") or 0)],
+                    ["incomplete_artifact_remediation_exact_next_action", str(summary.get("incomplete_artifact_remediation_exact_next_action") or "")],
                     ["final_recommendation", str(summary.get("final_recommendation") or "")],
                 ],
             ),
@@ -220,6 +241,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["campaign_throughput_bottleneck_path", str(artifacts.get("campaign_throughput_bottleneck_path") or "")],
                     ["experiment_dedup_novelty_path", str(artifacts.get("experiment_dedup_novelty_path") or "")],
                     ["research_state_sequential_retrieval_path", str(artifacts.get("research_state_sequential_retrieval_path") or "")],
+                    ["incomplete_artifact_remediation_planning_path", str(artifacts.get("incomplete_artifact_remediation_planning_path") or "")],
                 ],
             ),
             "",
@@ -256,6 +278,8 @@ def write_outputs(
     novelty_paths = novelty_enforcement.write_outputs(novelty_report, repo_root=repo_root)
     sequential_report = sequential_retrieval.build_research_state_sequential_retrieval(repo_root=repo_root)
     sequential_paths = sequential_retrieval.write_outputs(sequential_report, repo_root=repo_root)
+    remediation_report = remediation_planning.build_incomplete_artifact_remediation_planning(repo_root=repo_root)
+    remediation_paths = remediation_planning.write_outputs(remediation_report, repo_root=repo_root)
 
     base = repo_root / DEFAULT_OUTPUT_DIR
     base.mkdir(parents=True, exist_ok=True)
@@ -281,6 +305,8 @@ def write_outputs(
         "experiment_dedup_novelty_operator_summary": novelty_paths["operator_summary"],
         "research_state_sequential_retrieval_latest": sequential_paths["latest"],
         "research_state_sequential_retrieval_operator_summary": sequential_paths["operator_summary"],
+        "incomplete_artifact_remediation_planning_latest": remediation_paths["latest"],
+        "incomplete_artifact_remediation_planning_operator_summary": remediation_paths["operator_summary"],
         "latest": latest.relative_to(repo_root).as_posix(),
         "operator_summary": summary_path.relative_to(repo_root).as_posix(),
     }
