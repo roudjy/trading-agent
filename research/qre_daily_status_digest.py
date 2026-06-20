@@ -411,6 +411,12 @@ def build_daily_status_packet(
             "research_memory_current_artifacts_status": research_memory_summary.get(
                 "final_recommendation"
             ),
+            "source_authority_blocked_scope_count": research_memory_summary.get(
+                "visible_source_authority_blocked_scope_count"
+            ),
+            "source_authority_exact_next_action": research_memory_summary.get(
+                "source_authority_exact_next_action"
+            ),
             "shadow_readiness_status": shadow_summary.get("readiness_status"),
             "shadow_readiness_blocker_count": shadow_summary.get("blocker_count"),
             "shadow_readiness_exact_next_action": shadow_summary.get("exact_next_action"),
@@ -529,6 +535,8 @@ def render_daily_status(packet: dict[str, Any]) -> str:
             f"- Trusted-loop exact next action: {summary['trusted_loop_exact_next_action']}",
             f"- Research-memory current artifacts ready: {summary['research_memory_current_artifacts_ready']}",
             f"- Research-memory current artifacts status: {summary['research_memory_current_artifacts_status']}",
+            f"- Source-authority blocked scope count: {summary['source_authority_blocked_scope_count']}",
+            f"- Source-authority exact next action: {summary['source_authority_exact_next_action']}",
             f"- Shadow readiness status: {summary['shadow_readiness_status']}",
             f"- Shadow readiness blocker count: {summary['shadow_readiness_blocker_count']}",
             f"- Shadow readiness exact next action: {summary['shadow_readiness_exact_next_action']}",

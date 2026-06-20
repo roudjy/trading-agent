@@ -101,6 +101,19 @@ def _seed_artifacts(tmp_path: Path) -> None:
         },
     )
     _write_json(
+        tmp_path / "logs" / "qre_source_identity_authority_normalization" / "latest.json",
+        {
+            "rows": [
+                {
+                    "scope_key": "seed::trend_pullback_continuation_daily_v1::AAPL",
+                    "symbol": "AAPL",
+                    "authority_status": "blocked_provider_symbol_ambiguity",
+                    "authority_reasons": ["provider_symbol_verification_required"],
+                }
+            ]
+        },
+    )
+    _write_json(
         tmp_path / "logs" / "qre_preregistered_multiwindow_evidence_run" / "latest.json",
         {
             "window_results": [
@@ -136,8 +149,13 @@ def test_build_research_memory_retrieval_answers_required_queries(tmp_path: Path
     assert queries["presets_with_inadequate_sample_density"]["rows"][0]["preset_id"] == "trend_pullback_continuation_daily_v1"
     assert queries["recurring_evidence_or_source_failures"]["rows"][0]["count"] >= 1
     assert queries["novel_remaining_research_directions"]["rows"][0]["direction_type"] == "different_behavior_family"
+    assert (
+        queries["source_authority_remaining_scope_gaps"]["rows"][0]["authority_status"]
+        == "blocked_provider_symbol_ambiguity"
+    )
     assert queries["stale_or_superseded_knowledge"]["status"] in {"matched", "not_found"}
     assert left["authority_boundary"]["retrieval_is_context_not_truth"] is True
+    assert left["summary"]["source_authority_blocked_scope_count"] == 1
     assert left["deterministic_hash"].startswith("sha256:")
 
 

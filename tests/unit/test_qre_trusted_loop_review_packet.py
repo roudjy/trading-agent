@@ -178,6 +178,18 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         },
     )
     monkeypatch.setattr(
+        packet_module.source_authority,
+        "build_source_identity_authority_report",
+        lambda **_: {
+            "summary": {
+                "status": "ready",
+                "ready_scope_count": 2,
+                "blocked_scope_count": 1,
+                "exact_next_action": "resolve_provider_symbol_ambiguity_for_bounded_scope",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.remediation_planning,
         "build_incomplete_artifact_remediation_planning",
         lambda **_: {
@@ -266,6 +278,8 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["visible_reason_record_normalized_count"] == 7
     assert packet["summary"]["visible_reason_record_invalid_count"] == 2
     assert packet["summary"]["reason_record_normalization_exact_next_action"] == "normalize_reason_record_contract_gaps_before_authority_upgrade"
+    assert packet["summary"]["source_authority_status"] == "ready"
+    assert packet["summary"]["visible_source_authority_blocked_scope_count"] == 1
     assert packet["summary"]["incomplete_artifact_remediation_planning_ready"] is True
     assert packet["summary"]["visible_incomplete_artifact_remediation_count"] == 2
     assert packet["summary"]["incomplete_artifact_remediation_exact_next_action"] == "preserve_current_read_only_artifact_visibility"
@@ -372,6 +386,18 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
                 "research_state_sequential_retrieval_ready": False,
                 "visible_sequence_row_count": 0,
                 "exact_next_action": "restore_current_run_artifacts",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.source_authority,
+        "build_source_identity_authority_report",
+        lambda **_: {
+            "summary": {
+                "status": "ready",
+                "ready_scope_count": 2,
+                "blocked_scope_count": 1,
+                "exact_next_action": "resolve_provider_symbol_ambiguity_for_bounded_scope",
             }
         },
     )
@@ -589,6 +615,8 @@ def test_trusted_loop_review_packet_operator_summary_renders(
     assert "# QRE Trusted Loop Review Packet" in text
     assert "trust_level: 3" in text
     assert "maintain_operator_trusted_read_only_mode" in text
+    assert "source_authority_status: ready" in text
+    assert "visible_source_authority_blocked_scope_count: 1" in text
     assert "structured_lineage_artifact_status:" in text
     assert "Authority Boundary" in text
 
