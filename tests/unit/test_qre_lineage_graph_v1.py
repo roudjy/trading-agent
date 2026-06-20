@@ -181,6 +181,67 @@ def _write_required_fixture_set(
             },
         },
     )
+    _write_json(
+        tmp_path / "logs" / "qre_evidence_complete_basket_closure" / "latest.json",
+        {
+            "report_kind": "qre_evidence_complete_basket_closure",
+            "summary": {"evidence_complete_count": 0},
+            "rows": [
+                {
+                    "candidate_id": "cand-1",
+                    "symbol": "AAPL",
+                    "preset_id": "trend_pullback",
+                    "closure_status": "blocked_not_evidence_complete",
+                    "exact_next_action": "collect_more_evidence",
+                    "reason_record_count": 1,
+                }
+            ],
+        },
+    )
+    _write_json(
+        tmp_path / "logs" / "qre_reason_record_normalization" / "latest.json",
+        {
+            "report_kind": "qre_reason_record_normalization",
+            "summary": {"normalized_record_count": 1},
+            "normalized_records": [
+                {
+                    "record_id": "rr-cand-1",
+                    "subject_id": "cand-1",
+                    "record_family": "routing_readiness",
+                    "contract_validation": {"validation_status": "valid"},
+                }
+            ],
+        },
+    )
+    _write_json(
+        tmp_path / "logs" / "qre_structured_lineage_artifacts" / "latest.json",
+        {
+            "report_kind": "qre_structured_lineage_artifacts",
+            "summary": {"artifact_count": 1},
+            "rows": [
+                {
+                    "artifact_id": "lineage-1",
+                    "candidate_id": "cand-1",
+                    "campaign_id": "col-1",
+                    "validation_status": "provisional",
+                }
+            ],
+        },
+    )
+    _write_json(
+        tmp_path / "logs" / "qre_structured_oos_artifacts" / "latest.json",
+        {
+            "report_kind": "qre_structured_oos_artifacts",
+            "summary": {"artifact_count": 1},
+            "rows": [
+                {
+                    "artifact_id": "oos-1",
+                    "candidate_id": "cand-1",
+                    "validation_status": "provisional",
+                }
+            ],
+        },
+    )
 
 
 def test_lineage_graph_builds_complete_read_only_graph(tmp_path: Path) -> None:
@@ -193,13 +254,15 @@ def test_lineage_graph_builds_complete_read_only_graph(tmp_path: Path) -> None:
     assert summary["normalized_data_count"] == 1
     assert summary["factor_count"] == 1
     assert summary["hypothesis_count"] == 1
+    assert summary["candidate_count"] == 1
     assert summary["campaign_count"] == 1
     assert summary["evidence_count"] >= 8
+    assert summary["reason_record_count"] == 1
     assert checks["missing_reports"] == []
     assert checks["orphan_nodes"] == []
     assert checks["contradictions"] == []
     node_types = {str(node["node_type"]) for node in report["nodes"]}
-    assert {"source", "normalized_data", "factor", "hypothesis", "campaign", "evidence"} <= node_types
+    assert {"source", "normalized_data", "factor", "hypothesis", "candidate", "campaign", "evidence", "reason_record"} <= node_types
 
 
 def test_lineage_graph_flags_missing_hypothesis_as_contradiction(tmp_path: Path) -> None:
