@@ -133,6 +133,17 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         },
     )
     monkeypatch.setattr(
+        packet_module.novelty_enforcement,
+        "build_experiment_dedup_novelty_enforcement",
+        lambda **_: {
+            "summary": {
+                "experiment_dedup_novelty_enforcement_ready": True,
+                "duplicate_pressure_count": 0,
+                "exact_next_action": "route_only_to_eligible_novel_directions",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -198,6 +209,8 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["visible_stale_or_superseded_count"] == 0
     assert packet["summary"]["campaign_throughput_bottleneck_intelligence_ready"] is True
     assert packet["summary"]["visible_campaign_throughput_bottleneck_count"] == 0
+    assert packet["summary"]["experiment_dedup_novelty_enforcement_ready"] is True
+    assert packet["summary"]["visible_experiment_duplicate_pressure_count"] == 0
     assert packet["summary"]["trusted_loop_operational_controls_ready"] is True
     assert packet["summary"]["trusted_loop_operational_exact_next_action"] == "preserve_terminal_run_and_compare_before_rerun"
     assert packet["summary"]["shadow_readiness_status"] == "shadow_readiness_deferred"
@@ -277,6 +290,17 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
                 "campaign_throughput_bottleneck_intelligence_ready": False,
                 "bottleneck_count": 2,
                 "exact_next_action": "reconcile_campaign_queue_from_registry",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.novelty_enforcement,
+        "build_experiment_dedup_novelty_enforcement",
+        lambda **_: {
+            "summary": {
+                "experiment_dedup_novelty_enforcement_ready": False,
+                "duplicate_pressure_count": 2,
+                "exact_next_action": "deduplicate_active_campaign_scope",
             }
         },
     )
@@ -398,6 +422,17 @@ def test_trusted_loop_review_packet_operator_summary_renders(
         },
     )
     monkeypatch.setattr(
+        packet_module.novelty_enforcement,
+        "build_experiment_dedup_novelty_enforcement",
+        lambda **_: {
+            "summary": {
+                "experiment_dedup_novelty_enforcement_ready": True,
+                "duplicate_pressure_count": 0,
+                "exact_next_action": "route_only_to_eligible_novel_directions",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -497,6 +532,17 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
                 "campaign_throughput_bottleneck_intelligence_ready": True,
                 "bottleneck_count": 0,
                 "exact_next_action": "preserve_campaign_throughput_context",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.novelty_enforcement,
+        "build_experiment_dedup_novelty_enforcement",
+        lambda **_: {
+            "summary": {
+                "experiment_dedup_novelty_enforcement_ready": True,
+                "duplicate_pressure_count": 0,
+                "exact_next_action": "route_only_to_eligible_novel_directions",
             }
         },
     )
