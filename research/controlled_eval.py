@@ -31,6 +31,11 @@ from research.campaign_queue import (
     load_queue,
 )
 from research.campaign_registry import REGISTRY_ARTIFACT_PATH, load_registry
+from research.dead_zone_detection import DEAD_ZONES_PATH
+from research.funnel_spawn_proposer import write_spawn_proposals_artifact
+from research.research_evidence_ledger import write_research_evidence_artifact
+from research.stop_condition_engine import write_stop_conditions_artifact
+from research.viability_metrics import write_viability_artifact
 
 CONTROLLED_EVAL_SCHEMA_VERSION: Final[str] = "1.0"
 DEFAULT_REPORT_JSON_PATH: Final[Path] = Path("research/controlled_eval_latest.v1.json")
@@ -116,6 +121,73 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def _refresh_post_completion_intelligence(
+    *,
+    campaign_id: str,
+    run_campaign_payload: dict[str, Any] | None,
+    screening_evidence_payload: dict[str, Any] | None,
+    campaign_registry: dict[str, Any],
+) -> dict[str, str]:
+    """Refresh advisory intelligence after terminal campaign state is visible.
+
+    ``run_research`` writes the first intelligence snapshot before the
+    campaign launcher records terminal campaign state. This bounded refresh
+    rebuilds only non-frozen advisory sidecars from the completed registry
+    and evidence ledger.
+    """
+    now = _now_utc()
+    run_payload = run_campaign_payload or {}
+    run_id_raw = run_payload.get("run_id")
+    run_id = str(run_id_raw) if run_id_raw else None
+    git_revision_raw = run_payload.get("git_revision")
+    git_revision = str(git_revision_raw) if git_revision_raw else None
+
+    evidence_payload = write_research_evidence_artifact(
+        run_id=run_id,
+        col_campaign_id=campaign_id,
+        as_of_utc=now,
+        git_revision=git_revision,
+    )
+
+    information_gain_payload = _read_json(INFORMATION_GAIN_PATH)
+    dead_zones_payload = _read_json(DEAD_ZONES_PATH)
+
+    stop_payload = write_stop_conditions_artifact(
+        run_id=run_id,
+        as_of_utc=now,
+        git_revision=git_revision,
+        evidence_ledger=evidence_payload,
+        information_gain_history=(
+            [information_gain_payload] if information_gain_payload else None
+        ),
+    )
+
+    viability_payload = write_viability_artifact(
+        run_id=run_id,
+        as_of_utc=now,
+        git_revision=git_revision,
+        evidence_ledger=evidence_payload,
+        information_gain_history=(
+            [information_gain_payload] if information_gain_payload else None
+        ),
+    )
+
+    write_spawn_proposals_artifact(
+        run_id=run_id,
+        as_of_utc=now,
+        git_revision=git_revision,
+        screening_evidence=screening_evidence_payload,
+        evidence_ledger=evidence_payload,
+        information_gain=information_gain_payload,
+        stop_conditions=stop_payload,
+        dead_zones=dead_zones_payload,
+        viability=viability_payload,
+        campaign_registry=campaign_registry,
+    )
+
+    return build_intelligence_artifact_status()
 
 
 def _tail_text(value: str | None, *, max_chars: int = 2000) -> str:
@@ -858,6 +930,25 @@ def run_controlled_eval(
     final_registry = ds.load_sprint_registry()
     campaign_registry = load_registry(REGISTRY_ARTIFACT_PATH)
     ledger_events = load_events(LEDGER_PATH)
+    run_campaign_payload = _read_json(RUN_CAMPAIGN_PATH)
+    screening_evidence_payload = _read_json(SCREENING_EVIDENCE_PATH)
+
+    completed_this_run = [
+        campaign_id
+        for tick in ticks
+        for campaign_id in tick.completed_campaign_ids
+    ]
+    if completed_this_run:
+        intelligence_artifact_status = _refresh_post_completion_intelligence(
+            campaign_id=completed_this_run[-1],
+            run_campaign_payload=run_campaign_payload,
+            screening_evidence_payload=screening_evidence_payload,
+            campaign_registry=campaign_registry,
+        )
+        ledger_events = load_events(LEDGER_PATH)
+    else:
+        intelligence_artifact_status = build_intelligence_artifact_status()
+
     report = build_report_payload(
         profile=profile,
         max_campaigns=max_campaigns,
@@ -870,11 +961,11 @@ def run_controlled_eval(
         sprint_progress=final_progress,
         registry=campaign_registry,
         ledger_events=ledger_events,
-        run_campaign_payload=_read_json(RUN_CAMPAIGN_PATH),
-        screening_evidence_payload=_read_json(SCREENING_EVIDENCE_PATH),
+        run_campaign_payload=run_campaign_payload,
+        screening_evidence_payload=screening_evidence_payload,
         latest_policy_decision_payload=_read_json(POLICY_DECISION_PATH),
         queue_payload=load_queue(QUEUE_ARTIFACT_PATH),
-        intelligence_artifact_status=build_intelligence_artifact_status(),
+        intelligence_artifact_status=intelligence_artifact_status,
         ticks=ticks,
     )
     write_sidecar_atomic(report_json, report)

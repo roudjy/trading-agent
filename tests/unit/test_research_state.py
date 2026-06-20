@@ -155,6 +155,38 @@ def test_completed_no_survivor_is_stronger_evidence_than_degenerate() -> None:
     assert completed["synthesis_gate"] == "blocked_insufficient_attribution"
 
 
+def test_known_gate_diagnostics_advance_beyond_reinspection() -> None:
+    record = _record(
+        campaign_id="col-complete",
+        outcome="completed_no_survivor",
+    )
+    record["extra"] = {
+        **dict(record.get("extra") or {}),
+        "gate_diagnostics": {
+            "classification": "promotion_gate_rejected_all",
+            "stage": "promotion",
+            "owner_verified": True,
+        },
+    }
+
+    payload = _payload(
+        _artifacts(
+            campaign_registry={
+                "campaigns": {
+                    "col-complete": record,
+                }
+            }
+        )
+    )
+
+    assert payload["failure_attribution"]["state"] == "gate_rejection_attributed"
+    assert payload["failure_attribution"]["attributed"] is True
+    assert "inspect_gate_diagnostics" not in payload["next_allowed_actions"]
+    assert "collect_campaign_level_evidence" in payload["next_allowed_actions"]
+    assert payload["synthesis_gate"] == "not_allowed_yet"
+    assert payload["next_best_test"] == "collect_campaign_level_evidence"
+
+
 def test_sprint_observed_total_with_zero_viability_count_is_misaligned() -> None:
     payload = _payload(
         _artifacts(
@@ -165,7 +197,8 @@ def test_sprint_observed_total_with_zero_viability_count_is_misaligned() -> None
 
     assert "viability_window_misaligned" in payload["instrumentation_states"]
     assert "viability_window_misaligned" in payload["instrumentation_gaps"]
-    assert "check_evidence_window_alignment" in payload["next_allowed_actions"]
+    assert "evidence_window_alignment_check" in payload["next_allowed_actions"]
+    assert "check_evidence_window_alignment" not in payload["next_allowed_actions"]
 
 
 def test_missing_artifacts_are_handled_gracefully(tmp_path: Path) -> None:

@@ -488,10 +488,13 @@ def build_research_state_payload(
         _append_unique(next_allowed_actions, "inspect_campaign_policy_filters")
     if has_degenerate and not drop_reasons_known:
         _append_unique(next_allowed_actions, "explain_screening_drop_reasons")
-    if has_completed_no_survivor:
+    if has_completed_no_survivor and not gate_diagnostics_known:
         _append_unique(next_allowed_actions, "inspect_gate_diagnostics")
     if "viability_window_misaligned" in instrumentation_states:
-        _append_unique(next_allowed_actions, "check_evidence_window_alignment")
+        _append_unique(
+            next_allowed_actions,
+            "evidence_window_alignment_check",
+        )
     if not next_allowed_actions:
         _append_unique(next_allowed_actions, "collect_campaign_level_evidence")
 
@@ -504,9 +507,12 @@ def build_research_state_payload(
     elif has_degenerate:
         synthesis_gate = "blocked_evaluability_primary"
         next_best_test = "run_bounded_controlled_eval_after_drop_reason_review"
-    elif has_completed_no_survivor:
+    elif has_completed_no_survivor and not gate_diagnostics_known:
         synthesis_gate = "blocked_insufficient_attribution"
         next_best_test = "inspect_gate_diagnostics"
+    elif has_completed_no_survivor:
+        synthesis_gate = "not_allowed_yet"
+        next_best_test = next_allowed_actions[0]
     else:
         synthesis_gate = "not_allowed_yet"
         next_best_test = next_allowed_actions[0]
