@@ -12,6 +12,7 @@ from research import qre_campaign_throughput_bottleneck_intelligence as throughp
 from research import qre_contradiction_staleness_intelligence as contradiction_staleness
 from research import qre_experiment_dedup_novelty_enforcement as novelty_enforcement
 from research import qre_incomplete_artifact_remediation_planning as remediation_planning
+from research import qre_lineage_graph_v1 as lineage_graph
 from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_reason_record_normalization as reason_record_normalization
 from research import qre_research_state_sequential_retrieval as sequential_retrieval
@@ -67,6 +68,11 @@ def build_research_memory_current_artifacts(
         contradiction_report.get("summary") if isinstance(contradiction_report.get("summary"), Mapping) else {}
     )
     contradiction_ready = bool(contradiction_summary.get("contradiction_staleness_ready"))
+    lineage_graph_report = lineage_graph.build_qre_lineage_graph_v1(repo_root=repo_root)
+    lineage_graph_summary = (
+        lineage_graph_report.get("summary") if isinstance(lineage_graph_report.get("summary"), Mapping) else {}
+    )
+    lineage_graph_ready = str(lineage_graph_summary.get("graph_status") or "") in {"ready", "partial"}
     throughput_report = throughput_bottlenecks.build_campaign_throughput_bottleneck_intelligence(
         repo_root=repo_root
     )
@@ -119,6 +125,7 @@ def build_research_memory_current_artifacts(
             "retrieval_ready": retrieval_ready,
             "artifact_continuity_ready": continuity_ready,
             "contradiction_staleness_ready": contradiction_ready,
+            "lineage_graph_ready": lineage_graph_ready,
             "campaign_throughput_bottleneck_intelligence_ready": throughput_ready,
             "experiment_dedup_novelty_enforcement_ready": novelty_ready,
             "indexed_entry_count": int(memory_summary.get("indexed_entry_count") or 0),
@@ -133,6 +140,11 @@ def build_research_memory_current_artifacts(
             "visible_stale_or_superseded_count": int(
                 contradiction_summary.get("stale_or_superseded_count") or 0
             ),
+            "visible_lineage_candidate_count": int(lineage_graph_summary.get("candidate_count") or 0),
+            "visible_lineage_reason_record_count": int(
+                lineage_graph_summary.get("reason_record_count") or 0
+            ),
+            "lineage_graph_status": str(lineage_graph_summary.get("graph_status") or ""),
             "visible_campaign_throughput_bottleneck_count": int(
                 throughput_summary.get("bottleneck_count") or 0
             ),
@@ -170,6 +182,7 @@ def build_research_memory_current_artifacts(
                 and retrieval_ready
                 and continuity_ready
                 and contradiction_ready
+                and lineage_graph_ready
                 and throughput_ready
                 and novelty_ready
                 and sequential_ready
@@ -187,6 +200,7 @@ def build_research_memory_current_artifacts(
         "failure_retrieval_summary": dict(retrieval_summary),
         "artifact_continuity_summary": dict(continuity_summary),
         "contradiction_staleness_summary": dict(contradiction_summary),
+        "lineage_graph_summary": dict(lineage_graph_summary),
         "campaign_throughput_bottleneck_summary": dict(throughput_summary),
         "experiment_dedup_novelty_summary": dict(novelty_summary),
         "research_state_sequential_retrieval_summary": dict(sequential_summary),
@@ -198,6 +212,7 @@ def build_research_memory_current_artifacts(
             "failure_retrieval_path": "logs/qre_failure_retrieval/latest.json",
             "artifact_continuity_path": "logs/qre_read_only_artifact_continuity/latest.json",
             "contradiction_staleness_path": "logs/qre_contradiction_staleness_intelligence/latest.json",
+            "lineage_graph_path": "logs/qre_lineage_graph_v1/latest.json",
             "campaign_throughput_bottleneck_path": "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json",
             "experiment_dedup_novelty_path": "logs/qre_experiment_dedup_novelty_enforcement/latest.json",
             "research_state_sequential_retrieval_path": "logs/qre_research_state_sequential_retrieval/latest.json",
@@ -235,6 +250,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["retrieval_ready", str(summary.get("retrieval_ready") or False)],
                     ["artifact_continuity_ready", str(summary.get("artifact_continuity_ready") or False)],
                     ["contradiction_staleness_ready", str(summary.get("contradiction_staleness_ready") or False)],
+                    ["lineage_graph_ready", str(summary.get("lineage_graph_ready") or False)],
                     ["campaign_throughput_bottleneck_intelligence_ready", str(summary.get("campaign_throughput_bottleneck_intelligence_ready") or False)],
                     ["experiment_dedup_novelty_enforcement_ready", str(summary.get("experiment_dedup_novelty_enforcement_ready") or False)],
                     ["indexed_entry_count", str(summary.get("indexed_entry_count") or 0)],
@@ -242,6 +258,9 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["artifact_continuity_materializable_target_count", str(summary.get("artifact_continuity_materializable_target_count") or 0)],
                     ["visible_contradiction_count", str(summary.get("visible_contradiction_count") or 0)],
                     ["visible_stale_or_superseded_count", str(summary.get("visible_stale_or_superseded_count") or 0)],
+                    ["visible_lineage_candidate_count", str(summary.get("visible_lineage_candidate_count") or 0)],
+                    ["visible_lineage_reason_record_count", str(summary.get("visible_lineage_reason_record_count") or 0)],
+                    ["lineage_graph_status", str(summary.get("lineage_graph_status") or "")],
                     ["visible_campaign_throughput_bottleneck_count", str(summary.get("visible_campaign_throughput_bottleneck_count") or 0)],
                     ["visible_experiment_duplicate_pressure_count", str(summary.get("visible_experiment_duplicate_pressure_count") or 0)],
                     ["research_state_sequential_retrieval_ready", str(summary.get("research_state_sequential_retrieval_ready") or False)],
@@ -267,6 +286,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["failure_retrieval_path", str(artifacts.get("failure_retrieval_path") or "")],
                     ["artifact_continuity_path", str(artifacts.get("artifact_continuity_path") or "")],
                     ["contradiction_staleness_path", str(artifacts.get("contradiction_staleness_path") or "")],
+                    ["lineage_graph_path", str(artifacts.get("lineage_graph_path") or "")],
                     ["campaign_throughput_bottleneck_path", str(artifacts.get("campaign_throughput_bottleneck_path") or "")],
                     ["experiment_dedup_novelty_path", str(artifacts.get("experiment_dedup_novelty_path") or "")],
                     ["research_state_sequential_retrieval_path", str(artifacts.get("research_state_sequential_retrieval_path") or "")],
@@ -302,6 +322,8 @@ def write_outputs(
     continuity_paths = artifact_continuity.write_outputs(continuity_report, repo_root=repo_root)
     contradiction_report = contradiction_staleness.build_contradiction_staleness_intelligence(repo_root=repo_root)
     contradiction_paths = contradiction_staleness.write_outputs(contradiction_report, repo_root=repo_root)
+    lineage_graph_report = lineage_graph.build_qre_lineage_graph_v1(repo_root=repo_root)
+    lineage_graph_paths = lineage_graph.write_outputs(lineage_graph_report, repo_root=repo_root)
     throughput_report = throughput_bottlenecks.build_campaign_throughput_bottleneck_intelligence(repo_root=repo_root)
     throughput_paths = throughput_bottlenecks.write_outputs(throughput_report, repo_root=repo_root)
     novelty_report = novelty_enforcement.build_experiment_dedup_novelty_enforcement(repo_root=repo_root)
@@ -336,6 +358,8 @@ def write_outputs(
         "artifact_continuity_operator_summary": continuity_paths["operator_summary"],
         "contradiction_staleness_latest": contradiction_paths["latest"],
         "contradiction_staleness_operator_summary": contradiction_paths["operator_summary"],
+        "lineage_graph_latest": lineage_graph_paths["latest"],
+        "lineage_graph_operator_summary": lineage_graph_paths["operator_summary"],
         "campaign_throughput_bottleneck_latest": throughput_paths["latest"],
         "campaign_throughput_bottleneck_operator_summary": throughput_paths["operator_summary"],
         "experiment_dedup_novelty_latest": novelty_paths["latest"],

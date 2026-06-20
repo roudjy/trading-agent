@@ -9,6 +9,11 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from research import qre_evidence_complete_basket_closure as basket_closure
+from research import qre_reason_record_normalization as reason_record_normalization
+from research import qre_structured_lineage_artifacts as structured_lineage_artifacts
+from research import qre_structured_oos_artifacts as structured_oos_artifacts
+
 
 REPORT_KIND: Final[str] = "qre_lineage_graph_v1"
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -26,6 +31,10 @@ SOURCE_QUALITY_PATH: Final[Path] = Path("logs/qre_data_source_quality_readiness/
 HYPOTHESIS_CATALOG_PATH: Final[Path] = Path("research/strategy_hypothesis_catalog_latest.v1.json")
 CAMPAIGN_REGISTRY_PATH: Final[Path] = Path("research/campaign_registry_latest.v1.json")
 CAMPAIGN_DIGEST_PATH: Final[Path] = Path("research/campaign_digest_latest.v1.json")
+STRUCTURED_LINEAGE_PATH: Final[Path] = Path("logs/qre_structured_lineage_artifacts/latest.json")
+STRUCTURED_OOS_PATH: Final[Path] = Path("logs/qre_structured_oos_artifacts/latest.json")
+EVIDENCE_CLOSURE_PATH: Final[Path] = Path("logs/qre_evidence_complete_basket_closure/latest.json")
+REASON_RECORD_NORMALIZATION_PATH: Final[Path] = Path("logs/qre_reason_record_normalization/latest.json")
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -126,8 +135,41 @@ def _campaign_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     return [row for row in rows if isinstance(row, Mapping)]
 
 
+def _load_or_build(
+    path: Path,
+    *,
+    repo_root: Path,
+    builder: callable,
+) -> dict[str, Any]:
+    payload = _read_json(repo_root / path)
+    if isinstance(payload, dict):
+        return payload
+    built = builder(repo_root=repo_root)
+    return built if isinstance(built, dict) else {}
+
+
 def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]:
     reports, missing_reports = _load_reports(repo_root)
+    structured_lineage_report = _load_or_build(
+        STRUCTURED_LINEAGE_PATH,
+        repo_root=repo_root,
+        builder=structured_lineage_artifacts.build_structured_lineage_artifacts,
+    )
+    structured_oos_report = _load_or_build(
+        STRUCTURED_OOS_PATH,
+        repo_root=repo_root,
+        builder=structured_oos_artifacts.build_structured_oos_artifacts,
+    )
+    closure_report = _load_or_build(
+        EVIDENCE_CLOSURE_PATH,
+        repo_root=repo_root,
+        builder=basket_closure.build_evidence_complete_basket_closure,
+    )
+    reason_record_normalization_report = _load_or_build(
+        REASON_RECORD_NORMALIZATION_PATH,
+        repo_root=repo_root,
+        builder=reason_record_normalization.build_reason_record_normalization,
+    )
 
     source_lifecycle_rows = _rows_from_report(reports.get("source_lifecycle", {}), "rows")
     historical_rows = _rows_from_report(reports.get("historical_accounting", {}), "rows")
@@ -137,6 +179,10 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
     source_quality_rows = _rows_from_report(reports.get("source_quality", {}), "rows")
     hypotheses = _rows_from_report(reports.get("hypothesis_catalog", {}), "hypotheses")
     campaigns = _campaign_rows(reports.get("campaign_registry", {}))
+    structured_lineage_rows = _rows_from_report(structured_lineage_report, "rows")
+    structured_oos_rows = _rows_from_report(structured_oos_report, "rows")
+    closure_rows = _rows_from_report(closure_report, "rows")
+    normalized_reason_rows = _rows_from_report(reason_record_normalization_report, "normalized_records")
     digest = reports.get("campaign_digest", {})
     digest_by_lineage_root = (
         digest.get("compute_by_lineage_root")
@@ -153,7 +199,9 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
     normalized_node_ids: list[str] = []
     factor_node_ids: list[str] = []
     hypothesis_node_ids: list[str] = []
+    candidate_node_ids: list[str] = []
     campaign_node_ids: list[str] = []
+    evidence_nodes: list[str] = []
 
     source_quality_groups = _group_by_alias(
         source_quality_rows,
@@ -276,6 +324,50 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
                 evidence_refs=[FACTOR_COVERAGE_PATH.as_posix(), HYPOTHESIS_CATALOG_PATH.as_posix()],
             )
 
+    candidate_nodes_by_id: dict[str, str] = {}
+    for row in sorted(closure_rows, key=lambda item: str(item.get("candidate_id") or "")):
+        candidate_id = str(row.get("candidate_id") or "")
+        if not candidate_id:
+            continue
+        candidate_node_id = f"candidate::{candidate_id}"
+        candidate_node_ids.append(candidate_node_id)
+        candidate_nodes_by_id[candidate_id] = candidate_node_id
+        _add_node(
+            nodes,
+            {
+                "node_id": candidate_node_id,
+                "node_type": "candidate",
+                "lineage_layer": "candidate",
+                "label": candidate_id,
+                "symbol": row.get("symbol"),
+                "preset_id": row.get("preset_id"),
+                "closure_status": row.get("closure_status"),
+                "exact_next_action": row.get("exact_next_action"),
+            },
+        )
+        closure_node_id = f"evidence::candidate_closure::{candidate_id}"
+        evidence_nodes.append(closure_node_id)
+        _add_node(
+            nodes,
+            {
+                "node_id": closure_node_id,
+                "node_type": "evidence",
+                "lineage_layer": "evidence",
+                "label": f"candidate_closure::{candidate_id}",
+                "report_kind": "qre_evidence_complete_basket_closure_row",
+                "candidate_id": candidate_id,
+                "closure_status": row.get("closure_status"),
+                "reason_record_count": row.get("reason_record_count"),
+            },
+        )
+        _add_edge(
+            edges,
+            candidate_node_id,
+            closure_node_id,
+            "documented_by",
+            evidence_refs=[EVIDENCE_CLOSURE_PATH.as_posix()],
+        )
+
     hypothesis_ids = {str(row.get("hypothesis_id") or "") for row in hypotheses}
     campaign_by_id = {str(row.get("campaign_id") or ""): row for row in campaigns}
     for row in sorted(campaigns, key=lambda item: str(item.get("campaign_id") or "")):
@@ -316,7 +408,6 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
                 }
             )
 
-    evidence_nodes: list[str] = []
     report_evidence_specs = [
         ("source_lifecycle_quality_gate", SOURCE_LIFECYCLE_PATH, reports.get("source_lifecycle", {})),
         ("historical_accounting_foundation", HISTORICAL_ACCOUNTING_PATH, reports.get("historical_accounting", {})),
@@ -326,6 +417,10 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
         ("source_quality_readiness", SOURCE_QUALITY_PATH, reports.get("source_quality", {})),
         ("strategy_hypothesis_catalog", HYPOTHESIS_CATALOG_PATH, reports.get("hypothesis_catalog", {})),
         ("campaign_registry", CAMPAIGN_REGISTRY_PATH, reports.get("campaign_registry", {})),
+        ("structured_lineage_artifacts", STRUCTURED_LINEAGE_PATH, structured_lineage_report),
+        ("structured_oos_artifacts", STRUCTURED_OOS_PATH, structured_oos_report),
+        ("evidence_complete_basket_closure", EVIDENCE_CLOSURE_PATH, closure_report),
+        ("reason_record_normalization", REASON_RECORD_NORMALIZATION_PATH, reason_record_normalization_report),
     ]
     for report_name, path, payload in report_evidence_specs:
         evidence_node_id = f"evidence::{report_name}"
@@ -397,6 +492,101 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
                 evidence_refs=[CAMPAIGN_DIGEST_PATH.as_posix(), GRID_BRIDGE_PATH.as_posix()],
             )
 
+    for row in structured_lineage_rows:
+        candidate_id = str(row.get("candidate_id") or "")
+        campaign_id = str(row.get("campaign_id") or "")
+        artifact_id = str(row.get("artifact_id") or "")
+        if not artifact_id:
+            continue
+        evidence_node_id = f"evidence::structured_lineage::{artifact_id}"
+        evidence_nodes.append(evidence_node_id)
+        _add_node(
+            nodes,
+            {
+                "node_id": evidence_node_id,
+                "node_type": "evidence",
+                "lineage_layer": "evidence",
+                "label": f"structured_lineage::{artifact_id}",
+                "report_kind": "qre_structured_lineage_artifacts_row",
+                "candidate_id": candidate_id,
+                "campaign_id": campaign_id,
+                "validation_status": row.get("validation_status"),
+            },
+        )
+        if candidate_id and candidate_id in candidate_nodes_by_id:
+            _add_edge(
+                edges,
+                candidate_nodes_by_id[candidate_id],
+                evidence_node_id,
+                "documented_by",
+                evidence_refs=[STRUCTURED_LINEAGE_PATH.as_posix()],
+            )
+        if campaign_id and campaign_id in campaign_by_id:
+            _add_edge(
+                edges,
+                f"campaign::{campaign_id}",
+                evidence_node_id,
+                "documented_by",
+                evidence_refs=[STRUCTURED_LINEAGE_PATH.as_posix()],
+            )
+
+    for row in structured_oos_rows:
+        candidate_id = str(row.get("candidate_id") or "")
+        artifact_id = str(row.get("artifact_id") or "")
+        if not artifact_id:
+            continue
+        evidence_node_id = f"evidence::structured_oos::{artifact_id}"
+        evidence_nodes.append(evidence_node_id)
+        _add_node(
+            nodes,
+            {
+                "node_id": evidence_node_id,
+                "node_type": "evidence",
+                "lineage_layer": "evidence",
+                "label": f"structured_oos::{artifact_id}",
+                "report_kind": "qre_structured_oos_artifacts_row",
+                "candidate_id": candidate_id,
+                "validation_status": row.get("validation_status"),
+            },
+        )
+        if candidate_id and candidate_id in candidate_nodes_by_id:
+            _add_edge(
+                edges,
+                candidate_nodes_by_id[candidate_id],
+                evidence_node_id,
+                "documented_by",
+                evidence_refs=[STRUCTURED_OOS_PATH.as_posix()],
+            )
+
+    for row in normalized_reason_rows:
+        candidate_id = str(row.get("subject_id") or "")
+        if candidate_id not in candidate_nodes_by_id:
+            continue
+        reason_node_id = f"reason_record::{row.get('record_id') or candidate_id}"
+        _add_node(
+            nodes,
+            {
+                "node_id": reason_node_id,
+                "node_type": "reason_record",
+                "lineage_layer": "reason_record",
+                "label": str(row.get("record_id") or candidate_id),
+                "candidate_id": candidate_id,
+                "record_family": row.get("record_family"),
+                "contract_validation_status": (
+                    (row.get("contract_validation") or {}).get("validation_status")
+                    if isinstance(row.get("contract_validation"), Mapping)
+                    else None
+                ),
+            },
+        )
+        _add_edge(
+            edges,
+            candidate_nodes_by_id[candidate_id],
+            reason_node_id,
+            "reason_recorded_by",
+            evidence_refs=[REASON_RECORD_NORMALIZATION_PATH.as_posix()],
+        )
+
     orphan_layer_counts = Counter()
     for node_id, node in nodes.items():
         layer = str(node.get("lineage_layer") or "unknown")
@@ -421,13 +611,25 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
                     }
                 )
                 orphan_layer_counts[layer] += 1
+        elif layer == "candidate":
+            if not any(edge["source"] == node_id for edge in edges):
+                orphan_nodes.append(
+                    {
+                        "node_id": node_id,
+                        "lineage_layer": layer,
+                        "reason": "candidate_has_no_evidence_reference",
+                    }
+                )
+                orphan_layer_counts[layer] += 1
 
     source_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "source")
     normalized_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "normalized_data")
     factor_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "factor")
     hypothesis_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "hypothesis")
+    candidate_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "candidate")
     campaign_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "campaign")
     evidence_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "evidence")
+    reason_record_count = sum(1 for node in nodes.values() if node.get("lineage_layer") == "reason_record")
     edge_counts = Counter(edge["relation"] for edge in edges)
 
     if missing_reports or contradictions:
@@ -442,8 +644,20 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
         "normalized_data_count": normalized_count,
         "factor_count": factor_count,
         "hypothesis_count": hypothesis_count,
+        "candidate_count": candidate_count,
         "campaign_count": campaign_count,
         "evidence_count": evidence_count,
+        "reason_record_count": reason_record_count,
+        "evidence_complete_candidate_count": len(candidate_nodes_by_id),
+        "structured_lineage_artifact_count": int(
+            ((structured_lineage_report.get("summary") or {}).get("artifact_count")) or 0
+        ),
+        "structured_oos_artifact_count": int(
+            ((structured_oos_report.get("summary") or {}).get("artifact_count")) or 0
+        ),
+        "normalized_reason_record_count": int(
+            ((reason_record_normalization_report.get("summary") or {}).get("normalized_record_count")) or 0
+        ),
         "edge_count": len(edges),
         "orphan_count": len(orphan_nodes),
         "contradiction_count": len(contradictions),
@@ -451,9 +665,9 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
         "orphan_layer_counts": dict(sorted(orphan_layer_counts.items())),
         "edge_relation_counts": dict(sorted(edge_counts.items())),
         "operator_summary": (
-            "Deterministic lineage graph stays read-only and report-only. Layer-adjacency edges show how source, "
-            "normalized data, factor, hypothesis, campaign, and evidence surfaces are connected without granting "
-            "alpha authority or mutation permission."
+            "Deterministic lineage graph stays read-only and report-only. Layer-adjacency edges now expose source, "
+            "normalized data, factor, hypothesis, candidate, campaign, reason-record, and evidence-closure surfaces "
+            "without granting alpha authority or mutation permission."
         ),
     }
 
@@ -481,6 +695,10 @@ def build_qre_lineage_graph_v1(*, repo_root: Path = Path(".")) -> dict[str, Any]
             "strategy_hypothesis_catalog": HYPOTHESIS_CATALOG_PATH.as_posix(),
             "campaign_registry": CAMPAIGN_REGISTRY_PATH.as_posix(),
             "campaign_digest": CAMPAIGN_DIGEST_PATH.as_posix(),
+            "structured_lineage_artifacts": STRUCTURED_LINEAGE_PATH.as_posix(),
+            "structured_oos_artifacts": STRUCTURED_OOS_PATH.as_posix(),
+            "evidence_complete_basket_closure": EVIDENCE_CLOSURE_PATH.as_posix(),
+            "reason_record_normalization": REASON_RECORD_NORMALIZATION_PATH.as_posix(),
         },
         "safety_invariants": {
             "read_only": True,
@@ -516,8 +734,10 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["normalized_data_count", str(summary.get("normalized_data_count") or 0)],
                     ["factor_count", str(summary.get("factor_count") or 0)],
                     ["hypothesis_count", str(summary.get("hypothesis_count") or 0)],
+                    ["candidate_count", str(summary.get("candidate_count") or 0)],
                     ["campaign_count", str(summary.get("campaign_count") or 0)],
                     ["evidence_count", str(summary.get("evidence_count") or 0)],
+                    ["reason_record_count", str(summary.get("reason_record_count") or 0)],
                     ["orphan_count", str(summary.get("orphan_count") or 0)],
                     ["contradiction_count", str(summary.get("contradiction_count") or 0)],
                 ],

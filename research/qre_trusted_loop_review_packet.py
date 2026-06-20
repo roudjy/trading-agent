@@ -27,6 +27,7 @@ from research import qre_basket_operator_action_plan as basket_action_plan
 from research import qre_campaign_throughput_bottleneck_intelligence as throughput_bottlenecks
 from research import qre_contradiction_staleness_intelligence as contradiction_staleness
 from research import qre_experiment_dedup_novelty_enforcement as novelty_enforcement
+from research import qre_lineage_graph_v1 as lineage_graph
 from research import qre_reason_records_v1 as reason_records
 from research import qre_reason_record_normalization as reason_record_normalization
 from research import qre_read_only_artifact_continuity as artifact_continuity
@@ -279,6 +280,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     contradiction_packet = contradiction_staleness.build_contradiction_staleness_intelligence(
         repo_root=repo_root
     )
+    lineage_graph_packet = lineage_graph.build_qre_lineage_graph_v1(repo_root=repo_root)
     throughput_packet = throughput_bottlenecks.build_campaign_throughput_bottleneck_intelligence(
         repo_root=repo_root
     )
@@ -329,6 +331,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     )
     contradiction_summary = (
         contradiction_packet.get("summary") if isinstance(contradiction_packet.get("summary"), Mapping) else {}
+    )
+    lineage_graph_summary = (
+        lineage_graph_packet.get("summary") if isinstance(lineage_graph_packet.get("summary"), Mapping) else {}
     )
     throughput_summary = (
         throughput_packet.get("summary") if isinstance(throughput_packet.get("summary"), Mapping) else {}
@@ -395,6 +400,11 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "artifact_continuity_ready": bool(continuity_summary.get("artifact_continuity_ready")),
             "artifact_continuity_exact_next_action": str(continuity_summary.get("exact_next_action") or ""),
             "contradiction_staleness_ready": bool(contradiction_summary.get("contradiction_staleness_ready")),
+            "lineage_graph_status": str(lineage_graph_summary.get("graph_status") or ""),
+            "visible_lineage_candidate_count": int(lineage_graph_summary.get("candidate_count") or 0),
+            "visible_lineage_reason_record_count": int(
+                lineage_graph_summary.get("reason_record_count") or 0
+            ),
             "visible_contradiction_count": int(contradiction_summary.get("contradiction_count") or 0),
             "visible_stale_or_superseded_count": int(
                 contradiction_summary.get("stale_or_superseded_count") or 0
@@ -537,6 +547,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "research_memory": memory_packet,
             "artifact_continuity": continuity_packet,
             "contradiction_staleness": contradiction_packet,
+            "lineage_graph": lineage_graph_packet,
             "campaign_throughput_bottlenecks": throughput_packet,
             "experiment_dedup_novelty_enforcement": novelty_packet,
             "research_state_sequential_retrieval": sequential_packet,
@@ -636,6 +647,9 @@ def render_operator_summary(packet: Mapping[str, Any]) -> str:
             f"- artifact_continuity_ready: {summary.get('artifact_continuity_ready')}",
             f"- artifact_continuity_exact_next_action: {summary.get('artifact_continuity_exact_next_action')}",
             f"- contradiction_staleness_ready: {summary.get('contradiction_staleness_ready')}",
+            f"- lineage_graph_status: {summary.get('lineage_graph_status')}",
+            f"- visible_lineage_candidate_count: {summary.get('visible_lineage_candidate_count')}",
+            f"- visible_lineage_reason_record_count: {summary.get('visible_lineage_reason_record_count')}",
             f"- visible_contradiction_count: {summary.get('visible_contradiction_count')}",
             f"- visible_stale_or_superseded_count: {summary.get('visible_stale_or_superseded_count')}",
             f"- contradiction_staleness_exact_next_action: {summary.get('contradiction_staleness_exact_next_action')}",

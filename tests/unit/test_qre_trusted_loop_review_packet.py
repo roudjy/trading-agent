@@ -122,6 +122,17 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         },
     )
     monkeypatch.setattr(
+        packet_module.lineage_graph,
+        "build_qre_lineage_graph_v1",
+        lambda **_: {
+            "summary": {
+                "graph_status": "partial",
+                "candidate_count": 2,
+                "reason_record_count": 3,
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.throughput_bottlenecks,
         "build_campaign_throughput_bottleneck_intelligence",
         lambda **_: {
@@ -239,6 +250,9 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["artifact_continuity_ready"] is True
     assert packet["summary"]["artifact_continuity_exact_next_action"] == "preserve_current_read_only_artifacts"
     assert packet["summary"]["contradiction_staleness_ready"] is True
+    assert packet["summary"]["lineage_graph_status"] == "partial"
+    assert packet["summary"]["visible_lineage_candidate_count"] == 2
+    assert packet["summary"]["visible_lineage_reason_record_count"] == 3
     assert packet["summary"]["visible_contradiction_count"] == 0
     assert packet["summary"]["visible_stale_or_superseded_count"] == 0
     assert packet["summary"]["campaign_throughput_bottleneck_intelligence_ready"] is True
@@ -278,6 +292,7 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["evidence_inputs"]["trusted_loop_readiness"]["readiness_state"] == "operator_trusted"
     assert packet["evidence_inputs"]["structured_lineage_artifacts"]["summary"]["final_recommendation"] == "request_invalid_fails_closed"
     assert packet["evidence_inputs"]["structured_oos_artifacts"]["summary"]["final_recommendation"] == "request_invalid_fails_closed"
+    assert packet["evidence_inputs"]["lineage_graph"]["summary"]["candidate_count"] == 2
     assert packet["evidence_inputs"]["reason_record_normalization"]["summary"]["normalized_record_count"] == 7
 
 
