@@ -660,3 +660,280 @@ def test_launcher_invariant_violation_is_technical_failure() -> None:
     assert "technical_failure" in markdown
     assert "launcher_invariant_violation" in markdown
 
+def test_completed_campaign_refreshes_post_completion_intelligence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    completed = _completed_campaign(
+        campaign_id="col-refresh",
+        outcome="completed_no_survivor",
+        reason_code="none",
+        meaningful="duplicate_low_value_run",
+    )
+    registry_snapshots = iter(
+        [
+            _registry(),
+            _registry(completed),
+            _registry(completed),
+        ]
+    )
+    refresh_calls: list[dict] = []
+    refreshed_status = {
+        "information_gain": "present",
+        "viability": "present",
+        "stop_conditions": "present",
+        "spawn_proposals": "present",
+    }
+
+    def fake_tick(**kwargs):
+        return ce.LauncherTick(
+            tick_index=int(kwargs["tick_index"]),
+            returncode=0,
+            timed_out=False,
+            elapsed_seconds=0,
+            stdout_tail="",
+            stderr_tail="",
+            completed_campaign_ids=("col-refresh",),
+        )
+
+    def fake_refresh(**kwargs):
+        refresh_calls.append(kwargs)
+        return refreshed_status
+
+    monkeypatch.setattr(ce, "_ensure_active_sprint", lambda _profile: (True, False))
+    monkeypatch.setattr(ce.ds, "update_sprint_progress", lambda: None)
+    monkeypatch.setattr(
+        ce.ds,
+        "load_sprint_progress",
+        lambda: {"observed_total": 1, "state": "active"},
+    )
+    monkeypatch.setattr(ce.ds, "load_sprint_registry", _sprint_registry)
+    monkeypatch.setattr(ce, "load_registry", lambda _path: next(registry_snapshots))
+    monkeypatch.setattr(ce, "load_queue", lambda _path: {"queue": []})
+    monkeypatch.setattr(
+        ce,
+        "load_events",
+        lambda _path: [
+            _ledger_event(
+                campaign_id="col-refresh",
+                meaningful="duplicate_low_value_run",
+            )
+        ],
+    )
+    monkeypatch.setattr(ce, "_read_json", lambda _path: None)
+    monkeypatch.setattr(ce, "_run_launcher_tick", fake_tick)
+    monkeypatch.setattr(ce, "_refresh_post_completion_intelligence", fake_refresh)
+
+    rc = ce.run_controlled_eval(
+        profile="crypto_exploratory_v1",
+        max_campaigns=1,
+        timeout_seconds_per_campaign=60,
+        poll_seconds=0,
+        report_json=tmp_path / "controlled.json",
+        report_md=tmp_path / "controlled.md",
+    )
+
+    assert rc == 0
+    assert len(refresh_calls) == 1
+    assert refresh_calls[0]["campaign_id"] == "col-refresh"
+    assert refresh_calls[0]["campaign_registry"] == _registry(completed)
+
+    report = json.loads(
+        (tmp_path / "controlled.json").read_text(encoding="utf-8")
+    )
+    assert report["campaigns_completed"] == 1
+    assert report["intelligence_artifact_status"] == refreshed_status
+
+
+def test_no_completed_campaign_does_not_refresh_intelligence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    refresh_calls: list[dict] = []
+    missing_status = {
+        "information_gain": "missing",
+        "viability": "missing",
+        "stop_conditions": "missing",
+        "spawn_proposals": "missing",
+    }
+
+    def fake_tick(**kwargs):
+        return ce.LauncherTick(
+            tick_index=int(kwargs["tick_index"]),
+            returncode=0,
+            timed_out=False,
+            elapsed_seconds=0,
+            stdout_tail="",
+            stderr_tail="",
+            completed_campaign_ids=(),
+        )
+
+    def fake_refresh(**kwargs):
+        refresh_calls.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(ce, "_ensure_active_sprint", lambda _profile: (True, False))
+    monkeypatch.setattr(ce.ds, "update_sprint_progress", lambda: None)
+    monkeypatch.setattr(
+        ce.ds,
+        "load_sprint_progress",
+        lambda: {"observed_total": 0, "state": "active"},
+    )
+    monkeypatch.setattr(ce.ds, "load_sprint_registry", _sprint_registry)
+    monkeypatch.setattr(ce, "load_registry", lambda _path: _registry())
+    monkeypatch.setattr(ce, "load_queue", lambda _path: {"queue": []})
+    monkeypatch.setattr(ce, "load_events", lambda _path: [])
+    monkeypatch.setattr(ce, "_read_json", lambda _path: None)
+    monkeypatch.setattr(ce, "_run_launcher_tick", fake_tick)
+    monkeypatch.setattr(ce, "_refresh_post_completion_intelligence", fake_refresh)
+    monkeypatch.setattr(
+        ce,
+        "build_intelligence_artifact_status",
+        lambda: missing_status,
+    )
+
+    rc = ce.run_controlled_eval(
+        profile="crypto_exploratory_v1",
+        max_campaigns=1,
+        timeout_seconds_per_campaign=60,
+        poll_seconds=0,
+        report_json=tmp_path / "controlled.json",
+        report_md=tmp_path / "controlled.md",
+    )
+
+    assert rc == 0
+    assert refresh_calls == []
+
+    report = json.loads(
+        (tmp_path / "controlled.json").read_text(encoding="utf-8")
+    )
+    assert report["campaigns_completed"] == 0
+    assert report["intelligence_artifact_status"] == missing_status
+
+def test_refresh_post_completion_intelligence_rebuilds_dependent_sidecars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, dict]] = []
+
+    evidence_payload = {
+        "schema_version": "1.0",
+        "hypothesis_evidence": [{"campaign_id": "col-refresh"}],
+    }
+    information_gain_payload = {
+        "information_gain": {"bucket": "low", "score": 0.2}
+    }
+    dead_zones_payload = {"dead_zones": []}
+    stop_payload = {
+        "schema_version": "1.0",
+        "decisions": [],
+    }
+    viability_payload = {
+        "schema_version": "1.0",
+        "metrics": {"campaign_count": 1},
+        "verdict": {"status": "insufficient_data"},
+    }
+    registry_payload = _registry(
+        _completed_campaign(campaign_id="col-refresh")
+    )
+    refreshed_status = {
+        "information_gain": "present",
+        "viability": "present",
+        "stop_conditions": "present",
+        "spawn_proposals": "present",
+    }
+
+    def fake_read_json(path: Path):
+        if path == ce.INFORMATION_GAIN_PATH:
+            return information_gain_payload
+        if path == ce.DEAD_ZONES_PATH:
+            return dead_zones_payload
+        raise AssertionError(f"unexpected read path: {path}")
+
+    def fake_write_evidence(**kwargs):
+        calls.append(("evidence", kwargs))
+        return evidence_payload
+
+    def fake_write_stop(**kwargs):
+        calls.append(("stop", kwargs))
+        return stop_payload
+
+    def fake_write_viability(**kwargs):
+        calls.append(("viability", kwargs))
+        return viability_payload
+
+    def fake_write_spawn(**kwargs):
+        calls.append(("spawn", kwargs))
+        return {"summary": {"proposed_count": 0}}
+
+    monkeypatch.setattr(ce, "_read_json", fake_read_json)
+    monkeypatch.setattr(
+        ce,
+        "write_research_evidence_artifact",
+        fake_write_evidence,
+    )
+    monkeypatch.setattr(
+        ce,
+        "write_stop_conditions_artifact",
+        fake_write_stop,
+    )
+    monkeypatch.setattr(
+        ce,
+        "write_viability_artifact",
+        fake_write_viability,
+    )
+    monkeypatch.setattr(
+        ce,
+        "write_spawn_proposals_artifact",
+        fake_write_spawn,
+    )
+    monkeypatch.setattr(
+        ce,
+        "build_intelligence_artifact_status",
+        lambda: refreshed_status,
+    )
+
+    result = ce._refresh_post_completion_intelligence(
+        campaign_id="col-refresh",
+        run_campaign_payload={
+            "run_id": "run-refresh",
+            "git_revision": "abc123",
+        },
+        screening_evidence_payload={
+            "summary": {"total_candidates": 8}
+        },
+        campaign_registry=registry_payload,
+    )
+
+    assert result == refreshed_status
+    assert [name for name, _kwargs in calls] == [
+        "evidence",
+        "stop",
+        "viability",
+        "spawn",
+    ]
+
+    evidence_call = calls[0][1]
+    assert evidence_call["run_id"] == "run-refresh"
+    assert evidence_call["col_campaign_id"] == "col-refresh"
+    assert evidence_call["git_revision"] == "abc123"
+
+    stop_call = calls[1][1]
+    assert stop_call["evidence_ledger"] is evidence_payload
+    assert stop_call["information_gain_history"] == [
+        information_gain_payload
+    ]
+
+    viability_call = calls[2][1]
+    assert viability_call["evidence_ledger"] is evidence_payload
+    assert viability_call["information_gain_history"] == [
+        information_gain_payload
+    ]
+
+    spawn_call = calls[3][1]
+    assert spawn_call["evidence_ledger"] is evidence_payload
+    assert spawn_call["information_gain"] is information_gain_payload
+    assert spawn_call["stop_conditions"] is stop_payload
+    assert spawn_call["viability"] is viability_payload
+    assert spawn_call["dead_zones"] is dead_zones_payload
+    assert spawn_call["campaign_registry"] is registry_payload
+
