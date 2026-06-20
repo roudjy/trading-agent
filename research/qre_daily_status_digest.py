@@ -17,6 +17,11 @@ DEFAULT_BUILD_BACKEND_RESULTS_DIR: Final[Path] = Path("logs/qre_build_request_co
 DEFAULT_PR_AUTO_MERGE_LATEST: Final[Path] = Path("logs/qre_pr_auto_merge_gate/latest.json")
 DEFAULT_RUNTIME_CONTINUATION_LATEST: Final[Path] = Path("logs/qre_runtime_update_and_continue/latest.json")
 DEFAULT_FLYWHEEL_LATEST: Final[Path] = Path("logs/qre_research_development_flywheel/latest.json")
+DEFAULT_TRUSTED_LOOP_REVIEW_LATEST: Final[Path] = Path("logs/qre_trusted_loop_review/latest.json")
+DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST: Final[Path] = Path(
+    "logs/qre_research_memory_current_artifacts/latest.json"
+)
+DEFAULT_SHADOW_READINESS_LATEST: Final[Path] = Path("logs/qre_shadow_readiness_gates/latest.json")
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_daily_status")
 
 
@@ -153,6 +158,32 @@ def _extract_pr_number(*artifacts: dict[str, Any] | None) -> int | None:
     return None
 
 
+def _qre_operator_authority(
+    *,
+    trusted_loop_review: dict[str, Any] | None,
+    research_memory_current_artifacts: dict[str, Any] | None,
+    shadow_readiness: dict[str, Any] | None,
+) -> str:
+    trusted_summary = (
+        trusted_loop_review.get("summary") if isinstance(trusted_loop_review, dict) else {}
+    )
+    memory_summary = (
+        research_memory_current_artifacts.get("summary")
+        if isinstance(research_memory_current_artifacts, dict)
+        else {}
+    )
+    shadow_summary = shadow_readiness.get("summary") if isinstance(shadow_readiness, dict) else {}
+    if trusted_summary.get("trusted_loop_review_ready") is True:
+        return "operator_trusted_read_only"
+    if _has_value(trusted_summary.get("trust_verdict")):
+        return "working_read_only_fail_closed"
+    if _has_value(memory_summary.get("final_recommendation")) or _has_value(
+        shadow_summary.get("readiness_status")
+    ):
+        return "context_visible_fail_closed"
+    return "loop_only"
+
+
 def _count_true(*values: Any) -> int:
     return 1 if any(value is True for value in values) else 0
 
@@ -166,6 +197,9 @@ def build_daily_status_packet(
     pr_auto_merge_latest_path: Path = DEFAULT_PR_AUTO_MERGE_LATEST,
     runtime_continuation_latest_path: Path = DEFAULT_RUNTIME_CONTINUATION_LATEST,
     flywheel_latest_path: Path = DEFAULT_FLYWHEEL_LATEST,
+    trusted_loop_review_latest_path: Path = DEFAULT_TRUSTED_LOOP_REVIEW_LATEST,
+    research_memory_current_artifacts_latest_path: Path = DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST,
+    shadow_readiness_latest_path: Path = DEFAULT_SHADOW_READINESS_LATEST,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     loop_packet = _read_json(loop_latest_path)
@@ -194,6 +228,11 @@ def build_daily_status_packet(
     runtime_continuation, runtime_continuation_used = _read_optional_artifact(runtime_continuation_latest_path)
     flywheel = _read_optional_json(flywheel_latest_path)
     flywheel_summary = flywheel.get("summary") if isinstance(flywheel, dict) and isinstance(flywheel.get("summary"), dict) else {}
+    trusted_loop_review, trusted_loop_review_used = _read_optional_artifact(trusted_loop_review_latest_path)
+    research_memory_current_artifacts, research_memory_current_artifacts_used = _read_optional_artifact(
+        research_memory_current_artifacts_latest_path
+    )
+    shadow_readiness, shadow_readiness_used = _read_optional_artifact(shadow_readiness_latest_path)
 
     build_consumed = _count_true(
         build_consumer_latest.get("build_request_consumed") if isinstance(build_consumer_latest, dict) else None,
@@ -280,6 +319,9 @@ def build_daily_status_packet(
             pr_auto_merge_used,
             runtime_continuation_used,
             flywheel_latest_path.as_posix() if flywheel is not None else None,
+            trusted_loop_review_used,
+            research_memory_current_artifacts_used,
+            shadow_readiness_used,
         ]
         if path is not None
     ]
@@ -304,6 +346,24 @@ def build_daily_status_packet(
         build_consumer_observation["blocked_reason"] = None
         build_consumer_observation["missing_capability"] = None
         build_consumer_observation["superseded_by_backend_result"] = True
+    trusted_loop_summary = (
+        trusted_loop_review.get("summary") if isinstance(trusted_loop_review, dict) else {}
+    )
+    research_memory_summary = (
+        research_memory_current_artifacts.get("summary")
+        if isinstance(research_memory_current_artifacts, dict)
+        else {}
+    )
+    shadow_summary = shadow_readiness.get("summary") if isinstance(shadow_readiness, dict) else {}
+    qre_exact_next_action = (
+        shadow_summary.get("exact_next_action")
+        or trusted_loop_summary.get("exact_next_action")
+        or (
+            runtime_continuation.get("final_recommendation")
+            if isinstance(runtime_continuation, dict)
+            else latest_cycle.get("next_action", {}).get("recommended_action")
+        )
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -340,6 +400,26 @@ def build_daily_status_packet(
                 if isinstance(runtime_continuation, dict)
                 else latest_cycle.get("next_action", {}).get("recommended_action")
             ),
+            "trusted_loop_review_ready": bool(trusted_loop_summary.get("trusted_loop_review_ready")),
+            "trusted_loop_trust_verdict": trusted_loop_summary.get("trust_verdict"),
+            "trusted_loop_trust_blocker_count": trusted_loop_summary.get("trust_blocker_count"),
+            "trusted_loop_exact_next_action": trusted_loop_summary.get("exact_next_action"),
+            "research_memory_current_artifacts_ready": (
+                research_memory_summary.get("final_recommendation")
+                == "research_memory_current_artifacts_ready"
+            ),
+            "research_memory_current_artifacts_status": research_memory_summary.get(
+                "final_recommendation"
+            ),
+            "shadow_readiness_status": shadow_summary.get("readiness_status"),
+            "shadow_readiness_blocker_count": shadow_summary.get("blocker_count"),
+            "shadow_readiness_exact_next_action": shadow_summary.get("exact_next_action"),
+            "qre_operator_authority": _qre_operator_authority(
+                trusted_loop_review=trusted_loop_review,
+                research_memory_current_artifacts=research_memory_current_artifacts,
+                shadow_readiness=shadow_readiness,
+            ),
+            "qre_exact_next_action": qre_exact_next_action,
             "flywheel_progress": {
                 "build_request_consumed": _yes_no_unknown(
                     build_requests_consumed > 0 if build_requests_consumed else None
@@ -366,6 +446,9 @@ def build_daily_status_packet(
         "build_backend_results": [payload for _path, payload in backend_results],
         "pr_auto_merge": pr_auto_merge,
         "runtime_continuation": runtime_continuation,
+        "trusted_loop_review": trusted_loop_review,
+        "research_memory_current_artifacts": research_memory_current_artifacts,
+        "shadow_readiness": shadow_readiness,
         "flywheel_summary_fallback": {
             key: value
             for key, value in flywheel_summary.items()
@@ -381,7 +464,7 @@ def build_daily_status_packet(
             "Await build result for pending ADE/Codex request, then rerun market-intake "
             "-> analysis -> controlled research loop."
             if pending
-            else "Continue bounded autonomous market-research cycles."
+            else str(qre_exact_next_action or "Continue bounded autonomous market-research cycles.")
         ),
         "safety": {
             "paper_shadow_live_allowed": False,
@@ -438,6 +521,19 @@ def render_daily_status(packet: dict[str, Any]) -> str:
             f"Latest metric mode: {summary['latest_metric_mode']}",
             f"Latest blocker: {summary['latest_blocker']}",
             f"Latest recommendation: {summary['latest_recommendation']}",
+            "",
+            "QRE operator trust:",
+            f"- Trusted-loop review ready: {summary['trusted_loop_review_ready']}",
+            f"- Trusted-loop trust verdict: {summary['trusted_loop_trust_verdict']}",
+            f"- Trusted-loop blocker count: {summary['trusted_loop_trust_blocker_count']}",
+            f"- Trusted-loop exact next action: {summary['trusted_loop_exact_next_action']}",
+            f"- Research-memory current artifacts ready: {summary['research_memory_current_artifacts_ready']}",
+            f"- Research-memory current artifacts status: {summary['research_memory_current_artifacts_status']}",
+            f"- Shadow readiness status: {summary['shadow_readiness_status']}",
+            f"- Shadow readiness blocker count: {summary['shadow_readiness_blocker_count']}",
+            f"- Shadow readiness exact next action: {summary['shadow_readiness_exact_next_action']}",
+            f"- QRE operator authority: {summary['qre_operator_authority']}",
+            f"- QRE exact next action: {summary['qre_exact_next_action']}",
             "",
             "Research intelligence progress:",
             "- Learning is feeding back into the next market-intake seed.",
@@ -519,6 +615,9 @@ def run_daily_status_digest(
     pr_auto_merge_latest_path: Path = DEFAULT_PR_AUTO_MERGE_LATEST,
     runtime_continuation_latest_path: Path = DEFAULT_RUNTIME_CONTINUATION_LATEST,
     flywheel_latest_path: Path = DEFAULT_FLYWHEEL_LATEST,
+    trusted_loop_review_latest_path: Path = DEFAULT_TRUSTED_LOOP_REVIEW_LATEST,
+    research_memory_current_artifacts_latest_path: Path = DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST,
+    shadow_readiness_latest_path: Path = DEFAULT_SHADOW_READINESS_LATEST,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     write: bool = False,
 ) -> dict[str, Any]:
@@ -530,6 +629,9 @@ def run_daily_status_digest(
         pr_auto_merge_latest_path=pr_auto_merge_latest_path,
         runtime_continuation_latest_path=runtime_continuation_latest_path,
         flywheel_latest_path=flywheel_latest_path,
+        trusted_loop_review_latest_path=trusted_loop_review_latest_path,
+        research_memory_current_artifacts_latest_path=research_memory_current_artifacts_latest_path,
+        shadow_readiness_latest_path=shadow_readiness_latest_path,
     )
     if write:
         packet["_artifact_paths"] = write_outputs(packet, output_dir=output_dir)
@@ -546,6 +648,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pr-auto-merge-latest", default=DEFAULT_PR_AUTO_MERGE_LATEST.as_posix())
     parser.add_argument("--runtime-continuation-latest", default=DEFAULT_RUNTIME_CONTINUATION_LATEST.as_posix())
     parser.add_argument("--flywheel-latest", default=DEFAULT_FLYWHEEL_LATEST.as_posix())
+    parser.add_argument("--trusted-loop-review-latest", default=DEFAULT_TRUSTED_LOOP_REVIEW_LATEST.as_posix())
+    parser.add_argument(
+        "--research-memory-current-artifacts-latest",
+        default=DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST.as_posix(),
+    )
+    parser.add_argument("--shadow-readiness-latest", default=DEFAULT_SHADOW_READINESS_LATEST.as_posix())
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR.as_posix())
     args = parser.parse_args(argv)
     packet = run_daily_status_digest(
@@ -556,6 +664,11 @@ def main(argv: list[str] | None = None) -> int:
         pr_auto_merge_latest_path=Path(args.pr_auto_merge_latest),
         runtime_continuation_latest_path=Path(args.runtime_continuation_latest),
         flywheel_latest_path=Path(args.flywheel_latest),
+        trusted_loop_review_latest_path=Path(args.trusted_loop_review_latest),
+        research_memory_current_artifacts_latest_path=Path(
+            args.research_memory_current_artifacts_latest
+        ),
+        shadow_readiness_latest_path=Path(args.shadow_readiness_latest),
         output_dir=Path(args.output_dir),
         write=args.write,
     )

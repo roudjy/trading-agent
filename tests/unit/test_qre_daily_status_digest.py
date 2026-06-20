@@ -51,6 +51,9 @@ def _run_digest(root: Path, **overrides) -> dict:
         "pr_auto_merge_latest_path": root / "pr_gate" / "latest.json",
         "runtime_continuation_latest_path": root / "runtime" / "latest.json",
         "flywheel_latest_path": root / "flywheel" / "latest.json",
+        "trusted_loop_review_latest_path": root / "trusted_loop" / "latest.json",
+        "research_memory_current_artifacts_latest_path": root / "memory" / "latest.json",
+        "shadow_readiness_latest_path": root / "shadow" / "latest.json",
         "output_dir": root / "daily",
         "write": True,
     }
@@ -74,12 +77,15 @@ def test_daily_digest_summarizes_many_cycles_and_build_lane(tmp_path: Path) -> N
         build_request_latest_path=tmp_path / "loop" / "latest_build_request.json",
         build_consumer_latest_path=tmp_path / "consumer" / "latest.json",
         backend_results_dir=tmp_path / "consumer" / "backend_results",
-        pr_auto_merge_latest_path=tmp_path / "pr_gate" / "latest.json",
-        runtime_continuation_latest_path=tmp_path / "runtime" / "latest.json",
-        flywheel_latest_path=tmp_path / "flywheel" / "latest.json",
-        output_dir=tmp_path / "daily",
-        write=True,
-    )
+            pr_auto_merge_latest_path=tmp_path / "pr_gate" / "latest.json",
+            runtime_continuation_latest_path=tmp_path / "runtime" / "latest.json",
+            flywheel_latest_path=tmp_path / "flywheel" / "latest.json",
+            trusted_loop_review_latest_path=tmp_path / "trusted_loop" / "latest.json",
+            research_memory_current_artifacts_latest_path=tmp_path / "memory" / "latest.json",
+            shadow_readiness_latest_path=tmp_path / "shadow" / "latest.json",
+            output_dir=tmp_path / "daily",
+            write=True,
+        )
 
     assert packet["summary"]["autonomous_cycles"] == 1
     assert packet["summary"]["market_intake_cycles"] == 1
@@ -87,12 +93,14 @@ def test_daily_digest_summarizes_many_cycles_and_build_lane(tmp_path: Path) -> N
     assert packet["summary"]["build_requests_created"] == 1
     assert packet["summary"]["build_requests_pending"] == 1
     assert packet["summary"]["trading_status"] == "disabled"
+    assert packet["summary"]["qre_operator_authority"] == "loop_only"
     assert packet["safety"]["paper_shadow_live_allowed"] is False
     assert packet["safety"]["broker_risk_allowed"] is False
     assert packet["safety"]["execution_allowed"] is False
 
     daily = (tmp_path / "daily" / "daily_status.md").read_text(encoding="utf-8")
     assert "# QRE Daily Status" in daily
+    assert "QRE operator trust:" in daily
     assert "Research intelligence progress:" in daily
     assert "ADE/build progress:" in daily
     assert "Flywheel progress:" in daily
@@ -135,11 +143,14 @@ def test_daily_digest_recognizes_merged_build_result(tmp_path: Path) -> None:
         pr_auto_merge_latest_path=tmp_path / "pr_gate" / "latest.json",
         runtime_continuation_latest_path=tmp_path / "runtime" / "latest.json",
         flywheel_latest_path=tmp_path / "flywheel" / "latest.json",
+        trusted_loop_review_latest_path=tmp_path / "trusted_loop" / "latest.json",
+        research_memory_current_artifacts_latest_path=tmp_path / "memory" / "latest.json",
+        shadow_readiness_latest_path=tmp_path / "shadow" / "latest.json",
     )
 
     assert packet["summary"]["build_requests_pending"] == 0
     assert packet["summary"]["build_requests_completed_or_merged"] == 1
-    assert packet["next_system_action"] == "Continue bounded autonomous market-research cycles."
+    assert packet["next_system_action"] == "add_cache_only_metric_path"
 
 
 def test_digest_reads_build_consumer_latest_and_counts_consumed_build_request(tmp_path: Path) -> None:
@@ -231,6 +242,55 @@ def test_digest_reads_runtime_latest_and_counts_update_and_continuation(tmp_path
     assert packet["summary"]["latest_recommendation"] == "research_continuation_started"
     assert packet["summary"]["flywheel_progress"]["runtime_updated"] == "yes"
     assert packet["summary"]["flywheel_progress"]["research_continuation_started"] == "yes"
+
+
+def test_digest_surfaces_qre_trust_memory_and_shadow_state(tmp_path: Path) -> None:
+    _write_json(
+        tmp_path / "trusted_loop" / "latest.json",
+        {
+            "summary": {
+                "trusted_loop_review_ready": False,
+                "trust_verdict": "read_only_context_fail_closed",
+                "trust_blocker_count": 3,
+                "exact_next_action": "restore_trusted_loop_readiness_evidence",
+            }
+        },
+    )
+    _write_json(
+        tmp_path / "memory" / "latest.json",
+        {
+            "summary": {
+                "final_recommendation": "research_memory_current_artifacts_ready",
+            }
+        },
+    )
+    _write_json(
+        tmp_path / "shadow" / "latest.json",
+        {
+            "summary": {
+                "readiness_status": "shadow_readiness_deferred",
+                "blocker_count": 5,
+                "exact_next_action": "produce_accepted_oos_and_evidence_complete_scope",
+            }
+        },
+    )
+
+    packet = _run_digest(
+        tmp_path,
+        trusted_loop_review_latest_path=tmp_path / "trusted_loop" / "latest.json",
+        research_memory_current_artifacts_latest_path=tmp_path / "memory" / "latest.json",
+        shadow_readiness_latest_path=tmp_path / "shadow" / "latest.json",
+    )
+
+    assert packet["summary"]["trusted_loop_review_ready"] is False
+    assert packet["summary"]["trusted_loop_trust_verdict"] == "read_only_context_fail_closed"
+    assert packet["summary"]["research_memory_current_artifacts_ready"] is True
+    assert packet["summary"]["shadow_readiness_status"] == "shadow_readiness_deferred"
+    assert packet["summary"]["qre_operator_authority"] == "working_read_only_fail_closed"
+    assert packet["summary"]["qre_exact_next_action"] == "produce_accepted_oos_and_evidence_complete_scope"
+    assert (
+        packet["next_system_action"] == "produce_accepted_oos_and_evidence_complete_scope"
+    )
 
 
 def test_stale_no_safe_build_backend_configured_is_suppressed_after_successful_backend_result(tmp_path: Path) -> None:
