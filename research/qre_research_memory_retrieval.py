@@ -213,6 +213,30 @@ def _recurring_failures(
     }
 
 
+def _source_authority_remaining_scope_gaps(source_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    authority_rows = (
+        source_authority.get("rows")
+        if isinstance(source_authority, Mapping) and isinstance(source_authority.get("rows"), list)
+        else []
+    )
+    rows = [
+        {
+            "scope_key": _text(row.get("scope_key")),
+            "symbol": _text(row.get("symbol")),
+            "authority_status": _text(row.get("authority_status")),
+            "authority_reasons": list(row.get("authority_reasons") or []),
+        }
+        for row in authority_rows
+        if isinstance(row, Mapping) and _text(row.get("authority_status")) not in {"", "normalized_context_ready"}
+    ]
+    return {
+        "query_id": "source_authority_remaining_scope_gaps",
+        "status": "matched" if rows else "not_found",
+        "rows": rows,
+        "provenance": [_provenance("logs/qre_source_identity_authority_normalization/latest.json")],
+    }
+
+
 def _novel_remaining_directions(router: Mapping[str, Any] | None) -> dict[str, Any]:
     rows = router.get("eligible_directions") if isinstance(router, Mapping) and isinstance(router.get("eligible_directions"), list) else []
     shaped = [
@@ -309,6 +333,7 @@ def build_research_memory_retrieval(
         _regimes_with_no_trades(disposition_index, campaign),
         _inadequate_sample_density_presets(breadth_rows),
         _recurring_failures(disposition_index, breadth_rows, source_authority),
+        _source_authority_remaining_scope_gaps(source_authority),
         _novel_remaining_directions(router),
         _contradictory_outcomes(disposition_index, breadth_rows),
         _stale_or_superseded_knowledge(artifacts, memory),
@@ -320,6 +345,9 @@ def build_research_memory_retrieval(
         "query_count": len(queries),
         "matched_query_count": sum(1 for row in queries if row.get("status") == "matched"),
         "memory_entry_count": int(memory.get("summary", {}).get("entry_count") or 0),
+        "source_authority_blocked_scope_count": len(
+            (_source_authority_remaining_scope_gaps(source_authority).get("rows") or [])
+        ),
         "contradiction_count": len((_contradictory_outcomes(disposition_index, breadth_rows)).get("rows") or []),
         "operator_summary": (
             "Research memory retrieval unifies tested-scope, failure, breadth, and next-cycle context with explicit provenance. "

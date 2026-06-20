@@ -261,6 +261,8 @@ def test_digest_surfaces_qre_trust_memory_and_shadow_state(tmp_path: Path) -> No
         {
             "summary": {
                 "final_recommendation": "research_memory_current_artifacts_ready",
+                "visible_source_authority_blocked_scope_count": 2,
+                "source_authority_exact_next_action": "resolve_provider_symbol_ambiguity_for_bounded_scope",
             }
         },
     )
@@ -285,12 +287,16 @@ def test_digest_surfaces_qre_trust_memory_and_shadow_state(tmp_path: Path) -> No
     assert packet["summary"]["trusted_loop_review_ready"] is False
     assert packet["summary"]["trusted_loop_trust_verdict"] == "read_only_context_fail_closed"
     assert packet["summary"]["research_memory_current_artifacts_ready"] is True
+    assert packet["summary"]["source_authority_blocked_scope_count"] == 2
     assert packet["summary"]["shadow_readiness_status"] == "shadow_readiness_deferred"
     assert packet["summary"]["qre_operator_authority"] == "working_read_only_fail_closed"
     assert packet["summary"]["qre_exact_next_action"] == "produce_accepted_oos_and_evidence_complete_scope"
     assert (
         packet["next_system_action"] == "produce_accepted_oos_and_evidence_complete_scope"
     )
+    rendered = digest.render_daily_status(packet)
+    assert "Source-authority blocked scope count: 2" in rendered
+    assert "Source-authority exact next action: resolve_provider_symbol_ambiguity_for_bounded_scope" in rendered
 
 
 def test_stale_no_safe_build_backend_configured_is_suppressed_after_successful_backend_result(tmp_path: Path) -> None:

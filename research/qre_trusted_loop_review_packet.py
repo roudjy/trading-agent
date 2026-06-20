@@ -36,6 +36,7 @@ from research import qre_research_state_sequential_retrieval as sequential_retri
 from research import qre_routing_calibration_report as routing_calibration
 from research import qre_sampling_calibration_report as sampling_calibration
 from research import qre_shadow_readiness_gates as shadow_readiness_gates
+from research import qre_source_identity_authority_normalization as source_authority
 from research import qre_trusted_loop_operational_controls as operational_controls
 
 
@@ -293,6 +294,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     reason_record_normalization_packet = reason_record_normalization.build_reason_record_normalization(
         repo_root=repo_root
     )
+    source_authority_packet = source_authority.build_source_identity_authority_report(repo_root=repo_root)
     remediation_packet = remediation_planning.build_incomplete_artifact_remediation_planning(
         repo_root=repo_root
     )
@@ -347,6 +349,11 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     reason_record_normalization_summary = (
         reason_record_normalization_packet.get("summary")
         if isinstance(reason_record_normalization_packet.get("summary"), Mapping)
+        else {}
+    )
+    source_authority_summary = (
+        source_authority_packet.get("summary")
+        if isinstance(source_authority_packet.get("summary"), Mapping)
         else {}
     )
     remediation_summary = (
@@ -451,6 +458,16 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "reason_record_normalization_exact_next_action": str(
                 reason_record_normalization_summary.get("exact_next_action") or ""
             ),
+            "source_authority_status": str(source_authority_summary.get("status") or ""),
+            "visible_source_authority_ready_scope_count": int(
+                source_authority_summary.get("ready_scope_count") or 0
+            ),
+            "visible_source_authority_blocked_scope_count": int(
+                source_authority_summary.get("blocked_scope_count") or 0
+            ),
+            "source_authority_exact_next_action": str(
+                source_authority_summary.get("exact_next_action") or ""
+            ),
             "incomplete_artifact_remediation_planning_ready": bool(
                 remediation_summary.get("remediation_planning_ready")
             ),
@@ -552,6 +569,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "experiment_dedup_novelty_enforcement": novelty_packet,
             "research_state_sequential_retrieval": sequential_packet,
             "reason_record_normalization": reason_record_normalization_packet,
+            "source_authority": source_authority_packet,
             "incomplete_artifact_remediation_planning": remediation_packet,
             "operational_controls": operational_controls_packet,
             "shadow_readiness_gates": shadow_readiness_packet,
@@ -666,6 +684,10 @@ def render_operator_summary(packet: Mapping[str, Any]) -> str:
             f"- visible_reason_record_normalized_count: {summary.get('visible_reason_record_normalized_count')}",
             f"- visible_reason_record_invalid_count: {summary.get('visible_reason_record_invalid_count')}",
             f"- reason_record_normalization_exact_next_action: {summary.get('reason_record_normalization_exact_next_action')}",
+            f"- source_authority_status: {summary.get('source_authority_status')}",
+            f"- visible_source_authority_ready_scope_count: {summary.get('visible_source_authority_ready_scope_count')}",
+            f"- visible_source_authority_blocked_scope_count: {summary.get('visible_source_authority_blocked_scope_count')}",
+            f"- source_authority_exact_next_action: {summary.get('source_authority_exact_next_action')}",
             f"- incomplete_artifact_remediation_planning_ready: {summary.get('incomplete_artifact_remediation_planning_ready')}",
             f"- visible_incomplete_artifact_remediation_count: {summary.get('visible_incomplete_artifact_remediation_count')}",
             f"- incomplete_artifact_remediation_exact_next_action: {summary.get('incomplete_artifact_remediation_exact_next_action')}",

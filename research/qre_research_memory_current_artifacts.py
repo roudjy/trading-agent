@@ -17,6 +17,7 @@ from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_reason_record_normalization as reason_record_normalization
 from research import qre_research_state_sequential_retrieval as sequential_retrieval
 from research import qre_research_memory_coverage as memory_coverage
+from research import qre_source_identity_authority_normalization as source_authority
 
 
 REPORT_KIND: Final[str] = "qre_research_memory_current_artifacts"
@@ -114,6 +115,13 @@ def build_research_memory_current_artifacts(
     reason_record_normalization_ready = bool(
         reason_record_normalization_summary.get("reason_record_normalization_ready")
     )
+    source_authority_report = source_authority.build_source_identity_authority_report(repo_root=repo_root)
+    source_authority_summary = (
+        source_authority_report.get("summary")
+        if isinstance(source_authority_report.get("summary"), Mapping)
+        else {}
+    )
+    source_authority_ready = str(source_authority_summary.get("status") or "") == "ready"
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -168,6 +176,16 @@ def build_research_memory_current_artifacts(
             "reason_record_normalization_exact_next_action": str(
                 reason_record_normalization_summary.get("exact_next_action") or ""
             ),
+            "source_authority_ready": source_authority_ready,
+            "visible_source_authority_ready_scope_count": int(
+                source_authority_summary.get("ready_scope_count") or 0
+            ),
+            "visible_source_authority_blocked_scope_count": int(
+                source_authority_summary.get("blocked_scope_count") or 0
+            ),
+            "source_authority_exact_next_action": str(
+                source_authority_summary.get("exact_next_action") or ""
+            ),
             "incomplete_artifact_remediation_planning_ready": remediation_ready,
             "visible_incomplete_artifact_remediation_count": int(
                 remediation_summary.get("remediation_count") or 0
@@ -187,6 +205,7 @@ def build_research_memory_current_artifacts(
                 and novelty_ready
                 and sequential_ready
                 and reason_record_normalization_ready
+                and source_authority_ready
                 and remediation_ready
                 else "research_memory_current_artifacts_partial"
             ),
@@ -205,6 +224,7 @@ def build_research_memory_current_artifacts(
         "experiment_dedup_novelty_summary": dict(novelty_summary),
         "research_state_sequential_retrieval_summary": dict(sequential_summary),
         "reason_record_normalization_summary": dict(reason_record_normalization_summary),
+        "source_authority_summary": dict(source_authority_summary),
         "incomplete_artifact_remediation_planning_summary": dict(remediation_summary),
         "memory_artifacts": {
             "package_memory_path": str(package_status.get("path") or "logs/qre_research_memory/latest.json"),
@@ -217,6 +237,7 @@ def build_research_memory_current_artifacts(
             "experiment_dedup_novelty_path": "logs/qre_experiment_dedup_novelty_enforcement/latest.json",
             "research_state_sequential_retrieval_path": "logs/qre_research_state_sequential_retrieval/latest.json",
             "reason_record_normalization_path": "logs/qre_reason_record_normalization/latest.json",
+            "source_authority_path": "logs/qre_source_identity_authority_normalization/latest.json",
             "incomplete_artifact_remediation_planning_path": "logs/qre_incomplete_artifact_remediation_planning/latest.json",
         },
         "safety_invariants": {
@@ -270,6 +291,10 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["visible_reason_record_normalized_count", str(summary.get("visible_reason_record_normalized_count") or 0)],
                     ["visible_reason_record_invalid_count", str(summary.get("visible_reason_record_invalid_count") or 0)],
                     ["reason_record_normalization_exact_next_action", str(summary.get("reason_record_normalization_exact_next_action") or "")],
+                    ["source_authority_ready", str(summary.get("source_authority_ready") or False)],
+                    ["visible_source_authority_ready_scope_count", str(summary.get("visible_source_authority_ready_scope_count") or 0)],
+                    ["visible_source_authority_blocked_scope_count", str(summary.get("visible_source_authority_blocked_scope_count") or 0)],
+                    ["source_authority_exact_next_action", str(summary.get("source_authority_exact_next_action") or "")],
                     ["incomplete_artifact_remediation_planning_ready", str(summary.get("incomplete_artifact_remediation_planning_ready") or False)],
                     ["visible_incomplete_artifact_remediation_count", str(summary.get("visible_incomplete_artifact_remediation_count") or 0)],
                     ["incomplete_artifact_remediation_exact_next_action", str(summary.get("incomplete_artifact_remediation_exact_next_action") or "")],
@@ -291,6 +316,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["experiment_dedup_novelty_path", str(artifacts.get("experiment_dedup_novelty_path") or "")],
                     ["research_state_sequential_retrieval_path", str(artifacts.get("research_state_sequential_retrieval_path") or "")],
                     ["reason_record_normalization_path", str(artifacts.get("reason_record_normalization_path") or "")],
+                    ["source_authority_path", str(artifacts.get("source_authority_path") or "")],
                     ["incomplete_artifact_remediation_planning_path", str(artifacts.get("incomplete_artifact_remediation_planning_path") or "")],
                 ],
             ),
@@ -337,6 +363,8 @@ def write_outputs(
         reason_record_normalization_report,
         repo_root=repo_root,
     )
+    source_authority_report = source_authority.build_source_identity_authority_report(repo_root=repo_root)
+    source_authority_paths = source_authority.write_outputs(source_authority_report, repo_root=repo_root)
     remediation_report = remediation_planning.build_incomplete_artifact_remediation_planning(repo_root=repo_root)
     remediation_paths = remediation_planning.write_outputs(remediation_report, repo_root=repo_root)
 
@@ -368,6 +396,8 @@ def write_outputs(
         "research_state_sequential_retrieval_operator_summary": sequential_paths["operator_summary"],
         "reason_record_normalization_latest": reason_record_normalization_paths["latest"],
         "reason_record_normalization_operator_summary": reason_record_normalization_paths["operator_summary"],
+        "source_authority_latest": source_authority_paths["latest"],
+        "source_authority_operator_summary": source_authority_paths["operator_summary"],
         "incomplete_artifact_remediation_planning_latest": remediation_paths["latest"],
         "incomplete_artifact_remediation_planning_operator_summary": remediation_paths["operator_summary"],
         "latest": latest.relative_to(repo_root).as_posix(),

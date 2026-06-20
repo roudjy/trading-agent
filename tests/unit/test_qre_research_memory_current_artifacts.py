@@ -114,6 +114,18 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
         },
     )
     monkeypatch.setattr(
+        current_artifacts.source_authority,
+        "build_source_identity_authority_report",
+        lambda **_: {
+            "summary": {
+                "status": "ready",
+                "ready_scope_count": 2,
+                "blocked_scope_count": 1,
+                "exact_next_action": "resolve_provider_symbol_ambiguity_for_bounded_scope",
+            }
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.remediation_planning,
         "build_incomplete_artifact_remediation_planning",
         lambda **_: {
@@ -137,6 +149,7 @@ def test_current_artifacts_report_summarizes_package_and_qre_memory(monkeypatch)
     assert report["summary"]["experiment_dedup_novelty_enforcement_ready"] is True
     assert report["summary"]["research_state_sequential_retrieval_ready"] is True
     assert report["summary"]["reason_record_normalization_ready"] is True
+    assert report["summary"]["source_authority_ready"] is True
     assert report["summary"]["incomplete_artifact_remediation_planning_ready"] is True
     assert report["summary"]["final_recommendation"] == "research_memory_current_artifacts_ready"
 
@@ -268,6 +281,26 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
         },
     )
     monkeypatch.setattr(
+        current_artifacts.source_authority,
+        "build_source_identity_authority_report",
+        lambda **_: {
+            "summary": {
+                "status": "ready",
+                "ready_scope_count": 2,
+                "blocked_scope_count": 1,
+                "exact_next_action": "resolve_provider_symbol_ambiguity_for_bounded_scope",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        current_artifacts.source_authority,
+        "write_outputs",
+        lambda report, repo_root: {
+            "latest": "logs/qre_source_identity_authority_normalization/latest.json",
+            "operator_summary": "logs/qre_source_identity_authority_normalization/operator_summary.md",
+        },
+    )
+    monkeypatch.setattr(
         current_artifacts.remediation_planning,
         "build_incomplete_artifact_remediation_planning",
         lambda **_: {
@@ -347,6 +380,7 @@ def test_current_artifacts_write_outputs_also_materializes_coverage_and_retrieva
     assert paths["experiment_dedup_novelty_latest"] == "logs/qre_experiment_dedup_novelty_enforcement/latest.json"
     assert paths["research_state_sequential_retrieval_latest"] == "logs/qre_research_state_sequential_retrieval/latest.json"
     assert paths["reason_record_normalization_latest"] == "logs/qre_reason_record_normalization/latest.json"
+    assert paths["source_authority_latest"] == "logs/qre_source_identity_authority_normalization/latest.json"
     assert paths["incomplete_artifact_remediation_planning_latest"] == "logs/qre_incomplete_artifact_remediation_planning/latest.json"
     assert "# QRE Research Memory Current Artifacts" in markdown
 
