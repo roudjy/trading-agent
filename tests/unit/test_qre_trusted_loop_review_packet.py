@@ -144,6 +144,17 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         },
     )
     monkeypatch.setattr(
+        packet_module.sequential_retrieval,
+        "build_research_state_sequential_retrieval",
+        lambda **_: {
+            "summary": {
+                "research_state_sequential_retrieval_ready": True,
+                "visible_sequence_row_count": 4,
+                "exact_next_action": "preserve_research_state_sequence_visibility",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -211,6 +222,9 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["visible_campaign_throughput_bottleneck_count"] == 0
     assert packet["summary"]["experiment_dedup_novelty_enforcement_ready"] is True
     assert packet["summary"]["visible_experiment_duplicate_pressure_count"] == 0
+    assert packet["summary"]["research_state_sequential_retrieval_ready"] is True
+    assert packet["summary"]["visible_research_state_sequence_count"] == 4
+    assert packet["summary"]["research_state_sequential_exact_next_action"] == "preserve_research_state_sequence_visibility"
     assert packet["summary"]["trusted_loop_operational_controls_ready"] is True
     assert packet["summary"]["trusted_loop_operational_exact_next_action"] == "preserve_terminal_run_and_compare_before_rerun"
     assert packet["summary"]["shadow_readiness_status"] == "shadow_readiness_deferred"
@@ -301,6 +315,17 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
                 "experiment_dedup_novelty_enforcement_ready": False,
                 "duplicate_pressure_count": 2,
                 "exact_next_action": "deduplicate_active_campaign_scope",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.sequential_retrieval,
+        "build_research_state_sequential_retrieval",
+        lambda **_: {
+            "summary": {
+                "research_state_sequential_retrieval_ready": False,
+                "visible_sequence_row_count": 0,
+                "exact_next_action": "restore_current_run_artifacts",
             }
         },
     )
@@ -433,6 +458,17 @@ def test_trusted_loop_review_packet_operator_summary_renders(
         },
     )
     monkeypatch.setattr(
+        packet_module.sequential_retrieval,
+        "build_research_state_sequential_retrieval",
+        lambda **_: {
+            "summary": {
+                "research_state_sequential_retrieval_ready": True,
+                "visible_sequence_row_count": 4,
+                "exact_next_action": "preserve_research_state_sequence_visibility",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -543,6 +579,17 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
                 "experiment_dedup_novelty_enforcement_ready": True,
                 "duplicate_pressure_count": 0,
                 "exact_next_action": "route_only_to_eligible_novel_directions",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.sequential_retrieval,
+        "build_research_state_sequential_retrieval",
+        lambda **_: {
+            "summary": {
+                "research_state_sequential_retrieval_ready": True,
+                "visible_sequence_row_count": 4,
+                "exact_next_action": "preserve_research_state_sequence_visibility",
             }
         },
     )

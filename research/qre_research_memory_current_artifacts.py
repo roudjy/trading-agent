@@ -12,6 +12,7 @@ from research import qre_campaign_throughput_bottleneck_intelligence as throughp
 from research import qre_contradiction_staleness_intelligence as contradiction_staleness
 from research import qre_experiment_dedup_novelty_enforcement as novelty_enforcement
 from research import qre_read_only_artifact_continuity as artifact_continuity
+from research import qre_research_state_sequential_retrieval as sequential_retrieval
 from research import qre_research_memory_coverage as memory_coverage
 
 
@@ -80,6 +81,13 @@ def build_research_memory_current_artifacts(
         novelty_report.get("summary") if isinstance(novelty_report.get("summary"), Mapping) else {}
     )
     novelty_ready = bool(novelty_summary.get("experiment_dedup_novelty_enforcement_ready"))
+    sequential_report = sequential_retrieval.build_research_state_sequential_retrieval(
+        repo_root=repo_root
+    )
+    sequential_summary = (
+        sequential_report.get("summary") if isinstance(sequential_report.get("summary"), Mapping) else {}
+    )
+    sequential_ready = bool(sequential_summary.get("research_state_sequential_retrieval_ready"))
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -111,6 +119,13 @@ def build_research_memory_current_artifacts(
             "visible_experiment_duplicate_pressure_count": int(
                 novelty_summary.get("duplicate_pressure_count") or 0
             ),
+            "research_state_sequential_retrieval_ready": sequential_ready,
+            "visible_research_state_sequence_count": int(
+                sequential_summary.get("visible_sequence_row_count") or 0
+            ),
+            "research_state_sequential_exact_next_action": str(
+                sequential_summary.get("exact_next_action") or ""
+            ),
             "final_recommendation": (
                 "research_memory_current_artifacts_ready"
                 if package_ready
@@ -120,6 +135,7 @@ def build_research_memory_current_artifacts(
                 and contradiction_ready
                 and throughput_ready
                 and novelty_ready
+                and sequential_ready
                 else "research_memory_current_artifacts_partial"
             ),
             "operator_summary": (
@@ -134,6 +150,7 @@ def build_research_memory_current_artifacts(
         "contradiction_staleness_summary": dict(contradiction_summary),
         "campaign_throughput_bottleneck_summary": dict(throughput_summary),
         "experiment_dedup_novelty_summary": dict(novelty_summary),
+        "research_state_sequential_retrieval_summary": dict(sequential_summary),
         "memory_artifacts": {
             "package_memory_path": str(package_status.get("path") or "logs/qre_research_memory/latest.json"),
             "coverage_path": "logs/qre_research_memory_coverage/latest.json",
@@ -142,6 +159,7 @@ def build_research_memory_current_artifacts(
             "contradiction_staleness_path": "logs/qre_contradiction_staleness_intelligence/latest.json",
             "campaign_throughput_bottleneck_path": "logs/qre_campaign_throughput_bottleneck_intelligence/latest.json",
             "experiment_dedup_novelty_path": "logs/qre_experiment_dedup_novelty_enforcement/latest.json",
+            "research_state_sequential_retrieval_path": "logs/qre_research_state_sequential_retrieval/latest.json",
         },
         "safety_invariants": {
             "read_only": True,
@@ -183,6 +201,9 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["visible_stale_or_superseded_count", str(summary.get("visible_stale_or_superseded_count") or 0)],
                     ["visible_campaign_throughput_bottleneck_count", str(summary.get("visible_campaign_throughput_bottleneck_count") or 0)],
                     ["visible_experiment_duplicate_pressure_count", str(summary.get("visible_experiment_duplicate_pressure_count") or 0)],
+                    ["research_state_sequential_retrieval_ready", str(summary.get("research_state_sequential_retrieval_ready") or False)],
+                    ["visible_research_state_sequence_count", str(summary.get("visible_research_state_sequence_count") or 0)],
+                    ["research_state_sequential_exact_next_action", str(summary.get("research_state_sequential_exact_next_action") or "")],
                     ["final_recommendation", str(summary.get("final_recommendation") or "")],
                 ],
             ),
@@ -198,6 +219,7 @@ def render_operator_summary(report: Mapping[str, Any]) -> str:
                     ["contradiction_staleness_path", str(artifacts.get("contradiction_staleness_path") or "")],
                     ["campaign_throughput_bottleneck_path", str(artifacts.get("campaign_throughput_bottleneck_path") or "")],
                     ["experiment_dedup_novelty_path", str(artifacts.get("experiment_dedup_novelty_path") or "")],
+                    ["research_state_sequential_retrieval_path", str(artifacts.get("research_state_sequential_retrieval_path") or "")],
                 ],
             ),
             "",
@@ -232,6 +254,8 @@ def write_outputs(
     throughput_paths = throughput_bottlenecks.write_outputs(throughput_report, repo_root=repo_root)
     novelty_report = novelty_enforcement.build_experiment_dedup_novelty_enforcement(repo_root=repo_root)
     novelty_paths = novelty_enforcement.write_outputs(novelty_report, repo_root=repo_root)
+    sequential_report = sequential_retrieval.build_research_state_sequential_retrieval(repo_root=repo_root)
+    sequential_paths = sequential_retrieval.write_outputs(sequential_report, repo_root=repo_root)
 
     base = repo_root / DEFAULT_OUTPUT_DIR
     base.mkdir(parents=True, exist_ok=True)
@@ -255,6 +279,8 @@ def write_outputs(
         "campaign_throughput_bottleneck_operator_summary": throughput_paths["operator_summary"],
         "experiment_dedup_novelty_latest": novelty_paths["latest"],
         "experiment_dedup_novelty_operator_summary": novelty_paths["operator_summary"],
+        "research_state_sequential_retrieval_latest": sequential_paths["latest"],
+        "research_state_sequential_retrieval_operator_summary": sequential_paths["operator_summary"],
         "latest": latest.relative_to(repo_root).as_posix(),
         "operator_summary": summary_path.relative_to(repo_root).as_posix(),
     }
