@@ -43,6 +43,7 @@ DEFAULT_ARTIFACT_PATHS: Final[tuple[Path, ...]] = (
     Path("logs/qre_campaign_throughput_bottleneck_intelligence/latest.json"),
     Path("logs/qre_experiment_dedup_novelty_enforcement/latest.json"),
     Path("logs/qre_research_state_sequential_retrieval/latest.json"),
+    Path("logs/qre_reason_record_normalization/latest.json"),
     Path("logs/qre_incomplete_artifact_remediation_planning/latest.json"),
     Path("logs/qre_trusted_loop_operational_controls/latest.json"),
     Path("logs/qre_shadow_readiness_gates/latest.json"),

@@ -28,6 +28,7 @@ from research import qre_campaign_throughput_bottleneck_intelligence as throughp
 from research import qre_contradiction_staleness_intelligence as contradiction_staleness
 from research import qre_experiment_dedup_novelty_enforcement as novelty_enforcement
 from research import qre_reason_records_v1 as reason_records
+from research import qre_reason_record_normalization as reason_record_normalization
 from research import qre_read_only_artifact_continuity as artifact_continuity
 from research import qre_research_memory_current_artifacts as research_memory
 from research import qre_research_state_sequential_retrieval as sequential_retrieval
@@ -287,6 +288,9 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     sequential_packet = sequential_retrieval.build_research_state_sequential_retrieval(
         repo_root=repo_root
     )
+    reason_record_normalization_packet = reason_record_normalization.build_reason_record_normalization(
+        repo_root=repo_root
+    )
     remediation_packet = remediation_planning.build_incomplete_artifact_remediation_planning(
         repo_root=repo_root
     )
@@ -334,6 +338,11 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
     )
     sequential_summary = (
         sequential_packet.get("summary") if isinstance(sequential_packet.get("summary"), Mapping) else {}
+    )
+    reason_record_normalization_summary = (
+        reason_record_normalization_packet.get("summary")
+        if isinstance(reason_record_normalization_packet.get("summary"), Mapping)
+        else {}
     )
     remediation_summary = (
         remediation_packet.get("summary") if isinstance(remediation_packet.get("summary"), Mapping) else {}
@@ -419,6 +428,18 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             ),
             "research_state_sequential_exact_next_action": str(
                 sequential_summary.get("exact_next_action") or ""
+            ),
+            "reason_record_normalization_ready": bool(
+                reason_record_normalization_summary.get("reason_record_normalization_ready")
+            ),
+            "visible_reason_record_normalized_count": int(
+                reason_record_normalization_summary.get("normalized_record_count") or 0
+            ),
+            "visible_reason_record_invalid_count": int(
+                reason_record_normalization_summary.get("invalid_record_count") or 0
+            ),
+            "reason_record_normalization_exact_next_action": str(
+                reason_record_normalization_summary.get("exact_next_action") or ""
             ),
             "incomplete_artifact_remediation_planning_ready": bool(
                 remediation_summary.get("remediation_planning_ready")
@@ -519,6 +540,7 @@ def build_trusted_loop_review_packet(*, repo_root: Path = Path(".")) -> dict[str
             "campaign_throughput_bottlenecks": throughput_packet,
             "experiment_dedup_novelty_enforcement": novelty_packet,
             "research_state_sequential_retrieval": sequential_packet,
+            "reason_record_normalization": reason_record_normalization_packet,
             "incomplete_artifact_remediation_planning": remediation_packet,
             "operational_controls": operational_controls_packet,
             "shadow_readiness_gates": shadow_readiness_packet,
@@ -626,6 +648,10 @@ def render_operator_summary(packet: Mapping[str, Any]) -> str:
             f"- research_state_sequential_retrieval_ready: {summary.get('research_state_sequential_retrieval_ready')}",
             f"- visible_research_state_sequence_count: {summary.get('visible_research_state_sequence_count')}",
             f"- research_state_sequential_exact_next_action: {summary.get('research_state_sequential_exact_next_action')}",
+            f"- reason_record_normalization_ready: {summary.get('reason_record_normalization_ready')}",
+            f"- visible_reason_record_normalized_count: {summary.get('visible_reason_record_normalized_count')}",
+            f"- visible_reason_record_invalid_count: {summary.get('visible_reason_record_invalid_count')}",
+            f"- reason_record_normalization_exact_next_action: {summary.get('reason_record_normalization_exact_next_action')}",
             f"- incomplete_artifact_remediation_planning_ready: {summary.get('incomplete_artifact_remediation_planning_ready')}",
             f"- visible_incomplete_artifact_remediation_count: {summary.get('visible_incomplete_artifact_remediation_count')}",
             f"- incomplete_artifact_remediation_exact_next_action: {summary.get('incomplete_artifact_remediation_exact_next_action')}",
