@@ -48,6 +48,7 @@ AUTOMATIC_ACTION_IDS: Final[tuple[str, ...]] = (
     "inspect_campaign_policy_filters",
     "explain_screening_drop_reasons",
     "inspect_gate_diagnostics",
+    "collect_campaign_level_evidence",
     "controlled_eval_bounded",
     "disposable_workspace_eval",
     "evidence_window_alignment_check",
@@ -272,7 +273,6 @@ def _automatic_actions(
 ) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     policy_state = state.get("policy_state")
-    preset_state = state.get("preset_state")
     failure_attribution = _dict_value(state.get("failure_attribution"))
     failure_state = failure_attribution.get("state")
     evidence_quality = _dict_value(state.get("evidence_quality"))
@@ -324,7 +324,11 @@ def _automatic_actions(
             ),
         )
 
-    if preset_state == "completed_no_survivor":
+    next_allowed_actions = state.get("next_allowed_actions")
+    if not isinstance(next_allowed_actions, list):
+        next_allowed_actions = []
+
+    if "inspect_gate_diagnostics" in next_allowed_actions:
         _append_unique(
             actions,
             _action(
@@ -332,12 +336,36 @@ def _automatic_actions(
                 action_type="diagnostic",
                 priority=3 if policy_state == "blocked_no_candidates" else 2,
                 allowed_mode="automatic_bounded",
-                reason_codes=["preset_completed_no_survivor"],
+                reason_codes=["gate_diagnostics_requested_by_research_state"],
                 expected_outputs=["gate diagnostic summary from existing campaign evidence"],
                 max_scope="Inspect validation and promotion gate evidence without changing gates.",
                 stop_conditions=[
                     "gate diagnostics are absent",
                     "next step would require changing promotion criteria",
+                ],
+            ),
+        )
+
+    if "collect_campaign_level_evidence" in next_allowed_actions:
+        _append_unique(
+            actions,
+            _action(
+                action_id="collect_campaign_level_evidence",
+                action_type="evidence_collection",
+                priority=2,
+                allowed_mode="automatic_bounded",
+                reason_codes=["campaign_level_evidence_requested_by_research_state"],
+                expected_outputs=[
+                    "campaign-level evidence summary from existing research artifacts"
+                ],
+                max_scope=(
+                    "Collect and summarize existing campaign-level evidence "
+                    "without changing presets, gates, budgets, or strategies."
+                ),
+                stop_conditions=[
+                    "required campaign evidence is unavailable",
+                    "collection would require launching a new campaign",
+                    "next step would require changing research criteria",
                 ],
             ),
         )
