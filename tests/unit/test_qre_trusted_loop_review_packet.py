@@ -155,6 +155,17 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
         },
     )
     monkeypatch.setattr(
+        packet_module.remediation_planning,
+        "build_incomplete_artifact_remediation_planning",
+        lambda **_: {
+            "summary": {
+                "remediation_planning_ready": True,
+                "remediation_count": 2,
+                "exact_next_action": "preserve_current_read_only_artifact_visibility",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -225,6 +236,9 @@ def test_trusted_loop_review_packet_reports_operator_trusted_when_evidence_chain
     assert packet["summary"]["research_state_sequential_retrieval_ready"] is True
     assert packet["summary"]["visible_research_state_sequence_count"] == 4
     assert packet["summary"]["research_state_sequential_exact_next_action"] == "preserve_research_state_sequence_visibility"
+    assert packet["summary"]["incomplete_artifact_remediation_planning_ready"] is True
+    assert packet["summary"]["visible_incomplete_artifact_remediation_count"] == 2
+    assert packet["summary"]["incomplete_artifact_remediation_exact_next_action"] == "preserve_current_read_only_artifact_visibility"
     assert packet["summary"]["trusted_loop_operational_controls_ready"] is True
     assert packet["summary"]["trusted_loop_operational_exact_next_action"] == "preserve_terminal_run_and_compare_before_rerun"
     assert packet["summary"]["shadow_readiness_status"] == "shadow_readiness_deferred"
@@ -326,6 +340,17 @@ def test_trusted_loop_review_packet_fails_closed_when_evidence_chain_is_incomple
                 "research_state_sequential_retrieval_ready": False,
                 "visible_sequence_row_count": 0,
                 "exact_next_action": "restore_current_run_artifacts",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.remediation_planning,
+        "build_incomplete_artifact_remediation_planning",
+        lambda **_: {
+            "summary": {
+                "remediation_planning_ready": False,
+                "remediation_count": 5,
+                "exact_next_action": "restore_inputs",
             }
         },
     )
@@ -469,6 +494,17 @@ def test_trusted_loop_review_packet_operator_summary_renders(
         },
     )
     monkeypatch.setattr(
+        packet_module.remediation_planning,
+        "build_incomplete_artifact_remediation_planning",
+        lambda **_: {
+            "summary": {
+                "remediation_planning_ready": True,
+                "remediation_count": 2,
+                "exact_next_action": "preserve_current_read_only_artifact_visibility",
+            }
+        },
+    )
+    monkeypatch.setattr(
         packet_module.operational_controls,
         "build_trusted_loop_operational_controls",
         lambda **_: snapshots["operational_controls"],
@@ -590,6 +626,17 @@ def test_trusted_loop_review_packet_write_outputs_stays_in_allowlist(
                 "research_state_sequential_retrieval_ready": True,
                 "visible_sequence_row_count": 4,
                 "exact_next_action": "preserve_research_state_sequence_visibility",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        packet_module.remediation_planning,
+        "build_incomplete_artifact_remediation_planning",
+        lambda **_: {
+            "summary": {
+                "remediation_planning_ready": True,
+                "remediation_count": 2,
+                "exact_next_action": "preserve_current_read_only_artifact_visibility",
             }
         },
     )
