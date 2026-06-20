@@ -8,10 +8,15 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final
 
+from research import qre_candidate_identity_lifecycle as lifecycle_report
+from research import qre_candidate_quality_framework as quality_framework
+from research import qre_evidence_breadth_framework as breadth_framework
 from research import qre_hypothesis_disposition_memory as disposition_memory
+from research import qre_multibasket_portfolio_intelligence as portfolio_intelligence
 from research import qre_null_control_falsification_suite as null_suite
 from research import qre_preregistered_multiwindow_evidence_run as multiwindow_run
 from research import qre_research_cycle_router as cycle_router
+from research import qre_shadow_readiness_gates as shadow_gates
 
 
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -25,6 +30,16 @@ DISPOSITION_PATH: Final[Path] = disposition_memory.DEFAULT_OUTPUT_DIR / disposit
 ROUTER_PATH: Final[Path] = cycle_router.DEFAULT_OUTPUT_DIR / cycle_router.LATEST_NAME
 NULL_CONTROL_PATH: Final[Path] = null_suite.DEFAULT_OUTPUT_DIR / null_suite.LATEST_NAME
 RESEARCH_MEMORY_PATH: Final[Path] = cycle_router.DEFAULT_RESEARCH_MEMORY_PATH
+BREADTH_PATH: Final[Path] = breadth_framework.DEFAULT_OUTPUT_DIR / breadth_framework.LATEST_NAME
+LIFECYCLE_PATH: Final[Path] = lifecycle_report.DEFAULT_OUTPUT_DIR / lifecycle_report.LATEST_NAME
+QUALITY_PATH: Final[Path] = quality_framework.DEFAULT_OUTPUT_DIR / quality_framework.LATEST_NAME
+PORTFOLIO_PATH: Final[Path] = portfolio_intelligence.DEFAULT_OUTPUT_DIR / portfolio_intelligence.LATEST_NAME
+SHADOW_PATH: Final[Path] = shadow_gates.DEFAULT_OUTPUT_DIR / shadow_gates.LATEST_NAME
+CLOSURE_PATH: Final[Path] = quality_framework.DEFAULT_CLOSURE_PATH
+QUALITY_REASON_CONTRACT_PATH: Final[Path] = quality_framework.DEFAULT_REASON_RECORD_CONTRACT_PATH
+QUALITY_SOURCE_AUTHORITY_PATH: Final[Path] = quality_framework.DEFAULT_SOURCE_AUTHORITY_PATH
+SHADOW_TRUSTED_LOOP_PATH: Final[Path] = shadow_gates.TRUSTED_LOOP_REVIEW_PATH
+SHADOW_OPERATIONAL_CONTROLS_PATH: Final[Path] = shadow_gates.OPERATIONAL_CONTROLS_PATH
 
 
 def _text(value: Any) -> str:
@@ -60,6 +75,10 @@ def _current_status_rows(repo_root: Path) -> dict[str, dict[str, Any]]:
     }
 
 
+def _report_kind_ready(report: Mapping[str, Any] | None, *, expected_kind: str) -> bool:
+    return isinstance(report, Mapping) and _text(report.get("report_kind")) == expected_kind
+
+
 def _report_status(report: Mapping[str, Any] | None) -> str:
     if not isinstance(report, Mapping):
         return "blocked"
@@ -78,12 +97,52 @@ def _report_hash(report: Mapping[str, Any] | None) -> str:
     return _digest(report)
 
 
+def _breadth_report_status(report: Mapping[str, Any] | None) -> str:
+    if not _report_kind_ready(report, expected_kind=breadth_framework.REPORT_KIND):
+        return "blocked"
+    return "ready" if _text(report.get("status")) == "ready" else "blocked"
+
+
+def _lifecycle_report_status(report: Mapping[str, Any] | None) -> str:
+    if not _report_kind_ready(report, expected_kind=lifecycle_report.REPORT_KIND):
+        return "blocked"
+    summary = report.get("summary") if isinstance(report.get("summary"), Mapping) else {}
+    return "ready" if _text(summary.get("final_recommendation")) == "qre_candidate_lifecycle_fail_closed" else "blocked"
+
+
+def _quality_report_status(report: Mapping[str, Any] | None) -> str:
+    if not _report_kind_ready(report, expected_kind=quality_framework.REPORT_KIND):
+        return "blocked"
+    summary = report.get("summary") if isinstance(report.get("summary"), Mapping) else {}
+    return "ready" if _text(summary.get("final_recommendation")) == "candidate_quality_fail_closed" else "blocked"
+
+
+def _portfolio_report_status(report: Mapping[str, Any] | None) -> str:
+    if not _report_kind_ready(report, expected_kind=portfolio_intelligence.REPORT_KIND):
+        return "blocked"
+    summary = report.get("summary") if isinstance(report.get("summary"), Mapping) else {}
+    return "ready" if _text(summary.get("final_recommendation")) == "portfolio_research_fail_closed" else "blocked"
+
+
+def _shadow_report_status(report: Mapping[str, Any] | None) -> str:
+    if not _report_kind_ready(report, expected_kind=shadow_gates.REPORT_KIND):
+        return "blocked"
+    summary = report.get("summary") if isinstance(report.get("summary"), Mapping) else {}
+    return (
+        "ready"
+        if _text(summary.get("readiness_status"))
+        in {"shadow_readiness_deferred", "shadow_readiness_prerequisites_satisfied_context_only"}
+        else "blocked"
+    )
+
+
 def _materialization_state(
     *,
     current_payload: Mapping[str, Any] | None,
     projected_payload: Mapping[str, Any] | None,
+    status_reader=_report_status,
 ) -> str:
-    if _report_status(projected_payload) != "ready":
+    if status_reader(projected_payload) != "ready":
         return "blocked_missing_prerequisites"
     if not isinstance(current_payload, Mapping):
         return "materializable_missing_current_artifact"
@@ -105,6 +164,7 @@ def _disposition_target(repo_root: Path) -> tuple[dict[str, Any], dict[str, Any]
         "materialization_state": _materialization_state(
             current_payload=current,
             projected_payload=projected,
+            status_reader=_report_status,
         ),
         "reason_codes": [],
         "source_artifact_refs": [
@@ -148,6 +208,7 @@ def _router_target(
         "materialization_state": _materialization_state(
             current_payload=current,
             projected_payload=projected,
+            status_reader=_report_status,
         ),
         "reason_codes": [],
         "source_artifact_refs": [
@@ -227,6 +288,7 @@ def _null_control_target(repo_root: Path) -> tuple[dict[str, Any], dict[str, Any
         "materialization_state": _materialization_state(
             current_payload=current,
             projected_payload=projected,
+            status_reader=_report_status,
         ),
         "reason_codes": [],
         "source_artifact_refs": [
@@ -251,12 +313,199 @@ def _null_control_target(repo_root: Path) -> tuple[dict[str, Any], dict[str, Any
     return row, projected
 
 
+def _projected_artifact_row(
+    *,
+    repo_root: Path,
+    artifact_key: str,
+    artifact_path: Path,
+    current_status: str,
+    projected: Mapping[str, Any] | None,
+    source_artifact_refs: list[str],
+    write_action: str,
+    restore_action: str,
+    status_reader,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    current = _read_json(repo_root / artifact_path)
+    projected_status = status_reader(projected)
+    row = {
+        "artifact_key": artifact_key,
+        "artifact_path": artifact_path.as_posix(),
+        "current_status": current_status,
+        "projected_status": projected_status,
+        "materialization_state": _materialization_state(
+            current_payload=current,
+            projected_payload=projected,
+            status_reader=status_reader,
+        ),
+        "reason_codes": [],
+        "source_artifact_refs": source_artifact_refs,
+        "projected_hash": _report_hash(projected),
+        "current_hash": _report_hash(current),
+        "exact_next_action": write_action if projected_status == "ready" else restore_action,
+    }
+    if projected_status != "ready":
+        row["reason_codes"] = [f"{artifact_key}_prerequisites_missing"]
+    elif row["materialization_state"] == "current_artifact_matches_projected":
+        row["reason_codes"] = ["current_artifact_already_current"]
+    else:
+        row["reason_codes"] = ["deterministic_write_available_from_local_inputs"]
+    return row, projected
+
+
+def _breadth_target(repo_root: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    projected = breadth_framework.build_evidence_breadth_framework(repo_root=repo_root)
+    current = _read_json(repo_root / BREADTH_PATH)
+    current_status = _text(current.get("status")) if isinstance(current, Mapping) else "missing_evidence_breadth_framework"
+    return _projected_artifact_row(
+        repo_root=repo_root,
+        artifact_key="evidence_breadth_framework",
+        artifact_path=BREADTH_PATH,
+        current_status=current_status,
+        projected=projected,
+        source_artifact_refs=[DISPOSITION_PATH.as_posix(), CLOSURE_PATH.as_posix()],
+        write_action="write_evidence_breadth_framework_artifact",
+        restore_action="restore_evidence_breadth_prerequisites",
+        status_reader=_breadth_report_status,
+    )
+
+
+def _lifecycle_target(
+    repo_root: Path,
+    *,
+    projected_breadth: Mapping[str, Any] | None,
+    projected_disposition: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    closure_report = _read_json(repo_root / CLOSURE_PATH) or {}
+    projected = lifecycle_report.build_qre_candidate_identity_lifecycle(
+        breadth_report=projected_breadth or {},
+        disposition_memory=projected_disposition or {},
+        closure_report=closure_report,
+    )
+    current = _read_json(repo_root / LIFECYCLE_PATH)
+    current_summary = (
+        current.get("summary")
+        if isinstance(current, Mapping) and isinstance(current.get("summary"), Mapping)
+        else {}
+    )
+    current_status = _text(current_summary.get("final_recommendation")) or "missing_candidate_identity_lifecycle"
+    return _projected_artifact_row(
+        repo_root=repo_root,
+        artifact_key="candidate_identity_lifecycle",
+        artifact_path=LIFECYCLE_PATH,
+        current_status=current_status,
+        projected=projected,
+        source_artifact_refs=[BREADTH_PATH.as_posix(), DISPOSITION_PATH.as_posix(), CLOSURE_PATH.as_posix()],
+        write_action="write_candidate_identity_lifecycle_artifact",
+        restore_action="restore_candidate_lifecycle_prerequisites",
+        status_reader=_lifecycle_report_status,
+    )
+
+
+def _quality_target(repo_root: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    projected = quality_framework.build_candidate_quality_framework(repo_root=repo_root)
+    current = _read_json(repo_root / QUALITY_PATH)
+    current_summary = (
+        current.get("summary")
+        if isinstance(current, Mapping) and isinstance(current.get("summary"), Mapping)
+        else {}
+    )
+    current_status = _text(current_summary.get("status")) or "missing_candidate_quality_framework"
+    return _projected_artifact_row(
+        repo_root=repo_root,
+        artifact_key="candidate_quality_framework",
+        artifact_path=QUALITY_PATH,
+        current_status=current_status,
+        projected=projected,
+        source_artifact_refs=[
+            BREADTH_PATH.as_posix(),
+            LIFECYCLE_PATH.as_posix(),
+            CLOSURE_PATH.as_posix(),
+            NULL_CONTROL_PATH.as_posix(),
+            QUALITY_REASON_CONTRACT_PATH.as_posix(),
+            QUALITY_SOURCE_AUTHORITY_PATH.as_posix(),
+        ],
+        write_action="write_candidate_quality_framework_artifact",
+        restore_action="restore_candidate_quality_prerequisites",
+        status_reader=_quality_report_status,
+    )
+
+
+def _portfolio_target(repo_root: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    projected = portfolio_intelligence.build_portfolio_intelligence_report(repo_root=repo_root)
+    current = _read_json(repo_root / PORTFOLIO_PATH)
+    current_summary = (
+        current.get("summary")
+        if isinstance(current, Mapping) and isinstance(current.get("summary"), Mapping)
+        else {}
+    )
+    current_status = _text(current_summary.get("status")) or "missing_multibasket_portfolio_intelligence"
+    return _projected_artifact_row(
+        repo_root=repo_root,
+        artifact_key="multibasket_portfolio_intelligence",
+        artifact_path=PORTFOLIO_PATH,
+        current_status=current_status,
+        projected=projected,
+        source_artifact_refs=[QUALITY_PATH.as_posix(), BREADTH_PATH.as_posix()],
+        write_action="write_multibasket_portfolio_intelligence_artifact",
+        restore_action="restore_multibasket_portfolio_prerequisites",
+        status_reader=_portfolio_report_status,
+    )
+
+
+def _shadow_target(repo_root: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    projected = shadow_gates.build_shadow_readiness_gates(repo_root=repo_root)
+    current = _read_json(repo_root / SHADOW_PATH)
+    current_summary = (
+        current.get("summary")
+        if isinstance(current, Mapping) and isinstance(current.get("summary"), Mapping)
+        else {}
+    )
+    current_status = _text(current_summary.get("readiness_status")) or "missing_shadow_readiness_gates"
+    return _projected_artifact_row(
+        repo_root=repo_root,
+        artifact_key="shadow_readiness_gates",
+        artifact_path=SHADOW_PATH,
+        current_status=current_status,
+        projected=projected,
+        source_artifact_refs=[
+            BREADTH_PATH.as_posix(),
+            LIFECYCLE_PATH.as_posix(),
+            QUALITY_PATH.as_posix(),
+            NULL_CONTROL_PATH.as_posix(),
+            QUALITY_SOURCE_AUTHORITY_PATH.as_posix(),
+            SHADOW_OPERATIONAL_CONTROLS_PATH.as_posix(),
+            SHADOW_TRUSTED_LOOP_PATH.as_posix(),
+        ],
+        write_action="write_shadow_readiness_gates_artifact",
+        restore_action="restore_shadow_readiness_prerequisites",
+        status_reader=_shadow_report_status,
+    )
+
+
 def build_read_only_artifact_continuity(*, repo_root: Path = Path(".")) -> dict[str, Any]:
     current_status = _current_status_rows(repo_root)
     disposition_row, projected_disposition = _disposition_target(repo_root)
     router_row, projected_router = _router_target(repo_root, projected_disposition)
     null_row, projected_null = _null_control_target(repo_root)
-    rows = [disposition_row, router_row, null_row]
+    breadth_row, projected_breadth = _breadth_target(repo_root)
+    lifecycle_row, projected_lifecycle = _lifecycle_target(
+        repo_root,
+        projected_breadth=projected_breadth,
+        projected_disposition=projected_disposition,
+    )
+    quality_row, projected_quality = _quality_target(repo_root)
+    portfolio_row, projected_portfolio = _portfolio_target(repo_root)
+    shadow_row, projected_shadow = _shadow_target(repo_root)
+    rows = [
+        disposition_row,
+        router_row,
+        null_row,
+        breadth_row,
+        lifecycle_row,
+        quality_row,
+        portfolio_row,
+        shadow_row,
+    ]
     ready_rows = [row for row in rows if row["projected_status"] == "ready"]
     blocked_rows = [row for row in rows if row["projected_status"] != "ready"]
     current_rows = [row for row in rows if row["materialization_state"] == "current_artifact_matches_projected"]
@@ -283,9 +532,9 @@ def build_read_only_artifact_continuity(*, repo_root: Path = Path(".")) -> dict[
             else "preserve_current_read_only_artifacts"
         ),
         "operator_summary": (
-            "Read-only artifact continuity verifies whether implemented QRE memory, routing, "
-            "and null-control surfaces are currently materialized from local inputs. It never "
-            "creates evidence authority or runtime execution authority."
+            "Read-only artifact continuity verifies whether implemented QRE routing, breadth, "
+            "lifecycle, quality, portfolio, null-control, and shadow-gate surfaces are currently "
+            "materialized from local inputs. It never creates evidence authority or runtime execution authority."
         ),
     }
     report = {
@@ -306,6 +555,26 @@ def build_read_only_artifact_continuity(*, repo_root: Path = Path(".")) -> dict[
             "null_control_falsification_suite": {
                 "status": _text(projected_null.get("status")),
                 "hash": _report_hash(projected_null),
+            },
+            "evidence_breadth_framework": {
+                "status": _text(projected_breadth.get("status")),
+                "hash": _report_hash(projected_breadth),
+            },
+            "candidate_identity_lifecycle": {
+                "status": _text(((projected_lifecycle.get("summary") or {}).get("final_recommendation"))),
+                "hash": _report_hash(projected_lifecycle),
+            },
+            "candidate_quality_framework": {
+                "status": _text(((projected_quality.get("summary") or {}).get("status"))),
+                "hash": _report_hash(projected_quality),
+            },
+            "multibasket_portfolio_intelligence": {
+                "status": _text(((projected_portfolio.get("summary") or {}).get("status"))),
+                "hash": _report_hash(projected_portfolio),
+            },
+            "shadow_readiness_gates": {
+                "status": _text(((projected_shadow.get("summary") or {}).get("readiness_status"))),
+                "hash": _report_hash(projected_shadow),
             },
         },
         "authority_boundary": {
@@ -410,6 +679,31 @@ def write_outputs(report: Mapping[str, Any], *, repo_root: Path = Path(".")) -> 
             null_report = None
         if _report_status(null_report) == "ready":
             null_suite.write_outputs(null_report, repo_root=repo_root)
+
+    breadth_report = breadth_framework.build_evidence_breadth_framework(repo_root=repo_root)
+    if _breadth_report_status(breadth_report) == "ready":
+        breadth_framework.write_outputs(breadth_report, repo_root=repo_root)
+
+    closure_report = _read_json(repo_root / CLOSURE_PATH) or {}
+    lifecycle_payload = lifecycle_report.build_qre_candidate_identity_lifecycle(
+        breadth_report=breadth_report,
+        disposition_memory=disposition_report,
+        closure_report=closure_report,
+    )
+    if _lifecycle_report_status(lifecycle_payload) == "ready":
+        lifecycle_report.write_outputs(lifecycle_payload, repo_root=repo_root)
+
+    quality_report = quality_framework.build_candidate_quality_framework(repo_root=repo_root)
+    if _quality_report_status(quality_report) == "ready":
+        quality_framework.write_outputs(quality_report, repo_root=repo_root)
+
+    portfolio_report = portfolio_intelligence.build_portfolio_intelligence_report(repo_root=repo_root)
+    if _portfolio_report_status(portfolio_report) == "ready":
+        portfolio_intelligence.write_outputs(portfolio_report, repo_root=repo_root)
+
+    shadow_report = shadow_gates.build_shadow_readiness_gates(repo_root=repo_root)
+    if _shadow_report_status(shadow_report) == "ready":
+        shadow_gates.write_outputs(shadow_report, repo_root=repo_root)
 
     refreshed = build_read_only_artifact_continuity(repo_root=repo_root)
     base = repo_root / DEFAULT_OUTPUT_DIR

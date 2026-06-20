@@ -64,11 +64,36 @@ def test_continuity_report_detects_materializable_missing_artifacts(
         "evaluate_null_control_suite",
         lambda report, **_: {**report, "evaluation": {"status": "controls_incomplete", "recommended_next_action": "materialize_missing_preregistered_controls"}},
     )
+    monkeypatch.setattr(
+        continuity.breadth_framework,
+        "build_evidence_breadth_framework",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_evidence_breadth_framework", "status": "ready", "deterministic_hash": "sha256:breadth"},
+    )
+    monkeypatch.setattr(
+        continuity.lifecycle_report,
+        "build_qre_candidate_identity_lifecycle",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_candidate_identity_lifecycle", "summary": {"final_recommendation": "qre_candidate_lifecycle_fail_closed"}, "deterministic_hash": "sha256:lifecycle"},
+    )
+    monkeypatch.setattr(
+        continuity.quality_framework,
+        "build_candidate_quality_framework",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_candidate_quality_framework", "summary": {"status": "blocked_evidence_incomplete", "final_recommendation": "candidate_quality_fail_closed"}, "deterministic_hash": "sha256:quality"},
+    )
+    monkeypatch.setattr(
+        continuity.portfolio_intelligence,
+        "build_portfolio_intelligence_report",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_multibasket_portfolio_intelligence", "summary": {"status": "blocked_no_accepted_oos", "context_status": "portfolio_research_context_ready", "final_recommendation": "portfolio_research_fail_closed"}, "deterministic_hash": "sha256:portfolio"},
+    )
+    monkeypatch.setattr(
+        continuity.shadow_gates,
+        "build_shadow_readiness_gates",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_shadow_readiness_gates", "summary": {"readiness_status": "shadow_readiness_deferred"}, "deterministic_hash": "sha256:shadow"},
+    )
 
     report = continuity.build_read_only_artifact_continuity(repo_root=tmp_path)
 
     assert report["summary"]["artifact_continuity_ready"] is True
-    assert report["summary"]["materializable_target_count"] == 3
+    assert report["summary"]["materializable_target_count"] == 8
     assert report["summary"]["blocked_target_count"] == 0
     assert report["summary"]["exact_next_action"] == "materialize_read_only_qre_artifacts"
 
@@ -128,6 +153,56 @@ def test_continuity_write_outputs_materializes_nested_artifacts(
         lambda report, **_: calls.append("null_suite") or {"latest": "logs/qre_null_control_falsification_suite/latest.json"},
     )
     monkeypatch.setattr(
+        continuity.breadth_framework,
+        "build_evidence_breadth_framework",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_evidence_breadth_framework", "status": "ready", "deterministic_hash": "sha256:breadth"},
+    )
+    monkeypatch.setattr(
+        continuity.breadth_framework,
+        "write_outputs",
+        lambda report, **_: calls.append("breadth") or {"latest": "logs/qre_evidence_breadth_framework/latest.json"},
+    )
+    monkeypatch.setattr(
+        continuity.lifecycle_report,
+        "build_qre_candidate_identity_lifecycle",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_candidate_identity_lifecycle", "summary": {"final_recommendation": "qre_candidate_lifecycle_fail_closed"}, "deterministic_hash": "sha256:lifecycle"},
+    )
+    monkeypatch.setattr(
+        continuity.lifecycle_report,
+        "write_outputs",
+        lambda report, **_: calls.append("lifecycle") or {"latest": "logs/qre_candidate_identity_lifecycle/latest.json"},
+    )
+    monkeypatch.setattr(
+        continuity.quality_framework,
+        "build_candidate_quality_framework",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_candidate_quality_framework", "summary": {"status": "blocked_evidence_incomplete", "final_recommendation": "candidate_quality_fail_closed"}, "deterministic_hash": "sha256:quality"},
+    )
+    monkeypatch.setattr(
+        continuity.quality_framework,
+        "write_outputs",
+        lambda report, **_: calls.append("quality") or {"latest": "logs/qre_candidate_quality_framework/latest.json"},
+    )
+    monkeypatch.setattr(
+        continuity.portfolio_intelligence,
+        "build_portfolio_intelligence_report",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_multibasket_portfolio_intelligence", "summary": {"status": "blocked_no_accepted_oos", "context_status": "portfolio_research_context_ready", "final_recommendation": "portfolio_research_fail_closed"}, "deterministic_hash": "sha256:portfolio"},
+    )
+    monkeypatch.setattr(
+        continuity.portfolio_intelligence,
+        "write_outputs",
+        lambda report, **_: calls.append("portfolio") or {"latest": "logs/qre_multibasket_portfolio_intelligence/latest.json"},
+    )
+    monkeypatch.setattr(
+        continuity.shadow_gates,
+        "build_shadow_readiness_gates",
+        lambda **_: {"schema_version": "1.0", "report_kind": "qre_shadow_readiness_gates", "summary": {"readiness_status": "shadow_readiness_deferred"}, "deterministic_hash": "sha256:shadow"},
+    )
+    monkeypatch.setattr(
+        continuity.shadow_gates,
+        "write_outputs",
+        lambda report, **_: calls.append("shadow") or {"latest": "logs/qre_shadow_readiness_gates/latest.json"},
+    )
+    monkeypatch.setattr(
         continuity,
         "build_read_only_artifact_continuity",
         lambda **_: {
@@ -150,7 +225,7 @@ def test_continuity_write_outputs_materializes_nested_artifacts(
     }
     paths = continuity.write_outputs(report, repo_root=tmp_path)
 
-    assert calls == ["disposition", "router", "null_suite"]
+    assert calls == ["disposition", "router", "null_suite", "breadth", "lifecycle", "quality", "portfolio", "shadow"]
     assert paths["latest"] == "logs/qre_read_only_artifact_continuity/latest.json"
     assert (tmp_path / paths["latest"]).exists()
     assert (tmp_path / paths["operator_summary"]).exists()
