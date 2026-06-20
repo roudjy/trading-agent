@@ -492,6 +492,99 @@ CANDIDATE_REGISTRY_V1_PATH: Path = Path(
 )
 
 
+def _load_owned_gate_diagnostics(
+    *,
+    campaign_id: str,
+    path: Path = SCREENING_EVIDENCE_PATH,
+) -> dict[str, Any] | None:
+    """Return compact gate diagnostics only for campaign-owned evidence.
+
+    The latest screening-evidence sidecar is consumed only when its
+    authoritative col_campaign_id exactly matches the campaign being
+    completed. Missing, malformed, stale, or differently owned evidence
+    fails closed.
+    """
+    if not path.exists():
+        return None
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    owner = payload.get("col_campaign_id")
+    if owner is None:
+        owner = payload.get("campaign_id")
+    if owner is None or str(owner) != str(campaign_id):
+        return None
+
+    summary = payload.get("summary")
+    if not isinstance(summary, dict):
+        return None
+
+    def _count(key: str) -> int:
+        try:
+            return max(0, int(summary.get(key) or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    total_candidates = _count("total_candidates")
+    passed_screening = _count("passed_screening")
+    rejected_screening = _count("rejected_screening")
+    promotion_grade_candidates = _count("promotion_grade_candidates")
+    exploratory_passes = _count("exploratory_passes")
+    near_passes = _count("near_passes")
+    sufficient_oos_evidence_candidates = _count(
+        "sufficient_oos_evidence_candidates"
+    )
+
+    if total_candidates == 0:
+        classification = "unknown_empty_evidence"
+        stage = "screening"
+    elif passed_screening == 0:
+        classification = "screening_rejected_all"
+        stage = "screening"
+    elif promotion_grade_candidates == 0:
+        classification = "promotion_gate_rejected_all"
+        stage = "promotion"
+    else:
+        classification = "promotion_candidates_present"
+        stage = "promotion"
+
+    raw_reasons = summary.get("dominant_failure_reasons")
+    dominant_failure_reasons = (
+        [str(reason) for reason in raw_reasons[:10]]
+        if isinstance(raw_reasons, list)
+        else []
+    )
+
+    return {
+        "schema_version": "1.0",
+        "classification": classification,
+        "stage": stage,
+        "source_artifact": path.as_posix(),
+        "source_run_id": payload.get("run_id"),
+        "source_artifact_fingerprint": payload.get("artifact_fingerprint"),
+        "campaign_id": str(campaign_id),
+        "owner_verified": True,
+        "counts": {
+            "total_candidates": total_candidates,
+            "passed_screening": passed_screening,
+            "rejected_screening": rejected_screening,
+            "promotion_grade_candidates": promotion_grade_candidates,
+            "exploratory_passes": exploratory_passes,
+            "near_passes": near_passes,
+            "sufficient_oos_evidence_candidates": (
+                sufficient_oos_evidence_candidates
+            ),
+        },
+        "dominant_failure_reasons": dominant_failure_reasons,
+    }
+
+
 def _classify_research_rejection(
     paper_readiness_path: Path,
     candidate_registry_path: Path,
@@ -1513,6 +1606,12 @@ def _apply_decision(
     # in ``tests/unit/test_v3_15_5_outcome_invariant.py`` is the
     # primary contract; this assert exists as a runtime documentation
     # / fail-fast signal in non-optimised builds.
+    gate_diagnostics = (
+        _load_owned_gate_diagnostics(campaign_id=cid)
+        if outcome == "completed_no_survivor"
+        else None
+    )
+
     assert outcome in LAUNCHER_EMITTABLE_OUTCOMES, (  # nosec B101
         f"v3.15.5 outcome invariant violated: {outcome!r} "
         f"not in LAUNCHER_EMITTABLE_OUTCOMES"
@@ -1539,11 +1638,19 @@ def _apply_decision(
         actual_runtime_seconds=int(elapsed),
         reason_code=reason_code,
     )
+    transition_extra_updates: dict[str, Any] | None = None
+    if gate_diagnostics is not None:
+        current_record = (registry.get("campaigns") or {}).get(cid) or {}
+        merged_extra = dict(current_record.get("extra") or {})
+        merged_extra["gate_diagnostics"] = gate_diagnostics
+        transition_extra_updates = {"extra": merged_extra}
+
     registry = transition_state(
         registry,
         campaign_id=cid,
         to_state=terminal_state,  # type: ignore[arg-type]
         at_utc=finished_at,
+        extra_updates=transition_extra_updates,
     )
     new_events.append(
         make_event(
@@ -1557,6 +1664,11 @@ def _apply_decision(
             reason_code=reason_code,
             outcome=outcome,
             meaningful_classification=meaningful,
+            extra=(
+                {"gate_diagnostics": gate_diagnostics}
+                if gate_diagnostics is not None
+                else None
+            ),
         )
     )
     queue = clear_lease(queue, campaign_id=cid, to_state=terminal_state)  # type: ignore[arg-type]
