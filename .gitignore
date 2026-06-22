@@ -88,6 +88,7 @@ desktop.ini
 research/history/
 research/run_*.v1.json
 research/*_latest.v1.json
+research/*_latest.md
 logs/research/*.jsonl
 
 # Future-proof (V3.3b resumability)
