@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from research import qre_approved_bounded_evidence_materialization as approved
 
@@ -198,3 +199,95 @@ def test_validate_expected_oos_window_rejects_manifest_mismatch() -> None:
         assert "approved oos_window does not match" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("expected oos window mismatch to fail closed")
+
+def test_campaign_timeframe_mapping_supports_canonical_presets() -> None:
+    assert approved.TIMEFRAME_TO_INTERVAL["1d"] == "1d"
+    assert approved.TIMEFRAME_TO_INTERVAL["1h"] == "1h"
+    assert approved.TIMEFRAME_TO_INTERVAL["4h"] == "4h"
+
+
+def test_campaign_strategy_resolution_uses_single_preset_bundle() -> None:
+    strategy_name, factory = approved._resolve_single_preset_strategy(
+        "trend_pullback_equities_4h"
+    )
+
+    assert strategy_name == "trend_pullback_v1"
+    assert callable(factory)
+
+
+def test_campaign_strategy_resolution_blocks_ambiguous_bundle() -> None:
+    with pytest.raises(
+        approved.ApprovedBoundedEvidenceError,
+        match="exactly one executable preset strategy",
+    ):
+        approved._resolve_single_preset_strategy(
+            "trend_equities_4h_baseline"
+        )
+
+
+def test_restrict_frame_includes_full_intraday_end_date() -> None:
+    frame = pd.DataFrame(
+        {
+            "open": list(range(8)),
+            "high": list(range(8)),
+            "low": list(range(8)),
+            "close": list(range(8)),
+            "volume": [10] * 8,
+        },
+        index=pd.date_range(
+            "2026-04-10T00:00:00",
+            periods=8,
+            freq="4h",
+        ),
+    )
+
+    restricted = approved._restrict_frame_to_approval_window(
+        frame=frame,
+        approval={
+            "bounded_input_window": {
+                "start": "2026-04-10",
+                "end": "2026-04-10",
+            }
+        },
+    )
+
+    assert len(restricted) == 6
+    assert restricted.index.min() == pd.Timestamp(
+        "2026-04-10T00:00:00"
+    )
+    assert restricted.index.max() == pd.Timestamp(
+        "2026-04-10T20:00:00"
+    )
+
+
+def test_restrict_frame_preserves_exact_timestamp_end_bound() -> None:
+    frame = pd.DataFrame(
+        {
+            "open": list(range(8)),
+            "high": list(range(8)),
+            "low": list(range(8)),
+            "close": list(range(8)),
+            "volume": [10] * 8,
+        },
+        index=pd.date_range(
+            "2026-04-10T00:00:00",
+            periods=8,
+            freq="4h",
+        ),
+    )
+
+    restricted = approved._restrict_frame_to_approval_window(
+        frame=frame,
+        approval={
+            "bounded_input_window": {
+                "start": "2026-04-10T04:00:00",
+                "end": "2026-04-10T12:00:00",
+            }
+        },
+    )
+
+    assert list(restricted.index) == [
+        pd.Timestamp("2026-04-10T04:00:00"),
+        pd.Timestamp("2026-04-10T08:00:00"),
+        pd.Timestamp("2026-04-10T12:00:00"),
+    ]
