@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from research.presets import get_preset
 from research.qre_failure_to_action_mapper import map_failure_to_action
 
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -40,6 +41,15 @@ ALLOWED_OUTPUT_PATHS: Final[tuple[str, ...]] = (
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _preset_timeframe(preset_name: str) -> str:
+    try:
+        preset = get_preset(preset_name)
+    except KeyError:
+        return ""
+
+    return _text(preset.timeframe)
 
 
 def _unique_in_order(values: Sequence[Any]) -> list[str]:
@@ -138,13 +148,20 @@ def _campaign_scope(
         else []
     )
 
+    preset_name = (
+        _text(registry_record.get("preset_name"))
+        or _text(evidence_campaign.get("preset_name"))
+    )
+    timeframe = (
+        _text(registry_record.get("timeframe"))
+        or _preset_timeframe(preset_name)
+    )
+
     return {
         "campaign_id": campaign_id,
         "hypothesis_id": _text(registry_record.get("hypothesis_id")),
-        "preset_name": (
-            _text(registry_record.get("preset_name"))
-            or _text(evidence_campaign.get("preset_name"))
-        ),
+        "preset_name": preset_name,
+        "timeframe": timeframe,
         "template_id": _text(registry_record.get("template_id")),
         "strategy_family": (
             _text(registry_record.get("strategy_family"))

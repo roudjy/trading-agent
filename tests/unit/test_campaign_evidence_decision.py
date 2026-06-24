@@ -117,6 +117,7 @@ def test_no_matching_plan_creates_sampling_plan() -> None:
         == "create_preregistered_sampling_plan"
     )
     assert report["action_authority"] == "report_only"
+    assert report["campaign_scope"]["timeframe"] == "4h"
     assert report["safety_invariants"]["can_execute"] is False
     assert len(report["ignored_artifacts"]) == 2
     assert {
@@ -364,3 +365,17 @@ def test_module_contains_no_trading_runtime_imports() -> None:
     for token in forbidden:
         assert f"import {token}" not in source
         assert f"from {token}" not in source
+
+
+def test_registry_timeframe_overrides_preset_fallback() -> None:
+    registry = _registry()
+    registry["campaigns"][CAMPAIGN_ID]["timeframe"] = "1h"
+
+    report = decision.build_campaign_evidence_decision(
+        campaign_evidence=_campaign_evidence(),
+        campaign_registry=registry,
+        multiwindow_run=None,
+        multiwindow_closure=None,
+    )
+
+    assert report["campaign_scope"]["timeframe"] == "1h"
