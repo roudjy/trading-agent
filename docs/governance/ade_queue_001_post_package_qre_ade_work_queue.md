@@ -2820,7 +2820,7 @@ live, broker, risk, or execution work.
 ### ADE-QRE-017D - Routing/Sampling Readiness Population
 
 - queue id: `ADE-QRE-017D`
-- status: `ready`
+- status: `done`
 - title: Routing/Sampling Readiness Population.
 - purpose: populate routing-ready and sampling-ready artifacts from real
   repository evidence.
@@ -2830,9 +2830,8 @@ live, broker, risk, or execution work.
 - risk class: MEDIUM.
 - target layer: reporting, packages `qre_research`, packages `qre_artifacts`.
 - expected files or file families:
-  - `reporting/qre_selection_route_materialization.py`
-  - `reporting/qre_selection_closed_loop_preflight.py`
-  - `reporting/sampling_intelligence_minimal.py`
+  - `reporting/qre_routing_sampling_readiness.py`
+  - `docs/governance/qre_routing_sampling_readiness.md`
   - `tests/unit/**`
 - forbidden files or file families:
   - inferred readiness from scaffold presence alone
@@ -2840,13 +2839,18 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - ready states must be evidence-derived and fail closed otherwise.
+- completion evidence: substantive implementation PR pending merge evidence; this
+  branch materializes repository-native routing and sampling readiness
+  artifacts from real basket evidence, verifies routing/sampling reason-record
+  coverage is complete for the populated basket, and keeps non-ready states
+  explicit instead of inferring readiness from scaffold presence.
 - next dependency: `ADE-QRE-017E`.
 
 ### ADE-QRE-017E - KPI Completeness and Historical Snapshots
 
 - queue id: `ADE-QRE-017E`
 - title: KPI Completeness and Historical Snapshots.
-- status: `blocked until ADE-QRE-017D done`
+- status: `ready`
 - purpose: produce complete numeric or explicitly unavailable KPI states and
   repeatable historical snapshots.
 - source document:
