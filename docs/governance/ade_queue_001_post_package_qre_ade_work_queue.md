@@ -2806,11 +2806,15 @@ live, broker, risk, or execution work.
 - validation required:
   - fake reasons are impossible.
   - evidence absence fails closed.
-- completion evidence: substantive implementation PR pending merge evidence; this
-  branch materializes durable `qre_reason_records`, `qre_reason_record_audit`,
-  and `qre_reason_record_normalization` artifacts through the repository-native
-  writers, and the new maturity report keeps contract gaps explicit and
-  fail-closed.
+- completion evidence: PR #624, merge SHA `df3872297160ce946065eba7ad5ff9d85521cd34`;
+  PR checks green including `unit (smoke + unit)`, governance lint, lint,
+  typecheck, path-classifier, secret scan, architecture-boundary, hook-tests,
+  regression-fast, and frontend checks; post-merge targeted tests and
+  `python -m reporting.ade_queue_status_self_audit --no-write` passed; durable
+  `qre_reason_records`, `qre_reason_record_audit`, and
+  `qre_reason_record_normalization` artifacts were materialized through the
+  repository-native writers; frozen contracts unchanged; protected paths
+  untouched; live/paper/shadow/risk/broker/execution inactive.
 - next dependency: `ADE-QRE-017D`.
 
 ### ADE-QRE-017D - Routing/Sampling Readiness Population
