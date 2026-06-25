@@ -382,6 +382,18 @@ def test_every_catalog_task_has_at_least_one_unit(
         assert by_task.get(t["id"]), t["id"]
 
 
+def test_ade_qre_017a_to_017e_each_have_one_seed_unit(snap: dict) -> None:
+    by_phase = _units_by_phase(snap)
+    for phase in (
+        "ade_qre_017a",
+        "ade_qre_017b",
+        "ade_qre_017c",
+        "ade_qre_017d",
+        "ade_qre_017e",
+    ):
+        assert len(by_phase.get(phase, [])) == 1, phase
+
+
 @pytest.mark.parametrize(
     "phase",
     ["v3.15.16", "v3.15.17", "v3.15.18", "v3.15.19", "v3.15.20"],
@@ -1040,6 +1052,37 @@ def test_downstream_v3_15_16_units_still_reference_merged_unit(
     assert len(downstream) == 2
     for u in downstream:
         assert _ROUTING_SIGNALS_SCHEMA_UNIT_ID in u["prerequisites"], u["id"]
+
+
+def test_ade_qre_017_wave_prerequisites_form_linear_chain(snap: dict) -> None:
+    by_id = {u["id"]: u for u in snap["implementation_units"]}
+    assert by_id["u_ade_qre_017a_maturity_matrix_reporter_001"]["prerequisites"] == []
+    assert by_id["u_ade_qre_017b_evidence_density_inventory_001"]["prerequisites"] == [
+        "u_ade_qre_017a_maturity_matrix_reporter_001"
+    ]
+    assert by_id["u_ade_qre_017c_reason_record_maturity_reporter_001"]["prerequisites"] == [
+        "u_ade_qre_017b_evidence_density_inventory_001"
+    ]
+    assert by_id["u_ade_qre_017d_readiness_population_reporter_001"]["prerequisites"] == [
+        "u_ade_qre_017c_reason_record_maturity_reporter_001"
+    ]
+    assert by_id["u_ade_qre_017e_kpi_snapshot_reporter_001"]["prerequisites"] == [
+        "u_ade_qre_017d_readiness_population_reporter_001"
+    ]
+
+
+def test_ade_qre_017a_unit_is_ready_and_future_wave_units_not_started(
+    snap: dict,
+) -> None:
+    by_id = {u["id"]: u for u in snap["implementation_units"]}
+    assert by_id["u_ade_qre_017a_maturity_matrix_reporter_001"]["status"] == "ready"
+    for unit_id in (
+        "u_ade_qre_017b_evidence_density_inventory_001",
+        "u_ade_qre_017c_reason_record_maturity_reporter_001",
+        "u_ade_qre_017d_readiness_population_reporter_001",
+        "u_ade_qre_017e_kpi_snapshot_reporter_001",
+    ):
+        assert by_id[unit_id]["status"] == "not_started", unit_id
 
 
 # ---------------------------------------------------------------------------

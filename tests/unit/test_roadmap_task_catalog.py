@@ -53,6 +53,11 @@ def snap() -> dict:
 
 def test_phase_vocabulary_is_closed_and_complete() -> None:
     assert rtc.PHASE == (
+        "ade_qre_017a",
+        "ade_qre_017b",
+        "ade_qre_017c",
+        "ade_qre_017d",
+        "ade_qre_017e",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -68,6 +73,9 @@ def test_source_document_vocabulary_includes_addenda_2_and_3() -> None:
     """A23 made Addendum 2 + 3 repo-resident. SOURCE_DOCUMENT now
     pins both files alongside Roadmap v6 and Addendum 1."""
     assert rtc.SOURCE_DOCUMENT == (
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
+        "docs/roadmap/qre_maturity_roadmap_to_100.md",
+        "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
         "docs/roadmap/Roadmap v6.md",
         "docs/roadmap/Roadmap v6 Addendum.md",
         (
@@ -260,6 +268,15 @@ def test_phase_v3_15_16_task_present(snap: dict) -> None:
     assert "Intelligent Routing Layer" in t["title"]
 
 
+def test_ade_qre_017a_to_017e_tasks_present(snap: dict) -> None:
+    tasks = _tasks_by_phase(snap)
+    assert tasks["ade_qre_017a"]["id"] == "ade_qre_017a_baseline_reconciliation"
+    assert tasks["ade_qre_017b"]["id"] == "ade_qre_017b_evidence_density_population"
+    assert tasks["ade_qre_017c"]["id"] == "ade_qre_017c_reason_record_maturity"
+    assert tasks["ade_qre_017d"]["id"] == "ade_qre_017d_routing_sampling_readiness"
+    assert tasks["ade_qre_017e"]["id"] == "ade_qre_017e_kpi_snapshot_completeness"
+
+
 def test_phase_v3_15_17_task_present(snap: dict) -> None:
     t = _tasks_by_phase(snap)["v3.15.17"]
     assert t["id"] == "phase_v3_15_17"
@@ -308,6 +325,11 @@ def test_addendum_2_and_3_have_tasks_after_a23(snap: dict) -> None:
 def test_v3_15_16_to_v3_15_20_all_present_in_order(snap: dict) -> None:
     phases = [t["phase"] for t in snap["roadmap_tasks"]]
     for expected in (
+        "ade_qre_017a",
+        "ade_qre_017b",
+        "ade_qre_017c",
+        "ade_qre_017d",
+        "ade_qre_017e",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",

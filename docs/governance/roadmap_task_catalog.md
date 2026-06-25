@@ -22,13 +22,16 @@
 
 The queue encodes:
 
+- ADE-QRE-017 wave-1 intake tasks (`ADE-QRE-017A` through
+  `ADE-QRE-017E`) for the trusted research intelligence maturity
+  program;
 - Roadmap v6 phases v3.15.16 → v3.15.20;
 - Addendum 1 (diagnostics + external-intelligence intake);
 - Addendum 2 (state / sequential / knowledge / retrieval
   intelligence) — repo-resident as of A23;
 - Addendum 3 (source identity / data quality / throughput
   intelligence) — repo-resident as of A23;
-- 8 `RoadmapTask` records, 54 `RoadmapRequirement` records, 37
+- 13 `RoadmapTask` records, 60 `RoadmapRequirement` records, 42
   `ImplementationUnit` records.
 
 A23 made Addendum 2 + 3 repo-resident by copying the
@@ -81,10 +84,13 @@ requirements) still follows the catalog-expansion-PR pattern in
 > **Authority:** development-governance read-only.
 > The roadmap task catalog is **not** the canonical product roadmap.
 > Current QRE implementation sequencing is governed by
-> [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md).
+> [`docs/roadmap/qre_maturity_roadmap_to_100.md`](../roadmap/qre_maturity_roadmap_to_100.md)
+> together with the admitted ADE-QRE-017 campaign manifest
+> [`docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`](../roadmap/qre_trusted_research_intelligence_roadmap_manifest.md).
 > Roadmap v6 ([`docs/roadmap/Roadmap v6.md`](../roadmap/Roadmap%20v6.md))
 > remains historical/supporting reference. This catalog is a
-> deterministic *seed* over that source plus the committed Addendum 1.
+> deterministic *seed* over those sources plus the committed
+> addenda and admitted queue sequence.
 >
 > The catalog grants **no** implementation, runtime, trading, paper,
 > shadow, broker, risk, or live authority to any agent. ADE remains
@@ -104,9 +110,10 @@ already gives ADE a path to pick up explicit
 documents must remain human-readable; bulk decomposition does not
 belong inline in those files.
 
-A20a fills the gap by hand-encoding the v3.15.16 → v3.15.20 phase
-tasks plus a cross-cutting Addendum 1 task and their normative
-requirements into a deterministic Python literal inside
+A20a fills the gap by hand-encoding the admitted ADE-QRE-017 wave-1
+trusted-research tasks, the v3.15.16 → v3.15.20 phase tasks, the
+cross-cutting Addendum tasks, and their normative requirements into a
+deterministic Python literal inside
 `reporting/roadmap_task_catalog.py`. The module emits a single
 read-only projection at `logs/roadmap_task_catalog/latest.json`.
 

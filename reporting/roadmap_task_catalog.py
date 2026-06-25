@@ -96,6 +96,11 @@ step5_implementation_allowed: Final[bool] = False
 #: committed to the repo at the time of this seed; their requirements
 #: remain empty and absence flags are emitted on every projection.
 PHASE: Final[tuple[str, ...]] = (
+    "ade_qre_017a",
+    "ade_qre_017b",
+    "ade_qre_017c",
+    "ade_qre_017d",
+    "ade_qre_017e",
     "v3.15.16",
     "v3.15.17",
     "v3.15.18",
@@ -111,6 +116,9 @@ PHASE: Final[tuple[str, ...]] = (
 #: Addendum 2 and Addendum 3 verbatim into ``docs/roadmap/``; their
 #: file paths are pinned here.
 SOURCE_DOCUMENT: Final[tuple[str, ...]] = (
+    "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
+    "docs/roadmap/qre_maturity_roadmap_to_100.md",
+    "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
     "docs/roadmap/Roadmap v6.md",
     "docs/roadmap/Roadmap v6 Addendum.md",
     (
@@ -283,6 +291,90 @@ _DISCIPLINE_INVARIANTS: Final[dict[str, bool]] = {
 #: ``addendum_1`` task. Order matches ``PHASE`` declaration order;
 #: ``sort`` at projection time keeps the artefact stable regardless.
 _ROADMAP_TASKS_SEED: Final[tuple[dict[str, Any], ...]] = (
+    {
+        "id": "ade_qre_017a_baseline_reconciliation",
+        "title": "ADE-QRE-017A Baseline Reconciliation and Maturity Matrix",
+        "phase": "ade_qre_017a",
+        "source_documents": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
+            "docs/roadmap/qre_maturity_roadmap_to_100.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Establish a repository-backed baseline reconciliation for the "
+            "trusted research intelligence program. Classify relevant QRE "
+            "capabilities by maturity, count current evidence-bearing "
+            "surfaces, and make blockers explicit without inferring trust "
+            "from scaffold presence alone."
+        ),
+        "status": "not_started",
+        "prerequisites": (),
+    },
+    {
+        "id": "ade_qre_017b_evidence_density_population",
+        "title": "ADE-QRE-017B Evidence-Density Population Plan",
+        "phase": "ade_qre_017b",
+        "source_documents": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Inventory required evidence classes, their producers and "
+            "consumers, and the population gaps that currently block "
+            "repeatable research decisions. Fail-closed blockers must be "
+            "named explicitly."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_017a_baseline_reconciliation",),
+    },
+    {
+        "id": "ade_qre_017c_reason_record_maturity",
+        "title": "ADE-QRE-017C Reason-Record Maturity",
+        "phase": "ade_qre_017c",
+        "source_documents": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Make reason records durable, normalized, and evidence-linked "
+            "when real evidence exists. Missing evidence must fail closed; "
+            "the program may not synthesize reasons or evidence."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_017b_evidence_density_population",),
+    },
+    {
+        "id": "ade_qre_017d_routing_sampling_readiness",
+        "title": "ADE-QRE-017D Routing and Sampling Readiness Population",
+        "phase": "ade_qre_017d",
+        "source_documents": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Promote routing-ready and sampling-ready signals from scaffold "
+            "status to repository-backed readiness based on actual evidence. "
+            "Readiness may not be inferred from module existence alone."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_017c_reason_record_maturity",),
+    },
+    {
+        "id": "ade_qre_017e_kpi_snapshot_completeness",
+        "title": "ADE-QRE-017E KPI Completeness and Historical Snapshots",
+        "phase": "ade_qre_017e",
+        "source_documents": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Materialize KPI completeness with numeric values or explicit "
+            "unavailability, and produce repeatable historical snapshots "
+            "that preserve evidence state over time."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_017d_routing_sampling_readiness",),
+    },
     {
         "id": "phase_v3_15_16",
         "title": "Intelligent Routing Layer",
@@ -483,7 +575,112 @@ _ROADMAP_TASKS_SEED: Final[tuple[dict[str, Any], ...]] = (
 # encoded here — their source documents are not in the repo.
 
 _ROADMAP_REQUIREMENTS_SEED: Final[tuple[dict[str, Any], ...]] = (
-    # ---- Addendum 1 — Core principles ----------------------------------
+    {
+        "id": "req_ade_qre_017a_maturity_matrix",
+        "roadmap_task_id": "ade_qre_017a_baseline_reconciliation",
+        "source_document": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md"
+        ),
+        "source_anchor": "ADE-QRE-017A - Baseline Reconciliation and Maturity Matrix",
+        "phase": "ade_qre_017a",
+        "addendum_link": "none",
+        "statement": (
+            "Produce a repository-backed maturity matrix that classifies "
+            "relevant QRE capabilities as scaffold, populated working "
+            "capability, integrated capability, repeatable evidence "
+            "capability, decision-useful capability, operator-trusted "
+            "capability, or evidence-authoritative capability."
+        ),
+        "target_layer": "governance",
+        "status": "not_started",
+    },
+    {
+        "id": "req_ade_qre_017a_blocker_census",
+        "roadmap_task_id": "ade_qre_017a_baseline_reconciliation",
+        "source_document": (
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md"
+        ),
+        "source_anchor": "ADE-QRE-017A - Baseline Reconciliation and Maturity Matrix",
+        "phase": "ade_qre_017a",
+        "addendum_link": "none",
+        "statement": (
+            "Baseline reconciliation must count relevant artifacts and make "
+            "current blockers explicit without inferring evidence authority "
+            "from file existence."
+        ),
+        "target_layer": "reporting",
+        "status": "not_started",
+    },
+    {
+        "id": "req_ade_qre_017b_evidence_inventory",
+        "roadmap_task_id": "ade_qre_017b_evidence_density_population",
+        "source_document": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md"
+        ),
+        "source_anchor": "ADE-QRE-017B - Evidence-Density Population Plan",
+        "phase": "ade_qre_017b",
+        "addendum_link": "none",
+        "statement": (
+            "Inventory required evidence classes, their producers, their "
+            "consumers, current population state, and the fail-closed "
+            "blockers that prevent evidence density from becoming decision "
+            "useful."
+        ),
+        "target_layer": "evidence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_ade_qre_017c_reason_record_linkage",
+        "roadmap_task_id": "ade_qre_017c_reason_record_maturity",
+        "source_document": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md"
+        ),
+        "source_anchor": "ADE-QRE-017C - Reason-Record Maturity",
+        "phase": "ade_qre_017c",
+        "addendum_link": "none",
+        "statement": (
+            "Reason records must be non-empty when real evidence exists, "
+            "durable across runs, normalized to a closed representation, "
+            "and explicitly linked to evidence references."
+        ),
+        "target_layer": "evidence",
+        "status": "not_started",
+    },
+    {
+        "id": "req_ade_qre_017d_readiness_population",
+        "roadmap_task_id": "ade_qre_017d_routing_sampling_readiness",
+        "source_document": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md"
+        ),
+        "source_anchor": "ADE-QRE-017D - Routing and Sampling Readiness Population",
+        "phase": "ade_qre_017d",
+        "addendum_link": "none",
+        "statement": (
+            "Routing-ready and sampling-ready status must be derived from "
+            "real repository evidence. Scaffold-only presence may not be "
+            "promoted to readiness."
+        ),
+        "target_layer": "reporting",
+        "status": "not_started",
+    },
+    {
+        "id": "req_ade_qre_017e_kpi_snapshots",
+        "roadmap_task_id": "ade_qre_017e_kpi_snapshot_completeness",
+        "source_document": (
+            "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md"
+        ),
+        "source_anchor": "ADE-QRE-017E - KPI Completeness and Historical Snapshots",
+        "phase": "ade_qre_017e",
+        "addendum_link": "none",
+        "statement": (
+            "Every KPI must be present as a numeric value or an explicit "
+            "unavailable state, and the system must emit repeatable "
+            "historical snapshots that preserve evidence time context."
+        ),
+        "target_layer": "reporting",
+        "status": "not_started",
+    },
+    # ---- Addendum 1 - Core principles ----------------------------------
     {
         "id": "req_addendum_1_diagnostics_do_not_trade",
         "roadmap_task_id": "addendum_1_diagnostics_intake",
