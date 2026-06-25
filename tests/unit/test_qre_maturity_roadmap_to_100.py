@@ -15,6 +15,8 @@ def test_qre_maturity_roadmap_is_documentation_only() -> None:
 
     assert "This document is the canonical roadmap" in text
     assert "active canonical roadmap for current QRE" in text
+    assert "qre_trusted_research_intelligence_roadmap_manifest.md" in text
+    assert "without erasing historical Roadmap v6" in text
     assert "Phase 7C" in text
     assert "feat: add routing score scaffold" in text
     assert "generic, bounded, reproducible research engine" in text
@@ -26,3 +28,16 @@ def test_qre_maturity_roadmap_is_documentation_only() -> None:
     assert "### Step 7 - Research intelligence and candidate lifecycle" in text
     assert "### Step 8 - Shadow / paper / live deferral" in text
     assert "This document does not implement:" in text
+
+
+def test_trusted_research_intelligence_manifest_exists_and_carries_program_scope() -> None:
+    manifest = Path("docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md")
+    text = manifest.read_text(encoding="utf-8")
+
+    assert manifest.is_file()
+    assert "QRE Trusted Research Intelligence Roadmap Manifest" in text
+    assert "The largest maturity gap is not \"more modules.\"" in text
+    assert "ADE-QRE-017" in text
+    assert "ADE-QRE-017AD" in text
+    assert "Strategy synthesis remains blocked." in text
+    assert "No live activation." in text
