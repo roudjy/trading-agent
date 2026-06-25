@@ -2720,7 +2720,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017A`
 - title: Baseline Reconciliation and Maturity Matrix.
-- status: `ready`
+- status: `done`
 - purpose: produce the repository-backed maturity matrix for all relevant
   trusted research intelligence surfaces.
 - source document:
@@ -2747,7 +2747,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017B`
 - title: Evidence-Density Population Plan.
-- status: `blocked until ADE-QRE-017A done`
+- status: `ready`
 - purpose: inventory required evidence classes, producers, consumers,
   population state, and fail-closed blockers.
 - source document:
