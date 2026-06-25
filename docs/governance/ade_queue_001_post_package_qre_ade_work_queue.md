@@ -2741,6 +2741,14 @@ live, broker, risk, or execution work.
 - validation required:
   - capability classes are closed and repository-backed.
   - counts, blockers, and non-authoritative surfaces are explicit.
+- completion evidence: PR #620, merge SHA `92e7ba900a451e924ae98dfe51e37a838de6a518`;
+  PR checks green after the boundary/queue-test repair follow-up; post-merge
+  `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`,
+  and `python -m reporting.architecture_import_scan --format summary` passed on
+  `main`; `python -m reporting.roadmap_next_unit --status` selected
+  `u_ade_qre_017b_evidence_density_inventory_001` / `ADE-QRE-017B`; frozen
+  contracts unchanged; protected/execution paths untouched; paper/shadow/live,
+  broker, risk, and execution behavior remained inactive.
 - next dependency: `ADE-QRE-017B`.
 
 ### ADE-QRE-017B - Evidence-Density Population Plan
