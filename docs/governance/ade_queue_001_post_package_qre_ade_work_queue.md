@@ -2675,3 +2675,788 @@ live, broker, risk, or execution work.
   - remote auth failure.
   - local git unsafe state.
 - next dependency: none.
+
+### ADE-QRE-017 - Trusted Research Intelligence Maturity Program
+
+- queue id: `ADE-QRE-017`
+- title: Trusted Research Intelligence Maturity Program.
+- status: `blocked until ADE-QRE-017AD done`
+- purpose: govern the full scaffold-to-trust maturity program selected by
+  `ADE-QRE-016H` without collapsing the work into one giant implementation
+  release.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-016H done`.
+- risk class: MEDIUM.
+- target layer: governance coordination, queue sequencing, documentation,
+  reporting, package-boundary QRE maturity, and campaign-readiness control.
+- expected files or file families:
+  - `docs/governance/**`
+  - `docs/roadmap/**`
+  - `reporting/**.py`
+  - `packages/qre_*/**`
+  - `tests/unit/**`
+  - `tests/integration/**`
+  - `tests/architecture/**`
+- forbidden files or file families:
+  - `.claude/**`
+  - `research/research_latest.json`
+  - `research/strategy_matrix.csv`
+  - `automation/live_gate.py`
+  - `broker/**`
+  - `agent/risk/**`
+  - `agent/execution/**`
+  - `live/**`
+  - `paper/**`
+  - `shadow/**`
+  - `trading/**`
+- completion rule:
+  - parent stays non-executable and is completed only after `ADE-QRE-017A`
+    through `ADE-QRE-017AD` are done with PR, merge, CI, and post-merge
+    evidence recorded.
+- next dependency: `ADE-QRE-017A`.
+
+### ADE-QRE-017A - Baseline Reconciliation and Maturity Matrix
+
+- queue id: `ADE-QRE-017A`
+- title: Baseline Reconciliation and Maturity Matrix.
+- status: `ready`
+- purpose: produce the repository-backed maturity matrix for all relevant
+  trusted research intelligence surfaces.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-016H done`.
+- risk class: LOW.
+- target layer: governance docs, reporting, and read-only maturity
+  classification.
+- expected files or file families:
+  - `docs/governance/**`
+  - `docs/roadmap/**`
+  - `reporting/**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - `.claude/**`
+  - `research/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - capability classes are closed and repository-backed.
+  - counts, blockers, and non-authoritative surfaces are explicit.
+- next dependency: `ADE-QRE-017B`.
+
+### ADE-QRE-017B - Evidence-Density Population Plan
+
+- queue id: `ADE-QRE-017B`
+- title: Evidence-Density Population Plan.
+- status: `blocked until ADE-QRE-017A done`
+- purpose: inventory required evidence classes, producers, consumers,
+  population state, and fail-closed blockers.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017A done`.
+- risk class: LOW.
+- target layer: governance docs, reporting, evidence planning.
+- expected files or file families:
+  - `docs/governance/**`
+  - `reporting/**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - `.claude/**`
+  - `research/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - every required evidence class has a producer, consumer, and state.
+  - blockers fail closed instead of inferring completeness.
+- next dependency: `ADE-QRE-017C`.
+
+### ADE-QRE-017C - Reason-Record Maturity
+
+- queue id: `ADE-QRE-017C`
+- title: Reason-Record Maturity.
+- status: `blocked until ADE-QRE-017B done`
+- purpose: make reason records non-empty, normalized, durable, and
+  evidence-referenced when real evidence exists.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017B done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_research` / `qre_artifacts`.
+- expected files or file families:
+  - `reporting/reason_records.py`
+  - `reporting/reason_record_evidence_density.py`
+  - `packages/qre_research/**`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - fake evidence producers
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - fake reasons are impossible.
+  - evidence absence fails closed.
+- next dependency: `ADE-QRE-017D`.
+
+### ADE-QRE-017D - Routing/Sampling Readiness Population
+
+- queue id: `ADE-QRE-017D`
+- title: Routing/Sampling Readiness Population.
+- status: `blocked until ADE-QRE-017C done`
+- purpose: populate routing-ready and sampling-ready artifacts from real
+  repository evidence.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017C done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_research`, packages `qre_artifacts`.
+- expected files or file families:
+  - `reporting/qre_selection_route_materialization.py`
+  - `reporting/qre_selection_closed_loop_preflight.py`
+  - `reporting/sampling_intelligence_minimal.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - inferred readiness from scaffold presence alone
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - ready states must be evidence-derived and fail closed otherwise.
+- next dependency: `ADE-QRE-017E`.
+
+### ADE-QRE-017E - KPI Completeness and Historical Snapshots
+
+- queue id: `ADE-QRE-017E`
+- title: KPI Completeness and Historical Snapshots.
+- status: `blocked until ADE-QRE-017D done`
+- purpose: produce complete numeric or explicitly unavailable KPI states and
+  repeatable historical snapshots.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017D done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_artifacts`, governance docs.
+- expected files or file families:
+  - `reporting/qre_closed_loop_operator_report.py`
+  - `reporting/qre_operator_closed_loop_report.py`
+  - `packages/qre_artifacts/**`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - weakened KPI standards
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - unavailable KPIs are explicit.
+  - snapshot generation is repeatable.
+- next dependency: `ADE-QRE-017F`.
+
+### ADE-QRE-017F - Funnel Census and Threshold-Distance Audit
+
+- queue id: `ADE-QRE-017F`
+- title: Funnel Census and Threshold-Distance Audit.
+- status: `blocked until ADE-QRE-017E done`
+- purpose: materialize full funnel counts, threshold distances, and exactly-one
+  recommendation per criterion without changing thresholds.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017E done`.
+- risk class: MEDIUM.
+- target layer: reporting, diagnostics, governance docs.
+- expected files or file families:
+  - `reporting/**funnel**.py`
+  - `reporting/**diagnostic**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - threshold mutation
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - stage counts, actual values, thresholds, and distances are explicit.
+  - each criterion has exactly one recommendation.
+- next dependency: `ADE-QRE-017G`.
+
+### ADE-QRE-017G - Actionable Failure Taxonomy and Next Actions
+
+- queue id: `ADE-QRE-017G`
+- title: Actionable Failure Taxonomy and Next Actions.
+- status: `blocked until ADE-QRE-017F done`
+- purpose: expand evidence-backed failure attribution and bind each supported
+  failure class to exactly one bounded advisory next action.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017F done`.
+- risk class: MEDIUM.
+- target layer: reporting, diagnostics, policy read surfaces.
+- expected files or file families:
+  - `reporting/failure_action_mapping_minimal.py`
+  - `reporting/**failure**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - invented causes
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - insufficient evidence stays explicit.
+  - exactly one next action per supported failure class.
+- next dependency: `ADE-QRE-017H`.
+
+### ADE-QRE-017H - Action Usefulness Tracking
+
+- queue id: `ADE-QRE-017H`
+- title: Action Usefulness Tracking.
+- status: `blocked until ADE-QRE-017G done`
+- purpose: track whether recommended actions were executed and whether they
+  improved useful outcomes or repeated failure.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017G done`.
+- risk class: MEDIUM.
+- target layer: reporting, diagnostics, governance docs.
+- expected files or file families:
+  - `reporting/**action**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - unverifiable usefulness claims
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - executed, blocked, repeated-failure, compute-saved, and false-positive
+    outcomes are explicit.
+- next dependency: `ADE-QRE-017I`.
+
+### ADE-QRE-017I - Quality-Gated OHLCV/Cache Foundation
+
+- queue id: `ADE-QRE-017I`
+- title: Quality-Gated OHLCV/Cache Foundation.
+- status: `blocked until ADE-QRE-017H done`
+- purpose: mature a reproducible, versioned, quality-gated OHLCV/cache
+  foundation using existing packages and repository-local datasets first.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017H done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_data`, reporting, tests.
+- expected files or file families:
+  - `packages/qre_data/cache_manifest.py`
+  - `packages/qre_data/contracts.py`
+  - `packages/qre_data/historical_accounting.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - invented external fetches
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - locally possible components complete before any external-source block is
+    recorded.
+- next dependency: `ADE-QRE-017J`.
+
+### ADE-QRE-017J - Source Quality, PIT, and Identity Readiness
+
+- queue id: `ADE-QRE-017J`
+- title: Source Quality, PIT, and Identity Readiness.
+- status: `blocked until ADE-QRE-017I done`
+- purpose: implement freshness, missing-data, duplicate, monotonicity,
+  outlier, coverage, agreement, PIT, revision, identity, and allowed-use
+  readiness.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017I done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_data`, reporting, policy read surfaces.
+- expected files or file families:
+  - `packages/qre_data/source_quality_readiness.py`
+  - `packages/qre_data/source_lifecycle.py`
+  - `packages/qre_data/symbology_resolver.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - silent identity ambiguity acceptance
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - quality failures and identity ambiguity block rather than downgrade.
+- next dependency: `ADE-QRE-017K`.
+
+### ADE-QRE-017K - Source Usefulness Ledger
+
+- queue id: `ADE-QRE-017K`
+- title: Source Usefulness Ledger.
+- status: `blocked until ADE-QRE-017J done`
+- purpose: track actual source outcomes, usefulness, disagreements, savings,
+  and operator value without treating source quality as alpha.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017J done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_data`, reporting, tests.
+- expected files or file families:
+  - `packages/qre_data/**`
+  - `reporting/**source**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - alpha-probability proxies
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - usefulness is tied to actual influenced outcomes.
+- next dependency: `ADE-QRE-017L`.
+
+### ADE-QRE-017L - Behavior Thesis Registry
+
+- queue id: `ADE-QRE-017L`
+- title: Behavior Thesis Registry.
+- status: `blocked until ADE-QRE-017K done`
+- purpose: create a deterministic behavior-thesis registry with mechanism,
+  falsification, sampling, validation, OOS, and data requirements.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017K done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_research`, reporting, governance docs.
+- expected files or file families:
+  - `packages/qre_research/**`
+  - `reporting/**thesis**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - executable strategy generation
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - every thesis has deterministic identity and falsification fields.
+- next dependency: `ADE-QRE-017M`.
+
+### ADE-QRE-017M - Supporting and Contradicting Evidence
+
+- queue id: `ADE-QRE-017M`
+- title: Supporting and Contradicting Evidence.
+- status: `blocked until ADE-QRE-017L done`
+- purpose: attach supporting, contradicting, and unresolved evidence to each
+  thesis with provenance.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017L done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_research`, reporting, evidence surfaces.
+- expected files or file families:
+  - `packages/qre_research/**`
+  - `reporting/**evidence**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - hidden contradictions
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - contradictions and unresolved evidence remain visible.
+- next dependency: `ADE-QRE-017N`.
+
+### ADE-QRE-017N - Prior-Failure Retrieval
+
+- queue id: `ADE-QRE-017N`
+- title: Prior-Failure Retrieval.
+- status: `blocked until ADE-QRE-017M done`
+- purpose: use existing retrieval and research memory to return related prior
+  failures, dead zones, and actions as context only.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017M done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_research`, reporting.
+- expected files or file families:
+  - `packages/qre_research/research_memory.py`
+  - `packages/qre_research/retrieval_coverage.py`
+  - `reporting/**retrieval**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - retrieval-as-authority promotion
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - retrieved results are clearly marked contextual and provenance-linked.
+- next dependency: `ADE-QRE-017O`.
+
+### ADE-QRE-017O - Opportunity Research Value
+
+- queue id: `ADE-QRE-017O`
+- title: Opportunity Research Value.
+- status: `blocked until ADE-QRE-017N done`
+- purpose: implement a deterministic research-value score for prioritization
+  that is explicitly not alpha probability.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017N done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_research`, tests.
+- expected files or file families:
+  - `reporting/**opportunity**.py`
+  - `packages/qre_research/**`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - hidden model selectors
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - score factors are explainable and deterministic.
+- next dependency: `ADE-QRE-017P`.
+
+### ADE-QRE-017P - Routing Baseline Comparison
+
+- queue id: `ADE-QRE-017P`
+- title: Routing Baseline Comparison.
+- status: `blocked until ADE-QRE-017O done`
+- purpose: compare current routing against deterministic baselines and measure
+  actual decision usefulness.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017O done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_research`, tests.
+- expected files or file families:
+  - `reporting/intelligent_routing*.py`
+  - `reporting/**routing**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - adaptive hidden routing
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - baseline comparisons are deterministic and evidence-backed.
+- next dependency: `ADE-QRE-017Q`.
+
+### ADE-QRE-017Q - Sampling Baseline Comparison
+
+- queue id: `ADE-QRE-017Q`
+- title: Sampling Baseline Comparison.
+- status: `blocked until ADE-QRE-017P done`
+- purpose: compare sampling against deterministic baselines for signal density,
+  adequacy, coverage, and compute efficiency.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017P done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_research`, tests.
+- expected files or file families:
+  - `reporting/**sampling**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - hidden adaptive sampling selectors
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - sampling usefulness is compared against simple baselines.
+- next dependency: `ADE-QRE-017R`.
+
+### ADE-QRE-017R - Dead-Zone and Duplicate Suppression Efficacy
+
+- queue id: `ADE-QRE-017R`
+- title: Dead-Zone and Duplicate Suppression Efficacy.
+- status: `blocked until ADE-QRE-017Q done`
+- purpose: prove whether suppression prevents repeated low-value research.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017Q done`.
+- risk class: MEDIUM.
+- target layer: reporting, diagnostics, tests.
+- expected files or file families:
+  - `reporting/**suppression**.py`
+  - `reporting/**routing**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - efficacy claims without before/after evidence
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - before/after evidence is explicit.
+- next dependency: `ADE-QRE-017S`.
+
+### ADE-QRE-017S - Contradiction Graph and Hypothesis Lineage
+
+- queue id: `ADE-QRE-017S`
+- title: Contradiction Graph and Hypothesis Lineage.
+- status: `blocked until ADE-QRE-017R done`
+- purpose: produce a deterministic inspectable lineage from source through next
+  action without introducing unnecessary graph infrastructure.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017R done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_research`, reporting, artifacts.
+- expected files or file families:
+  - `packages/qre_research/**`
+  - `reporting/**lineage**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - graph database introduction without repository-backed necessity
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - lineage edges are deterministic and inspectable.
+- next dependency: `ADE-QRE-017T`.
+
+### ADE-QRE-017T - Evidence Decay
+
+- queue id: `ADE-QRE-017T`
+- title: Evidence Decay.
+- status: `blocked until ADE-QRE-017S done`
+- purpose: implement freshness and decay semantics without rewriting history.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017S done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_research`, policy read surfaces.
+- expected files or file families:
+  - `reporting/**decay**.py`
+  - `packages/qre_research/**`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - silent stale-evidence trust claims
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - stale, contradicted, and active evidence states are explicit.
+- next dependency: `ADE-QRE-017U`.
+
+### ADE-QRE-017U - Operator Decision Report
+
+- queue id: `ADE-QRE-017U`
+- title: Operator Decision Report.
+- status: `blocked until ADE-QRE-017T done`
+- purpose: produce one concise operator report per thesis with a closed final
+  decision vocabulary and exactly one next action.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017T done`.
+- risk class: MEDIUM.
+- target layer: reporting, artifacts, governance docs.
+- expected files or file families:
+  - `reporting/operator_decision_surface.py`
+  - `reporting/qre_operator_closed_loop_report.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - approval mutation routes
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - final decisions are one of `SUPPORTED_FOR_REVIEW`, `REJECTED`,
+    `INSUFFICIENT_EVIDENCE`, or `BLOCKED`.
+- next dependency: `ADE-QRE-017V`.
+
+### ADE-QRE-017V - Why-Explored, Why-Failed, Why-Blocked Surfaces
+
+- queue id: `ADE-QRE-017V`
+- title: Why-Explored, Why-Failed, Why-Blocked Surfaces.
+- status: `blocked until ADE-QRE-017U done`
+- purpose: consolidate explanation surfaces into consistent evidence-linked
+  outputs without adding mutation routes.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017U done`.
+- risk class: MEDIUM.
+- target layer: reporting, governance docs.
+- expected files or file families:
+  - `reporting/**why**.py`
+  - `reporting/operator_decision_surface.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - approval buttons or mutation controls
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - explanation outputs are consistent and provenance-linked.
+- next dependency: `ADE-QRE-017W`.
+
+### ADE-QRE-017W - Campaign Portfolio and Signal-Density Planning
+
+- queue id: `ADE-QRE-017W`
+- title: Campaign Portfolio and Signal-Density Planning.
+- status: `blocked until ADE-QRE-017V done`
+- purpose: construct a bounded multi-hypothesis campaign portfolio using
+  mechanistically distinct existing capabilities.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017V done`.
+- risk class: MEDIUM.
+- target layer: packages `qre_research`, reporting, governance docs.
+- expected files or file families:
+  - `packages/qre_research/**`
+  - `reporting/**campaign**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - indicator-family expansion for breadth alone
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - portfolio is bounded, preregistration-ready, and signal-density planned.
+- next dependency: `ADE-QRE-017X`.
+
+### ADE-QRE-017X - Preregistered Campaign Manifest
+
+- queue id: `ADE-QRE-017X`
+- title: Preregistered Campaign Manifest.
+- status: `blocked until ADE-QRE-017W done`
+- purpose: freeze hypotheses, data identities, windows, costs, criteria,
+  controls, and vocabularies before campaign execution.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017W done`.
+- risk class: MEDIUM.
+- target layer: reporting, packages `qre_artifacts`, governance docs.
+- expected files or file families:
+  - `reporting/qre_research_run_manifest.py`
+  - `packages/qre_artifacts/**`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - post-OOS tuning
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - campaign input identity is immutable or content-addressed where
+    repository-native.
+- next dependency: `ADE-QRE-017Y`.
+
+### ADE-QRE-017Y - Broad Campaign Execution
+
+- queue id: `ADE-QRE-017Y`
+- title: Broad Campaign Execution.
+- status: `blocked until ADE-QRE-017X done`
+- purpose: execute the preregistered campaign through existing QRE research
+  execution paths and persist full stage-level accounting.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017X done`.
+- risk class: HIGH.
+- target layer: package-boundary QRE research execution, reporting, artifacts.
+- expected files or file families:
+  - `packages/qre_research/**`
+  - `reporting/**campaign**.py`
+  - `tests/unit/**`
+  - `tests/integration/**`
+- forbidden files or file families:
+  - paper, shadow, live, broker, risk, execution, or capital-allocation paths
+  - `.claude/**`
+  - frozen contracts listed under `ADE-QRE-017`.
+- validation required:
+  - campaign outputs distinguish completed, rejected, insufficient evidence,
+    blocked, timed out, errored, and not executed.
+  - negative campaigns remain valid when fully explained.
+- next dependency: `ADE-QRE-017Z`.
+
+### ADE-QRE-017Z - Funnel Diagnosis After Broad Campaign
+
+- queue id: `ADE-QRE-017Z`
+- title: Funnel Diagnosis After Broad Campaign.
+- status: `blocked until ADE-QRE-017Y done`
+- purpose: diagnose the primary bottleneck after broad execution without
+  changing criteria.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017Y done`.
+- risk class: MEDIUM.
+- target layer: reporting, governance docs, diagnostics.
+- expected files or file families:
+  - `reporting/**diagnosis**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - criteria changes during diagnosis
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - exactly one primary bottleneck is selected from the allowed diagnosis set.
+- next dependency: `ADE-QRE-017AA`.
+
+### ADE-QRE-017AA - Single-Class Recalibration
+
+- queue id: `ADE-QRE-017AA`
+- title: Single-Class Recalibration.
+- status: `blocked until ADE-QRE-017Z done`
+- purpose: allow one evidence-justified criterion-class change with a
+  preregistered expected effect and regression conditions.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017Z done`.
+- risk class: HIGH.
+- target layer: reporting, packages `qre_research`, governance docs.
+- expected files or file families:
+  - `reporting/**recalibration**.py`
+  - `packages/qre_research/**`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - survivor-targeting
+  - hypothesis, data, window, universe, or preset changes
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - if evidence does not justify recalibration, record rejection or
+    insufficient evidence instead of fabricating a change.
+- next dependency: `ADE-QRE-017AB`.
+
+### ADE-QRE-017AB - Same-Input Replay
+
+- queue id: `ADE-QRE-017AB`
+- title: Same-Input Replay.
+- status: `blocked until ADE-QRE-017AA done`
+- purpose: replay the campaign with the exact same inputs, permitting only the
+  approved single criterion-class change.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017AA done`.
+- risk class: HIGH.
+- target layer: packages `qre_research`, reporting, artifacts.
+- expected files or file families:
+  - `packages/qre_research/**`
+  - `reporting/**replay**.py`
+  - `tests/unit/**`
+  - `tests/integration/**`
+- forbidden files or file families:
+  - hidden input drift
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - complete before/after funnel comparison is explicit.
+- next dependency: `ADE-QRE-017AC`.
+
+### ADE-QRE-017AC - Repeated Independent OOS Evidence
+
+- queue id: `ADE-QRE-017AC`
+- title: Repeated Independent OOS Evidence.
+- status: `blocked until ADE-QRE-017AB done`
+- purpose: run independent unseen OOS repetitions where existing data permits
+  and record precise blockers otherwise.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017AB done`.
+- risk class: HIGH.
+- target layer: packages `qre_research`, reporting, artifacts.
+- expected files or file families:
+  - `packages/qre_research/**`
+  - `reporting/**oos**.py`
+  - `tests/unit/**`
+  - `tests/integration/**`
+- forbidden files or file families:
+  - relabeling prior OOS as independent evidence
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - independent evidence or the exact blocker is explicit per hypothesis.
+- next dependency: `ADE-QRE-017AD`.
+
+### ADE-QRE-017AD - Synthesis-Readiness Review
+
+- queue id: `ADE-QRE-017AD`
+- title: Synthesis-Readiness Review.
+- status: `blocked until ADE-QRE-017AC done`
+- purpose: produce the review-only final synthesis-readiness outcome without
+  implementing synthesis.
+- source document:
+  `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+- depends on: `ADE-QRE-017AC done`.
+- risk class: MEDIUM.
+- target layer: governance docs, reporting, operator decision surfaces.
+- expected files or file families:
+  - `docs/governance/**`
+  - `reporting/**synthesis**.py`
+  - `tests/unit/**`
+- forbidden files or file families:
+  - synthesis implementation
+  - `.claude/**`
+  - frozen contracts and runtime paths listed under `ADE-QRE-017`.
+- validation required:
+  - allowed outcomes are exactly `CONTINUE_BLOCKED`,
+    `ELIGIBLE_FOR_SEPARATE_SYNTHESIS_DESIGN_REVIEW`, or
+    `INSUFFICIENT_EVIDENCE`.
+  - synthesis remains blocked unless a separate later design review is
+    explicitly selected.
+- next dependency: none.

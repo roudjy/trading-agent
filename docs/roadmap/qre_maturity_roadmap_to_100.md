@@ -22,6 +22,12 @@ After the Phase 7B preset feasibility mapper and the roadmap-authority
 alignment cleanup, the next implementation item is Phase 7C:
 `feat: add routing score scaffold`.
 
+The campaign-first scaffold-to-trust maturity program selected by
+`ADE-QRE-016H` is documented in
+`docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
+That manifest governs the `ADE-QRE-017` trusted research intelligence program
+without erasing historical Roadmap v6, Addendum, or prior ADE/QRE material.
+
 ## Current baseline
 
 - QRE governance / infrastructure maturity: 65/100
