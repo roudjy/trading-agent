@@ -2755,7 +2755,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017B`
 - title: Evidence-Density Population Plan.
-- status: `ready`
+- status: `done`
 - purpose: inventory required evidence classes, producers, consumers,
   population state, and fail-closed blockers.
 - source document:
@@ -2780,7 +2780,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017C`
 - title: Reason-Record Maturity.
-- status: `blocked until ADE-QRE-017B done`
+- status: `ready`
 - purpose: make reason records non-empty, normalized, durable, and
   evidence-referenced when real evidence exists.
 - source document:
