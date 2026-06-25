@@ -632,7 +632,7 @@ def test_ade_qre_future_units_are_blocked_until_prior_unit_is_merged(
     assert "unsatisfied_prerequisite" in by_id[u_b["id"]]["block_reasons"]
 
 
-def test_materialized_current_a20_stack_selects_ade_qre_017b_after_017a_merge(
+def test_materialized_current_a20_stack_selects_ade_qre_017c_after_017b_merge(
     tmp_path: Path,
 ) -> None:
     units_path = tmp_path / "logs" / "roadmap_task_units" / "latest.json"
@@ -646,8 +646,8 @@ def test_materialized_current_a20_stack_selects_ade_qre_017b_after_017a_merge(
     auth_path.write_text(json.dumps(auth_payload, sort_keys=True), encoding="utf-8")
 
     snap = _snap(tmp_path)
-    assert snap["selection"]["selected_unit_id"] == "u_ade_qre_017b_evidence_density_inventory_001"
-    assert snap["selection"]["selected_phase"] == "ade_qre_017b"
+    assert snap["selection"]["selected_unit_id"] == "u_ade_qre_017c_reason_record_maturity_reporter_001"
+    assert snap["selection"]["selected_phase"] == "ade_qre_017c"
 
 
 # ---------------------------------------------------------------------------
