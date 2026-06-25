@@ -2,24 +2,13 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import importlib
 import json
 import os
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
-
-from research import qre_audit_gap_closure_plan as audit_gap_plan
-from research import qre_candidate_explanation_rows as candidate_explanations
-from research import qre_failure_action_from_basket as failure_actions
-from research import qre_real_basket_evidence_coverage as evidence_coverage
-from research import qre_reason_record_audit as reason_record_audit
-from research import qre_reason_records_v1 as reason_records_v1
-from research import qre_research_memory_coverage as research_memory
-from research import qre_routing_readiness_from_basket as routing_readiness
-from research import qre_sampling_readiness_from_basket as sampling_readiness
-from research import qre_trusted_loop_operator_kpis as trusted_loop_kpis
-
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -40,6 +29,10 @@ LEVELS: Final[tuple[str, ...]] = (
     "operator_trusted_capability",
     "evidence_authoritative_capability",
 )
+
+
+def _research_module(module_name: str) -> Any:
+    return importlib.import_module(module_name)
 
 
 def _utcnow() -> str:
@@ -573,6 +566,17 @@ def build_maturity_matrix(
     repo_root: Path = Path("."),
     max_candidates: int = 15,
 ) -> dict[str, Any]:
+    audit_gap_plan = _research_module("research.qre_audit_gap_closure_plan")
+    evidence_coverage = _research_module("research.qre_real_basket_evidence_coverage")
+    reason_records_v1 = _research_module("research.qre_reason_records_v1")
+    reason_record_audit = _research_module("research.qre_reason_record_audit")
+    routing_readiness = _research_module("research.qre_routing_readiness_from_basket")
+    sampling_readiness = _research_module("research.qre_sampling_readiness_from_basket")
+    failure_actions = _research_module("research.qre_failure_action_from_basket")
+    candidate_explanations = _research_module("research.qre_candidate_explanation_rows")
+    research_memory = _research_module("research.qre_research_memory_coverage")
+    trusted_loop_kpis = _research_module("research.qre_trusted_loop_operator_kpis")
+
     plan = audit_gap_plan.build_audit_gap_closure_plan()
     coverage_report = evidence_coverage.build_real_basket_evidence_coverage(
         repo_root=repo_root,

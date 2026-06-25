@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from reporting import qre_trusted_research_maturity_matrix as matrix
 
@@ -146,20 +147,39 @@ def _stub_kpis() -> dict:
 
 
 def test_build_maturity_matrix_composes_repo_backed_rows(monkeypatch) -> None:
-    monkeypatch.setattr(matrix.audit_gap_plan, "build_audit_gap_closure_plan", _stub_plan)
-    monkeypatch.setattr(matrix.evidence_coverage, "build_real_basket_evidence_coverage", lambda **_: _stub_coverage())
-    monkeypatch.setattr(matrix.reason_records_v1, "build_reason_records_snapshot", lambda **_: _stub_reasons())
-    monkeypatch.setattr(matrix.reason_record_audit, "build_reason_record_audit", lambda **_: _stub_reason_audit())
-    monkeypatch.setattr(matrix.routing_readiness, "build_routing_readiness_from_basket", lambda **_: _stub_routing())
-    monkeypatch.setattr(matrix.sampling_readiness, "build_sampling_readiness_from_basket", lambda **_: _stub_sampling())
-    monkeypatch.setattr(matrix.failure_actions, "build_failure_action_from_basket", lambda **_: _stub_actions())
-    monkeypatch.setattr(
-        matrix.candidate_explanations,
-        "build_candidate_explanation_rows",
-        lambda **_: _stub_explanations(),
-    )
-    monkeypatch.setattr(matrix.research_memory, "build_research_memory_coverage", lambda **_: _stub_memory())
-    monkeypatch.setattr(matrix.trusted_loop_kpis, "build_trusted_loop_operator_kpis", lambda **_: _stub_kpis())
+    modules = {
+        "research.qre_audit_gap_closure_plan": SimpleNamespace(
+            build_audit_gap_closure_plan=_stub_plan
+        ),
+        "research.qre_real_basket_evidence_coverage": SimpleNamespace(
+            build_real_basket_evidence_coverage=lambda **_: _stub_coverage()
+        ),
+        "research.qre_reason_records_v1": SimpleNamespace(
+            build_reason_records_snapshot=lambda **_: _stub_reasons()
+        ),
+        "research.qre_reason_record_audit": SimpleNamespace(
+            build_reason_record_audit=lambda **_: _stub_reason_audit()
+        ),
+        "research.qre_routing_readiness_from_basket": SimpleNamespace(
+            build_routing_readiness_from_basket=lambda **_: _stub_routing()
+        ),
+        "research.qre_sampling_readiness_from_basket": SimpleNamespace(
+            build_sampling_readiness_from_basket=lambda **_: _stub_sampling()
+        ),
+        "research.qre_failure_action_from_basket": SimpleNamespace(
+            build_failure_action_from_basket=lambda **_: _stub_actions()
+        ),
+        "research.qre_candidate_explanation_rows": SimpleNamespace(
+            build_candidate_explanation_rows=lambda **_: _stub_explanations()
+        ),
+        "research.qre_research_memory_coverage": SimpleNamespace(
+            build_research_memory_coverage=lambda **_: _stub_memory()
+        ),
+        "research.qre_trusted_loop_operator_kpis": SimpleNamespace(
+            build_trusted_loop_operator_kpis=lambda **_: _stub_kpis()
+        ),
+    }
+    monkeypatch.setattr(matrix, "_research_module", modules.__getitem__)
 
     report = matrix.build_maturity_matrix(repo_root=Path("."), max_candidates=15)
 

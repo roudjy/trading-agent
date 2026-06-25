@@ -329,16 +329,16 @@ def test_ade_qre_active_queue_lifecycle_is_consistent() -> None:
     assert item_17.dependencies == ("ADE-QRE-016H",)
     assert _dependencies_done(item_17, items) is True
     assert _auto_selectable_status(item_17) is False
-    assert item_17a.status == "ready"
+    assert item_17a.status == "done"
     assert item_17a.dependencies == ("ADE-QRE-016H",)
     assert _dependencies_done(item_17a, items) is True
-    assert _auto_selectable_status(item_17a) is True
-    assert item_17b.status == "blocked until ADE-QRE-017A done"
+    assert _auto_selectable_status(item_17a) is False
+    assert item_17b.status == "ready"
     assert item_17b.dependencies == ("ADE-QRE-017A",)
-    assert _dependencies_done(item_17b, items) is False
+    assert _dependencies_done(item_17b, items) is True
     assert item_17y.status == "blocked until ADE-QRE-017X done"
     assert item_17ad.status == "blocked until ADE-QRE-017AC done"
-    assert _next_eligible_ready_item(items) == item_17a
+    assert _next_eligible_ready_item(items) == item_17b
 
 
 def test_done_queue_item_without_merge_evidence_is_rejected() -> None:
