@@ -503,7 +503,7 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "risk_class": "LOW",
         "authority_hint": "AUTO_ALLOWED_CANDIDATE",
         "operator_gate": "none",
-        "status": "ready",
+        "status": "merged",
     },
     {
         "id": "u_ade_qre_017b_evidence_density_inventory_001",
