@@ -2774,6 +2774,13 @@ live, broker, risk, or execution work.
 - validation required:
   - every required evidence class has a producer, consumer, and state.
   - blockers fail closed instead of inferring completeness.
+- completion evidence: PR #622, merge SHA `91566cf7ea1017283a41e48a4306f485df5d3565`;
+  Fast pre-merge gate checks green on the PR; post-merge targeted tests,
+  queue self-audit, roadmap task units, roadmap unit authority, and roadmap
+  next-unit selection passed on `main`, selecting
+  `u_ade_qre_017c_reason_record_maturity_reporter_001` / `ADE-QRE-017C`;
+  frozen contracts unchanged; protected/execution paths untouched; strategy
+  synthesis remained blocked.
 - next dependency: `ADE-QRE-017C`.
 
 ### ADE-QRE-017C - Reason-Record Maturity
