@@ -2787,7 +2787,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017C`
 - title: Reason-Record Maturity.
-- status: `ready`
+- status: `done`
 - purpose: make reason records non-empty, normalized, durable, and
   evidence-referenced when real evidence exists.
 - source document:
@@ -2796,9 +2796,8 @@ live, broker, risk, or execution work.
 - risk class: MEDIUM.
 - target layer: reporting, packages `qre_research` / `qre_artifacts`.
 - expected files or file families:
-  - `reporting/reason_records.py`
-  - `reporting/reason_record_evidence_density.py`
-  - `packages/qre_research/**`
+  - `reporting/qre_reason_record_maturity.py`
+  - `docs/governance/qre_reason_record_maturity.md`
   - `tests/unit/**`
 - forbidden files or file families:
   - fake evidence producers
@@ -2807,13 +2806,18 @@ live, broker, risk, or execution work.
 - validation required:
   - fake reasons are impossible.
   - evidence absence fails closed.
+- completion evidence: substantive implementation PR pending merge evidence; this
+  branch materializes durable `qre_reason_records`, `qre_reason_record_audit`,
+  and `qre_reason_record_normalization` artifacts through the repository-native
+  writers, and the new maturity report keeps contract gaps explicit and
+  fail-closed.
 - next dependency: `ADE-QRE-017D`.
 
 ### ADE-QRE-017D - Routing/Sampling Readiness Population
 
 - queue id: `ADE-QRE-017D`
+- status: `ready`
 - title: Routing/Sampling Readiness Population.
-- status: `blocked until ADE-QRE-017C done`
 - purpose: populate routing-ready and sampling-ready artifacts from real
   repository evidence.
 - source document:
