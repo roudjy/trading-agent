@@ -19,7 +19,6 @@ from research import qre_null_control_falsification_suite as null_suite
 from research import qre_preregistered_multiwindow_validation as campaign_builder
 from research import qre_sampling_plan as sampling
 
-
 SCHEMA_VERSION: Final[str] = "1.0"
 REPORT_KIND: Final[str] = "qre_preregistered_multiwindow_evidence_run"
 DEFAULT_APPROVAL_PATH: Final[Path] = Path(
@@ -35,7 +34,7 @@ ALLOWED_OUTPUT_PATHS: Final[tuple[str, ...]] = (
     "logs/qre_bounded_generation_artifact_acceptance_verifier/",
     "logs/qre_evidence_complete_basket_closure/",
 )
-TIMEFRAME_TO_INTERVAL: Final[dict[str, str]] = {"daily_v1": "1d"}
+TIMEFRAME_TO_INTERVAL: Final[dict[str, str]] = approved.TIMEFRAME_TO_INTERVAL
 
 
 def _text(value: Any) -> str:
@@ -88,7 +87,9 @@ def _candidate_scope(repo_root: Path, *, symbols: Sequence[str], preset_id: str)
 
 
 def _load_common_trading_dates(repo_root: Path, *, symbols: Sequence[str], timeframe: str) -> list[str]:
-    interval = TIMEFRAME_TO_INTERVAL[timeframe]
+    interval = TIMEFRAME_TO_INTERVAL.get(timeframe)
+    if not interval:
+        raise ValueError(f"unsupported_campaign_timeframe:{timeframe}")
     date_sets: list[set[str]] = []
     for symbol in symbols:
         frame = approved._load_stitched_local_cache_frame(repo_root=repo_root, symbol=symbol, interval=interval)
@@ -178,9 +179,18 @@ def build_campaign_for_multiwindow_approval(
         sampling_plan_payload=sampling_plan_payload,
         approval_manifest=approval_manifest,
         local_source_ref=_text(scope.get("source_data_ref")),
-        minimum_required_windows=2,
-        minimum_total_oos_trades=1,
-        per_window_minimum_oos_trades=1,
+        minimum_required_windows=max(
+            1,
+            len(list(sampling_plan_payload.get("window_definitions") or [])),
+        ),
+        minimum_total_oos_trades=max(
+            1,
+            int(sampling_plan_payload.get("minimum_trade_requirement") or 1),
+        ),
+        per_window_minimum_oos_trades=max(
+            1,
+            int(sampling_plan_payload.get("minimum_trade_requirement") or 1),
+        ),
         null_control_requirements=list(suite.get("control_definitions") or []),
     )
 
@@ -220,6 +230,8 @@ def _source_payload_for_window(
     *,
     approval_payload: Mapping[str, Any],
     repo_root: Path,
+    sampling_plan_payload: Mapping[str, Any] | None = None,
+    campaign_scope: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     normalized = approved._normalize_approval_payload(approval_payload)
     request = approved._build_request_payload(
@@ -228,13 +240,36 @@ def _source_payload_for_window(
     )
     symbol = list(normalized["symbols"])[0]
     timeframe = _text(normalized["timeframe"])
-    interval = TIMEFRAME_TO_INTERVAL[timeframe]
-    candidate_ids = approved._candidate_ids_from_queue(
-        repo_root=repo_root,
-        symbols=[symbol],
-        preset_id=_text(normalized["preset_id"]),
-        timeframe=timeframe,
-    )
+    interval = TIMEFRAME_TO_INTERVAL.get(timeframe)
+    if not interval:
+        raise ValueError(f"unsupported_campaign_timeframe:{timeframe}")
+    scope = campaign_scope if isinstance(campaign_scope, Mapping) else {}
+    source_campaign_id = _text(scope.get("campaign_id"))
+    if source_campaign_id:
+        candidate_seed = {
+            "campaign_id": source_campaign_id,
+            "sampling_plan_id": _text(
+                (sampling_plan_payload or {}).get("sampling_plan_id")
+            ),
+            "preset_id": _text(normalized["preset_id"]),
+            "symbol": symbol.upper(),
+        }
+        candidate_id = "ccand_" + hashlib.sha256(
+            json.dumps(
+                candidate_seed,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+    else:
+        candidate_ids = approved._candidate_ids_from_queue(
+            repo_root=repo_root,
+            symbols=[symbol],
+            preset_id=_text(normalized["preset_id"]),
+            timeframe=timeframe,
+        )
+        candidate_id = candidate_ids[symbol.upper()]
     frame = approved._load_stitched_local_cache_frame(repo_root=repo_root, symbol=symbol, interval=interval)
     bounded_frame = approved._restrict_frame_to_approval_window(frame=frame, approval=normalized)
     source_ref = (
@@ -243,11 +278,13 @@ def _source_payload_for_window(
     )
     evaluation = approved._evaluate_symbol_with_local_cache(
         symbol=symbol,
-        candidate_id=candidate_ids[symbol.upper()],
+        candidate_id=candidate_id,
         generation_run_id=f"{approval_payload['approval_id']}::generation",
         frame=bounded_frame,
         source_ref=source_ref,
         approval=normalized,
+        preset_id=_text(normalized["preset_id"]) if source_campaign_id else None,
+        interval=interval,
     )
     source_payload = {
         "schema_version": approved.SCHEMA_VERSION,
@@ -264,6 +301,7 @@ def _source_payload_for_window(
             {
                 "symbol": evaluation.symbol,
                 "candidate_id": evaluation.candidate_id,
+                "campaign_id": source_campaign_id,
                 "generation_run_id": evaluation.generation_run_id,
                 "validation_status": "accepted",
                 "reason_record_refs": evaluation.reason_record_refs,
@@ -318,6 +356,8 @@ def _classify_window_symbol(
     window_spec: Mapping[str, Any],
     symbol: str,
     repo_root: Path,
+    sampling_plan_payload: Mapping[str, Any] | None = None,
+    campaign_scope: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     approval_payload = _window_approval(
         approval_manifest=approval_manifest,
@@ -327,6 +367,8 @@ def _classify_window_symbol(
     request, source_payload = _source_payload_for_window(
         approval_payload=approval_payload,
         repo_root=repo_root,
+        sampling_plan_payload=sampling_plan_payload,
+        campaign_scope=campaign_scope,
     )
     adapter_result = adapter.build_controlled_validation_adapter_result(
         request,
@@ -369,6 +411,9 @@ def compute_campaign_run_hash(report: Mapping[str, Any]) -> str:
         "schema_version": report.get("schema_version", SCHEMA_VERSION),
         "report_kind": report.get("report_kind", REPORT_KIND),
         "campaign_id": report.get("campaign_id", ""),
+        "source_campaign_id": report.get("source_campaign_id", ""),
+        "proposal_id": report.get("proposal_id", ""),
+        "proposal_hash": report.get("proposal_hash", ""),
         "sampling_plan_id": report.get("sampling_plan_id", ""),
         "campaign_plan_hash": report.get("campaign_plan_hash", ""),
         "accepted_lineage_count": int(report.get("accepted_lineage_count", 0) or 0),
@@ -387,10 +432,19 @@ def build_preregistered_multiwindow_evidence_run(
     *,
     approval_manifest: Mapping[str, Any],
     repo_root: Path = Path("."),
+    sampling_plan_payload: Mapping[str, Any] | None = None,
+    campaign_scope: Mapping[str, Any] | None = None,
+    proposal_id: str = "",
+    proposal_hash: str = "",
 ) -> dict[str, Any]:
-    sampling_plan_payload = build_sampling_plan_for_multiwindow_approval(
-        approval_manifest=approval_manifest,
-        repo_root=repo_root,
+    if sampling_plan_payload is None:
+        sampling_plan_payload = build_sampling_plan_for_multiwindow_approval(
+            approval_manifest=approval_manifest,
+            repo_root=repo_root,
+        )
+    sampling_plan_payload = dict(sampling_plan_payload)
+    campaign_scope = (
+        dict(campaign_scope) if isinstance(campaign_scope, Mapping) else {}
     )
     campaign_plan = build_campaign_for_multiwindow_approval(
         approval_manifest=approval_manifest,
@@ -413,6 +467,10 @@ def build_preregistered_multiwindow_evidence_run(
             "schema_version": SCHEMA_VERSION,
             "report_kind": REPORT_KIND,
             "campaign_id": campaign_plan["campaign_id"],
+            "source_campaign_id": _text(campaign_scope.get("campaign_id")),
+            "campaign_scope": campaign_scope,
+            "proposal_id": _text(proposal_id),
+            "proposal_hash": _text(proposal_hash),
             "sampling_plan_id": sampling_plan_payload["sampling_plan_id"],
             "campaign_plan_hash": campaign_plan["hash"],
             "window_results": [],
@@ -440,6 +498,8 @@ def build_preregistered_multiwindow_evidence_run(
                 window_spec=window_spec,
                 symbol=symbol,
                 repo_root=repo_root,
+                sampling_plan_payload=sampling_plan_payload,
+                campaign_scope=campaign_scope,
             )
             for symbol in window_spec["symbols"]
         ]
@@ -535,6 +595,10 @@ def build_preregistered_multiwindow_evidence_run(
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
         "campaign_id": campaign_plan["campaign_id"],
+        "source_campaign_id": _text(campaign_scope.get("campaign_id")),
+        "campaign_scope": campaign_scope,
+        "proposal_id": _text(proposal_id),
+        "proposal_hash": _text(proposal_hash),
         "sampling_plan_id": sampling_plan_payload["sampling_plan_id"],
         "sampling_plan_hash": sampling_plan_payload["hash"],
         "campaign_plan_hash": campaign_plan["hash"],

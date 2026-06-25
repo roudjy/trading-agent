@@ -177,7 +177,7 @@ class CampaignRecord:
     asset_class: str | None = None
     reason_code: str | None = None
     # v3.15.15.8 — registry metadata enrichment. Populated at spawn time
-    # by ``campaign_launcher._resolve_metadata_for_preset`` from the
+    # by ``campaign_launcher._resolve_scope_metadata_for_preset`` from the
     # preset + hypothesis catalog. Defaults preserve backward-compat for
     # legacy records loaded via ``load_registry`` (those records simply
     # lack these keys; consumers use ``dict.get`` with null-tolerance).
@@ -187,6 +187,7 @@ class CampaignRecord:
     # failure clustering / dead-zone detection. Per-run / per-candidate
     # detail does NOT belong here — it lives in evidence sidecars.
     hypothesis_id: str | None = None
+    timeframe: str | None = None
     universe: tuple[str, ...] = ()
     extra: dict[str, Any] = field(default_factory=dict)
 

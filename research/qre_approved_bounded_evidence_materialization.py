@@ -18,7 +18,7 @@ from research import qre_bounded_current_basket_generation_runner as runner
 from research import qre_bounded_generation_artifact_acceptance_verifier as verifier
 from research import qre_bounded_validation_approval_gate as approval_gate
 from research import qre_evidence_complete_basket_closure as closure
-
+from research.presets import get_preset, resolve_preset_bundle
 
 SCHEMA_VERSION: Final[str] = "1.0"
 REPORT_KIND: Final[str] = "qre_approved_bounded_evidence_materialization"
@@ -46,11 +46,39 @@ ALLOWED_OUTPUT_PATHS: Final[tuple[str, ...]] = (
 )
 TIMEFRAME_TO_INTERVAL: Final[dict[str, str]] = {
     "daily_v1": "1d",
+    "1d": "1d",
+    "1h": "1h",
+    "4h": "4h",
 }
 
 
 class ApprovedBoundedEvidenceError(RuntimeError):
     pass
+
+
+def _resolve_single_preset_strategy(preset_id: str) -> tuple[str, Any]:
+    """Resolve one executable strategy from the canonical preset catalog."""
+    try:
+        preset = get_preset(preset_id)
+    except KeyError as exc:
+        raise ApprovedBoundedEvidenceError(
+            f"unsupported preset for campaign validation: {preset_id}"
+        ) from exc
+
+    strategies = resolve_preset_bundle(preset)
+    if len(strategies) != 1:
+        raise ApprovedBoundedEvidenceError(
+            "campaign validation requires exactly one executable preset strategy"
+        )
+
+    strategy = strategies[0]
+    strategy_name = str(strategy.get("name") or "").strip()
+    factory = strategy.get("factory")
+    if not strategy_name or not callable(factory):
+        raise ApprovedBoundedEvidenceError(
+            "campaign validation preset strategy is not executable"
+        )
+    return strategy_name, factory
 
 
 @dataclass(frozen=True)
@@ -235,6 +263,14 @@ def _normalize_window_bounds(window: Mapping[str, Any], *, field_name: str) -> t
     return start, end
 
 
+def _is_date_only_bound(value: str) -> bool:
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return True
+
+
 def _restrict_frame_to_approval_window(
     *,
     frame: pd.DataFrame,
@@ -243,12 +279,33 @@ def _restrict_frame_to_approval_window(
     bounded_window = approval.get("bounded_input_window")
     if not isinstance(bounded_window, Mapping) or not bounded_window:
         return frame.copy()
-    start_text, end_text = _normalize_window_bounds(bounded_window, field_name="bounded_input_window")
+
+    start_text, end_text = _normalize_window_bounds(
+        bounded_window,
+        field_name="bounded_input_window",
+    )
     start = pd.Timestamp(start_text)
     end = pd.Timestamp(end_text)
-    restricted = frame.loc[(frame.index >= start) & (frame.index <= end)].copy()
+
+    if _is_date_only_bound(end_text):
+        end_exclusive = end + pd.Timedelta(days=1)
+        mask = (
+            (frame.index >= start)
+            & (frame.index < end_exclusive)
+        )
+    else:
+        mask = (
+            (frame.index >= start)
+            & (frame.index <= end)
+        )
+
+    restricted = frame.loc[mask].copy()
+
     if restricted.empty:
-        raise ApprovedBoundedEvidenceError("approved bounded_input_window produced empty local frame")
+        raise ApprovedBoundedEvidenceError(
+            "approved bounded_input_window produced empty local frame"
+        )
+
     return restricted
 
 
@@ -298,14 +355,22 @@ def _evaluate_symbol_with_local_cache(
     frame: pd.DataFrame,
     source_ref: str,
     approval: Mapping[str, Any],
+    preset_id: str | None = None,
+    interval: str = "1d",
 ) -> LocalEvaluation:
-    strategy = trend_pullback_v1_strategie()
+    if preset_id:
+        _strategy_name, strategy_factory = _resolve_single_preset_strategy(
+            preset_id
+        )
+        strategy = strategy_factory()
+    else:
+        strategy = trend_pullback_v1_strategie()
     engine = BacktestEngine(
         start_datum=frame.index.min().strftime("%Y-%m-%d"),
         eind_datum=frame.index.max().strftime("%Y-%m-%d"),
         evaluation_config={"mode": "single_split", "train_ratio": 0.7},
     )
-    engine.interval = "1d"
+    engine.interval = interval
     expected_start, expected_end = _expected_oos_window(frame=frame, engine=engine)
     _validate_expected_oos_window(
         approval=approval,

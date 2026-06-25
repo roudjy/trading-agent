@@ -16,7 +16,11 @@ unit tests; here we pin the pure mapping.
 
 from __future__ import annotations
 
-from research.campaign_launcher import _resolve_metadata_for_preset
+from research.campaign_launcher import (
+    _build_record,
+    _resolve_metadata_for_preset,
+    _resolve_scope_metadata_for_preset,
+)
 
 
 def test_resolver_populates_all_four_fields_for_active_discovery_preset():
@@ -97,3 +101,42 @@ def test_resolver_is_pure_does_not_mutate_global_state():
     a1 = _resolve_metadata_for_preset("trend_pullback_crypto_1h")
     a2 = _resolve_metadata_for_preset("trend_pullback_crypto_1h")
     assert a1 == a2
+
+
+def test_scope_resolver_uses_canonical_preset_timeframe():
+    h, f, a, timeframe, universe = (
+        _resolve_scope_metadata_for_preset(
+            "trend_pullback_equities_4h"
+        )
+    )
+
+    assert h == "trend_pullback_v1"
+    assert f == "trend_pullback"
+    assert a == "equity"
+    assert timeframe == "4h"
+    assert "NVDA" in universe
+
+    unknown = _resolve_scope_metadata_for_preset(
+        "not_a_real_preset_anywhere"
+    )
+    assert unknown == (None, None, None, None, ())
+
+
+def test_build_record_persists_timeframe_in_registry_payload():
+    record = _build_record(
+        campaign_id="campaign-test-001",
+        template_id="daily_primary__trend_pullback_equities_4h",
+        preset_name="trend_pullback_equities_4h",
+        campaign_type="daily_primary",
+        priority_tier=2,
+        spawned_at_utc="2026-06-23T12:00:00Z",
+        spawn_reason="unit_test",
+        parent_campaign_id=None,
+        lineage_root_campaign_id="campaign-test-001",
+        input_artifact_fingerprint="fixture-fingerprint",
+        estimate_seconds=1800,
+        subtype=None,
+    )
+
+    assert record.timeframe == "4h"
+    assert record.to_payload()["timeframe"] == "4h"

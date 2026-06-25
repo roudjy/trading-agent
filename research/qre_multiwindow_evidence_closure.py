@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Any, Final
 
 from research import qre_failure_to_action_mapper as failure_mapper
-from research import qre_preregistered_multiwindow_evidence_run as campaign_run
-
 
 SCHEMA_VERSION: Final[str] = "1.0"
 REPORT_KIND: Final[str] = "qre_multiwindow_evidence_closure"
@@ -29,20 +27,46 @@ def _unique_in_order(values: Sequence[Any]) -> list[str]:
 
 
 def compute_multiwindow_closure_hash(report: Mapping[str, Any]) -> str:
+    campaign_scope = report.get("campaign_scope")
     canonical = {
         "schema_version": report.get("schema_version", SCHEMA_VERSION),
         "report_kind": report.get("report_kind", REPORT_KIND),
         "closure_status": report.get("closure_status", ""),
         "campaign_ref": report.get("campaign_ref", ""),
+        "source_campaign_id": report.get("source_campaign_id", ""),
+        "campaign_scope": (
+            dict(campaign_scope)
+            if isinstance(campaign_scope, Mapping)
+            else {}
+        ),
+        "proposal_id": report.get("proposal_id", ""),
+        "proposal_hash": report.get("proposal_hash", ""),
         "sampling_plan_ref": report.get("sampling_plan_ref", ""),
-        "accepted_lineage_count": int(report.get("accepted_lineage_count", 0) or 0),
-        "accepted_oos_count": int(report.get("accepted_oos_count", 0) or 0),
-        "evidence_complete_count": int(report.get("evidence_complete_count", 0) or 0),
-        "hypothesis_disposition": report.get("hypothesis_disposition", ""),
+        "sampling_plan_hash": report.get("sampling_plan_hash", ""),
+        "campaign_outcome": report.get("campaign_outcome", ""),
+        "positive_oos_trade_count_total": int(
+            report.get("positive_oos_trade_count_total", 0) or 0
+        ),
+        "accepted_lineage_count": int(
+            report.get("accepted_lineage_count", 0) or 0
+        ),
+        "accepted_oos_count": int(
+            report.get("accepted_oos_count", 0) or 0
+        ),
+        "evidence_complete_count": int(
+            report.get("evidence_complete_count", 0) or 0
+        ),
+        "hypothesis_disposition": report.get(
+            "hypothesis_disposition",
+            "",
+        ),
         "blockers_cleared": list(report.get("blockers_cleared", [])),
         "blockers_remaining": list(report.get("blockers_remaining", [])),
         "reason_records": list(report.get("reason_records", [])),
-        "recommended_next_action": report.get("recommended_next_action", ""),
+        "recommended_next_action": report.get(
+            "recommended_next_action",
+            "",
+        ),
         "authority": dict(report.get("authority", {})),
     }
     raw = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
@@ -59,7 +83,19 @@ def _reason_record(*, record_id: str, reason_code: str, evidence_refs: Sequence[
     }
 
 
-def build_multiwindow_evidence_closure(campaign_report: Mapping[str, Any]) -> dict[str, Any]:
+def build_multiwindow_evidence_closure(
+    campaign_report: Mapping[str, Any],
+) -> dict[str, Any]:
+    campaign_scope_payload = campaign_report.get("campaign_scope")
+    campaign_scope = (
+        dict(campaign_scope_payload)
+        if isinstance(campaign_scope_payload, Mapping)
+        else {}
+    )
+    source_campaign_id = (
+        _text(campaign_report.get("source_campaign_id"))
+        or _text(campaign_scope.get("campaign_id"))
+    )
     window_results = list(campaign_report.get("window_results") or [])
     accepted_lineage_count = int(campaign_report.get("accepted_lineage_count") or 0)
     accepted_oos_count = int(campaign_report.get("accepted_oos_count") or 0)
@@ -113,17 +149,44 @@ def build_multiwindow_evidence_closure(campaign_report: Mapping[str, Any]) -> di
                 message="Null/control requirements failed, so completion is blocked fail-closed.",
             )
         )
-    elif null_control_status in {"controls_not_run", "controls_incomplete", ""}:
+    elif campaign_outcome == "all_windows_non_positive_trade_count":
+        closure_status = "all_windows_no_oos_trades"
+        hypothesis_disposition = "fail_closed_rejected"
+        recommended_next_action = failure_mapper.map_failure_to_action(
+            failure_class="all_preregistered_windows_failed"
+        )["recommended_action"]
+        reason_records.append(
+            _reason_record(
+                record_id="rr_multiwindow_all_zero",
+                reason_code="all_windows_non_positive_trade_count",
+                evidence_refs=[_text(campaign_report.get("campaign_id"))],
+                message=(
+                    "Every preregistered window completed with "
+                    "non-positive OOS trade count."
+                ),
+            )
+        )
+    elif null_control_status in {
+        "controls_not_run",
+        "controls_incomplete",
+        "",
+    }:
         closure_status = "blocked_missing_null_controls"
         hypothesis_disposition = "insufficient_for_completion"
-        recommended_next_action = _text(null_control_payload.get("recommended_next_action")) or "materialize_missing_preregistered_controls"
+        recommended_next_action = (
+            _text(null_control_payload.get("recommended_next_action"))
+            or "materialize_missing_preregistered_controls"
+        )
         blockers_remaining.append("null_controls_incomplete")
         reason_records.append(
             _reason_record(
                 record_id="rr_multiwindow_null_control_incomplete",
                 reason_code="null_controls_incomplete",
                 evidence_refs=[_text(campaign_report.get("campaign_id"))],
-                message="Preregistered null/control requirements are still incomplete, so evidence completion remains blocked.",
+                message=(
+                    "Preregistered null/control requirements are still "
+                    "incomplete, so evidence completion remains blocked."
+                ),
             )
         )
     elif campaign_outcome == "accepted_multiwindow_oos_evidence" and accepted_lineage_count > 0 and accepted_oos_count > 0:
@@ -148,20 +211,6 @@ def build_multiwindow_evidence_closure(campaign_report: Mapping[str, Any]) -> di
                 reason_code="evidence_partial",
                 evidence_refs=[_text(campaign_report.get("campaign_id"))],
                 message="Some accepted OOS evidence exists, but the preregistered completion criteria were not met.",
-            )
-        )
-    elif campaign_outcome == "all_windows_non_positive_trade_count":
-        closure_status = "all_windows_no_oos_trades"
-        hypothesis_disposition = "fail_closed_rejected"
-        recommended_next_action = failure_mapper.map_failure_to_action(
-            failure_class="all_preregistered_windows_failed"
-        )["recommended_action"]
-        reason_records.append(
-            _reason_record(
-                record_id="rr_multiwindow_all_zero",
-                reason_code="all_windows_non_positive_trade_count",
-                evidence_refs=[_text(campaign_report.get("campaign_id"))],
-                message="Every preregistered window completed with non-positive OOS trade count.",
             )
         )
     elif campaign_outcome == "insufficient_total_oos_trades":
@@ -203,7 +252,14 @@ def build_multiwindow_evidence_closure(campaign_report: Mapping[str, Any]) -> di
         "report_kind": REPORT_KIND,
         "closure_status": closure_status,
         "campaign_ref": _text(campaign_report.get("campaign_id")),
+        "source_campaign_id": source_campaign_id,
+        "campaign_scope": campaign_scope,
+        "proposal_id": _text(campaign_report.get("proposal_id")),
+        "proposal_hash": _text(campaign_report.get("proposal_hash")),
         "sampling_plan_ref": _text(campaign_report.get("sampling_plan_id")),
+        "sampling_plan_hash": _text(
+            campaign_report.get("sampling_plan_hash")
+        ),
         "accepted_lineage_count": accepted_lineage_count,
         "accepted_oos_count": accepted_oos_count,
         "evidence_complete_count": 1 if closure_status == "evidence_complete" else 0,

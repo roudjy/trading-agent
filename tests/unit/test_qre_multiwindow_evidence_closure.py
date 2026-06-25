@@ -7,8 +7,25 @@ from research import qre_multiwindow_evidence_closure as closure
 
 def _campaign(**overrides: object) -> dict[str, object]:
     payload: dict[str, object] = {
-        "campaign_id": "camp-001",
+        "campaign_id": "qmwv-001",
+        "source_campaign_id": "source-campaign-001",
+        "campaign_scope": {
+            "campaign_id": "source-campaign-001",
+            "hypothesis_id": "hypothesis-001",
+            "preset_name": "preset-4h",
+            "timeframe": "4h",
+            "template_id": "template-001",
+            "strategy_family": "trend_pullback",
+            "asset_class": "equity",
+            "universe": ["AAA", "BBB"],
+            "lineage_root_campaign_id": "source-campaign-001",
+            "parent_campaign_id": "",
+            "registry_record_present": True,
+        },
+        "proposal_id": "proposal-001",
+        "proposal_hash": "proposal-hash-001",
         "sampling_plan_id": "plan-001",
+        "sampling_plan_hash": "sampling-hash-001",
         "accepted_lineage_count": 2,
         "accepted_oos_count": 0,
         "positive_oos_trade_count_total": 0,
@@ -114,3 +131,35 @@ def test_core_closure_has_no_symbol_hardcoding() -> None:
     source = Path("research/qre_multiwindow_evidence_closure.py").read_text(encoding="utf-8")
     assert "AAPL" not in source
     assert "NVDA" not in source
+
+
+def test_all_zero_windows_override_incomplete_controls() -> None:
+    report = closure.build_multiwindow_evidence_closure(
+        _campaign(
+            null_control_results={"status": "controls_incomplete"},
+        )
+    )
+
+    assert report["closure_status"] == "all_windows_no_oos_trades"
+    assert report["hypothesis_disposition"] == "fail_closed_rejected"
+    assert report["recommended_next_action"] == "reject_hypothesis"
+    assert "null_controls_incomplete" not in report["blockers_remaining"]
+    assert "no_oos_evidence" in report["blockers_remaining"]
+
+
+def test_closure_preserves_source_scope_and_hash_lineage() -> None:
+    report = closure.build_multiwindow_evidence_closure(_campaign())
+
+    assert report["campaign_ref"] == "qmwv-001"
+    assert report["source_campaign_id"] == "source-campaign-001"
+    assert report["campaign_scope"]["timeframe"] == "4h"
+    assert report["campaign_scope"]["universe"] == ["AAA", "BBB"]
+    assert report["proposal_id"] == "proposal-001"
+    assert report["proposal_hash"] == "proposal-hash-001"
+    assert report["sampling_plan_ref"] == "plan-001"
+    assert report["sampling_plan_hash"] == "sampling-hash-001"
+    assert report["hash"] == closure.compute_multiwindow_closure_hash(report)
+
+    tampered = dict(report)
+    tampered["proposal_hash"] = "tampered"
+    assert closure.compute_multiwindow_closure_hash(tampered) != report["hash"]

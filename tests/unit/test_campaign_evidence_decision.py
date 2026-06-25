@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from research import campaign_evidence_decision as decision
+from research import qre_multiwindow_evidence_closure as closure
 
 CAMPAIGN_ID = (
     "col-20260605T122346491432Z-"
@@ -117,6 +118,7 @@ def test_no_matching_plan_creates_sampling_plan() -> None:
         == "create_preregistered_sampling_plan"
     )
     assert report["action_authority"] == "report_only"
+    assert report["campaign_scope"]["timeframe"] == "4h"
     assert report["safety_invariants"]["can_execute"] is False
     assert len(report["ignored_artifacts"]) == 2
     assert {
@@ -364,3 +366,91 @@ def test_module_contains_no_trading_runtime_imports() -> None:
     for token in forbidden:
         assert f"import {token}" not in source
         assert f"from {token}" not in source
+
+
+def test_registry_timeframe_overrides_preset_fallback() -> None:
+    registry = _registry()
+    registry["campaigns"][CAMPAIGN_ID]["timeframe"] = "1h"
+
+    report = decision.build_campaign_evidence_decision(
+        campaign_evidence=_campaign_evidence(),
+        campaign_registry=registry,
+        multiwindow_run=None,
+        multiwindow_closure=None,
+    )
+
+    assert report["campaign_scope"]["timeframe"] == "1h"
+
+
+def test_generated_campaign_closure_is_terminal_decision_source() -> None:
+    source_campaign_id = "col-fixture-campaign-001"
+    campaign_scope = {
+        "campaign_id": source_campaign_id,
+        "hypothesis_id": "fixture_hypothesis_v1",
+        "preset_name": "trend_pullback_equities_4h",
+        "timeframe": "4h",
+        "template_id": "daily_primary__trend_pullback_equities_4h",
+        "strategy_family": "trend_pullback",
+        "asset_class": "equity",
+        "universe": ["AAPL", "MSFT", "NVDA"],
+        "lineage_root_campaign_id": source_campaign_id,
+        "parent_campaign_id": "",
+        "registry_record_present": True,
+    }
+    run = {
+        "campaign_id": "qmwv-fixture-001",
+        "source_campaign_id": source_campaign_id,
+        "campaign_scope": campaign_scope,
+        "proposal_id": "cpsp-fixture-001",
+        "proposal_hash": "proposal-hash-fixture",
+        "sampling_plan_id": "qsp-fixture-001",
+        "sampling_plan_hash": "sampling-hash-fixture",
+        "accepted_lineage_count": 6,
+        "accepted_oos_count": 0,
+        "positive_oos_trade_count_total": 0,
+        "campaign_outcome": "all_windows_non_positive_trade_count",
+        "window_results": [
+            {"window_id": "window_01", "accepted_oos_count": 0},
+            {"window_id": "window_02", "accepted_oos_count": 0},
+        ],
+        "null_control_results": {"status": "controls_incomplete"},
+    }
+    generated_closure = closure.build_multiwindow_evidence_closure(run)
+    evidence = {
+        "evidence_status": "attributed_with_artifact_gaps",
+        "campaign": {
+            "campaign_id": source_campaign_id,
+            "preset_name": "trend_pullback_equities_4h",
+            "strategy_family": "trend_pullback",
+            "asset_class": "equity",
+        },
+        "failure_attribution": {"attributed": True},
+        "screening_evidence": {"owner_verified": True},
+        "interpretation": {"primary_limitation": "insufficient_trades"},
+    }
+    registry = {
+        "campaigns": {
+            source_campaign_id: {
+                **campaign_scope,
+                "parent_campaign_id": None,
+            }
+        }
+    }
+
+    report = decision.build_campaign_evidence_decision(
+        campaign_evidence=evidence,
+        campaign_registry=registry,
+        multiwindow_run=run,
+        multiwindow_closure=generated_closure,
+        run_status="present",
+        closure_status="present",
+    )
+
+    assert report["scope_match_status"] == "matching_multiwindow_closure"
+    assert report["selected_source"] == (
+        "logs/qre_multiwindow_evidence_closure/latest.json"
+    )
+    assert report["failure_class"] == "all_preregistered_windows_failed"
+    assert report["recommended_action"] == "reject_hypothesis"
+    assert report["action_authority"] == "report_only"
+    assert report["safety_invariants"]["can_execute"] is False
