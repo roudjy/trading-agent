@@ -461,6 +461,214 @@ def _research_module_dod(target_path: str) -> tuple[str, ...]:
 # Unit seed records -------------------------------------------------------
 
 _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
+    # -------------------- ADE-QRE-017 Trusted Research Intelligence -----
+    {
+        "id": "u_ade_qre_017a_maturity_matrix_reporter_001",
+        "roadmap_task_id": "ade_qre_017a_baseline_reconciliation",
+        "title": "Trusted research maturity matrix reporter",
+        "phase": "ade_qre_017a",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (
+            "req_ade_qre_017a_maturity_matrix",
+            "req_ade_qre_017a_blocker_census",
+        ),
+        "expected_files": (
+            "reporting/qre_trusted_research_maturity_matrix.py",
+            "tests/unit/test_qre_trusted_research_maturity_matrix.py",
+            "docs/governance/qre_trusted_research_maturity_matrix.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_trusted_research_maturity_matrix.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_trusted_research_maturity_matrix",
+            "logs/qre_trusted_research_maturity_matrix/",
+        )
+        + (
+            (
+                "matrix emits closed-vocab maturity classes and explicit "
+                "blockers for each capability row"
+            ),
+        ),
+        "extra_stop_conditions": (
+            (
+                "any attempt to infer trusted or evidence-authoritative "
+                "status from file presence alone -> STOP"
+            ),
+        ),
+        "prerequisites": (),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "ready",
+    },
+    {
+        "id": "u_ade_qre_017b_evidence_density_inventory_001",
+        "roadmap_task_id": "ade_qre_017b_evidence_density_population",
+        "title": "Evidence-density inventory and blocker reporter",
+        "phase": "ade_qre_017b",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (
+            "req_ade_qre_017b_evidence_inventory",
+        ),
+        "expected_files": (
+            "reporting/qre_evidence_density_inventory.py",
+            "tests/unit/test_qre_evidence_density_inventory.py",
+            "docs/governance/qre_evidence_density_inventory.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_evidence_density_inventory.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_evidence_density_inventory",
+            "logs/qre_evidence_density_inventory/",
+        )
+        + (
+            (
+                "inventory records producers, consumers, population state, "
+                "and fail-closed blockers per evidence class"
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any evidence class without a bounded status vocabulary -> STOP",
+        ),
+        "prerequisites": (
+            "u_ade_qre_017a_maturity_matrix_reporter_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_017c_reason_record_maturity_reporter_001",
+        "roadmap_task_id": "ade_qre_017c_reason_record_maturity",
+        "title": "Reason-record maturity and evidence-linkage reporter",
+        "phase": "ade_qre_017c",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (
+            "req_ade_qre_017c_reason_record_linkage",
+        ),
+        "expected_files": (
+            "reporting/qre_reason_record_maturity.py",
+            "tests/unit/test_qre_reason_record_maturity.py",
+            "docs/governance/qre_reason_record_maturity.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_reason_record_maturity.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_reason_record_maturity",
+            "logs/qre_reason_record_maturity/",
+        )
+        + (
+            (
+                "reporter fails closed when reason records claim evidence "
+                "that is absent or unlinked"
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any synthesized reason text without evidence reference -> STOP",
+        ),
+        "prerequisites": (
+            "u_ade_qre_017b_evidence_density_inventory_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_017d_readiness_population_reporter_001",
+        "roadmap_task_id": "ade_qre_017d_routing_sampling_readiness",
+        "title": "Routing and sampling readiness population reporter",
+        "phase": "ade_qre_017d",
+        "unit_kind": "reporting_module",
+        "target_layer": "reporting",
+        "source_requirement_ids": (
+            "req_ade_qre_017d_readiness_population",
+        ),
+        "expected_files": (
+            "reporting/qre_routing_sampling_readiness.py",
+            "tests/unit/test_qre_routing_sampling_readiness.py",
+            "docs/governance/qre_routing_sampling_readiness.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_routing_sampling_readiness.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_routing_sampling_readiness",
+            "logs/qre_routing_sampling_readiness/",
+        )
+        + (
+            (
+                "readiness status distinguishes scaffold from evidence-backed "
+                "readiness for routing and sampling surfaces"
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any readiness row promoted from scaffold without evidence -> STOP",
+        ),
+        "prerequisites": (
+            "u_ade_qre_017c_reason_record_maturity_reporter_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_017e_kpi_snapshot_reporter_001",
+        "roadmap_task_id": "ade_qre_017e_kpi_snapshot_completeness",
+        "title": "KPI completeness and historical snapshot reporter",
+        "phase": "ade_qre_017e",
+        "unit_kind": "reporting_module",
+        "target_layer": "reporting",
+        "source_requirement_ids": (
+            "req_ade_qre_017e_kpi_snapshots",
+        ),
+        "expected_files": (
+            "reporting/qre_kpi_snapshot_completeness.py",
+            "tests/unit/test_qre_kpi_snapshot_completeness.py",
+            "docs/governance/qre_kpi_snapshot_completeness.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_kpi_snapshot_completeness.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_kpi_snapshot_completeness",
+            "logs/qre_kpi_snapshot_completeness/",
+        )
+        + (
+            (
+                "snapshot output records numeric KPI values or explicit "
+                "unavailable states with repeatable historical identity"
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any KPI row omitted instead of marked unavailable -> STOP",
+        ),
+        "prerequisites": (
+            "u_ade_qre_017d_readiness_population_reporter_001",
+        ),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
     # -------------------- v3.15.16 Intelligent Routing Layer ------------
     {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",

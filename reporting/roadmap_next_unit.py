@@ -196,6 +196,11 @@ NEXT_UNIT_SELECTOR_MODE: Final[tuple[str, ...]] = ("default",)
 
 #: Roadmap-phase order as defined by A20a/A20b.
 _PHASE_ORDER: Final[tuple[str, ...]] = (
+    "ade_qre_017a",
+    "ade_qre_017b",
+    "ade_qre_017c",
+    "ade_qre_017d",
+    "ade_qre_017e",
     "v3.15.16",
     "v3.15.17",
     "v3.15.18",

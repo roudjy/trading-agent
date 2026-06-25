@@ -49,6 +49,7 @@ import pytest
 
 from reporting import roadmap_next_unit as rnu
 from reporting import roadmap_task_units as rtu
+from reporting import roadmap_unit_authority as rua
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +225,11 @@ def test_phase_order_matches_a20a_phase_list() -> None:
     # A20a defines the canonical phase list. A20b mirrors it via
     # rtu.collect_snapshot()'s catalog cross-reference.
     for phase in (
+        "ade_qre_017a",
+        "ade_qre_017b",
+        "ade_qre_017c",
+        "ade_qre_017d",
+        "ade_qre_017e",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -364,6 +370,39 @@ def test_auto_allowed_unit_is_selected(tmp_path: Path) -> None:
     assert sel["selected_authority_class"] == "AUTO_ALLOWED"
     assert sel["requires_operator_go"] is False
     assert sel["fail_closed"] is False
+
+
+def test_ade_qre_phase_is_preferred_over_legacy_phase(tmp_path: Path) -> None:
+    ade_unit = _baseline_unit(
+        id="u_ade_qre_017a_maturity_matrix_reporter_001",
+        roadmap_task_id="ade_qre_017a_baseline_reconciliation",
+        phase="ade_qre_017a",
+        title="ADE-QRE-017A baseline unit",
+    )
+    legacy_unit = _baseline_unit(
+        id="u_v3_15_16_legacy",
+        roadmap_task_id="phase_v3_15_16",
+        phase="v3.15.16",
+        title="legacy unit",
+    )
+    _write_units_artifact(tmp_path, [legacy_unit, ade_unit])
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(
+                implementation_unit_id=legacy_unit["id"],
+                roadmap_task_id=legacy_unit["roadmap_task_id"],
+                phase=legacy_unit["phase"],
+            ),
+            _baseline_decision(
+                implementation_unit_id=ade_unit["id"],
+                roadmap_task_id=ade_unit["roadmap_task_id"],
+                phase=ade_unit["phase"],
+            ),
+        ],
+    )
+    snap = _snap(tmp_path)
+    assert snap["selection"]["selected_unit_id"] == ade_unit["id"]
 
 
 def test_eligibility_marker_on_candidate(tmp_path: Path) -> None:
@@ -553,6 +592,62 @@ def test_all_blocked_by_prerequisites_status(tmp_path: Path) -> None:
     )
     snap = _snap(tmp_path)
     assert snap["selection"]["selection_status"] == "ALL_BLOCKED_BY_PREREQUISITES"
+
+
+def test_ade_qre_future_units_are_blocked_until_prior_unit_is_merged(
+    tmp_path: Path,
+) -> None:
+    u_a = _baseline_unit(
+        id="u_ade_qre_017a_maturity_matrix_reporter_001",
+        roadmap_task_id="ade_qre_017a_baseline_reconciliation",
+        phase="ade_qre_017a",
+        status="ready",
+    )
+    u_b = _baseline_unit(
+        id="u_ade_qre_017b_evidence_density_inventory_001",
+        roadmap_task_id="ade_qre_017b_evidence_density_population",
+        phase="ade_qre_017b",
+        prerequisites=["u_ade_qre_017a_maturity_matrix_reporter_001"],
+    )
+    _write_units_artifact(tmp_path, [u_a, u_b])
+    _write_authority_artifact(
+        tmp_path,
+        [
+            _baseline_decision(
+                implementation_unit_id=u_a["id"],
+                roadmap_task_id=u_a["roadmap_task_id"],
+                phase=u_a["phase"],
+            ),
+            _baseline_decision(
+                implementation_unit_id=u_b["id"],
+                roadmap_task_id=u_b["roadmap_task_id"],
+                phase=u_b["phase"],
+            ),
+        ],
+    )
+    snap = _snap(tmp_path)
+    by_id = {c["implementation_unit_id"]: c for c in snap["candidates"]}
+    assert snap["selection"]["selected_unit_id"] == u_a["id"]
+    assert by_id[u_b["id"]]["eligibility"] == "BLOCKED"
+    assert "unsatisfied_prerequisite" in by_id[u_b["id"]]["block_reasons"]
+
+
+def test_materialized_current_a20_stack_selects_ade_qre_017a_first(
+    tmp_path: Path,
+) -> None:
+    units_path = tmp_path / "logs" / "roadmap_task_units" / "latest.json"
+    units_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_path = tmp_path / "logs" / "roadmap_unit_authority" / "latest.json"
+    auth_path.parent.mkdir(parents=True, exist_ok=True)
+
+    units_payload = rtu.collect_snapshot(generated_at_utc=_FROZEN_UTC)
+    auth_payload = rua.collect_snapshot(generated_at_utc=_FROZEN_UTC)
+    units_path.write_text(json.dumps(units_payload, sort_keys=True), encoding="utf-8")
+    auth_path.write_text(json.dumps(auth_payload, sort_keys=True), encoding="utf-8")
+
+    snap = _snap(tmp_path)
+    assert snap["selection"]["selected_unit_id"] == "u_ade_qre_017a_maturity_matrix_reporter_001"
+    assert snap["selection"]["selected_phase"] == "ade_qre_017a"
 
 
 # ---------------------------------------------------------------------------
