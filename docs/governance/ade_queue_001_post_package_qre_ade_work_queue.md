@@ -2839,11 +2839,26 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - ready states must be evidence-derived and fail closed otherwise.
-- completion evidence: substantive implementation PR pending merge evidence; this
-  branch materializes repository-native routing and sampling readiness
-  artifacts from real basket evidence, verifies routing/sampling reason-record
-  coverage is complete for the populated basket, and keeps non-ready states
-  explicit instead of inferring readiness from scaffold presence.
+- completion evidence: PR #626, merge SHA `15842f6dd3f67ba8a8b94093bd1f0c2b027b8dd5`;
+  CI checks green (`architecture-boundary`, `frontend (vitest)`,
+  `governance-lint`, `hook-tests (governance hooks)`, `lint (ruff)`,
+  `path-classifier`, `regression-fast (determinism pins)`,
+  `secret-scan (gitleaks)`, `typecheck (mypy narrow)`, `unit (smoke +
+  unit)`); post-merge focused validation passed
+  `python -m pytest tests/unit/test_qre_routing_sampling_readiness.py
+  tests/unit/test_roadmap_task_units.py tests/unit/test_roadmap_next_unit.py
+  tests/unit/test_ade_qre_017_queue_admission.py
+  tests/unit/test_ade_queue_status_self_audit.py
+  tests/unit/test_ade_qre_014_queue_lifecycle.py -q`,
+  `python -m reporting.ade_queue_status_self_audit --no-write`,
+  `python -m reporting.roadmap_task_units`,
+  `python -m reporting.roadmap_unit_authority`, and
+  `python -m reporting.roadmap_next_unit --status`; the merged item
+  materializes repository-native routing and sampling readiness artifacts from
+  real basket evidence, records 2 shared ready candidates with 100% routing and
+  sampling reason-record coverage across the 15-candidate basket, preserves
+  explicit non-ready states for blocked/deferred candidates; frozen contracts
+  unchanged; protected/execution paths untouched.
 - next dependency: `ADE-QRE-017E`.
 
 ### ADE-QRE-017E - KPI Completeness and Historical Snapshots
