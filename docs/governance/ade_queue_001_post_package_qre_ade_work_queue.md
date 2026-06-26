@@ -3135,7 +3135,22 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017M`
 - title: Supporting and Contradicting Evidence.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #645, merge SHA
+  `c3ca9d04b76e5bbd9d0bb5ef2217267bab164136`; implementation added
+  `research/qre_behavior_thesis_evidence.py`, canonical doc
+  `docs/governance/qre_behavior_thesis_evidence.md`, and focused tests in
+  `tests/unit/test_qre_behavior_thesis_evidence.py`; canonical artifact:
+  `logs/qre_behavior_thesis_evidence/latest.json`; validation:
+  `python -m pytest tests/unit/test_qre_behavior_thesis_evidence.py tests/unit/test_qre_behavior_thesis_registry.py tests/unit/test_qre_research_memory.py tests/unit/test_qre_research_memory_retrieval.py tests/unit/test_hypothesis_discovery_minimal.py -q`,
+  `python -m research.qre_behavior_thesis_evidence --write`,
+  `python scripts/governance_lint.py`,
+  `python -m pytest tests/architecture -q`,
+  `python -m reporting.architecture_import_scan --format summary`,
+  `git diff --check`; checks green; post-merge validation passed on `main`;
+  frozen contracts unchanged; protected/execution paths untouched;
+  contradictions, supporting evidence, and unresolved evidence remain explicit
+  and context-only.
 - purpose: attach supporting, contradicting, and unresolved evidence to each
   thesis with provenance.
 - source document:
@@ -3159,7 +3174,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017N`
 - title: Prior-Failure Retrieval.
-- status: `blocked until ADE-QRE-017M done`
+- status: `ready`
 - purpose: use existing retrieval and research memory to return related prior
   failures, dead zones, and actions as context only.
 - source document:
