@@ -3029,7 +3029,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017J`
 - title: Source Quality, PIT, and Identity Readiness.
-- status: `ready`
+- status: `done`
 - purpose: implement freshness, missing-data, duplicate, monotonicity,
   outlier, coverage, agreement, PIT, revision, identity, and allowed-use
   readiness.
@@ -3049,13 +3049,19 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - quality failures and identity ambiguity block rather than downgrade.
+- completion evidence:
+  - PR #638, merge SHA `5a1ae50a2c7a015d1e3a171f09ab80a54d83d17d`; checks green before squash-merge; implementation report:
+    `research/qre_source_quality_pit_identity_readiness.py`; governance note:
+    `docs/governance/qre_source_quality_pit_identity_readiness.md`; tracked artifact:
+    `artifacts/data_readiness/source_quality_pit_identity_readiness_latest.v1.json`; focused validation:
+    `python -m pytest tests/unit/test_qre_data_source_quality_readiness.py tests/unit/test_qre_data_source_lifecycle.py tests/unit/test_qre_data_symbology_resolver.py tests/unit/test_point_in_time_policy.py tests/unit/test_report_lag_policy.py tests/unit/test_qre_historical_accounting_foundation.py tests/unit/test_qre_symbology_resolver_foundation.py tests/unit/test_qre_source_lifecycle_quality_gate.py tests/unit/test_qre_source_quality_pit_identity_readiness.py -q`; post-merge governance and architecture validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched.
 - next dependency: `ADE-QRE-017K`.
 
 ### ADE-QRE-017K - Source Usefulness Ledger
 
 - queue id: `ADE-QRE-017K`
 - title: Source Usefulness Ledger.
-- status: `blocked until ADE-QRE-017J done`
+- status: `ready`
 - purpose: track actual source outcomes, usefulness, disagreements, savings,
   and operator value without treating source quality as alpha.
 - source document:
