@@ -18,6 +18,9 @@ research orchestration remains in `research/`, `agent/backtesting/`,
 The ADE-QRE-017L behavior thesis registry lives in
 `research.qre_behavior_thesis_registry` and remains a read-only governance /
 research-intelligence registry rather than an execution authority.
+The ADE-QRE-017M thesis-evidence surface lives in
+`research.qre_behavior_thesis_evidence` and keeps supporting,
+contradicting, and unresolved thesis evidence explicit with provenance.
 
 ## Source of Truth / Authority Boundary
 
