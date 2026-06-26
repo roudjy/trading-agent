@@ -34,6 +34,7 @@ BOUNDED_PACKAGE_CONTENTS = {
     "qre_research": [
         "README.md",
         "__init__.py",
+        "opportunity_value.py",
         "research_memory.py",
         "retrieval_coverage.py",
         "universe.py",

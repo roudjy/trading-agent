@@ -24,6 +24,12 @@ contradicting, and unresolved thesis evidence explicit with provenance.
 The ADE-QRE-017N prior-failure retrieval surface lives in
 `research.qre_prior_failure_retrieval` and links theses back to prior
 failures, dead zones, and prior actions as provenance-backed context only.
+The ADE-QRE-017O opportunity-research-value surface lives in
+`research.qre_opportunity_research_value` and combines thesis readiness,
+evidence density, prior-failure context, and proposal-only discovery signals
+into a deterministic expected-research-value score for prioritization only.
+The pure weighting helper for that surface lives in
+`packages.qre_research.opportunity_value`.
 
 ## Source of Truth / Authority Boundary
 
