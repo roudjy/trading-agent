@@ -3061,7 +3061,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017K`
 - title: Source Usefulness Ledger.
-- status: `ready`
+- status: `done`
 - purpose: track actual source outcomes, usefulness, disagreements, savings,
   and operator value without treating source quality as alpha.
 - source document:
@@ -3079,13 +3079,24 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - usefulness is tied to actual influenced outcomes.
+- completion evidence:
+  PR #640, merge SHA `4f66d632346d4bf9e4eb171f6e70bdc70ed3cb53`; checks green before
+  squash-merge; implementation note:
+  `docs/governance/qre_source_usefulness_ledger.md`; canonical artifact:
+  `logs/qre_source_usefulness_ledger/latest.json`; operator summary:
+  `logs/qre_source_usefulness_ledger/operator_summary.md`; validation:
+  `python -m pytest tests/unit/test_qre_source_usefulness_ledger.py tests/unit/test_qre_lineage_graph_v1.py -q`,
+  `python -m research.qre_source_usefulness_ledger --status`,
+  `python scripts/governance_lint.py`, `git diff --check`; post-merge governance
+  and architecture validation passed on `main`; frozen contracts unchanged;
+  protected/execution paths untouched.
 - next dependency: `ADE-QRE-017L`.
 
 ### ADE-QRE-017L - Behavior Thesis Registry
 
 - queue id: `ADE-QRE-017L`
 - title: Behavior Thesis Registry.
-- status: `blocked until ADE-QRE-017K done`
+- status: `ready`
 - purpose: create a deterministic behavior-thesis registry with mechanism,
   falsification, sampling, validation, OOS, and data requirements.
 - source document:
