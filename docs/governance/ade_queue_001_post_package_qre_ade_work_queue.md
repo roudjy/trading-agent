@@ -2884,19 +2884,22 @@ live, broker, risk, or execution work.
 - validation required:
   - unavailable KPIs are explicit.
   - snapshot generation is repeatable.
-- completion evidence: substantive implementation PR pending merge evidence; this
-  branch adds a read-only KPI completeness and historical snapshot reporter that
-  combines current trusted-loop operational KPI projection with research-quality
-  KPI readiness, records every KPI as numeric or explicitly unavailable, and
-  writes deterministic history only under
-  `logs/qre_kpi_snapshot_completeness/`.
+- completion evidence: PR #628, merge SHA
+  `ac35e6d347de9464c0eb075ed69d1ac3855ad506`; read-only KPI completeness and
+  historical snapshot reporter added in
+  `reporting/qre_kpi_snapshot_completeness.py`, with governance note
+  `docs/governance/qre_kpi_snapshot_completeness.md`; required CI checks green
+  before squash-merge; post-merge governance lint, `tests/architecture`,
+  architecture scanner summary, queue self-audit, next-unit status, and frozen
+  contract diff checks passed on `main`; frozen contracts unchanged;
+  protected/execution paths untouched.
 - next dependency: `ADE-QRE-017F`.
 
 ### ADE-QRE-017F - Funnel Census and Threshold-Distance Audit
 
 - queue id: `ADE-QRE-017F`
 - title: Funnel Census and Threshold-Distance Audit.
-- status: `blocked until ADE-QRE-017E done`
+- status: `ready`
 - purpose: materialize full funnel counts, threshold distances, and exactly-one
   recommendation per criterion without changing thresholds.
 - source document:
