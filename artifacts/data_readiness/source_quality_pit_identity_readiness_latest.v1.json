@@ -1,0 +1,546 @@
+{
+  "manifest_rows": [
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_RESTATEMENT_POLICY",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "historical_lineage_reproducible",
+        "identity_alias_ambiguity_present",
+        "identity_mapping_not_explicit",
+        "no_lookahead_snapshot_contract",
+        "quality_gates_not_passed",
+        "report_lag_policy_supported",
+        "restatement_policy_supported"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "BLOCKED",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "BLOCKED",
+        "report_lag_policy": "BLOCKED",
+        "restatement_policy": "BLOCKED",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "alpha_vantage_candidate",
+      "source_id": "alpha_vantage_candidate_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "identity_alias_ambiguity_present",
+        "identity_mapping_not_explicit",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "companies_house_metadata",
+      "source_id": "companies_house_metadata_manifest",
+      "source_status": "manual_research_only",
+      "source_type": "issuer_metadata"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_RESTATEMENT_POLICY",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "historical_lineage_reproducible",
+        "identity_alias_ambiguity_present",
+        "identity_mapping_not_explicit",
+        "no_lookahead_snapshot_contract",
+        "quality_gates_not_passed",
+        "report_lag_policy_supported",
+        "restatement_policy_supported"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "BLOCKED",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "BLOCKED",
+        "report_lag_policy": "BLOCKED",
+        "restatement_policy": "BLOCKED",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "eodhd_candidate",
+      "source_id": "eodhd_candidate_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "identity_alias_ambiguity_present",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "euronext_issuer_metadata",
+      "source_id": "euronext_issuer_metadata_manifest",
+      "source_status": "candidate",
+      "source_type": "issuer_metadata"
+    },
+    {
+      "blocking_reasons": [
+        "MISSING_LICENSE_TERMS",
+        "identity_mapping_not_explicit",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "PARTIAL",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "NOT_APPLICABLE",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "UNKNOWN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "FAIL",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "financial_datasets_mcp",
+      "source_id": "financial_datasets_mcp_manifest",
+      "source_status": "staging",
+      "source_type": "connector_staging"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_RESTATEMENT_POLICY",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "historical_lineage_reproducible",
+        "identity_alias_ambiguity_present",
+        "identity_mapping_not_explicit",
+        "no_lookahead_snapshot_contract",
+        "quality_gates_not_passed",
+        "report_lag_policy_supported",
+        "restatement_policy_supported"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "BLOCKED",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "BLOCKED",
+        "report_lag_policy": "BLOCKED",
+        "restatement_policy": "BLOCKED",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "financial_modeling_prep_candidate",
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "identity_alias_ambiguity_present",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "nasdaq_listings_metadata",
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "source_status": "candidate",
+      "source_type": "listing_metadata"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "identity_alias_ambiguity_present",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "nyse_listings_metadata",
+      "source_id": "nyse_listings_metadata_manifest",
+      "source_status": "candidate",
+      "source_type": "listing_metadata"
+    },
+    {
+      "blocking_reasons": [
+        "MISSING_LICENSE_TERMS",
+        "identity_mapping_not_explicit",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "PARTIAL",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "NOT_APPLICABLE",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "UNKNOWN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "FAIL",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "openbb_connector",
+      "source_id": "openbb_connector_manifest",
+      "source_status": "staging",
+      "source_type": "connector_staging"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "identity_alias_ambiguity_present",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "openfigi_symbology",
+      "source_id": "openfigi_symbology_manifest",
+      "source_status": "candidate",
+      "source_type": "identity_symbology"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "MISSING_POINT_IN_TIME_POLICY",
+        "MISSING_REPORT_LAG_POLICY",
+        "MISSING_RESTATEMENT_POLICY",
+        "REPORT_LAG_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "historical_lineage_reproducible",
+        "identity_alias_ambiguity_present",
+        "no_lookahead_snapshot_contract",
+        "quality_gates_not_passed",
+        "report_lag_policy_supported",
+        "restatement_policy_supported"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "PARTIAL",
+        "historical_lineage": "BLOCKED",
+        "identity_readiness": "PARTIAL",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "BLOCKED",
+        "report_lag_policy": "BLOCKED",
+        "restatement_policy": "BLOCKED",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "sec_companyfacts",
+      "source_id": "sec_companyfacts_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "blocking_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "identity_mapping_not_explicit",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "NOT_APPLICABLE",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "stooq_price_context",
+      "source_id": "stooq_price_context_manifest",
+      "source_status": "manual_research_only",
+      "source_type": "market_price_context"
+    },
+    {
+      "blocking_reasons": [
+        "identity_mapping_not_explicit",
+        "quality_gates_not_passed"
+      ],
+      "dimension_statuses": {
+        "allowed_use_and_license": "BLOCKED",
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "BLOCKED",
+        "historical_lineage": "NOT_APPLICABLE",
+        "identity_readiness": "NOT_APPLICABLE",
+        "missing_data_checks": "UNAVAILABLE",
+        "outlier_handling": "UNAVAILABLE",
+        "point_in_time_policy": "NOT_APPLICABLE",
+        "report_lag_policy": "NOT_APPLICABLE",
+        "restatement_policy": "NOT_APPLICABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "license_policy_status": "WARN",
+      "lifecycle_status": "blocked",
+      "manifest_status": "WARN",
+      "operator_explanation": "Source readiness remains fail-closed until license, PIT, report-lag, restatement, identity, and declared quality-gate evidence are explicit.",
+      "provider_id": "yahoo_finance_yfinance",
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "source_status": "manual_research_only",
+      "source_type": "manual_research_context"
+    }
+  ],
+  "observed_source_rows": [
+    {
+      "blocking_reasons": [],
+      "coverage_row_count": 34,
+      "dimension_statuses": {
+        "coverage": "PARTIAL",
+        "duplicate_detection": "UNAVAILABLE",
+        "freshness": "PARTIAL",
+        "missing_data_checks": "PARTIAL",
+        "outlier_handling": "UNAVAILABLE",
+        "source_agreement": "UNAVAILABLE",
+        "timestamp_monotonicity": "UNAVAILABLE"
+      },
+      "observed_source": "yfinance",
+      "operator_explanation": "Observed cache evidence is present for this source, but monotonicity, duplicate-bar, outlier, and cross-source agreement checks are not yet explicit.",
+      "quality_ready_row_count": 4189,
+      "ready_coverage_row_count": 34,
+      "timestamp_complete_row_count": 34
+    }
+  ],
+  "readiness_status_vocabulary": [
+    "READY",
+    "PARTIAL",
+    "BLOCKED",
+    "UNAVAILABLE",
+    "NOT_APPLICABLE"
+  ],
+  "report_kind": "qre_source_quality_pit_identity_readiness",
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "diagnostics_do_not_trade": true,
+    "fetches_external_data": false,
+    "mutates_frozen_contracts": false,
+    "mutates_research_outputs": false,
+    "mutates_runtime_state": false,
+    "paper_shadow_live_forbidden": true,
+    "provider_activation_forbidden": true,
+    "read_only": true,
+    "retrieval_not_authority": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "cache_manifest_research_ready": true,
+    "identity_ambiguity_blocked_count": 3,
+    "manifest_blocking_reason_counts": {
+      "LICENSE_REVIEW_REQUIRED": 10,
+      "MISSING_LICENSE_TERMS": 2,
+      "MISSING_POINT_IN_TIME_POLICY": 4,
+      "MISSING_REPORT_LAG_POLICY": 4,
+      "MISSING_RESTATEMENT_POLICY": 4,
+      "POINT_IN_TIME_UNKNOWN": 3,
+      "REPORT_LAG_UNKNOWN": 4,
+      "RESTATEMENT_POLICY_UNKNOWN": 4,
+      "historical_lineage_reproducible": 4,
+      "identity_alias_ambiguity_present": 9,
+      "identity_mapping_not_explicit": 8,
+      "no_lookahead_snapshot_contract": 4,
+      "quality_gates_not_passed": 13,
+      "report_lag_policy_supported": 4,
+      "restatement_policy_supported": 4
+    },
+    "manifest_dimension_status_counts": {
+      "BLOCKED": 39,
+      "NOT_APPLICABLE": 40,
+      "PARTIAL": 25,
+      "UNAVAILABLE": 65
+    },
+    "observed_blocking_reason_counts": {},
+    "observed_dimension_status_counts": {
+      "PARTIAL": 3,
+      "UNAVAILABLE": 4
+    },
+    "observed_source_count": 1,
+    "operator_summary": "Local cache evidence is present for observed sources, but source governance, PIT, report-lag, restatement, and identity readiness remain fail-closed at the manifest level.",
+    "pit_required_blocked_count": 4,
+    "source_manifest_count": 13,
+    "source_quality_report_ready": true,
+    "source_quality_report_status": "ready"
+  },
+  "supporting_reports": {
+    "cache_manifest": {
+      "manifest_content_hash": "sha256:7017b28ce6c1886dd3d4c7778d57181ee825883bb744c56fed61893030ca910a",
+      "report_kind": "qre_data_cache_manifest",
+      "research_ready": true
+    },
+    "historical_accounting_foundation": {
+      "report_kind": "qre_historical_accounting_foundation",
+      "required_blocked_count": 4
+    },
+    "source_cache_readiness_materialization": {
+      "report_kind": "qre_source_cache_readiness_materialization",
+      "source_cache_readiness_linked": true
+    },
+    "source_lifecycle_quality_gate": {
+      "report_kind": "qre_source_lifecycle_quality_gate",
+      "source_quality_report_ready": true
+    },
+    "source_quality_status": {
+      "fails_closed": false,
+      "path": "logs/qre_data_source_quality_readiness/latest.json",
+      "research_ready": true,
+      "schema_version": "1.0",
+      "status": "ready"
+    },
+    "symbology_resolver_foundation": {
+      "ambiguity_blocked_count": 3,
+      "report_kind": "qre_symbology_resolver_foundation",
+      "verified_count": 38
+    }
+  }
+}
