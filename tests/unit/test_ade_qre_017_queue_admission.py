@@ -83,11 +83,11 @@ def test_ade_qre_017_dependencies_reference_existing_queue_items() -> None:
             assert dep in known, (item_id, dep)
 
 
-def test_ade_qre_017_chain_selects_017i_after_017h_completion_evidence() -> None:
+def test_ade_qre_017_chain_selects_017j_after_017i_completion_evidence() -> None:
     snap = audit.collect_snapshot(frozen_utc="2026-06-25T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-017I"
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-017J"
     assert rows["ADE-QRE-017"]["status"].startswith("blocked until ADE-QRE-017AD done")
     assert rows["ADE-QRE-017A"]["status"] == "done"
     assert rows["ADE-QRE-017B"]["status"] == "done"
@@ -101,7 +101,9 @@ def test_ade_qre_017_chain_selects_017i_after_017h_completion_evidence() -> None
     assert rows["ADE-QRE-017G"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-017H"]["status"] == "done"
     assert rows["ADE-QRE-017H"]["done_evidence"]["complete"] is True
-    assert rows["ADE-QRE-017I"]["status"] == "ready"
+    assert rows["ADE-QRE-017I"]["status"] == "done"
+    assert rows["ADE-QRE-017I"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-017J"]["status"] == "ready"
     assert rows["ADE-QRE-017Y"]["status"].startswith("blocked until ADE-QRE-017X done")
     assert rows["ADE-QRE-017AD"]["status"].startswith("blocked until ADE-QRE-017AC done")
 
