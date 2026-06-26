@@ -21,6 +21,9 @@ research-intelligence registry rather than an execution authority.
 The ADE-QRE-017M thesis-evidence surface lives in
 `research.qre_behavior_thesis_evidence` and keeps supporting,
 contradicting, and unresolved thesis evidence explicit with provenance.
+The ADE-QRE-017N prior-failure retrieval surface lives in
+`research.qre_prior_failure_retrieval` and links theses back to prior
+failures, dead zones, and prior actions as provenance-backed context only.
 
 ## Source of Truth / Authority Boundary
 
