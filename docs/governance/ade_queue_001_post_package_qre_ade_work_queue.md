@@ -3211,7 +3211,21 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017O`
 - title: Opportunity Research Value.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #649, merge SHA `7d317b64cd8df6a7fcb3af97054c1b42bd6a61c1`;
+  implementation added `research/qre_opportunity_research_value.py`,
+  `packages/qre_research/opportunity_value.py`, canonical doc
+  `docs/governance/qre_opportunity_research_value.md`, and focused tests in
+  `tests/unit/test_qre_opportunity_research_value.py`; canonical artifact:
+  `logs/qre_opportunity_research_value/latest.json`; validation:
+  `python -m pytest tests/unit/test_qre_opportunity_research_value.py tests/unit/test_qre_behavior_thesis_registry.py tests/unit/test_qre_behavior_thesis_evidence.py tests/unit/test_qre_prior_failure_retrieval.py tests/unit/test_hypothesis_discovery_minimal.py -q`,
+  `python -m research.qre_opportunity_research_value --write`,
+  `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`,
+  `python -m reporting.architecture_import_scan --format summary`,
+  `git diff --check`; checks green; post-merge validation passed on `main`;
+  frozen contracts unchanged; protected/execution paths untouched; opportunity
+  scoring remained expected research value only and did not become alpha,
+  registration, or campaign authority.
 - purpose: implement a deterministic research-value score for prioritization
   that is explicitly not alpha probability.
 - source document:
@@ -3235,7 +3249,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017P`
 - title: Routing Baseline Comparison.
-- status: `blocked until ADE-QRE-017O done`
+- status: `ready`
 - purpose: compare current routing against deterministic baselines and measure
   actual decision usefulness.
 - source document:
