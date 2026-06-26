@@ -43,6 +43,7 @@ DEFAULT_ARTIFACT_PATHS: Final[tuple[Path, ...]] = (
     Path("logs/qre_campaign_throughput_bottleneck_intelligence/latest.json"),
     Path("logs/qre_experiment_dedup_novelty_enforcement/latest.json"),
     Path("logs/qre_lineage_graph_v1/latest.json"),
+    Path("logs/qre_behavior_thesis_registry/latest.json"),
     Path("logs/qre_research_state_sequential_retrieval/latest.json"),
     Path("logs/qre_reason_record_normalization/latest.json"),
     Path("logs/qre_incomplete_artifact_remediation_planning/latest.json"),
@@ -103,6 +104,8 @@ def _ontology_tags(text: str, metadata: Mapping[str, Any]) -> list[str]:
     tags: set[str] = set()
     if any(term in haystack for term in ("hypothesis", "hypothese", "doel")):
         tags.add("hypothesis")
+    if "behavior thesis" in haystack or "qre_behavior_thesis_registry" in haystack:
+        tags.add("behavior_thesis")
     success = metadata.get("success")
     error = metadata.get("error")
     if (

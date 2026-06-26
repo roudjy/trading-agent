@@ -15,6 +15,9 @@ The canonical research universe contract now lives in
 retrieval live in `packages.qre_research.research_memory`; current QRE
 research orchestration remains in `research/`, `agent/backtesting/`,
 `strategies/`, and `registry.py`.
+The ADE-QRE-017L behavior thesis registry lives in
+`research.qre_behavior_thesis_registry` and remains a read-only governance /
+research-intelligence registry rather than an execution authority.
 
 ## Source of Truth / Authority Boundary
 
