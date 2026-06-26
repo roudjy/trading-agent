@@ -359,6 +359,7 @@ def test_ade_qre_active_queue_lifecycle_is_consistent() -> None:
     item_17l = items["ADE-QRE-017L"]
     item_17m = items["ADE-QRE-017M"]
     item_17n = items["ADE-QRE-017N"]
+    item_17o = items["ADE-QRE-017O"]
     assert item_17h.status == "done"
     assert _done_evidence_is_complete(item_17h)
     assert item_17i.status == "done"
@@ -371,10 +372,12 @@ def test_ade_qre_active_queue_lifecycle_is_consistent() -> None:
     assert _done_evidence_is_complete(item_17l)
     assert item_17m.status == "done"
     assert _done_evidence_is_complete(item_17m)
-    assert item_17n.status == "ready"
+    assert item_17n.status == "done"
+    assert _done_evidence_is_complete(item_17n)
+    assert item_17o.status == "ready"
     assert item_17y.status == "blocked until ADE-QRE-017X done"
     assert item_17ad.status == "blocked until ADE-QRE-017AC done"
-    assert _next_eligible_ready_item(items) == item_17n
+    assert _next_eligible_ready_item(items) == item_17o
 
 
 def test_done_queue_item_without_merge_evidence_is_rejected() -> None:

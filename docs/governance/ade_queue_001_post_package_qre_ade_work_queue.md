@@ -3174,7 +3174,19 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017N`
 - title: Prior-Failure Retrieval.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #647, merge SHA `5a8b51092cfb2acf4a6757030785473a6835cde8`;
+  implementation added `research/qre_prior_failure_retrieval.py`, canonical
+  doc `docs/governance/qre_prior_failure_retrieval.md`, and focused tests in
+  `tests/unit/test_qre_prior_failure_retrieval.py`; canonical artifact:
+  `logs/qre_prior_failure_retrieval/latest.json`; validation:
+  `python -m pytest tests/unit/test_qre_prior_failure_retrieval.py tests/unit/test_qre_behavior_thesis_registry.py tests/unit/test_qre_behavior_thesis_evidence.py tests/unit/test_qre_research_memory.py tests/unit/test_qre_research_memory_retrieval.py tests/unit/test_qre_retrieval_maturity.py -q`,
+  `python -m research.qre_prior_failure_retrieval --write`,
+  `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`,
+  `python -m reporting.architecture_import_scan --format summary`,
+  `git diff --check`; checks green; post-merge validation passed on `main`;
+  frozen contracts unchanged; protected/execution paths untouched; retrieval
+  remained context only and did not become evidence authority.
 - purpose: use existing retrieval and research memory to return related prior
   failures, dead zones, and actions as context only.
 - source document:
@@ -3199,7 +3211,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017O`
 - title: Opportunity Research Value.
-- status: `blocked until ADE-QRE-017N done`
+- status: `ready`
 - purpose: implement a deterministic research-value score for prioritization
   that is explicitly not alpha probability.
 - source document:
