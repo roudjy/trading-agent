@@ -1012,6 +1012,8 @@ _MERGED_UNIT_IDS: frozenset[str] = frozenset(
         "u_ade_qre_017c_reason_record_maturity_reporter_001",
         # ADE-QRE-017D routing/sampling readiness reporter merged via the current queue item PR.
         "u_ade_qre_017d_readiness_population_reporter_001",
+        # ADE-QRE-017E KPI snapshot completeness reporter merged via the current queue item PR.
+        "u_ade_qre_017e_kpi_snapshot_reporter_001",
         # PR #250 (merge SHA fcb1abb) + PR #251 queue-status update.
         "u_v3_15_16_diagnostic_routing_signals_schema_001",
         # PR #252 (merge SHA 6f588a8) + this queue-status update PR.
@@ -1079,7 +1081,7 @@ def test_ade_qre_017_wave_prerequisites_form_linear_chain(snap: dict) -> None:
     ]
 
 
-def test_ade_qre_017a_through_017d_units_are_merged_and_future_wave_units_not_started(
+def test_ade_qre_017a_through_017e_units_are_merged_and_future_wave_units_not_started(
     snap: dict,
 ) -> None:
     by_id = {u["id"]: u for u in snap["implementation_units"]}
@@ -1087,7 +1089,7 @@ def test_ade_qre_017a_through_017d_units_are_merged_and_future_wave_units_not_st
     assert by_id["u_ade_qre_017b_evidence_density_inventory_001"]["status"] == "merged"
     assert by_id["u_ade_qre_017c_reason_record_maturity_reporter_001"]["status"] == "merged"
     assert by_id["u_ade_qre_017d_readiness_population_reporter_001"]["status"] == "merged"
-    assert by_id["u_ade_qre_017e_kpi_snapshot_reporter_001"]["status"] == "not_started"
+    assert by_id["u_ade_qre_017e_kpi_snapshot_reporter_001"]["status"] == "merged"
 
 
 # ---------------------------------------------------------------------------

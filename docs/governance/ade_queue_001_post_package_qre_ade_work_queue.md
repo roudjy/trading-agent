@@ -2865,7 +2865,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017E`
 - title: KPI Completeness and Historical Snapshots.
-- status: `ready`
+- status: `done`
 - purpose: produce complete numeric or explicitly unavailable KPI states and
   repeatable historical snapshots.
 - source document:
@@ -2874,9 +2874,8 @@ live, broker, risk, or execution work.
 - risk class: MEDIUM.
 - target layer: reporting, packages `qre_artifacts`, governance docs.
 - expected files or file families:
-  - `reporting/qre_closed_loop_operator_report.py`
-  - `reporting/qre_operator_closed_loop_report.py`
-  - `packages/qre_artifacts/**`
+  - `reporting/qre_kpi_snapshot_completeness.py`
+  - `docs/governance/qre_kpi_snapshot_completeness.md`
   - `tests/unit/**`
 - forbidden files or file families:
   - weakened KPI standards
@@ -2885,6 +2884,12 @@ live, broker, risk, or execution work.
 - validation required:
   - unavailable KPIs are explicit.
   - snapshot generation is repeatable.
+- completion evidence: substantive implementation PR pending merge evidence; this
+  branch adds a read-only KPI completeness and historical snapshot reporter that
+  combines current trusted-loop operational KPI projection with research-quality
+  KPI readiness, records every KPI as numeric or explicitly unavailable, and
+  writes deterministic history only under
+  `logs/qre_kpi_snapshot_completeness/`.
 - next dependency: `ADE-QRE-017F`.
 
 ### ADE-QRE-017F - Funnel Census and Threshold-Distance Audit

@@ -667,7 +667,7 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "risk_class": "LOW",
         "authority_hint": "AUTO_ALLOWED_CANDIDATE",
         "operator_gate": "none",
-        "status": "not_started",
+        "status": "merged",
     },
     # -------------------- v3.15.16 Intelligent Routing Layer ------------
     {
