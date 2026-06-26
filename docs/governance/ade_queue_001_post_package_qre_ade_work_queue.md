@@ -3096,7 +3096,22 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017L`
 - title: Behavior Thesis Registry.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #643, merge SHA
+  `029d6b2107175a5feb4cacda84ad46f3e1b15c97`; implementation added
+  `research/qre_behavior_thesis_registry.py`, canonical doc
+  `docs/governance/qre_behavior_thesis_registry.md`, and focused tests in
+  `tests/unit/test_qre_behavior_thesis_registry.py`; canonical artifact:
+  `logs/qre_behavior_thesis_registry/latest.json`; validation:
+  `python -m pytest tests/unit/test_qre_behavior_thesis_registry.py tests/unit/test_qre_research_memory.py tests/unit/test_qre_research_memory_retrieval.py tests/unit/test_qre_hypothesis_model.py -q`,
+  `python -m research.qre_behavior_thesis_registry --write`,
+  `python scripts/governance_lint.py`,
+  `python -m pytest tests/architecture -q`,
+  `python -m reporting.architecture_import_scan --format summary`,
+  `git diff --check`; checks green; post-merge validation passed on `main`;
+  frozen contracts unchanged; protected/execution paths untouched; no
+  executable strategy generation, strategy registration, or campaign
+  authority added.
 - purpose: create a deterministic behavior-thesis registry with mechanism,
   falsification, sampling, validation, OOS, and data requirements.
 - source document:
@@ -3120,7 +3135,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017M`
 - title: Supporting and Contradicting Evidence.
-- status: `blocked until ADE-QRE-017L done`
+- status: `ready`
 - purpose: attach supporting, contradicting, and unresolved evidence to each
   thesis with provenance.
 - source document:
