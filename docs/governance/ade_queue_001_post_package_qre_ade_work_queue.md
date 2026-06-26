@@ -2932,7 +2932,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017G`
 - title: Actionable Failure Taxonomy and Next Actions.
-- status: `ready`
+- status: `done`
 - purpose: expand evidence-backed failure attribution and bind each supported
   failure class to exactly one bounded advisory next action.
 - source document:
@@ -2951,13 +2951,20 @@ live, broker, risk, or execution work.
 - validation required:
   - insufficient evidence stays explicit.
   - exactly one next action per supported failure class.
+- completion evidence: PR #632, merge SHA
+  `709fe8bc7d04e4a8f785046ae164ee6d48e2ad32`; read-only actionable failure
+  taxonomy reporter added in `reporting/qre_actionable_failure_taxonomy.py`,
+  with governance summary `docs/governance/qre_actionable_failure_taxonomy.md`;
+  required CI checks green before squash-merge; post-merge queue/governance
+  validation pending in the follow-up queue-state PR; frozen contracts
+  unchanged; protected/execution paths untouched.
 - next dependency: `ADE-QRE-017H`.
 
 ### ADE-QRE-017H - Action Usefulness Tracking
 
 - queue id: `ADE-QRE-017H`
 - title: Action Usefulness Tracking.
-- status: `blocked until ADE-QRE-017G done`
+- status: `ready`
 - purpose: track whether recommended actions were executed and whether they
   improved useful outcomes or repeated failure.
 - source document:
