@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import hashlib
+import importlib
 import json
 import os
 import tempfile
@@ -13,7 +14,6 @@ from pathlib import Path
 from typing import Any, Final
 
 from reporting import trusted_loop_materialization as _trusted_loop_materialization
-from research import qre_trusted_loop_operator_kpis as _trusted_loop_kpis
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 MODULE_VERSION: Final[str] = "ade-qre-017e-2026-06-26"
@@ -40,6 +40,10 @@ _OPERATIONAL_KPI_ORDER: Final[tuple[str, ...]] = (
     "unknown_failure_rate",
     "operator_explanation_completeness_score",
 )
+
+
+def _research_module(module_name: str) -> Any:
+    return importlib.import_module(module_name)
 
 
 def _utcnow() -> str:
@@ -155,7 +159,8 @@ def collect_snapshot(
     frozen_utc: str | None = None,
 ) -> dict[str, Any]:
     generated_at_utc = frozen_utc or _utcnow()
-    trusted_loop_report = _trusted_loop_kpis.build_trusted_loop_operator_kpis(
+    trusted_loop_kpis = _research_module("research.qre_trusted_loop_operator_kpis")
+    trusted_loop_report = trusted_loop_kpis.build_trusted_loop_operator_kpis(
         repo_root=repo_root,
         max_candidates=max_candidates,
     )
