@@ -3274,7 +3274,8 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017Q`
 - title: Sampling Baseline Comparison.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #653, merge SHA `11ae16354e32096a7746311d1e396fee14c4c1df`; implementation added `reporting/qre_sampling_baseline_comparison.py`, canonical doc `docs/governance/qre_sampling_baseline_comparison.md`, and focused tests in `tests/unit/test_qre_sampling_baseline_comparison.py`; validation: `python -m pytest tests/unit/test_qre_sampling_baseline_comparison.py tests/unit/test_qre_routing_sampling_readiness.py tests/unit/test_qre_sampling_readiness_from_basket.py tests/unit/test_qre_routing_baseline_comparison.py -q` (`21 passed`), `python -m reporting.qre_sampling_baseline_comparison --write`, `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q` (`157 passed`), `python -m reporting.architecture_import_scan --format summary` (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched; sampling comparison remained deterministic, context-only, and non-authoritative.
 - purpose: compare sampling against deterministic baselines for signal density,
   adequacy, coverage, and compute efficiency.
 - source document:
@@ -3297,7 +3298,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017R`
 - title: Dead-Zone and Duplicate Suppression Efficacy.
-- status: `blocked until ADE-QRE-017Q done`
+- status: `ready`
 - purpose: prove whether suppression prevents repeated low-value research.
 - source document:
   `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
