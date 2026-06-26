@@ -2995,7 +2995,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017I`
 - title: Quality-Gated OHLCV/Cache Foundation.
-- status: `ready`
+- status: `done`
 - purpose: mature a reproducible, versioned, quality-gated OHLCV/cache
   foundation using existing packages and repository-local datasets first.
 - source document:
@@ -3015,13 +3015,21 @@ live, broker, risk, or execution work.
 - validation required:
   - locally possible components complete before any external-source block is
     recorded.
+- completion evidence: PR #636, merge SHA
+  `23b9fdbbdbd5016640bf8cbe1bebc2442209643b`; read-only local cache
+  foundation report added in `research/qre_ohlcv_cache_foundation.py`, with
+  governance summary `docs/governance/qre_ohlcv_cache_foundation.md` and
+  tracked artifact `artifacts/cache/cache_foundation_latest.v1.json`; required
+  CI checks green before squash-merge; post-merge governance and architecture
+  validation passed on `main`; frozen contracts unchanged; protected/execution
+  paths untouched.
 - next dependency: `ADE-QRE-017J`.
 
 ### ADE-QRE-017J - Source Quality, PIT, and Identity Readiness
 
 - queue id: `ADE-QRE-017J`
 - title: Source Quality, PIT, and Identity Readiness.
-- status: `blocked until ADE-QRE-017I done`
+- status: `ready`
 - purpose: implement freshness, missing-data, duplicate, monotonicity,
   outlier, coverage, agreement, PIT, revision, identity, and allowed-use
   readiness.
