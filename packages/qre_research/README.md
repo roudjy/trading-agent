@@ -30,6 +30,10 @@ evidence density, prior-failure context, and proposal-only discovery signals
 into a deterministic expected-research-value score for prioritization only.
 The pure weighting helper for that surface lives in
 `packages.qre_research.opportunity_value`.
+The ADE-QRE-017P routing-baseline-comparison surface lives in
+`research.qre_routing_baseline_comparison` and compares the current
+context-only router ordering against trivial deterministic baselines without
+granting campaign authority.
 
 ## Source of Truth / Authority Boundary
 
