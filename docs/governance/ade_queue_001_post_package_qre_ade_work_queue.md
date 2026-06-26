@@ -2964,7 +2964,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017H`
 - title: Action Usefulness Tracking.
-- status: `ready`
+- status: `done`
 - purpose: track whether recommended actions were executed and whether they
   improved useful outcomes or repeated failure.
 - source document:
@@ -2982,13 +2982,20 @@ live, broker, risk, or execution work.
 - validation required:
   - executed, blocked, repeated-failure, compute-saved, and false-positive
     outcomes are explicit.
+- completion evidence: PR #634, merge SHA
+  `4774c56bae5ff7c814b8db917321e27f6c50af7d`; read-only action usefulness
+  tracker added in `reporting/qre_action_usefulness_tracking.py`, with
+  governance summary `docs/governance/qre_action_usefulness_tracking.md`;
+  required CI checks green before squash-merge; post-merge queue/governance
+  validation pending in the follow-up queue-state PR; frozen contracts
+  unchanged; protected/execution paths untouched.
 - next dependency: `ADE-QRE-017I`.
 
 ### ADE-QRE-017I - Quality-Gated OHLCV/Cache Foundation
 
 - queue id: `ADE-QRE-017I`
 - title: Quality-Gated OHLCV/Cache Foundation.
-- status: `blocked until ADE-QRE-017H done`
+- status: `ready`
 - purpose: mature a reproducible, versioned, quality-gated OHLCV/cache
   foundation using existing packages and repository-local datasets first.
 - source document:
