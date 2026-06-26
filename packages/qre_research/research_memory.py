@@ -45,6 +45,7 @@ DEFAULT_ARTIFACT_PATHS: Final[tuple[Path, ...]] = (
     Path("logs/qre_lineage_graph_v1/latest.json"),
     Path("logs/qre_behavior_thesis_registry/latest.json"),
     Path("logs/qre_behavior_thesis_evidence/latest.json"),
+    Path("logs/qre_prior_failure_retrieval/latest.json"),
     Path("logs/qre_research_state_sequential_retrieval/latest.json"),
     Path("logs/qre_reason_record_normalization/latest.json"),
     Path("logs/qre_incomplete_artifact_remediation_planning/latest.json"),
