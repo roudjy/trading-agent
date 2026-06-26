@@ -646,8 +646,8 @@ def test_materialized_current_a20_stack_selects_ade_qre_017c_after_017b_merge(
     auth_path.write_text(json.dumps(auth_payload, sort_keys=True), encoding="utf-8")
 
     snap = _snap(tmp_path)
-    assert snap["selection"]["selected_unit_id"] == "u_ade_qre_017e_kpi_snapshot_reporter_001"
-    assert snap["selection"]["selected_phase"] == "ade_qre_017e"
+    assert snap["selection"]["selected_unit_id"] == "u_v3_15_16_routing_governance_doc_001"
+    assert snap["selection"]["selected_phase"] == "v3.15.16"
 
 
 # ---------------------------------------------------------------------------
