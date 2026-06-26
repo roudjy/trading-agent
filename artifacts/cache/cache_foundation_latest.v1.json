@@ -1,0 +1,766 @@
+{
+  "future_external_source_blockers": [
+    {
+      "activation_requirements": [
+        "field_coverage_manifest_defined",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "report_lag_policy_defined",
+        "restatement_policy_defined"
+      ],
+      "authentication_required": true,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "alpha_vantage_candidate",
+      "requires_operator_or_credentials": true,
+      "source_id": "alpha_vantage_candidate_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "activation_requirements": [
+        "operator_manual_review"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "companies_house_metadata",
+      "requires_operator_or_credentials": false,
+      "source_id": "companies_house_metadata_manifest",
+      "source_status": "manual_research_only",
+      "source_type": "issuer_metadata"
+    },
+    {
+      "activation_requirements": [
+        "operator_license_approval",
+        "point_in_time_policy_defined",
+        "source_manifest_quality_pass"
+      ],
+      "authentication_required": true,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "eodhd_candidate",
+      "requires_operator_or_credentials": true,
+      "source_id": "eodhd_candidate_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "source_manifest_quality_pass"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "euronext_issuer_metadata",
+      "requires_operator_or_credentials": false,
+      "source_id": "euronext_issuer_metadata_manifest",
+      "source_status": "candidate",
+      "source_type": "issuer_metadata"
+    },
+    {
+      "activation_requirements": [
+        "downstream_provider_manifest_defined",
+        "operator_license_approval"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "UNKNOWN",
+      "manifest_block_reasons": [
+        "ACCESS_METHOD_UNKNOWN",
+        "MISSING_LICENSE_TERMS",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "FAIL",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "provider_id": "financial_datasets_mcp",
+      "requires_operator_or_credentials": true,
+      "source_id": "financial_datasets_mcp_manifest",
+      "source_status": "staging",
+      "source_type": "connector_staging"
+    },
+    {
+      "activation_requirements": [
+        "operator_license_approval",
+        "point_in_time_policy_defined",
+        "source_manifest_quality_pass"
+      ],
+      "authentication_required": true,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "FACTOR_FIELD_COVERAGE_UNKNOWN",
+        "LICENSE_REVIEW_REQUIRED",
+        "POINT_IN_TIME_UNKNOWN",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "financial_modeling_prep_candidate",
+      "requires_operator_or_credentials": true,
+      "source_id": "financial_modeling_prep_candidate_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "source_manifest_quality_pass"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "nasdaq_listings_metadata",
+      "requires_operator_or_credentials": false,
+      "source_id": "nasdaq_listings_metadata_manifest",
+      "source_status": "candidate",
+      "source_type": "listing_metadata"
+    },
+    {
+      "activation_requirements": [
+        "identity_mapping_quality_gate",
+        "source_manifest_quality_pass"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "nyse_listings_metadata",
+      "requires_operator_or_credentials": false,
+      "source_id": "nyse_listings_metadata_manifest",
+      "source_status": "candidate",
+      "source_type": "listing_metadata"
+    },
+    {
+      "activation_requirements": [
+        "downstream_provider_manifest_defined",
+        "operator_license_approval"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "UNKNOWN",
+      "manifest_block_reasons": [
+        "MISSING_LICENSE_TERMS",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "FAIL",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "MISSING_LICENSE_TERMS"
+      ],
+      "provider_id": "openbb_connector",
+      "requires_operator_or_credentials": true,
+      "source_id": "openbb_connector_manifest",
+      "source_status": "staging",
+      "source_type": "connector_staging"
+    },
+    {
+      "activation_requirements": [
+        "alias_resolution_reviewed",
+        "identity_mapping_quality_gate",
+        "operator_api_usage_approval",
+        "source_manifest_quality_pass"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "openfigi_symbology",
+      "requires_operator_or_credentials": false,
+      "source_id": "openfigi_symbology_manifest",
+      "source_status": "candidate",
+      "source_type": "identity_symbology"
+    },
+    {
+      "activation_requirements": [
+        "field_coverage_manifest_defined",
+        "issuer_to_symbol_mapping_reviewed",
+        "license_reviewed",
+        "point_in_time_policy_defined",
+        "report_lag_policy_defined",
+        "restatement_policy_defined",
+        "source_manifest_quality_pass"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED",
+        "REPORT_LAG_POLICY_UNKNOWN",
+        "RESTATEMENT_POLICY_UNKNOWN",
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "sec_companyfacts",
+      "requires_operator_or_credentials": false,
+      "source_id": "sec_companyfacts_manifest",
+      "source_status": "candidate",
+      "source_type": "fundamental_statement_data"
+    },
+    {
+      "activation_requirements": [
+        "operator_manual_review"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [
+        "LICENSE_REVIEW_REQUIRED"
+      ],
+      "provider_id": "stooq_price_context",
+      "requires_operator_or_credentials": false,
+      "source_id": "stooq_price_context_manifest",
+      "source_status": "manual_research_only",
+      "source_type": "market_price_context"
+    },
+    {
+      "activation_requirements": [
+        "operator_manual_review"
+      ],
+      "authentication_required": false,
+      "license_policy_status": "WARN",
+      "manifest_block_reasons": [
+        "SOURCE_QUALITY_UNKNOWN"
+      ],
+      "manifest_status": "WARN",
+      "operator_explanation": "License policy remains fail-closed until terms review and downstream policy gates are explicit.",
+      "policy_block_reasons": [],
+      "provider_id": "yahoo_finance_yfinance",
+      "requires_operator_or_credentials": false,
+      "source_id": "yahoo_finance_yfinance_manifest",
+      "source_status": "manual_research_only",
+      "source_type": "manual_research_context"
+    }
+  ],
+  "local_cache_foundation": {
+    "cache_manifest_path": "logs/qre_data_cache_manifest/latest.json",
+    "cache_roots": [
+      {
+        "cache_kind": "macro",
+        "path": "data/cache/macro",
+        "status": "present"
+      },
+      {
+        "cache_kind": "market",
+        "path": "data/cache/market",
+        "status": "present"
+      }
+    ],
+    "source_quality_path": "logs/qre_data_source_quality_readiness/latest.json",
+    "sources": [
+      {
+        "content_hash": "sha256:84dd8c5359c1d4eafacbf647edbe6ffeffc920742e622a1ad8458ac1444775bd",
+        "file_count": 476,
+        "instrument": "AAPL",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "ready": true,
+        "row_count": 2380,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:48a62e5b03a30cc0610e6336d461a827355922a426f7efa98b37ac0d46320e1b",
+        "file_count": 4,
+        "instrument": "ADA-USD",
+        "max_timestamp_utc": "2026-04-21T23:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 66576,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:f98b970ceea8c7630b5fd85f7b63e7976e663c1d5ab9d08dd411cd817a87a690",
+        "file_count": 4,
+        "instrument": "ADA-USD",
+        "max_timestamp_utc": "2026-04-21T20:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 16656,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:2d2f872e270601ba6ae91653d8f68d4c6c79dcc8e30f12ce95a413885330d491",
+        "file_count": 454,
+        "instrument": "AMD",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "ready": true,
+        "row_count": 2270,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:4b7263a814fa8ac1be866ac194646ca6996fda1230a9a2140e3ee8607d3fab1d",
+        "file_count": 1,
+        "instrument": "AMD",
+        "max_timestamp_utc": "2026-04-24T17:30:00Z",
+        "min_timestamp_utc": "2024-05-28T13:30:00Z",
+        "ready": true,
+        "row_count": 952,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:439810abd387fe8a725eb985cf90e5b2c9505940bac0a905e52242d3f63de59f",
+        "file_count": 1,
+        "instrument": "AMZN",
+        "max_timestamp_utc": "2026-04-24T17:30:00Z",
+        "min_timestamp_utc": "2024-05-28T13:30:00Z",
+        "ready": true,
+        "row_count": 952,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:d77557956a7b53ced169eaf32062357a6aa1dcc8eb58e70c709dc087921302ad",
+        "file_count": 463,
+        "instrument": "ASML",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "ready": true,
+        "row_count": 2315,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:bfcf62c1f46529440bd32fa0475abf67ece219f930bed02f483af7cbfc079676",
+        "file_count": 1,
+        "instrument": "ASML",
+        "max_timestamp_utc": "2026-04-24T17:30:00Z",
+        "min_timestamp_utc": "2024-05-28T13:30:00Z",
+        "ready": true,
+        "row_count": 952,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:a9b91d4a0c30867911cc0c1a94c189e4ecbf31eb9ae0114e58bfc2f072e93d37",
+        "file_count": 431,
+        "instrument": "BNB-EUR",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "ready": true,
+        "row_count": 2973,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:c16123cf96c509b03749d57e212f102dbf526df7f9749219f24c19ab8b8daa18",
+        "file_count": 4,
+        "instrument": "BNB-USD",
+        "max_timestamp_utc": "2026-04-21T23:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 66576,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:31bb45537ef44c59d8827db3f10e71e720b0a72d7b6bf1a6b670ba7182669683",
+        "file_count": 4,
+        "instrument": "BNB-USD",
+        "max_timestamp_utc": "2026-04-21T20:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 16656,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:5305a1b3e90648282c383467cf577941cb2ae87af524fd3c4d1e7a07a44ad25f",
+        "file_count": 452,
+        "instrument": "BTC-EUR",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "ready": true,
+        "row_count": 3118,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:f71fafc15a9c8f16c1e91639310a504be2aa828245e649c06f0c182f0fafb84b",
+        "file_count": 2,
+        "instrument": "BTC-EUR",
+        "max_timestamp_utc": "2026-04-24T23:00:00Z",
+        "min_timestamp_utc": "2024-05-15T00:00:00Z",
+        "ready": true,
+        "row_count": 33290,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:3bbfc2b7188b6a983ce66a00721bcb8602b2fb631e0079c818418f38cd222f20",
+        "file_count": 6,
+        "instrument": "BTC-USD",
+        "max_timestamp_utc": "2026-04-21T23:00:00Z",
+        "min_timestamp_utc": "2024-05-08T00:00:00Z",
+        "ready": true,
+        "row_count": 99864,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:afd5476aeb7e7d5a6c6a0e812a36e4106bf3248888ef6c6909c8658e16a78301",
+        "file_count": 6,
+        "instrument": "BTC-USD",
+        "max_timestamp_utc": "2026-04-21T20:00:00Z",
+        "min_timestamp_utc": "2024-05-08T00:00:00Z",
+        "ready": true,
+        "row_count": 24984,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:ab8c8d02c5bc76ea99e733e9f062a89415e0b2fd94c628be09c041f62f1f6689",
+        "file_count": 4,
+        "instrument": "DOT-USD",
+        "max_timestamp_utc": "2026-04-21T23:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 66576,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:13996de1ef236f92b7baf40a68b7d9330f25a042192fba524ed2adf8a354c3f6",
+        "file_count": 4,
+        "instrument": "DOT-USD",
+        "max_timestamp_utc": "2026-04-21T20:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 16656,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:8266d7aa2341062ef424b6122abcc5766cfdb5285a66d94f34aaf5d505352b7d",
+        "file_count": 447,
+        "instrument": "ETH-EUR",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-04T00:00:00Z",
+        "ready": true,
+        "row_count": 3085,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:7429f66338f2ab09576e5fc1debf9f718eee5406a894a4621cf377a3f24f56b5",
+        "file_count": 1,
+        "instrument": "ETH-EUR",
+        "max_timestamp_utc": "2026-04-24T23:00:00Z",
+        "min_timestamp_utc": "2024-05-25T00:00:00Z",
+        "ready": true,
+        "row_count": 16645,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:ebf1204497ca1d4a2d06d74fc0ac4f422d9aad95b9f7ccb2865839e145fa339d",
+        "file_count": 6,
+        "instrument": "ETH-USD",
+        "max_timestamp_utc": "2026-04-21T23:00:00Z",
+        "min_timestamp_utc": "2024-05-08T00:00:00Z",
+        "ready": true,
+        "row_count": 99864,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:926b500f57a711cef56b98540c19d44c49183f13cc90a72853c813553556e2fd",
+        "file_count": 6,
+        "instrument": "ETH-USD",
+        "max_timestamp_utc": "2026-04-21T20:00:00Z",
+        "min_timestamp_utc": "2024-05-08T00:00:00Z",
+        "ready": true,
+        "row_count": 24984,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:77baaa09f463a1af96093ea2d97744f02a6302ef36394f0e0f47d1d75c785ff6",
+        "file_count": 4,
+        "instrument": "LINK-USD",
+        "max_timestamp_utc": "2026-04-21T23:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 66576,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:460d5baf21f13fe8dd42beeb3881ceabb4cf635bf97e61f147d66423b384f3aa",
+        "file_count": 4,
+        "instrument": "LINK-USD",
+        "max_timestamp_utc": "2026-04-21T20:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 16656,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:8041001d3ce01cfc503f0ab5a59bc152bdec3738a26d8e73fc997c313bba1d8a",
+        "file_count": 1,
+        "instrument": "META",
+        "max_timestamp_utc": "2026-04-24T17:30:00Z",
+        "min_timestamp_utc": "2024-05-28T13:30:00Z",
+        "ready": true,
+        "row_count": 952,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:d0c2bd6a4abe3926328a38dfc33f37854d016f041adcd33e6fe6267f7bcacd7c",
+        "file_count": 465,
+        "instrument": "MSFT",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "ready": true,
+        "row_count": 2325,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:127207bc47bf93e04d8cfcb1545a889a72de9df39c9836a6105d920f632c66ae",
+        "file_count": 1,
+        "instrument": "MSFT",
+        "max_timestamp_utc": "2026-04-24T17:30:00Z",
+        "min_timestamp_utc": "2024-05-28T13:30:00Z",
+        "ready": true,
+        "row_count": 952,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:c1fde4f3c570e9504208d5082f29dc2d735f565f48c7da67b655366441cf6e7d",
+        "file_count": 485,
+        "instrument": "NVDA",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-06T00:00:00Z",
+        "ready": true,
+        "row_count": 2425,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:92c37ba17473ce118acde948b1f03123367668526938cf1587c2c4cfe975cd3d",
+        "file_count": 2,
+        "instrument": "NVDA",
+        "max_timestamp_utc": "2026-04-24T17:30:00Z",
+        "min_timestamp_utc": "2024-05-15T13:30:00Z",
+        "ready": true,
+        "row_count": 1904,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:ef9455ce9a7e419455fd62e40ba724ec3dde3fa5890680cba6e89ec293caf221",
+        "file_count": 439,
+        "instrument": "SOL-EUR",
+        "max_timestamp_utc": "2026-05-22T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "ready": true,
+        "row_count": 3029,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:496e237e7efdfcede2e2e75d52930699ff1f47440bb5a3b7b3d693ab02c1145a",
+        "file_count": 1,
+        "instrument": "SOL-EUR",
+        "max_timestamp_utc": "2026-04-24T23:00:00Z",
+        "min_timestamp_utc": "2024-05-25T00:00:00Z",
+        "ready": true,
+        "row_count": 16645,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:d989c0e5567860523ba00ffe41d2204e804bdb02faac37288449443599b3c5d6",
+        "file_count": 4,
+        "instrument": "SOL-USD",
+        "max_timestamp_utc": "2026-04-21T23:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 66576,
+        "source": "yfinance",
+        "timeframe": "1h"
+      },
+      {
+        "content_hash": "sha256:f2dede344be53faa1f078ef4df76e0e5112b3bb793cb6fdd90eff997dbd3a41b",
+        "file_count": 4,
+        "instrument": "SOL-USD",
+        "max_timestamp_utc": "2026-04-21T20:00:00Z",
+        "min_timestamp_utc": "2024-05-13T00:00:00Z",
+        "ready": true,
+        "row_count": 16656,
+        "source": "yfinance",
+        "timeframe": "4h"
+      },
+      {
+        "content_hash": "sha256:c7d06d5e229d9196ca22354057c6e587624568c7148c540260f765737b8296c1",
+        "file_count": 1,
+        "instrument": "TEST",
+        "max_timestamp_utc": "2026-04-21T00:00:00Z",
+        "min_timestamp_utc": "2026-04-15T00:00:00Z",
+        "ready": true,
+        "row_count": 5,
+        "source": "yfinance",
+        "timeframe": "1d"
+      },
+      {
+        "content_hash": "sha256:37f9903d2e0671e54b1803e32e1bdac3fbc8bf1b735cd1fe058e97c795d80d3a",
+        "file_count": 1,
+        "instrument": "TSM",
+        "max_timestamp_utc": "2026-04-24T17:30:00Z",
+        "min_timestamp_utc": "2024-05-28T13:30:00Z",
+        "ready": true,
+        "row_count": 952,
+        "source": "yfinance",
+        "timeframe": "4h"
+      }
+    ]
+  },
+  "report_kind": "qre_ohlcv_cache_foundation",
+  "safety_invariants": {
+    "broker_risk_execution_forbidden": true,
+    "external_source_activation_not_required": true,
+    "fetches_external_data": false,
+    "mutates_cache": false,
+    "mutates_frozen_contracts": false,
+    "mutates_research_outputs": false,
+    "paper_shadow_live_forbidden": true,
+    "read_only": true,
+    "source_activation_remains_separate": true
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "cache_file_count": 4189,
+    "cache_manifest_status": "ready",
+    "cache_root_status_counts": {
+      "present": 2
+    },
+    "coverage_row_count": 34,
+    "external_blocker_count": 13,
+    "external_blockers_requiring_operator_or_credentials": 5,
+    "instrument_count": 20,
+    "local_source_status_counts": {
+      "ready": 34
+    },
+    "manifest_content_hash": "sha256:7017b28ce6c1886dd3d4c7778d57181ee825883bb744c56fed61893030ca910a",
+    "operator_summary": "Local OHLCV/cache foundation is ready from repository-local datasets. Cache manifest, source-quality readiness, source/cache materialization, and throughput policy are aligned, while external source activation remains separately blocked until explicit manifest, license, and policy gates pass.",
+    "ready_coverage_row_count": 34,
+    "research_ready": true,
+    "source_cache_linked": true,
+    "source_count": 1,
+    "source_quality_status": "ready",
+    "status": "ready",
+    "throughput_status": "ready",
+    "timeframe_count": 3
+  },
+  "supporting_reports": {
+    "cache_manifest_status": {
+      "fails_closed": false,
+      "path": "logs/qre_data_cache_manifest/latest.json",
+      "research_ready": true,
+      "schema_version": "1.0",
+      "status": "ready"
+    },
+    "cache_throughput": {
+      "blocked_reason_counts": {},
+      "cache_manifest_ready": true,
+      "duckdb_catalog_manifest_ready": true,
+      "polars_use_policy_ready": true,
+      "research_ready": true,
+      "snapshot_contract_ready": true,
+      "status": "ready"
+    },
+    "source_cache_materialization": {
+      "cache_manifest_sidecar_status": "present_ready",
+      "missing_sidecars": [],
+      "present_not_ready_sidecars": [],
+      "source_cache_readiness_linked": true,
+      "source_quality_sidecar_status": "present_ready"
+    },
+    "source_quality_status": {
+      "fails_closed": false,
+      "path": "logs/qre_data_source_quality_readiness/latest.json",
+      "research_ready": true,
+      "schema_version": "1.0",
+      "status": "ready"
+    }
+  }
+}
