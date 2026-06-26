@@ -3249,7 +3249,8 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017P`
 - title: Routing Baseline Comparison.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #651, merge SHA `ed0b9700106b23d18c14c9e9b06a5084e82f113d`; implementation added `research/qre_routing_baseline_comparison.py`, canonical doc `docs/governance/qre_routing_baseline_comparison.md`, and focused tests in `tests/unit/test_qre_routing_baseline_comparison.py`; validation: `python -m pytest tests/unit/test_qre_routing_baseline_comparison.py tests/unit/test_qre_opportunity_research_value.py tests/unit/test_qre_research_cycle_router.py tests/unit/test_qre_routing_score.py -q`, `python -m research.qre_routing_baseline_comparison --write`, `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`, `python -m reporting.architecture_import_scan --format summary`, `git diff --check`; checks green; post-merge validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched; routing comparison remained deterministic, context-only, and non-authoritative.
 - purpose: compare current routing against deterministic baselines and measure
   actual decision usefulness.
 - source document:
@@ -3273,7 +3274,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017Q`
 - title: Sampling Baseline Comparison.
-- status: `blocked until ADE-QRE-017P done`
+- status: `ready`
 - purpose: compare sampling against deterministic baselines for signal density,
   adequacy, coverage, and compute efficiency.
 - source document:
