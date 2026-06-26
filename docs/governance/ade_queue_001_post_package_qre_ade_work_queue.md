@@ -2899,7 +2899,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017F`
 - title: Funnel Census and Threshold-Distance Audit.
-- status: `ready`
+- status: `done`
 - purpose: materialize full funnel counts, threshold distances, and exactly-one
   recommendation per criterion without changing thresholds.
 - source document:
@@ -2918,13 +2918,21 @@ live, broker, risk, or execution work.
 - validation required:
   - stage counts, actual values, thresholds, and distances are explicit.
   - each criterion has exactly one recommendation.
+- completion evidence: PR #630, merge SHA
+  `41a0dd2b7c111360facc9dfc866d17dc6b611e9e`; read-only funnel census and
+  threshold-distance audit reporter added in
+  `reporting/qre_funnel_threshold_audit.py`, with governance note
+  `docs/governance/qre_funnel_threshold_audit.md`; required CI checks green
+  before squash-merge; post-merge queue/governance validation pending in the
+  follow-up queue-state PR; frozen contracts unchanged; protected/execution
+  paths untouched.
 - next dependency: `ADE-QRE-017G`.
 
 ### ADE-QRE-017G - Actionable Failure Taxonomy and Next Actions
 
 - queue id: `ADE-QRE-017G`
 - title: Actionable Failure Taxonomy and Next Actions.
-- status: `blocked until ADE-QRE-017F done`
+- status: `ready`
 - purpose: expand evidence-backed failure attribution and bind each supported
   failure class to exactly one bounded advisory next action.
 - source document:
