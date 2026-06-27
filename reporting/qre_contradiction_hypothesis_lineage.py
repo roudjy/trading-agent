@@ -6,18 +6,18 @@ import os
 from pathlib import Path
 from typing import Any, Final
 
-from research import qre_behavior_thesis_evidence as thesis_evidence
-from research import qre_behavior_thesis_registry as thesis_registry
-from research import qre_contradiction_staleness_intelligence as contradiction_intelligence
-from research import qre_lineage_graph_v1 as lineage_graph
-
-
 REPORT_KIND: Final[str] = "qre_contradiction_hypothesis_lineage"
 SCHEMA_VERSION: Final[str] = "1.0"
 MODULE_VERSION: Final[str] = "ade-qre-017s-2026-06-27"
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_contradiction_hypothesis_lineage")
 LATEST_NAME: Final[str] = "latest.json"
 DOC_PATH: Final[Path] = Path("docs/governance/qre_contradiction_hypothesis_lineage.md")
+DEFAULT_THESIS_REGISTRY_PATH: Final[Path] = Path("logs/qre_behavior_thesis_registry/latest.json")
+DEFAULT_THESIS_EVIDENCE_PATH: Final[Path] = Path("logs/qre_behavior_thesis_evidence/latest.json")
+DEFAULT_LINEAGE_GRAPH_PATH: Final[Path] = Path("logs/qre_lineage_graph_v1/latest.json")
+DEFAULT_CONTRADICTION_PATH: Final[Path] = Path(
+    "logs/qre_contradiction_staleness_intelligence/latest.json"
+)
 WRITE_PREFIXES: Final[tuple[str, ...]] = (
     "logs/qre_contradiction_hypothesis_lineage/",
     "docs/governance/qre_contradiction_hypothesis_lineage.md",
@@ -108,18 +108,10 @@ def build_contradiction_hypothesis_lineage(
     contradiction_report: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = repo_root or Path.cwd()
-    thesis_registry_report = thesis_registry_report or thesis_registry.build_behavior_thesis_registry(
-        repo_root=root
-    )
-    thesis_evidence_report = thesis_evidence_report or thesis_evidence.build_behavior_thesis_evidence(
-        repo_root=root
-    )
-    lineage_graph_report = lineage_graph_report or lineage_graph.build_qre_lineage_graph_v1(
-        repo_root=root
-    )
-    contradiction_report = contradiction_report or contradiction_intelligence.build_contradiction_staleness_intelligence(
-        repo_root=root
-    )
+    thesis_registry_report = thesis_registry_report or _read_json(root / DEFAULT_THESIS_REGISTRY_PATH) or {}
+    thesis_evidence_report = thesis_evidence_report or _read_json(root / DEFAULT_THESIS_EVIDENCE_PATH) or {}
+    lineage_graph_report = lineage_graph_report or _read_json(root / DEFAULT_LINEAGE_GRAPH_PATH) or {}
+    contradiction_report = contradiction_report or _read_json(root / DEFAULT_CONTRADICTION_PATH) or {}
 
     thesis_rows = _read_rows(thesis_registry_report, "rows")
     evidence_rows = _read_rows(thesis_evidence_report, "rows")
@@ -295,10 +287,10 @@ def build_contradiction_hypothesis_lineage(
         },
         "rows": rows,
         "artifact_references": {
-            "thesis_registry": "logs/qre_behavior_thesis_registry/latest.json",
-            "thesis_evidence": "logs/qre_behavior_thesis_evidence/latest.json",
-            "lineage_graph_v1": "logs/qre_lineage_graph_v1/latest.json",
-            "contradiction_staleness_intelligence": "logs/qre_contradiction_staleness_intelligence/latest.json",
+            "thesis_registry": DEFAULT_THESIS_REGISTRY_PATH.as_posix(),
+            "thesis_evidence": DEFAULT_THESIS_EVIDENCE_PATH.as_posix(),
+            "lineage_graph_v1": DEFAULT_LINEAGE_GRAPH_PATH.as_posix(),
+            "contradiction_staleness_intelligence": DEFAULT_CONTRADICTION_PATH.as_posix(),
         },
         "authority_boundary": {
             "read_only": True,
