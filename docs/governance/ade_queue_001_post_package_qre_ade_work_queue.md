@@ -3347,7 +3347,8 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017T`
 - title: Evidence Decay.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #660, merge SHA `da72a1d7f9e86ad9d07455e1757679f27cb4039c`; implementation added `reporting/qre_evidence_decay.py`, canonical doc `docs/governance/qre_evidence_decay.md`, and focused tests in `tests/unit/test_qre_evidence_decay.py`; validation: `python -m pytest tests/unit/test_qre_evidence_decay.py tests/unit/test_qre_contradiction_hypothesis_lineage.py tests/unit/test_qre_contradiction_staleness_intelligence.py tests/unit/test_qre_behavior_thesis_evidence.py -q` (`18 passed`), `python -m reporting.qre_evidence_decay --write`, `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q` (`157 passed`), `python -m reporting.architecture_import_scan --format summary` (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched; evidence decay remained deterministic, read-only, context-only, and fail-closed where freshness or lineage could not actually support readiness.
 - purpose: implement freshness and decay semantics without rewriting history.
 - source document:
   `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
@@ -3370,7 +3371,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017U`
 - title: Operator Decision Report.
-- status: `blocked until ADE-QRE-017T done`
+- status: `ready`
 - purpose: produce one concise operator report per thesis with a closed final
   decision vocabulary and exactly one next action.
 - source document:
