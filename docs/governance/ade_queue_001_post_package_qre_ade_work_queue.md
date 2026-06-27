@@ -3298,7 +3298,8 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017R`
 - title: Dead-Zone and Duplicate Suppression Efficacy.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #656, merge SHA `aad09dc59713f528f7d166decd6625a7f14adeab`; implementation added `reporting/qre_suppression_efficacy.py`, canonical doc `docs/governance/qre_suppression_efficacy.md`, and focused tests in `tests/unit/test_qre_suppression_efficacy.py`; validation: `python -m pytest tests/unit/test_qre_suppression_efficacy.py tests/unit/test_qre_routing_baseline_comparison.py tests/unit/test_qre_sampling_baseline_comparison.py tests/unit/test_qre_prior_failure_retrieval.py -q` (`26 passed`), `python -m reporting.qre_suppression_efficacy --write`, `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q` (`157 passed`), `python -m reporting.architecture_import_scan --format summary` (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched; suppression efficacy remained deterministic, read-only, context-only, and fail-closed where no same-population no-suppression baseline exists.
 - purpose: prove whether suppression prevents repeated low-value research.
 - source document:
   `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
@@ -3321,7 +3322,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017S`
 - title: Contradiction Graph and Hypothesis Lineage.
-- status: `blocked until ADE-QRE-017R done`
+- status: `ready`
 - purpose: produce a deterministic inspectable lineage from source through next
   action without introducing unnecessary graph infrastructure.
 - source document:
