@@ -3322,7 +3322,8 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017S`
 - title: Contradiction Graph and Hypothesis Lineage.
-- status: `ready`
+- status: `done`
+- completion evidence: PR #658, merge SHA `f2b28b44f3d73667792b6f0f1e5d0e226c100595`; implementation added `reporting/qre_contradiction_hypothesis_lineage.py`, canonical doc `docs/governance/qre_contradiction_hypothesis_lineage.md`, and focused tests in `tests/unit/test_qre_contradiction_hypothesis_lineage.py`; validation: `python -m pytest tests/unit/test_qre_contradiction_hypothesis_lineage.py tests/unit/test_qre_lineage_graph_v1.py tests/unit/test_qre_contradiction_staleness_intelligence.py tests/unit/test_qre_behavior_thesis_registry.py tests/unit/test_qre_behavior_thesis_evidence.py -q` (`27 passed`), `python -m reporting.qre_contradiction_hypothesis_lineage --write`, `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q` (`157 passed`), `python -m reporting.architecture_import_scan --format summary` (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched; contradiction and hypothesis lineage remained deterministic, read-only, context-only, and explicit about orphan and missing-lineage states.
 - purpose: produce a deterministic inspectable lineage from source through next
   action without introducing unnecessary graph infrastructure.
 - source document:
@@ -3346,7 +3347,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017T`
 - title: Evidence Decay.
-- status: `blocked until ADE-QRE-017S done`
+- status: `ready`
 - purpose: implement freshness and decay semantics without rewriting history.
 - source document:
   `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`.
