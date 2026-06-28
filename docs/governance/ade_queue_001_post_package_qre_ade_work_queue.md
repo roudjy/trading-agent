@@ -3371,7 +3371,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017U`
 - title: Operator Decision Report.
-- status: `ready`
+- status: `done`
 - purpose: produce one concise operator report per thesis with a closed final
   decision vocabulary and exactly one next action.
 - source document:
@@ -3390,13 +3390,26 @@ live, broker, risk, or execution work.
 - validation required:
   - final decisions are one of `SUPPORTED_FOR_REVIEW`, `REJECTED`,
     `INSUFFICIENT_EVIDENCE`, or `BLOCKED`.
+- completion evidence: PR #663, merge SHA
+  `d04502c5c64d87de0f59bed1a64e5e39eff0e7de`; implementation added
+  `reporting/qre_operator_decision_report.py`, canonical doc
+  `docs/governance/qre_operator_decision_report.md`, and focused tests in
+  `tests/unit/test_qre_operator_decision_report.py`; validation:
+  `python -m pytest tests/unit/test_qre_operator_decision_report.py tests/unit/test_qre_operator_closed_loop_report.py tests/unit/test_operator_decision_surface.py tests/unit/test_qre_evidence_decay.py tests/unit/test_qre_contradiction_hypothesis_lineage.py tests/unit/test_qre_behavior_thesis_registry.py tests/unit/test_qre_behavior_thesis_evidence.py -q` (`48 passed`),
+  `python -m reporting.qre_operator_decision_report --write`,
+  `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+  (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+  (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge
+  validation passed on `main`; frozen contracts unchanged; protected/execution
+  paths untouched; operator decision rows remained deterministic, read-only,
+  context-only, and non-authoritative.
 - next dependency: `ADE-QRE-017V`.
 
 ### ADE-QRE-017V - Why-Explored, Why-Failed, Why-Blocked Surfaces
 
 - queue id: `ADE-QRE-017V`
 - title: Why-Explored, Why-Failed, Why-Blocked Surfaces.
-- status: `blocked until ADE-QRE-017U done`
+- status: `ready`
 - purpose: consolidate explanation surfaces into consistent evidence-linked
   outputs without adding mutation routes.
 - source document:
