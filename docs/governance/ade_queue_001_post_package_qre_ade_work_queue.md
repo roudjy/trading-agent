@@ -3542,7 +3542,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017Z`
 - title: Funnel Diagnosis After Broad Campaign.
-- status: `ready`
+- status: `done`
 - purpose: diagnose the primary bottleneck after broad execution without
   changing criteria.
 - source document:
@@ -3559,13 +3559,30 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - exactly one primary bottleneck is selected from the allowed diagnosis set.
+- completion evidence:
+  - PR #673, merge SHA `9914934fe3d02d1ba114be4b04163021cdd1688d`;
+    implementation added `reporting/qre_broad_campaign_funnel_diagnosis.py`,
+    focused tests in
+    `tests/unit/test_qre_broad_campaign_funnel_diagnosis.py`, and canonical
+    doc `docs/governance/qre_broad_campaign_funnel_diagnosis.md`; validation:
+    `python -m pytest tests/unit/test_qre_broad_campaign_funnel_diagnosis.py tests/unit/test_qre_broad_campaign_execution.py tests/unit/test_qre_campaign_portfolio_plan.py tests/unit/test_qre_preregistered_campaign_manifest.py tests/unit/test_qre_funnel_threshold_audit.py -q`
+    (`26 passed`), `python -m reporting.qre_broad_campaign_funnel_diagnosis --write`,
+    `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+    (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+    (`forbidden_edge_count: 0`), `git diff --check`; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched; deterministic diagnosis identity
+    `qcz_d856dd708bbd3468` recorded `9` raw scopes, `0` eligible-ready cells,
+    primary bottleneck `evidence_completeness`, secondary bottlenecks
+    `null_controls` and `identity_ambiguity`, and retained exactly one
+    recommendation per criterion without recalibration.
 - next dependency: `ADE-QRE-017AA`.
 
 ### ADE-QRE-017AA - Single-Class Recalibration
 
 - queue id: `ADE-QRE-017AA`
 - title: Single-Class Recalibration.
-- status: `blocked until ADE-QRE-017Z done`
+- status: `ready`
 - purpose: allow one evidence-justified criterion-class change with a
   preregistered expected effect and regression conditions.
 - source document:
