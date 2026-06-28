@@ -3665,7 +3665,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017AC`
 - title: Repeated Independent OOS Evidence.
-- status: `ready`
+- status: `done`
 - purpose: run independent unseen OOS repetitions where existing data permits
   and record precise blockers otherwise.
 - source document:
@@ -3684,13 +3684,32 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - independent evidence or the exact blocker is explicit per hypothesis.
+- completion evidence:
+  - PR #679, merge SHA `806e57e9ed01464fd249661434a9043d60267b3a`;
+    implementation added `reporting/qre_repeated_independent_oos.py`,
+    focused tests in `tests/unit/test_qre_repeated_independent_oos.py`, and
+    canonical doc `docs/governance/qre_repeated_independent_oos.md`;
+    validation:
+    `python -m pytest tests/unit/test_qre_repeated_independent_oos.py tests/unit/test_qre_same_input_replay.py tests/unit/test_qre_single_class_recalibration.py tests/unit/test_qre_broad_campaign_funnel_diagnosis.py tests/unit/test_qre_broad_campaign_execution.py tests/unit/test_qre_preregistered_campaign_manifest.py -q`
+    (`28 passed`), `python -m reporting.qre_repeated_independent_oos --write`,
+    `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+    (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+    (`forbidden_edge_count: 0`), `git diff --check`; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched; deterministic independent OOS identity
+    `qrao_f32f6f503b9d60f5` recorded an evidence-backed
+    `INSUFFICIENT_EVIDENCE` outcome with `0` supported-for-review hypotheses,
+    `0` independent-ready hypotheses, `6` theses blocked before campaign
+    lineage, and the only campaign-backed thesis (`trend_pullback_v1`) already
+    fail-closed rejected after two consumed OOS windows, `0` accepted OOS, and
+    incomplete null controls.
 - next dependency: `ADE-QRE-017AD`.
 
 ### ADE-QRE-017AD - Synthesis-Readiness Review
 
 - queue id: `ADE-QRE-017AD`
 - title: Synthesis-Readiness Review.
-- status: `blocked until ADE-QRE-017AC done`
+- status: `ready`
 - purpose: produce the review-only final synthesis-readiness outcome without
   implementing synthesis.
 - source document:
