@@ -3513,7 +3513,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017Y`
 - title: Broad Campaign Execution.
-- status: `ready`
+- status: `done`
 - purpose: execute the preregistered campaign through existing QRE research
   execution paths and persist full stage-level accounting.
 - source document:
@@ -3534,13 +3534,15 @@ live, broker, risk, or execution work.
   - campaign outputs distinguish completed, rejected, insufficient evidence,
     blocked, timed out, errored, and not executed.
   - negative campaigns remain valid when fully explained.
+- completion evidence:
+  - PR #671, merge SHA `a8fc4c9ba1deeb2e3fa9962f9bd5eee86b4dc0bd`; implementation added `reporting/qre_broad_campaign_execution.py`, focused tests in `tests/unit/test_qre_broad_campaign_execution.py`, and canonical doc `docs/governance/qre_broad_campaign_execution.md`; validation: `python -m pytest tests/unit/test_qre_broad_campaign_execution.py tests/unit/test_qre_preregistered_campaign_manifest.py tests/unit/test_qre_campaign_portfolio_plan.py tests/unit/test_qre_research_run_manifest.py -q` (`25 passed`), `python -m reporting.qre_broad_campaign_execution --write`, `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q` (`157 passed`), `python -m reporting.architecture_import_scan --format summary` (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched; deterministic campaign execution identity `qcy_a638294b09fb8515` recorded `9` accounted rows with `0` executable cells, `4` blocked rows, `3` insufficient-evidence rows, `2` rejected rows, and fail-closed recommendation `broad_campaign_execution_fail_closed_no_executable_cells`.
 - next dependency: `ADE-QRE-017Z`.
 
 ### ADE-QRE-017Z - Funnel Diagnosis After Broad Campaign
 
 - queue id: `ADE-QRE-017Z`
 - title: Funnel Diagnosis After Broad Campaign.
-- status: `blocked until ADE-QRE-017Y done`
+- status: `ready`
 - purpose: diagnose the primary bottleneck after broad execution without
   changing criteria.
 - source document:
