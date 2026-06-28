@@ -3486,7 +3486,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017X`
 - title: Preregistered Campaign Manifest.
-- status: `ready`
+- status: `done`
 - purpose: freeze hypotheses, data identities, windows, costs, criteria,
   controls, and vocabularies before campaign execution.
 - source document:
@@ -3505,13 +3505,15 @@ live, broker, risk, or execution work.
 - validation required:
   - campaign input identity is immutable or content-addressed where
     repository-native.
+- completion evidence:
+  - PR #669, merge SHA `e7cde4bb0b2fcb37853d08f14e3c0ec4681ab156`; implementation added `reporting/qre_preregistered_campaign_manifest.py`, focused tests in `tests/unit/test_qre_preregistered_campaign_manifest.py`, and canonical doc `docs/governance/qre_preregistered_campaign_manifest.md`; validation: `python -m pytest tests/unit/test_qre_preregistered_campaign_manifest.py tests/unit/test_qre_campaign_portfolio_plan.py tests/unit/test_qre_research_run_manifest.py -q` (`19 passed`), `python -m reporting.qre_preregistered_campaign_manifest --write`, `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q` (`157 passed`), `python -m reporting.architecture_import_scan --format summary` (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge validation passed on `main`; frozen contracts unchanged; protected/execution paths untouched; deterministic manifest identity `qcm_70ac2732af273ff6`, replay identity `qcr_415cfd5a6a305b28`, `0` executable cells, and `9` blocked-appendix rows; final recommendation `no_executable_cells_available_for_preregistration`.
 - next dependency: `ADE-QRE-017Y`.
 
 ### ADE-QRE-017Y - Broad Campaign Execution
 
 - queue id: `ADE-QRE-017Y`
 - title: Broad Campaign Execution.
-- status: `blocked until ADE-QRE-017X done`
+- status: `ready`
 - purpose: execute the preregistered campaign through existing QRE research
   execution paths and persist full stage-level accounting.
 - source document:
