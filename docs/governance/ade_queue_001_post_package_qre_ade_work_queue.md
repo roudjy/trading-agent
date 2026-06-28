@@ -3624,7 +3624,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017AB`
 - title: Same-Input Replay.
-- status: `ready`
+- status: `done`
 - purpose: replay the campaign with the exact same inputs, permitting only the
   approved single criterion-class change.
 - source document:
@@ -3643,13 +3643,29 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - complete before/after funnel comparison is explicit.
+- completion evidence:
+  - PR #677, merge SHA `24e7fa9a18545a36a1c3b02e276609d4651609d5`;
+    implementation added `reporting/qre_same_input_replay.py`, focused tests in
+    `tests/unit/test_qre_same_input_replay.py`, and canonical doc
+    `docs/governance/qre_same_input_replay.md`; validation:
+    `python -m pytest tests/unit/test_qre_same_input_replay.py tests/unit/test_qre_single_class_recalibration.py tests/unit/test_qre_broad_campaign_funnel_diagnosis.py tests/unit/test_qre_broad_campaign_execution.py tests/unit/test_qre_preregistered_campaign_manifest.py -q`
+    (`24 passed`), `python -m reporting.qre_same_input_replay --write`,
+    `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+    (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+    (`forbidden_edge_count: 0`), `git diff --check`; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched; deterministic replay assessment
+    identity `qrab_566ba546394bb73d` recorded a no-change control confirmation
+    with decision `INSUFFICIENT_EVIDENCE`, unchanged manifest/replay/execution
+    identities, identical before/after funnel counts, and no new false-positive
+    surface.
 - next dependency: `ADE-QRE-017AC`.
 
 ### ADE-QRE-017AC - Repeated Independent OOS Evidence
 
 - queue id: `ADE-QRE-017AC`
 - title: Repeated Independent OOS Evidence.
-- status: `blocked until ADE-QRE-017AB done`
+- status: `ready`
 - purpose: run independent unseen OOS repetitions where existing data permits
   and record precise blockers otherwise.
 - source document:
