@@ -132,10 +132,12 @@ def _match_campaign(
     closure_report: dict[str, Any] | None,
     run_report: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    closure_scope = (
+    raw_closure_scope = (
         closure_report.get("campaign_scope") if isinstance(closure_report, dict) else {}
     )
-    run_scope = run_report.get("campaign_scope") if isinstance(run_report, dict) else {}
+    raw_run_scope = run_report.get("campaign_scope") if isinstance(run_report, dict) else {}
+    closure_scope = raw_closure_scope if isinstance(raw_closure_scope, dict) else {}
+    run_scope = raw_run_scope if isinstance(raw_run_scope, dict) else {}
     if _text(closure_scope.get("hypothesis_id")) == source_hypothesis_id:
         return closure_report, run_report
     if _text(run_scope.get("hypothesis_id")) == source_hypothesis_id:
