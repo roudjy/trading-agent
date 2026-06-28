@@ -3582,7 +3582,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017AA`
 - title: Single-Class Recalibration.
-- status: `ready`
+- status: `done`
 - purpose: allow one evidence-justified criterion-class change with a
   preregistered expected effect and regression conditions.
 - source document:
@@ -3602,13 +3602,29 @@ live, broker, risk, or execution work.
 - validation required:
   - if evidence does not justify recalibration, record rejection or
     insufficient evidence instead of fabricating a change.
+- completion evidence:
+  - PR #675, merge SHA `4553b6d8b7b09c24e979f110cc0312c04bf0a665`;
+    implementation added `reporting/qre_single_class_recalibration.py`,
+    focused tests in `tests/unit/test_qre_single_class_recalibration.py`, and
+    canonical doc `docs/governance/qre_single_class_recalibration.md`;
+    validation: `python -m pytest tests/unit/test_qre_single_class_recalibration.py tests/unit/test_qre_broad_campaign_funnel_diagnosis.py tests/unit/test_qre_broad_campaign_execution.py tests/unit/test_qre_preregistered_campaign_manifest.py -q`
+    (`20 passed`), `python -m reporting.qre_single_class_recalibration --write`,
+    `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+    (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+    (`forbidden_edge_count: 0`), `git diff --check`; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched; deterministic recalibration identity
+    `qraa_aba55d8715c34e84` recorded an evidence-backed no-change outcome with
+    decision `INSUFFICIENT_EVIDENCE`, `0` executable cells, `0`
+    eligibility-ready cells, `0` accepted OOS, `0` completed null controls,
+    and no threshold-distance evidence justifying a criterion change.
 - next dependency: `ADE-QRE-017AB`.
 
 ### ADE-QRE-017AB - Same-Input Replay
 
 - queue id: `ADE-QRE-017AB`
 - title: Same-Input Replay.
-- status: `blocked until ADE-QRE-017AA done`
+- status: `ready`
 - purpose: replay the campaign with the exact same inputs, permitting only the
   approved single criterion-class change.
 - source document:

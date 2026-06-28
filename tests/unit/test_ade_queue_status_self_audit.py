@@ -119,7 +119,7 @@ def test_current_queue_selects_017u_after_017t_completion_evidence() -> None:
     snap = audit.collect_snapshot(frozen_utc="2026-05-28T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-017AA"
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-017AB"
     assert "ADE-QRE-011" in snap["summary"]["stale_historical_ready_items"]
     assert rows["ADE-QRE-014N"]["status"] == "done"
     assert rows["ADE-QRE-014N"]["done_evidence"]["complete"] is True
@@ -212,7 +212,9 @@ def test_current_queue_selects_017u_after_017t_completion_evidence() -> None:
     assert rows["ADE-QRE-017Y"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-017Z"]["status"] == "done"
     assert rows["ADE-QRE-017Z"]["done_evidence"]["complete"] is True
-    assert rows["ADE-QRE-017AA"]["status"] == "ready"
+    assert rows["ADE-QRE-017AA"]["status"] == "done"
+    assert rows["ADE-QRE-017AA"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-017AB"]["status"] == "ready"
     assert rows["ADE-QRE-017AD"]["status"] == "blocked until ADE-QRE-017AC done"
     assert snap["safety_invariants"]["adds_approval_mutation"] is False
     assert snap["safety_invariants"]["expands_autonomous_authority"] is False
