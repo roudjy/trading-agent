@@ -3447,7 +3447,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017W`
 - title: Campaign Portfolio and Signal-Density Planning.
-- status: `ready`
+- status: `done`
 - purpose: construct a bounded multi-hypothesis campaign portfolio using
   mechanistically distinct existing capabilities.
 - source document:
@@ -3465,13 +3465,28 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - portfolio is bounded, preregistration-ready, and signal-density planned.
+- completion evidence: PR #667, merge SHA
+  `e0a1befbb9d4be1489319114af6641fd7497421c`; implementation added
+  `reporting/qre_campaign_portfolio_plan.py`, canonical doc
+  `docs/governance/qre_campaign_portfolio_plan.md`, and focused tests in
+  `tests/unit/test_qre_campaign_portfolio_plan.py`; validation:
+  `python -m pytest tests/unit/test_qre_campaign_portfolio_plan.py tests/unit/test_qre_operator_decision_report.py tests/unit/test_qre_why_surfaces.py tests/unit/test_qre_suppression_efficacy.py tests/unit/test_qre_behavior_thesis_registry.py -q`
+  (`31 passed`), `python -m reporting.qre_campaign_portfolio_plan --write`,
+  `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+  (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+  (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge
+  validation passed on `main`; frozen contracts unchanged; protected/execution
+  paths untouched; the deterministic portfolio artifact recorded `9` cells with
+  `0` preregistration-ready scopes, `5` blocked cells, `3`
+  insufficient-evidence cells, and `1` dead-zone exclusion, preserving the
+  fail-closed result without adding execution authority.
 - next dependency: `ADE-QRE-017X`.
 
 ### ADE-QRE-017X - Preregistered Campaign Manifest
 
 - queue id: `ADE-QRE-017X`
 - title: Preregistered Campaign Manifest.
-- status: `blocked until ADE-QRE-017W done`
+- status: `ready`
 - purpose: freeze hypotheses, data identities, windows, costs, criteria,
   controls, and vocabularies before campaign execution.
 - source document:
