@@ -3409,7 +3409,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017V`
 - title: Why-Explored, Why-Failed, Why-Blocked Surfaces.
-- status: `ready`
+- status: `done`
 - purpose: consolidate explanation surfaces into consistent evidence-linked
   outputs without adding mutation routes.
 - source document:
@@ -3427,13 +3427,27 @@ live, broker, risk, or execution work.
   - frozen contracts and runtime paths listed under `ADE-QRE-017`.
 - validation required:
   - explanation outputs are consistent and provenance-linked.
+- completion evidence: PR #665, merge SHA
+  `b4763248605286ad6741c0a607ee7938d7521f00`; implementation added
+  `reporting/qre_why_surfaces.py`, canonical doc
+  `docs/governance/qre_why_surfaces.md`, and focused tests in
+  `tests/unit/test_qre_why_surfaces.py`; validation:
+  `python -m pytest tests/unit/test_qre_why_surfaces.py tests/unit/test_qre_operator_decision_report.py tests/unit/test_qre_contradiction_hypothesis_lineage.py tests/unit/test_qre_evidence_decay.py tests/unit/test_operator_decision_surface.py -q`
+  (`28 passed`), `python -m reporting.qre_why_surfaces --write`,
+  `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+  (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+  (`forbidden_edge_count: 0`), `git diff --check`; checks green; post-merge
+  validation passed on `main`; frozen contracts unchanged; protected/execution
+  paths untouched; why surfaces remained deterministic, provenance-linked,
+  read-only, and explicit about missing evidence without adding execution or
+  campaign authority.
 - next dependency: `ADE-QRE-017W`.
 
 ### ADE-QRE-017W - Campaign Portfolio and Signal-Density Planning
 
 - queue id: `ADE-QRE-017W`
 - title: Campaign Portfolio and Signal-Density Planning.
-- status: `blocked until ADE-QRE-017V done`
+- status: `ready`
 - purpose: construct a bounded multi-hypothesis campaign portfolio using
   mechanistically distinct existing capabilities.
 - source document:
