@@ -2680,7 +2680,27 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017`
 - title: Trusted Research Intelligence Maturity Program.
-- status: `blocked until ADE-QRE-017AD done`
+- status: `done`
+- completion evidence:
+  - PR #681, merge SHA `be29ccaf0d9cab898194bb5cfe81f190af8a8c5f`;
+    final review-only synthesis-readiness implementation added
+    `reporting/qre_synthesis_readiness_review.py`, focused tests in
+    `tests/unit/test_qre_synthesis_readiness_review.py`, and canonical doc
+    `docs/governance/qre_synthesis_readiness_review.md`; validation:
+    `python -m pytest tests/unit/test_qre_synthesis_readiness_review.py tests/unit/test_qre_repeated_independent_oos.py tests/unit/test_qre_same_input_replay.py tests/unit/test_qre_single_class_recalibration.py tests/unit/test_qre_broad_campaign_funnel_diagnosis.py tests/unit/test_qre_broad_campaign_execution.py tests/unit/test_qre_preregistered_campaign_manifest.py -q`
+    (`32 passed`), `python -m reporting.qre_synthesis_readiness_review --write`,
+    `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+    (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+    (`forbidden_edge_count: 0`), `git diff --check`; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched; deterministic synthesis-readiness
+    identity `qrsr_1ca565566a3c96e3` recorded final outcome
+    `CONTINUE_BLOCKED`, confirmed `0` supported-for-review hypotheses, `0`
+    accepted OOS, `0` independent-ready hypotheses, `0` completed null
+    controls, six blocked theses missing campaign lineage, one rejected thesis
+    (`trend_pullback_v1`) after two consumed OOS windows, and exact next
+    permitted action
+    `launch_separate_remediation_program_for_lineage_identity_controls_evidence_and_capacity_before_any_synthesis_design_review`.
 - purpose: govern the full scaffold-to-trust maturity program selected by
   `ADE-QRE-016H` without collapsing the work into one giant implementation
   release.
@@ -2714,7 +2734,7 @@ live, broker, risk, or execution work.
   - parent stays non-executable and is completed only after `ADE-QRE-017A`
     through `ADE-QRE-017AD` are done with PR, merge, CI, and post-merge
     evidence recorded.
-- next dependency: `ADE-QRE-017A`.
+- next dependency: none.
 
 ### ADE-QRE-017A - Baseline Reconciliation and Maturity Matrix
 
@@ -3709,7 +3729,7 @@ live, broker, risk, or execution work.
 
 - queue id: `ADE-QRE-017AD`
 - title: Synthesis-Readiness Review.
-- status: `ready`
+- status: `done`
 - purpose: produce the review-only final synthesis-readiness outcome without
   implementing synthesis.
 - source document:
@@ -3731,4 +3751,29 @@ live, broker, risk, or execution work.
     `INSUFFICIENT_EVIDENCE`.
   - synthesis remains blocked unless a separate later design review is
     explicitly selected.
+- completion evidence:
+  - PR #681, merge SHA `be29ccaf0d9cab898194bb5cfe81f190af8a8c5f`;
+    implementation added `reporting/qre_synthesis_readiness_review.py`,
+    focused tests in `tests/unit/test_qre_synthesis_readiness_review.py`, and
+    canonical doc `docs/governance/qre_synthesis_readiness_review.md`;
+    validation:
+    `python -m pytest tests/unit/test_qre_synthesis_readiness_review.py tests/unit/test_qre_repeated_independent_oos.py tests/unit/test_qre_same_input_replay.py tests/unit/test_qre_single_class_recalibration.py tests/unit/test_qre_broad_campaign_funnel_diagnosis.py tests/unit/test_qre_broad_campaign_execution.py tests/unit/test_qre_preregistered_campaign_manifest.py -q`
+    (`32 passed`), `python -m reporting.qre_synthesis_readiness_review --write`,
+    `python scripts/governance_lint.py`, `python -m pytest tests/architecture -q`
+    (`157 passed`), `python -m reporting.architecture_import_scan --format summary`
+    (`forbidden_edge_count: 0`), `git diff --check`; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched; deterministic synthesis-readiness
+    identity `qrsr_1ca565566a3c96e3` recorded final readiness outcome
+    `CONTINUE_BLOCKED` with failed mandatory gates
+    `evidence_density_maturity`, `reason_record_completeness`,
+    `suppression_usefulness`, `identity_readiness`,
+    `campaign_lineage_completeness`, `hypothesis_lineage_completeness`,
+    `reproducibility`, `evidence_freshness`, `accepted_oos`,
+    `repeated_independent_oos`, `null_control_completeness`,
+    `validation_completeness`, `operator_decision_report_completeness`, and
+    `evidence_authority_ambiguity_absent`; only `routing_usefulness`,
+    `sampling_usefulness`, `source_quality`, `data_readiness`,
+    `contradiction_visibility`, and `trading_authority_leakage_absent`
+    satisfied.
 - next dependency: none.
