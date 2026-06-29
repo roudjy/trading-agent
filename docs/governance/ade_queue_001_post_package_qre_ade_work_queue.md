@@ -4038,3 +4038,159 @@ live, broker, risk, or execution work.
   campaign produces new authoritative evidence.
 - expected next queue item: none unless the remediation program yields a new
   synthesis-eligible state.
+
+### ADE-QRE-019 - Governed Automated Research Strategy Generation Program
+
+- queue id: `ADE-QRE-019`
+- status: `ready`
+- purpose: admit and implement bounded deterministic automated
+  research-only executable strategy generation, validation, registration,
+  preset generation, null-control specification, lineage materialization,
+  and portfolio readiness for approved theses after ADE-QRE-018.
+- source documents:
+  - `docs/roadmap/qre_automated_strategy_generation_program.md`
+  - `docs/governance/ade_qre_019_governance_conflict_matrix.md`
+- authoritative baseline:
+  - `ADE-QRE-017` complete
+  - `ADE-QRE-018A` through `ADE-QRE-018I` complete
+  - `ADE-QRE-018J` blocked because no cell is
+    `READY_FOR_PREREGISTRATION`
+- scope:
+  - deterministic typed strategy specifications
+  - deterministic executable research strategy generation
+  - generated test generation
+  - static safety and architecture validation
+  - isolated sandbox validation
+  - automatic generated-registry admission
+  - canonical resolved research-only catalog inclusion
+  - bounded preset generation
+  - null-control specification generation
+  - campaign lineage and portfolio integration
+  - isolated generated-research surfaces under `packages/**` and
+    `agent/backtesting/generated_strategies/**`
+- forbidden scope:
+  - paper, shadow, or live activation
+  - broker, risk, or execution mutation
+  - campaign execution
+  - OOS/null-control bypass
+  - unconstrained LLM generation
+  - stochastic mutation
+  - frozen empirical contract mutation
+  - `.claude/**` mutation
+  - `research/**` write-surface carveouts
+- expected next queue item: `ADE-QRE-019A`.
+
+### ADE-QRE-019A - Governance and Research-Only Generation Authority
+
+- queue id: `ADE-QRE-019A`
+- status: `ready`
+- depends on: `ADE-QRE-018I done`.
+- purpose: replace categorical anti-generation policy with bounded
+  deterministic research-only generation authority without weakening
+  `.claude/**` or `research/**` protections.
+- expected next queue item: `ADE-QRE-019B`.
+
+### ADE-QRE-019B - Typed Strategy Specification Contract
+
+- queue id: `ADE-QRE-019B`
+- status: `ready`
+- depends on: `ADE-QRE-019A done`.
+- purpose: introduce the closed, versioned, typed strategy specification.
+- expected next queue item: `ADE-QRE-019C`.
+
+### ADE-QRE-019C - Thesis-to-Specification Compiler
+
+- queue id: `ADE-QRE-019C`
+- status: `ready`
+- depends on: `ADE-QRE-019B done`.
+- purpose: deterministically compile approved theses into strategy specs.
+- expected next queue item: `ADE-QRE-019D`.
+
+### ADE-QRE-019D - Deterministic Executable Strategy Generator
+
+- queue id: `ADE-QRE-019D`
+- status: `ready`
+- depends on: `ADE-QRE-019C done`.
+- purpose: render repository-native executable research strategy code from
+  typed specs.
+- expected next queue item: `ADE-QRE-019E`.
+
+### ADE-QRE-019E - Automated Test Generator
+
+- queue id: `ADE-QRE-019E`
+- status: `ready`
+- depends on: `ADE-QRE-019D done`.
+- purpose: generate deterministic repository-native tests for generated
+  strategies.
+- expected next queue item: `ADE-QRE-019F`.
+
+### ADE-QRE-019F - Static Safety and Architecture Gate
+
+- queue id: `ADE-QRE-019F`
+- status: `ready`
+- depends on: `ADE-QRE-019E done`.
+- purpose: reject unsafe, nondeterministic, or architecture-violating generated
+  code before import or execution.
+- expected next queue item: `ADE-QRE-019G`.
+
+### ADE-QRE-019G - Isolated Sandbox Validation
+
+- queue id: `ADE-QRE-019G`
+- status: `ready`
+- depends on: `ADE-QRE-019F done`.
+- purpose: validate importability, generated tests, determinism, and side-effect
+  isolation in a controlled sandbox.
+- expected next queue item: `ADE-QRE-019H`.
+
+### ADE-QRE-019H - Automatic Research-Only Registration
+
+- queue id: `ADE-QRE-019H`
+- status: `ready`
+- depends on: `ADE-QRE-019G done`.
+- purpose: atomically admit successful generated strategies into the isolated
+  generated registry and make them resolver-visible in research-only state with
+  no manual registration gate.
+- expected next queue item: `ADE-QRE-019I`.
+
+### ADE-QRE-019I - Automatic Bounded Preset Generation
+
+- queue id: `ADE-QRE-019I`
+- status: `ready`
+- depends on: `ADE-QRE-019H done`.
+- purpose: generate bounded deterministic presets for registered strategies.
+- expected next queue item: `ADE-QRE-019J`.
+
+### ADE-QRE-019J - Automatic Null-Control Specification
+
+- queue id: `ADE-QRE-019J`
+- status: `ready`
+- depends on: `ADE-QRE-019I done`.
+- purpose: generate mechanism-appropriate deterministic null-control
+  specifications without claiming empirical execution.
+- expected next queue item: `ADE-QRE-019K`.
+
+### ADE-QRE-019K - Campaign Lineage and Portfolio Integration
+
+- queue id: `ADE-QRE-019K`
+- status: `ready`
+- depends on: `ADE-QRE-019J done`.
+- purpose: integrate generated strategy outputs into lineage and portfolio
+  readiness surfaces without executing campaigns.
+- expected next queue item: `ADE-QRE-019L`.
+
+### ADE-QRE-019L - Apply Pipeline to Blocked Theses
+
+- queue id: `ADE-QRE-019L`
+- status: `ready`
+- depends on: `ADE-QRE-019K done`.
+- purpose: run the automated pipeline against the six currently blocked theses
+  and preserve exact fail-closed outcomes where eligibility is not met.
+- expected next queue item: `ADE-QRE-019M`.
+
+### ADE-QRE-019M - Automated Generation Closeout
+
+- queue id: `ADE-QRE-019M`
+- status: `ready`
+- depends on: `ADE-QRE-019L done`.
+- purpose: produce the deterministic integrated automated-generation outcome
+  and the exact next action.

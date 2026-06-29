@@ -33,6 +33,11 @@ The system must enforce a clear and modular structure aligned with the defined l
 - `registry.py` is the single source of truth for strategy registration
 - Strategy implementations live in `agent/backtesting/strategies.py`
 - Research orchestration lives in `research/run_research.py`
+- ADE-QRE-019 may introduce a generated-strategy input registry outside
+  `research/**`, but generated inputs do not become a second independent
+  authority. A single canonical resolver must compose the protected manual
+  registry with validated generated entries into one research-only resolved
+  catalog.
 - See `docs/adr/ADR-014-truth-authority-settlement.md` for the canonical authority map across registry, presets, hypothesis catalog, candidate lifecycle, campaign registry, and paper readiness Ã¢â‚¬â€ and for the formal definitions of `enabled`, `bundle_active`, `active_discovery`, and `live_eligible`.
 
 ### Output Contracts
@@ -107,7 +112,11 @@ designs Ã¢â€ â€™ Codex implements Ã¢â€ â€™ Human validates
 ## 6. Guardrails
 
 * Do not mix reasoning and implementation in one step
-* Do not let Codex invent strategies
+* Do not let Codex invent unconstrained or discretionary strategies
+* Codex may deterministically compile an approved, complete Behavior Thesis
+  through the governed ADE-QRE-019 typed specification, template generator,
+  automated safety gates, sandbox validation, generated-registry admission,
+  and a canonical resolved research-only catalog
 * Do not let Claude perform large refactors
 * Do not introduce changes without a clear hypothesis or goal
 * Do not break existing output formats without explicit intent
@@ -171,6 +180,10 @@ Do not:
 * bypass the architecture scanner or PR lifecycle;
 * activate shadow, paper, live, broker, risk, or execution behavior;
 * add live-trading capability;
+* permit arbitrary source-code generation, unconstrained LLM generation,
+  stochastic strategy mutation, or direct deployment;
+* weaken the `.claude/**` live no-touch hook or make `research/**` generally
+  writable;
 * change frozen contracts without explicit scope and tests;
 * weaken tests or hide legacy/report-only findings with broad allowlists.
 

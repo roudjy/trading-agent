@@ -33,7 +33,11 @@ New implementation is justified only when it:
 
 - This program is not a request for more generic modules.
 - Existing repository capabilities must be reused whenever possible.
-- Strategy synthesis remains blocked.
+- Strategy synthesis remained blocked throughout ADE-QRE-017. ADE-QRE-019 may
+  later admit bounded deterministic research-only executable strategy
+  generation through isolated generated-research surfaces and a canonical
+  resolved research-only catalog without changing ADE-QRE-017's completed
+  historical scope.
 - Diagnostics remain research context and do not trade.
 - Retrieval remains context and does not become evidence authority.
 - Knowledge graphs provide lineage, not truth.
@@ -41,7 +45,10 @@ New implementation is justified only when it:
 - No paper activation.
 - No live activation.
 - No broker, risk, order, execution, or capital-allocation work.
-- No executable strategy generation.
+- No executable strategy generation inside ADE-QRE-017 itself. Later
+  repository-governed programs may admit bounded deterministic research-only
+  generation without authorizing deployment and without weakening protected
+  `.claude/**` or `research/**` boundaries.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.
@@ -70,7 +77,8 @@ Repository inspection and the `ADE-QRE-014` through `ADE-QRE-016` sequence show:
   is absent;
 - operator trust remains blocked by missing evidence, missing repeatability, and
   insufficient campaign-scale closure;
-- strategy synthesis remains blocked.
+- strategy synthesis remains blocked as an ADE-QRE-017 outcome; any later
+  bounded generation authority must be admitted by a separate governed program.
 
 ## Maturity model
 
@@ -266,8 +274,8 @@ The program tracks at minimum:
 
 Deferred or forbidden for this program:
 
-- strategy synthesis implementation;
-- executable strategy generation;
+- strategy synthesis implementation inside ADE-QRE-017;
+- executable strategy generation inside ADE-QRE-017;
 - live, paper, or shadow activation;
 - broker, risk, execution, or capital-allocation changes;
 - hidden selection systems, stochastic mutation, or genetic programming;
