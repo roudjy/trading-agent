@@ -230,6 +230,17 @@ def test_phase_order_matches_a20a_phase_list() -> None:
         "ade_qre_017c",
         "ade_qre_017d",
         "ade_qre_017e",
+        "ade_qre_018a",
+        "ade_qre_018b",
+        "ade_qre_018c",
+        "ade_qre_018d",
+        "ade_qre_018e",
+        "ade_qre_018f",
+        "ade_qre_018g",
+        "ade_qre_018h",
+        "ade_qre_018i",
+        "ade_qre_018j",
+        "ade_qre_018k",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -632,7 +643,7 @@ def test_ade_qre_future_units_are_blocked_until_prior_unit_is_merged(
     assert "unsatisfied_prerequisite" in by_id[u_b["id"]]["block_reasons"]
 
 
-def test_materialized_current_a20_stack_selects_ade_qre_017c_after_017b_merge(
+def test_materialized_current_a20_stack_selects_ade_qre_018a_after_017_wave(
     tmp_path: Path,
 ) -> None:
     units_path = tmp_path / "logs" / "roadmap_task_units" / "latest.json"
@@ -646,8 +657,8 @@ def test_materialized_current_a20_stack_selects_ade_qre_017c_after_017b_merge(
     auth_path.write_text(json.dumps(auth_payload, sort_keys=True), encoding="utf-8")
 
     snap = _snap(tmp_path)
-    assert snap["selection"]["selected_unit_id"] == "u_v3_15_16_routing_governance_doc_001"
-    assert snap["selection"]["selected_phase"] == "v3.15.16"
+    assert snap["selection"]["selected_unit_id"] == "u_ade_qre_018a_queue_baseline_reconciliation_001"
+    assert snap["selection"]["selected_phase"] == "ade_qre_018a"
 
 
 # ---------------------------------------------------------------------------
