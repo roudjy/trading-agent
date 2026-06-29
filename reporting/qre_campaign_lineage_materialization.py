@@ -20,6 +20,7 @@ ARTIFACT_MARKDOWN: Final[Path] = ARTIFACT_DIR / "latest.md"
 DOC_PATH: Final[Path] = Path("docs/governance/qre_campaign_lineage_materialization.md")
 DEFAULT_CENSUS_PATH: Final[Path] = Path("logs/qre_blocked_thesis_lineage_census/latest.json")
 DEFAULT_IDENTITY_PATH: Final[Path] = Path("logs/qre_identity_ambiguity_resolution/latest.json")
+DEFAULT_GENERATED_LINEAGE_PATH: Final[Path] = Path("generated_research/lineage/generated_campaign_lineage.v1.json")
 VALID_STATES: Final[tuple[str, ...]] = (
     "COMPLETE",
     "INCOMPLETE",
@@ -44,6 +45,7 @@ def collect_snapshot(
     repo_root: Path | None = None,
     census_path: Path | None = None,
     identity_path: Path | None = None,
+    generated_lineage_path: Path | None = None,
 ) -> dict[str, object]:
     root = repo_root or Path.cwd()
     census_payload = common.read_json(root / (census_path or DEFAULT_CENSUS_PATH))
@@ -52,14 +54,34 @@ def collect_snapshot(
     identity_payload = common.read_json(root / (identity_path or DEFAULT_IDENTITY_PATH))
     if identity_payload is None:
         identity_payload = identity.collect_snapshot(repo_root=root)
+    generated_lineage_payload = common.read_json(root / (generated_lineage_path or DEFAULT_GENERATED_LINEAGE_PATH)) or {}
     identity_by_hypothesis = common.index_by(common.rows(identity_payload, "rows"), "source_hypothesis_id")
+    generated_lineage_by_hypothesis = common.index_by(common.rows(generated_lineage_payload, "rows"), "source_hypothesis_id")
     rows_out: list[dict[str, object]] = []
     for row in common.rows(census_payload, "rows"):
         source_hypothesis_id = common.text(row.get("source_hypothesis_id"))
         identity_row = identity_by_hypothesis.get(source_hypothesis_id, {})
+        generated_lineage_row = generated_lineage_by_hypothesis.get(source_hypothesis_id, {})
         lineage_status = common.text(row.get("lineage_status"))
         resolution_state = common.text(identity_row.get("resolution_state"))
-        if lineage_status in {"IMPLEMENTATION_MISSING", "PRESET_MISSING"}:
+        generated_campaign_identity = common.text(
+            generated_lineage_row.get("campaign_specification_identity")
+        )
+        generated_preset_identity = common.text(
+            generated_lineage_row.get("preset_id")
+        )
+        if generated_campaign_identity and generated_preset_identity:
+            materialization_state = "COMPLETE"
+            exact_blocker = "none"
+            next_action = (
+                common.text(generated_lineage_row.get("next_action"))
+                or "preserve_campaign_lineage_state"
+            )
+        elif generated_campaign_identity:
+            materialization_state = "PRESET_MISSING"
+            exact_blocker = "generated_strategy_registered_but_preset_missing"
+            next_action = "generate_bounded_research_preset"
+        elif lineage_status in {"IMPLEMENTATION_MISSING", "PRESET_MISSING"}:
             materialization_state = lineage_status
             exact_blocker = common.text(row.get("exact_blocker")) or "bounded_campaign_metadata_missing"
             next_action = "establish_campaign_lineage_for_thesis"
@@ -88,13 +110,14 @@ def collect_snapshot(
                 "source_identity": common.text(identity_row.get("source_identity")) or common.text(row.get("source_identity")),
                 "dataset_identity": common.text(identity_row.get("dataset_identity")) or common.text(row.get("dataset_identity")),
                 "snapshot_identity": common.text(row.get("snapshot_identity")),
-                "campaign_specification_identity": common.text(row.get("campaign_identity")),
+                "campaign_specification_identity": common.text(generated_lineage_row.get("campaign_specification_identity")) or common.text(row.get("campaign_identity")),
                 "materialization_state": materialization_state,
                 "exact_blocker": exact_blocker,
                 "next_action": next_action,
                 "provenance_refs": common.dedupe(
                     common.normalize_list(row.get("provenance_refs"))
                     + common.normalize_list(identity_row.get("provenance_refs"))
+                    + common.normalize_list(generated_lineage_row.get("provenance_refs"))
                 ),
             }
         )

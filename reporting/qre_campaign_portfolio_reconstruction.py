@@ -25,6 +25,8 @@ ARTIFACT_MARKDOWN: Final[Path] = ARTIFACT_DIR / "latest.md"
 DOC_PATH: Final[Path] = Path("docs/governance/qre_campaign_portfolio_reconstruction.md")
 DEFAULT_REGISTRY_PATH: Final[Path] = Path("logs/qre_behavior_thesis_registry/latest.json")
 DEFAULT_PORTFOLIO_PATH: Final[Path] = Path("logs/qre_campaign_portfolio_plan/latest.json")
+DEFAULT_GENERATED_PRESETS_PATH: Final[Path] = Path("generated_research/presets/generated_research_presets.v1.json")
+DEFAULT_GENERATED_LINEAGE_PATH: Final[Path] = Path("generated_research/lineage/generated_campaign_lineage.v1.json")
 VALID_STATUSES: Final[tuple[str, ...]] = (
     "READY_FOR_PREREGISTRATION",
     "READY_WITH_LIMITATIONS",
@@ -51,10 +53,14 @@ def collect_snapshot(
     repo_root: Path | None = None,
     registry_path: Path | None = None,
     portfolio_path: Path | None = None,
+    generated_presets_path: Path | None = None,
+    generated_lineage_path: Path | None = None,
 ) -> dict[str, Any]:
     root = repo_root or Path.cwd()
     registry = common.read_json(root / (registry_path or DEFAULT_REGISTRY_PATH)) or {}
     old_portfolio = common.read_json(root / (portfolio_path or DEFAULT_PORTFOLIO_PATH)) or {}
+    generated_presets = common.read_json(root / (generated_presets_path or DEFAULT_GENERATED_PRESETS_PATH)) or {}
+    generated_lineage = common.read_json(root / (generated_lineage_path or DEFAULT_GENERATED_LINEAGE_PATH)) or {}
     census_payload = census.collect_snapshot(repo_root=root)
     identity_payload = identity.collect_snapshot(repo_root=root)
     materialization_payload = materialization.collect_snapshot(repo_root=root)
@@ -68,6 +74,10 @@ def collect_snapshot(
     for row in old_rows:
         old_by_hypothesis.setdefault(common.text(row.get("source_hypothesis_id")), []).append(dict(row))
     registry_rows = common.rows(registry, "rows")
+    generated_presets_by_hypothesis: dict[str, list[dict[str, Any]]] = {}
+    for row in common.rows(generated_presets, "rows"):
+        generated_presets_by_hypothesis.setdefault(common.text(row.get("source_hypothesis_id")), []).append(dict(row))
+    generated_lineage_by_hypothesis = common.index_by(common.rows(generated_lineage, "rows"), "source_hypothesis_id")
     census_by_hypothesis = common.index_by(common.rows(census_payload, "rows"), "source_hypothesis_id")
     identity_by_hypothesis = common.index_by(common.rows(identity_payload, "rows"), "source_hypothesis_id")
     materialization_by_hypothesis = common.index_by(common.rows(materialization_payload, "rows"), "source_hypothesis_id")
@@ -78,7 +88,11 @@ def collect_snapshot(
     rows_out: list[dict[str, Any]] = []
     for registry_row in sorted(registry_rows, key=lambda item: common.text(item.get("source_hypothesis_id"))):
         source_hypothesis_id = common.text(registry_row.get("source_hypothesis_id"))
-        existing_rows = sorted(old_by_hypothesis.get(source_hypothesis_id, [{}]), key=lambda item: common.text(item.get("preset_name")))
+        generated_rows = generated_presets_by_hypothesis.get(source_hypothesis_id, [])
+        existing_rows = sorted(
+            old_by_hypothesis.get(source_hypothesis_id, [{}]) + generated_rows,
+            key=lambda item: common.text(item.get("preset_name")),
+        )
         if source_hypothesis_id == "trend_pullback_v1":
             existing_rows = existing_rows[:1]
         for existing in existing_rows:
@@ -88,6 +102,7 @@ def collect_snapshot(
             controls_row = controls_by_hypothesis.get(source_hypothesis_id, {})
             completion_row = completion_by_hypothesis.get(source_hypothesis_id, {})
             validation_row = validation_by_hypothesis.get(source_hypothesis_id, {})
+            generated_lineage_row = generated_lineage_by_hypothesis.get(source_hypothesis_id, {})
             if source_hypothesis_id == "trend_pullback_v1":
                 inclusion_status = "EXCLUDED_REJECTED"
                 blockers = ["historical_fail_closed_rejection_preserved", "zero_accepted_oos", "consumed_oos_windows"]
@@ -96,10 +111,22 @@ def collect_snapshot(
                 inclusion_status = "READY_FOR_PREREGISTRATION"
                 blockers = []
                 next_action = "preserve_campaign_lineage_state"
+            elif common.text(generated_lineage_row.get("campaign_readiness_state")) == "READY_WITH_LIMITATIONS":
+                inclusion_status = "BLOCKED"
+                blockers = common.dedupe(
+                    common.normalize_list(generated_lineage_row.get("blockers"))
+                    + ["null_controls_not_executed", "oos_evidence_not_materialized"]
+                )
+                next_action = common.text(generated_lineage_row.get("next_action")) or "complete_remaining_lineage_and_control_gaps"
             elif common.text(materialization_row.get("materialization_state")) in {"INCOMPLETE", "IDENTITY_BLOCKED", "PRESET_MISSING", "IMPLEMENTATION_MISSING"}:
+                materialization_blocker = (
+                    "generated_preset_missing"
+                    if common.text(materialization_row.get("materialization_state")) == "PRESET_MISSING"
+                    else common.text(materialization_row.get("exact_blocker")) or "campaign_lineage_not_materialized"
+                )
                 inclusion_status = "BLOCKED"
                 blockers = [
-                    common.text(materialization_row.get("exact_blocker")) or "campaign_lineage_not_materialized",
+                    materialization_blocker,
                     common.text(controls_row.get("blocker")) or "null_control_not_ready",
                 ]
                 next_action = common.text(materialization_row.get("next_action")) or "establish_campaign_lineage_for_thesis"
@@ -120,8 +147,8 @@ def collect_snapshot(
                     "source_hypothesis_id": source_hypothesis_id,
                     "mechanism": common.text(registry_row.get("mechanism")),
                     "preset_name": common.text(existing.get("preset_name")),
-                    "proposed_universe": existing.get("proposed_universe"),
-                    "proposed_timeframe": common.text(existing.get("proposed_timeframe")),
+                    "proposed_universe": existing.get("proposed_universe") or existing.get("universe"),
+                    "proposed_timeframe": common.text(existing.get("proposed_timeframe")) or common.text(existing.get("timeframe")),
                     "identity_status": common.text(identity_row.get("resolution_state")) or "not_visible",
                     "data_readiness": existing.get("data_readiness") or {},
                     "source_readiness": existing.get("source_readiness") or {},
@@ -145,6 +172,7 @@ def collect_snapshot(
                         + common.normalize_list(identity_row.get("provenance_refs"))
                         + common.normalize_list(completion_row.get("provenance_refs"))
                         + common.normalize_list(validation_row.get("provenance_refs"))
+                        + common.normalize_list(generated_lineage_row.get("provenance_refs"))
                     ),
                 }
             )
