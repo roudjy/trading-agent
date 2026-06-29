@@ -82,6 +82,23 @@ def test_phase_vocabulary_is_closed_and_complete() -> None:
         "ade_qre_019k",
         "ade_qre_019l",
         "ade_qre_019m",
+        "ade_qre_020a",
+        "ade_qre_020b",
+        "ade_qre_020c",
+        "ade_qre_020d",
+        "ade_qre_020e",
+        "ade_qre_020f",
+        "ade_qre_020g",
+        "ade_qre_020h",
+        "ade_qre_020i",
+        "ade_qre_020j",
+        "ade_qre_020k",
+        "ade_qre_020l",
+        "ade_qre_020m",
+        "ade_qre_020n",
+        "ade_qre_020o",
+        "ade_qre_020p",
+        "ade_qre_020q",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -101,6 +118,7 @@ def test_source_document_vocabulary_includes_addenda_2_and_3() -> None:
         "docs/roadmap/qre_maturity_roadmap_to_100.md",
         "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
         "docs/roadmap/qre_automated_strategy_generation_program.md",
+        "docs/roadmap/qre_automated_hypothesis_generation_program.md",
         "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
         "docs/governance/qre_synthesis_readiness_review.md",
         "docs/roadmap/Roadmap v6.md",
@@ -336,6 +354,27 @@ def test_ade_qre_019a_to_019m_tasks_present(snap: dict) -> None:
     assert tasks["ade_qre_019m"]["id"] == "ade_qre_019m_automated_generation_closeout"
 
 
+def test_ade_qre_020a_to_020q_tasks_present(snap: dict) -> None:
+    tasks = {row["phase"]: row for row in snap["roadmap_tasks"]}
+    assert tasks["ade_qre_020a"]["id"] == "ade_qre_020a_governance_and_hypothesis_authority"
+    assert tasks["ade_qre_020b"]["id"] == "ade_qre_020b_evidence_snapshot_and_opportunity_inputs"
+    assert tasks["ade_qre_020c"]["id"] == "ade_qre_020c_research_opportunity_detector"
+    assert tasks["ade_qre_020d"]["id"] == "ade_qre_020d_market_observation_builder"
+    assert tasks["ade_qre_020e"]["id"] == "ade_qre_020e_closed_mechanism_proposal_engine"
+    assert tasks["ade_qre_020f"]["id"] == "ade_qre_020f_behavior_thesis_compiler"
+    assert tasks["ade_qre_020g"]["id"] == "ade_qre_020g_scientific_quality_and_falsifiability_gate"
+    assert tasks["ade_qre_020h"]["id"] == "ade_qre_020h_novelty_and_rejected_lineage_gate"
+    assert tasks["ade_qre_020i"]["id"] == "ade_qre_020i_contradiction_and_alternative_explanation_engine"
+    assert tasks["ade_qre_020j"]["id"] == "ade_qre_020j_testability_and_signal_density_estimator"
+    assert tasks["ade_qre_020k"]["id"] == "ade_qre_020k_primitive_compatibility_classifier"
+    assert tasks["ade_qre_020l"]["id"] == "ade_qre_020l_automatic_thesis_admission_and_resolver"
+    assert tasks["ade_qre_020m"]["id"] == "ade_qre_020m_hypothesis_prioritization"
+    assert tasks["ade_qre_020n"]["id"] == "ade_qre_020n_ade_qre_019_integration"
+    assert tasks["ade_qre_020o"]["id"] == "ade_qre_020o_autonomous_feedback_loop"
+    assert tasks["ade_qre_020p"]["id"] == "ade_qre_020p_apply_to_current_research_state"
+    assert tasks["ade_qre_020q"]["id"] == "ade_qre_020q_integrated_closeout"
+
+
 def test_phase_v3_15_17_task_present(snap: dict) -> None:
     t = _tasks_by_phase(snap)["v3.15.17"]
     assert t["id"] == "phase_v3_15_17"
@@ -413,6 +452,23 @@ def test_v3_15_16_to_v3_15_20_all_present_in_order(snap: dict) -> None:
         "ade_qre_019k",
         "ade_qre_019l",
         "ade_qre_019m",
+        "ade_qre_020a",
+        "ade_qre_020b",
+        "ade_qre_020c",
+        "ade_qre_020d",
+        "ade_qre_020e",
+        "ade_qre_020f",
+        "ade_qre_020g",
+        "ade_qre_020h",
+        "ade_qre_020i",
+        "ade_qre_020j",
+        "ade_qre_020k",
+        "ade_qre_020l",
+        "ade_qre_020m",
+        "ade_qre_020n",
+        "ade_qre_020o",
+        "ade_qre_020p",
+        "ade_qre_020q",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",

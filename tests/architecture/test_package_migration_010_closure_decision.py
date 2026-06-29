@@ -34,7 +34,9 @@ BOUNDED_PACKAGE_CONTENTS = {
     "qre_research": [
         "README.md",
         "__init__.py",
+        "automated_hypothesis_generation.py",
         "automated_strategy_generation.py",
+        "generated_hypothesis_paths.py",
         "generated_strategy_paths.py",
         "opportunity_value.py",
         "research_memory.py",
