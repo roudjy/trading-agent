@@ -1,0 +1,103 @@
+{
+  "allowed_direction": "long_only",
+  "behavior_family": "trend_continuation",
+  "cost_assumptions": {
+    "mode": "cost_class_visible_only"
+  },
+  "deterministic_hash": "d527728c8db6045aa745ff8afce76d026a06fbebd9737d909375823028aacc04",
+  "entry_conditions": [
+    "trend_anchor_delta_positive",
+    "normalized_trend_move_above_entry_threshold"
+  ],
+  "exit_conditions": [
+    "trend_anchor_delta_negative",
+    "normalized_trend_move_below_exit_threshold"
+  ],
+  "expected_behavior": "higher_highs_or_lower_lows; trend_aligned_breakout_follow_through; compression_then_expansion",
+  "expected_failure_modes": [
+    "insufficient_trades",
+    "cost_fragile",
+    "parameter_fragile",
+    "no_baseline_edge"
+  ],
+  "expected_signal_density_range": "moderate",
+  "filters": [
+    "atr_positive"
+  ],
+  "forbidden_behavior": [
+    "arbitrary_python",
+    "arbitrary_imports",
+    "shell_commands",
+    "network_access",
+    "file_system_writes",
+    "eval",
+    "exec",
+    "broker_access",
+    "live_execution",
+    "real_capital_sizing",
+    "nondeterministic_strategy_construction"
+  ],
+  "generator_version": "ade-qre-019.1",
+  "mechanism": "Price continues in the direction of an established trend after a bounded consolidation or minor retracement. Trend-anchor met ATR-genormaliseerde move filter. Metadata only in v3.15.3; geen executable strategy of preset.",
+  "null_control_requirements": [
+    "matched_frequency_null",
+    "sign_flipped_signal",
+    "cost_only_baseline"
+  ],
+  "parameter_domains": {
+    "atr_window": [
+      14
+    ],
+    "entry_atr_multiple": [
+      0.75
+    ],
+    "exit_atr_multiple": [
+      0.1
+    ],
+    "trend_anchor_window": [
+      50
+    ]
+  },
+  "parameters": {
+    "atr_window": 14,
+    "entry_atr_multiple": 0.75,
+    "exit_atr_multiple": 0.1,
+    "trend_anchor_window": 50
+  },
+  "provenance": [
+    "logs/qre_behavior_thesis_registry/latest.json",
+    "logs/qre_identity_ambiguity_resolution/latest.json",
+    "logs/qre_blocked_thesis_lineage_census/latest.json"
+  ],
+  "required_feature_primitives": [
+    "trend_anchor",
+    "trend_anchor_delta",
+    "atr",
+    "normalized_trend_move"
+  ],
+  "research_sizing_assumptions": {
+    "mode": "unit_notional_research_only"
+  },
+  "schema_version": "1.0",
+  "slippage_assumptions": {
+    "status": "not_materialized"
+  },
+  "source_hypothesis_id": "atr_adaptive_trend_v0",
+  "strategy_spec_id": "qsp_16800d656bf28677",
+  "template_version": "thin-strategy-template.1",
+  "thesis_id": "qbt_3b77618b0ddbd5b3",
+  "timeframe": [
+    "1d",
+    "4h",
+    "1h"
+  ],
+  "universe_constraints": [
+    "single_resolved_instrument_only"
+  ],
+  "warmup_requirements": {
+    "atr": 14,
+    "normalized_trend_move": 50,
+    "trend_anchor": 50,
+    "trend_anchor_delta": 51
+  }
+}

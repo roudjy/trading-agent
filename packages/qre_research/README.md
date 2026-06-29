@@ -34,14 +34,22 @@ The ADE-QRE-017P routing-baseline-comparison surface lives in
 `research.qre_routing_baseline_comparison` and compares the current
 context-only router ordering against trivial deterministic baselines without
 granting campaign authority.
+ADE-QRE-019 adds the bounded automated research-only generation pipeline in
+`packages.qre_research.automated_strategy_generation`. That pipeline writes
+only to isolated generated-research surfaces outside `research/**` and does
+not grant paper, shadow, live, broker, risk, or deployment authority.
 
 ## Source of Truth / Authority Boundary
 
-`registry.py` remains the single source of truth for strategy registration,
-strategy implementations remain in `agent/backtesting/strategies.py`, and
-research orchestration remains in `research/run_research.py` until explicitly
-migrated. The universe contract is canonical in `packages.qre_research.universe`
-with `research.universe` retained as the compatibility import path.
+`registry.py` remains the protected manual source of truth for manually
+maintained strategy registration, strategy implementations remain in
+`agent/backtesting/strategies.py`, and research orchestration remains in
+`research/run_research.py` until explicitly migrated. ADE-QRE-019 adds a
+generated-strategy input registry outside `research/**`; a canonical resolved
+catalog composes that generated input with the protected manual registry for
+research-only consumption. The universe contract is canonical in
+`packages.qre_research.universe` with `research.universe` retained as the
+compatibility import path.
 
 `packages.qre_research.research_memory` is a read-only local artifact index and
 retrieval helper. It does not use embeddings, LLM authority, graph databases,
@@ -59,10 +67,14 @@ context, not authority.
 - Deterministic read-only research memory over existing local artifacts.
 - Research orchestration modules only after frozen-output compatibility gates.
 - Hypothesis lifecycle code selected by a named migration unit.
+- Deterministic ADE-QRE-019 research-only strategy generation, validation,
+  generated-registry admission, and resolved-catalog composition outside
+  `research/**`.
 
 ## Forbidden Contents
 
 - New strategy families or brute-force parameter expansion.
+- Arbitrary strategy code generation or unconstrained LLM generation.
 - Dashboard route handlers or ADE governance authority.
 - Data fetchers, artifact writers, diagnostics, policy, and execution behavior
   unless separately authorized for this package.

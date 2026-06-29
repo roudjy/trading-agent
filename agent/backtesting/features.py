@@ -80,6 +80,21 @@ def ema(close: pd.Series, span: int) -> pd.Series:
     return close.astype(float).ewm(span=span, adjust=False).mean()
 
 
+def trend_anchor(close: pd.Series, window: int) -> pd.Series:
+    """Deterministic trend anchor for ADE-QRE-019 generated strategies.
+
+    This is an explicit semantic alias over :func:`ema` so the generated
+    strategy specification can refer to a closed primitive id that matches the
+    thesis language without allowing arbitrary indicator injection.
+    """
+    return ema(close, span=int(window))
+
+
+def trend_anchor_delta(close: pd.Series, window: int) -> pd.Series:
+    """First difference of the deterministic trend anchor."""
+    return trend_anchor(close, window=int(window)).diff()
+
+
 def rolling_volatility(returns: pd.Series, window: int) -> pd.Series:
     """Rolling standard deviation with ddof=1 (pandas default).
 
@@ -252,6 +267,25 @@ def pullback_distance(
     return (c - ema_fast) / safe_vol
 
 
+def normalized_trend_move(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    trend_anchor_window: int,
+    atr_window: int,
+) -> pd.Series:
+    """ATR-normalised distance from the trend anchor.
+
+    This gives the generated ATR-adaptive trend strategy a bounded, closed
+    primitive matching the thesis mechanism: trend-aligned move magnitude
+    scaled by current volatility.
+    """
+    anchor = trend_anchor(close, window=int(trend_anchor_window))
+    atr_value = atr(high, low, close, window=int(atr_window))
+    safe_atr = atr_value.where(atr_value != 0.0, np.nan)
+    return (close.astype(float) - anchor) / safe_atr
+
+
 # v3.6+: rolling OLS hedge ratio. Unused in v3.5 (pairs uses the fixed
 # scalar path above). Implementation kept minimal and well-typed so the
 # v3.6 pairs migration can turn it on without another primitive pass.
@@ -324,6 +358,21 @@ def _warmup_compression_ratio(params: dict) -> int:
     )
 
 
+def _warmup_trend_anchor(params: dict) -> int:
+    return int(params.get("window", 0))
+
+
+def _warmup_trend_anchor_delta(params: dict) -> int:
+    return int(params.get("window", 0)) + 1
+
+
+def _warmup_normalized_trend_move(params: dict) -> int:
+    return max(
+        int(params.get("trend_anchor_window", 0)),
+        int(params.get("atr_window", 0)),
+    )
+
+
 def _warmup_rolling_previous(params: dict) -> int:
     # rolling(window).max().shift(1) — first (window) bars of the
     # rolling output are NaN, the shift adds one more leading NaN.
@@ -348,6 +397,18 @@ FEATURE_REGISTRY: dict[str, FeatureSpec] = {
         param_names=("span",),
         required_columns=("close",),
         warmup_bars_fn=_warmup_span,
+    ),
+    "trend_anchor": FeatureSpec(
+        fn=trend_anchor,
+        param_names=("window",),
+        required_columns=("close",),
+        warmup_bars_fn=_warmup_trend_anchor,
+    ),
+    "trend_anchor_delta": FeatureSpec(
+        fn=trend_anchor_delta,
+        param_names=("window",),
+        required_columns=("close",),
+        warmup_bars_fn=_warmup_trend_anchor_delta,
     ),
     "rolling_volatility": FeatureSpec(
         fn=rolling_volatility,
@@ -385,6 +446,12 @@ FEATURE_REGISTRY: dict[str, FeatureSpec] = {
         required_columns=("close",),
         warmup_bars_fn=_warmup_pullback_distance,
     ),
+    "normalized_trend_move": FeatureSpec(
+        fn=normalized_trend_move,
+        param_names=("trend_anchor_window", "atr_window"),
+        required_columns=("high", "low", "close"),
+        warmup_bars_fn=_warmup_normalized_trend_move,
+    ),
     "compression_ratio": FeatureSpec(
         fn=compression_ratio,
         param_names=("atr_short_window", "atr_long_window"),
@@ -413,8 +480,11 @@ __all__ = [
     "atr",
     "compression_ratio",
     "ema",
+    "trend_anchor",
+    "trend_anchor_delta",
     "hedge_ratio_ols",
     "log_returns",
+    "normalized_trend_move",
     "pullback_distance",
     "rolling_high_previous",
     "rolling_low_previous",

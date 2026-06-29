@@ -200,6 +200,7 @@ checks, and canonical queue/roadmap authority:
 
 - `packages/qre_research/**`
 - `packages/qre_artifacts/**`
+- `generated_research/**`
 - `agent/backtesting/generated_strategies/**`
 - `tests/unit/test_qre_automated_strategy_generation*.py`
 - `tests/unit/test_generated_strategy_*.py`
