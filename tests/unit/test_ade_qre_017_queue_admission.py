@@ -87,7 +87,7 @@ def test_ade_qre_017_chain_is_complete_after_017ad_completion_evidence() -> None
     snap = audit.collect_snapshot(frozen_utc="2026-06-25T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] is None
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-018A"
     assert rows["ADE-QRE-017"]["status"] == "done"
     assert rows["ADE-QRE-017"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-017A"]["status"] == "done"
@@ -144,6 +144,7 @@ def test_ade_qre_017_chain_is_complete_after_017ad_completion_evidence() -> None
     assert rows["ADE-QRE-017AC"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-017AD"]["status"] == "done"
     assert rows["ADE-QRE-017AD"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-018A"]["status"] == "ready"
 
 
 def test_ade_qre_017_queue_keeps_synthesis_blocked_and_protected_scope_explicit() -> None:
