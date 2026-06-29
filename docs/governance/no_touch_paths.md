@@ -213,3 +213,24 @@ These approved surfaces do not authorize:
 - edits to existing protected empirical research artifacts
 - edits to live, broker, risk, execution, paper, shadow, or deployment paths
 - arbitrary `research/**` writes
+
+## ADE-QRE-020 approved isolated generated-hypothesis surfaces
+
+ADE-QRE-020 must also operate outside `research/**`. The following are the
+intended generated-hypothesis surfaces, subject to normal PR review, tests,
+architecture checks, and canonical roadmap authority:
+
+- `packages/qre_research/generated_hypothesis_paths.py`
+- `packages/qre_research/automated_hypothesis_generation.py`
+- `generated_research/hypotheses/**`
+- `tests/unit/test_qre_automated_hypothesis_generation*.py`
+
+These approved surfaces do not authorize:
+
+- executable strategy generation inside ADE-QRE-020
+- edits to `research/research_latest.json`
+- edits to `research/strategy_matrix.csv`
+- edits to existing protected empirical research artifacts
+- direct strategy registration bypassing ADE-QRE-019
+- edits to live, broker, risk, execution, paper, shadow, or deployment paths
+- arbitrary `research/**` writes

@@ -50,6 +50,10 @@ New implementation is justified only when it:
   repository-governed programs may admit bounded deterministic research-only
   generation without authorizing deployment and without weakening protected
   `.claude/**` or `research/**` boundaries.
+- ADE-QRE-020 may later admit bounded deterministic research-only hypothesis
+  generation outside `research/**`, provided it preserves one resolved
+  research-only thesis catalog and delegates executable strategy generation to
+  ADE-QRE-019.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.
