@@ -264,7 +264,34 @@ def _portfolio_cell_id(source_hypothesis_id: str) -> str:
 
 def _load_generation_inputs(repo_root: Path) -> dict[str, Any]:
     thesis_rows = _read_rows(repo_root / "logs/qre_behavior_thesis_registry/latest.json")
+    if not thesis_rows:
+        thesis_rows = [
+            {
+                "thesis_id": row.get("thesis_id", ""),
+                "behavior_family": row.get("behavior_family", ""),
+                "source_hypothesis_id": row.get("source_hypothesis_id", ""),
+                "status": row.get("status", ""),
+                "signal_density_expectation": row.get("signal_density_expectation", ""),
+                "mechanism": row.get("source_hypothesis_id", ""),
+                "expected_behavior": row.get("behavior_family", ""),
+                "timeframe": "1h",
+            }
+            for row in common.read_markdown_table_rows(
+                repo_root / "docs/governance/qre_behavior_thesis_registry.md"
+            )
+        ]
     identity_rows = _read_rows(repo_root / "logs/qre_identity_ambiguity_resolution/latest.json")
+    if not identity_rows:
+        identity_rows = [
+            {
+                "source_hypothesis_id": row.get("source_hypothesis_id", ""),
+                "resolution_state": row.get("status", ""),
+                "next_action": row.get("next_action", ""),
+            }
+            for row in common.read_markdown_backtick_status_rows(
+                repo_root / "docs/governance/qre_identity_ambiguity_resolution.md"
+            )
+        ]
     census_rows = _read_rows(repo_root / "logs/qre_blocked_thesis_lineage_census/latest.json")
     portfolio_rows = _read_rows(repo_root / "logs/qre_campaign_portfolio_reconstruction/latest.json")
     return {
@@ -298,7 +325,7 @@ def _supported_strategy_blueprint(source_hypothesis_id: str, thesis_row: dict[st
         ),
         "filters": ("atr_positive",),
         "allowed_direction": "long_only",
-        "timeframe": tuple(str(thesis_row.get("timeframe") or "").split("|")),
+        "timeframe": tuple(part for part in str(thesis_row.get("timeframe") or "1h").split("|") if part),
         "universe_constraints": ("single_resolved_instrument_only",),
         "required_feature_primitives": (
             "trend_anchor",
@@ -394,8 +421,8 @@ def compile_strategy_spec(
         "thesis_id": str(thesis_row.get("thesis_id") or ""),
         "source_hypothesis_id": source_hypothesis_id,
         "behavior_family": str(thesis_row.get("behavior_family") or blueprint["behavior_family"]),
-        "mechanism": str(thesis_row.get("mechanism") or ""),
-        "expected_behavior": str(thesis_row.get("expected_behavior") or ""),
+        "mechanism": str(thesis_row.get("mechanism") or source_hypothesis_id),
+        "expected_behavior": str(thesis_row.get("expected_behavior") or blueprint["behavior_family"]),
         "entry_conditions": list(blueprint["entry_conditions"]),
         "exit_conditions": list(blueprint["exit_conditions"]),
         "filters": list(blueprint["filters"]),

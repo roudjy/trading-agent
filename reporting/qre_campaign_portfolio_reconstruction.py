@@ -74,6 +74,18 @@ def collect_snapshot(
     for row in old_rows:
         old_by_hypothesis.setdefault(common.text(row.get("source_hypothesis_id")), []).append(dict(row))
     registry_rows = common.rows(registry, "rows")
+    if not registry_rows:
+        registry_rows = []
+        for row in common.read_markdown_table_rows(root / "docs/governance/qre_behavior_thesis_registry.md"):
+            source_hypothesis_id = common.text(row.get("source_hypothesis_id"))
+            registry_rows.append(
+                {
+                    "thesis_id": common.text(row.get("thesis_id")),
+                    "source_hypothesis_id": source_hypothesis_id,
+                    "behavior_family": common.text(row.get("behavior_family")),
+                    "mechanism": source_hypothesis_id,
+                }
+            )
     generated_presets_by_hypothesis: dict[str, list[dict[str, Any]]] = {}
     for row in common.rows(generated_presets, "rows"):
         generated_presets_by_hypothesis.setdefault(common.text(row.get("source_hypothesis_id")), []).append(dict(row))

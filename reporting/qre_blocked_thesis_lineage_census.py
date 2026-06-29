@@ -97,8 +97,49 @@ def collect_snapshot(
     generated_lineage = common.read_json(root / (generated_lineage_path or DEFAULT_GENERATED_LINEAGE_PATH)) or {}
 
     registry_rows = common.rows(registry, "rows")
+    if not registry_rows:
+        registry_rows = []
+        for row in common.read_markdown_table_rows(root / DOC_PATH.parent / "qre_behavior_thesis_registry.md"):
+            source_hypothesis_id = common.text(row.get("source_hypothesis_id"))
+            registry_rows.append(
+                {
+                    "thesis_id": common.text(row.get("thesis_id")),
+                    "source_hypothesis_id": source_hypothesis_id,
+                    "behavior_family": common.text(row.get("behavior_family")),
+                    "mechanism": source_hypothesis_id,
+                    "universe": "",
+                    "screening_plan": "",
+                    "validation_plan": "",
+                    "oos_plan": "",
+                    "null_controls": [],
+                    "provenance_refs": ["docs/governance/qre_behavior_thesis_registry.md"],
+                }
+            )
+    operator_rows = common.rows(operator, "rows")
+    if not operator_rows:
+        blocked_or_rejected = common.read_markdown_table_rows(root / DOC_PATH.parent / "qre_operator_decision_report.md")
+        title_to_hypothesis = {
+            "Trend Continuation: atr_adaptive_trend_v0": "atr_adaptive_trend_v0",
+            "Index Regime Filter: regime_diagnostics_v1": "regime_diagnostics_v1",
+            "Trend Continuation: multi_asset_trend_sleeve_v0": "multi_asset_trend_sleeve_v0",
+            "Relative Strength: cross_sectional_momentum_v0": "cross_sectional_momentum_v0",
+            "Mean Reversion: dynamic_pairs_v0": "dynamic_pairs_v0",
+            "Pullback Continuation: trend_pullback_v1": "trend_pullback_v1",
+            "Volatility Compression Breakout: volatility_compression_breakout_v0": "volatility_compression_breakout_v0",
+        }
+        operator_rows = [
+            {
+                "source_hypothesis_id": title_to_hypothesis.get(common.text(row.get("Thesis")), ""),
+                "final_decision": common.text(row.get("Decision")),
+                "next_action": common.text(row.get("Next action")),
+                "primary_reasons": common.text(row.get("Primary reasons")).split("; "),
+                "provenance_refs": ["docs/governance/qre_operator_decision_report.md"],
+            }
+            for row in blocked_or_rejected
+            if title_to_hypothesis.get(common.text(row.get("Thesis")), "")
+        ]
     lineage_by_hypothesis = common.index_by(common.rows(lineage, "rows"), "source_hypothesis_id")
-    operator_by_hypothesis = common.index_by(common.rows(operator, "rows"), "source_hypothesis_id")
+    operator_by_hypothesis = common.index_by(operator_rows, "source_hypothesis_id")
     identity_by_behavior = _build_scope_index(identity)
     coverage_rows = common.rows(cache, "coverage")
     metadata_hypotheses = campaign_metadata.get("hypotheses")
@@ -122,7 +163,8 @@ def collect_snapshot(
     for registry_row in sorted(registry_rows, key=lambda item: common.text(item.get("source_hypothesis_id"))):
         source_hypothesis_id = common.text(registry_row.get("source_hypothesis_id"))
         operator_row = operator_by_hypothesis.get(source_hypothesis_id, {})
-        if common.text(operator_row.get("final_decision")) != "BLOCKED":
+        final_decision = common.text(operator_row.get("final_decision"))
+        if final_decision and final_decision not in {"BLOCKED", "REJECTED"}:
             continue
         lineage_row = lineage_by_hypothesis.get(source_hypothesis_id, {})
         behavior_family = common.text(registry_row.get("behavior_family"))

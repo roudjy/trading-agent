@@ -33,6 +33,7 @@ New implementation is justified only when it:
 
 - This program is not a request for more generic modules.
 - Existing repository capabilities must be reused whenever possible.
+- Outside ADE-QRE-019's governed research-only path, Strategy synthesis remains blocked.
 - Strategy synthesis remained blocked throughout ADE-QRE-017. ADE-QRE-019 may
   later admit bounded deterministic research-only executable strategy
   generation through isolated generated-research surfaces and a canonical
