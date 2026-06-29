@@ -15,9 +15,10 @@ Pins:
   non-hex SHA) carry ``valid = False`` and a closed-vocab
   validation_reason;
 * duplicate unit_ids fail closed deterministically;
-* bootstrap seed contains exactly the three already-merged
-  v3.15.16 routing-layer units with pinned PR numbers and
-  merge SHAs;
+* bootstrap seed contains the canonical merged ADE-QRE-018
+  completion records, the canonical blocked ADE-QRE-018J
+  record, and the three already-merged v3.15.16 routing-layer
+  units with pinned PR numbers and merge SHAs;
 * ``step5_implementation_allowed`` remains ``False``;
 * no Step 5, no Level 6, no production-merge authority, no
   runtime/trading/paper/shadow/live authority;
@@ -44,6 +45,26 @@ from reporting import roadmap_unit_status as rus
 
 
 _FROZEN_UTC = "2026-05-18T20:00:00Z"
+_EXPECTED_BOOTSTRAP_MERGED_UNIT_IDS = [
+    "u_ade_qre_018a_queue_baseline_reconciliation_001",
+    "u_ade_qre_018b_blocked_thesis_lineage_census_001",
+    "u_ade_qre_018c_identity_ambiguity_resolution_001",
+    "u_ade_qre_018d_campaign_lineage_materialization_001",
+    "u_ade_qre_018e_null_control_readiness_001",
+    "u_ade_qre_018f_evidence_reason_record_completion_001",
+    "u_ade_qre_018g_validation_repro_operator_completion_001",
+    "u_ade_qre_018h_campaign_portfolio_reconstruction_001",
+    "u_ade_qre_018i_rejected_thesis_replacement_plan_001",
+    "u_v3_15_16_diagnostic_routing_signals_schema_001",
+    "u_v3_15_16_routing_explanation_reporter_001",
+    "u_v3_15_16_routing_governance_doc_001",
+]
+_EXPECTED_BOOTSTRAP_BLOCKED_UNIT_ID = (
+    "u_ade_qre_018j_second_broad_campaign_prep_001"
+)
+_EXPECTED_BOOTSTRAP_RECORD_COUNT = (
+    len(_EXPECTED_BOOTSTRAP_MERGED_UNIT_IDS) + 1
+)
 
 
 def _valid_merged_record(**overrides: Any) -> dict[str, Any]:
@@ -212,16 +233,15 @@ def test_top_level_carries_every_projection_field() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_bootstrap_seed_has_three_v3_15_16_records() -> None:
-    """The bootstrap ledger seed must encode exactly the three
-    already-merged v3.15.16 routing-layer units."""
+def test_bootstrap_seed_has_canonical_records() -> None:
+    """The bootstrap ledger seed must encode the canonical ADE-QRE-018
+    completion records plus the historical v3.15.16 merged units."""
     snap = rus.collect_snapshot(generated_at_utc=_FROZEN_UTC)
     seed_unit_ids = sorted(r["unit_id"] for r in snap["ledger_records"])
-    assert seed_unit_ids == [
-        "u_v3_15_16_diagnostic_routing_signals_schema_001",
-        "u_v3_15_16_routing_explanation_reporter_001",
-        "u_v3_15_16_routing_governance_doc_001",
-    ]
+    assert seed_unit_ids == sorted(
+        _EXPECTED_BOOTSTRAP_MERGED_UNIT_IDS
+        + [_EXPECTED_BOOTSTRAP_BLOCKED_UNIT_ID]
+    )
 
 
 def test_bootstrap_seed_pr_numbers_pinned() -> None:
@@ -259,19 +279,38 @@ def test_bootstrap_seed_all_records_are_valid() -> None:
         assert r["validation_reason"] == "", r
     assert snap["fail_closed"] is False
     assert snap["invalid_record_count"] == 0
-    assert snap["valid_record_count"] == 3
+    assert snap["valid_record_count"] == _EXPECTED_BOOTSTRAP_RECORD_COUNT
     assert snap["duplicate_unit_ids"] == []
 
 
-def test_bootstrap_seed_all_records_are_pr_merge_source() -> None:
+def test_bootstrap_seed_merged_records_are_pr_merge_source() -> None:
     snap = rus.collect_snapshot(generated_at_utc=_FROZEN_UTC)
     for r in snap["ledger_records"]:
+        if r["status"] != "merged":
+            continue
         assert r["source"] == "pr_merge"
 
 
-def test_bootstrap_seed_all_records_are_merged_status() -> None:
+def test_bootstrap_seed_contains_expected_blocked_record() -> None:
+    snap = rus.collect_snapshot(generated_at_utc=_FROZEN_UTC)
+    blocked_records = [
+        r for r in snap["ledger_records"] if r["status"] == "blocked"
+    ]
+    assert len(blocked_records) == 1
+    blocked = blocked_records[0]
+    assert blocked["unit_id"] == _EXPECTED_BOOTSTRAP_BLOCKED_UNIT_ID
+    assert blocked["source"] == "operator_block"
+    assert (
+        blocked["reason"]
+        == "blocked because ADE-QRE-018H produced zero READY_FOR_PREREGISTRATION cells"
+    )
+
+
+def test_bootstrap_seed_non_blocked_records_are_merged_status() -> None:
     snap = rus.collect_snapshot(generated_at_utc=_FROZEN_UTC)
     for r in snap["ledger_records"]:
+        if r["unit_id"] == _EXPECTED_BOOTSTRAP_BLOCKED_UNIT_ID:
+            continue
         assert r["status"] == "merged"
 
 
@@ -925,8 +964,7 @@ def test_collect_snapshot_with_repo_root_missing_artifact_is_silent(
     snap = rus.collect_snapshot(
         generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
     )
-    # Bootstrap seed has exactly 3 records.
-    assert len(snap["ledger_records"]) == 3
+    assert len(snap["ledger_records"]) == _EXPECTED_BOOTSTRAP_RECORD_COUNT
 
 
 def test_collect_snapshot_with_repo_root_malformed_artifact_is_silent(
@@ -943,7 +981,7 @@ def test_collect_snapshot_with_repo_root_malformed_artifact_is_silent(
     snap = rus.collect_snapshot(
         generated_at_utc=_FROZEN_UTC, repo_root=tmp_path
     )
-    assert len(snap["ledger_records"]) == 3
+    assert len(snap["ledger_records"]) == _EXPECTED_BOOTSTRAP_RECORD_COUNT
 
 
 def test_collect_snapshot_overlay_merged_unit_is_terminal(
