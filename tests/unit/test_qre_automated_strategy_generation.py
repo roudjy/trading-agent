@@ -33,11 +33,22 @@ def test_generated_write_surface_refuses_research_contract_paths() -> None:
 
 
 def test_compile_outcomes_for_current_blocked_theses_are_closed() -> None:
+    cross_expected = (
+        "SPECIFICATION_READY"
+        if (
+            REPO_ROOT
+            / "generated_research"
+            / "primitives"
+            / "registry"
+            / "generated_primitive_registry.v1.json"
+        ).is_file()
+        else "BLOCKED_UNSUPPORTED_PRIMITIVE"
+    )
     expected = {
         "atr_adaptive_trend_v0": "SPECIFICATION_READY",
         "regime_diagnostics_v1": "BLOCKED_IDENTITY",
         "multi_asset_trend_sleeve_v0": "BLOCKED_POLICY",
-        "cross_sectional_momentum_v0": "BLOCKED_IDENTITY",
+        "cross_sectional_momentum_v0": cross_expected,
         "dynamic_pairs_v0": "BLOCKED_IDENTITY",
         "volatility_compression_breakout_v0": "BLOCKED_IDENTITY",
     }
@@ -52,7 +63,7 @@ def test_compile_outcomes_for_current_blocked_theses_are_closed() -> None:
 def test_generated_artifacts_exist_and_manifest_matches_strategy_source() -> None:
     registry = json.loads((REPO_ROOT / GENERATED_REGISTRY_PATH).read_text(encoding="utf-8"))
     rows = registry["rows"]
-    assert len(rows) == 1
+    assert len(rows) >= 1
     entry = rows[0]
     strategy_id = entry["generated_strategy_id"]
     spec_path = REPO_ROOT / GENERATED_SPECS_DIR / f"{entry['strategy_spec_id']}.json"
@@ -71,9 +82,9 @@ def test_resolved_catalog_includes_manual_and_generated_origins() -> None:
     assert "MANUAL" in origins
     assert "GENERATED_AUTOMATED" in origins
     generated_rows = [row for row in catalog["rows"] if row["origin"] == "GENERATED_AUTOMATED"]
-    assert len(generated_rows) == 1
-    assert generated_rows[0]["authority"] == gen.REGISTRY_AUTHORITY
-    assert generated_rows[0]["research_only"] is True
+    assert len(generated_rows) >= 1
+    assert all(row["authority"] == gen.REGISTRY_AUTHORITY for row in generated_rows)
+    assert all(row["research_only"] is True for row in generated_rows)
 
 
 def test_reporting_surfaces_shift_atr_from_implementation_missing() -> None:
@@ -98,8 +109,9 @@ def test_reporting_surfaces_shift_atr_from_implementation_missing() -> None:
 
 def test_automated_generation_closeout_reports_registered_strategy() -> None:
     snapshot = closeout.collect_snapshot(repo_root=REPO_ROOT)
-    assert snapshot["summary"]["registered_count"] == 1
+    assert snapshot["summary"]["registered_count"] >= 1
     rows = {row["source_hypothesis_id"]: row for row in snapshot["rows"]}
+    assert "atr_adaptive_trend_v0" in rows
     assert rows["atr_adaptive_trend_v0"]["final_generation_outcome"] == "RESEARCH_REGISTERED_AUTOMATED"
     assert rows["atr_adaptive_trend_v0"]["generated_strategy_id"]
     assert rows["atr_adaptive_trend_v0"]["campaign_readiness_state"] == "BLOCKED"

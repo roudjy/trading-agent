@@ -1943,6 +1943,464 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "status": "not_started",
     },
     {
+        "id": "u_ade_qre_021a_governance_authority_001",
+        "roadmap_task_id": "ade_qre_021a_primitive_expansion_governance_and_authority",
+        "title": "ADE-QRE-021 governance, authority, and generated-primitive path admission",
+        "phase": "ade_qre_021a",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "docs/roadmap/qre_automated_bounded_primitive_expansion_program.md",
+            "docs/governance/ade_qre_021_governance_conflict_matrix.md",
+            "docs/governance/no_touch_paths.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_hooks_no_touch.py"
+        ),
+        "extra_definition_of_done": (
+            "ADE-QRE-021 admits isolated generated-primitive surfaces outside research/**",
+            "no .claude/** hook change is required or permitted",
+        ),
+        "extra_stop_conditions": (
+            "any ADE-QRE-021 change that narrows protected research boundaries -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_020q_integrated_closeout_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021b_to_021h_primitive_pipeline_001",
+        "roadmap_task_id": "ade_qre_021b_primitive_extension_request_contract",
+        "title": "Primitive request validation, specification, generation, validation, and registry admission",
+        "phase": "ade_qre_021b",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_primitive_expansion.py",
+            "packages/qre_research/generated_primitive_paths.py",
+            "generated_research/primitives/registry/generated_primitive_registry.v1.json",
+            "tests/unit/test_qre_automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "bounded primitive requests fail closed unless complete and authoritative",
+            "generated primitive admission is atomic and research-only",
+        ),
+        "extra_stop_conditions": (
+            "any arbitrary primitive family expansion without authoritative request -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021a_governance_authority_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021c_primitive_specification_schema_001",
+        "roadmap_task_id": "ade_qre_021c_closed_primitive_specification_schema",
+        "title": "Closed primitive specification schema for bounded generated primitives",
+        "phase": "ade_qre_021c",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_primitive_expansion.py",
+            "packages/qre_research/generated_primitive_paths.py",
+            "generated_research/primitives/specs/qps_008aa161c214b2b5.json",
+            "tests/unit/test_qre_automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "primitive specifications pin deterministic temporal, grouping, ordering, and missing-data semantics",
+        ),
+        "extra_stop_conditions": (
+            "any primitive specification that permits arbitrary execution semantics -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021b_to_021h_primitive_pipeline_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021d_primitive_implementation_generator_001",
+        "roadmap_task_id": "ade_qre_021d_primitive_implementation_generator",
+        "title": "Deterministic primitive implementation generator for bounded requests",
+        "phase": "ade_qre_021d",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_primitive_expansion.py",
+            "agent/backtesting/generated_primitives/generated_qgp_bbfb1728e13038c1.py",
+            "generated_research/primitives/manifests/qgp_bbfb1728e13038c1.json",
+            "tests/unit/test_qre_automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "identical primitive inputs regenerate byte-identical source and manifests",
+        ),
+        "extra_stop_conditions": (
+            "any generated primitive implementation with forbidden imports or side effects -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021c_primitive_specification_schema_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021e_primitive_test_generator_001",
+        "roadmap_task_id": "ade_qre_021e_primitive_test_generator",
+        "title": "Deterministic primitive test generation from the closed primitive schema",
+        "phase": "ade_qre_021e",
+        "unit_kind": "test_only",
+        "target_layer": "test",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "tests/generated_primitives/test_generated_qgp_bbfb1728e13038c1.py",
+            "tests/unit/test_qre_automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/generated_primitives/test_generated_qgp_bbfb1728e13038c1.py"
+        ),
+        "extra_definition_of_done": (
+            "generated primitive tests cover determinism, shape, safety, and traceability",
+        ),
+        "extra_stop_conditions": (
+            "any generated primitive test that weakens static safety requirements -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021d_primitive_implementation_generator_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021f_static_safety_architecture_validation_001",
+        "roadmap_task_id": "ade_qre_021f_static_safety_and_architecture_validation",
+        "title": "Static safety, integrity, and architecture validation for generated primitives",
+        "phase": "ade_qre_021f",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_primitive_expansion.py",
+            "generated_research/primitives/validation/qgp_bbfb1728e13038c1.json",
+            "tests/unit/test_qre_automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "generated primitives fail closed on AST, import, integrity, and package-boundary violations",
+        ),
+        "extra_stop_conditions": (
+            "any architecture exception added to permit generated primitive code -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021e_primitive_test_generator_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021g_primitive_sandbox_validation_001",
+        "roadmap_task_id": "ade_qre_021g_primitive_sandbox_validation",
+        "title": "Isolated sandbox validation for generated bounded primitives",
+        "phase": "ade_qre_021g",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_primitive_expansion.py",
+            "generated_research/primitives/validation/qgp_bbfb1728e13038c1.json",
+            "tests/unit/test_qre_automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "sandbox validation proves deterministic repeated execution with no side effects",
+        ),
+        "extra_stop_conditions": (
+            "any generated primitive sandbox run that mutates inputs or writes outside approved surfaces -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021f_static_safety_architecture_validation_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021h_automatic_primitive_registry_admission_001",
+        "roadmap_task_id": "ade_qre_021h_automatic_primitive_registry_admission",
+        "title": "Automatic generated primitive registry admission and resolved catalog composition",
+        "phase": "ade_qre_021h",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "agent/backtesting/features.py",
+            "generated_research/primitives/registry/generated_primitive_registry.v1.json",
+            "tests/unit/test_qre_automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "only validated generated primitives become visible in the resolved primitive catalog",
+        ),
+        "extra_stop_conditions": (
+            "any partial primitive registry admission or duplicate primitive visibility -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021g_primitive_sandbox_validation_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021i_to_021j_cross_sectional_contract_001",
+        "roadmap_task_id": "ade_qre_021i_cross_sectional_data_contract",
+        "title": "Cross-sectional panel contract and generated cross_sectional_rank primitive",
+        "phase": "ade_qre_021i",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "agent/backtesting/generated_primitives/__init__.py",
+            "agent/backtesting/generated_primitives/generated_qgp_bbfb1728e13038c1.py",
+            "generated_research/primitives/specs/qps_008aa161c214b2b5.json",
+            "tests/generated_primitives/test_generated_qgp_bbfb1728e13038c1.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/generated_primitives/test_generated_qgp_bbfb1728e13038c1.py"
+        ),
+        "extra_definition_of_done": (
+            "cross_sectional_rank preserves timestamp-only contemporaneous ranking and stable tie handling",
+        ),
+        "extra_stop_conditions": (
+            "any cross-sectional primitive that silently drops assets or uses future data -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021b_to_021h_primitive_pipeline_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021j_cross_sectional_rank_implementation_001",
+        "roadmap_task_id": "ade_qre_021j_cross_sectional_rank_implementation",
+        "title": "Generated cross_sectional_rank primitive implementation and deterministic contract coverage",
+        "phase": "ade_qre_021j",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "agent/backtesting/generated_primitives/generated_qgp_bbfb1728e13038c1.py",
+            "generated_research/primitives/specs/qps_008aa161c214b2b5.json",
+            "generated_research/primitives/validation/qgp_bbfb1728e13038c1.json",
+            "tests/generated_primitives/test_generated_qgp_bbfb1728e13038c1.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/generated_primitives/test_generated_qgp_bbfb1728e13038c1.py"
+        ),
+        "extra_definition_of_done": (
+            "cross_sectional_rank preserves deterministic breadth, tie, and missing-value semantics",
+        ),
+        "extra_stop_conditions": (
+            "any cross_sectional_rank output that depends on input order or future information -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021i_to_021j_cross_sectional_contract_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021k_to_021m_strategy_replay_001",
+        "roadmap_task_id": "ade_qre_021k_automatic_thesis_recompile",
+        "title": "Automatic thesis recompile, strategy replay, and readiness reevaluation",
+        "phase": "ade_qre_021k",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_strategy_generation.py",
+            "agent/backtesting/generated_strategies/generated_qgs_e565b01bd0a162d0.py",
+            "generated_research/registry/generated_strategy_registry.v1.json",
+            "generated_research/reports/automated_generation_closeout.v1.json",
+            "tests/generated_strategies/test_generated_qgs_e565b01bd0a162d0.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "generated cross-sectional strategy remains research-only and campaign readiness stays fail-closed",
+        ),
+        "extra_stop_conditions": (
+            "any ADE-QRE-019 replay that bypasses static or sandbox validation -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021i_to_021j_cross_sectional_contract_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021l_automatic_strategy_generation_retest_001",
+        "roadmap_task_id": "ade_qre_021l_automatic_strategy_generation_and_retest",
+        "title": "Automatic ADE-QRE-019 replay for the newly compilable cross-sectional thesis",
+        "phase": "ade_qre_021l",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_strategy_generation.py",
+            "agent/backtesting/generated_strategies/generated_qgs_e565b01bd0a162d0.py",
+            "generated_research/manifests/qgs_e565b01bd0a162d0.json",
+            "tests/generated_strategies/test_generated_qgs_e565b01bd0a162d0.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "ADE-QRE-019 replay preserves all existing strategy safety and registration gates",
+        ),
+        "extra_stop_conditions": (
+            "any automatic strategy replay that bypasses duplicate, identity, or sandbox checks -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021k_to_021m_strategy_replay_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021m_campaign_readiness_reevaluation_001",
+        "roadmap_task_id": "ade_qre_021m_campaign_readiness_reevaluation",
+        "title": "Campaign readiness reevaluation after primitive expansion and strategy replay",
+        "phase": "ade_qre_021m",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/lineage/generated_campaign_lineage.v1.json",
+            "generated_research/lineage/generated_null_controls.v1.json",
+            "generated_research/presets/generated_research_presets.v1.json",
+            "generated_research/reports/automated_generation_closeout.v1.json",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "campaign readiness remains fail-closed unless preset, data, identity, and null-control gates all pass",
+        ),
+        "extra_stop_conditions": (
+            "any readiness reevaluation that treats technical validation as market evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021l_automatic_strategy_generation_retest_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021n_to_021o_closeout_001",
+        "roadmap_task_id": "ade_qre_021n_autonomous_capability_expansion_loop",
+        "title": "Autonomous bounded primitive-expansion loop closeout",
+        "phase": "ade_qre_021n",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/primitives/reports/automated_primitive_expansion_closeout.v1.json",
+            "packages/qre_research/automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "closeout records exact primitive, strategy, and readiness outcomes plus next action",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that reports primitive or strategy validation as empirical evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021k_to_021m_strategy_replay_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_021o_integrated_closeout_001",
+        "roadmap_task_id": "ade_qre_021o_integrated_closeout",
+        "title": "Integrated ADE-QRE-021 closeout with primitive, strategy, and readiness outcomes",
+        "phase": "ade_qre_021o",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/primitives/reports/automated_primitive_expansion_closeout.v1.json",
+            "packages/qre_research/automated_primitive_expansion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_primitive_expansion.py"
+        ),
+        "extra_definition_of_done": (
+            "integrated closeout records exact extension, recompile, replay, and readiness outcomes plus next action",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that overstates readiness or fabricates empirical evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021n_to_021o_closeout_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",
         "roadmap_task_id": "phase_v3_15_16",
         "title": (

@@ -1,0 +1,12 @@
+{
+  "code_hash": "05f7f592f07d3355c4f00a98a4a68e12646653dd29eb43fd23224075a90c3d98",
+  "export_symbol": "GENERATED_FEATURE_SPECS",
+  "generated_primitive_id": "qgp_bbfb1728e13038c1",
+  "generator_version": "ade-qre-021.1",
+  "implementation_template_version": "cross-sectional-rank-template.1",
+  "module_path": "agent/backtesting/generated_primitives/generated_qgp_bbfb1728e13038c1.py",
+  "primitive_id": "cross_sectional_rank",
+  "primitive_spec_id": "qps_008aa161c214b2b5",
+  "test_manifest_id": "qpt_8313ea823f663df7",
+  "test_module_path": "tests/generated_primitives/test_generated_qgp_bbfb1728e13038c1.py"
+}

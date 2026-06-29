@@ -4433,3 +4433,155 @@ live, broker, risk, or execution work.
 - purpose: produce the deterministic integrated automated-hypothesis-generation
   outcome and the exact next action.
 - completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+
+### ADE-QRE-021 - Automated Bounded Primitive Expansion and Strategy Retest
+
+- queue id: `ADE-QRE-021`
+- status: `ready`
+- purpose: admit bounded deterministic primitive expansion from authoritative
+  thesis blockers, automatically register validated generated primitives for
+  research-only use, replay blocked theses through ADE-QRE-019, and reevaluate
+  campaign readiness without campaign execution.
+- source documents:
+  - `docs/roadmap/qre_automated_bounded_primitive_expansion_program.md`
+  - `docs/governance/ade_qre_021_governance_conflict_matrix.md`
+- authoritative baseline:
+  - `ADE-QRE-019` complete
+  - `ADE-QRE-020` complete
+  - admitted generated thesis `qhc_51bc7a5c7b3f64ba` remains blocked behind
+    primitive-extension request `qpe_e4e83d0c094e8a3e`
+- expected next queue item: `ADE-QRE-021A`.
+
+### ADE-QRE-021A - Primitive Expansion Governance and Authority
+
+- queue id: `ADE-QRE-021A`
+- status: `ready`
+- depends on: `ADE-QRE-020Q done`.
+- purpose: admit bounded deterministic primitive expansion while preserving
+  protected `.claude/**` and `research/**` boundaries and denying any trading
+  authority.
+- expected next queue item: `ADE-QRE-021B`.
+
+### ADE-QRE-021B - Primitive Extension Request Contract
+
+- queue id: `ADE-QRE-021B`
+- status: `ready`
+- depends on: `ADE-QRE-021A ready`.
+- purpose: validate authoritative primitive-extension requests against a closed
+  deterministic contract.
+- expected next queue item: `ADE-QRE-021C`.
+
+### ADE-QRE-021C - Closed Primitive Specification Schema
+
+- queue id: `ADE-QRE-021C`
+- status: `ready`
+- depends on: `ADE-QRE-021B ready`.
+- purpose: compile closed primitive specifications with deterministic temporal,
+  grouping, ordering, and missing-data semantics.
+- expected next queue item: `ADE-QRE-021D`.
+
+### ADE-QRE-021D - Primitive Implementation Generator
+
+- queue id: `ADE-QRE-021D`
+- status: `ready`
+- depends on: `ADE-QRE-021C ready`.
+- purpose: generate deterministic primitive implementations from closed
+  specifications.
+- expected next queue item: `ADE-QRE-021E`.
+
+### ADE-QRE-021E - Primitive Test Generator
+
+- queue id: `ADE-QRE-021E`
+- status: `ready`
+- depends on: `ADE-QRE-021D ready`.
+- purpose: generate deterministic primitive tests from the closed primitive
+  specification.
+- expected next queue item: `ADE-QRE-021F`.
+
+### ADE-QRE-021F - Static Safety and Architecture Validation
+
+- queue id: `ADE-QRE-021F`
+- status: `ready`
+- depends on: `ADE-QRE-021E ready`.
+- purpose: reject forbidden imports, side effects, and package-boundary
+  violations before primitive execution.
+- expected next queue item: `ADE-QRE-021G`.
+
+### ADE-QRE-021G - Primitive Sandbox Validation
+
+- queue id: `ADE-QRE-021G`
+- status: `ready`
+- depends on: `ADE-QRE-021F ready`.
+- purpose: validate generated primitives in an isolated deterministic sandbox.
+- expected next queue item: `ADE-QRE-021H`.
+
+### ADE-QRE-021H - Automatic Primitive Registry Admission
+
+- queue id: `ADE-QRE-021H`
+- status: `ready`
+- depends on: `ADE-QRE-021G ready`.
+- purpose: atomically admit validated generated primitives into the isolated
+  generated registry and resolved primitive catalog.
+- expected next queue item: `ADE-QRE-021I`.
+
+### ADE-QRE-021I - Cross-Sectional Data Contract
+
+- queue id: `ADE-QRE-021I`
+- status: `ready`
+- depends on: `ADE-QRE-021H ready`.
+- purpose: define the deterministic cross-sectional input contract required by
+  `cross_sectional_rank`.
+- expected next queue item: `ADE-QRE-021J`.
+
+### ADE-QRE-021J - `cross_sectional_rank` Implementation
+
+- queue id: `ADE-QRE-021J`
+- status: `ready`
+- depends on: `ADE-QRE-021I ready`.
+- purpose: generate and validate the first bounded primitive requested by
+  ADE-QRE-020.
+- expected next queue item: `ADE-QRE-021K`.
+
+### ADE-QRE-021K - Automatic Thesis Recompile
+
+- queue id: `ADE-QRE-021K`
+- status: `ready`
+- depends on: `ADE-QRE-021J ready`.
+- purpose: automatically recompile blocked theses once the requested primitive
+  becomes resolver-visible.
+- expected next queue item: `ADE-QRE-021L`.
+
+### ADE-QRE-021L - Automatic Strategy Generation and Retest
+
+- queue id: `ADE-QRE-021L`
+- status: `ready`
+- depends on: `ADE-QRE-021K ready`.
+- purpose: invoke ADE-QRE-019 automatically after successful primitive
+  admission and preserve all existing strategy-generation gates.
+- expected next queue item: `ADE-QRE-021M`.
+
+### ADE-QRE-021M - Campaign Readiness Reevaluation
+
+- queue id: `ADE-QRE-021M`
+- status: `ready`
+- depends on: `ADE-QRE-021L ready`.
+- purpose: rebuild preset, null-control, lineage, portfolio, and preregistration
+  readiness without executing a campaign.
+- expected next queue item: `ADE-QRE-021N`.
+
+### ADE-QRE-021N - Autonomous Capability Expansion Loop
+
+- queue id: `ADE-QRE-021N`
+- status: `ready`
+- depends on: `ADE-QRE-021M ready`.
+- purpose: generalize the bounded primitive-expansion loop for future
+  authoritative requests without relaxing safety policies.
+- expected next queue item: `ADE-QRE-021O`.
+
+### ADE-QRE-021O - Integrated Closeout
+
+- queue id: `ADE-QRE-021O`
+- status: `ready`
+- depends on: `ADE-QRE-021N ready`.
+- purpose: produce the integrated primitive-expansion outcome and the exact next
+  action.

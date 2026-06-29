@@ -234,3 +234,25 @@ These approved surfaces do not authorize:
 - direct strategy registration bypassing ADE-QRE-019
 - edits to live, broker, risk, execution, paper, shadow, or deployment paths
 - arbitrary `research/**` writes
+
+## ADE-QRE-021 approved isolated generated-primitive surfaces
+
+ADE-QRE-021 must also operate outside `research/**`. The following are the
+intended generated-primitive surfaces, subject to normal PR review, tests,
+architecture checks, and canonical roadmap authority:
+
+- `packages/qre_research/automated_primitive_expansion.py`
+- `packages/qre_research/generated_primitive_paths.py`
+- `generated_research/primitives/**`
+- `agent/backtesting/generated_primitives/**`
+- `tests/generated_primitives/**`
+- `tests/unit/test_qre_automated_primitive_expansion*.py`
+
+These approved surfaces do not authorize:
+
+- edits to `research/research_latest.json`
+- edits to `research/strategy_matrix.csv`
+- edits to existing protected empirical research artifacts
+- direct primitive writes into `research/**`
+- edits to live, broker, risk, execution, paper, shadow, or deployment paths
+- arbitrary `research/**` writes

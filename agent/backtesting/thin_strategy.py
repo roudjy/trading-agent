@@ -48,7 +48,7 @@ from typing import Any, Callable, Literal, Mapping
 
 import pandas as pd
 
-from agent.backtesting.features import FEATURE_REGISTRY
+from agent.backtesting.features import resolved_feature_registry
 from agent.backtesting.fitted_features import (
     FITTED_FEATURE_REGISTRY,
     FittedParams,
@@ -128,12 +128,13 @@ def declare_thin(
     which will loud-fail on fitted requirements. Such strategies must
     be driven by the engine via the train/test helpers.
     """
+    plain_registry = resolved_feature_registry()
     for req in feature_requirements:
         if req.feature_kind == "plain":
-            if req.name not in FEATURE_REGISTRY:
+            if req.name not in plain_registry:
                 raise ValueError(
                     f"declare_thin: unknown feature '{req.name}' "
-                    f"(kind=plain); registered={sorted(FEATURE_REGISTRY)}"
+                    f"(kind=plain); registered={sorted(plain_registry)}"
                 )
         elif req.feature_kind == "fitted":
             if req.name not in FITTED_FEATURE_REGISTRY:
@@ -186,7 +187,7 @@ def _reject_fitted_requirements(
 def _resolve_plain_requirement(
     req: FeatureRequirement, df: pd.DataFrame
 ) -> pd.Series:
-    spec = FEATURE_REGISTRY[req.name]
+    spec = resolved_feature_registry()[req.name]
     missing = [c for c in spec.required_columns if c not in df.columns]
     if missing:
         raise KeyError(

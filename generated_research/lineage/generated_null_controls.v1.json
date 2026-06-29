@@ -1,5 +1,5 @@
 {
-  "generated_null_control_identity": "qgn_575b59f3c2eff30c",
+  "generated_null_control_identity": "qgn_e8becd8e6b63b331",
   "report_kind": "generated_null_controls",
   "rows": [
     {
@@ -14,6 +14,18 @@
         "cost_only_baseline"
       ],
       "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "state": "SPECIFIED_NOT_EXECUTED"
+    },
+    {
+      "deterministic_seed": "ce831448f139cb54",
+      "execution_readiness": false,
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "implementation_readiness": true,
+      "null_control_spec_id": "qnc_44f63709ded61dbb",
+      "required_controls": [
+        "permuted_cross_sectional_ranking"
+      ],
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
       "state": "SPECIFIED_NOT_EXECUTED"
     }
   ],

@@ -149,8 +149,11 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     snap = audit.collect_snapshot(frozen_utc="2026-05-28T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] is None
-    assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-021"
+    assert (
+        snap["final_recommendation"]
+        == "operator_review_required_queue_selection_ambiguous"
+    )
     assert "ADE-QRE-011" in snap["summary"]["stale_historical_ready_items"]
     assert snap["summary"]["selection_blocking_warning_items"] == []
     assert rows["ADE-QRE-014N"]["status"] == "done"

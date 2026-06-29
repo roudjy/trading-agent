@@ -1,7 +1,7 @@
 {
   "module_version": "ade-qre-019.1",
   "report_kind": "qre_automated_generation_closeout",
-  "resolved_catalog_identity": "qrc_0f474c9fec5f03c6",
+  "resolved_catalog_identity": "qrc_5f3d883520aa0d4a",
   "rows": [
     {
       "blockers": [
@@ -14,8 +14,13 @@
       "source_hypothesis_id": "atr_adaptive_trend_v0"
     },
     {
-      "final_generation_outcome": "BLOCKED_IDENTITY",
-      "reason": "identity_resolution_missing",
+      "blockers": [
+        "identity_not_resolved"
+      ],
+      "campaign_readiness_state": "BLOCKED",
+      "final_generation_outcome": "RESEARCH_REGISTERED_AUTOMATED",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "preset_generated": true,
       "source_hypothesis_id": "cross_sectional_momentum_v0"
     },
     {
@@ -41,8 +46,8 @@
   ],
   "schema_version": "1.0",
   "summary": {
-    "blocked_count": 5,
-    "registered_count": 1,
+    "blocked_count": 4,
+    "registered_count": 2,
     "thesis_count": 6
   }
 }

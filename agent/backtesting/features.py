@@ -23,14 +23,28 @@ the engine when resolving a thin strategy's declared requirements.
 
 from __future__ import annotations
 
+import importlib
+import json
 from dataclasses import dataclass
-from typing import Callable
+from pathlib import Path
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
 
 
 FEATURE_VERSION = "1.0"
+GENERATED_PRIMITIVE_REGISTRY_VERSION = "1.0"
+GENERATED_PRIMITIVE_REGISTRY_STATE = "PRIMITIVE_REGISTERED_AUTOMATED"
+GENERATED_PRIMITIVE_REGISTRY_AUTHORITY = "RESEARCH_ONLY_AUTOMATED"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+GENERATED_PRIMITIVE_REGISTRY_PATH = (
+    REPO_ROOT
+    / "generated_research"
+    / "primitives"
+    / "registry"
+    / "generated_primitive_registry.v1.json"
+)
 
 
 @dataclass(frozen=True)
@@ -473,6 +487,72 @@ FEATURE_REGISTRY: dict[str, FeatureSpec] = {
 }
 
 
+def _read_generated_primitive_rows() -> list[dict[str, Any]]:
+    if not GENERATED_PRIMITIVE_REGISTRY_PATH.is_file():
+        return []
+    try:
+        payload = json.loads(
+            GENERATED_PRIMITIVE_REGISTRY_PATH.read_text(encoding="utf-8-sig")
+        )
+    except (OSError, json.JSONDecodeError):
+        return []
+    rows = payload.get("rows") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return []
+    return [dict(row) for row in rows if isinstance(row, dict)]
+
+
+def resolved_feature_registry() -> dict[str, FeatureSpec]:
+    """Compose manual and validated generated primitives into one catalog."""
+    resolved = dict(FEATURE_REGISTRY)
+    seen = set(resolved)
+    for row in sorted(
+        _read_generated_primitive_rows(),
+        key=lambda item: str(item.get("generated_primitive_id") or ""),
+    ):
+        if str(row.get("state") or "") != GENERATED_PRIMITIVE_REGISTRY_STATE:
+            continue
+        if (
+            str(row.get("authority") or "")
+            != GENERATED_PRIMITIVE_REGISTRY_AUTHORITY
+        ):
+            continue
+        primitive_id = str(row.get("primitive_id") or "").strip()
+        module_path = str(row.get("module_path") or "").strip()
+        export_symbol = str(
+            row.get("export_symbol") or "GENERATED_FEATURE_SPECS"
+        ).strip()
+        if not primitive_id or not module_path:
+            continue
+        if primitive_id in seen:
+            raise ValueError(
+                f"generated primitive collision in resolved registry: {primitive_id}"
+            )
+        module = importlib.import_module(
+            module_path.removesuffix(".py").replace("/", ".")
+        )
+        exported = getattr(module, export_symbol)
+        if isinstance(exported, FeatureSpec):
+            generated_specs = {primitive_id: exported}
+        elif isinstance(exported, dict):
+            generated_specs = {
+                str(name): spec
+                for name, spec in exported.items()
+                if isinstance(name, str) and isinstance(spec, FeatureSpec)
+            }
+        else:
+            raise TypeError(
+                "generated primitive export must be FeatureSpec or dict[str, FeatureSpec]"
+            )
+        if primitive_id not in generated_specs:
+            raise KeyError(
+                f"generated primitive export missing expected primitive_id: {primitive_id}"
+            )
+        resolved[primitive_id] = generated_specs[primitive_id]
+        seen.add(primitive_id)
+    return resolved
+
+
 __all__ = [
     "FEATURE_REGISTRY",
     "FEATURE_VERSION",
@@ -486,6 +566,7 @@ __all__ = [
     "log_returns",
     "normalized_trend_move",
     "pullback_distance",
+    "resolved_feature_registry",
     "rolling_high_previous",
     "rolling_low_previous",
     "rolling_volatility",

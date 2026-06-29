@@ -1,6 +1,30 @@
 {
-  "generated_preset_identity": "qgp_4f53cda18c2baa0c",
+  "generated_preset_identity": "qgp_baee9712a7ca83a3",
   "report_kind": "generated_research_presets",
-  "rows": [],
+  "rows": [
+    {
+      "cost_assumptions": {
+        "mode": "cost_class_visible_only"
+      },
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "next_action": "evaluate_campaign_readiness_from_generated_preset",
+      "parameter_values": {
+        "entry_rank_threshold": 0.75,
+        "lookback_bars": 20,
+        "short_rank_threshold": 0.25
+      },
+      "preset_id": "qgp_507c505a5e83c34d",
+      "preset_name": "cross_sectional_momentum_v0_generated_breadth_1d",
+      "preset_state": "GENERATED",
+      "slippage_assumptions": {
+        "status": "not_materialized"
+      },
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "timeframe": "1d",
+      "universe": [
+        "breadth_resolved_multi_asset_basket"
+      ]
+    }
+  ],
   "schema_version": "1.0"
 }

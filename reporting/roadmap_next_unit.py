@@ -75,8 +75,9 @@ Selection rules (pinned by tests):
 Selection prefers ``ELIGIBLE`` over ``NEEDS_HUMAN_GATED``. Ties
 within a tier are broken by the deterministic sort key:
 
-1. Roadmap phase order: v3.15.16, v3.15.17, …, v3.15.20,
-   addendum_1, addendum_2, addendum_3.
+1. Roadmap phase order: ADE-QRE-017A..020Q, ADE-QRE-021A..021O,
+   then v3.15.16, v3.15.17, …, v3.15.20, addendum_1,
+   addendum_2, addendum_3.
 2. Authority order: AUTO_ALLOWED before NEEDS_HUMAN.
 3. Risk order: LOW before MEDIUM before HIGH before UNKNOWN.
 4. Operator gate order: none before operator_go_required before
@@ -242,6 +243,21 @@ _PHASE_ORDER: Final[tuple[str, ...]] = (
     "ade_qre_020o",
     "ade_qre_020p",
     "ade_qre_020q",
+    "ade_qre_021a",
+    "ade_qre_021b",
+    "ade_qre_021c",
+    "ade_qre_021d",
+    "ade_qre_021e",
+    "ade_qre_021f",
+    "ade_qre_021g",
+    "ade_qre_021h",
+    "ade_qre_021i",
+    "ade_qre_021j",
+    "ade_qre_021k",
+    "ade_qre_021l",
+    "ade_qre_021m",
+    "ade_qre_021n",
+    "ade_qre_021o",
     "v3.15.16",
     "v3.15.17",
     "v3.15.18",

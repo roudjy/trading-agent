@@ -13,7 +13,7 @@ from typing import Any, Final
 
 import pandas as pd
 
-from agent.backtesting.features import FEATURE_REGISTRY
+from agent.backtesting.features import resolved_feature_registry
 from agent.backtesting.thin_strategy import FeatureRequirement, declare_thin
 from packages.qre_research.generated_strategy_paths import (
     GENERATED_CLOSEOUT_PATH,
@@ -158,6 +158,50 @@ def _read_rows(path: Path) -> list[dict[str, Any]]:
     return [dict(row) for row in rows if isinstance(row, dict)]
 
 
+def _build_cross_sectional_frame(
+    *,
+    periods: int = 24,
+    assets: tuple[str, ...] = ("AAA", "BBB", "CCC", "DDD"),
+    seed: int = 23,
+    start: str = "2024-01-01",
+    freq: str = "D",
+    universe_id: str = "breadth_resolved_multi_asset_basket",
+) -> pd.DataFrame:
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+    timestamps = pd.date_range(start=start, periods=periods, freq=freq)
+    rows: list[dict[str, object]] = []
+    for asset_index, asset in enumerate(assets):
+        base_level = 80.0 + asset_index * 12.5
+        drift = np.linspace(0.0008 + asset_index * 0.0002, 0.002, periods)
+        noise = rng.normal(0.0, 0.008, periods)
+        close = base_level * np.cumprod(1.0 + drift + noise)
+        open_ = close * (1.0 + rng.normal(0.0, 0.0015, periods))
+        high = np.maximum(open_, close) * (
+            1.0 + rng.uniform(0.0005, 0.007, periods)
+        )
+        low = np.minimum(open_, close) * (
+            1.0 - rng.uniform(0.0005, 0.007, periods)
+        )
+        volume = rng.integers(2_000, 20_000, periods, dtype=np.int64)
+        for idx, timestamp in enumerate(timestamps):
+            rows.append(
+                {
+                    "timestamp": timestamp,
+                    "asset": asset,
+                    "open": float(open_[idx]),
+                    "high": float(high[idx]),
+                    "low": float(low[idx]),
+                    "close": float(close[idx]),
+                    "volume": int(volume[idx]),
+                    "universe_id": universe_id,
+                    "eligibility_state": "eligible",
+                }
+            )
+    return pd.DataFrame(rows).set_index(["timestamp", "asset"]).sort_index()
+
+
 @dataclass(frozen=True)
 class StrategySpecification:
     strategy_spec_id: str
@@ -295,11 +339,22 @@ def _load_generation_inputs(repo_root: Path) -> dict[str, Any]:
         ]
     census_rows = _read_rows(repo_root / "logs/qre_blocked_thesis_lineage_census/latest.json")
     portfolio_rows = _read_rows(repo_root / "logs/qre_campaign_portfolio_reconstruction/latest.json")
+    generated_thesis_rows = _read_rows(
+        repo_root
+        / "generated_research"
+        / "hypotheses"
+        / "registry"
+        / "generated_thesis_registry.v1.json"
+    )
     return {
         "thesis_by_hypothesis": {str(row.get("source_hypothesis_id") or ""): row for row in thesis_rows},
         "identity_by_hypothesis": {str(row.get("source_hypothesis_id") or ""): row for row in identity_rows},
         "census_by_hypothesis": {str(row.get("source_hypothesis_id") or ""): row for row in census_rows},
         "portfolio_by_hypothesis": {str(row.get("source_hypothesis_id") or ""): row for row in portfolio_rows},
+        "generated_thesis_by_hypothesis": {
+            str(row.get("source_hypothesis_id") or ""): row
+            for row in generated_thesis_rows
+        },
     }
 
 
@@ -311,63 +366,137 @@ def _current_generated_registry(repo_root: Path) -> dict[str, Any]:
     }
 
 
-def _supported_strategy_blueprint(source_hypothesis_id: str, thesis_row: dict[str, Any]) -> dict[str, Any] | None:
-    if source_hypothesis_id != "atr_adaptive_trend_v0":
-        return None
+def _existing_generated_strategy_entries(repo_root: Path) -> dict[str, dict[str, Any]]:
+    registry = _current_generated_registry(repo_root)
+    rows = [dict(row) for row in registry.get("rows", []) if isinstance(row, dict)]
     return {
-        "behavior_family": "trend_continuation",
-        "entry_conditions": (
-            "trend_anchor_delta_positive",
-            "normalized_trend_move_above_entry_threshold",
-        ),
-        "exit_conditions": (
-            "trend_anchor_delta_negative",
-            "normalized_trend_move_below_exit_threshold",
-        ),
-        "filters": ("atr_positive",),
-        "allowed_direction": "long_only",
-        "timeframe": tuple(part for part in str(thesis_row.get("timeframe") or "1h").split("|") if part),
-        "universe_constraints": ("single_resolved_instrument_only",),
-        "required_feature_primitives": (
-            "trend_anchor",
-            "trend_anchor_delta",
-            "atr",
-            "normalized_trend_move",
-        ),
-        "parameters": {
-            "trend_anchor_window": 50,
-            "atr_window": 14,
-            "entry_atr_multiple": 0.75,
-            "exit_atr_multiple": 0.10,
-        },
-        "parameter_domains": {
-            "trend_anchor_window": [50],
-            "atr_window": [14],
-            "entry_atr_multiple": [0.75],
-            "exit_atr_multiple": [0.10],
-        },
-        "warmup_requirements": {
-            "trend_anchor": 50,
-            "trend_anchor_delta": 51,
-            "atr": 14,
-            "normalized_trend_move": 50,
-        },
-        "cost_assumptions": {"mode": "cost_class_visible_only"},
-        "slippage_assumptions": {"status": "not_materialized"},
-        "research_sizing_assumptions": {"mode": "unit_notional_research_only"},
-        "expected_signal_density_range": str(thesis_row.get("signal_density_expectation") or "moderate"),
-        "null_control_requirements": (
-            "matched_frequency_null",
-            "sign_flipped_signal",
-            "cost_only_baseline",
-        ),
-        "expected_failure_modes": (
-            "insufficient_trades",
-            "cost_fragile",
-            "parameter_fragile",
-            "no_baseline_edge",
-        ),
+        str(row.get("source_hypothesis_id") or ""): row
+        for row in rows
+        if str(row.get("source_hypothesis_id") or "")
     }
+
+
+def _supported_strategy_blueprint(
+    source_hypothesis_id: str,
+    thesis_row: dict[str, Any],
+    generated_thesis_row: dict[str, Any],
+) -> dict[str, Any] | None:
+    if source_hypothesis_id == "atr_adaptive_trend_v0":
+        return {
+            "behavior_family": "trend_continuation",
+            "entry_conditions": (
+                "trend_anchor_delta_positive",
+                "normalized_trend_move_above_entry_threshold",
+            ),
+            "exit_conditions": (
+                "trend_anchor_delta_negative",
+                "normalized_trend_move_below_exit_threshold",
+            ),
+            "filters": ("atr_positive",),
+            "allowed_direction": "long_only",
+            "timeframe": tuple(part for part in str(thesis_row.get("timeframe") or "1h").split("|") if part),
+            "universe_constraints": ("single_resolved_instrument_only",),
+            "required_feature_primitives": (
+                "trend_anchor",
+                "trend_anchor_delta",
+                "atr",
+                "normalized_trend_move",
+            ),
+            "parameters": {
+                "trend_anchor_window": 50,
+                "atr_window": 14,
+                "entry_atr_multiple": 0.75,
+                "exit_atr_multiple": 0.10,
+            },
+            "parameter_domains": {
+                "trend_anchor_window": [50],
+                "atr_window": [14],
+                "entry_atr_multiple": [0.75],
+                "exit_atr_multiple": [0.10],
+            },
+            "warmup_requirements": {
+                "trend_anchor": 50,
+                "trend_anchor_delta": 51,
+                "atr": 14,
+                "normalized_trend_move": 50,
+            },
+            "cost_assumptions": {"mode": "cost_class_visible_only"},
+            "slippage_assumptions": {"status": "not_materialized"},
+            "research_sizing_assumptions": {"mode": "unit_notional_research_only"},
+            "expected_signal_density_range": str(thesis_row.get("signal_density_expectation") or "moderate"),
+            "null_control_requirements": (
+                "matched_frequency_null",
+                "sign_flipped_signal",
+                "cost_only_baseline",
+            ),
+            "expected_failure_modes": (
+                "insufficient_trades",
+                "cost_fragile",
+                "parameter_fragile",
+                "no_baseline_edge",
+            ),
+        }
+    if source_hypothesis_id == "cross_sectional_momentum_v0" and generated_thesis_row:
+        return {
+            "behavior_family": "relative_strength",
+            "entry_conditions": (
+                "cross_sectional_rank_at_or_above_entry_threshold",
+                "minimum_universe_breadth_met",
+            ),
+            "exit_conditions": ("cross_sectional_rank_between_exit_thresholds",),
+            "filters": ("rank_is_not_missing",),
+            "allowed_direction": "long_short",
+            "timeframe": tuple(
+                part
+                for part in str(generated_thesis_row.get("timeframe") or "1d").split("|")
+                if part
+            ),
+            "universe_constraints": ("breadth_resolved_multi_asset_basket",),
+            "required_feature_primitives": ("cross_sectional_rank",),
+            "parameters": {
+                "lookback_bars": 20,
+                "ascending": False,
+                "rank_mode": "PERCENTILE",
+                "tie_policy": "AVERAGE",
+                "missing_value_policy": "FAIL_CLOSED",
+                "minimum_universe_size": 3,
+                "entry_rank_threshold": 0.75,
+                "short_rank_threshold": 0.25,
+                "exit_lower_bound": 0.40,
+                "exit_upper_bound": 0.60,
+            },
+            "parameter_domains": {
+                "lookback_bars": [20],
+                "ascending": [False],
+                "rank_mode": ["PERCENTILE"],
+                "tie_policy": ["AVERAGE"],
+                "missing_value_policy": ["FAIL_CLOSED"],
+                "minimum_universe_size": [3],
+                "entry_rank_threshold": [0.75],
+                "short_rank_threshold": [0.25],
+                "exit_lower_bound": [0.40],
+                "exit_upper_bound": [0.60],
+            },
+            "warmup_requirements": {"cross_sectional_rank": 20},
+            "cost_assumptions": {"mode": "cost_class_visible_only"},
+            "slippage_assumptions": {"status": "not_materialized"},
+            "research_sizing_assumptions": {"mode": "unit_notional_research_only"},
+            "expected_signal_density_range": str(
+                generated_thesis_row.get("expected_signal_density_range") or "moderate"
+            ),
+            "null_control_requirements": (
+                "permuted_cross_sectional_ranking",
+                "matched_frequency_null",
+                "cost_only_baseline",
+            ),
+            "expected_failure_modes": (
+                "insufficient_cross_section",
+                "identity_blocked",
+                "cost_fragile",
+                "no_baseline_edge",
+            ),
+        }
+    return None
 
 
 def compile_strategy_spec(
@@ -379,8 +508,11 @@ def compile_strategy_spec(
     thesis_row = inputs["thesis_by_hypothesis"].get(source_hypothesis_id, {})
     identity_row = inputs["identity_by_hypothesis"].get(source_hypothesis_id, {})
     census_row = inputs["census_by_hypothesis"].get(source_hypothesis_id, {})
+    generated_thesis_row = inputs["generated_thesis_by_hypothesis"].get(
+        source_hypothesis_id, {}
+    )
 
-    if not thesis_row:
+    if not thesis_row and not generated_thesis_row:
         return {"outcome": "BLOCKED_INCOMPLETE_THESIS", "reason": "thesis_missing"}
     if source_hypothesis_id == "trend_pullback_v1":
         return {"outcome": "BLOCKED_REJECTED_LINEAGE", "reason": "rejected_lineage_protected"}
@@ -389,7 +521,11 @@ def compile_strategy_spec(
     resolution_state = str(identity_row.get("resolution_state") or "")
     if resolution_state in {"BLOCKED", "AMBIGUOUS", "CONFLICTING"}:
         return {"outcome": "BLOCKED_IDENTITY", "reason": "identity_resolution_blocked"}
-    if resolution_state == "MISSING" and source_hypothesis_id != "atr_adaptive_trend_v0":
+    if (
+        resolution_state == "MISSING"
+        and source_hypothesis_id
+        not in {"atr_adaptive_trend_v0", "cross_sectional_momentum_v0"}
+    ):
         return {"outcome": "BLOCKED_IDENTITY", "reason": "identity_resolution_missing"}
 
     if source_hypothesis_id == "regime_diagnostics_v1":
@@ -398,16 +534,19 @@ def compile_strategy_spec(
         return {"outcome": "BLOCKED_POLICY", "reason": "disabled_branchpoint_not_executable"}
     if source_hypothesis_id == "multi_asset_trend_sleeve_v0":
         return {"outcome": "BLOCKED_POLICY", "reason": "portfolio_sleeve_execution_out_of_scope"}
-    if source_hypothesis_id == "cross_sectional_momentum_v0":
-        return {"outcome": "BLOCKED_UNSUPPORTED_PRIMITIVE", "reason": "cross_sectional_primitives_not_registered"}
     if source_hypothesis_id == "volatility_compression_breakout_v0":
         return {"outcome": "BLOCKED_IDENTITY", "reason": "identity_inventory_missing"}
 
-    blueprint = _supported_strategy_blueprint(source_hypothesis_id, thesis_row)
+    blueprint = _supported_strategy_blueprint(
+        source_hypothesis_id,
+        thesis_row,
+        generated_thesis_row,
+    )
     if blueprint is None:
         return {"outcome": "BLOCKED_POLICY", "reason": "no_supported_blueprint"}
+    feature_registry = resolved_feature_registry()
     for primitive in blueprint["required_feature_primitives"]:
-        if primitive not in FEATURE_REGISTRY:
+        if primitive not in feature_registry:
             return {
                 "outcome": "BLOCKED_UNSUPPORTED_PRIMITIVE",
                 "reason": f"primitive_not_registered:{primitive}",
@@ -419,11 +558,27 @@ def compile_strategy_spec(
         "schema_version": SCHEMA_VERSION,
         "generator_version": GENERATOR_VERSION,
         "template_version": TEMPLATE_VERSION,
-        "thesis_id": str(thesis_row.get("thesis_id") or ""),
+        "thesis_id": str(
+            generated_thesis_row.get("thesis_id")
+            or thesis_row.get("thesis_id")
+            or ""
+        ),
         "source_hypothesis_id": source_hypothesis_id,
-        "behavior_family": str(thesis_row.get("behavior_family") or blueprint["behavior_family"]),
-        "mechanism": str(thesis_row.get("mechanism") or source_hypothesis_id),
-        "expected_behavior": str(thesis_row.get("expected_behavior") or blueprint["behavior_family"]),
+        "behavior_family": str(
+            generated_thesis_row.get("behavior_family")
+            or thesis_row.get("behavior_family")
+            or blueprint["behavior_family"]
+        ),
+        "mechanism": str(
+            generated_thesis_row.get("mechanism")
+            or thesis_row.get("mechanism")
+            or source_hypothesis_id
+        ),
+        "expected_behavior": str(
+            generated_thesis_row.get("expected_behavior")
+            or thesis_row.get("expected_behavior")
+            or blueprint["behavior_family"]
+        ),
         "entry_conditions": list(blueprint["entry_conditions"]),
         "exit_conditions": list(blueprint["exit_conditions"]),
         "filters": list(blueprint["filters"]),
@@ -457,6 +612,7 @@ def compile_strategy_spec(
             "logs/qre_behavior_thesis_registry/latest.json",
             "logs/qre_identity_ambiguity_resolution/latest.json",
             "logs/qre_blocked_thesis_lineage_census/latest.json",
+            "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
         ],
     }
     deterministic_hash = stable_digest(payload_core)
@@ -495,7 +651,43 @@ def compile_strategy_spec(
 
 def _render_strategy_source(spec: StrategySpecification) -> str:
     strategy_id = _generated_strategy_id(spec.source_hypothesis_id)
-    module_name = f"generated_{strategy_id}"
+    if spec.source_hypothesis_id == "cross_sectional_momentum_v0":
+        return "\n".join(
+            [
+                'from __future__ import annotations',
+                "",
+                "import pandas as pd",
+                "",
+                "from agent.backtesting.thin_strategy import FeatureRequirement, declare_thin",
+                "",
+                f'STRATEGY_ID = "{strategy_id}"',
+                f'STRATEGY_SPEC_ID = "{spec.strategy_spec_id}"',
+                f'GENERATOR_VERSION = "{GENERATOR_VERSION}"',
+                f'TEMPLATE_VERSION = "{TEMPLATE_VERSION}"',
+                "",
+                "FEATURE_REQUIREMENTS = [",
+                '    FeatureRequirement(',
+                '        name="cross_sectional_rank",',
+                '        params={"lookback_bars": 20, "ascending": False, "rank_mode": "PERCENTILE", "tie_policy": "AVERAGE", "missing_value_policy": "FAIL_CLOSED", "minimum_universe_size": 3},',
+                '        alias="cross_sectional_rank",',
+                "    ),",
+                "]",
+                "",
+                "def _raw(df: pd.DataFrame, features: dict[str, pd.Series]) -> pd.Series:",
+                '    rank = features["cross_sectional_rank"].astype("Float64")',
+                "    signal = pd.Series(0, index=df.index, dtype=int)",
+                "    signal.loc[rank >= 0.75] = 1",
+                "    signal.loc[rank <= 0.25] = -1",
+                "    return signal",
+                "",
+                "generated_strategy = declare_thin(",
+                "    _raw,",
+                "    feature_requirements=FEATURE_REQUIREMENTS,",
+                '    sizing_spec={"mode": "unit_notional_research_only"},',
+                ")",
+                "",
+            ]
+        ) + "\n"
     return "\n".join(
         [
             'from __future__ import annotations',
@@ -541,6 +733,49 @@ def _render_strategy_source(spec: StrategySpecification) -> str:
 def _render_test_source(spec: StrategySpecification, strategy_module_relpath: str) -> str:
     strategy_id = _generated_strategy_id(spec.source_hypothesis_id)
     module_path = strategy_module_relpath.removesuffix(".py").replace("/", ".")
+    if spec.source_hypothesis_id == "cross_sectional_momentum_v0":
+        return "\n".join(
+            [
+                "from __future__ import annotations",
+                "",
+                "import importlib",
+                "import pandas as pd",
+                "",
+                "from agent.backtesting.thin_strategy import build_features_for, is_thin_strategy",
+                "from tests._harness_helpers import build_cross_sectional_frame",
+                "",
+                f"MODULE_NAME = \"{module_path}\"",
+                f"EXPECTED_STRATEGY_ID = \"{strategy_id}\"",
+                f"EXPECTED_SPEC_ID = \"{spec.strategy_spec_id}\"",
+                "",
+                "def _load_module():",
+                "    return importlib.import_module(MODULE_NAME)",
+                "",
+                "def test_generated_strategy_imports_and_declares_thin_contract() -> None:",
+                "    module = _load_module()",
+                "    assert module.STRATEGY_ID == EXPECTED_STRATEGY_ID",
+                "    assert module.STRATEGY_SPEC_ID == EXPECTED_SPEC_ID",
+                "    assert is_thin_strategy(module.generated_strategy)",
+                "",
+                "def test_generated_strategy_is_deterministic() -> None:",
+                "    module = _load_module()",
+                "    frame = build_cross_sectional_frame(periods=28, seed=17)",
+                "    features = build_features_for(module.generated_strategy._feature_requirements, frame)",
+                "    first = module.generated_strategy(frame, features)",
+                "    second = module.generated_strategy(frame, features)",
+                "    pd.testing.assert_series_equal(first, second)",
+                "    assert set(first.dropna().unique()) <= {-1, 0, 1}",
+                "",
+                "def test_generated_strategy_handles_insufficient_breadth() -> None:",
+                "    module = _load_module()",
+                "    frame = build_cross_sectional_frame(periods=12, assets=('AAA', 'BBB'), seed=7)",
+                "    features = build_features_for(module.generated_strategy._feature_requirements, frame)",
+                "    result = module.generated_strategy(frame, features)",
+                "    assert result.index.equals(frame.index)",
+                "    assert set(result.dropna().unique()) <= {-1, 0, 1}",
+                "",
+            ]
+        ) + "\n"
     return "\n".join(
         [
             "from __future__ import annotations",
@@ -716,16 +951,19 @@ def sandbox_validate_generated_strategy(
         del importlib.sys.modules[module_name]
     module = importlib.import_module(module_name)
     strategy = getattr(module, "generated_strategy")
-    frame = pd.DataFrame(
-        {
-            "open": [100 + idx for idx in range(96)],
-            "high": [101 + idx for idx in range(96)],
-            "low": [99 + idx for idx in range(96)],
-            "close": [100 + idx + (0.5 if idx % 3 else 0.0) for idx in range(96)],
-            "volume": [1000 + idx for idx in range(96)],
-        },
-        index=pd.date_range("2024-01-01", periods=96, freq="h"),
-    )
+    if spec.source_hypothesis_id == "cross_sectional_momentum_v0":
+        frame = _build_cross_sectional_frame(periods=28, seed=13)
+    else:
+        frame = pd.DataFrame(
+            {
+                "open": [100 + idx for idx in range(96)],
+                "high": [101 + idx for idx in range(96)],
+                "low": [99 + idx for idx in range(96)],
+                "close": [100 + idx + (0.5 if idx % 3 else 0.0) for idx in range(96)],
+                "volume": [1000 + idx for idx in range(96)],
+            },
+            index=pd.date_range("2024-01-01", periods=96, freq="h"),
+        )
     from agent.backtesting.thin_strategy import build_features_for, validate_thin_strategy_output
 
     features = build_features_for(strategy._feature_requirements, frame)
@@ -872,6 +1110,26 @@ def generate_preset_entry(
     identity_row: dict[str, Any],
 ) -> dict[str, Any]:
     if source_hypothesis_id != "atr_adaptive_trend_v0":
+        if source_hypothesis_id == "cross_sectional_momentum_v0":
+            preset_name = f"{source_hypothesis_id}_generated_breadth_1d"
+            preset_id = f"qgp_{stable_digest({'preset_name': preset_name, 'strategy': registry_entry['generated_strategy_id']})[:16]}"
+            return {
+                "preset_id": preset_id,
+                "preset_name": preset_name,
+                "source_hypothesis_id": source_hypothesis_id,
+                "generated_strategy_id": registry_entry["generated_strategy_id"],
+                "timeframe": "1d",
+                "universe": ["breadth_resolved_multi_asset_basket"],
+                "parameter_values": {
+                    "lookback_bars": 20,
+                    "entry_rank_threshold": 0.75,
+                    "short_rank_threshold": 0.25,
+                },
+                "cost_assumptions": {"mode": "cost_class_visible_only"},
+                "slippage_assumptions": {"status": "not_materialized"},
+                "preset_state": "GENERATED",
+                "next_action": "evaluate_campaign_readiness_from_generated_preset",
+            }
         return {
             "source_hypothesis_id": source_hypothesis_id,
             "preset_state": "BLOCKED",
@@ -941,14 +1199,79 @@ def run_pipeline_for_hypotheses(
     source_hypothesis_ids: list[str],
 ) -> dict[str, Any]:
     inputs = _load_generation_inputs(repo_root)
-    registry_entries: list[dict[str, Any]] = []
-    preset_rows: list[dict[str, Any]] = []
-    null_control_rows: list[dict[str, Any]] = []
-    lineage_rows: list[dict[str, Any]] = []
-    closeout_rows: list[dict[str, Any]] = []
+    existing_registry_entries = _existing_generated_strategy_entries(repo_root)
+    preset_by_hypothesis = {
+        str(row.get("source_hypothesis_id") or ""): dict(row)
+        for row in _read_rows(repo_root / GENERATED_PRESETS_PATH)
+        if str(row.get("source_hypothesis_id") or "")
+    }
+    null_by_hypothesis = {
+        str(row.get("source_hypothesis_id") or ""): dict(row)
+        for row in _read_rows(repo_root / GENERATED_NULL_CONTROLS_PATH)
+        if str(row.get("source_hypothesis_id") or "")
+    }
+    lineage_by_hypothesis = {
+        str(row.get("source_hypothesis_id") or ""): dict(row)
+        for row in _read_rows(repo_root / GENERATED_LINEAGE_PATH)
+        if str(row.get("source_hypothesis_id") or "")
+    }
+    closeout_by_hypothesis = {
+        str(row.get("source_hypothesis_id") or ""): dict(row)
+        for row in _read_rows(repo_root / GENERATED_CLOSEOUT_PATH)
+        if str(row.get("source_hypothesis_id") or "")
+    }
     for source_hypothesis_id in sorted(source_hypothesis_ids):
         thesis_row = inputs["thesis_by_hypothesis"].get(source_hypothesis_id, {})
         identity_row = inputs["identity_by_hypothesis"].get(source_hypothesis_id, {})
+        existing_registry_entry = existing_registry_entries.get(source_hypothesis_id)
+        if existing_registry_entry:
+            preset_entry = generate_preset_entry(
+                source_hypothesis_id=source_hypothesis_id,
+                thesis_row=thesis_row,
+                registry_entry=existing_registry_entry,
+                identity_row=identity_row,
+            )
+            if preset_entry.get("preset_state") == "GENERATED":
+                preset_by_hypothesis[source_hypothesis_id] = preset_entry
+            null_by_hypothesis[source_hypothesis_id] = {
+                "null_control_spec_id": _null_control_id(existing_registry_entry["generated_strategy_id"]),
+                "source_hypothesis_id": source_hypothesis_id,
+                "generated_strategy_id": existing_registry_entry["generated_strategy_id"],
+                "required_controls": _mechanism_null_controls(source_hypothesis_id),
+                "execution_readiness": False,
+                "implementation_readiness": True,
+                "state": "SPECIFIED_NOT_EXECUTED",
+                "deterministic_seed": stable_digest({"generated_strategy_id": existing_registry_entry["generated_strategy_id"], "kind": "null"})[:16],
+            }
+            inclusion_status, blockers, next_action = _portfolio_status(
+                source_hypothesis_id=source_hypothesis_id,
+                preset_entry=preset_entry if preset_entry.get("preset_state") == "GENERATED" else None,
+                identity_row=identity_row,
+            )
+            lineage_by_hypothesis[source_hypothesis_id] = {
+                "generated_lineage_id": _lineage_id(source_hypothesis_id),
+                "source_hypothesis_id": source_hypothesis_id,
+                "thesis_id": str(thesis_row.get("thesis_id") or ""),
+                "strategy_spec_id": str(existing_registry_entry.get("strategy_spec_id") or ""),
+                "generated_strategy_id": existing_registry_entry["generated_strategy_id"],
+                "generated_registration_id": existing_registry_entry["generated_registration_id"],
+                "preset_id": preset_entry.get("preset_id", ""),
+                "null_control_spec_id": _null_control_id(existing_registry_entry["generated_strategy_id"]),
+                "portfolio_cell_id": _portfolio_cell_id(source_hypothesis_id),
+                "campaign_specification_identity": f"qgc_{stable_digest({'source_hypothesis_id': source_hypothesis_id, 'strategy': existing_registry_entry['generated_strategy_id']})[:16]}",
+                "campaign_readiness_state": inclusion_status,
+                "blockers": blockers,
+                "next_action": next_action,
+            }
+            closeout_by_hypothesis[source_hypothesis_id] = {
+                "source_hypothesis_id": source_hypothesis_id,
+                "final_generation_outcome": "RESEARCH_REGISTERED_AUTOMATED",
+                "generated_strategy_id": existing_registry_entry["generated_strategy_id"],
+                "preset_generated": preset_entry.get("preset_state") == "GENERATED",
+                "campaign_readiness_state": inclusion_status,
+                "blockers": blockers,
+            }
+            continue
         compile_result = compile_strategy_spec(repo_root=repo_root, source_hypothesis_id=source_hypothesis_id)
         outcome = compile_result["outcome"]
         if outcome != "SPECIFICATION_READY":
@@ -958,35 +1281,29 @@ def run_pipeline_for_hypotheses(
                 "BLOCKED_REJECTED_LINEAGE": "REJECTED_POLICY",
                 "BLOCKED_DATA_REQUIREMENT": "BLOCKED_DATA",
             }.get(outcome, outcome)
-            closeout_rows.append(
-                {
-                    "source_hypothesis_id": source_hypothesis_id,
-                    "final_generation_outcome": final_outcome,
-                    "reason": compile_result["reason"],
-                }
-            )
+            closeout_by_hypothesis[source_hypothesis_id] = {
+                "source_hypothesis_id": source_hypothesis_id,
+                "final_generation_outcome": final_outcome,
+                "reason": compile_result["reason"],
+            }
             continue
 
         spec: StrategySpecification = compile_result["specification"]
         materialization = materialize_generated_strategy(spec)
         if materialization["outcome"] != "CODE_GENERATED":
-            closeout_rows.append(
-                {
-                    "source_hypothesis_id": source_hypothesis_id,
-                    "final_generation_outcome": materialization["outcome"],
-                    "reason": ",".join(materialization.get("errors", [])),
-                }
-            )
+            closeout_by_hypothesis[source_hypothesis_id] = {
+                "source_hypothesis_id": source_hypothesis_id,
+                "final_generation_outcome": materialization["outcome"],
+                "reason": ",".join(materialization.get("errors", [])),
+            }
             continue
         sandbox = sandbox_validate_generated_strategy(spec=spec, materialization=materialization)
         if sandbox["status"] != "VALIDATED":
-            closeout_rows.append(
-                {
-                    "source_hypothesis_id": source_hypothesis_id,
-                    "final_generation_outcome": "QUARANTINED_VALIDATION",
-                    "reason": sandbox["status"],
-                }
-            )
+            closeout_by_hypothesis[source_hypothesis_id] = {
+                "source_hypothesis_id": source_hypothesis_id,
+                "final_generation_outcome": "QUARANTINED_VALIDATION",
+                "reason": sandbox["status"],
+            }
             continue
         admission = admit_generated_registry_entry(
             repo_root=repo_root,
@@ -1000,16 +1317,14 @@ def run_pipeline_for_hypotheses(
                 mapped = "REJECTED_DUPLICATE"
             else:
                 mapped = "QUARANTINED_VALIDATION"
-            closeout_rows.append(
-                {
-                    "source_hypothesis_id": source_hypothesis_id,
-                    "final_generation_outcome": mapped,
-                    "reason": admission["reason"],
-                }
-            )
+            closeout_by_hypothesis[source_hypothesis_id] = {
+                "source_hypothesis_id": source_hypothesis_id,
+                "final_generation_outcome": mapped,
+                "reason": admission["reason"],
+            }
             continue
         registry_entry = dict(admission["entry"])
-        registry_entries.append(registry_entry)
+        existing_registry_entries[source_hypothesis_id] = registry_entry
         preset_entry = generate_preset_entry(
             source_hypothesis_id=source_hypothesis_id,
             thesis_row=thesis_row,
@@ -1017,80 +1332,74 @@ def run_pipeline_for_hypotheses(
             identity_row=identity_row,
         )
         if preset_entry.get("preset_state") == "GENERATED":
-            preset_rows.append(preset_entry)
-        null_control_rows.append(
-            {
-                "null_control_spec_id": _null_control_id(registry_entry["generated_strategy_id"]),
-                "source_hypothesis_id": source_hypothesis_id,
-                "generated_strategy_id": registry_entry["generated_strategy_id"],
-                "required_controls": _mechanism_null_controls(source_hypothesis_id),
-                "execution_readiness": False,
-                "implementation_readiness": True,
-                "state": "SPECIFIED_NOT_EXECUTED",
-                "deterministic_seed": stable_digest({"generated_strategy_id": registry_entry["generated_strategy_id"], "kind": "null"})[:16],
-            }
-        )
+            preset_by_hypothesis[source_hypothesis_id] = preset_entry
+        null_by_hypothesis[source_hypothesis_id] = {
+            "null_control_spec_id": _null_control_id(registry_entry["generated_strategy_id"]),
+            "source_hypothesis_id": source_hypothesis_id,
+            "generated_strategy_id": registry_entry["generated_strategy_id"],
+            "required_controls": _mechanism_null_controls(source_hypothesis_id),
+            "execution_readiness": False,
+            "implementation_readiness": True,
+            "state": "SPECIFIED_NOT_EXECUTED",
+            "deterministic_seed": stable_digest({"generated_strategy_id": registry_entry["generated_strategy_id"], "kind": "null"})[:16],
+        }
         inclusion_status, blockers, next_action = _portfolio_status(
             source_hypothesis_id=source_hypothesis_id,
             preset_entry=preset_entry if preset_entry.get("preset_state") == "GENERATED" else None,
             identity_row=identity_row,
         )
-        lineage_rows.append(
-            {
-                "generated_lineage_id": _lineage_id(source_hypothesis_id),
-                "source_hypothesis_id": source_hypothesis_id,
-                "thesis_id": spec.thesis_id,
-                "strategy_spec_id": spec.strategy_spec_id,
-                "generated_strategy_id": registry_entry["generated_strategy_id"],
-                "generated_registration_id": registry_entry["generated_registration_id"],
-                "preset_id": preset_entry.get("preset_id", ""),
-                "null_control_spec_id": _null_control_id(registry_entry["generated_strategy_id"]),
-                "portfolio_cell_id": _portfolio_cell_id(source_hypothesis_id),
-                "campaign_specification_identity": f"qgc_{stable_digest({'source_hypothesis_id': source_hypothesis_id, 'strategy': registry_entry['generated_strategy_id']})[:16]}",
-                "campaign_readiness_state": inclusion_status,
-                "blockers": blockers,
-                "next_action": next_action,
-            }
-        )
-        closeout_rows.append(
-            {
-                "source_hypothesis_id": source_hypothesis_id,
-                "final_generation_outcome": "RESEARCH_REGISTERED_AUTOMATED",
-                "generated_strategy_id": registry_entry["generated_strategy_id"],
-                "preset_generated": preset_entry.get("preset_state") == "GENERATED",
-                "campaign_readiness_state": inclusion_status,
-                "blockers": blockers,
-            }
-        )
+        lineage_by_hypothesis[source_hypothesis_id] = {
+            "generated_lineage_id": _lineage_id(source_hypothesis_id),
+            "source_hypothesis_id": source_hypothesis_id,
+            "thesis_id": spec.thesis_id,
+            "strategy_spec_id": spec.strategy_spec_id,
+            "generated_strategy_id": registry_entry["generated_strategy_id"],
+            "generated_registration_id": registry_entry["generated_registration_id"],
+            "preset_id": preset_entry.get("preset_id", ""),
+            "null_control_spec_id": _null_control_id(registry_entry["generated_strategy_id"]),
+            "portfolio_cell_id": _portfolio_cell_id(source_hypothesis_id),
+            "campaign_specification_identity": f"qgc_{stable_digest({'source_hypothesis_id': source_hypothesis_id, 'strategy': registry_entry['generated_strategy_id']})[:16]}",
+            "campaign_readiness_state": inclusion_status,
+            "blockers": blockers,
+            "next_action": next_action,
+        }
+        closeout_by_hypothesis[source_hypothesis_id] = {
+            "source_hypothesis_id": source_hypothesis_id,
+            "final_generation_outcome": "RESEARCH_REGISTERED_AUTOMATED",
+            "generated_strategy_id": registry_entry["generated_strategy_id"],
+            "preset_generated": preset_entry.get("preset_state") == "GENERATED",
+            "campaign_readiness_state": inclusion_status,
+            "blockers": blockers,
+        }
 
     preset_payload = {
         "schema_version": SCHEMA_VERSION,
         "report_kind": "generated_research_presets",
-        "generated_preset_identity": f"qgp_{stable_digest(preset_rows)[:16]}",
-        "rows": sorted(preset_rows, key=lambda row: str(row.get("preset_name") or "")),
+        "generated_preset_identity": f"qgp_{stable_digest(list(preset_by_hypothesis.values()))[:16]}",
+        "rows": sorted(preset_by_hypothesis.values(), key=lambda row: str(row.get("preset_name") or "")),
     }
     null_payload = {
         "schema_version": SCHEMA_VERSION,
         "report_kind": "generated_null_controls",
-        "generated_null_control_identity": f"qgn_{stable_digest(null_control_rows)[:16]}",
-        "rows": sorted(null_control_rows, key=lambda row: str(row.get("source_hypothesis_id") or "")),
+        "generated_null_control_identity": f"qgn_{stable_digest(list(null_by_hypothesis.values()))[:16]}",
+        "rows": sorted(null_by_hypothesis.values(), key=lambda row: str(row.get("source_hypothesis_id") or "")),
     }
     lineage_payload = {
         "schema_version": SCHEMA_VERSION,
         "report_kind": "generated_campaign_lineage",
-        "generated_lineage_identity": f"qgl_{stable_digest(lineage_rows)[:16]}",
-        "rows": sorted(lineage_rows, key=lambda row: str(row.get("source_hypothesis_id") or "")),
+        "generated_lineage_identity": f"qgl_{stable_digest(list(lineage_by_hypothesis.values()))[:16]}",
+        "rows": sorted(lineage_by_hypothesis.values(), key=lambda row: str(row.get("source_hypothesis_id") or "")),
     }
     closeout_payload = {
         "schema_version": SCHEMA_VERSION,
         "report_kind": "qre_automated_generation_closeout",
         "module_version": GENERATOR_VERSION,
         "resolved_catalog_identity": build_resolved_strategy_catalog(repo_root)["resolved_catalog_identity"],
-        "rows": sorted(closeout_rows, key=lambda row: str(row.get("source_hypothesis_id") or "")),
+        "rows": sorted(closeout_by_hypothesis.values(), key=lambda row: str(row.get("source_hypothesis_id") or "")),
         "summary": {
-            "thesis_count": len(source_hypothesis_ids),
-            "registered_count": sum(1 for row in closeout_rows if row.get("final_generation_outcome") == "RESEARCH_REGISTERED_AUTOMATED"),
-            "blocked_count": sum(1 for row in closeout_rows if row.get("final_generation_outcome") != "RESEARCH_REGISTERED_AUTOMATED"),
+            "thesis_count": len(closeout_by_hypothesis),
+            "registered_count": sum(1 for row in closeout_by_hypothesis.values() if row.get("final_generation_outcome") == "RESEARCH_REGISTERED_AUTOMATED"),
+            "blocked_count": sum(1 for row in closeout_by_hypothesis.values() if row.get("final_generation_outcome") != "RESEARCH_REGISTERED_AUTOMATED"),
         },
     }
     _atomic_write(repo_root / GENERATED_PRESETS_PATH, json.dumps(preset_payload, indent=2, sort_keys=True) + "\n")
