@@ -4042,7 +4042,7 @@ live, broker, risk, or execution work.
 ### ADE-QRE-019 - Governed Automated Research Strategy Generation Program
 
 - queue id: `ADE-QRE-019`
-- status: `ready`
+- status: `blocked until ADE-QRE-019M done`
 - purpose: admit and implement bounded deterministic automated
   research-only executable strategy generation, validation, registration,
   preset generation, null-control specification, lineage materialization,

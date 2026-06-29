@@ -1006,6 +1006,427 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "operator_gate": "none",
         "status": "not_started",
     },
+    {
+        "id": "u_ade_qre_019a_generation_governance_migration_001",
+        "roadmap_task_id": "ade_qre_019a_generation_authority_governance",
+        "title": "ADE-QRE-019 governance migration for isolated generated research",
+        "phase": "ade_qre_019a",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_qre_019_governance_conflict_matrix.md",
+            "tests/unit/test_execution_authority.py",
+            "tests/unit/test_hooks_no_touch.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_execution_authority.py"
+        ),
+        "extra_definition_of_done": _governance_doc_dod(
+            "docs/roadmap/qre_automated_strategy_generation_program.md"
+        )
+        + (
+            "governance preserves .claude/** immutability and research/** protection",
+            "governance admits isolated generated-research surfaces outside research/**",
+        ),
+        "extra_stop_conditions": (
+            "any change that narrows .claude/** protection or general research/** write denial -> STOP",
+        ),
+        "prerequisites": (),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019b_typed_spec_contract_001",
+        "roadmap_task_id": "ade_qre_019b_typed_strategy_specification_contract",
+        "title": "Typed strategy specification and generated path policy",
+        "phase": "ade_qre_019b",
+        "unit_kind": "schema_only",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/generated_strategy_paths.py",
+            "packages/qre_research/automated_strategy_generation.py",
+            "tests/unit/test_qre_automated_strategy_generation.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "typed specification exposes closed fields, versions, and deterministic identity",
+            "generated path policy refuses writes into research/** and protected runtime surfaces",
+            "schema permits bounded research-only generation only",
+        ),
+        "extra_stop_conditions": (
+            "any arbitrary code, import, or filesystem escape admitted by the specification -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019a_generation_governance_migration_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019c_thesis_compiler_001",
+        "roadmap_task_id": "ade_qre_019c_thesis_to_specification_compiler",
+        "title": "Behavior thesis to typed specification compiler",
+        "phase": "ade_qre_019c",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_strategy_generation.py",
+            "tests/unit/test_qre_automated_strategy_generation.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "compiler emits only closed-vocabulary outcomes",
+            "compiler blocks rejected clones, unresolved identities, and unsupported primitives",
+            "compiler provenance traces back to authoritative thesis and identity artifacts",
+        ),
+        "extra_stop_conditions": (
+            "any inferred or invented thesis mechanics used to fill missing fields -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019b_typed_spec_contract_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019d_executable_generator_001",
+        "roadmap_task_id": "ade_qre_019d_deterministic_executable_strategy_generator",
+        "title": "Deterministic generated strategy renderer",
+        "phase": "ade_qre_019d",
+        "unit_kind": "research_module",
+        "target_layer": "strategy_mapping",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "agent/backtesting/generated_strategies/generated_qgs_5af8f605ba82ae53.py",
+            "packages/qre_research/automated_strategy_generation.py",
+            "agent/backtesting/features.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/generated_strategies/test_generated_qgs_5af8f605ba82ae53.py"
+        ),
+        "extra_definition_of_done": (
+            "identical canonical inputs produce byte-identical generated strategy source",
+            "generated code uses only allowlisted imports and approved thin-strategy primitives",
+            "generated source lives outside protected research/** surfaces",
+        ),
+        "extra_stop_conditions": (
+            "any generated code with import-time side effects, eval, exec, or broker/risk/execution imports -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019c_thesis_compiler_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019e_generated_test_suite_001",
+        "roadmap_task_id": "ade_qre_019e_automated_test_generator",
+        "title": "Deterministic generated strategy test suite",
+        "phase": "ade_qre_019e",
+        "unit_kind": "test_only",
+        "target_layer": "test",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "tests/generated_strategies/test_generated_qgs_5af8f605ba82ae53.py",
+            "tests/unit/test_qre_automated_strategy_generation.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/generated_strategies/test_generated_qgs_5af8f605ba82ae53.py"
+        ),
+        "extra_definition_of_done": (
+            "generated tests cover deterministic import, interface, warmup, empty input, and boundary conditions",
+            "generated tests assert no network, no subprocess, and no file mutation capability",
+            "generated tests derive from typed specification rather than free-form source generation",
+        ),
+        "extra_stop_conditions": (
+            "any generated test that weakens or skips a safety boundary -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019d_executable_generator_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019f_static_safety_gate_001",
+        "roadmap_task_id": "ade_qre_019f_static_safety_architecture_gate",
+        "title": "Static safety, integrity, and architecture validation gate",
+        "phase": "ade_qre_019f",
+        "unit_kind": "research_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_strategy_generation.py",
+            "tests/unit/test_qre_automated_strategy_generation.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "static gate validates AST safety, allowed imports, manifest integrity, and code/spec traceability",
+            "gate quarantines generated strategies that fail policy or architecture checks",
+            "no architecture exception is introduced for generated code",
+        ),
+        "extra_stop_conditions": (
+            "any forbidden import edge allowlisted solely to pass generated strategy checks -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019e_generated_test_suite_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019g_sandbox_validation_001",
+        "roadmap_task_id": "ade_qre_019g_isolated_sandbox_validation",
+        "title": "Isolated sandbox validation for generated strategies",
+        "phase": "ade_qre_019g",
+        "unit_kind": "research_module",
+        "target_layer": "test",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/validation/qgs_5af8f605ba82ae53.json",
+            "packages/qre_research/automated_strategy_generation.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "sandbox validation records deterministic technical outcomes only",
+            "fixture smoke validation is not promoted to empirical market evidence",
+            "validation enforces identity uniqueness and repeated deterministic execution",
+        ),
+        "extra_stop_conditions": (
+            "any fixture result treated as OOS, null-control, or alpha evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019f_static_safety_gate_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019h_generated_registry_admission_001",
+        "roadmap_task_id": "ade_qre_019h_automatic_research_only_registration",
+        "title": "Automatic generated-registry admission and resolved catalog composition",
+        "phase": "ade_qre_019h",
+        "unit_kind": "research_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/registry/generated_strategy_registry.v1.json",
+            "packages/qre_research/automated_strategy_generation.py",
+            "tests/unit/test_qre_automated_strategy_generation.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "generated registry admits only validated research-only strategies with complete provenance",
+            "canonical resolver composes protected manual authority with validated generated entries",
+            "resolver excludes collisions, stale manifests, and rejected lineage",
+        ),
+        "extra_stop_conditions": (
+            "any partial registry admission visible through the resolver after a failure -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019g_sandbox_validation_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019i_bounded_preset_generation_001",
+        "roadmap_task_id": "ade_qre_019i_automatic_bounded_preset_generation",
+        "title": "Automatic bounded research preset generation",
+        "phase": "ade_qre_019i",
+        "unit_kind": "research_module",
+        "target_layer": "preset",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/presets/generated_research_presets.v1.json",
+            "packages/qre_research/automated_strategy_generation.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "preset generation is deterministic, bounded, and constrained to approved parameter domains",
+            "preset generation performs no search, optimization, or OOS-derived tuning",
+            "registered strategies may remain campaign-blocked when no valid preset can be produced",
+        ),
+        "extra_stop_conditions": (
+            "any preset value outside the typed parameter domain -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019h_generated_registry_admission_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019j_null_control_generation_001",
+        "roadmap_task_id": "ade_qre_019j_automatic_null_control_specification",
+        "title": "Automatic null-control specification generation",
+        "phase": "ade_qre_019j",
+        "unit_kind": "research_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/lineage/generated_null_controls.v1.json",
+            "packages/qre_research/automated_strategy_generation.py",
+            "reporting/qre_null_control_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "null-control specifications are mechanism-appropriate and deterministic",
+            "deterministic seeds derive from canonical identities only",
+            "null-control specifications remain distinct from executed empirical evidence",
+        ),
+        "extra_stop_conditions": (
+            "any null-control specification reported as executed evidence without campaign execution -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019i_bounded_preset_generation_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019k_lineage_portfolio_integration_001",
+        "roadmap_task_id": "ade_qre_019k_campaign_lineage_portfolio_integration",
+        "title": "Generated lineage and portfolio integration via resolved catalog",
+        "phase": "ade_qre_019k",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/lineage/generated_campaign_lineage.v1.json",
+            "reporting/qre_blocked_thesis_lineage_census.py",
+            "reporting/qre_campaign_lineage_materialization.py",
+            "reporting/qre_campaign_portfolio_reconstruction.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_campaign_portfolio_reconstruction",
+            "logs/qre_campaign_portfolio_reconstruction/",
+        )
+        + (
+            "reporting surfaces read generated artifacts without importing qre_research implementation modules",
+            "generated registry is not consumed as a second authority; the resolved catalog remains sole authority",
+        ),
+        "extra_stop_conditions": (
+            "any reporting module imports generator implementation code across a forbidden boundary -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019j_null_control_generation_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019l_blocked_thesis_pipeline_application_001",
+        "roadmap_task_id": "ade_qre_019l_apply_pipeline_to_blocked_theses",
+        "title": "Apply ADE-QRE-019 pipeline to blocked theses",
+        "phase": "ade_qre_019l",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/specs/qsp_16800da8a94ff0cc.json",
+            "generated_research/manifests/qgs_5af8f605ba82ae53.json",
+            "generated_research/reports/automated_generation_closeout.v1.json",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": (
+            "pipeline records one closed final outcome per blocked thesis",
+            "trend_pullback_v1 and rejected clones remain excluded from automated generation",
+            "no campaign execution occurs during blocked-thesis pipeline application",
+        ),
+        "extra_stop_conditions": (
+            "any automated application path executes a campaign instead of stopping at readiness artifacts -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019k_lineage_portfolio_integration_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_019m_generation_closeout_001",
+        "roadmap_task_id": "ade_qre_019m_automated_generation_closeout",
+        "title": "Integrated ADE-QRE-019 closeout reporter",
+        "phase": "ade_qre_019m",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_automated_generation_closeout.py",
+            "tests/unit/test_qre_automated_strategy_generation.py",
+            "docs/governance/qre_automated_generation_closeout.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_strategy_generation.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_automated_generation_closeout",
+            "logs/qre_automated_generation_closeout/",
+        )
+        + (
+            "closeout states whether .claude/** and research/** protections were preserved",
+            "closeout records exact automatic-registration and campaign-readiness blockers",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that claims campaign execution, paper, shadow, or live authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_019l_blocked_thesis_pipeline_application_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
     # -------------------- v3.15.16 Intelligent Routing Layer ------------
     {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",

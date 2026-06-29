@@ -69,6 +69,19 @@ def test_phase_vocabulary_is_closed_and_complete() -> None:
         "ade_qre_018i",
         "ade_qre_018j",
         "ade_qre_018k",
+        "ade_qre_019a",
+        "ade_qre_019b",
+        "ade_qre_019c",
+        "ade_qre_019d",
+        "ade_qre_019e",
+        "ade_qre_019f",
+        "ade_qre_019g",
+        "ade_qre_019h",
+        "ade_qre_019i",
+        "ade_qre_019j",
+        "ade_qre_019k",
+        "ade_qre_019l",
+        "ade_qre_019m",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -87,6 +100,7 @@ def test_source_document_vocabulary_includes_addenda_2_and_3() -> None:
         "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
         "docs/roadmap/qre_maturity_roadmap_to_100.md",
         "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+        "docs/roadmap/qre_automated_strategy_generation_program.md",
         "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
         "docs/governance/qre_synthesis_readiness_review.md",
         "docs/roadmap/Roadmap v6.md",
@@ -305,6 +319,23 @@ def test_ade_qre_018a_to_018k_tasks_present(snap: dict) -> None:
     assert tasks["ade_qre_018k"]["id"] == "ade_qre_018k_second_synthesis_readiness_review"
 
 
+def test_ade_qre_019a_to_019m_tasks_present(snap: dict) -> None:
+    tasks = _tasks_by_phase(snap)
+    assert tasks["ade_qre_019a"]["id"] == "ade_qre_019a_generation_authority_governance"
+    assert tasks["ade_qre_019b"]["id"] == "ade_qre_019b_typed_strategy_specification_contract"
+    assert tasks["ade_qre_019c"]["id"] == "ade_qre_019c_thesis_to_specification_compiler"
+    assert tasks["ade_qre_019d"]["id"] == "ade_qre_019d_deterministic_executable_strategy_generator"
+    assert tasks["ade_qre_019e"]["id"] == "ade_qre_019e_automated_test_generator"
+    assert tasks["ade_qre_019f"]["id"] == "ade_qre_019f_static_safety_architecture_gate"
+    assert tasks["ade_qre_019g"]["id"] == "ade_qre_019g_isolated_sandbox_validation"
+    assert tasks["ade_qre_019h"]["id"] == "ade_qre_019h_automatic_research_only_registration"
+    assert tasks["ade_qre_019i"]["id"] == "ade_qre_019i_automatic_bounded_preset_generation"
+    assert tasks["ade_qre_019j"]["id"] == "ade_qre_019j_automatic_null_control_specification"
+    assert tasks["ade_qre_019k"]["id"] == "ade_qre_019k_campaign_lineage_portfolio_integration"
+    assert tasks["ade_qre_019l"]["id"] == "ade_qre_019l_apply_pipeline_to_blocked_theses"
+    assert tasks["ade_qre_019m"]["id"] == "ade_qre_019m_automated_generation_closeout"
+
+
 def test_phase_v3_15_17_task_present(snap: dict) -> None:
     t = _tasks_by_phase(snap)["v3.15.17"]
     assert t["id"] == "phase_v3_15_17"
@@ -369,6 +400,19 @@ def test_v3_15_16_to_v3_15_20_all_present_in_order(snap: dict) -> None:
         "ade_qre_018i",
         "ade_qre_018j",
         "ade_qre_018k",
+        "ade_qre_019a",
+        "ade_qre_019b",
+        "ade_qre_019c",
+        "ade_qre_019d",
+        "ade_qre_019e",
+        "ade_qre_019f",
+        "ade_qre_019g",
+        "ade_qre_019h",
+        "ade_qre_019i",
+        "ade_qre_019j",
+        "ade_qre_019k",
+        "ade_qre_019l",
+        "ade_qre_019m",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
