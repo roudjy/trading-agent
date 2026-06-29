@@ -1,0 +1,24 @@
+{
+  "module_version": "ade-qre-022.1",
+  "preset_readiness_identity": "qrr_8eef256df2ddf9c7",
+  "report_kind": "qre_strategy_preset_readiness",
+  "rows": [
+    {
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "PRESET_BLOCKED_PARAMETERS",
+      "reason": "timeframe_ambiguity_prevents_preset_materialization"
+    },
+    {
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "outcome": "PRESET_READY_WITH_LIMITATIONS",
+      "preset_id": "qgp_507c505a5e83c34d",
+      "preset_name": "cross_sectional_momentum_v0_generated_breadth_1d",
+      "reason": "generated_preset_present",
+      "timeframe": "1d",
+      "universe": [
+        "breadth_resolved_multi_asset_basket"
+      ]
+    }
+  ],
+  "schema_version": "1.0"
+}

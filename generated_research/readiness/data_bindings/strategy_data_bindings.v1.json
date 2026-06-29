@@ -1,0 +1,36 @@
+{
+  "data_binding_identity": "qrr_e3814f481dc5d920",
+  "module_version": "ade-qre-022.1",
+  "report_kind": "qre_strategy_data_bindings",
+  "rows": [
+    {
+      "coverage_row": {},
+      "dataset_identity": "",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "DATASET_MISSING",
+      "provenance": [
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "reason": "timeframe_not_resolved",
+      "snapshot_identity": "",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "source_identity": "",
+      "state": "BLOCKED"
+    },
+    {
+      "coverage_row": {},
+      "dataset_identity": "",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "outcome": "DATASET_MISSING",
+      "provenance": [
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "reason": "instrument_identity_not_resolved",
+      "snapshot_identity": "",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "source_identity": "",
+      "state": "BLOCKED"
+    }
+  ],
+  "schema_version": "1.0"
+}

@@ -1,0 +1,88 @@
+{
+  "identity_decision_identity": "qrr_f33eb473cd00748d",
+  "module_version": "ade-qre-022.1",
+  "report_kind": "qre_strategy_identity_decisions",
+  "rows": [
+    {
+      "candidate_authority": "authoritative_registry",
+      "candidate_ids": [
+        "Euronext Amsterdam:ASML"
+      ],
+      "confidence_or_authority_state": "authoritative_registry",
+      "decision_id": "qrd_644438d515560e49",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_class": "instrument",
+      "provenance": [
+        "logs/qre_identity_ambiguity_resolution/latest.json",
+        "artifacts/identity/instrument_identity_latest.v1.json"
+      ],
+      "rejection_reasons": [],
+      "requested_identity": "ASML",
+      "resolution_outcome": "RESOLVED_UNIQUE_AUTHORITATIVE",
+      "selected_identity": "Euronext Amsterdam:ASML",
+      "selection_reason": "single canonical instrument row matched the authoritative hint"
+    },
+    {
+      "candidate_authority": "derived_from_authoritative_instrument",
+      "candidate_ids": [
+        "quv_fa4646ea49ea7bf2"
+      ],
+      "confidence_or_authority_state": "derived_from_authoritative_instrument",
+      "decision_id": "qrd_81a4e40e6450b884",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_class": "universe",
+      "provenance": [
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "artifacts/universe/equity_universe_catalog_latest.v1.json"
+      ],
+      "rejection_reasons": [],
+      "requested_identity": "single_resolved_instrument_only",
+      "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
+      "selected_identity": "quv_fa4646ea49ea7bf2",
+      "selection_reason": "single-instrument strategy can bind a deterministic one-member research universe from the resolved instrument"
+    },
+    {
+      "candidate_authority": "missing",
+      "candidate_ids": [],
+      "confidence_or_authority_state": "missing",
+      "decision_id": "qrd_7f7c24c4efb47859",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "identity_class": "instrument",
+      "provenance": [
+        "logs/qre_identity_ambiguity_resolution/latest.json",
+        "artifacts/identity/instrument_identity_latest.v1.json"
+      ],
+      "rejection_reasons": [
+        "missing_instrument_identity"
+      ],
+      "requested_identity": "",
+      "resolution_outcome": "MISSING_NO_CANDIDATE",
+      "selected_identity": "",
+      "selection_reason": "no instrument identity surfaced by authoritative readiness inputs"
+    },
+    {
+      "candidate_authority": "non_authoritative_generated_alias",
+      "candidate_ids": [
+        "breadth_resolved_multi_asset_basket"
+      ],
+      "confidence_or_authority_state": "non_authoritative_generated_alias",
+      "decision_id": "qrd_d58fe83e8e5fb3f2",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "identity_class": "universe",
+      "provenance": [
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "artifacts/universe/equity_universe_catalog_latest.v1.json"
+      ],
+      "rejection_reasons": [
+        "non_authoritative_universe_alias_only"
+      ],
+      "requested_identity": "breadth_resolved_multi_asset_basket",
+      "resolution_outcome": "BLOCKED_NON_AUTHORITATIVE_ONLY",
+      "selected_identity": "",
+      "selection_reason": "generated basket alias has no single authoritative universe member set or canonical universe binding"
+    }
+  ],
+  "schema_version": "1.0"
+}

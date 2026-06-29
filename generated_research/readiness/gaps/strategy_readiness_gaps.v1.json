@@ -1,0 +1,255 @@
+{
+  "module_version": "ade-qre-022.1",
+  "readiness_gap_identity": "qrr_ae610cf0a0773c91",
+  "report_kind": "qre_strategy_readiness_gaps",
+  "rows": [
+    {
+      "aggregate_blocker": "generated_preset_missing",
+      "fields": [
+        {
+          "authoritative_value": "Euronext Amsterdam:ASML",
+          "candidate_refs": [
+            "Euronext Amsterdam:ASML"
+          ],
+          "conflict_reason": "",
+          "field_name": "instrument",
+          "missing_reason": "single_canonical_match",
+          "next_action": "preserve_resolved_instrument",
+          "provenance": [
+            "artifacts/identity/instrument_identity_latest.v1.json",
+            "logs/qre_identity_ambiguity_resolution/latest.json"
+          ],
+          "source_authority": "artifacts/identity/instrument_identity_latest.v1.json",
+          "state": "RESOLVED"
+        },
+        {
+          "authoritative_value": "quv_fa4646ea49ea7bf2",
+          "candidate_refs": [
+            "quv_fa4646ea49ea7bf2"
+          ],
+          "conflict_reason": "",
+          "field_name": "universe",
+          "missing_reason": "single_instrument_universe_bound_from_instrument",
+          "next_action": "preserve_bound_single_instrument_universe",
+          "provenance": [
+            "artifacts/universe/equity_universe_catalog_latest.v1.json",
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "artifacts/universe/equity_universe_catalog_latest.v1.json",
+          "state": "RESOLVED_WITH_LIMITATIONS"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [
+            "1d",
+            "4h",
+            "1h"
+          ],
+          "conflict_reason": "multiple timeframes available",
+          "field_name": "timeframe",
+          "missing_reason": "multiple_spec_timeframes",
+          "next_action": "preserve_fail_closed_timeframe_ambiguity",
+          "provenance": [
+            "generated_research/specs",
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "generated_research/specs or generated preset",
+          "state": "AMBIGUOUS"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "source",
+          "missing_reason": "timeframe_not_resolved",
+          "next_action": "resolve_universe_and_timeframe_before_source_binding",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "dataset",
+          "missing_reason": "timeframe_not_resolved",
+          "next_action": "resolve_binding_before_dataset_identity",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "snapshot",
+          "missing_reason": "timeframe_not_resolved",
+          "next_action": "resolve_binding_before_snapshot_identity",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "preset",
+          "missing_reason": "timeframe_ambiguity_prevents_preset_materialization",
+          "next_action": "resolve_timeframe_before_preset",
+          "provenance": [
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "generated_research/presets/generated_research_presets.v1.json",
+          "state": "BLOCKED"
+        }
+      ],
+      "generated_registration_id": "qgr_4ae344d01521bb31",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "provenance": [
+        "generated_research/presets/generated_research_presets.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/specs",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "readiness_state": "READINESS_GAPS_IDENTIFIED",
+      "resolved_fields": [],
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "unresolved_fields": [
+        "source",
+        "dataset",
+        "snapshot",
+        "timeframe"
+      ]
+    },
+    {
+      "aggregate_blocker": "identity_not_resolved",
+      "fields": [
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "instrument",
+          "missing_reason": "missing_instrument_identity",
+          "next_action": "resolve_instrument_identity",
+          "provenance": [
+            "artifacts/identity/instrument_identity_latest.v1.json",
+            "logs/qre_identity_ambiguity_resolution/latest.json"
+          ],
+          "source_authority": "artifacts/identity/instrument_identity_latest.v1.json",
+          "state": "MISSING"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [
+            "breadth_resolved_multi_asset_basket"
+          ],
+          "conflict_reason": "",
+          "field_name": "universe",
+          "missing_reason": "non_authoritative_universe_alias_only",
+          "next_action": "resolve_authoritative_universe_membership",
+          "provenance": [
+            "artifacts/universe/equity_universe_catalog_latest.v1.json",
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "artifacts/universe/equity_universe_catalog_latest.v1.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "1d",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "timeframe",
+          "missing_reason": "preset_timeframe",
+          "next_action": "use_preset_timeframe",
+          "provenance": [
+            "generated_research/specs",
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "generated_research/specs or generated preset",
+          "state": "RESOLVED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "source",
+          "missing_reason": "instrument_identity_not_resolved",
+          "next_action": "resolve_universe_and_timeframe_before_source_binding",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "dataset",
+          "missing_reason": "instrument_identity_not_resolved",
+          "next_action": "resolve_binding_before_dataset_identity",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "snapshot",
+          "missing_reason": "instrument_identity_not_resolved",
+          "next_action": "resolve_binding_before_snapshot_identity",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "qgp_507c505a5e83c34d",
+          "candidate_refs": [
+            "qgp_507c505a5e83c34d"
+          ],
+          "conflict_reason": "",
+          "field_name": "preset",
+          "missing_reason": "generated_preset_present",
+          "next_action": "preserve_generated_preset",
+          "provenance": [
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "generated_research/presets/generated_research_presets.v1.json",
+          "state": "RESOLVED_WITH_LIMITATIONS"
+        }
+      ],
+      "generated_registration_id": "qgr_8176272a5e2d3cf3",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "provenance": [
+        "generated_research/presets/generated_research_presets.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/specs",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "readiness_state": "READINESS_GAPS_IDENTIFIED",
+      "resolved_fields": [
+        "timeframe"
+      ],
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "unresolved_fields": [
+        "source",
+        "dataset",
+        "snapshot",
+        "instrument",
+        "universe"
+      ]
+    }
+  ],
+  "schema_version": "1.0"
+}
