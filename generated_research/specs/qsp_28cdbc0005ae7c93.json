@@ -1,0 +1,119 @@
+{
+  "allowed_direction": "long_short",
+  "behavior_family": "relative_strength",
+  "cost_assumptions": {
+    "mode": "cost_class_visible_only"
+  },
+  "deterministic_hash": "a7b1641c59faabc2f17ca23ef72beab39cc2a29d2e7c57a91c7e45677541fa88",
+  "entry_conditions": [
+    "cross_sectional_rank_at_or_above_entry_threshold",
+    "minimum_universe_breadth_met"
+  ],
+  "exit_conditions": [
+    "cross_sectional_rank_between_exit_thresholds"
+  ],
+  "expected_behavior": "benchmark_relative_outperformance; peer_rank_persistence; leadership_retention",
+  "expected_failure_modes": [
+    "insufficient_cross_section",
+    "identity_blocked",
+    "cost_fragile",
+    "no_baseline_edge"
+  ],
+  "expected_signal_density_range": "moderate",
+  "filters": [
+    "rank_is_not_missing"
+  ],
+  "forbidden_behavior": [
+    "arbitrary_python",
+    "arbitrary_imports",
+    "shell_commands",
+    "network_access",
+    "file_system_writes",
+    "eval",
+    "exec",
+    "broker_access",
+    "live_execution",
+    "real_capital_sizing",
+    "nondeterministic_strategy_construction"
+  ],
+  "generator_version": "ade-qre-019.1",
+  "mechanism": "A basket or symbol outperforms a peer set or benchmark across a bounded window. Cross-sectional rank momentum: per rebalance window de top-k assets long en/of bottom-k short, ranking exclusief huidige bar. Executable wiring deferred \u2014 requires cross-sectional rank infrastructure (rank_returns + multi-asset universe ranking primitive; out of scope v3.15.4). Catalog-metadata-only in v3.15.4.",
+  "null_control_requirements": [
+    "permuted_cross_sectional_ranking",
+    "matched_frequency_null",
+    "cost_only_baseline"
+  ],
+  "parameter_domains": {
+    "ascending": [
+      false
+    ],
+    "entry_rank_threshold": [
+      0.75
+    ],
+    "exit_lower_bound": [
+      0.4
+    ],
+    "exit_upper_bound": [
+      0.6
+    ],
+    "lookback_bars": [
+      20
+    ],
+    "minimum_universe_size": [
+      3
+    ],
+    "missing_value_policy": [
+      "FAIL_CLOSED"
+    ],
+    "rank_mode": [
+      "PERCENTILE"
+    ],
+    "short_rank_threshold": [
+      0.25
+    ],
+    "tie_policy": [
+      "AVERAGE"
+    ]
+  },
+  "parameters": {
+    "ascending": false,
+    "entry_rank_threshold": 0.75,
+    "exit_lower_bound": 0.4,
+    "exit_upper_bound": 0.6,
+    "lookback_bars": 20,
+    "minimum_universe_size": 3,
+    "missing_value_policy": "FAIL_CLOSED",
+    "rank_mode": "PERCENTILE",
+    "short_rank_threshold": 0.25,
+    "tie_policy": "AVERAGE"
+  },
+  "provenance": [
+    "logs/qre_behavior_thesis_registry/latest.json",
+    "logs/qre_identity_ambiguity_resolution/latest.json",
+    "logs/qre_blocked_thesis_lineage_census/latest.json",
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+  ],
+  "required_feature_primitives": [
+    "cross_sectional_rank"
+  ],
+  "research_sizing_assumptions": {
+    "mode": "unit_notional_research_only"
+  },
+  "schema_version": "1.0",
+  "slippage_assumptions": {
+    "status": "not_materialized"
+  },
+  "source_hypothesis_id": "cross_sectional_momentum_v0",
+  "strategy_spec_id": "qsp_28cdbc0005ae7c93",
+  "template_version": "thin-strategy-template.1",
+  "thesis_id": "qhc_51bc7a5c7b3f64ba",
+  "timeframe": [
+    "1d"
+  ],
+  "universe_constraints": [
+    "breadth_resolved_multi_asset_basket"
+  ],
+  "warmup_requirements": {
+    "cross_sectional_rank": 20
+  }
+}

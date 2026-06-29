@@ -1,5 +1,5 @@
 {
-  "generated_lineage_identity": "qgl_05f039b85e5ac2ce",
+  "generated_lineage_identity": "qgl_25aa394aa69c0e6d",
   "report_kind": "generated_campaign_lineage",
   "rows": [
     {
@@ -18,6 +18,23 @@
       "source_hypothesis_id": "atr_adaptive_trend_v0",
       "strategy_spec_id": "qsp_16800d656bf28677",
       "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "blockers": [
+        "identity_not_resolved"
+      ],
+      "campaign_readiness_state": "BLOCKED",
+      "campaign_specification_identity": "qgc_7dacb6ab00922475",
+      "generated_lineage_id": "qgl_2e65aada031111be",
+      "generated_registration_id": "qgr_8176272a5e2d3cf3",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "next_action": "resolve_identity_ambiguity_for_thesis",
+      "null_control_spec_id": "qnc_44f63709ded61dbb",
+      "portfolio_cell_id": "qpc_d5638ee1a26f5a5a",
+      "preset_id": "qgp_507c505a5e83c34d",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "strategy_spec_id": "qsp_28cdbc0005ae7c93",
+      "thesis_id": "qbt_7bf72ac7046c3039"
     }
   ],
   "schema_version": "1.0"

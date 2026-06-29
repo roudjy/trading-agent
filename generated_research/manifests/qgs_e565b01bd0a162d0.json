@@ -1,0 +1,19 @@
+{
+  "code_hash": "e0e11a41e029bcbf5a6dd45d4eaacaf1f860f553268e7907a5e6541230bbaaaf",
+  "factory_symbol": "generated_strategy",
+  "generated_strategy_id": "qgs_e565b01bd0a162d0",
+  "generator_version": "ade-qre-019.1",
+  "module_path": "agent/backtesting/generated_strategies/generated_qgs_e565b01bd0a162d0.py",
+  "provenance": [
+    "logs/qre_behavior_thesis_registry/latest.json",
+    "logs/qre_identity_ambiguity_resolution/latest.json",
+    "logs/qre_blocked_thesis_lineage_census/latest.json",
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+  ],
+  "schema_version": "1.0",
+  "strategy_spec_id": "qsp_28cdbc0005ae7c93",
+  "template_version": "thin-strategy-template.1",
+  "test_hash": "a52c70adec2efbcb27087e7134df8b34c52471ded3ed701a086ff7b6e8886b65",
+  "test_manifest_id": "qgt_cf75ae1320d0ea78",
+  "test_module_path": "tests/generated_strategies/test_generated_qgs_e565b01bd0a162d0.py"
+}
