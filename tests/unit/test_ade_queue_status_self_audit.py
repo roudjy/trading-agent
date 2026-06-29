@@ -149,7 +149,7 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     snap = audit.collect_snapshot(frozen_utc="2026-05-28T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] is None
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-022A"
     assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
     assert "ADE-QRE-011" in snap["summary"]["stale_historical_ready_items"]
     assert snap["summary"]["selection_blocking_warning_items"] == []
@@ -258,6 +258,20 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     assert rows["ADE-QRE-018A"]["auto_selectable"] is False
     assert rows["ADE-QRE-018I"]["status"] == "done"
     assert rows["ADE-QRE-018I"]["done_evidence"]["complete"] is True
+
+
+def test_current_queue_exposes_single_ade_qre_022_child_as_next_ready_item() -> None:
+    snap = audit.collect_snapshot(frozen_utc="2026-06-29T00:00:00Z")
+    rows = {row["queue_item"]: row for row in snap["items"]}
+
+    assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
+    assert snap["summary"]["blocked_items_missing_reason"] == []
+    assert snap["summary"]["eligible_ready_items"] == ["ADE-QRE-022A"]
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-022A"
+    assert rows["ADE-QRE-022"]["status"] == "blocked until ADE-QRE-022O completion evidence is merged"
+    assert rows["ADE-QRE-022"]["auto_selectable"] is False
+    assert rows["ADE-QRE-022A"]["status"] == "ready"
+    assert rows["ADE-QRE-022A"]["auto_selectable"] is True
     assert rows["ADE-QRE-019"]["status"] == "done"
     assert rows["ADE-QRE-019"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-019A"]["status"] == "done"

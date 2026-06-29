@@ -2401,6 +2401,456 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "status": "not_started",
     },
     {
+        "id": "u_ade_qre_022a_governance_readiness_authority_001",
+        "roadmap_task_id": "ade_qre_022a_governance_and_readiness_authority",
+        "title": "Governed admission of deterministic campaign-readiness remediation",
+        "phase": "ade_qre_022a",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "docs/roadmap/qre_automated_campaign_identity_readiness_resolution_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "tests/unit/test_roadmap_task_catalog.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_roadmap_task_catalog.py"
+        ),
+        "extra_definition_of_done": (
+            "ADE-QRE-022 is canonically admitted without weakening protected `.claude/**` or `research/**` boundaries",
+        ),
+        "extra_stop_conditions": (
+            "any ADE-QRE-022 admission that grants campaign execution or trading authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_021o_integrated_closeout_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022b_readiness_gap_diagnosis_001",
+        "roadmap_task_id": "ade_qre_022b_readiness_gap_diagnosis",
+        "title": "Deterministic readiness-gap diagnosis for research-registered strategies",
+        "phase": "ade_qre_022b",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/gaps/strategy_readiness_gaps.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "aggregate blockers are decomposed into exact field-level readiness gaps with provenance and next actions",
+        ),
+        "extra_stop_conditions": (
+            "any readiness diagnosis that hides exact unresolved fields behind an opaque blocker -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022a_governance_readiness_authority_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022c_identity_resolution_contract_001",
+        "roadmap_task_id": "ade_qre_022c_canonical_identity_resolution_contract",
+        "title": "Closed identity-resolution contract for campaign readiness",
+        "phase": "ade_qre_022c",
+        "unit_kind": "schema_only",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/identity_decisions/strategy_identity_decisions.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "only unique authoritative or canonical-alias identities proceed; ambiguity fails closed",
+        ),
+        "extra_stop_conditions": (
+            "any fuzzy or semantic candidate accepted as final identity authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022b_readiness_gap_diagnosis_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022d_instrument_universe_resolution_001",
+        "roadmap_task_id": "ade_qre_022d_instrument_and_universe_resolution",
+        "title": "Canonical instrument and universe resolution without survivor shortcuts",
+        "phase": "ade_qre_022d",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/identity_candidates/strategy_identity_candidates.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "instrument and universe binding stays deterministic and discloses every inclusion or exclusion reason",
+        ),
+        "extra_stop_conditions": (
+            "any universe resolution that silently projects current membership backward through history -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022c_identity_resolution_contract_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022e_data_binding_resolution_001",
+        "roadmap_task_id": "ade_qre_022e_source_dataset_snapshot_resolution",
+        "title": "Authoritative source, dataset, and snapshot binding for campaign readiness",
+        "phase": "ade_qre_022e",
+        "unit_kind": "research_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/data_bindings/strategy_data_bindings.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "data bindings distinguish source authority, dataset identity, snapshot identity, schema compatibility, and freshness",
+        ),
+        "extra_stop_conditions": (
+            "any snapshot identity invented without immutable input evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022d_instrument_universe_resolution_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022f_timeframe_regime_binding_001",
+        "roadmap_task_id": "ade_qre_022f_timeframe_and_regime_binding",
+        "title": "Deterministic timeframe, warmup, rebalance, and regime binding",
+        "phase": "ade_qre_022f",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/gaps/strategy_readiness_gaps.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "timeframe and regime bindings remain explicit and reject unsupported cadence or session combinations",
+        ),
+        "extra_stop_conditions": (
+            "any timeframe inferred solely from a strategy or thesis name -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022e_data_binding_resolution_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022g_window_capacity_001",
+        "roadmap_task_id": "ade_qre_022g_train_validation_oos_capacity",
+        "title": "Deterministic train, validation, OOS, and null-control capacity assessment",
+        "phase": "ade_qre_022g",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/window_capacity/strategy_window_capacity.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "consumed or non-independent OOS windows are excluded and capacity remains fail-closed when authoritative coverage is absent",
+        ),
+        "extra_stop_conditions": (
+            "any reused or shifted consumed OOS window reported as independent -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022f_timeframe_regime_binding_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022h_preset_completion_001",
+        "roadmap_task_id": "ade_qre_022h_preset_completion",
+        "title": "Bounded generated preset completion after identity and window binding",
+        "phase": "ade_qre_022h",
+        "unit_kind": "research_module",
+        "target_layer": "preset",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/presets/strategy_preset_readiness.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "preset completion stays bounded, deterministic, and free of OOS-derived parameter changes",
+        ),
+        "extra_stop_conditions": (
+            "any preset completion that performs parameter search or OOS-aware tuning -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022g_window_capacity_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022i_null_control_execution_readiness_001",
+        "roadmap_task_id": "ade_qre_022i_null_control_execution_readiness",
+        "title": "Execution-readiness classification for required null controls",
+        "phase": "ade_qre_022i",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/null_controls/strategy_null_control_readiness.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "null-control readiness distinguishes specification-only availability from actual execution readiness",
+        ),
+        "extra_stop_conditions": (
+            "any null-control specification reported as empirical completion without execution -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022h_preset_completion_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022j_campaign_metadata_materialization_001",
+        "roadmap_task_id": "ade_qre_022j_campaign_metadata_materialization",
+        "title": "Fail-closed campaign metadata materialization from resolved readiness inputs",
+        "phase": "ade_qre_022j",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/campaigns/generated_campaign_metadata.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "campaign metadata exists only when every mandatory field is authoritative and complete",
+        ),
+        "extra_stop_conditions": (
+            "any campaign metadata row created with unresolved mandatory identities -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022i_null_control_execution_readiness_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022k_campaign_lineage_completion_001",
+        "roadmap_task_id": "ade_qre_022k_campaign_lineage_completion",
+        "title": "Complete readiness lineage from opportunity through campaign candidate",
+        "phase": "ade_qre_022k",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/campaigns/generated_campaign_lineage_resolution.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "lineage detects missing edges, stale links, mismatched hashes, and conflicting identities deterministically",
+        ),
+        "extra_stop_conditions": (
+            "any lineage completion that hides orphaned readiness artifacts -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022j_campaign_metadata_materialization_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022l_portfolio_prereg_reevaluation_001",
+        "roadmap_task_id": "ade_qre_022l_portfolio_and_preregistration_reevaluation",
+        "title": "Portfolio status rebuild and preregistration reevaluation without campaign execution",
+        "phase": "ade_qre_022l",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/campaigns/generated_portfolio_readiness.v1.json",
+            "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "only genuinely ready cells enter a second-campaign manifest and zero-ready outcomes remain explicit",
+        ),
+        "extra_stop_conditions": (
+            "any preregistration manifest created from blocked or insufficient-evidence cells -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022k_campaign_lineage_completion_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022m_autonomous_readiness_loop_001",
+        "roadmap_task_id": "ade_qre_022m_autonomous_readiness_remediation_loop",
+        "title": "General deterministic readiness-remediation loop with governed feedback routes",
+        "phase": "ade_qre_022m",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_campaign_readiness.py",
+            "generated_research/readiness/reports/automated_campaign_readiness_closeout.v1.json",
+            "tests/unit/test_qre_automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "remaining readiness blockers feed back deterministically to thesis, primitive, identity, or data remediation without lowering gates",
+        ),
+        "extra_stop_conditions": (
+            "any automatic readiness loop that lowers acceptance criteria after failure -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022l_portfolio_prereg_reevaluation_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022n_apply_to_current_generated_strategies_001",
+        "roadmap_task_id": "ade_qre_022n_apply_to_qgs_e565b01bd0a162d0",
+        "title": "Apply readiness remediation to the resolver-visible generated strategies",
+        "phase": "ade_qre_022n",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/readiness/gaps/strategy_readiness_gaps.v1.json",
+            "generated_research/readiness/campaigns/generated_portfolio_readiness.v1.json",
+            "generated_research/readiness/reports/automated_campaign_readiness_closeout.v1.json",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "qgs_e565b01bd0a162d0 and qgs_5af8f605ba82ae53 receive exact readiness diagnoses and fail-closed reevaluation outcomes",
+        ),
+        "extra_stop_conditions": (
+            "any current-strategy readiness replay that forces equal outcomes across different blocker sets -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022m_autonomous_readiness_loop_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_022o_integrated_closeout_001",
+        "roadmap_task_id": "ade_qre_022o_integrated_closeout",
+        "title": "Integrated ADE-QRE-022 closeout with exact readiness blockers and next action",
+        "phase": "ade_qre_022o",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "generated_research/readiness/reports/automated_campaign_readiness_closeout.v1.json",
+            "packages/qre_research/automated_campaign_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_campaign_readiness.py"
+        ),
+        "extra_definition_of_done": (
+            "closeout records exact identity, data, window, null-control, lineage, and portfolio outcomes plus the next permitted action",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that overstates campaign readiness or invents a preregistration path -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022n_apply_to_current_generated_strategies_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",
         "roadmap_task_id": "phase_v3_15_16",
         "title": (

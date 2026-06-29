@@ -58,6 +58,10 @@ New implementation is justified only when it:
   expansion outside `research/**`, provided it preserves one resolved
   primitive catalog and delegates downstream strategy generation to
   ADE-QRE-019.
+- ADE-QRE-022 may later admit bounded deterministic research-only campaign
+  identity and readiness remediation outside `research/**`, provided it
+  preserves one resolved research strategy catalog, never guesses identities or
+  windows, and does not execute campaigns.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.
