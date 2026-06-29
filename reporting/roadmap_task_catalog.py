@@ -112,6 +112,19 @@ PHASE: Final[tuple[str, ...]] = (
     "ade_qre_018i",
     "ade_qre_018j",
     "ade_qre_018k",
+    "ade_qre_019a",
+    "ade_qre_019b",
+    "ade_qre_019c",
+    "ade_qre_019d",
+    "ade_qre_019e",
+    "ade_qre_019f",
+    "ade_qre_019g",
+    "ade_qre_019h",
+    "ade_qre_019i",
+    "ade_qre_019j",
+    "ade_qre_019k",
+    "ade_qre_019l",
+    "ade_qre_019m",
     "v3.15.16",
     "v3.15.17",
     "v3.15.18",
@@ -130,6 +143,7 @@ SOURCE_DOCUMENT: Final[tuple[str, ...]] = (
     "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
     "docs/roadmap/qre_maturity_roadmap_to_100.md",
     "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+    "docs/roadmap/qre_automated_strategy_generation_program.md",
     "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
     "docs/governance/qre_synthesis_readiness_review.md",
     "docs/roadmap/Roadmap v6.md",
@@ -571,6 +585,224 @@ _ROADMAP_TASKS_SEED: Final[tuple[dict[str, Any], ...]] = (
         "status": "not_started",
         "prerequisites": (
             "ade_qre_018j_second_broad_preregistered_campaign",
+        ),
+    },
+    {
+        "id": "ade_qre_019a_generation_authority_governance",
+        "title": "ADE-QRE-019A Governance and Research-Only Generation Authority",
+        "phase": "ade_qre_019a",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Authorize the bounded ADE-QRE-019 research-only generation "
+            "pipeline while preserving the .claude hook, protected "
+            "research surfaces, and all deployment-denial safety boundaries."
+        ),
+        "status": "not_started",
+        "prerequisites": (),
+    },
+    {
+        "id": "ade_qre_019b_typed_strategy_specification_contract",
+        "title": "ADE-QRE-019B Typed Strategy Specification Contract",
+        "phase": "ade_qre_019b",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Define the closed, versioned, typed strategy specification "
+            "that the generator compiles from approved behavior theses."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_019a_generation_authority_governance",),
+    },
+    {
+        "id": "ade_qre_019c_thesis_to_specification_compiler",
+        "title": "ADE-QRE-019C Thesis-to-Specification Compiler",
+        "phase": "ade_qre_019c",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Compile eligible theses into typed strategy specifications "
+            "using closed vocabularies and fail-closed policy gates."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019b_typed_strategy_specification_contract",
+        ),
+    },
+    {
+        "id": "ade_qre_019d_deterministic_executable_strategy_generator",
+        "title": "ADE-QRE-019D Deterministic Executable Strategy Generator",
+        "phase": "ade_qre_019d",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Render byte-identical research-only executable strategies "
+            "from typed specifications into isolated generated surfaces."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019c_thesis_to_specification_compiler",
+        ),
+    },
+    {
+        "id": "ade_qre_019e_automated_test_generator",
+        "title": "ADE-QRE-019E Automated Test Generator",
+        "phase": "ade_qre_019e",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Generate deterministic contract and safety tests for every "
+            "generated executable strategy."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019d_deterministic_executable_strategy_generator",
+        ),
+    },
+    {
+        "id": "ade_qre_019f_static_safety_architecture_gate",
+        "title": "ADE-QRE-019F Static Safety and Architecture Gate",
+        "phase": "ade_qre_019f",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Reject generated code that violates AST safety, import, "
+            "integrity, or architecture constraints before execution."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019e_automated_test_generator",
+        ),
+    },
+    {
+        "id": "ade_qre_019g_isolated_sandbox_validation",
+        "title": "ADE-QRE-019G Isolated Sandbox Validation",
+        "phase": "ade_qre_019g",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Run generated strategies and their tests in isolated, "
+            "deterministic technical validation without creating market evidence."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019f_static_safety_architecture_gate",
+        ),
+    },
+    {
+        "id": "ade_qre_019h_automatic_research_only_registration",
+        "title": "ADE-QRE-019H Automatic Research-Only Registration",
+        "phase": "ade_qre_019h",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Automatically admit validated generated strategies into a "
+            "controlled generated registry with research-only authority."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019g_isolated_sandbox_validation",
+        ),
+    },
+    {
+        "id": "ade_qre_019i_automatic_bounded_preset_generation",
+        "title": "ADE-QRE-019I Automatic Bounded Preset Generation",
+        "phase": "ade_qre_019i",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Generate bounded deterministic research presets from admitted "
+            "generated strategies without optimization or OOS-derived tuning."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019h_automatic_research_only_registration",
+        ),
+    },
+    {
+        "id": "ade_qre_019j_automatic_null_control_specification",
+        "title": "ADE-QRE-019J Automatic Null-Control Specification",
+        "phase": "ade_qre_019j",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Generate deterministic, mechanism-appropriate null-control "
+            "specifications without claiming empirical completeness."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019i_automatic_bounded_preset_generation",
+        ),
+    },
+    {
+        "id": "ade_qre_019k_campaign_lineage_portfolio_integration",
+        "title": "ADE-QRE-019K Campaign Lineage and Portfolio Integration",
+        "phase": "ade_qre_019k",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Expose generated strategies through one resolved research-only "
+            "catalog and integrate them into lineage and portfolio surfaces."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019j_automatic_null_control_specification",
+        ),
+    },
+    {
+        "id": "ade_qre_019l_apply_pipeline_to_blocked_theses",
+        "title": "ADE-QRE-019L Apply Pipeline to Blocked Theses",
+        "phase": "ade_qre_019l",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Run the bounded ADE-QRE-019 pipeline against the currently "
+            "blocked theses and preserve correct fail-closed outcomes."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019k_campaign_lineage_portfolio_integration",
+        ),
+    },
+    {
+        "id": "ade_qre_019m_automated_generation_closeout",
+        "title": "ADE-QRE-019M Automated Generation Closeout",
+        "phase": "ade_qre_019m",
+        "source_documents": (
+            "docs/roadmap/qre_automated_strategy_generation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Produce the integrated ADE-QRE-019 closeout describing "
+            "governance migration, generation outcomes, blockers, and next action."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_019l_apply_pipeline_to_blocked_theses",
         ),
     },
     {

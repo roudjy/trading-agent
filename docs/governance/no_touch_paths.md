@@ -26,6 +26,12 @@ directories (`agent/{brain,execution,learning,agents,risk,monitoring}/**`,
 must be under at least one agent's frontmatter `allowed_roots`, with
 default-deny when context is unknown.
 
+ADE-QRE-019 does **not** narrow the live categorical `research/**`
+prohibition. The hook and path policy remain intact. Instead, the program uses
+isolated generated-research surfaces outside `research/**`, together with a
+canonical resolver that composes protected manual strategy authority with
+validated generated inputs. Frozen empirical evidence outputs remain protected.
+
 ---
 
 ## Read AND Write deny
@@ -185,3 +191,25 @@ without updating this doc (or vice-versa), CI fails.
 A complementary `governance-lint` CI job verifies that no agent declares
 `max_autonomy_level > 3`, no GitHub Action uses a floating tag, and no
 file mentions Level 6 as enabled.
+
+## ADE-QRE-019 approved isolated generated-research surfaces
+
+ADE-QRE-019 must operate outside `research/**`. The following are the intended
+generated-research surfaces, subject to normal PR review, tests, architecture
+checks, and canonical queue/roadmap authority:
+
+- `packages/qre_research/**`
+- `packages/qre_artifacts/**`
+- `generated_research/**`
+- `agent/backtesting/generated_strategies/**`
+- `tests/unit/test_qre_automated_strategy_generation*.py`
+- `tests/unit/test_generated_strategy_*.py`
+- `tests/generated_strategies/**`
+
+These approved surfaces do not authorize:
+
+- edits to `research/research_latest.json`
+- edits to `research/strategy_matrix.csv`
+- edits to existing protected empirical research artifacts
+- edits to live, broker, risk, execution, paper, shadow, or deployment paths
+- arbitrary `research/**` writes

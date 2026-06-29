@@ -1,0 +1,21 @@
+{
+  "generated_null_control_identity": "qgn_575b59f3c2eff30c",
+  "report_kind": "generated_null_controls",
+  "rows": [
+    {
+      "deterministic_seed": "01e1a2972b98d302",
+      "execution_readiness": false,
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "implementation_readiness": true,
+      "null_control_spec_id": "qnc_10490ff5bd45b2e1",
+      "required_controls": [
+        "matched_frequency_null",
+        "sign_flipped_signal",
+        "cost_only_baseline"
+      ],
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "state": "SPECIFIED_NOT_EXECUTED"
+    }
+  ],
+  "schema_version": "1.0"
+}

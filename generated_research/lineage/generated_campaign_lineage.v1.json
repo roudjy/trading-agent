@@ -1,0 +1,24 @@
+{
+  "generated_lineage_identity": "qgl_05f039b85e5ac2ce",
+  "report_kind": "generated_campaign_lineage",
+  "rows": [
+    {
+      "blockers": [
+        "generated_preset_missing"
+      ],
+      "campaign_readiness_state": "BLOCKED",
+      "campaign_specification_identity": "qgc_83834c12e6666f07",
+      "generated_lineage_id": "qgl_6b68453fad2097e6",
+      "generated_registration_id": "qgr_4ae344d01521bb31",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "next_action": "resolve_preset_timeframe_for_generated_strategy",
+      "null_control_spec_id": "qnc_10490ff5bd45b2e1",
+      "portfolio_cell_id": "qpc_13de4ef7836062d7",
+      "preset_id": "",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "strategy_spec_id": "qsp_16800d656bf28677",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
+    }
+  ],
+  "schema_version": "1.0"
+}

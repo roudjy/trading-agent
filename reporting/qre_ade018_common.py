@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -155,3 +156,58 @@ def parse_preset_catalog(source_text: str | None) -> list[dict[str, Any]]:
             if value is not None:
                 constants[name] = value
     return [row for row in catalog if text(row.get("name"))]
+
+
+def read_markdown_table_rows(path: Path) -> list[dict[str, str]]:
+    if not path.is_file():
+        return []
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except OSError:
+        return []
+    table_start = None
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            table_start = index
+            break
+    if table_start is None or table_start + 1 >= len(lines):
+        return []
+    header_line = lines[table_start].strip()
+    divider_line = lines[table_start + 1].strip()
+    if not (divider_line.startswith("|") and divider_line.endswith("|")):
+        return []
+    headers = [text(cell) for cell in header_line.strip("|").split("|")]
+    rows_out: list[dict[str, str]] = []
+    for line in lines[table_start + 2 :]:
+        stripped = line.strip()
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            break
+        cells = [text(cell) for cell in stripped.strip("|").split("|")]
+        if len(cells) != len(headers):
+            continue
+        rows_out.append(dict(zip(headers, cells)))
+    return rows_out
+
+
+def read_markdown_backtick_status_rows(path: Path) -> list[dict[str, str]]:
+    if not path.is_file():
+        return []
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except OSError:
+        return []
+    pattern = re.compile(r"^- `([^`]+)`: `([^`]+)` -> `([^`]+)`$")
+    rows_out: list[dict[str, str]] = []
+    for line in lines:
+        match = pattern.match(line.strip())
+        if not match:
+            continue
+        rows_out.append(
+            {
+                "source_hypothesis_id": text(match.group(1)),
+                "status": text(match.group(2)),
+                "next_action": text(match.group(3)),
+            }
+        )
+    return rows_out

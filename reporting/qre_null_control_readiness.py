@@ -20,6 +20,7 @@ DOC_PATH: Final[Path] = Path("docs/governance/qre_null_control_readiness.md")
 DEFAULT_LINEAGE_PATH: Final[Path] = Path("logs/qre_campaign_lineage_materialization/latest.json")
 DEFAULT_REGISTRY_PATH: Final[Path] = Path("logs/qre_behavior_thesis_registry/latest.json")
 DEFAULT_OPERATOR_PATH: Final[Path] = Path("logs/qre_operator_decision_report/latest.json")
+DEFAULT_GENERATED_NULL_CONTROLS_PATH: Final[Path] = Path("generated_research/lineage/generated_null_controls.v1.json")
 VALID_STATES: Final[tuple[str, ...]] = (
     "COMPLETE",
     "SPECIFIED_NOT_EXECUTED",
@@ -56,6 +57,7 @@ def collect_snapshot(
     lineage_path: Path | None = None,
     registry_path: Path | None = None,
     operator_path: Path | None = None,
+    generated_null_controls_path: Path | None = None,
 ) -> dict[str, object]:
     root = repo_root or Path.cwd()
     lineage = common.read_json(root / (lineage_path or DEFAULT_LINEAGE_PATH))
@@ -63,20 +65,27 @@ def collect_snapshot(
         lineage = materialization.collect_snapshot(repo_root=root)
     registry = common.read_json(root / (registry_path or DEFAULT_REGISTRY_PATH)) or {}
     operator = common.read_json(root / (operator_path or DEFAULT_OPERATOR_PATH)) or {}
+    generated_null_controls = common.read_json(root / (generated_null_controls_path or DEFAULT_GENERATED_NULL_CONTROLS_PATH)) or {}
     registry_by_hypothesis = common.index_by(common.rows(registry, "rows"), "source_hypothesis_id")
     operator_by_hypothesis = common.index_by(common.rows(operator, "rows"), "source_hypothesis_id")
+    generated_by_hypothesis = common.index_by(common.rows(generated_null_controls, "rows"), "source_hypothesis_id")
     rows_out: list[dict[str, object]] = []
     for row in common.rows(lineage, "rows"):
         source_hypothesis_id = common.text(row.get("source_hypothesis_id"))
         registry_row = registry_by_hypothesis.get(source_hypothesis_id, {})
         operator_row = operator_by_hypothesis.get(source_hypothesis_id, {})
+        generated_row = generated_by_hypothesis.get(source_hypothesis_id, {})
         behavior_family = common.text(registry_row.get("behavior_family")) or common.text(row.get("behavior_family"))
         required_controls = _null_rationale(behavior_family)
         operator_controls = operator_row.get("null_controls") if isinstance(operator_row.get("null_controls"), dict) else {}
         operator_status = common.text(operator_controls.get("status"))
         missing_control_ids = common.normalize_list(operator_controls.get("missing_control_ids"))
         materialization_state = common.text(row.get("materialization_state"))
-        if operator_status == "complete":
+        if common.text(generated_row.get("state")) == "SPECIFIED_NOT_EXECUTED":
+            completeness_state = "SPECIFIED_NOT_EXECUTED"
+            blocker = "generated_null_controls_not_executed"
+            next_action = common.text(row.get("next_action")) or "materialize_null_control_execution_contract"
+        elif operator_status == "complete":
             completeness_state = "COMPLETE"
             blocker = "none"
             next_action = "preserve_null_control_state"
@@ -116,6 +125,7 @@ def collect_snapshot(
                     common.normalize_list(row.get("provenance_refs"))
                     + common.normalize_list(registry_row.get("provenance_refs"))
                     + common.normalize_list(operator_row.get("provenance_refs"))
+                    + common.normalize_list(generated_row.get("provenance_refs"))
                 ),
             }
         )

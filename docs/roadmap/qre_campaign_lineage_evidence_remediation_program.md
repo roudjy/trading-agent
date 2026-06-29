@@ -11,7 +11,9 @@ identity, null-control, reason-record, evidence-completeness, campaign-ready
 portfolio, and preregistration surfaces. It may not implement strategy
 synthesis, generate executable strategy code, register strategies
 automatically, or activate paper, shadow, live, broker, risk, or execution
-paths.
+paths. Those capabilities, if later admitted, require a separate governed
+follow-on program that preserves `.claude/**` and `research/**` as protected
+surfaces and uses isolated generated-research paths instead.
 
 ## Baseline
 
