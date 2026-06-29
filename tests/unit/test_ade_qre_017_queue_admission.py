@@ -87,7 +87,7 @@ def test_ade_qre_017_chain_is_complete_after_017ad_completion_evidence() -> None
     snap = audit.collect_snapshot(frozen_utc="2026-06-25T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-019A"
+    assert snap["summary"]["next_eligible_ready_item"] is None
     assert rows["ADE-QRE-017"]["status"] == "done"
     assert rows["ADE-QRE-017"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-017A"]["status"] == "done"
@@ -148,6 +148,10 @@ def test_ade_qre_017_chain_is_complete_after_017ad_completion_evidence() -> None
     assert rows["ADE-QRE-018A"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-018I"]["status"] == "done"
     assert rows["ADE-QRE-018I"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-019"]["status"] == "done"
+    assert rows["ADE-QRE-019"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-019M"]["status"] == "done"
+    assert rows["ADE-QRE-019M"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-018J"]["status"] == (
         "blocked until at least one ADE-QRE-018H cell is READY_FOR_PREREGISTRATION"
     )
