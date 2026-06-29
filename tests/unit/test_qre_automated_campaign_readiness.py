@@ -26,8 +26,13 @@ def _write_json(repo_root: Path, relative: str, payload: dict) -> None:
     target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-@pytest.fixture
-def readiness_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def _build_readiness_repo(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    directory_name: str = "repo",
+) -> Path:
+    repo_root = tmp_path / directory_name
     for relative in (
         "generated_research/registry/generated_strategy_registry.v1.json",
         "generated_research/presets/generated_research_presets.v1.json",
@@ -40,9 +45,9 @@ def readiness_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "artifacts/identity/instrument_identity_latest.v1.json",
         "artifacts/universe/equity_universe_catalog_latest.v1.json",
     ):
-        _copy(tmp_path, relative)
+        _copy(repo_root, relative)
     _write_json(
-        tmp_path,
+        repo_root,
         "logs/qre_identity_ambiguity_resolution/latest.json",
         {
             "report_kind": "qre_identity_ambiguity_resolution",
@@ -63,7 +68,7 @@ def readiness_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         },
     )
     _write_json(
-        tmp_path,
+        repo_root,
         "logs/qre_data_cache_manifest/latest.json",
         {
             "report_kind": "qre_data_cache_manifest",
@@ -82,7 +87,12 @@ def readiness_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         },
     )
     monkeypatch.setattr(acr, "validate_write_target", lambda path: None)
-    return tmp_path
+    return repo_root
+
+
+@pytest.fixture
+def readiness_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    return _build_readiness_repo(tmp_path, monkeypatch)
 
 
 def _read_json(path: Path) -> dict:
@@ -94,9 +104,14 @@ def test_generated_strategy_paths_allow_readiness_surface() -> None:
     gsp.validate_write_target(path)
 
 
-def test_run_readiness_remediation_is_deterministic(readiness_repo: Path) -> None:
-    first = acr.run_readiness_remediation(repo_root=readiness_repo)
-    second = acr.run_readiness_remediation(repo_root=readiness_repo)
+def test_run_readiness_remediation_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_repo = _build_readiness_repo(tmp_path, monkeypatch, directory_name="first")
+    second_repo = _build_readiness_repo(tmp_path, monkeypatch, directory_name="second")
+    first = acr.run_readiness_remediation(repo_root=first_repo)
+    second = acr.run_readiness_remediation(repo_root=second_repo)
     assert first["closeout_identity"] == second["closeout_identity"]
     assert first["strategy_summaries"] == second["strategy_summaries"]
 
