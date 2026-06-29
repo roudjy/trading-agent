@@ -48,6 +48,19 @@ _STATUS_FAMILIES: Final[tuple[str, ...]] = (
     "operator_review",
 )
 
+WARNING_CLASSIFICATION: Final[tuple[str, ...]] = (
+    "active_blocker",
+    "stale_historical_state",
+    "superseded",
+    "missing_completion_evidence",
+    "requires_operator_review",
+    "non_blocking_warning",
+)
+
+_SELECTION_BLOCKING_WARNING_CLASSIFICATIONS: Final[frozenset[str]] = frozenset(
+    {"active_blocker", "requires_operator_review"}
+)
+
 
 @dataclass(frozen=True)
 class QueueItem:
@@ -313,6 +326,49 @@ def eligibility_blockers(
     return blockers
 
 
+def _warning_classification(item: QueueItem) -> str:
+    value = _strip_inline_code(_field(item.body, "warning classification"))
+    if value in WARNING_CLASSIFICATION:
+        return value
+    return "active_blocker"
+
+
+def _warning_issue_kind(
+    *,
+    item: QueueItem,
+    done: dict[str, Any] | None,
+    stale_historical_ready: bool,
+) -> str | None:
+    if item.status == "done" and done is not None and not done["complete"]:
+        return "missing_done_evidence"
+    if stale_historical_ready:
+        return "stale_historical_ready"
+    return None
+
+
+def queue_warning(
+    *,
+    item: QueueItem,
+    done: dict[str, Any] | None,
+    stale_historical_ready: bool,
+) -> dict[str, Any] | None:
+    issue_kind = _warning_issue_kind(
+        item=item,
+        done=done,
+        stale_historical_ready=stale_historical_ready,
+    )
+    if issue_kind is None:
+        return None
+    classification = _warning_classification(item)
+    return {
+        "issue_kind": issue_kind,
+        "classification": classification,
+        "selection_blocking": classification
+        in _SELECTION_BLOCKING_WARNING_CLASSIFICATIONS,
+        "rationale": _field(item.body, "warning rationale"),
+    }
+
+
 def next_eligible_ready_item(
     items: Mapping[str, QueueItem],
 ) -> QueueItem | None:
@@ -337,6 +393,11 @@ def audit_items(items: Mapping[str, QueueItem]) -> list[dict[str, Any]]:
         done = done_evidence(item) if item.status == "done" else None
         reason = reason_audit(item)
         blockers = eligibility_blockers(item, items, stale_ready)
+        warning = queue_warning(
+            item=item,
+            done=done,
+            stale_historical_ready=item.item_id in stale_ready,
+        )
         rows.append(
             {
                 "queue_item": item.item_id,
@@ -349,6 +410,7 @@ def audit_items(items: Mapping[str, QueueItem]) -> list[dict[str, Any]]:
                 "dependencies_done": dependencies_done(item, items),
                 "next_dependency": item.next_dependency,
                 "done_evidence": done,
+                "queue_warning": warning,
                 "blocked_deferred_reason": reason,
                 "stale_historical_ready": item.item_id in stale_ready,
                 "auto_selectable": not blockers,
@@ -395,12 +457,34 @@ def collect_snapshot(
         for row in rows
         if any(status == "missing" for status in row["dependency_statuses"].values())
     ]
+    warning_rows = [
+        {
+            "queue_item": row["queue_item"],
+            "issue_kind": row["queue_warning"]["issue_kind"],
+            "classification": row["queue_warning"]["classification"],
+            "selection_blocking": row["queue_warning"]["selection_blocking"],
+        }
+        for row in rows
+        if isinstance(row["queue_warning"], dict)
+    ]
+    selection_blocking_warning_items = [
+        row["queue_item"]
+        for row in warning_rows
+        if row["selection_blocking"]
+    ]
 
     if text is None:
         final_recommendation = "fail_closed_missing_queue_doc"
     elif len(eligible) != 1:
         final_recommendation = "operator_review_required_queue_selection_ambiguous"
-    elif missing_done or blocked_missing_reason or deferred_missing_reason or dependency_gaps:
+    elif selection_blocking_warning_items:
+        final_recommendation = "operator_review_required_queue_selection_ambiguous"
+    elif (
+        missing_done
+        or blocked_missing_reason
+        or deferred_missing_reason
+        or dependency_gaps
+    ):
         final_recommendation = "queue_status_audit_ready_with_warnings"
     else:
         final_recommendation = "queue_status_audit_passed"
@@ -428,6 +512,8 @@ def collect_snapshot(
             "deferred_items_missing_reason": deferred_missing_reason,
             "stale_historical_ready_items": stale_ready,
             "dependency_gap_items": dependency_gaps,
+            "warning_rows": warning_rows,
+            "selection_blocking_warning_items": selection_blocking_warning_items,
             "eligible_ready_items": eligible,
             "next_eligible_ready_item": next_item.item_id if next_item is not None else None,
         },
