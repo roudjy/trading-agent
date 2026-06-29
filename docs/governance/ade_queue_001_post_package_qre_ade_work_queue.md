@@ -4026,6 +4026,11 @@ live, broker, risk, or execution work.
     portfolio reconstruction recorded `0` `READY_FOR_PREREGISTRATION` cells and
     explicitly did not materialize a second-campaign manifest, so execution
     remains canonically blocked.
+  - PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; ADE-QRE-019
+    admitted one generated research-only strategy for `atr_adaptive_trend_v0`
+    but still produced `0` `READY_FOR_PREREGISTRATION` cells and no second
+    campaign manifest, so `ADE-QRE-018J` remains blocked after the generation
+    remediation attempt.
 - expected next queue item: none unless a later authorized remediation item
   produces a genuinely ready cell.
 
@@ -4042,7 +4047,7 @@ live, broker, risk, or execution work.
 ### ADE-QRE-019 - Governed Automated Research Strategy Generation Program
 
 - queue id: `ADE-QRE-019`
-- status: `blocked until ADE-QRE-019M done`
+- status: `done`
 - purpose: admit and implement bounded deterministic automated
   research-only executable strategy generation, validation, registration,
   preset generation, null-control specification, lineage materialization,
@@ -4078,119 +4083,133 @@ live, broker, risk, or execution work.
   - frozen empirical contract mutation
   - `.claude/**` mutation
   - `research/**` write-surface carveouts
-- expected next queue item: `ADE-QRE-019A`.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; the merged implementation preserved `.claude/**` unchanged, preserved protected `research/**` empirical surfaces unchanged, added the isolated generated-research pipeline plus canonical resolver, admitted one generated research-only strategy for `atr_adaptive_trend_v0`, kept `trend_pullback_v1` protected from resurrection, and still produced `0` `READY_FOR_PREREGISTRATION` portfolio cells so `ADE-QRE-018J` remains blocked; checks green; post-merge validation passed `python -m pytest tests/unit/test_qre_automated_strategy_generation.py tests/generated_strategies/test_generated_qgs_5af8f605ba82ae53.py tests/unit/test_ade_qre_014_queue_lifecycle.py tests/unit/test_qre_maturity_roadmap_to_100.py -q`, `python -m pytest tests/architecture -q`, `python scripts/governance_lint.py`, and `python -m reporting.architecture_import_scan --format summary`; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: none while `ADE-QRE-018J` remains blocked.
 
 ### ADE-QRE-019A - Governance and Research-Only Generation Authority
 
 - queue id: `ADE-QRE-019A`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-018I done`.
 - purpose: replace categorical anti-generation policy with bounded
   deterministic research-only generation authority without weakening
   `.claude/**` or `research/**` protections.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019B`.
 
 ### ADE-QRE-019B - Typed Strategy Specification Contract
 
 - queue id: `ADE-QRE-019B`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019A done`.
 - purpose: introduce the closed, versioned, typed strategy specification.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019C`.
 
 ### ADE-QRE-019C - Thesis-to-Specification Compiler
 
 - queue id: `ADE-QRE-019C`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019B done`.
 - purpose: deterministically compile approved theses into strategy specs.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019D`.
 
 ### ADE-QRE-019D - Deterministic Executable Strategy Generator
 
 - queue id: `ADE-QRE-019D`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019C done`.
 - purpose: render repository-native executable research strategy code from
   typed specs.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019E`.
 
 ### ADE-QRE-019E - Automated Test Generator
 
 - queue id: `ADE-QRE-019E`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019D done`.
 - purpose: generate deterministic repository-native tests for generated
   strategies.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019F`.
 
 ### ADE-QRE-019F - Static Safety and Architecture Gate
 
 - queue id: `ADE-QRE-019F`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019E done`.
 - purpose: reject unsafe, nondeterministic, or architecture-violating generated
   code before import or execution.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019G`.
 
 ### ADE-QRE-019G - Isolated Sandbox Validation
 
 - queue id: `ADE-QRE-019G`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019F done`.
 - purpose: validate importability, generated tests, determinism, and side-effect
   isolation in a controlled sandbox.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019H`.
 
 ### ADE-QRE-019H - Automatic Research-Only Registration
 
 - queue id: `ADE-QRE-019H`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019G done`.
 - purpose: atomically admit successful generated strategies into the isolated
   generated registry and make them resolver-visible in research-only state with
   no manual registration gate.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019I`.
 
 ### ADE-QRE-019I - Automatic Bounded Preset Generation
 
 - queue id: `ADE-QRE-019I`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019H done`.
 - purpose: generate bounded deterministic presets for registered strategies.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019J`.
 
 ### ADE-QRE-019J - Automatic Null-Control Specification
 
 - queue id: `ADE-QRE-019J`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019I done`.
 - purpose: generate mechanism-appropriate deterministic null-control
   specifications without claiming empirical execution.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019K`.
 
 ### ADE-QRE-019K - Campaign Lineage and Portfolio Integration
 
 - queue id: `ADE-QRE-019K`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019J done`.
 - purpose: integrate generated strategy outputs into lineage and portfolio
   readiness surfaces without executing campaigns.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019L`.
 
 ### ADE-QRE-019L - Apply Pipeline to Blocked Theses
 
 - queue id: `ADE-QRE-019L`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019K done`.
 - purpose: run the automated pipeline against the six currently blocked theses
   and preserve exact fail-closed outcomes where eligibility is not met.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-019M`.
 
 ### ADE-QRE-019M - Automated Generation Closeout
 
 - queue id: `ADE-QRE-019M`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-019L done`.
 - purpose: produce the deterministic integrated automated-generation outcome
   and the exact next action.
+- completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
