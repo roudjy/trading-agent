@@ -78,6 +78,50 @@ def build_aligned_pair_frames(
     return primary, reference
 
 
+def build_cross_sectional_frame(
+    *,
+    periods: int = 24,
+    assets: tuple[str, ...] = ("AAA", "BBB", "CCC", "DDD"),
+    seed: int = 23,
+    start: str = DEFAULT_START,
+    freq: str = "D",
+    universe_id: str = "breadth_resolved_multi_asset_basket",
+) -> pd.DataFrame:
+    """Build a deterministic cross-sectional OHLCV panel with MultiIndex."""
+    rng = np.random.default_rng(seed)
+    timestamps = pd.date_range(start=start, periods=periods, freq=freq)
+    rows: list[dict[str, object]] = []
+    for asset_index, asset in enumerate(assets):
+        base_level = 80.0 + asset_index * 12.5
+        drift = np.linspace(0.0008 + asset_index * 0.0002, 0.002, periods)
+        noise = rng.normal(0.0, 0.008, periods)
+        close = base_level * np.cumprod(1.0 + drift + noise)
+        open_ = close * (1.0 + rng.normal(0.0, 0.0015, periods))
+        high = np.maximum(open_, close) * (
+            1.0 + rng.uniform(0.0005, 0.007, periods)
+        )
+        low = np.minimum(open_, close) * (
+            1.0 - rng.uniform(0.0005, 0.007, periods)
+        )
+        volume = rng.integers(2_000, 20_000, periods, dtype=np.int64)
+        for idx, timestamp in enumerate(timestamps):
+            rows.append(
+                {
+                    "timestamp": timestamp,
+                    "asset": asset,
+                    "open": float(open_[idx]),
+                    "high": float(high[idx]),
+                    "low": float(low[idx]),
+                    "close": float(close[idx]),
+                    "volume": int(volume[idx]),
+                    "universe_id": universe_id,
+                    "eligibility_state": "eligible",
+                }
+            )
+    frame = pd.DataFrame(rows).set_index(["timestamp", "asset"]).sort_index()
+    return frame
+
+
 def assert_frame_matches(left: pd.DataFrame, right: pd.DataFrame) -> None:
     """Assert frames match on values, index, columns, and dtypes."""
     assert_frame_equal(left, right, check_dtype=True, check_like=False)

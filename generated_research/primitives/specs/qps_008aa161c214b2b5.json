@@ -1,0 +1,53 @@
+{
+  "computational_complexity_class": "O(n log n) per timestamp group",
+  "deterministic_hash": "9670e1de31cb5dbb5cb89902ba906bb08b4ddeeca2e0ee829be20c246cefd2f7",
+  "deterministic_semantics": [
+    "stable_sort",
+    "no_wall_clock_inputs",
+    "no_random_state",
+    "closed_schema"
+  ],
+  "generator_version": "ade-qre-021.1",
+  "grouping_behavior": "group_by_timestamp_with_identity_stable_ordering",
+  "implementation_template_version": "cross-sectional-rank-template.1",
+  "input_dimensions": [
+    "timestamp",
+    "asset"
+  ],
+  "input_types": [
+    "pandas.Series"
+  ],
+  "minimum_sample_requirements": {
+    "lookback_bars": 20,
+    "minimum_universe_size": 3
+  },
+  "missing_data_behavior": "FAIL_CLOSED",
+  "ordering_behavior": "stable identity order after score sort",
+  "output_dimensions": [
+    "timestamp",
+    "asset"
+  ],
+  "output_type": "pandas.Series",
+  "primitive_family": "cross_sectional_ranking",
+  "primitive_id": "cross_sectional_rank",
+  "primitive_spec_id": "qps_008aa161c214b2b5",
+  "prohibited_behavior": [
+    "arbitrary_python",
+    "arbitrary_imports",
+    "network_access",
+    "file_system_writes",
+    "shell_execution",
+    "dynamic_package_loading",
+    "broker_access",
+    "execution_integration"
+  ],
+  "provenance": [
+    "generated_research/hypotheses/priorities/primitive_extension_requests.v1.json",
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+    "generated_research/hypotheses/reports/automated_hypothesis_generation_closeout.v1.json"
+  ],
+  "schema_version": "1.0",
+  "temporal_behavior": "rank each timestamp using contemporaneous and prior lookback bars only",
+  "tie_behavior": "AVERAGE",
+  "timeout_expectations": "bounded_small_fixture"
+}
