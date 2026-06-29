@@ -3789,7 +3789,7 @@ live, broker, risk, or execution work.
 ### ADE-QRE-018 - Campaign Lineage and Evidence Completeness Remediation Program
 
 - queue id: `ADE-QRE-018`
-- status: `blocked until ADE-QRE-018A done`
+- status: `blocked until ADE-QRE-018J done`
 - purpose: establish the post-`ADE-QRE-017AD` remediation program that repairs
   campaign lineage, identity, null-control, reason-record, evidence, and
   campaign-capacity blockers before any future synthesis review.
@@ -3820,12 +3820,17 @@ live, broker, risk, or execution work.
     release.
   - a minimal separate completion-evidence PR remains allowed if the queue
     lifecycle requires it.
-- expected next queue item: `ADE-QRE-018A`.
+- current state:
+  - `ADE-QRE-018A` through `ADE-QRE-018I` are complete with merged evidence.
+  - `ADE-QRE-018J` remains blocked because `ADE-QRE-018H` produced `0`
+    `READY_FOR_PREREGISTRATION` cells and no second-campaign manifest was
+    legitimately materialized.
+- expected next queue item: none while `ADE-QRE-018J` remains blocked.
 
 ### ADE-QRE-018A - Historical Queue and Baseline Reconciliation
 
 - queue id: `ADE-QRE-018A`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-017AD done`.
 - purpose: classify historical queue ambiguity without hiding it and establish a
   deterministic remediation-program baseline.
@@ -3838,84 +3843,176 @@ live, broker, risk, or execution work.
   - pretending historical missing evidence exists
   - deleting audit history
   - editing generated queue projections directly
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation updated
+    `docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md`,
+    `reporting/ade_queue_status_self_audit.py`, and the roadmap-task admission
+    surfaces to classify historical warnings deterministically as
+    `missing_completion_evidence`, `superseded`, or
+    `stale_historical_state` without hiding them; validation:
+    `python -m pytest tests/unit/test_ade_queue_status_self_audit.py tests/unit/test_roadmap_task_catalog.py tests/unit/test_roadmap_task_units.py tests/unit/test_roadmap_next_unit.py tests/unit/test_roadmap_unit_authority.py tests/unit/test_qre_018_lineage_identity_controls.py tests/unit/test_qre_018_remediation_reports.py tests/unit/test_qre_operator_decision_report.py tests/unit/test_qre_synthesis_readiness_review.py tests/unit/test_qre_campaign_portfolio_plan.py -q`
+    (`406 passed`), `python scripts/governance_lint.py`,
+    `python -m pytest tests/architecture -q` (`157 passed`),
+    `python -m reporting.architecture_import_scan --format summary`
+    (`forbidden_edge_count: 0`), `python -m reporting.ade_queue_status_self_audit --no-write`,
+    `python -m reporting.roadmap_task_catalog --no-write`,
+    `python -m reporting.roadmap_task_units --no-write`,
+    `python -m reporting.roadmap_unit_authority --no-write`,
+    `python -m reporting.roadmap_next_unit --no-write`, and
+    `git diff --check`; checks green; post-merge validation passed on `main`;
+    frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018B`.
 
 ### ADE-QRE-018B - Blocked-Thesis Lineage Census
 
 - queue id: `ADE-QRE-018B`
-- status: `blocked until ADE-QRE-018A done`
+- status: `done`
 - depends on: `ADE-QRE-018A done`.
 - purpose: materialize a deterministic lineage census for the six blocked
   theses and preserve fail-closed missing-link states.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added `reporting/qre_blocked_thesis_lineage_census.py`,
+    `tests/unit/test_qre_018_lineage_identity_controls.py`, and
+    `docs/governance/qre_blocked_thesis_lineage_census.md`; the deterministic
+    census preserved all six blocked theses, with `0` `LINEAGE_COMPLETE`
+    records, `5` `IMPLEMENTATION_MISSING` records, and `1`
+    `IDENTITY_BLOCKED` record; checks green; post-merge validation passed on
+    `main`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018C`.
 
 ### ADE-QRE-018C - Identity Ambiguity Resolution
 
 - queue id: `ADE-QRE-018C`
-- status: `blocked until ADE-QRE-018B done`
+- status: `done`
 - depends on: `ADE-QRE-018B done`.
 - purpose: resolve identity ambiguities where authoritative repository evidence
   exists and preserve unresolved cases fail-closed.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added `reporting/qre_identity_ambiguity_resolution.py` and
+    `docs/governance/qre_identity_ambiguity_resolution.md`; deterministic
+    resolution recorded `2` resolved theses, `2` blocked theses, and `2`
+    missing/ambiguous theses without inventing mappings; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018D`.
 
 ### ADE-QRE-018D - Campaign Lineage Materialization
 
 - queue id: `ADE-QRE-018D`
-- status: `blocked until ADE-QRE-018C done`
+- status: `done`
 - depends on: `ADE-QRE-018C done`.
 - purpose: materialize bounded thesis-to-campaign lineage only where strategy,
   preset, data, and identity evidence actually support it.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added `reporting/qre_campaign_lineage_materialization.py`
+    and `docs/governance/qre_campaign_lineage_materialization.md`; the
+    deterministic lineage materialization recorded `0` complete campaign
+    lineages, `5` `IMPLEMENTATION_MISSING` cases, and `1`
+    `IDENTITY_BLOCKED` case while preserving fail-closed blockers; checks
+    green; post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018E`.
 
 ### ADE-QRE-018E - Null-Control Specification and Completeness
 
 - queue id: `ADE-QRE-018E`
-- status: `blocked until ADE-QRE-018D done`
+- status: `done`
 - depends on: `ADE-QRE-018D done`.
 - purpose: specify mechanistically appropriate null controls and record
   completeness or blockers without fabricating empirical control results.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added `reporting/qre_null_control_readiness.py` and
+    `docs/governance/qre_null_control_readiness.md`; the deterministic
+    readiness inventory recorded thesis-specific null-control specifications
+    with `0` `COMPLETE`, `0` `SPECIFIED_NOT_EXECUTED`, and `6`
+    `IMPLEMENTATION_MISSING` outcomes, explicitly distinguishing specification
+    from executed evidence; checks green; post-merge validation passed on
+    `main`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018F`.
 
 ### ADE-QRE-018F - Evidence and Reason-Record Completion
 
 - queue id: `ADE-QRE-018F`
-- status: `blocked until ADE-QRE-018E done`
+- status: `done`
 - depends on: `ADE-QRE-018E done`.
 - purpose: complete reason-record and evidence-completeness reporting where
   authoritative evidence exists and fail closed where it does not.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added `reporting/qre_evidence_reason_record_completion.py`
+    and `docs/governance/qre_evidence_reason_record_completion.md`; the
+    remediation surface preserved fail-closed evidence authority states and
+    recorded `7` stale-or-contradicted thesis evidence states rather than
+    inventing missing empirical support; checks green; post-merge validation
+    passed on `main`; frozen contracts unchanged; protected/execution paths
+    untouched.
 - expected next queue item: `ADE-QRE-018G`.
 
 ### ADE-QRE-018G - Validation, Reproducibility and Operator-Report Completion
 
 - queue id: `ADE-QRE-018G`
-- status: `blocked until ADE-QRE-018F done`
+- status: `done`
 - depends on: `ADE-QRE-018F done`.
 - purpose: consolidate validation, reproducibility, freshness, and
   operator-report readiness from the remediated evidence chain.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added
+    `reporting/qre_validation_repro_operator_completion.py` and
+    `docs/governance/qre_validation_repro_operator_completion.md`; the
+    deterministic completion surface recorded `0` complete validation states,
+    `0` complete reproducibility states, and `0` complete operator-report
+    states, preserving the repository-backed blockers instead of promoting
+    scaffold presence; checks green; post-merge validation passed on `main`;
+    frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018H`.
 
 ### ADE-QRE-018H - Campaign-Ready Portfolio Reconstruction
 
 - queue id: `ADE-QRE-018H`
-- status: `blocked until ADE-QRE-018G done`
+- status: `done`
 - depends on: `ADE-QRE-018G done`.
 - purpose: rebuild a fail-closed campaign-ready portfolio and preserve blocked,
   rejected, duplicate, and dead-zone exclusions explicitly.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added
+    `reporting/qre_campaign_portfolio_reconstruction.py` and
+    `docs/governance/qre_campaign_portfolio_reconstruction.md`; the rebuilt
+    portfolio recorded `8` cells, `0` `READY_FOR_PREREGISTRATION` cells, `7`
+    blocked cells, `1` `EXCLUDED_REJECTED` cell, and no materialized second
+    campaign manifest; checks green; post-merge validation passed on `main`;
+    frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018I`.
 
 ### ADE-QRE-018I - Replacement Hypothesis Planning
 
 - queue id: `ADE-QRE-018I`
-- status: `blocked until ADE-QRE-018H done`
+- status: `done`
 - depends on: `ADE-QRE-018H done`.
 - purpose: archive `trend_pullback_v1` as rejected and propose a genuinely
   distinct replacement thesis via existing deterministic discovery mechanisms.
+- completion evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`;
+    implementation added `reporting/qre_rejected_thesis_replacement_plan.py`
+    and `docs/governance/qre_rejected_thesis_replacement_plan.md`; the
+    remediation release archived `trend_pullback_v1` as rejected with consumed
+    OOS-window lineage preserved, blocked threshold-tuned or parameter-only
+    recycling, and proposed `volatility_compression_breakout_v0` as a
+    `PROPOSAL_ONLY` replacement that is not campaign-ready; checks green;
+    post-merge validation passed on `main`; frozen contracts unchanged;
+    protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-018J`.
 
 ### ADE-QRE-018J - Second Broad Preregistered Campaign
 
 - queue id: `ADE-QRE-018J`
-- status: `blocked until ADE-QRE-018I done`
+- status: `blocked until at least one ADE-QRE-018H cell is READY_FOR_PREREGISTRATION`
 - depends on: `ADE-QRE-018I done`.
 - purpose: execute a second preregistered campaign only after genuinely ready
   cells and a canonically accepted preregistered artifact exist.
@@ -3924,7 +4021,13 @@ live, broker, risk, or execution work.
     `READY_FOR_PREREGISTRATION`.
   - no execution before merged remediation evidence confirms lineage, identity,
     control, and evidence gates for the selected cell.
-- expected next queue item: `ADE-QRE-018K`.
+- blocker evidence:
+  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`; the merged
+    portfolio reconstruction recorded `0` `READY_FOR_PREREGISTRATION` cells and
+    explicitly did not materialize a second-campaign manifest, so execution
+    remains canonically blocked.
+- expected next queue item: none unless a later authorized remediation item
+  produces a genuinely ready cell.
 
 ### ADE-QRE-018K - Second Synthesis-Readiness Review
 
