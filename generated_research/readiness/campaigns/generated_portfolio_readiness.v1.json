@@ -1,0 +1,30 @@
+{
+  "module_version": "ade-qre-022.1",
+  "portfolio_readiness_identity": "qrr_d6aa426fa8a3f8ab",
+  "report_kind": "qre_generated_portfolio_readiness",
+  "rows": [
+    {
+      "blockers": [
+        "timeframe_not_resolved"
+      ],
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "next_action": "preserve_fail_closed_readiness_blockers",
+      "portfolio_cell_id": "qrp_ed26434b4730426c",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "status": "BLOCKED_WINDOWS",
+      "strategy_spec_id": "qsp_16800d656bf28677"
+    },
+    {
+      "blockers": [
+        "non_authoritative_universe_alias_only"
+      ],
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "next_action": "preserve_fail_closed_readiness_blockers",
+      "portfolio_cell_id": "qrp_e92692cd71a0369b",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "status": "BLOCKED_IDENTITY",
+      "strategy_spec_id": "qsp_28cdbc0005ae7c93"
+    }
+  ],
+  "schema_version": "1.0"
+}

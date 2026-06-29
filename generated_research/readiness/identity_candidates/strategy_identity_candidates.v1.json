@@ -1,0 +1,55 @@
+{
+  "identity_candidate_identity": "qrr_4465408609f14a5f",
+  "module_version": "ade-qre-022.1",
+  "report_kind": "qre_strategy_identity_candidates",
+  "rows": [
+    {
+      "alias_evidence": [
+        "instrument_identity::ASML"
+      ],
+      "candidate_authority": "authoritative_registry",
+      "candidate_id": "Euronext Amsterdam:ASML",
+      "conflict_evidence": [],
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_class": "instrument",
+      "provenance": [
+        "logs/qre_identity_ambiguity_resolution/latest.json",
+        "artifacts/identity/instrument_identity_latest.v1.json"
+      ],
+      "requested_identity": "ASML"
+    },
+    {
+      "alias_evidence": [
+        "Euronext Amsterdam:ASML"
+      ],
+      "candidate_authority": "derived_from_authoritative_instrument",
+      "candidate_id": "quv_fa4646ea49ea7bf2",
+      "conflict_evidence": [],
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_class": "universe",
+      "provenance": [
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "artifacts/universe/equity_universe_catalog_latest.v1.json"
+      ],
+      "requested_identity": "single_resolved_instrument_only"
+    },
+    {
+      "alias_evidence": [
+        "generated specification or preset alias only"
+      ],
+      "candidate_authority": "non_authoritative_generated_alias",
+      "candidate_id": "breadth_resolved_multi_asset_basket",
+      "conflict_evidence": [],
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "identity_class": "universe",
+      "provenance": [
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "artifacts/universe/equity_universe_catalog_latest.v1.json"
+      ],
+      "requested_identity": "breadth_resolved_multi_asset_basket"
+    }
+  ],
+  "schema_version": "1.0"
+}

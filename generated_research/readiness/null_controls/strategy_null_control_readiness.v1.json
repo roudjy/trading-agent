@@ -1,0 +1,80 @@
+{
+  "module_version": "ade-qre-022.1",
+  "null_control_readiness_identity": "qrr_9f43d5e2ba219475",
+  "report_kind": "qre_strategy_null_control_readiness",
+  "rows": [
+    {
+      "blocker": "timeframe_not_resolved",
+      "control_class": "matched_frequency_null",
+      "control_identity": "qnr_6bb59761bab8ce5b",
+      "deterministic_seed": "01e1a2972b98d302",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "DATA_BLOCKED",
+      "provenance": [
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json"
+      ],
+      "required_inputs": [
+        "resolved_dataset",
+        "resolved_windows",
+        "resolved_strategy_registration"
+      ],
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "blocker": "timeframe_not_resolved",
+      "control_class": "sign_flipped_signal",
+      "control_identity": "qnr_18017775e4b8ed6f",
+      "deterministic_seed": "01e1a2972b98d302",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "DATA_BLOCKED",
+      "provenance": [
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json"
+      ],
+      "required_inputs": [
+        "resolved_dataset",
+        "resolved_windows",
+        "resolved_strategy_registration"
+      ],
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "blocker": "timeframe_not_resolved",
+      "control_class": "cost_only_baseline",
+      "control_identity": "qnr_e5b52e2e16dd239b",
+      "deterministic_seed": "01e1a2972b98d302",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "DATA_BLOCKED",
+      "provenance": [
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json"
+      ],
+      "required_inputs": [
+        "resolved_dataset",
+        "resolved_windows",
+        "resolved_strategy_registration"
+      ],
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "blocker": "instrument_identity_not_resolved",
+      "control_class": "permuted_cross_sectional_ranking",
+      "control_identity": "qnr_4ff066aea4a24a82",
+      "deterministic_seed": "ce831448f139cb54",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "outcome": "DATA_BLOCKED",
+      "provenance": [
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json"
+      ],
+      "required_inputs": [
+        "resolved_dataset",
+        "resolved_windows",
+        "resolved_strategy_registration"
+      ],
+      "source_hypothesis_id": "cross_sectional_momentum_v0"
+    }
+  ],
+  "schema_version": "1.0"
+}

@@ -4601,3 +4601,165 @@ live, broker, risk, or execution work.
 - purpose: produce the integrated primitive-expansion outcome and the exact next
   action.
 - completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+
+### ADE-QRE-022 - Automated Campaign Identity and Readiness Resolution
+
+- queue id: `ADE-QRE-022`
+- status: `blocked until ADE-QRE-022O completion evidence is merged`
+- purpose: automatically decompose campaign-readiness blockers for
+  research-registered strategies, resolve only authoritative identities and
+  bindings, materialize campaign metadata and lineage when supported, and admit
+  a preregistered second-campaign manifest only when every existing readiness
+  gate passes.
+- source documents:
+  - `docs/roadmap/qre_automated_campaign_identity_readiness_resolution_program.md`
+- authoritative baseline:
+  - `ADE-QRE-019` complete
+  - `ADE-QRE-020` complete
+  - `ADE-QRE-021` complete
+  - research-registered generated strategy `qgs_e565b01bd0a162d0` remains
+    blocked by `identity_not_resolved`
+  - research-registered generated strategy `qgs_5af8f605ba82ae53` remains
+    blocked by `generated_preset_missing`
+- execution note:
+  - aggregate parent program only; executable work begins at `ADE-QRE-022A`
+    and the parent does not become `done` until `ADE-QRE-022O` completes with
+    canonical completion evidence.
+- expected next queue item: `ADE-QRE-022A`.
+
+### ADE-QRE-022A - Governance and Readiness Authority
+
+- queue id: `ADE-QRE-022A`
+- status: `ready`
+- depends on: `ADE-QRE-021O done`.
+- purpose: admit deterministic campaign-readiness remediation while preserving
+  protected `.claude/**` and `research/**` boundaries and denying campaign
+  execution authority.
+- expected next queue item: `ADE-QRE-022B`.
+
+### ADE-QRE-022B - Readiness Gap Diagnosis
+
+- queue id: `ADE-QRE-022B`
+- status: `ready`
+- depends on: `ADE-QRE-022A done`.
+- purpose: decompose aggregate readiness blockers into exact field-level gaps
+  with authoritative candidates, conflicts, and next actions.
+- expected next queue item: `ADE-QRE-022C`.
+
+### ADE-QRE-022C - Canonical Identity Resolution Contract
+
+- queue id: `ADE-QRE-022C`
+- status: `ready`
+- depends on: `ADE-QRE-022B done`.
+- purpose: resolve only unique or canonically aliased identities through a
+  closed contract and fail closed on ambiguity or conflict.
+- expected next queue item: `ADE-QRE-022D`.
+
+### ADE-QRE-022D - Instrument and Universe Resolution
+
+- queue id: `ADE-QRE-022D`
+- status: `ready`
+- depends on: `ADE-QRE-022C done`.
+- purpose: bind canonical instruments and universes without symbol-only or
+  survivor-biased shortcuts.
+- expected next queue item: `ADE-QRE-022E`.
+
+### ADE-QRE-022E - Source, Dataset and Snapshot Resolution
+
+- queue id: `ADE-QRE-022E`
+- status: `ready`
+- depends on: `ADE-QRE-022D done`.
+- purpose: bind source, dataset, snapshot, schema, and freshness only when
+  authoritative evidence supports them.
+- expected next queue item: `ADE-QRE-022F`.
+
+### ADE-QRE-022F - Timeframe and Regime Binding
+
+- queue id: `ADE-QRE-022F`
+- status: `ready`
+- depends on: `ADE-QRE-022E done`.
+- purpose: resolve timeframe, rebalance, warmup, and regime bindings without
+  inferring them from names alone.
+- expected next queue item: `ADE-QRE-022G`.
+
+### ADE-QRE-022G - Train, Validation and OOS Capacity
+
+- queue id: `ADE-QRE-022G`
+- status: `ready`
+- depends on: `ADE-QRE-022F done`.
+- purpose: assess train, validation, OOS, and null-control capacity while
+  excluding consumed or non-independent windows.
+- expected next queue item: `ADE-QRE-022H`.
+
+### ADE-QRE-022H - Preset Completion
+
+- queue id: `ADE-QRE-022H`
+- status: `ready`
+- depends on: `ADE-QRE-022G done`.
+- purpose: create or complete bounded presets only when identity, timeframe,
+  and data bindings are authoritative.
+- expected next queue item: `ADE-QRE-022I`.
+
+### ADE-QRE-022I - Null-Control Execution Readiness
+
+- queue id: `ADE-QRE-022I`
+- status: `ready`
+- depends on: `ADE-QRE-022H done`.
+- purpose: distinguish executable null-control readiness from specification-only
+  availability.
+- expected next queue item: `ADE-QRE-022J`.
+
+### ADE-QRE-022J - Campaign Metadata Materialization
+
+- queue id: `ADE-QRE-022J`
+- status: `ready`
+- depends on: `ADE-QRE-022I done`.
+- purpose: materialize deterministic campaign metadata only when every
+  mandatory identity and readiness field is resolved.
+- expected next queue item: `ADE-QRE-022K`.
+
+### ADE-QRE-022K - Campaign Lineage Completion
+
+- queue id: `ADE-QRE-022K`
+- status: `ready`
+- depends on: `ADE-QRE-022J done`.
+- purpose: materialize the full readiness lineage from opportunity and thesis
+  through generated strategy, identities, controls, windows, and campaign
+  candidate.
+- expected next queue item: `ADE-QRE-022L`.
+
+### ADE-QRE-022L - Portfolio and Preregistration Reevaluation
+
+- queue id: `ADE-QRE-022L`
+- status: `ready`
+- depends on: `ADE-QRE-022K done`.
+- purpose: rebuild the canonical portfolio and admit a preregistered second
+  campaign only when a cell is genuinely ready.
+- expected next queue item: `ADE-QRE-022M`.
+
+### ADE-QRE-022M - Autonomous Readiness Remediation Loop
+
+- queue id: `ADE-QRE-022M`
+- status: `ready`
+- depends on: `ADE-QRE-022L done`.
+- purpose: generalize deterministic readiness remediation and feed exact
+  remaining blockers back to thesis, primitive, or data remediation.
+- expected next queue item: `ADE-QRE-022N`.
+
+### ADE-QRE-022N - Apply to `qgs_e565b01bd0a162d0`
+
+- queue id: `ADE-QRE-022N`
+- status: `ready`
+- depends on: `ADE-QRE-022M done`.
+- purpose: apply the readiness-remediation loop to the current generated
+  strategies, including `qgs_e565b01bd0a162d0` and
+  `qgs_5af8f605ba82ae53`.
+- expected next queue item: `ADE-QRE-022O`.
+
+### ADE-QRE-022O - Integrated Closeout
+
+- queue id: `ADE-QRE-022O`
+- status: `ready`
+- depends on: `ADE-QRE-022N done`.
+- purpose: produce the integrated readiness-remediation closeout and exact next
+  action without overstating campaign readiness.

@@ -1,0 +1,91 @@
+{
+  "campaign_metadata_identity": "qrr_43788acd07d74249",
+  "module_version": "ade-qre-022.1",
+  "report_kind": "qre_generated_campaign_metadata",
+  "rows": [
+    {
+      "blockers": [
+        "data_binding_not_ready",
+        "timeframe_not_resolved",
+        "preset_not_ready",
+        "null_controls_not_execution_ready"
+      ],
+      "campaign_candidate_id": "qcmr_ad0dfcbb6e34e341",
+      "costs": {
+        "mode": "cost_class_visible_only"
+      },
+      "dataset_identity": "",
+      "generated_registration_id": "qgr_4ae344d01521bb31",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "instrument_identity": "Euronext Amsterdam:ASML",
+      "metadata_state": "PREREGISTRATION_BLOCKED",
+      "null_controls": [
+        "matched_frequency_null",
+        "sign_flipped_signal",
+        "cost_only_baseline"
+      ],
+      "oos_window": "",
+      "preset_id": "",
+      "provenance": [
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "slippage": {
+        "status": "not_materialized"
+      },
+      "snapshot_identity": "",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "source_identity": "",
+      "strategy_spec_id": "qsp_16800d656bf28677",
+      "thesis_id": "qbt_3b77618b0ddbd5b3",
+      "timeframe": "",
+      "train_window": "",
+      "universe_identity": "quv_fa4646ea49ea7bf2",
+      "validation_window": ""
+    },
+    {
+      "blockers": [
+        "universe_not_resolved",
+        "data_binding_not_ready",
+        "null_controls_not_execution_ready"
+      ],
+      "campaign_candidate_id": "qcmr_38445fb6b20019e0",
+      "costs": {
+        "mode": "cost_class_visible_only"
+      },
+      "dataset_identity": "",
+      "generated_registration_id": "qgr_8176272a5e2d3cf3",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "instrument_identity": "",
+      "metadata_state": "PREREGISTRATION_BLOCKED",
+      "null_controls": [
+        "permuted_cross_sectional_ranking"
+      ],
+      "oos_window": "",
+      "preset_id": "qgp_507c505a5e83c34d",
+      "provenance": [
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "slippage": {
+        "status": "not_materialized"
+      },
+      "snapshot_identity": "",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "source_identity": "",
+      "strategy_spec_id": "qsp_28cdbc0005ae7c93",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba",
+      "timeframe": "1d",
+      "train_window": "",
+      "universe_identity": "",
+      "validation_window": ""
+    }
+  ],
+  "schema_version": "1.0"
+}

@@ -1,0 +1,30 @@
+{
+  "module_version": "ade-qre-022.1",
+  "report_kind": "qre_strategy_window_capacity",
+  "rows": [
+    {
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "DATA_COVERAGE_INSUFFICIENT",
+      "provenance": [
+        "logs/qre_data_cache_manifest/latest.json",
+        "generated_research/specs"
+      ],
+      "reason": "timeframe_not_resolved",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "state": "BLOCKED"
+    },
+    {
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "outcome": "DATA_COVERAGE_INSUFFICIENT",
+      "provenance": [
+        "logs/qre_data_cache_manifest/latest.json",
+        "generated_research/specs"
+      ],
+      "reason": "instrument_identity_not_resolved",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "state": "BLOCKED"
+    }
+  ],
+  "schema_version": "1.0",
+  "window_capacity_identity": "qrr_ea84087a6674dca0"
+}
