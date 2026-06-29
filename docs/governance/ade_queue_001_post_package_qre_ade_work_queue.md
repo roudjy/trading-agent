@@ -4437,7 +4437,7 @@ live, broker, risk, or execution work.
 ### ADE-QRE-021 - Automated Bounded Primitive Expansion and Strategy Retest
 
 - queue id: `ADE-QRE-021`
-- status: `ready`
+- status: `done`
 - purpose: admit bounded deterministic primitive expansion from authoritative
   thesis blockers, automatically register validated generated primitives for
   research-only use, replay blocked theses through ADE-QRE-019, and reevaluate
@@ -4450,138 +4450,154 @@ live, broker, risk, or execution work.
   - `ADE-QRE-020` complete
   - admitted generated thesis `qhc_51bc7a5c7b3f64ba` remains blocked behind
     primitive-extension request `qpe_e4e83d0c094e8a3e`
-- expected next queue item: `ADE-QRE-021A`.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; the merged implementation preserved `.claude/**` unchanged, preserved protected `research/**` empirical surfaces unchanged, added the bounded primitive-expansion loop plus one canonical resolved primitive catalog, validated extension request `qpe_e4e83d0c094e8a3e`, generated and automatically admitted primitive spec `qps_008aa161c214b2b5`, generated primitive `qgp_bbfb1728e13038c1`, primitive registration `qpr_aeedc76c01ce606d`, primitive test manifest `qpt_8313ea823f663df7`, primitive sandbox artifact `qpv_1aeb0fd61c10fc53`, and resolved primitive catalog identity `qpc_c50789cca278218c`; automatic thesis recompile for `qhc_51bc7a5c7b3f64ba` reached `SPECIFICATION_READY`; ADE-QRE-019 replay preserved research-only strategy registration for `qgs_e565b01bd0a162d0` while keeping campaign readiness blocked by `identity_not_resolved`; integrated outcome `PRIMITIVE_REGISTERED_STRATEGY_BLOCKED` preserved `2` research-registered generated strategies, `4` blocked or rejected thesis rows, `0` campaign-ready cells, and no second-campaign manifest, so `ADE-QRE-018J` remains blocked; checks green; post-merge validation passed `python -m pytest tests/unit/test_qre_automated_primitive_expansion.py tests/unit/test_qre_automated_strategy_generation.py tests/unit/test_qre_automated_hypothesis_generation.py tests/unit/test_features.py tests/unit/test_roadmap_task_catalog.py tests/unit/test_roadmap_task_units.py tests/unit/test_roadmap_next_unit.py tests/unit/test_execution_authority.py tests/unit/test_hooks_no_touch.py tests/unit/test_ade_qre_014_queue_lifecycle.py tests/unit/test_ade_qre_017_queue_admission.py tests/unit/test_ade_queue_status_self_audit.py -q`, `python -m pytest tests/architecture -q`, `python scripts/governance_lint.py`, `python -m reporting.architecture_import_scan --format summary`, `python -m reporting.ade_queue_status_self_audit --no-write`, `python -m reporting.roadmap_task_catalog --no-write`, `python -m reporting.roadmap_task_units --no-write`, `python -m reporting.roadmap_unit_authority --no-write`, `python -m reporting.roadmap_next_unit --no-write`, and `git diff --check`; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: none unless a later authorized readiness-remediation or preregistration program becomes eligible.
 
 ### ADE-QRE-021A - Primitive Expansion Governance and Authority
 
 - queue id: `ADE-QRE-021A`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-020Q done`.
 - purpose: admit bounded deterministic primitive expansion while preserving
   protected `.claude/**` and `research/**` boundaries and denying any trading
   authority.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021B`.
 
 ### ADE-QRE-021B - Primitive Extension Request Contract
 
 - queue id: `ADE-QRE-021B`
-- status: `ready`
-- depends on: `ADE-QRE-021A ready`.
+- status: `done`
+- depends on: `ADE-QRE-021A done`.
 - purpose: validate authoritative primitive-extension requests against a closed
   deterministic contract.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021C`.
 
 ### ADE-QRE-021C - Closed Primitive Specification Schema
 
 - queue id: `ADE-QRE-021C`
-- status: `ready`
-- depends on: `ADE-QRE-021B ready`.
+- status: `done`
+- depends on: `ADE-QRE-021B done`.
 - purpose: compile closed primitive specifications with deterministic temporal,
   grouping, ordering, and missing-data semantics.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021D`.
 
 ### ADE-QRE-021D - Primitive Implementation Generator
 
 - queue id: `ADE-QRE-021D`
-- status: `ready`
-- depends on: `ADE-QRE-021C ready`.
+- status: `done`
+- depends on: `ADE-QRE-021C done`.
 - purpose: generate deterministic primitive implementations from closed
   specifications.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021E`.
 
 ### ADE-QRE-021E - Primitive Test Generator
 
 - queue id: `ADE-QRE-021E`
-- status: `ready`
-- depends on: `ADE-QRE-021D ready`.
+- status: `done`
+- depends on: `ADE-QRE-021D done`.
 - purpose: generate deterministic primitive tests from the closed primitive
   specification.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021F`.
 
 ### ADE-QRE-021F - Static Safety and Architecture Validation
 
 - queue id: `ADE-QRE-021F`
-- status: `ready`
-- depends on: `ADE-QRE-021E ready`.
+- status: `done`
+- depends on: `ADE-QRE-021E done`.
 - purpose: reject forbidden imports, side effects, and package-boundary
   violations before primitive execution.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021G`.
 
 ### ADE-QRE-021G - Primitive Sandbox Validation
 
 - queue id: `ADE-QRE-021G`
-- status: `ready`
-- depends on: `ADE-QRE-021F ready`.
+- status: `done`
+- depends on: `ADE-QRE-021F done`.
 - purpose: validate generated primitives in an isolated deterministic sandbox.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021H`.
 
 ### ADE-QRE-021H - Automatic Primitive Registry Admission
 
 - queue id: `ADE-QRE-021H`
-- status: `ready`
-- depends on: `ADE-QRE-021G ready`.
+- status: `done`
+- depends on: `ADE-QRE-021G done`.
 - purpose: atomically admit validated generated primitives into the isolated
   generated registry and resolved primitive catalog.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021I`.
 
 ### ADE-QRE-021I - Cross-Sectional Data Contract
 
 - queue id: `ADE-QRE-021I`
-- status: `ready`
-- depends on: `ADE-QRE-021H ready`.
+- status: `done`
+- depends on: `ADE-QRE-021H done`.
 - purpose: define the deterministic cross-sectional input contract required by
   `cross_sectional_rank`.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021J`.
 
 ### ADE-QRE-021J - `cross_sectional_rank` Implementation
 
 - queue id: `ADE-QRE-021J`
-- status: `ready`
-- depends on: `ADE-QRE-021I ready`.
+- status: `done`
+- depends on: `ADE-QRE-021I done`.
 - purpose: generate and validate the first bounded primitive requested by
   ADE-QRE-020.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021K`.
 
 ### ADE-QRE-021K - Automatic Thesis Recompile
 
 - queue id: `ADE-QRE-021K`
-- status: `ready`
-- depends on: `ADE-QRE-021J ready`.
+- status: `done`
+- depends on: `ADE-QRE-021J done`.
 - purpose: automatically recompile blocked theses once the requested primitive
   becomes resolver-visible.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021L`.
 
 ### ADE-QRE-021L - Automatic Strategy Generation and Retest
 
 - queue id: `ADE-QRE-021L`
-- status: `ready`
-- depends on: `ADE-QRE-021K ready`.
+- status: `done`
+- depends on: `ADE-QRE-021K done`.
 - purpose: invoke ADE-QRE-019 automatically after successful primitive
   admission and preserve all existing strategy-generation gates.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021M`.
 
 ### ADE-QRE-021M - Campaign Readiness Reevaluation
 
 - queue id: `ADE-QRE-021M`
-- status: `ready`
-- depends on: `ADE-QRE-021L ready`.
+- status: `done`
+- depends on: `ADE-QRE-021L done`.
 - purpose: rebuild preset, null-control, lineage, portfolio, and preregistration
   readiness without executing a campaign.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021N`.
 
 ### ADE-QRE-021N - Autonomous Capability Expansion Loop
 
 - queue id: `ADE-QRE-021N`
-- status: `ready`
-- depends on: `ADE-QRE-021M ready`.
+- status: `done`
+- depends on: `ADE-QRE-021M done`.
 - purpose: generalize the bounded primitive-expansion loop for future
   authoritative requests without relaxing safety policies.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-021O`.
 
 ### ADE-QRE-021O - Integrated Closeout
 
 - queue id: `ADE-QRE-021O`
-- status: `ready`
-- depends on: `ADE-QRE-021N ready`.
+- status: `done`
+- depends on: `ADE-QRE-021N done`.
 - purpose: produce the integrated primitive-expansion outcome and the exact next
   action.
+- completion evidence: PR #692, merge SHA `362a0b6b1299ea0ffc40bff9c080c2ba0647d80a`; checks green; frozen contracts unchanged; protected/execution paths untouched.
