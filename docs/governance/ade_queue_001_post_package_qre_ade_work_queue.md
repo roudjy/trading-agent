@@ -4213,3 +4213,223 @@ live, broker, risk, or execution work.
 - purpose: produce the deterministic integrated automated-generation outcome
   and the exact next action.
 - completion evidence: PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+
+### ADE-QRE-020 - Automated Hypothesis Generation
+
+- queue id: `ADE-QRE-020`
+- status: `done`
+- purpose: admit and implement bounded deterministic automated
+  hypothesis-generation for research-only thesis discovery, admission,
+  prioritization, ADE-QRE-019 submission, and downstream feedback while
+  preserving the distinction between thesis admission, strategy generation,
+  campaign readiness, and trading authority.
+- source documents:
+  - `docs/roadmap/qre_automated_hypothesis_generation_program.md`
+  - `docs/governance/ade_qre_020_governance_conflict_matrix.md`
+- authoritative baseline:
+  - `ADE-QRE-019` complete
+  - one resolver-visible generated research strategy exists for
+    `atr_adaptive_trend_v0`
+  - `ADE-QRE-018J` remains blocked because no cell is
+    `READY_FOR_PREREGISTRATION`
+- scope:
+  - deterministic evidence snapshots for autonomous hypothesis runs
+  - authoritative opportunity detection
+  - descriptive market observations distinct from hypotheses
+  - closed-vocabulary mechanism proposals
+  - typed behavior-thesis compilation
+  - scientific and falsifiability gates
+  - duplicate, rejected-lineage, and cosmetic-variant suppression
+  - contradiction and alternative-explanation retrieval
+  - testability, signal-density, and OOS-capacity estimation
+  - ADE-QRE-019 primitive compatibility classification
+  - isolated generated-thesis registry and canonical resolved thesis catalog
+  - automatic research-only thesis admission and prioritization
+  - ADE-QRE-019 submission gating for currently compilable theses only
+  - deterministic downstream feedback ingestion
+- forbidden scope:
+  - executable strategy generation inside ADE-QRE-020
+  - direct strategy registration or campaign execution
+  - OOS-aware thesis rewriting
+  - fabricated evidence or identities
+  - paper, shadow, or live activation
+  - broker, risk, or execution mutation
+  - `.claude/**` mutation
+  - protected `research/**` empirical surface mutation
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; the merged implementation preserved `.claude/**` unchanged, preserved protected `research/**` empirical surfaces unchanged, added isolated generated-hypothesis surfaces plus one canonical resolved thesis catalog, produced evidence snapshot `qhs_a4fa46b186a9fd4e`, compiled `4` candidate theses from `4` opportunities / observations / mechanisms, admitted `1` generated thesis in `ADMITTED_GENERATION_BLOCKED` state (`qhc_51bc7a5c7b3f64ba` from `cross_sectional_momentum_v0`), produced `1` bounded primitive-extension request (`qpe_e4e83d0c094e8a3e` for `cross_sectional_rank`), submitted `0` theses to ADE-QRE-019 because none were `COMPILABLE_WITH_CURRENT_PRIMITIVES`, created `0` campaign-ready cells and no second-campaign manifest, and reported program outcome `HYPOTHESES_ADMITTED_GENERATION_BLOCKED`; checks green; post-merge validation passed `python -m pytest tests/unit/test_qre_automated_hypothesis_generation.py tests/unit/test_roadmap_task_catalog.py tests/unit/test_roadmap_task_units.py tests/unit/test_roadmap_next_unit.py tests/unit/test_execution_authority.py tests/unit/test_hooks_no_touch.py tests/unit/test_qre_behavior_thesis_registry.py tests/unit/test_qre_automated_strategy_generation.py -q`, `python -m pytest tests/architecture -q`, `python scripts/governance_lint.py`, `python -m reporting.architecture_import_scan --format summary`, and `python -m reporting.ade_queue_status_self_audit --no-write`; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: none unless a later authorized bounded
+  primitive-extension or related remediation program is admitted.
+
+### ADE-QRE-020A - Governance and Hypothesis Authority
+
+- queue id: `ADE-QRE-020A`
+- status: `done`
+- depends on: `ADE-QRE-019 done`.
+- purpose: admit bounded deterministic automated hypothesis generation without
+  granting executable-strategy, campaign, or trading authority.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020B`.
+
+### ADE-QRE-020B - Evidence Snapshot and Opportunity Inputs
+
+- queue id: `ADE-QRE-020B`
+- status: `done`
+- depends on: `ADE-QRE-020A done`.
+- purpose: create the deterministic authoritative evidence snapshot contract for
+  autonomous hypothesis-generation runs.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020C`.
+
+### ADE-QRE-020C - Research Opportunity Detector
+
+- queue id: `ADE-QRE-020C`
+- status: `done`
+- depends on: `ADE-QRE-020B done`.
+- purpose: detect authoritative research opportunities, including contradiction,
+  replacement, and generator-capability gaps.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020D`.
+
+### ADE-QRE-020D - Market Observation Builder
+
+- queue id: `ADE-QRE-020D`
+- status: `done`
+- depends on: `ADE-QRE-020C done`.
+- purpose: build descriptive observations that remain distinct from mechanism
+  claims and theses.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020E`.
+
+### ADE-QRE-020E - Mechanism Proposal Engine
+
+- queue id: `ADE-QRE-020E`
+- status: `done`
+- depends on: `ADE-QRE-020D done`.
+- purpose: propose bounded closed-vocabulary market mechanisms with explicit
+  alternatives and uncertainty.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020F`.
+
+### ADE-QRE-020F - Behavior Thesis Compiler
+
+- queue id: `ADE-QRE-020F`
+- status: `done`
+- depends on: `ADE-QRE-020E done`.
+- purpose: compile opportunities, observations, and mechanisms into typed
+  falsifiable Behavior Theses without generating executable strategy code.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020G`.
+
+### ADE-QRE-020G - Scientific Quality and Falsifiability Gate
+
+- queue id: `ADE-QRE-020G`
+- status: `done`
+- depends on: `ADE-QRE-020F done`.
+- purpose: reject or block unfalsifiable, post-hoc, or non-measurable theses.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020H`.
+
+### ADE-QRE-020H - Novelty and Rejected-Lineage Gate
+
+- queue id: `ADE-QRE-020H`
+- status: `done`
+- depends on: `ADE-QRE-020G done`.
+- purpose: prevent duplicates, parameter clones, threshold clones, and rejected
+  lineage resurrection.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020I`.
+
+### ADE-QRE-020I - Contradiction and Alternative-Explanation Engine
+
+- queue id: `ADE-QRE-020I`
+- status: `done`
+- depends on: `ADE-QRE-020H done`.
+- purpose: surface supporting evidence, contradicting evidence, unresolved
+  contradictions, and alternative explanations without promoting them to truth
+  authority.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020J`.
+
+### ADE-QRE-020J - Testability and Signal-Density Estimator
+
+- queue id: `ADE-QRE-020J`
+- status: `done`
+- depends on: `ADE-QRE-020I done`.
+- purpose: estimate testability, signal density, OOS capacity, and related
+  execution blockers without treating estimates as empirical results.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020K`.
+
+### ADE-QRE-020K - Primitive Compatibility Classifier
+
+- queue id: `ADE-QRE-020K`
+- status: `done`
+- depends on: `ADE-QRE-020J done`.
+- purpose: classify theses by current ADE-QRE-019 compilability and emit
+  bounded primitive-extension requests when scientifically valid theses exceed
+  the current primitive set.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020L`.
+
+### ADE-QRE-020L - Automatic Thesis Admission and Resolver
+
+- queue id: `ADE-QRE-020L`
+- status: `done`
+- depends on: `ADE-QRE-020K done`.
+- purpose: atomically admit scientifically valid generated theses into the
+  isolated generated registry and compose them with manual theses through one
+  canonical resolved thesis catalog.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020M`.
+
+### ADE-QRE-020M - Hypothesis Prioritization
+
+- queue id: `ADE-QRE-020M`
+- status: `done`
+- depends on: `ADE-QRE-020L done`.
+- purpose: transparently prioritize admitted theses using evidence quality,
+  information gain, diversity, readiness, and contradiction value rather than
+  profit-chasing heuristics.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020N`.
+
+### ADE-QRE-020N - ADE-QRE-019 Integration
+
+- queue id: `ADE-QRE-020N`
+- status: `done`
+- depends on: `ADE-QRE-020M done`.
+- purpose: submit only automatically admitted and currently compilable theses to
+  ADE-QRE-019 while preserving normal downstream strategy-generation gates.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020O`.
+
+### ADE-QRE-020O - Autonomous Feedback Loop
+
+- queue id: `ADE-QRE-020O`
+- status: `done`
+- depends on: `ADE-QRE-020N done`.
+- purpose: ingest downstream generation and later campaign outcomes as
+  deterministic hypothesis-generation feedback without weakening gates or
+  rewriting theses from OOS outcomes.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020P`.
+
+### ADE-QRE-020P - Apply to Current Research State
+
+- queue id: `ADE-QRE-020P`
+- status: `done`
+- depends on: `ADE-QRE-020O done`.
+- purpose: run ADE-QRE-020 against the current authoritative QRE state and
+  preserve exact fail-closed outcomes, including admitted-but-generation-blocked
+  hypotheses.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: `ADE-QRE-020Q`.
+
+### ADE-QRE-020Q - Integrated Closeout
+
+- queue id: `ADE-QRE-020Q`
+- status: `done`
+- depends on: `ADE-QRE-020P done`.
+- purpose: produce the deterministic integrated automated-hypothesis-generation
+  outcome and the exact next action.
+- completion evidence: PR #690, merge SHA `dcb6900f8759fd4dc64a16850a819e58f0c37112`; checks green; frozen contracts unchanged; protected/execution paths untouched.
