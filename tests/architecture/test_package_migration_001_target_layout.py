@@ -163,7 +163,9 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
     assert files == [
         "README.md",
         "__init__.py",
+        "automated_hypothesis_generation.py",
         "automated_strategy_generation.py",
+        "generated_hypothesis_paths.py",
         "generated_strategy_paths.py",
         "opportunity_value.py",
         "research_memory.py",

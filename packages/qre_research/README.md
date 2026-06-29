@@ -38,6 +38,11 @@ ADE-QRE-019 adds the bounded automated research-only generation pipeline in
 `packages.qre_research.automated_strategy_generation`. That pipeline writes
 only to isolated generated-research surfaces outside `research/**` and does
 not grant paper, shadow, live, broker, risk, or deployment authority.
+ADE-QRE-020 adds the bounded automated hypothesis-generation pipeline in
+`packages.qre_research.automated_hypothesis_generation`. That pipeline writes
+only to isolated generated-hypothesis surfaces outside `research/**`,
+preserves one resolved thesis catalog, and never generates executable strategy
+code directly.
 
 ## Source of Truth / Authority Boundary
 
@@ -70,11 +75,14 @@ context, not authority.
 - Deterministic ADE-QRE-019 research-only strategy generation, validation,
   generated-registry admission, and resolved-catalog composition outside
   `research/**`.
+- Deterministic ADE-QRE-020 research-only hypothesis generation, admission,
+  and resolved-thesis-catalog composition outside `research/**`.
 
 ## Forbidden Contents
 
 - New strategy families or brute-force parameter expansion.
 - Arbitrary strategy code generation or unconstrained LLM generation.
+- Executable strategy generation inside ADE-QRE-020.
 - Dashboard route handlers or ADE governance authority.
 - Data fetchers, artifact writers, diagnostics, policy, and execution behavior
   unless separately authorized for this package.

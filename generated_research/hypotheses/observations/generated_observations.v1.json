@@ -1,0 +1,134 @@
+{
+  "generator_version": "ade-qre-020.1",
+  "provenance": [
+    "research/qre_behavior_thesis_registry.py",
+    "generated_research/registry/generated_strategy_registry.v1.json",
+    "generated_research/reports/automated_generation_closeout.v1.json",
+    "logs/qre_campaign_portfolio_reconstruction/latest.json"
+  ],
+  "report_kind": "qre_generated_market_observations",
+  "rows": [
+    {
+      "contradicting_evidence": [
+        "no authoritative evidence currently resolves cross-sectional identity and null-control execution"
+      ],
+      "feature_definitions": [
+        "repository_authoritative_artifact_counts"
+      ],
+      "freshness": "repository_snapshot_current",
+      "observation_id": "qob_700ebf50b569795a",
+      "observation_window": "repository_state_as_of_c3d3a31180538c27",
+      "opportunity_id": "qho_938f12cdc5234768",
+      "potential_biases": [
+        "artifact_population_bias",
+        "historical_campaign_coverage_bias"
+      ],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "regime": "broad campaign diversification gap",
+      "source_data_snapshot": "qhs_a4fa46b186a9fd4e",
+      "statistical_summary": "authoritative-state observation only; no fresh market statistics inferred",
+      "supporting_evidence": [
+        "blocked thesis remains outside current generated primitive family",
+        "portfolio lacks diversified cross-sectional sleeve"
+      ],
+      "timeframe": "1d|4h",
+      "uncertainty": "high_when_market_measurement_is_absent",
+      "universe": "cross-sectional basket"
+    },
+    {
+      "contradicting_evidence": [
+        "current generator support is trend-continuation only"
+      ],
+      "feature_definitions": [
+        "repository_authoritative_artifact_counts"
+      ],
+      "freshness": "repository_snapshot_current",
+      "observation_id": "qob_82d780c4ed8e62df",
+      "observation_window": "repository_state_as_of_c3d3a31180538c27",
+      "opportunity_id": "qho_b9b8c6a1ea5971fd",
+      "potential_biases": [
+        "artifact_population_bias",
+        "historical_campaign_coverage_bias"
+      ],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "regime": "relative-value gap",
+      "source_data_snapshot": "qhs_a4fa46b186a9fd4e",
+      "statistical_summary": "authoritative-state observation only; no fresh market statistics inferred",
+      "supporting_evidence": [
+        "manual thesis exists but remains disabled and unresolved"
+      ],
+      "timeframe": "1d|4h",
+      "uncertainty": "high_when_market_measurement_is_absent",
+      "universe": "paired instruments"
+    },
+    {
+      "contradicting_evidence": [
+        "replacement cannot reuse trend_pullback thresholds or cosmetic variants"
+      ],
+      "feature_definitions": [
+        "repository_authoritative_artifact_counts"
+      ],
+      "freshness": "repository_snapshot_current",
+      "observation_id": "qob_8c6b7b45dd279cf9",
+      "observation_window": "repository_state_as_of_c3d3a31180538c27",
+      "opportunity_id": "qho_4fb4bcec9f1c16bb",
+      "potential_biases": [
+        "artifact_population_bias",
+        "historical_campaign_coverage_bias"
+      ],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "regime": "post-rejection replacement search",
+      "source_data_snapshot": "qhs_a4fa46b186a9fd4e",
+      "statistical_summary": "authoritative-state observation only; no fresh market statistics inferred",
+      "supporting_evidence": [
+        "current portfolio has zero ready campaign cells",
+        "trend_pullback_v1 rejected with zero accepted OOS"
+      ],
+      "timeframe": "1d|4h|1h",
+      "uncertainty": "high_when_market_measurement_is_absent",
+      "universe": "single-asset trend universe"
+    },
+    {
+      "contradicting_evidence": [
+        "existing thesis remains identity blocked and therefore not campaign-ready"
+      ],
+      "feature_definitions": [
+        "repository_authoritative_artifact_counts"
+      ],
+      "freshness": "repository_snapshot_current",
+      "observation_id": "qob_aee87b4b584f6322",
+      "observation_window": "repository_state_as_of_c3d3a31180538c27",
+      "opportunity_id": "qho_483f0fd2b25831da",
+      "potential_biases": [
+        "artifact_population_bias",
+        "historical_campaign_coverage_bias"
+      ],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "regime": "volatility compression breakout replacement path",
+      "source_data_snapshot": "qhs_a4fa46b186a9fd4e",
+      "statistical_summary": "authoritative-state observation only; no fresh market statistics inferred",
+      "supporting_evidence": [
+        "replacement plan already points to volatility compression breakout as distinct mechanism"
+      ],
+      "timeframe": "1d|4h",
+      "uncertainty": "high_when_market_measurement_is_absent",
+      "universe": "breakout candidate universe"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "observation_count": 4
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "evidence_snapshot_id": "qhs_a4fa46b186a9fd4e",
+  "generator_version": "ade-qre-020.1",
+  "inputs": {
+    "behavior_thesis_registry": "logs/qre_behavior_thesis_registry/latest.json",
+    "contradiction_graph": "logs/qre_contradiction_graph/latest.json",
+    "data_snapshots": "logs/qre_cache_readiness/latest.json",
+    "evidence_freshness": "logs/qre_evidence_decay/latest.json",
+    "failure_memory": "logs/qre_hypothesis_disposition_memory/latest.json",
+    "funnel_outcomes": "logs/qre_funnel_diagnosis/latest.json",
+    "generated_strategy_catalog": "generated_research/registry/generated_strategy_registry.v1.json",
+    "portfolio_state": "logs/qre_campaign_portfolio_reconstruction/latest.json",
+    "prior_campaigns": "logs/qre_campaign_lineage_materialization/latest.json",
+    "rejected_hypotheses": "docs/governance/qre_rejected_thesis_replacement_plan.md",
+    "resolved_strategy_catalog": "generated_research/registry/generated_strategy_registry.v1.json",
+    "source_readiness": "logs/qre_source_usefulness/latest.json",
+    "source_usefulness": "logs/qre_source_usefulness/latest.json"
+  },
+  "provenance": [
+    "research/qre_behavior_thesis_registry.py",
+    "generated_research/registry/generated_strategy_registry.v1.json",
+    "generated_research/reports/automated_generation_closeout.v1.json",
+    "logs/qre_campaign_portfolio_reconstruction/latest.json"
+  ],
+  "report_kind": "qre_automated_hypothesis_evidence_snapshot",
+  "rows": [
+    {
+      "behavior_family": "trend_continuation",
+      "duplicate_signature": "cdea906e43aa2a368cb3726fe0413184acb6a6ce7c59b87aa4d9b353be51a74a",
+      "provenance_refs": [
+        "research/strategy_hypothesis_catalog.py#atr_adaptive_trend_v0",
+        "research/qre_behavior_catalog.py#trend_continuation",
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md#ade-qre-017l",
+        "logs/qre_hypothesis_disposition_memory/latest.json"
+      ],
+      "signal_density_expectation": "moderate",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "status": "draft",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "behavior_family": "relative_strength",
+      "duplicate_signature": "576b4a9283828cd96662712670c689d6b1b6adcaa58ab39c9a9fe07746a7bedb",
+      "provenance_refs": [
+        "research/strategy_hypothesis_catalog.py#cross_sectional_momentum_v0",
+        "research/qre_behavior_catalog.py#relative_strength",
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md#ade-qre-017l",
+        "logs/qre_hypothesis_disposition_memory/latest.json"
+      ],
+      "signal_density_expectation": "moderate",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "status": "draft",
+      "thesis_id": "qbt_7bf72ac7046c3039"
+    },
+    {
+      "behavior_family": "mean_reversion",
+      "duplicate_signature": "ce3c358720db520955e91134a84a253cfc5dcdff6f9a2c8c3546caf1ddd97dd4",
+      "provenance_refs": [
+        "research/strategy_hypothesis_catalog.py#dynamic_pairs_v0",
+        "research/qre_behavior_catalog.py#mean_reversion",
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md#ade-qre-017l",
+        "logs/qre_hypothesis_disposition_memory/latest.json"
+      ],
+      "signal_density_expectation": "blocked",
+      "source_hypothesis_id": "dynamic_pairs_v0",
+      "status": "blocked",
+      "thesis_id": "qbt_7c77bb50db7c7061"
+    },
+    {
+      "behavior_family": "trend_continuation",
+      "duplicate_signature": "f3e3da27f98129891dad7130ca69aedd4056e8677c657713ed7f739678a116da",
+      "provenance_refs": [
+        "research/strategy_hypothesis_catalog.py#multi_asset_trend_sleeve_v0",
+        "research/qre_behavior_catalog.py#trend_continuation",
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md#ade-qre-017l",
+        "logs/qre_hypothesis_disposition_memory/latest.json"
+      ],
+      "signal_density_expectation": "moderate",
+      "source_hypothesis_id": "multi_asset_trend_sleeve_v0",
+      "status": "draft",
+      "thesis_id": "qbt_5a9c0b01380b965d"
+    },
+    {
+      "behavior_family": "index_regime_filter",
+      "duplicate_signature": "d9a67892be7289a31988f79e1576932d6cb8d00c83a0d1ae3e3a02ca975c7a06",
+      "provenance_refs": [
+        "research/strategy_hypothesis_catalog.py#regime_diagnostics_v1",
+        "research/qre_behavior_catalog.py#index_regime_filter",
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md#ade-qre-017l",
+        "logs/qre_hypothesis_disposition_memory/latest.json"
+      ],
+      "signal_density_expectation": "blocked",
+      "source_hypothesis_id": "regime_diagnostics_v1",
+      "status": "blocked",
+      "thesis_id": "qbt_4a98761aa9bfdf20"
+    },
+    {
+      "behavior_family": "pullback_continuation",
+      "duplicate_signature": "35ad6da36b9152e0deb491bfe57bd6c3aa2721760c1b0ba0a8e022ca5c19f1ab",
+      "provenance_refs": [
+        "research/strategy_hypothesis_catalog.py#trend_pullback_v1",
+        "research/qre_behavior_catalog.py#pullback_continuation",
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md#ade-qre-017l",
+        "research/hypothesis_discovery/behavior_catalog.py#trend_pullback",
+        "logs/qre_hypothesis_disposition_memory/latest.json"
+      ],
+      "signal_density_expectation": "moderate",
+      "source_hypothesis_id": "trend_pullback_v1",
+      "status": "research_ready",
+      "thesis_id": "qbt_89b63e24cd659c51"
+    },
+    {
+      "behavior_family": "volatility_compression_breakout",
+      "duplicate_signature": "03617f2cf2a7a834885607f0e4c3657102a629c2db2ae2b6eb64c77701ebd1b3",
+      "provenance_refs": [
+        "research/strategy_hypothesis_catalog.py#volatility_compression_breakout_v0",
+        "research/qre_behavior_catalog.py#volatility_compression_breakout",
+        "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md#ade-qre-017l",
+        "research/hypothesis_discovery/behavior_catalog.py#volatility_compression_breakout",
+        "logs/qre_hypothesis_disposition_memory/latest.json"
+      ],
+      "signal_density_expectation": "moderate",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "status": "research_ready",
+      "thesis_id": "qbt_cc01cda908553e5e"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "generated_outcome_count": 6,
+    "generated_strategy_count": 1,
+    "manual_thesis_count": 7,
+    "resolved_strategy_count": 12
+  }
+}

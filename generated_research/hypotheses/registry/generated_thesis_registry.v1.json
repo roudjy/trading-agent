@@ -1,0 +1,33 @@
+{
+  "generator_version": "ade-qre-020.1",
+  "provenance": [
+    "research/qre_behavior_thesis_registry.py",
+    "generated_research/registry/generated_strategy_registry.v1.json",
+    "generated_research/reports/automated_generation_closeout.v1.json",
+    "logs/qre_campaign_portfolio_reconstruction/latest.json"
+  ],
+  "report_kind": "qre_generated_thesis_registry",
+  "rows": [
+    {
+      "authority": "RESEARCH_ONLY_AUTOMATED_THESIS",
+      "behavior_family": "relative_strength",
+      "generated_admission_id": "qga_047d7687723da54c",
+      "lifecycle_state": "ADMITTED_GENERATION_BLOCKED",
+      "mechanism_class": "cross_sectional_continuation",
+      "primitive_compatibility": "COMPILABLE_AFTER_BOUNDED_PRIMITIVE_EXTENSION",
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json",
+        "manual_thesis:cross_sectional_momentum_v0"
+      ],
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba",
+      "title": "Cross-Sectional Relative Strength Continuation"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "generated_admitted_count": 0,
+    "generated_blocked_count": 1
+  }
+}

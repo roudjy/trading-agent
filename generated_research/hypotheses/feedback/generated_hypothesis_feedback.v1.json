@@ -1,0 +1,62 @@
+{
+  "generator_version": "ade-qre-020.1",
+  "provenance": [
+    "generated_research/reports/automated_generation_closeout.v1.json"
+  ],
+  "report_kind": "qre_generated_hypothesis_feedback",
+  "rows": [
+    {
+      "campaign_readiness_state": "",
+      "feedback_class": "blocked_generation_feedback",
+      "feedback_id": "qhf_1342cc06c52b5e12",
+      "final_generation_outcome": "REJECTED_POLICY",
+      "next_action": "no_action",
+      "source_hypothesis_id": "multi_asset_trend_sleeve_v0"
+    },
+    {
+      "campaign_readiness_state": "",
+      "feedback_class": "blocked_generation_feedback",
+      "feedback_id": "qhf_3b8f0b120960f541",
+      "final_generation_outcome": "BLOCKED_IDENTITY",
+      "next_action": "no_action",
+      "source_hypothesis_id": "regime_diagnostics_v1"
+    },
+    {
+      "campaign_readiness_state": "",
+      "feedback_class": "blocked_generation_feedback",
+      "feedback_id": "qhf_3e180890cc70a72a",
+      "final_generation_outcome": "BLOCKED_IDENTITY",
+      "next_action": "no_action",
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
+    },
+    {
+      "campaign_readiness_state": "",
+      "feedback_class": "blocked_generation_feedback",
+      "feedback_id": "qhf_4d7e3228064adaf2",
+      "final_generation_outcome": "BLOCKED_IDENTITY",
+      "next_action": "no_action",
+      "source_hypothesis_id": "dynamic_pairs_v0"
+    },
+    {
+      "campaign_readiness_state": "",
+      "feedback_class": "blocked_generation_feedback",
+      "feedback_id": "qhf_5c488e2e9ca5c875",
+      "final_generation_outcome": "BLOCKED_IDENTITY",
+      "next_action": "no_action",
+      "source_hypothesis_id": "cross_sectional_momentum_v0"
+    },
+    {
+      "campaign_readiness_state": "BLOCKED",
+      "feedback_class": "positive_registration_feedback",
+      "feedback_id": "qhf_f18fe7ab707833e1",
+      "final_generation_outcome": "RESEARCH_REGISTERED_AUTOMATED",
+      "next_action": "preserve_campaign_blockers",
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "feedback_count": 6,
+    "registered_feedback_count": 1
+  }
+}
