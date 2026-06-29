@@ -412,7 +412,9 @@ def test_ade_qre_active_queue_lifecycle_is_consistent() -> None:
     assert items["ADE-QRE-017V"].status == "done"
     assert items["ADE-QRE-017W"].status == "done"
     assert _done_evidence_is_complete(items["ADE-QRE-017W"])
-    assert _next_eligible_ready_item(items) is None
+    next_item = _next_eligible_ready_item(items)
+    assert next_item is not None
+    assert next_item.item_id == "ADE-QRE-022A"
 
 
 def test_done_queue_item_without_merge_evidence_is_rejected() -> None:

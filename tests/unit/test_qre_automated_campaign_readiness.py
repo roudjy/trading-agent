@@ -20,6 +20,12 @@ def _copy(repo_root: Path, relative: str) -> None:
     shutil.copy2(source, target)
 
 
+def _write_json(repo_root: Path, relative: str, payload: dict) -> None:
+    target = repo_root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 @pytest.fixture
 def readiness_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     for relative in (
@@ -31,12 +37,50 @@ def readiness_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "generated_research/hypotheses/registry/resolved_thesis_catalog.v1.json",
         "generated_research/specs/qsp_16800d656bf28677.json",
         "generated_research/specs/qsp_28cdbc0005ae7c93.json",
-        "logs/qre_identity_ambiguity_resolution/latest.json",
-        "logs/qre_data_cache_manifest/latest.json",
         "artifacts/identity/instrument_identity_latest.v1.json",
         "artifacts/universe/equity_universe_catalog_latest.v1.json",
     ):
         _copy(tmp_path, relative)
+    _write_json(
+        tmp_path,
+        "logs/qre_identity_ambiguity_resolution/latest.json",
+        {
+            "report_kind": "qre_identity_ambiguity_resolution",
+            "rows": [
+                {
+                    "source_hypothesis_id": "atr_adaptive_trend_v0",
+                    "instrument_identity": "ASML",
+                    "dataset_identity": "ready",
+                    "resolution_state": "RESOLVED",
+                },
+                {
+                    "source_hypothesis_id": "cross_sectional_momentum_v0",
+                    "instrument_identity": "",
+                    "dataset_identity": "",
+                    "resolution_state": "MISSING",
+                },
+            ],
+        },
+    )
+    _write_json(
+        tmp_path,
+        "logs/qre_data_cache_manifest/latest.json",
+        {
+            "report_kind": "qre_data_cache_manifest",
+            "rows": [
+                {
+                    "instrument": "ASML",
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                    "content_hash": "sha256:test-asml-1d",
+                    "min_timestamp_utc": "2024-01-01T00:00:00Z",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 500,
+                }
+            ],
+        },
+    )
     monkeypatch.setattr(acr, "validate_write_target", lambda path: None)
     return tmp_path
 
