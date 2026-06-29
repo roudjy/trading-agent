@@ -29,6 +29,7 @@ from packages.qre_research.generated_strategy_paths import (
     repo_relative,
     validate_write_target,
 )
+from reporting import qre_ade018_common as common
 from research.registry import STRATEGIES as MANUAL_STRATEGIES
 
 
