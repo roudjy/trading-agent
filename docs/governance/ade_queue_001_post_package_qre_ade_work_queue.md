@@ -4605,7 +4605,7 @@ live, broker, risk, or execution work.
 ### ADE-QRE-022 - Automated Campaign Identity and Readiness Resolution
 
 - queue id: `ADE-QRE-022`
-- status: `blocked until ADE-QRE-022O completion evidence is merged`
+- status: `done`
 - purpose: automatically decompose campaign-readiness blockers for
   research-registered strategies, resolve only authoritative identities and
   bindings, materialize campaign metadata and lineage when supported, and admit
@@ -4621,145 +4621,157 @@ live, broker, risk, or execution work.
     blocked by `identity_not_resolved`
   - research-registered generated strategy `qgs_5af8f605ba82ae53` remains
     blocked by `generated_preset_missing`
-- execution note:
-  - aggregate parent program only; executable work begins at `ADE-QRE-022A`
-    and the parent does not become `done` until `ADE-QRE-022O` completes with
-    canonical completion evidence.
-- expected next queue item: `ADE-QRE-022A`.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; the merged implementation preserved `.claude/**` unchanged, preserved protected `research/**` empirical surfaces unchanged, added the deterministic readiness-gap, identity, binding, window-capacity, preset, null-control-readiness, campaign-metadata, lineage, portfolio, and closeout reporters under `generated_research/readiness/**`; exact blockers remained fail-closed with `qgs_e565b01bd0a162d0` blocked by non-authoritative universe alias only and `qgs_5af8f605ba82ae53` blocked by timeframe ambiguity plus preset incompleteness; integrated closeout `qrca_47c5bb0e68859062` reported overall outcome `IDENTITY_RESOLUTION_BLOCKED`, `0` campaign-ready cells, and no second-campaign manifest, so `ADE-QRE-018J` remains blocked; checks green; post-merge validation passed `python -m pytest tests/unit/test_qre_automated_campaign_readiness.py tests/unit/test_qre_automated_strategy_generation.py tests/unit/test_qre_automated_hypothesis_generation.py tests/unit/test_qre_automated_primitive_expansion.py tests/unit/test_ade_queue_status_self_audit.py tests/unit/test_ade_qre_014_queue_lifecycle.py tests/unit/test_ade_qre_017_queue_admission.py tests/unit/test_roadmap_task_catalog.py tests/unit/test_roadmap_task_units.py tests/unit/test_roadmap_next_unit.py -q`, `python -m pytest tests/architecture -q`, `python scripts/governance_lint.py`, `python -m reporting.architecture_import_scan --format summary`, `python -m reporting.ade_queue_status_self_audit --no-write`, `python -m reporting.roadmap_task_catalog --no-write`, `python -m reporting.roadmap_task_units --no-write`, `python -m reporting.roadmap_unit_authority --no-write`, `python -m reporting.roadmap_next_unit --no-write`, and `git diff --check`; frozen contracts unchanged; protected/execution paths untouched.
+- expected next queue item: none unless at least one future portfolio cell becomes `READY_FOR_PREREGISTRATION`; `ADE-QRE-018J` remains blocked.
 
 ### ADE-QRE-022A - Governance and Readiness Authority
 
 - queue id: `ADE-QRE-022A`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-021O done`.
 - purpose: admit deterministic campaign-readiness remediation while preserving
   protected `.claude/**` and `research/**` boundaries and denying campaign
   execution authority.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022B`.
 
 ### ADE-QRE-022B - Readiness Gap Diagnosis
 
 - queue id: `ADE-QRE-022B`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022A done`.
 - purpose: decompose aggregate readiness blockers into exact field-level gaps
   with authoritative candidates, conflicts, and next actions.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022C`.
 
 ### ADE-QRE-022C - Canonical Identity Resolution Contract
 
 - queue id: `ADE-QRE-022C`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022B done`.
 - purpose: resolve only unique or canonically aliased identities through a
   closed contract and fail closed on ambiguity or conflict.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022D`.
 
 ### ADE-QRE-022D - Instrument and Universe Resolution
 
 - queue id: `ADE-QRE-022D`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022C done`.
 - purpose: bind canonical instruments and universes without symbol-only or
   survivor-biased shortcuts.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022E`.
 
 ### ADE-QRE-022E - Source, Dataset and Snapshot Resolution
 
 - queue id: `ADE-QRE-022E`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022D done`.
 - purpose: bind source, dataset, snapshot, schema, and freshness only when
   authoritative evidence supports them.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022F`.
 
 ### ADE-QRE-022F - Timeframe and Regime Binding
 
 - queue id: `ADE-QRE-022F`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022E done`.
 - purpose: resolve timeframe, rebalance, warmup, and regime bindings without
   inferring them from names alone.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022G`.
 
 ### ADE-QRE-022G - Train, Validation and OOS Capacity
 
 - queue id: `ADE-QRE-022G`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022F done`.
 - purpose: assess train, validation, OOS, and null-control capacity while
   excluding consumed or non-independent windows.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022H`.
 
 ### ADE-QRE-022H - Preset Completion
 
 - queue id: `ADE-QRE-022H`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022G done`.
 - purpose: create or complete bounded presets only when identity, timeframe,
   and data bindings are authoritative.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022I`.
 
 ### ADE-QRE-022I - Null-Control Execution Readiness
 
 - queue id: `ADE-QRE-022I`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022H done`.
 - purpose: distinguish executable null-control readiness from specification-only
   availability.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022J`.
 
 ### ADE-QRE-022J - Campaign Metadata Materialization
 
 - queue id: `ADE-QRE-022J`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022I done`.
 - purpose: materialize deterministic campaign metadata only when every
   mandatory identity and readiness field is resolved.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022K`.
 
 ### ADE-QRE-022K - Campaign Lineage Completion
 
 - queue id: `ADE-QRE-022K`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022J done`.
 - purpose: materialize the full readiness lineage from opportunity and thesis
   through generated strategy, identities, controls, windows, and campaign
   candidate.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022L`.
 
 ### ADE-QRE-022L - Portfolio and Preregistration Reevaluation
 
 - queue id: `ADE-QRE-022L`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022K done`.
 - purpose: rebuild the canonical portfolio and admit a preregistered second
   campaign only when a cell is genuinely ready.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022M`.
 
 ### ADE-QRE-022M - Autonomous Readiness Remediation Loop
 
 - queue id: `ADE-QRE-022M`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022L done`.
 - purpose: generalize deterministic readiness remediation and feed exact
   remaining blockers back to thesis, primitive, or data remediation.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022N`.
 
 ### ADE-QRE-022N - Apply to `qgs_e565b01bd0a162d0`
 
 - queue id: `ADE-QRE-022N`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022M done`.
 - purpose: apply the readiness-remediation loop to the current generated
   strategies, including `qgs_e565b01bd0a162d0` and
   `qgs_5af8f605ba82ae53`.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-022O`.
 
 ### ADE-QRE-022O - Integrated Closeout
 
 - queue id: `ADE-QRE-022O`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022N done`.
 - purpose: produce the integrated readiness-remediation closeout and exact next
   action without overstating campaign readiness.
+- completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
