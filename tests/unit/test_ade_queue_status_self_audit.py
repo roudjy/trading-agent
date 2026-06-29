@@ -142,16 +142,15 @@ def test_blocked_and_deferred_reason_gaps_are_explicit(tmp_path: Path) -> None:
 
     assert snap["summary"]["blocked_items_missing_reason"] == ["ITEM-B"]
     assert snap["summary"]["deferred_items_missing_reason"] == ["ITEM-C"]
-    assert snap["final_recommendation"] == (
-        "operator_review_required_queue_selection_ambiguous"
-    )
+    assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
 
 
 def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None:
     snap = audit.collect_snapshot(frozen_utc="2026-05-28T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-018A"
+    assert snap["summary"]["next_eligible_ready_item"] is None
+    assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
     assert "ADE-QRE-011" in snap["summary"]["stale_historical_ready_items"]
     assert snap["summary"]["selection_blocking_warning_items"] == []
     assert rows["ADE-QRE-014N"]["status"] == "done"
@@ -254,8 +253,15 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     assert rows["ADE-QRE-017AC"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-017AD"]["status"] == "done"
     assert rows["ADE-QRE-017AD"]["done_evidence"]["complete"] is True
-    assert rows["ADE-QRE-018A"]["status"] == "ready"
-    assert rows["ADE-QRE-018A"]["auto_selectable"] is True
+    assert rows["ADE-QRE-018A"]["status"] == "done"
+    assert rows["ADE-QRE-018A"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-018A"]["auto_selectable"] is False
+    assert rows["ADE-QRE-018I"]["status"] == "done"
+    assert rows["ADE-QRE-018I"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-018J"]["status"] == (
+        "blocked until at least one ADE-QRE-018H cell is READY_FOR_PREREGISTRATION"
+    )
+    assert rows["ADE-QRE-018J"]["auto_selectable"] is False
     assert rows["ADE-QRE-007"]["queue_warning"]["classification"] == "missing_completion_evidence"
     assert rows["ADE-QRE-008"]["queue_warning"]["classification"] == "superseded"
     assert rows["ADE-QRE-011"]["queue_warning"]["classification"] == "stale_historical_state"

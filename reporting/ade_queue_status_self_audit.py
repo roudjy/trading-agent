@@ -475,12 +475,13 @@ def collect_snapshot(
 
     if text is None:
         final_recommendation = "fail_closed_missing_queue_doc"
-    elif len(eligible) != 1:
+    elif len(eligible) > 1:
         final_recommendation = "operator_review_required_queue_selection_ambiguous"
     elif selection_blocking_warning_items:
         final_recommendation = "operator_review_required_queue_selection_ambiguous"
     elif (
-        missing_done
+        len(eligible) == 0
+        or missing_done
         or blocked_missing_reason
         or deferred_missing_reason
         or dependency_gaps
