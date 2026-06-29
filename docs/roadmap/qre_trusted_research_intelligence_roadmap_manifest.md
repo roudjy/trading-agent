@@ -54,6 +54,10 @@ New implementation is justified only when it:
   generation outside `research/**`, provided it preserves one resolved
   research-only thesis catalog and delegates executable strategy generation to
   ADE-QRE-019.
+- ADE-QRE-021 may later admit bounded deterministic research-only primitive
+  expansion outside `research/**`, provided it preserves one resolved
+  primitive catalog and delegates downstream strategy generation to
+  ADE-QRE-019.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.
