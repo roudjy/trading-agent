@@ -1,0 +1,256 @@
+{
+  "report_kind": "qre_generated_thesis_rejections",
+  "rows": [
+    {
+      "admission_blocker": "POST_HOC_CONSTRUCTION_RISK",
+      "alternative_explanations": [
+        "trend_pullback_replacement_overlap",
+        "post-hoc replacement bias"
+      ],
+      "behavior_family": "pullback_continuation",
+      "causal_rationale": "Compression-to-expansion transitions may provide a distinct trend-entry mechanism that does not recycle rejected pullback thresholds.",
+      "compatibility_reason": "rejected lineage may not be reintroduced via threshold or cosmetic replacement",
+      "compiler_version": "ade-qre-020.1",
+      "contradicting_evidence": [
+        "replacement cannot reuse trend_pullback thresholds or cosmetic variants"
+      ],
+      "contradiction_severity": "high",
+      "duplicate_candidates": [
+        "trend_pullback_v1"
+      ],
+      "duplicate_signature": "49772ba7deaeca4f13d6b6e735eba9cd285655db7b4e513abfcd1ce8cc3212c5",
+      "duplicate_signature_matches_manual": false,
+      "entry_relevant_observations": [
+        "qob_8c6b7b45dd279cf9"
+      ],
+      "exit_relevant_observations": [
+        "qob_8c6b7b45dd279cf9"
+      ],
+      "expected_behavior": "Compression regimes may precede breakouts without relying on the rejected trend pullback threshold family.",
+      "expected_failure_modes": [
+        "non_positive_oos_trade_count",
+        "accepted_oos_count_mismatch",
+        "all_windows_non_positive_trade_count",
+        "no_oos_evidence",
+        "all_windows_no_oos_trades",
+        "accepted_lineage_present"
+      ],
+      "expected_holding_horizon": "1d|4h",
+      "expected_signal_density_range": "moderate",
+      "falsification_criteria": [
+        "pullback_becomes_reversal",
+        "insufficient_trades",
+        "cost_fragility",
+        "cost_fragile",
+        "parameter_fragile",
+        "asset_singleton",
+        "oos_collapse",
+        "no_baseline_edge",
+        "require_contradictions_to_remain_visible"
+      ],
+      "freshness": "repository_snapshot_current",
+      "lifecycle_state": "REJECTED_UNFALSIFIABLE",
+      "mechanism": "Compression-to-expansion transitions may provide a distinct trend-entry mechanism that does not recycle rejected pullback thresholds.",
+      "mechanism_class": "volatility_compression_and_expansion",
+      "next_action": "compile_replacement_candidate_without_reusing_rejected_pullback_lineage",
+      "novelty_outcome": "REJECTED_LINEAGE_MATCH",
+      "null_control_requirements": [
+        "shuffle_returns",
+        "qre_null_control_falsification_suite"
+      ],
+      "oos_plan": [
+        "use_existing_hypothesis_bridge:trend_pullback_v1",
+        "preserve_read_only_oos_authority_boundary",
+        "fail_closed_when_required_evidence_is_missing"
+      ],
+      "primitive_compatibility": "NOT_SCIENTIFICALLY_ADMISSIBLE",
+      "prior_failures": [
+        "non_positive_oos_trade_count",
+        "accepted_oos_count_mismatch",
+        "all_windows_non_positive_trade_count",
+        "no_oos_evidence",
+        "all_windows_no_oos_trades",
+        "accepted_lineage_present"
+      ],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json",
+        "manual_thesis:trend_pullback_v1"
+      ],
+      "regimes": [
+        "post-rejection replacement search"
+      ],
+      "rejected_lineage_candidates": [
+        "trend_pullback_v1"
+      ],
+      "required_data": [
+        "ohlcv",
+        "resolved_instrument_identity"
+      ],
+      "required_features": [
+        "compression_ratio",
+        "rolling_high_previous",
+        "rolling_low_previous"
+      ],
+      "schema_version": "1.0",
+      "scientific_gate": {
+        "accepted": false,
+        "reasons": [
+          "POST_HOC_CONSTRUCTION_RISK"
+        ]
+      },
+      "screening_plan": [
+        "use_existing_hypothesis_bridge:trend_pullback_v1",
+        "preserve_read_only_screening_authority_boundary",
+        "fail_closed_when_required_evidence_is_missing"
+      ],
+      "source_hypothesis_id": "trend_pullback_v1",
+      "source_requirements": [
+        "screening_evidence",
+        "oos_evidence",
+        "lineage_evidence",
+        "qre_data_source_quality_readiness",
+        "qre_data_cache_manifest"
+      ],
+      "strongest_contradicting_evidence": [
+        "replacement cannot reuse trend_pullback thresholds or cosmetic variants"
+      ],
+      "strongest_supporting_evidence": [
+        "current portfolio has zero ready campaign cells",
+        "trend_pullback_v1 rejected with zero accepted OOS"
+      ],
+      "supporting_evidence": [
+        "current portfolio has zero ready campaign cells",
+        "trend_pullback_v1 rejected with zero accepted OOS"
+      ],
+      "testability_reason": "rejected lineage has consumed OOS windows",
+      "testability_state": "OOS_CAPACITY_BLOCKED",
+      "thesis_id": "qhc_431578e2ed70963f",
+      "timeframe": "1d|4h",
+      "title": "Volatility Compression Breakout Replacement Candidate",
+      "uncertainty": "high_when_market_measurement_is_absent",
+      "universe": "single_resolved_instrument_only",
+      "unresolved_contradictions": [
+        "replacement cannot reuse trend_pullback thresholds or cosmetic variants"
+      ],
+      "validation_plan": [
+        "use_existing_hypothesis_bridge:trend_pullback_v1",
+        "preserve_read_only_validation_authority_boundary",
+        "fail_closed_when_required_evidence_is_missing"
+      ]
+    },
+    {
+      "admission_blocker": "INSUFFICIENT_SIGNAL_DENSITY",
+      "alternative_explanations": [
+        "beta mismatch",
+        "microstructure noise"
+      ],
+      "behavior_family": "mean_reversion",
+      "causal_rationale": "Pair dislocations may mean-revert only when identity, spread construction, and structural regime boundaries are explicit.",
+      "compatibility_reason": "pair-spread strategy class is outside current bounded generator",
+      "compiler_version": "ade-qre-020.1",
+      "contradicting_evidence": [
+        "current generator support is trend-continuation only"
+      ],
+      "contradiction_severity": "high",
+      "duplicate_candidates": [
+        "dynamic_pairs_v0"
+      ],
+      "duplicate_signature": "5a4924b186f2b45419b465c88501281a78e3c65db8367395fd0c0cf6d9ccdbf0",
+      "duplicate_signature_matches_manual": false,
+      "entry_relevant_observations": [
+        "qob_82d780c4ed8e62df"
+      ],
+      "exit_relevant_observations": [
+        "qob_82d780c4ed8e62df"
+      ],
+      "expected_behavior": "Resolved pair dislocations may revert after temporary correlation breakdowns when spread normalization is stable.",
+      "expected_failure_modes": [
+        "none_recorded:prior_similar_failures"
+      ],
+      "expected_holding_horizon": "1d|4h",
+      "expected_signal_density_range": "blocked",
+      "falsification_criteria": [
+        "blocked:falsification:thesis_not_research_ready"
+      ],
+      "freshness": "repository_snapshot_current",
+      "lifecycle_state": "REJECTED_UNFALSIFIABLE",
+      "mechanism": "Pair dislocations may mean-revert only when identity, spread construction, and structural regime boundaries are explicit.",
+      "mechanism_class": "correlation_breakdown",
+      "next_action": "classify_pair_identity_and_strategy_class_before_admission",
+      "novelty_outcome": "NOVEL_WITH_OVERLAP",
+      "null_control_requirements": [
+        "blocked:null_controls:behavior_not_research_ready"
+      ],
+      "oos_plan": [
+        "blocked:oos:thesis_not_research_ready"
+      ],
+      "primitive_compatibility": "REQUIRES_UNSUPPORTED_STRATEGY_CLASS",
+      "prior_failures": [
+        "none_recorded:prior_similar_failures"
+      ],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json",
+        "manual_thesis:dynamic_pairs_v0"
+      ],
+      "regimes": [
+        "relative-value gap"
+      ],
+      "rejected_lineage_candidates": [],
+      "required_data": [
+        "paired_ohlcv",
+        "resolved_pair_identity"
+      ],
+      "required_features": [
+        "spread",
+        "spread_zscore"
+      ],
+      "schema_version": "1.0",
+      "scientific_gate": {
+        "accepted": false,
+        "reasons": [
+          "INSUFFICIENT_SIGNAL_DENSITY"
+        ]
+      },
+      "screening_plan": [
+        "blocked:screening:thesis_not_research_ready"
+      ],
+      "source_hypothesis_id": "dynamic_pairs_v0",
+      "source_requirements": [
+        "screening_evidence",
+        "oos_evidence",
+        "lineage_evidence",
+        "qre_data_source_quality_readiness",
+        "qre_data_cache_manifest",
+        "blocked:source_requirements_not_satisfied_for_execution"
+      ],
+      "strongest_contradicting_evidence": [
+        "current generator support is trend-continuation only"
+      ],
+      "strongest_supporting_evidence": [
+        "manual thesis exists but remains disabled and unresolved"
+      ],
+      "supporting_evidence": [
+        "manual thesis exists but remains disabled and unresolved"
+      ],
+      "testability_reason": "paired-identity and spread-normalization inputs are unavailable authoritatively",
+      "testability_state": "DATA_BLOCKED",
+      "thesis_id": "qhc_57ec0683ec03957b",
+      "timeframe": "1d|4h",
+      "title": "Correlation Breakdown Reversion Candidate",
+      "uncertainty": "high_when_market_measurement_is_absent",
+      "universe": "resolved_pair_universe",
+      "unresolved_contradictions": [
+        "current generator support is trend-continuation only"
+      ],
+      "validation_plan": [
+        "blocked:validation:thesis_not_research_ready"
+      ]
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "rejection_count": 2
+  }
+}

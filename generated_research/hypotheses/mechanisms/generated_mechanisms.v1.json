@@ -1,0 +1,136 @@
+{
+  "generator_version": "ade-qre-020.1",
+  "provenance": [
+    "research/qre_behavior_thesis_registry.py",
+    "generated_research/registry/generated_strategy_registry.v1.json",
+    "generated_research/reports/automated_generation_closeout.v1.json",
+    "logs/qre_campaign_portfolio_reconstruction/latest.json"
+  ],
+  "report_kind": "qre_generated_mechanism_proposals",
+  "rows": [
+    {
+      "alternatives": [
+        "beta mismatch",
+        "microstructure noise"
+      ],
+      "causal_narrative": "Pair dislocations may mean-revert only when identity, spread construction, and structural regime boundaries are explicit.",
+      "evidence_basis": [
+        "manual thesis exists but remains disabled and unresolved"
+      ],
+      "failure_conditions": [
+        "structural break",
+        "identity ambiguity"
+      ],
+      "mechanism_class": "correlation_breakdown",
+      "mechanism_id": "qme_801fa8eb111f3b4d",
+      "necessary_conditions": [
+        "pair identity resolution",
+        "spread normalization",
+        "placebo control"
+      ],
+      "observable_consequences": [
+        "spread_dislocation_followed_by_reversion"
+      ],
+      "observation_id": "qob_82d780c4ed8e62df",
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "uncertainty": "high_when_market_measurement_is_absent"
+    },
+    {
+      "alternatives": [
+        "sector drift",
+        "selection bias"
+      ],
+      "causal_narrative": "Relative-strength dispersion may persist across a breadth-sufficient basket when ranking and turnover controls are explicit.",
+      "evidence_basis": [
+        "blocked thesis remains outside current generated primitive family",
+        "portfolio lacks diversified cross-sectional sleeve"
+      ],
+      "failure_conditions": [
+        "insufficient breadth",
+        "ranking primitive absent"
+      ],
+      "mechanism_class": "cross_sectional_continuation",
+      "mechanism_id": "qme_affef27e110afd63",
+      "necessary_conditions": [
+        "cross-sectional universe breadth",
+        "ranking primitive support",
+        "pairwise identity clarity"
+      ],
+      "observable_consequences": [
+        "persistent_rank_spread_and_rotation"
+      ],
+      "observation_id": "qob_700ebf50b569795a",
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "uncertainty": "high_when_market_measurement_is_absent"
+    },
+    {
+      "alternatives": [
+        "trend_pullback_replacement_overlap",
+        "post-hoc replacement bias"
+      ],
+      "causal_narrative": "Compression-to-expansion transitions may provide a distinct trend-entry mechanism that does not recycle rejected pullback thresholds.",
+      "evidence_basis": [
+        "current portfolio has zero ready campaign cells",
+        "trend_pullback_v1 rejected with zero accepted OOS"
+      ],
+      "failure_conditions": [
+        "breakout fails outside compression regimes",
+        "identity unresolved"
+      ],
+      "mechanism_class": "volatility_compression_and_expansion",
+      "mechanism_id": "qme_fc6e4757ab0ce722",
+      "necessary_conditions": [
+        "sustained compression",
+        "resolved instrument identity",
+        "explicit null controls"
+      ],
+      "observable_consequences": [
+        "observable_volatility_contraction_then_breakout"
+      ],
+      "observation_id": "qob_8c6b7b45dd279cf9",
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "uncertainty": "high_when_market_measurement_is_absent"
+    },
+    {
+      "alternatives": [
+        "artifact incompleteness"
+      ],
+      "causal_narrative": "Blocked hypotheses indicate a regime-dependent mechanism candidate but the current repository evidence does not resolve identity or readiness.",
+      "evidence_basis": [
+        "replacement plan already points to volatility compression breakout as distinct mechanism"
+      ],
+      "failure_conditions": [
+        "identity blocked"
+      ],
+      "mechanism_class": "regime_transition",
+      "mechanism_id": "qme_fd19fea4f6a609ec",
+      "necessary_conditions": [
+        "resolved identity",
+        "dataset scope",
+        "falsification path"
+      ],
+      "observable_consequences": [
+        "regime-dependent_behavioral_shift"
+      ],
+      "observation_id": "qob_aee87b4b584f6322",
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "uncertainty": "high_when_market_measurement_is_absent"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "mechanism_count": 4
+  }
+}

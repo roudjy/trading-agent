@@ -1,0 +1,96 @@
+{
+  "provenance": [
+    "research/qre_behavior_thesis_registry.py",
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+  ],
+  "report_kind": "qre_resolved_thesis_catalog",
+  "resolved_thesis_catalog_id": "qtc_5255888463383c8a",
+  "resolver_version": "ade-qre-020-resolver.1",
+  "rows": [
+    {
+      "authority": "MANUAL_CONTEXT_ONLY",
+      "behavior_family": "trend_continuation",
+      "origin": "MANUAL",
+      "research_only": true,
+      "resolved_thesis_id": "qbt_3b77618b0ddbd5b3",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "status": "draft",
+      "title": "Trend Continuation: atr_adaptive_trend_v0"
+    },
+    {
+      "authority": "MANUAL_CONTEXT_ONLY",
+      "behavior_family": "index_regime_filter",
+      "origin": "MANUAL",
+      "research_only": true,
+      "resolved_thesis_id": "qbt_4a98761aa9bfdf20",
+      "source_hypothesis_id": "regime_diagnostics_v1",
+      "status": "blocked",
+      "title": "Index Regime Filter: regime_diagnostics_v1"
+    },
+    {
+      "authority": "MANUAL_CONTEXT_ONLY",
+      "behavior_family": "trend_continuation",
+      "origin": "MANUAL",
+      "research_only": true,
+      "resolved_thesis_id": "qbt_5a9c0b01380b965d",
+      "source_hypothesis_id": "multi_asset_trend_sleeve_v0",
+      "status": "draft",
+      "title": "Trend Continuation: multi_asset_trend_sleeve_v0"
+    },
+    {
+      "authority": "MANUAL_CONTEXT_ONLY",
+      "behavior_family": "relative_strength",
+      "origin": "MANUAL",
+      "research_only": true,
+      "resolved_thesis_id": "qbt_7bf72ac7046c3039",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "status": "draft",
+      "title": "Relative Strength: cross_sectional_momentum_v0"
+    },
+    {
+      "authority": "MANUAL_CONTEXT_ONLY",
+      "behavior_family": "mean_reversion",
+      "origin": "MANUAL",
+      "research_only": true,
+      "resolved_thesis_id": "qbt_7c77bb50db7c7061",
+      "source_hypothesis_id": "dynamic_pairs_v0",
+      "status": "blocked",
+      "title": "Mean Reversion: dynamic_pairs_v0"
+    },
+    {
+      "authority": "MANUAL_CONTEXT_ONLY",
+      "behavior_family": "pullback_continuation",
+      "origin": "MANUAL",
+      "research_only": true,
+      "resolved_thesis_id": "qbt_89b63e24cd659c51",
+      "source_hypothesis_id": "trend_pullback_v1",
+      "status": "research_ready",
+      "title": "Pullback Continuation: trend_pullback_v1"
+    },
+    {
+      "authority": "MANUAL_CONTEXT_ONLY",
+      "behavior_family": "volatility_compression_breakout",
+      "origin": "MANUAL",
+      "research_only": true,
+      "resolved_thesis_id": "qbt_cc01cda908553e5e",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "status": "research_ready",
+      "title": "Volatility Compression Breakout: volatility_compression_breakout_v0"
+    },
+    {
+      "authority": "RESEARCH_ONLY_AUTOMATED_THESIS",
+      "behavior_family": "relative_strength",
+      "origin": "GENERATED_AUTOMATED",
+      "research_only": true,
+      "resolved_thesis_id": "qhc_51bc7a5c7b3f64ba",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "status": "ADMITTED_GENERATION_BLOCKED",
+      "title": "Cross-Sectional Relative Strength Continuation"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "generated_count": 1,
+    "manual_count": 7
+  }
+}

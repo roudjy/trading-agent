@@ -1,0 +1,31 @@
+{
+  "generator_version": "ade-qre-020.1",
+  "provenance": [
+    "research/qre_behavior_thesis_registry.py",
+    "generated_research/registry/generated_strategy_registry.v1.json",
+    "generated_research/reports/automated_generation_closeout.v1.json",
+    "logs/qre_campaign_portfolio_reconstruction/latest.json"
+  ],
+  "report_kind": "qre_generated_thesis_prioritization",
+  "rows": [
+    {
+      "lifecycle_state": "ADMITTED_GENERATION_BLOCKED",
+      "next_action": "request_bounded_primitive_extension",
+      "priority_id": "qhp_44a2e5789d0ca664",
+      "priority_score": -1,
+      "score_breakdown": {
+        "expected_information_gain": true,
+        "novelty": "NOVEL_WITH_OVERLAP",
+        "primitive_compatibility": "COMPILABLE_AFTER_BOUNDED_PRIMITIVE_EXTENSION",
+        "signal_density": "moderate",
+        "testability": "INSUFFICIENT_CROSS_SECTION"
+      },
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "prioritized_admitted_count": 1
+  }
+}

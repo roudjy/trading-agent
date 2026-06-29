@@ -1,0 +1,36 @@
+{
+  "report_kind": "qre_primitive_extension_requests",
+  "rows": [
+    {
+      "affected_theses": [
+        "cross_sectional_momentum_v0"
+      ],
+      "determinism_requirements": [
+        "stable ordering",
+        "no wall-clock inputs",
+        "closed schema"
+      ],
+      "duplicate_capability_check": "current primitive registry lacks equivalent cross-sectional rank primitive",
+      "expected_contract": "rank resolved asset panel by normalized relative strength with deterministic stable ordering",
+      "mechanism_linkage": "cross_sectional_continuation",
+      "next_action": "submit_bounded_primitive_extension_program",
+      "primitive_extension_request_id": "qpe_e4e83d0c094e8a3e",
+      "proposed_tests": [
+        "stable rank ordering",
+        "duplicate tie handling",
+        "panel identity preservation"
+      ],
+      "required_primitive": "cross_sectional_rank",
+      "safety_requirements": [
+        "no network",
+        "no subprocess",
+        "no filesystem writes"
+      ],
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "primitive_extension_request_count": 1
+  }
+}
