@@ -669,6 +669,343 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "operator_gate": "none",
         "status": "merged",
     },
+    {
+        "id": "u_ade_qre_018a_queue_baseline_reconciliation_001",
+        "roadmap_task_id": "ade_qre_018a_historical_queue_baseline_reconciliation",
+        "title": "Historical queue warning classifier and remediation baseline admission",
+        "phase": "ade_qre_018a",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/ade_queue_status_self_audit.py",
+            "tests/unit/test_ade_queue_status_self_audit.py",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_ade_queue_status_self_audit.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.ade_queue_status_self_audit",
+            "logs/ade_queue_status_self_audit/",
+        )
+        + (
+            (
+                "historical queue warnings are classified without being hidden, and one deterministic remediation-program selection remains visible",
+            ),
+        ),
+        "extra_stop_conditions": (
+            "any change that silently clears historical missing evidence -> STOP",
+        ),
+        "prerequisites": (),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018b_blocked_thesis_lineage_census_001",
+        "roadmap_task_id": "ade_qre_018b_blocked_thesis_lineage_census",
+        "title": "Blocked-thesis lineage census reporter",
+        "phase": "ade_qre_018b",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_blocked_thesis_lineage_census.py",
+            "tests/unit/test_qre_blocked_thesis_lineage_census.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_blocked_thesis_lineage_census.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_blocked_thesis_lineage_census",
+            "logs/qre_blocked_thesis_lineage_census/",
+        ),
+        "extra_stop_conditions": (
+            "any inferred campaign, dataset, or source identity without authoritative evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018a_queue_baseline_reconciliation_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018c_identity_ambiguity_resolution_001",
+        "roadmap_task_id": "ade_qre_018c_identity_ambiguity_resolution",
+        "title": "Identity ambiguity resolution reporter",
+        "phase": "ade_qre_018c",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_identity_ambiguity_resolution.py",
+            "tests/unit/test_qre_identity_ambiguity_resolution.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_identity_ambiguity_resolution.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_identity_ambiguity_resolution",
+            "logs/qre_identity_ambiguity_resolution/",
+        ),
+        "extra_stop_conditions": (
+            "any fuzzy or alias-only identity acceptance without authoritative support -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018b_blocked_thesis_lineage_census_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018d_campaign_lineage_materialization_001",
+        "roadmap_task_id": "ade_qre_018d_campaign_lineage_materialization",
+        "title": "Campaign lineage materialization reporter",
+        "phase": "ade_qre_018d",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_campaign_lineage_materialization.py",
+            "tests/unit/test_qre_campaign_lineage_materialization.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_campaign_lineage_materialization.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_campaign_lineage_materialization",
+            "logs/qre_campaign_lineage_materialization/",
+        ),
+        "extra_stop_conditions": (
+            "any executable campaign cell emitted without complete identity and data lineage -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018c_identity_ambiguity_resolution_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018e_null_control_readiness_001",
+        "roadmap_task_id": "ade_qre_018e_null_control_specification_completeness",
+        "title": "Null-control readiness and completeness reporter",
+        "phase": "ade_qre_018e",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_null_control_readiness.py",
+            "tests/unit/test_qre_null_control_readiness.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_null_control_readiness.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_null_control_readiness",
+            "logs/qre_null_control_readiness/",
+        ),
+        "extra_stop_conditions": (
+            "any fixture contract reported as empirical null-control evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018d_campaign_lineage_materialization_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018f_evidence_reason_record_completion_001",
+        "roadmap_task_id": "ade_qre_018f_evidence_reason_record_completion",
+        "title": "Evidence and reason-record completion reporter",
+        "phase": "ade_qre_018f",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_evidence_reason_record_completion.py",
+            "tests/unit/test_qre_evidence_reason_record_completion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_evidence_reason_record_completion.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_evidence_reason_record_completion",
+            "logs/qre_evidence_reason_record_completion/",
+        ),
+        "extra_stop_conditions": (
+            "any missing empirical evidence represented as authoritative completion -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018e_null_control_readiness_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018g_validation_repro_operator_completion_001",
+        "roadmap_task_id": "ade_qre_018g_validation_repro_operator_completion",
+        "title": "Validation, reproducibility, and operator completeness reporter",
+        "phase": "ade_qre_018g",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_validation_repro_operator_completion.py",
+            "tests/unit/test_qre_validation_repro_operator_completion.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_validation_repro_operator_completion.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_validation_repro_operator_completion",
+            "logs/qre_validation_repro_operator_completion/",
+        ),
+        "extra_stop_conditions": (
+            "any thesis promoted to reproducible or validation-complete without supporting evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018f_evidence_reason_record_completion_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018h_campaign_portfolio_reconstruction_001",
+        "roadmap_task_id": "ade_qre_018h_campaign_ready_portfolio_reconstruction",
+        "title": "Campaign-ready portfolio reconstruction reporter",
+        "phase": "ade_qre_018h",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_campaign_portfolio_reconstruction.py",
+            "tests/unit/test_qre_campaign_portfolio_reconstruction.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_campaign_portfolio_reconstruction.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_campaign_portfolio_reconstruction",
+            "logs/qre_campaign_portfolio_reconstruction/",
+        ),
+        "extra_stop_conditions": (
+            "any campaign-ready cell emitted when OOS, null-control, identity, or lineage gates remain unresolved -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018g_validation_repro_operator_completion_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018i_rejected_thesis_replacement_plan_001",
+        "roadmap_task_id": "ade_qre_018i_replacement_hypothesis_planning",
+        "title": "Rejected thesis archive and replacement planning reporter",
+        "phase": "ade_qre_018i",
+        "unit_kind": "reporting_module",
+        "target_layer": "hypothesis_discovery",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_rejected_thesis_replacement_plan.py",
+            "tests/unit/test_qre_rejected_thesis_replacement_plan.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_rejected_thesis_replacement_plan.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_rejected_thesis_replacement_plan",
+            "logs/qre_rejected_thesis_replacement_plan/",
+        ),
+        "extra_stop_conditions": (
+            "any parameter-only or threshold-only trend-pullback clone treated as a novel replacement -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018h_campaign_portfolio_reconstruction_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018j_second_broad_campaign_prep_001",
+        "roadmap_task_id": "ade_qre_018j_second_broad_preregistered_campaign",
+        "title": "Second broad preregistered campaign preparation reporter",
+        "phase": "ade_qre_018j",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_second_broad_campaign_prep.py",
+            "tests/unit/test_qre_second_broad_campaign_prep.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_broad_campaign_prep.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_second_broad_campaign_prep",
+            "logs/qre_second_broad_campaign_prep/",
+        ),
+        "extra_stop_conditions": (
+            "any campaign execution launched from the preparation surface -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018i_rejected_thesis_replacement_plan_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_018k_second_synthesis_readiness_review_001",
+        "roadmap_task_id": "ade_qre_018k_second_synthesis_readiness_review",
+        "title": "Second synthesis-readiness review reporter",
+        "phase": "ade_qre_018k",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_second_synthesis_readiness_review.py",
+            "tests/unit/test_qre_second_synthesis_readiness_review.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_synthesis_readiness_review.py"
+        ),
+        "extra_definition_of_done": _reporting_module_dod(
+            "reporting.qre_second_synthesis_readiness_review",
+            "logs/qre_second_synthesis_readiness_review/",
+        ),
+        "extra_stop_conditions": (
+            "any synthesis eligibility emitted before mandatory gates are satisfied -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_018j_second_broad_campaign_prep_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
     # -------------------- v3.15.16 Intelligent Routing Layer ------------
     {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",

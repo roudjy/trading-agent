@@ -58,6 +58,17 @@ def test_phase_vocabulary_is_closed_and_complete() -> None:
         "ade_qre_017c",
         "ade_qre_017d",
         "ade_qre_017e",
+        "ade_qre_018a",
+        "ade_qre_018b",
+        "ade_qre_018c",
+        "ade_qre_018d",
+        "ade_qre_018e",
+        "ade_qre_018f",
+        "ade_qre_018g",
+        "ade_qre_018h",
+        "ade_qre_018i",
+        "ade_qre_018j",
+        "ade_qre_018k",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -75,7 +86,9 @@ def test_source_document_vocabulary_includes_addenda_2_and_3() -> None:
     assert rtc.SOURCE_DOCUMENT == (
         "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
         "docs/roadmap/qre_maturity_roadmap_to_100.md",
+        "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
         "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        "docs/governance/qre_synthesis_readiness_review.md",
         "docs/roadmap/Roadmap v6.md",
         "docs/roadmap/Roadmap v6 Addendum.md",
         (
@@ -277,6 +290,21 @@ def test_ade_qre_017a_to_017e_tasks_present(snap: dict) -> None:
     assert tasks["ade_qre_017e"]["id"] == "ade_qre_017e_kpi_snapshot_completeness"
 
 
+def test_ade_qre_018a_to_018k_tasks_present(snap: dict) -> None:
+    tasks = _tasks_by_phase(snap)
+    assert tasks["ade_qre_018a"]["id"] == "ade_qre_018a_historical_queue_baseline_reconciliation"
+    assert tasks["ade_qre_018b"]["id"] == "ade_qre_018b_blocked_thesis_lineage_census"
+    assert tasks["ade_qre_018c"]["id"] == "ade_qre_018c_identity_ambiguity_resolution"
+    assert tasks["ade_qre_018d"]["id"] == "ade_qre_018d_campaign_lineage_materialization"
+    assert tasks["ade_qre_018e"]["id"] == "ade_qre_018e_null_control_specification_completeness"
+    assert tasks["ade_qre_018f"]["id"] == "ade_qre_018f_evidence_reason_record_completion"
+    assert tasks["ade_qre_018g"]["id"] == "ade_qre_018g_validation_repro_operator_completion"
+    assert tasks["ade_qre_018h"]["id"] == "ade_qre_018h_campaign_ready_portfolio_reconstruction"
+    assert tasks["ade_qre_018i"]["id"] == "ade_qre_018i_replacement_hypothesis_planning"
+    assert tasks["ade_qre_018j"]["id"] == "ade_qre_018j_second_broad_preregistered_campaign"
+    assert tasks["ade_qre_018k"]["id"] == "ade_qre_018k_second_synthesis_readiness_review"
+
+
 def test_phase_v3_15_17_task_present(snap: dict) -> None:
     t = _tasks_by_phase(snap)["v3.15.17"]
     assert t["id"] == "phase_v3_15_17"
@@ -330,6 +358,17 @@ def test_v3_15_16_to_v3_15_20_all_present_in_order(snap: dict) -> None:
         "ade_qre_017c",
         "ade_qre_017d",
         "ade_qre_017e",
+        "ade_qre_018a",
+        "ade_qre_018b",
+        "ade_qre_018c",
+        "ade_qre_018d",
+        "ade_qre_018e",
+        "ade_qre_018f",
+        "ade_qre_018g",
+        "ade_qre_018h",
+        "ade_qre_018i",
+        "ade_qre_018j",
+        "ade_qre_018k",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",

@@ -21,6 +21,7 @@ def test_fixture_selects_single_non_stale_ready_item(tmp_path: Path) -> None:
 
 - queue id: `ITEM-A`
 - status: `ready`
+- warning classification: `stale_historical_state`
 
 ### ITEM-B - Done Item
 
@@ -51,6 +52,37 @@ def test_fixture_selects_single_non_stale_ready_item(tmp_path: Path) -> None:
     assert snap["summary"]["eligible_ready_items"] == ["ITEM-C"]
     assert snap["summary"]["next_eligible_ready_item"] == "ITEM-C"
     assert snap["final_recommendation"] == "queue_status_audit_passed"
+
+
+def test_explicit_non_blocking_warning_preserves_selection(tmp_path: Path) -> None:
+    queue_path = _write_queue(
+        tmp_path / "docs" / "governance" / "queue.md",
+        """
+### ITEM-A - Historical Done Without Canonical Evidence
+
+- queue id: `ITEM-A`
+- status: `done`
+- completion evidence: implementation branch evidence only.
+- warning classification: `superseded`
+- warning rationale: later queue state superseded this historical gap and it remains visible but non-blocking.
+
+### ITEM-B - Current Ready
+
+- queue id: `ITEM-B`
+- status: `ready`
+""",
+    )
+
+    snap = audit.collect_snapshot(
+        queue_doc_path=queue_path,
+        frozen_utc="2026-05-27T00:00:00Z",
+    )
+
+    assert snap["summary"]["missing_done_evidence_items"] == ["ITEM-A"]
+    assert snap["summary"]["selection_blocking_warning_items"] == []
+    assert snap["summary"]["eligible_ready_items"] == ["ITEM-B"]
+    assert snap["summary"]["next_eligible_ready_item"] == "ITEM-B"
+    assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
 
 
 def test_missing_done_evidence_is_flagged(tmp_path: Path) -> None:
@@ -119,8 +151,9 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     snap = audit.collect_snapshot(frozen_utc="2026-05-28T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] is None
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-018A"
     assert "ADE-QRE-011" in snap["summary"]["stale_historical_ready_items"]
+    assert snap["summary"]["selection_blocking_warning_items"] == []
     assert rows["ADE-QRE-014N"]["status"] == "done"
     assert rows["ADE-QRE-014N"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-014O"]["status"] == "done"
@@ -221,6 +254,12 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     assert rows["ADE-QRE-017AC"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-017AD"]["status"] == "done"
     assert rows["ADE-QRE-017AD"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-018A"]["status"] == "ready"
+    assert rows["ADE-QRE-018A"]["auto_selectable"] is True
+    assert rows["ADE-QRE-007"]["queue_warning"]["classification"] == "missing_completion_evidence"
+    assert rows["ADE-QRE-008"]["queue_warning"]["classification"] == "superseded"
+    assert rows["ADE-QRE-011"]["queue_warning"]["classification"] == "stale_historical_state"
+    assert rows["ADE-QRE-014A"]["queue_warning"]["classification"] == "superseded"
     assert snap["safety_invariants"]["adds_approval_mutation"] is False
     assert snap["safety_invariants"]["expands_autonomous_authority"] is False
     assert snap["safety_invariants"]["strategy_synthesis_enabled"] is False

@@ -127,6 +127,8 @@
 - queue id: `ADE-QRE-007`
 - status: `done`
 - completion evidence: implemented read-only operator-grade observability summary over unknown failure rate, actionable failure rate, attribution depth, data readiness, prior similar failures, diagnostics-loop state, and queue-governance blockers; local targeted tests and architecture scanner passed in the implementation branch; PR/merge evidence to be recorded if a later operator-approved queue item continues from this gate.
+- warning classification: `missing_completion_evidence`
+- warning rationale: the historical implementation evidence remains visible, but the missing canonical PR/merge record does not gate the separate ADE-QRE-018 remediation program.
 - doel: make QRE/ADE state understandable to the operator without reading code.
 - bron uit target-state roadmap: fase 5 "Observability operator-grade maken"; target operator state; research observability minimal runbook.
 - scope: read-only operator summary over unknown failure rate, actionable failure rate, attribution depth, data readiness, prior similar failures, and governance blockers.
@@ -146,6 +148,8 @@
   `docs/governance/ade_qre_011_bounded_strategy_synthesis_readiness_decision.md`.
   The decision promotes only a docs/governance readiness item and does not
   authorize strategy synthesis implementation.
+- warning classification: `superseded`
+- warning rationale: the older readiness-gate evidence remains historically incomplete, but later ADE-QRE-017 and ADE-QRE-017AD decisions superseded it as the current synthesis-readiness authority chain.
 - doel: decide whether strategy synthesis or new research capability is eligible after evidence, data, memory, diagnostics, and observability mature.
 - bron uit target-state roadmap: phase order "Pas daarna"; lessons "Hypothesis first, strategy second"; section 18 "Wat voorlopig bewust niet doen".
 - scope: operator review of KPIs and evidence only; define whether a future strategy/research capability queue item is allowed.
@@ -160,6 +164,8 @@
 
 - queue id: `ADE-QRE-011`
 - status: `ready`
+- warning classification: `stale_historical_state`
+- warning rationale: the bounded readiness item remained ready in the historical queue, but ADE-QRE-017 and ADE-QRE-017AD superseded it and it must stay visible as a non-current state rather than a live next item.
 - goal: define minimum evidence-gated conditions for future strategy synthesis
   consideration without implementing strategy behavior.
 - operator decision: approved as a docs/governance-only queue item. This approval
@@ -307,6 +313,8 @@
 
 - queue id: `ADE-QRE-014A`
 - status: `done`
+- warning classification: `superseded`
+- warning rationale: the reconciliation preflight is historically complete in substance but its missing canonical completion-evidence field is superseded by later merged queue items and does not gate ADE-QRE-018 admission.
 - title: Main/PR/Run Reconciliation Preflight.
 - purpose: reconcile PR #318, branch commit `e4ddf9c`, squash merge
   `cd036fc`, origin/main, and GitHub Actions evidence before any new build
@@ -3776,4 +3784,154 @@ live, broker, risk, or execution work.
     `sampling_usefulness`, `source_quality`, `data_readiness`,
     `contradiction_visibility`, and `trading_authority_leakage_absent`
     satisfied.
-- next dependency: none.
+- next dependency: `ADE-QRE-018A`.
+
+### ADE-QRE-018 - Campaign Lineage and Evidence Completeness Remediation Program
+
+- queue id: `ADE-QRE-018`
+- status: `blocked until ADE-QRE-018A done`
+- purpose: establish the post-`ADE-QRE-017AD` remediation program that repairs
+  campaign lineage, identity, null-control, reason-record, evidence, and
+  campaign-capacity blockers before any future synthesis review.
+- source documents:
+  - `docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md`
+  - `docs/governance/qre_synthesis_readiness_review.md`
+  - `docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md`
+- authoritative baseline:
+  - `ADE-QRE-017` and `ADE-QRE-017AD` are complete.
+  - synthesis-readiness identity `qrsr_1ca565566a3c96e3` recorded
+    `CONTINUE_BLOCKED`.
+  - exact next permitted action:
+    `launch_separate_remediation_program_for_lineage_identity_controls_evidence_and_capacity_before_any_synthesis_design_review`.
+- scope:
+  - read-only remediation reporting, queue reconciliation, roadmap admission,
+    lineage and identity remediation, null-control readiness, evidence
+    completeness, replacement-thesis planning, and campaign-readiness
+    reconstruction.
+- forbidden scope:
+  - strategy synthesis implementation
+  - executable strategy generation
+  - automatic strategy registration
+  - second campaign execution before a separately accepted preregistered
+    campaign artifact exists
+  - paper/shadow/live, broker, risk, execution, or capital-allocation paths
+- operator gate:
+  - one governed implementation PR may admit and implement the remediation
+    release.
+  - a minimal separate completion-evidence PR remains allowed if the queue
+    lifecycle requires it.
+- expected next queue item: `ADE-QRE-018A`.
+
+### ADE-QRE-018A - Historical Queue and Baseline Reconciliation
+
+- queue id: `ADE-QRE-018A`
+- status: `ready`
+- depends on: `ADE-QRE-017AD done`.
+- purpose: classify historical queue ambiguity without hiding it and establish a
+  deterministic remediation-program baseline.
+- scope:
+  - queue warning classification
+  - stale-state preservation
+  - deterministic next-program selection
+  - baseline closeout references to completed `ADE-QRE-017` evidence
+- forbidden scope:
+  - pretending historical missing evidence exists
+  - deleting audit history
+  - editing generated queue projections directly
+- expected next queue item: `ADE-QRE-018B`.
+
+### ADE-QRE-018B - Blocked-Thesis Lineage Census
+
+- queue id: `ADE-QRE-018B`
+- status: `blocked until ADE-QRE-018A done`
+- depends on: `ADE-QRE-018A done`.
+- purpose: materialize a deterministic lineage census for the six blocked
+  theses and preserve fail-closed missing-link states.
+- expected next queue item: `ADE-QRE-018C`.
+
+### ADE-QRE-018C - Identity Ambiguity Resolution
+
+- queue id: `ADE-QRE-018C`
+- status: `blocked until ADE-QRE-018B done`
+- depends on: `ADE-QRE-018B done`.
+- purpose: resolve identity ambiguities where authoritative repository evidence
+  exists and preserve unresolved cases fail-closed.
+- expected next queue item: `ADE-QRE-018D`.
+
+### ADE-QRE-018D - Campaign Lineage Materialization
+
+- queue id: `ADE-QRE-018D`
+- status: `blocked until ADE-QRE-018C done`
+- depends on: `ADE-QRE-018C done`.
+- purpose: materialize bounded thesis-to-campaign lineage only where strategy,
+  preset, data, and identity evidence actually support it.
+- expected next queue item: `ADE-QRE-018E`.
+
+### ADE-QRE-018E - Null-Control Specification and Completeness
+
+- queue id: `ADE-QRE-018E`
+- status: `blocked until ADE-QRE-018D done`
+- depends on: `ADE-QRE-018D done`.
+- purpose: specify mechanistically appropriate null controls and record
+  completeness or blockers without fabricating empirical control results.
+- expected next queue item: `ADE-QRE-018F`.
+
+### ADE-QRE-018F - Evidence and Reason-Record Completion
+
+- queue id: `ADE-QRE-018F`
+- status: `blocked until ADE-QRE-018E done`
+- depends on: `ADE-QRE-018E done`.
+- purpose: complete reason-record and evidence-completeness reporting where
+  authoritative evidence exists and fail closed where it does not.
+- expected next queue item: `ADE-QRE-018G`.
+
+### ADE-QRE-018G - Validation, Reproducibility and Operator-Report Completion
+
+- queue id: `ADE-QRE-018G`
+- status: `blocked until ADE-QRE-018F done`
+- depends on: `ADE-QRE-018F done`.
+- purpose: consolidate validation, reproducibility, freshness, and
+  operator-report readiness from the remediated evidence chain.
+- expected next queue item: `ADE-QRE-018H`.
+
+### ADE-QRE-018H - Campaign-Ready Portfolio Reconstruction
+
+- queue id: `ADE-QRE-018H`
+- status: `blocked until ADE-QRE-018G done`
+- depends on: `ADE-QRE-018G done`.
+- purpose: rebuild a fail-closed campaign-ready portfolio and preserve blocked,
+  rejected, duplicate, and dead-zone exclusions explicitly.
+- expected next queue item: `ADE-QRE-018I`.
+
+### ADE-QRE-018I - Replacement Hypothesis Planning
+
+- queue id: `ADE-QRE-018I`
+- status: `blocked until ADE-QRE-018H done`
+- depends on: `ADE-QRE-018H done`.
+- purpose: archive `trend_pullback_v1` as rejected and propose a genuinely
+  distinct replacement thesis via existing deterministic discovery mechanisms.
+- expected next queue item: `ADE-QRE-018J`.
+
+### ADE-QRE-018J - Second Broad Preregistered Campaign
+
+- queue id: `ADE-QRE-018J`
+- status: `blocked until ADE-QRE-018I done`
+- depends on: `ADE-QRE-018I done`.
+- purpose: execute a second preregistered campaign only after genuinely ready
+  cells and a canonically accepted preregistered artifact exist.
+- blocked conditions:
+  - no campaign execution unless at least one cell is
+    `READY_FOR_PREREGISTRATION`.
+  - no execution before merged remediation evidence confirms lineage, identity,
+    control, and evidence gates for the selected cell.
+- expected next queue item: `ADE-QRE-018K`.
+
+### ADE-QRE-018K - Second Synthesis-Readiness Review
+
+- queue id: `ADE-QRE-018K`
+- status: `blocked until ADE-QRE-018J done`
+- depends on: `ADE-QRE-018J done`.
+- purpose: re-run synthesis-readiness only after the second preregistered
+  campaign produces new authoritative evidence.
+- expected next queue item: none unless the remediation program yields a new
+  synthesis-eligible state.

@@ -101,6 +101,17 @@ PHASE: Final[tuple[str, ...]] = (
     "ade_qre_017c",
     "ade_qre_017d",
     "ade_qre_017e",
+    "ade_qre_018a",
+    "ade_qre_018b",
+    "ade_qre_018c",
+    "ade_qre_018d",
+    "ade_qre_018e",
+    "ade_qre_018f",
+    "ade_qre_018g",
+    "ade_qre_018h",
+    "ade_qre_018i",
+    "ade_qre_018j",
+    "ade_qre_018k",
     "v3.15.16",
     "v3.15.17",
     "v3.15.18",
@@ -118,7 +129,9 @@ PHASE: Final[tuple[str, ...]] = (
 SOURCE_DOCUMENT: Final[tuple[str, ...]] = (
     "docs/roadmap/qre_trusted_research_intelligence_roadmap_manifest.md",
     "docs/roadmap/qre_maturity_roadmap_to_100.md",
+    "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
     "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+    "docs/governance/qre_synthesis_readiness_review.md",
     "docs/roadmap/Roadmap v6.md",
     "docs/roadmap/Roadmap v6 Addendum.md",
     (
@@ -374,6 +387,191 @@ _ROADMAP_TASKS_SEED: Final[tuple[dict[str, Any], ...]] = (
         ),
         "status": "not_started",
         "prerequisites": ("ade_qre_017d_routing_sampling_readiness",),
+    },
+    {
+        "id": "ade_qre_018a_historical_queue_baseline_reconciliation",
+        "title": "ADE-QRE-018A Historical Queue and Baseline Reconciliation",
+        "phase": "ade_qre_018a",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "docs/governance/qre_synthesis_readiness_review.md",
+        ),
+        "purpose": (
+            "Classify historical queue ambiguity without hiding it, "
+            "preserve audit history, and establish a deterministic "
+            "post-ADE-QRE-017 remediation baseline."
+        ),
+        "status": "not_started",
+        "prerequisites": (),
+    },
+    {
+        "id": "ade_qre_018b_blocked_thesis_lineage_census",
+        "title": "ADE-QRE-018B Blocked-Thesis Lineage Census",
+        "phase": "ade_qre_018b",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Materialize a deterministic lineage census for the six "
+            "blocked theses and preserve fail-closed missing-link states."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_018a_historical_queue_baseline_reconciliation",
+        ),
+    },
+    {
+        "id": "ade_qre_018c_identity_ambiguity_resolution",
+        "title": "ADE-QRE-018C Identity Ambiguity Resolution",
+        "phase": "ade_qre_018c",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Resolve thesis, strategy, preset, source, instrument, "
+            "dataset, snapshot, campaign, and evidence identities "
+            "where authoritative repository evidence exists."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_018b_blocked_thesis_lineage_census",),
+    },
+    {
+        "id": "ade_qre_018d_campaign_lineage_materialization",
+        "title": "ADE-QRE-018D Campaign Lineage Materialization",
+        "phase": "ade_qre_018d",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Materialize bounded thesis-to-campaign lineage only where "
+            "strategy, preset, data, and identity evidence actually support it."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_018c_identity_ambiguity_resolution",),
+    },
+    {
+        "id": "ade_qre_018e_null_control_specification_completeness",
+        "title": "ADE-QRE-018E Null-Control Specification and Completeness",
+        "phase": "ade_qre_018e",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Specify mechanistically appropriate null controls and record "
+            "completeness or blockers without fabricating empirical outcomes."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_018d_campaign_lineage_materialization",
+        ),
+    },
+    {
+        "id": "ade_qre_018f_evidence_reason_record_completion",
+        "title": "ADE-QRE-018F Evidence and Reason-Record Completion",
+        "phase": "ade_qre_018f",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Complete reason-record and evidence-completeness reporting "
+            "where authoritative evidence exists and fail closed elsewhere."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_018e_null_control_specification_completeness",
+        ),
+    },
+    {
+        "id": "ade_qre_018g_validation_repro_operator_completion",
+        "title": "ADE-QRE-018G Validation, Reproducibility and Operator-Report Completion",
+        "phase": "ade_qre_018g",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Consolidate validation, reproducibility, freshness, and "
+            "operator-report readiness from the remediated evidence chain."
+        ),
+        "status": "not_started",
+        "prerequisites": ("ade_qre_018f_evidence_reason_record_completion",),
+    },
+    {
+        "id": "ade_qre_018h_campaign_ready_portfolio_reconstruction",
+        "title": "ADE-QRE-018H Campaign-Ready Portfolio Reconstruction",
+        "phase": "ade_qre_018h",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Rebuild a fail-closed portfolio from the remediated artifacts "
+            "and preserve blocked, rejected, duplicate, and dead-zone states."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_018g_validation_repro_operator_completion",
+        ),
+    },
+    {
+        "id": "ade_qre_018i_replacement_hypothesis_planning",
+        "title": "ADE-QRE-018I Replacement Hypothesis Planning",
+        "phase": "ade_qre_018i",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Archive trend_pullback_v1 as rejected and propose one "
+            "genuinely distinct replacement thesis via deterministic "
+            "discovery machinery."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_018h_campaign_ready_portfolio_reconstruction",
+        ),
+    },
+    {
+        "id": "ade_qre_018j_second_broad_preregistered_campaign",
+        "title": "ADE-QRE-018J Second Broad Preregistered Campaign",
+        "phase": "ade_qre_018j",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        ),
+        "purpose": (
+            "Prepare and execute a second preregistered campaign only "
+            "after genuinely ready cells and a canonically accepted "
+            "preregistered artifact exist."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_018i_replacement_hypothesis_planning",
+        ),
+    },
+    {
+        "id": "ade_qre_018k_second_synthesis_readiness_review",
+        "title": "ADE-QRE-018K Second Synthesis-Readiness Review",
+        "phase": "ade_qre_018k",
+        "source_documents": (
+            "docs/roadmap/qre_campaign_lineage_evidence_remediation_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "docs/governance/qre_synthesis_readiness_review.md",
+        ),
+        "purpose": (
+            "Re-run synthesis-readiness only after the second campaign "
+            "produces new authoritative evidence."
+        ),
+        "status": "not_started",
+        "prerequisites": (
+            "ade_qre_018j_second_broad_preregistered_campaign",
+        ),
     },
     {
         "id": "phase_v3_15_16",
