@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -9,17 +8,33 @@ from packages.qre_research import autonomous_orchestration as ao
 from packages.qre_research import generated_strategy_paths as gsp
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+FIXTURE_PATHS = (
+    "artifacts/cache/cache_coverage_latest.v1.json",
+    "generated_research/campaign_execution/ledgers/oos_consumption.v1.json",
+    "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json",
+    "generated_research/hypotheses/mechanisms/generated_mechanisms.v1.json",
+    "generated_research/hypotheses/observations/generated_observations.v1.json",
+    "generated_research/hypotheses/opportunities/generated_opportunities.v1.json",
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+    "generated_research/presets/generated_research_presets.v1.json",
+    "generated_research/primitives/registry/generated_primitive_registry.v1.json",
+    "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
+    "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json",
+    "generated_research/registry/generated_strategy_registry.v1.json",
+)
+FIXTURE_BYTES = {
+    relative_path: (REPO_ROOT / relative_path).read_bytes()
+    for relative_path in FIXTURE_PATHS
+}
 
 
 @pytest.fixture()
 def orchestration_repo(tmp_path: Path) -> Path:
     repo_root = tmp_path / "repo"
-    shutil.copytree(REPO_ROOT / "generated_research", repo_root / "generated_research")
-    (repo_root / "artifacts" / "cache").mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
-        REPO_ROOT / "artifacts" / "cache" / "cache_coverage_latest.v1.json",
-        repo_root / "artifacts" / "cache" / "cache_coverage_latest.v1.json",
-    )
+    for relative_path, payload in FIXTURE_BYTES.items():
+        target = repo_root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
     return repo_root
 
 
