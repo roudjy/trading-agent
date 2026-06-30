@@ -5110,129 +5110,131 @@ live, broker, risk, or execution work.
 ### ADE-QRE-025 - Execute Second Preregistered Campaign and Continue Autonomous Research Loop
 
 - queue id: `ADE-QRE-025`
-- status: `blocked until ADE-QRE-025O done`
+- status: `done`
 - depends on:
   - `ADE-QRE-024 done`
 - purpose: verify the frozen second-campaign manifest, execute only the ready preregistered campaign cell, complete the post-campaign research decision loop, and continue through the next exact governed machine action.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; integrated closeout report `generated_research/campaign_execution/reports/second_campaign_closeout.v1.json` and operator report `generated_research/campaign_execution/reports/second_campaign_closeout.v1.md` recorded manifest integrity identity `qmi_bb21790f8b9b4049`, executed campaign identity `qcx_408c08d953bdf943`, closeout identity `qce_15a885f88aa417b3`, terminal outcome `DATA_OR_OOS_CAPACITY_BLOCKED`, and exact next autonomous action `launch_data_oos_capacity_expansion`; frozen contracts unchanged; protected/execution paths untouched.
 - warning classification: `non_blocking_warning`
 - warning rationale: `ADE-QRE-018J` remains visible as the historical blocked campaign-preparation item, but ADE-QRE-025 is the canonical execution successor to that scientifically unblocked purpose and does not reactivate the stale historical queue state.
-- exact next permitted action: verify manifest `qcm_04f0e702e5be8884`, execute only cell `qrcell_fdd68e20fd2724dd`, and replay downstream governance from the resulting evidence.
+- exact next permitted action: preserve the consumed-OOS A25 closeout, keep the blocked cells excluded, and route the surviving data/OOS-capacity blocker to a future bounded data-capacity expansion successor before any repeated OOS or synthesis-readiness replay.
 
 ### ADE-QRE-025A - Campaign Execution Governance
 
 - queue id: `ADE-QRE-025A`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-024P done`.
 - purpose: admit the bounded deterministic A25 execution loop without weakening manifest immutability, protected empirical surfaces, or trading/execution safety boundaries.
-- expected next queue item: `ADE-QRE-025B`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 admitted only bounded deterministic research-campaign execution authority, left `.claude/**` and protected `research/**` untouched, and preserved the paper/shadow/live/broker/risk/execution prohibition set; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025B - Manifest Integrity Verification
 
 - queue id: `ADE-QRE-025B`
-- status: `blocked until ADE-QRE-025A done`
+- status: `done`
 - depends on: `ADE-QRE-025A done`.
 - purpose: verify the frozen A24 manifest identity, hashes, lineage, and execution envelope before any campaign execution begins.
-- expected next queue item: `ADE-QRE-025C`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 verified manifest `qcm_04f0e702e5be8884` with integrity artifact `generated_research/campaign_execution/manifest_integrity/second_campaign_manifest_integrity.v1.json`, status `MANIFEST_VERIFIED`, and identity `qmi_bb21790f8b9b4049` before any execution began; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025C - Deterministic Campaign Runner
 
 - queue id: `ADE-QRE-025C`
-- status: `blocked until ADE-QRE-025B done`
+- status: `done`
 - depends on: `ADE-QRE-025B done`.
 - purpose: execute only the ready manifest cell through deterministic train, validation, OOS, and null-control stages with no frozen-input mutation.
-- expected next queue item: `ADE-QRE-025D`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 executed only ready cell `qrcell_fdd68e20fd2724dd`, excluded the three blocked cells, and persisted deterministic runner artifacts under `generated_research/campaign_execution/stages/`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025D - Train and Screening Execution
 
 - queue id: `ADE-QRE-025D`
-- status: `blocked until ADE-QRE-025C done`
+- status: `done`
 - depends on: `ADE-QRE-025C done`.
 - purpose: execute the frozen train window, persist screening metrics and stage accounting, and fail closed without changing campaign inputs.
-- expected next queue item: `ADE-QRE-025E`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 train/screening execution persisted `generated_research/campaign_execution/stages/train_and_screening.v1.json` with outcome `PASSED`, `trade_count=18`, and complete stage accounting under the frozen manifest; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025E - Validation Execution
 
 - queue id: `ADE-QRE-025E`
-- status: `blocked until ADE-QRE-025D done`
+- status: `done`
 - depends on: `ADE-QRE-025D done`.
 - purpose: execute the frozen validation window and record degradation, stability, and exact validation pass/fail reasons.
-- expected next queue item: `ADE-QRE-025F`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 validation execution persisted `generated_research/campaign_execution/stages/validation.v1.json` with outcome `PASSED`, `trade_count=5`, and train-to-validation degradation evidence without parameter mutation; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025F - OOS Execution
 
 - queue id: `ADE-QRE-025F`
-- status: `blocked until ADE-QRE-025E done`
+- status: `done`
 - depends on: `ADE-QRE-025E done`.
 - purpose: execute the exact reserved unseen OOS window, record consumption evidence, and prevent any future reuse.
-- expected next queue item: `ADE-QRE-025G`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 executed the exact preregistered OOS window `2026-01-24T17:30:00Z` through `2026-04-24T17:30:00Z`, persisted `generated_research/campaign_execution/stages/oos.v1.json` with outcome `INSUFFICIENT_TRADES`, and recorded canonical consumption `qwc_8c9fcb2e33b0bb6b` for window `qwl_06fd2878a7332daa`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025G - Null-Control Execution
 
 - queue id: `ADE-QRE-025G`
-- status: `blocked until ADE-QRE-025F done`
+- status: `done`
 - depends on: `ADE-QRE-025F done`.
 - purpose: execute every manifest-frozen null control with deterministic seeds and authoritative comparison against the actual strategy path.
-- expected next queue item: `ADE-QRE-025H`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 executed frozen null controls in `generated_research/campaign_execution/stages/null_controls.v1.json` with deterministic seeds, completion identity `qne_6954d9eb7f9fe1c6`, and fail-closed comparison outcome `null_controls_not_distinguishable_under_current_sample`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025H - Evidence and Reason-Record Completion
 
 - queue id: `ADE-QRE-025H`
-- status: `blocked until ADE-QRE-025G done`
+- status: `done`
 - depends on: `ADE-QRE-025G done`.
 - purpose: complete stage-level evidence, reason-record, reproducibility, and provenance accounting for the campaign.
-- expected next queue item: `ADE-QRE-025I`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 persisted complete evidence and reason-record accounting in `generated_research/campaign_execution/evidence/evidence_reason_records.v1.json` with evidence identity `qev_9dbc0b8f54cb4b3f` and complete provenance across manifest, code, snapshot, windows, and stage artifacts; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025I - Funnel Diagnosis
 
 - queue id: `ADE-QRE-025I`
-- status: `blocked until ADE-QRE-025H done`
+- status: `done`
 - depends on: `ADE-QRE-025H done`.
 - purpose: diagnose conversion, threshold distance, bottlenecks, and exact stage failure taxonomy for the executed campaign.
-- expected next queue item: `ADE-QRE-025J`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 persisted funnel diagnosis `generated_research/campaign_execution/reports/second_campaign_funnel_diagnosis.v1.json` with identity `qfd_3243a748865894cf`, `manifest_cells=4`, `executable_cells=1`, `oos_accepted=0`, `null_control_passed=0`, primary bottleneck `oos_sample_size`, and secondary bottleneck `null_controls`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025J - Hypothesis and Strategy Decision
 
 - queue id: `ADE-QRE-025J`
-- status: `blocked until ADE-QRE-025I done`
+- status: `done`
 - depends on: `ADE-QRE-025I done`.
 - purpose: emit one canonical hypothesis decision and one canonical strategy decision without granting any promotion authority beyond research.
-- expected next queue item: `ADE-QRE-025K`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 persisted canonical decision artifact `generated_research/campaign_execution/reports/second_campaign_decision.v1.json` with decision identity `qdd_3a80bdcd74ec9519`, hypothesis decision `BLOCKED_SAMPLE_SIZE`, and strategy decision `INSUFFICIENT_EVIDENCE`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025K - Recalibration Decision
 
 - queue id: `ADE-QRE-025K`
-- status: `blocked until ADE-QRE-025J done`
+- status: `done`
 - depends on: `ADE-QRE-025J done`.
 - purpose: determine whether exactly one bounded criterion class is justified for recalibration under current replay policy.
-- expected next queue item: `ADE-QRE-025L`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 persisted recalibration decision `generated_research/campaign_execution/reports/second_campaign_recalibration.v1.json` with outcome `NO_RECALIBRATION_JUSTIFIED`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025L - Same-Input Replay
 
 - queue id: `ADE-QRE-025L`
-- status: `blocked until ADE-QRE-025K done`
+- status: `done`
 - depends on: `ADE-QRE-025K done`.
 - purpose: run same-input replay only when canonically justified and preserve the consumed-OOS distinction from new independent evidence.
-- expected next queue item: `ADE-QRE-025M`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 persisted same-input replay artifact `generated_research/campaign_execution/reports/second_campaign_same_input_replay.v1.json` and correctly recorded replay as not authorized under the no-recalibration outcome, without treating consumed OOS as new evidence; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025M - Independent OOS Assessment
 
 - queue id: `ADE-QRE-025M`
-- status: `blocked until ADE-QRE-025L done`
+- status: `done`
 - depends on: `ADE-QRE-025L done`.
 - purpose: assess whether another genuinely unseen independent OOS window exists using the canonical A24 ledger and independence rules.
-- expected next queue item: `ADE-QRE-025N`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 persisted independent OOS assessment `generated_research/campaign_execution/reports/second_campaign_independent_oos_assessment.v1.json` with identity `qio_c0856b4bc14dfec9` and outcome `INDEPENDENT_OOS_NOT_AVAILABLE`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025N - Autonomous Feedback Routing
 
 - queue id: `ADE-QRE-025N`
-- status: `blocked until ADE-QRE-025M done`
+- status: `done`
 - depends on: `ADE-QRE-025M done`.
 - purpose: select exactly one deterministic next program-level action from the executed campaign evidence and route it through existing governed subsystems when locally executable.
-- expected next queue item: `ADE-QRE-025O`.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; A25 persisted feedback routing `generated_research/campaign_execution/reports/second_campaign_autonomous_feedback_routing.v1.json` with routing identity `qfr_c5a3905315319ea2`, terminal outcome `DATA_OR_OOS_CAPACITY_BLOCKED`, and exact next action `launch_data_oos_capacity_expansion`; frozen contracts unchanged; protected/execution paths untouched.
 
 ### ADE-QRE-025O - Integrated Campaign Closeout
 
 - queue id: `ADE-QRE-025O`
-- status: `blocked until ADE-QRE-025N done`
+- status: `done`
 - depends on: `ADE-QRE-025N done`.
 - purpose: persist manifest verification, executed-cell evidence, funnel, decisions, replay, OOS consumption, readiness update, and the exact terminal next action for the second preregistered campaign.
+- completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; integrated closeout report `generated_research/campaign_execution/reports/second_campaign_closeout.v1.json` and operator report `generated_research/campaign_execution/reports/second_campaign_closeout.v1.md` recorded manifest verification `MANIFEST_VERIFIED`, executed cell `qrcell_fdd68e20fd2724dd`, excluded blocked cells, OOS consumption `qwc_8c9fcb2e33b0bb6b`, terminal outcome `DATA_OR_OOS_CAPACITY_BLOCKED`, and exact next action `launch_data_oos_capacity_expansion`; frozen contracts unchanged; protected/execution paths untouched.
