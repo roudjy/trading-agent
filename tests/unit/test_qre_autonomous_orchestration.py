@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
+
+import pytest
 
 from packages.qre_research import autonomous_orchestration as ao
 from packages.qre_research import generated_strategy_paths as gsp
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.fixture()
+def orchestration_repo(tmp_path: Path) -> Path:
+    repo_root = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "generated_research", repo_root / "generated_research")
+    (repo_root / "artifacts" / "cache").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        REPO_ROOT / "artifacts" / "cache" / "cache_coverage_latest.v1.json",
+        repo_root / "artifacts" / "cache" / "cache_coverage_latest.v1.json",
+    )
+    return repo_root
 
 
 def test_generated_strategy_paths_allow_orchestration_surface() -> None:
@@ -36,8 +51,8 @@ def test_invalid_capacity_combination_fails_validation() -> None:
     assert "invalid_capacity:target_active_hypotheses>maximum_active_hypotheses" in validation["errors"]
 
 
-def test_unified_portfolio_gives_one_current_state_per_strategy() -> None:
-    portfolio = ao.build_unified_portfolio(repo_root=REPO_ROOT)
+def test_unified_portfolio_gives_one_current_state_per_strategy(orchestration_repo: Path) -> None:
+    portfolio = ao.build_unified_portfolio(repo_root=orchestration_repo)
 
     strategy_rows = {
         row["object_identity"]: row
@@ -50,8 +65,8 @@ def test_unified_portfolio_gives_one_current_state_per_strategy() -> None:
     assert strategy_rows["qgs_e565b01bd0a162d0"]["primary_blocker"] == "usable_history_below_minimum_policy_span"
 
 
-def test_typed_actions_include_a25_data_oos_expansion() -> None:
-    portfolio = ao.build_unified_portfolio(repo_root=REPO_ROOT)
+def test_typed_actions_include_a25_data_oos_expansion(orchestration_repo: Path) -> None:
+    portfolio = ao.build_unified_portfolio(repo_root=orchestration_repo)
     actions = ao.build_typed_next_actions(
         portfolio=portfolio,
         config=ao.default_operations_config(),
@@ -66,8 +81,8 @@ def test_typed_actions_include_a25_data_oos_expansion() -> None:
     assert row["source_blocker"] == "oos_sample_size"
 
 
-def test_work_admission_and_schedule_preserve_serialization_for_conflicts() -> None:
-    portfolio = ao.build_unified_portfolio(repo_root=REPO_ROOT)
+def test_work_admission_and_schedule_preserve_serialization_for_conflicts(orchestration_repo: Path) -> None:
+    portfolio = ao.build_unified_portfolio(repo_root=orchestration_repo)
     actions = ao.build_typed_next_actions(
         portfolio=portfolio,
         config=ao.default_operations_config(),
@@ -109,9 +124,9 @@ def test_pre_oos_conservation_gate_rejects_low_capacity_case() -> None:
     assert decision["outcome"] == "REJECT_EXPECTED_SAMPLE_TOO_LOW"
 
 
-def test_plan_only_mode_does_not_execute_work() -> None:
+def test_plan_only_mode_does_not_execute_work(orchestration_repo: Path) -> None:
     closeout = ao.run_orchestration(
-        repo_root=REPO_ROOT,
+        repo_root=orchestration_repo,
         mode="PLAN_ONLY",
         max_cycles=1,
         write_outputs=False,
@@ -123,9 +138,9 @@ def test_plan_only_mode_does_not_execute_work() -> None:
     assert closeout["next_autonomous_action"] == "DATA_CAPACITY_EXPANSION"
 
 
-def test_local_autonomous_mode_executes_one_safe_batch_without_oos_reuse() -> None:
+def test_local_autonomous_mode_executes_one_safe_batch_without_oos_reuse(orchestration_repo: Path) -> None:
     closeout = ao.run_orchestration(
-        repo_root=REPO_ROOT,
+        repo_root=orchestration_repo,
         mode="LOCAL_AUTONOMOUS",
         max_cycles=1,
         write_outputs=False,
@@ -138,15 +153,15 @@ def test_local_autonomous_mode_executes_one_safe_batch_without_oos_reuse() -> No
     assert closeout["next_autonomous_action"] == "request_replacement_hypothesis"
 
 
-def test_daily_report_generation_is_idempotent_for_same_inputs() -> None:
+def test_daily_report_generation_is_idempotent_for_same_inputs(orchestration_repo: Path) -> None:
     config = ao.default_operations_config()
-    portfolio = ao.build_unified_portfolio(repo_root=REPO_ROOT)
+    portfolio = ao.build_unified_portfolio(repo_root=orchestration_repo)
     actions = ao.build_typed_next_actions(portfolio=portfolio, config=config)
     work_items = ao.admit_work_items(actions=actions, config=config)
-    oos_budget = ao.build_oos_budget(repo_root=REPO_ROOT, portfolio=portfolio, config=config)
+    oos_budget = ao.build_oos_budget(repo_root=orchestration_repo, portfolio=portfolio, config=config)
 
     first = ao.generate_daily_report(
-        repo_root=REPO_ROOT,
+        repo_root=orchestration_repo,
         config=config,
         portfolio=portfolio,
         work_items=work_items,
@@ -156,7 +171,7 @@ def test_daily_report_generation_is_idempotent_for_same_inputs() -> None:
         write_outputs=False,
     )
     second = ao.generate_daily_report(
-        repo_root=REPO_ROOT,
+        repo_root=orchestration_repo,
         config=config,
         portfolio=portfolio,
         work_items=work_items,
@@ -170,17 +185,17 @@ def test_daily_report_generation_is_idempotent_for_same_inputs() -> None:
     assert first["health"] == second["health"]
 
 
-def test_pause_resume_payloads_are_deterministic() -> None:
-    paused = ao.set_pause_state(repo_root=REPO_ROOT, paused=True, write_outputs=False)
-    resumed = ao.set_pause_state(repo_root=REPO_ROOT, paused=False, write_outputs=False)
+def test_pause_resume_payloads_are_deterministic(orchestration_repo: Path) -> None:
+    paused = ao.set_pause_state(repo_root=orchestration_repo, paused=True, write_outputs=False)
+    resumed = ao.set_pause_state(repo_root=orchestration_repo, paused=False, write_outputs=False)
 
     assert paused["paused"] is True
     assert resumed["paused"] is False
     assert paused["control_identity"] != resumed["control_identity"]
 
 
-def test_selection_explanation_links_to_selected_work_item() -> None:
-    portfolio = ao.build_unified_portfolio(repo_root=REPO_ROOT)
+def test_selection_explanation_links_to_selected_work_item(orchestration_repo: Path) -> None:
+    portfolio = ao.build_unified_portfolio(repo_root=orchestration_repo)
     actions = ao.build_typed_next_actions(portfolio=portfolio, config=ao.default_operations_config())
     work_items = ao.admit_work_items(actions=actions, config=ao.default_operations_config())
     selected_id = work_items["rows"][0]["work_item_id"]

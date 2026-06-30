@@ -246,6 +246,10 @@ def _repo_relative(path: Path, *, repo_root: Path) -> str:
     return path.resolve().relative_to(repo_root.resolve()).as_posix()
 
 
+def _scoped_path(path: Path, *, repo_root: Path) -> Path:
+    return repo_root / path.relative_to(REPO_ROOT)
+
+
 def _atomic_write(path: Path, payload: str) -> None:
     validate_write_target(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -464,10 +468,11 @@ def load_or_create_operations_config(
     repo_root: Path = REPO_ROOT,
     write_outputs: bool = True,
 ) -> dict[str, Any]:
-    payload = _read_json(repo_root / CONFIG_PATH)
+    config_path = _scoped_path(CONFIG_PATH, repo_root=repo_root)
+    payload = _read_json(config_path)
     if payload is None:
         payload = default_operations_config()
-        _maybe_write_json(repo_root / CONFIG_PATH, payload, write_outputs=write_outputs)
+        _maybe_write_json(config_path, payload, write_outputs=write_outputs)
     return payload
 
 
@@ -1432,7 +1437,7 @@ def _generate_work_package(
         "final_report_schema": ["work_package_id", "artifacts_created", "validation_outcome", "next_action"],
         "outcome": "WORK_PACKAGE_READY",
     }
-    target = repo_root / WORK_PACKAGES_DIR / f"{payload['work_package_id']}.json"
+    target = _scoped_path(WORK_PACKAGES_DIR, repo_root=repo_root) / f"{payload['work_package_id']}.json"
     _maybe_write_json(target, payload, write_outputs=write_outputs)
     return payload
 
@@ -1752,9 +1757,10 @@ def _compute_kpis(
 
 def _daily_history_rows(repo_root: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    if not (repo_root / DAILY_HISTORY_DIR).exists():
+    daily_history_dir = _scoped_path(DAILY_HISTORY_DIR, repo_root=repo_root)
+    if not daily_history_dir.exists():
         return rows
-    for path in sorted((repo_root / DAILY_HISTORY_DIR).glob("*.json")):
+    for path in sorted(daily_history_dir.glob("*.json")):
         payload = _read_json(path)
         if payload:
             rows.append(payload)
@@ -1948,15 +1954,20 @@ def generate_daily_report(
     report["alerts"] = alerts_payload["rows"]
     report["health"] = _health_from_alerts(alerts_payload)
     report["executive_summary"]["overall_health"] = report["health"]
-    daily_json_path = repo_root / DAILY_HISTORY_DIR / f"{report_date}.json"
-    daily_md_path = repo_root / DAILY_HISTORY_DIR / f"{report_date}.md"
+    daily_history_dir = _scoped_path(DAILY_HISTORY_DIR, repo_root=repo_root)
+    daily_json_path = daily_history_dir / f"{report_date}.json"
+    daily_md_path = daily_history_dir / f"{report_date}.md"
     _maybe_write_json(daily_json_path, report, write_outputs=write_outputs)
     _maybe_write_text(daily_md_path, _daily_report_markdown(report), write_outputs=write_outputs)
-    _maybe_write_json(repo_root / LATEST_DAILY_JSON_PATH, report, write_outputs=write_outputs)
-    _maybe_write_text(repo_root / LATEST_DAILY_MD_PATH, _daily_report_markdown(report), write_outputs=write_outputs)
-    _maybe_write_json(repo_root / ALERTS_PATH, alerts_payload, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(LATEST_DAILY_JSON_PATH, repo_root=repo_root), report, write_outputs=write_outputs)
+    _maybe_write_text(
+        _scoped_path(LATEST_DAILY_MD_PATH, repo_root=repo_root),
+        _daily_report_markdown(report),
+        write_outputs=write_outputs,
+    )
+    _maybe_write_json(_scoped_path(ALERTS_PATH, repo_root=repo_root), alerts_payload, write_outputs=write_outputs)
     trend_history = _trend_history(repo_root=repo_root, today_report=report)
-    _maybe_write_json(repo_root / TREND_HISTORY_PATH, trend_history, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(TREND_HISTORY_PATH, repo_root=repo_root), trend_history, write_outputs=write_outputs)
     report["trend_history_identity"] = trend_history["trend_history_identity"]
     return report
 
@@ -2072,8 +2083,9 @@ def build_frontend_read_models(
         "next_24h_plan": daily_report.get("next_24h_plan", {}),
     }
     paths: dict[str, str] = {}
+    read_models_dir = _scoped_path(READ_MODELS_DIR, repo_root=repo_root)
     for name, payload in models.items():
-        path = repo_root / READ_MODELS_DIR / f"{name}.v1.json"
+        path = read_models_dir / f"{name}.v1.json"
         _maybe_write_json(path, payload, write_outputs=write_outputs)
         paths[name] = _repo_relative(path, repo_root=repo_root)
     return paths
@@ -2093,7 +2105,7 @@ def set_pause_state(
         "updated_at_utc": _iso_now(),
         "control_identity": _content_id("qrlc", {"paused": paused}),
     }
-    _maybe_write_json(repo_root / LOOP_CONTROL_PATH, payload, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(LOOP_CONTROL_PATH, repo_root=repo_root), payload, write_outputs=write_outputs)
     return payload
 
 
@@ -2212,7 +2224,7 @@ def _run_one_cycle(
         report_date=report_date,
         write_outputs=write_outputs,
     )
-    alerts_payload = _read_json(repo_root / ALERTS_PATH) or {"rows": [], "health": "HEALTHY"}
+    alerts_payload = _read_json(_scoped_path(ALERTS_PATH, repo_root=repo_root)) or {"rows": [], "health": "HEALTHY"}
     status = build_status_artifact(
         config=config,
         portfolio=portfolio,
@@ -2233,16 +2245,16 @@ def _run_one_cycle(
         cycle_ledger=cycle_rows,
         write_outputs=write_outputs,
     )
-    _maybe_write_json(repo_root / PORTFOLIO_PATH, portfolio, write_outputs=write_outputs)
-    _maybe_write_json(repo_root / ACTIONS_PATH, actions, write_outputs=write_outputs)
-    _maybe_write_json(repo_root / WORK_ITEMS_PATH, work_items, write_outputs=write_outputs)
-    _maybe_write_json(repo_root / DEPENDENCY_GRAPH_PATH, dependency_graph, write_outputs=write_outputs)
-    _maybe_write_json(repo_root / THROUGHPUT_SCHEDULE_PATH, throughput_schedule, write_outputs=write_outputs)
-    _maybe_write_json(repo_root / CAMPAIGN_SCHEDULE_PATH, campaign_schedule, write_outputs=write_outputs)
-    _maybe_write_json(repo_root / OOS_BUDGET_PATH, oos_budget, write_outputs=write_outputs)
-    _maybe_write_json(repo_root / PRE_OOS_PATH, pre_oos_decisions, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(PORTFOLIO_PATH, repo_root=repo_root), portfolio, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(ACTIONS_PATH, repo_root=repo_root), actions, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(WORK_ITEMS_PATH, repo_root=repo_root), work_items, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(DEPENDENCY_GRAPH_PATH, repo_root=repo_root), dependency_graph, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(THROUGHPUT_SCHEDULE_PATH, repo_root=repo_root), throughput_schedule, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(CAMPAIGN_SCHEDULE_PATH, repo_root=repo_root), campaign_schedule, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(OOS_BUDGET_PATH, repo_root=repo_root), oos_budget, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(PRE_OOS_PATH, repo_root=repo_root), pre_oos_decisions, write_outputs=write_outputs)
     _maybe_write_json(
-        repo_root / INVOCATION_LEDGER_PATH,
+        _scoped_path(INVOCATION_LEDGER_PATH, repo_root=repo_root),
         {
             "schema_version": SCHEMA_VERSION,
             "module_version": MODULE_VERSION,
@@ -2253,7 +2265,7 @@ def _run_one_cycle(
         write_outputs=write_outputs,
     )
     _maybe_write_json(
-        repo_root / CYCLE_LEDGER_PATH,
+        _scoped_path(CYCLE_LEDGER_PATH, repo_root=repo_root),
         {
             "schema_version": SCHEMA_VERSION,
             "module_version": MODULE_VERSION,
@@ -2263,7 +2275,7 @@ def _run_one_cycle(
         },
         write_outputs=write_outputs,
     )
-    _maybe_write_json(repo_root / STATUS_PATH, status, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(STATUS_PATH, repo_root=repo_root), status, write_outputs=write_outputs)
     return {
         "portfolio": portfolio,
         "actions": actions,
@@ -2304,9 +2316,9 @@ def run_orchestration(
             "cycles_completed": 0,
             "next_autonomous_action": "validate_configuration",
         }
-        _maybe_write_json(repo_root / CLOSEOUT_PATH, closeout, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(CLOSEOUT_PATH, repo_root=repo_root), closeout, write_outputs=write_outputs)
         return closeout
-    paused = bool((_read_json(repo_root / LOOP_CONTROL_PATH) or {}).get("paused"))
+    paused = bool((_read_json(_scoped_path(LOOP_CONTROL_PATH, repo_root=repo_root)) or {}).get("paused"))
     if paused:
         portfolio = build_unified_portfolio(repo_root=repo_root)
         work_items = admit_work_items(actions=build_typed_next_actions(portfolio=portfolio, config=config), config=config)
@@ -2321,7 +2333,7 @@ def run_orchestration(
             report_date=report_date,
             write_outputs=write_outputs,
         )
-        alerts_payload = _read_json(repo_root / ALERTS_PATH) or {"rows": [], "health": "BLOCKED"}
+        alerts_payload = _read_json(_scoped_path(ALERTS_PATH, repo_root=repo_root)) or {"rows": [], "health": "BLOCKED"}
         status = build_status_artifact(
             config=config,
             portfolio=portfolio,
@@ -2332,7 +2344,7 @@ def run_orchestration(
             latest_daily_report=daily_report,
             cycle_ledger=[],
         )
-        _maybe_write_json(repo_root / STATUS_PATH, status, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(STATUS_PATH, repo_root=repo_root), status, write_outputs=write_outputs)
         closeout = {
             "schema_version": SCHEMA_VERSION,
             "module_version": MODULE_VERSION,
@@ -2344,7 +2356,7 @@ def run_orchestration(
             "portfolio_identity": portfolio["portfolio_identity"],
             "daily_report_identity": daily_report["daily_report_identity"],
         }
-        _maybe_write_json(repo_root / CLOSEOUT_PATH, closeout, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(CLOSEOUT_PATH, repo_root=repo_root), closeout, write_outputs=write_outputs)
         return closeout
     if str(config.get("operating_mode") or "") == "PLAN_ONLY":
         portfolio = build_unified_portfolio(repo_root=repo_root)
@@ -2370,7 +2382,10 @@ def run_orchestration(
             report_date=report_date,
             write_outputs=write_outputs,
         )
-        alerts_payload = _read_json(repo_root / ALERTS_PATH) or {"rows": [], "health": "HEALTHY_WITH_WARNINGS"}
+        alerts_payload = _read_json(_scoped_path(ALERTS_PATH, repo_root=repo_root)) or {
+            "rows": [],
+            "health": "HEALTHY_WITH_WARNINGS",
+        }
         status = build_status_artifact(
             config=config,
             portfolio=portfolio,
@@ -2381,14 +2396,14 @@ def run_orchestration(
             latest_daily_report=daily_report,
             cycle_ledger=[],
         )
-        _maybe_write_json(repo_root / PORTFOLIO_PATH, portfolio, write_outputs=write_outputs)
-        _maybe_write_json(repo_root / ACTIONS_PATH, actions, write_outputs=write_outputs)
-        _maybe_write_json(repo_root / WORK_ITEMS_PATH, work_items, write_outputs=write_outputs)
-        _maybe_write_json(repo_root / DEPENDENCY_GRAPH_PATH, dependency_graph, write_outputs=write_outputs)
-        _maybe_write_json(repo_root / THROUGHPUT_SCHEDULE_PATH, throughput_schedule, write_outputs=write_outputs)
-        _maybe_write_json(repo_root / OOS_BUDGET_PATH, oos_budget, write_outputs=write_outputs)
-        _maybe_write_json(repo_root / PRE_OOS_PATH, pre_oos_decisions, write_outputs=write_outputs)
-        _maybe_write_json(repo_root / STATUS_PATH, status, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(PORTFOLIO_PATH, repo_root=repo_root), portfolio, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(ACTIONS_PATH, repo_root=repo_root), actions, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(WORK_ITEMS_PATH, repo_root=repo_root), work_items, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(DEPENDENCY_GRAPH_PATH, repo_root=repo_root), dependency_graph, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(THROUGHPUT_SCHEDULE_PATH, repo_root=repo_root), throughput_schedule, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(OOS_BUDGET_PATH, repo_root=repo_root), oos_budget, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(PRE_OOS_PATH, repo_root=repo_root), pre_oos_decisions, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(STATUS_PATH, repo_root=repo_root), status, write_outputs=write_outputs)
         closeout = {
             "schema_version": SCHEMA_VERSION,
             "module_version": MODULE_VERSION,
@@ -2457,7 +2472,7 @@ def run_orchestration(
             "next_24h_plan": daily_report.get("next_24h_plan", {}),
             "read_model_paths": {},
         }
-        _maybe_write_json(repo_root / CLOSEOUT_PATH, closeout, write_outputs=write_outputs)
+        _maybe_write_json(_scoped_path(CLOSEOUT_PATH, repo_root=repo_root), closeout, write_outputs=write_outputs)
         return closeout
     cycle_limit = max_cycles if max_cycles is not None else int(config.get("budgets", {}).get("maximum_cycles_per_run") or 1)
     cycle_limit = max(cycle_limit, 1)
@@ -2607,11 +2622,11 @@ def run_orchestration(
         "effective_settings": config,
         "latest_status_identity": str(latest_status.get("status_identity") or ""),
         "latest_daily_report_identity": str(latest["daily_report"].get("daily_report_identity") or ""),
-        "alerts": list((_read_json(repo_root / ALERTS_PATH) or {}).get("rows") or []),
+        "alerts": list((_read_json(_scoped_path(ALERTS_PATH, repo_root=repo_root)) or {}).get("rows") or []),
         "next_24h_plan": latest["daily_report"].get("next_24h_plan", {}),
         "read_model_paths": latest["read_model_paths"],
     }
-    _maybe_write_json(repo_root / CLOSEOUT_PATH, closeout, write_outputs=write_outputs)
+    _maybe_write_json(_scoped_path(CLOSEOUT_PATH, repo_root=repo_root), closeout, write_outputs=write_outputs)
     return closeout
 
 
