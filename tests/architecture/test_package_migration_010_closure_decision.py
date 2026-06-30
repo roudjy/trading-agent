@@ -38,6 +38,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "automated_hypothesis_generation.py",
         "automated_primitive_expansion.py",
         "automated_strategy_generation.py",
+        "autonomous_readiness_closure.py",
         "generated_hypothesis_paths.py",
         "generated_primitive_paths.py",
         "generated_strategy_paths.py",
