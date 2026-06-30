@@ -67,6 +67,7 @@ WRITE_PREFIXES: Final[tuple[str, ...]] = (
     "generated_research/campaign_execution/evidence/",
     "generated_research/campaign_execution/ledgers/",
     "generated_research/campaign_execution/reports/",
+    "generated_research/orchestration/",
     "agent/backtesting/generated_primitives/",
     "tests/generated_primitives/",
 )
