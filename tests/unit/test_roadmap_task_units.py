@@ -523,6 +523,29 @@ def test_ade_qre_023a_to_023p_each_have_one_seed_unit(snap: dict) -> None:
         assert len(by_phase.get(phase, [])) == 1, phase
 
 
+def test_ade_qre_024a_to_024p_each_have_one_seed_unit(snap: dict) -> None:
+    by_phase = _units_by_phase(snap)
+    for phase in (
+        "ade_qre_024a",
+        "ade_qre_024b",
+        "ade_qre_024c",
+        "ade_qre_024d",
+        "ade_qre_024e",
+        "ade_qre_024f",
+        "ade_qre_024g",
+        "ade_qre_024h",
+        "ade_qre_024i",
+        "ade_qre_024j",
+        "ade_qre_024k",
+        "ade_qre_024l",
+        "ade_qre_024m",
+        "ade_qre_024n",
+        "ade_qre_024o",
+        "ade_qre_024p",
+    ):
+        assert len(by_phase.get(phase, [])) == 1, phase
+
+
 @pytest.mark.parametrize(
     "phase",
     ["v3.15.16", "v3.15.17", "v3.15.18", "v3.15.19", "v3.15.20"],
