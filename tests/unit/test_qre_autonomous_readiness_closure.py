@@ -23,8 +23,6 @@ _COPIED_INPUTS = (
     "generated_research/specs/qsp_28cdbc0005ae7c93.json",
     "artifacts/identity/instrument_identity_latest.v1.json",
     "artifacts/universe/equity_universe_catalog_latest.v1.json",
-    "logs/qre_identity_ambiguity_resolution/latest.json",
-    "logs/qre_data_cache_manifest/latest.json",
 )
 
 
@@ -37,6 +35,15 @@ def _copy(repo_root: Path, relative: str) -> None:
 
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _write_json(repo_root: Path, relative: str, payload: dict) -> None:
+    target = repo_root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _patch_arc_paths(
@@ -70,6 +77,98 @@ def _build_repo(
     repo_root = tmp_path / directory_name
     for relative in _COPIED_INPUTS:
         _copy(repo_root, relative)
+    _write_json(
+        repo_root,
+        "logs/qre_identity_ambiguity_resolution/latest.json",
+        {
+            "report_kind": "qre_identity_ambiguity_resolution",
+            "rows": [
+                {
+                    "dataset_identity": "equity-ohlcv-us-v1",
+                    "instrument_identity": "ASML",
+                    "resolution_state": "RESOLVED",
+                    "source_hypothesis_id": "atr_adaptive_trend_v0",
+                },
+                {
+                    "dataset_identity": "equity-ohlcv-us-v1",
+                    "instrument_identity": "AAPL",
+                    "resolution_state": "RESOLVED",
+                    "source_hypothesis_id": "cross_sectional_momentum_v0",
+                },
+                {
+                    "dataset_identity": "equity-ohlcv-us-v1",
+                    "instrument_identity": "MSFT",
+                    "resolution_state": "RESOLVED",
+                    "source_hypothesis_id": "cross_sectional_momentum_v0",
+                },
+                {
+                    "dataset_identity": "equity-ohlcv-us-v1",
+                    "instrument_identity": "NVDA",
+                    "resolution_state": "RESOLVED",
+                    "source_hypothesis_id": "cross_sectional_momentum_v0",
+                },
+            ],
+        },
+    )
+    _write_json(
+        repo_root,
+        "logs/qre_data_cache_manifest/latest.json",
+        {
+            "report_kind": "qre_data_cache_manifest",
+            "coverage": [
+                {
+                    "content_hash": "sha256:aapl-1d",
+                    "instrument": "AAPL",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 1500,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+                {
+                    "content_hash": "sha256:msft-1d",
+                    "instrument": "MSFT",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 1500,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+                {
+                    "content_hash": "sha256:nvda-1d",
+                    "instrument": "NVDA",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 1500,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+                {
+                    "content_hash": "sha256:asml-1d",
+                    "instrument": "ASML",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 1500,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+                {
+                    "content_hash": "sha256:asml-4h",
+                    "instrument": "ASML",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 6000,
+                    "source": "yfinance",
+                    "timeframe": "4h",
+                },
+            ],
+        },
+    )
     monkeypatch.setattr(acr, "validate_write_target", lambda path: None)
     monkeypatch.setattr(arc, "validate_write_target", lambda path: None)
     _patch_arc_paths(monkeypatch, repo_root)
