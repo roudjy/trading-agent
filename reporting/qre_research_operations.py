@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
-from packages.qre_research import autonomous_orchestration as ao
+
+def _ao() -> Any:
+    return importlib.import_module("packages.qre_research.autonomous_orchestration")
 
 
 def _print_json(payload: dict[str, Any], *, indent: int) -> None:
@@ -15,6 +18,7 @@ def _print_json(payload: dict[str, Any], *, indent: int) -> None:
 
 
 def _status_payload(repo_root: Path) -> dict[str, Any]:
+    ao = _ao()
     status = ao._read_json(repo_root / ao.STATUS_PATH)
     if status is not None:
         return status
@@ -54,10 +58,12 @@ def _status_payload(repo_root: Path) -> dict[str, Any]:
 
 
 def _portfolio_payload(repo_root: Path) -> dict[str, Any]:
+    ao = _ao()
     return ao.build_unified_portfolio(repo_root=repo_root)
 
 
 def _queue_payload(repo_root: Path) -> dict[str, Any]:
+    ao = _ao()
     config = ao.load_or_create_operations_config(repo_root=repo_root, write_outputs=False)
     portfolio = ao.build_unified_portfolio(repo_root=repo_root)
     actions = ao.build_typed_next_actions(portfolio=portfolio, config=config)
@@ -71,12 +77,14 @@ def _queue_payload(repo_root: Path) -> dict[str, Any]:
 
 
 def _budget_payload(repo_root: Path) -> dict[str, Any]:
+    ao = _ao()
     config = ao.load_or_create_operations_config(repo_root=repo_root, write_outputs=False)
     portfolio = ao.build_unified_portfolio(repo_root=repo_root)
     return ao.build_oos_budget(repo_root=repo_root, portfolio=portfolio, config=config)
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    ao = _ao()
     parser = argparse.ArgumentParser(description="QRE research operations control surface")
     parser.add_argument("--repo-root", type=Path, default=ao.REPO_ROOT)
     parser.add_argument("--indent", type=int, default=2)
@@ -108,6 +116,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    ao = _ao()
     parser = _build_parser()
     args = parser.parse_args(argv)
     repo_root = args.repo_root
