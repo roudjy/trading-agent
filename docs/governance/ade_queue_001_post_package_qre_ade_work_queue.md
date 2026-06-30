@@ -5238,3 +5238,158 @@ live, broker, risk, or execution work.
 - depends on: `ADE-QRE-025N done`.
 - purpose: persist manifest verification, executed-cell evidence, funnel, decisions, replay, OOS consumption, readiness update, and the exact terminal next action for the second preregistered campaign.
 - completion evidence: PR #702, merge SHA `3a1fe514997f7fbe04a900c2070125f98a369644`; checks green; integrated closeout report `generated_research/campaign_execution/reports/second_campaign_closeout.v1.json` and operator report `generated_research/campaign_execution/reports/second_campaign_closeout.v1.md` recorded manifest verification `MANIFEST_VERIFIED`, executed cell `qrcell_fdd68e20fd2724dd`, excluded blocked cells, OOS consumption `qwc_8c9fcb2e33b0bb6b`, terminal outcome `DATA_OR_OOS_CAPACITY_BLOCKED`, and exact next action `launch_data_oos_capacity_expansion`; frozen contracts unchanged; protected/execution paths untouched.
+
+### ADE-QRE-026 - Autonomous ADE Work Admission, Execution Orchestration, and Research Throughput Engine
+
+- queue id: `ADE-QRE-026`
+- status: `ready`
+- depends on:
+  - `ADE-QRE-025 done`
+  - canonical next action `launch_data_oos_capacity_expansion` present in `generated_research/campaign_execution/reports/second_campaign_closeout.v1.json`
+- purpose: compose the repository-native orchestration layer that converts canonical QRE next actions into typed work items, routes them through ADE-QRE-019..025 capabilities, validates outputs, replays affected research, enforces throughput and OOS budgets, and persists deterministic orchestration status, reports, and closeout artifacts without granting external executor or GitHub authority the repository does not actually possess.
+- status rationale: the repository now has deterministic generated-hypothesis, primitive, strategy, readiness, data/window, and campaign-execution modules, but it still lacks one canonical local orchestrator that can admit, schedule, validate, monitor, and continue governed QRE work from the A25 next action without a new operator-written prompt.
+- warning rationale: ADE-QRE-026 must preserve `.claude/**`, protected empirical `research/**`, frozen contracts, consumed OOS windows, and all existing no-trading boundaries while making the exact external execution boundary explicit rather than pretending remote coding-agent or GitHub authority exists.
+- exact next action on admission: `admit_typed_work_item_for_launch_data_oos_capacity_expansion_and_build_unified_portfolio`.
+
+### ADE-QRE-026A - Autonomous Orchestration Governance
+
+- queue id: `ADE-QRE-026A`
+- status: `not_started`
+- depends on: `ADE-QRE-025O done`.
+- purpose: admit the bounded local orchestration authority and enumerate the permanently denied capabilities that remain outside scope.
+- expected next queue item: `ADE-QRE-026B`.
+
+### ADE-QRE-026B - Unified Research Portfolio Model
+
+- queue id: `ADE-QRE-026B`
+- status: `not_started`
+- depends on: `ADE-QRE-026A ready`.
+- purpose: compose one canonical portfolio view spanning hypotheses, strategies, cells, manifests, campaigns, windows, blockers, next actions, and capability requests.
+- expected next queue item: `ADE-QRE-026C`.
+
+### ADE-QRE-026C - Typed Next-Action Contract
+
+- queue id: `ADE-QRE-026C`
+- status: `not_started`
+- depends on: `ADE-QRE-026B ready`.
+- purpose: define the closed next-action vocabulary and deterministic action artifact contract.
+- expected next queue item: `ADE-QRE-026D`.
+
+### ADE-QRE-026D - Autonomous Work Admission
+
+- queue id: `ADE-QRE-026D`
+- status: `not_started`
+- depends on: `ADE-QRE-026C ready`.
+- purpose: convert typed next actions into admitted work items inside closed approved work classes.
+- expected next queue item: `ADE-QRE-026E`.
+
+### ADE-QRE-026E - Dependency and Causal Blocker Graph
+
+- queue id: `ADE-QRE-026E`
+- status: `not_started`
+- depends on: `ADE-QRE-026D ready`.
+- purpose: order shared causal blockers so the scheduler prefers upstream unlocks over repeated downstream symptoms.
+- expected next queue item: `ADE-QRE-026F`.
+
+### ADE-QRE-026F - Work Planner and Router
+
+- queue id: `ADE-QRE-026F`
+- status: `not_started`
+- depends on: `ADE-QRE-026E ready`.
+- purpose: map admitted work to repository-native ADE-QRE-019..025 entrypoints or a bounded development work package.
+- expected next queue item: `ADE-QRE-026G`.
+
+### ADE-QRE-026G - Capability Execution Adapters
+
+- queue id: `ADE-QRE-026G`
+- status: `not_started`
+- depends on: `ADE-QRE-026F ready`.
+- purpose: invoke allowlisted local capabilities and validation commands through typed adapters with bounded arguments, timeouts, and artifact verification.
+- expected next queue item: `ADE-QRE-026H`.
+
+### ADE-QRE-026H - Development Work Package Generator
+
+- queue id: `ADE-QRE-026H`
+- status: `not_started`
+- depends on: `ADE-QRE-026G ready`.
+- purpose: emit bounded machine-executable development work packages whenever no existing governed local capability covers a selected work item.
+- expected next queue item: `ADE-QRE-026I`.
+
+### ADE-QRE-026I - Validation and Evidence Gate
+
+- queue id: `ADE-QRE-026I`
+- status: `not_started`
+- depends on: `ADE-QRE-026H ready`.
+- purpose: validate work-item outputs, causal progress, protected-surface preservation, and reproducible evidence before composition or replay.
+- expected next queue item: `ADE-QRE-026J`.
+
+### ADE-QRE-026J - Research Replay Controller
+
+- queue id: `ADE-QRE-026J`
+- status: `not_started`
+- depends on: `ADE-QRE-026I ready`.
+- purpose: replay only the minimum affected downstream QRE chain after a validated work item while preserving historical evidence and consumed OOS.
+- expected next queue item: `ADE-QRE-026K`.
+
+### ADE-QRE-026K - Research Throughput Scheduler
+
+- queue id: `ADE-QRE-026K`
+- status: `not_started`
+- depends on: `ADE-QRE-026J ready`.
+- purpose: prioritize high-information low-scarcity work using deterministic throughput, diversity, compute, and evidence-efficiency rules.
+- expected next queue item: `ADE-QRE-026L`.
+
+### ADE-QRE-026L - Campaign Portfolio Scheduler
+
+- queue id: `ADE-QRE-026L`
+- status: `not_started`
+- depends on: `ADE-QRE-026K ready`.
+- purpose: batch independent research cells without conflicting registries, manifests, datasets, snapshots, or OOS reservations.
+- expected next queue item: `ADE-QRE-026M`.
+
+### ADE-QRE-026M - OOS and Evidence Budget Manager
+
+- queue id: `ADE-QRE-026M`
+- status: `not_started`
+- depends on: `ADE-QRE-026L ready`.
+- purpose: treat independent OOS as scarce evidence, enforce the pre-OOS conservation gate, and prevent low-information consumption.
+- expected next queue item: `ADE-QRE-026N`.
+
+### ADE-QRE-026N - Autonomous Data/OOS Capacity Expansion
+
+- queue id: `ADE-QRE-026N`
+- status: `not_started`
+- depends on: `ADE-QRE-026M ready`.
+- purpose: execute the A25 next action `launch_data_oos_capacity_expansion` across the current portfolio without mutating consumed evidence or loosening criteria.
+- expected next queue item: `ADE-QRE-026O`.
+
+### ADE-QRE-026O - Continuous Research Loop
+
+- queue id: `ADE-QRE-026O`
+- status: `not_started`
+- depends on: `ADE-QRE-026N ready`.
+- purpose: run a bounded resumable local orchestration loop that can continue through safe governed work until no causal progress or no safe high-information work remains.
+- expected next queue item: `ADE-QRE-026P`.
+
+### ADE-QRE-026P - Operator Controls and Kill Switches
+
+- queue id: `ADE-QRE-026P`
+- status: `not_started`
+- depends on: `ADE-QRE-026O ready`.
+- purpose: provide one canonical configuration surface plus pause, resume, bounded-run, and emergency-stop controls without source edits.
+- expected next queue item: `ADE-QRE-026R`.
+
+### ADE-QRE-026R - Simple Research Operations Configuration, Monitoring, and Daily Intelligence
+
+- queue id: `ADE-QRE-026R`
+- status: `not_started`
+- depends on: `ADE-QRE-026P ready`.
+- purpose: add the canonical operations configuration, compact status artifact, alerts, trend history, frontend-ready monitoring read models, and deterministic daily research operations report.
+- expected next queue item: `ADE-QRE-026Q`.
+
+### ADE-QRE-026Q - Integrated Closeout
+
+- queue id: `ADE-QRE-026Q`
+- status: `not_started`
+- depends on: `ADE-QRE-026R ready`.
+- purpose: persist the orchestration closeout, operating-mode state, bounded-loop outcome, exact next autonomous action, and exact remaining human or external boundary.

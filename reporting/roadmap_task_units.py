@@ -4272,6 +4272,547 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "status": "not_started",
     },
     {
+        "id": "u_ade_qre_026a_autonomous_orchestration_governance_001",
+        "roadmap_task_id": "ade_qre_026a_autonomous_orchestration_governance",
+        "title": "Governed admission of bounded local research orchestration and explicit external execution boundaries",
+        "phase": "ade_qre_026a",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "docs/roadmap/qre_autonomous_ade_work_admission_orchestration_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "tests/unit/test_roadmap_task_catalog.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_roadmap_task_catalog.py"
+        ),
+        "extra_definition_of_done": (
+            "ADE-QRE-026 governance makes local automation explicit, keeps remote executor and GitHub authority boundaries explicit, and preserves all protected empirical and no-trading surfaces",
+        ),
+        "extra_stop_conditions": (
+            "any governance language that fabricates external coding-agent, GitHub submission, merge, or trading authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025o_integrated_campaign_closeout_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026b_unified_research_portfolio_model_001",
+        "roadmap_task_id": "ade_qre_026b_unified_research_portfolio_model",
+        "title": "Canonical resolved portfolio view for hypotheses, strategies, campaigns, blockers, and next actions",
+        "phase": "ade_qre_026b",
+        "unit_kind": "reporting_module",
+        "target_layer": "reporting",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/portfolio/unified_portfolio.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "every strategy has exactly one current portfolio state, one primary blocker, and one primary next action in the resolved portfolio view",
+        ),
+        "extra_stop_conditions": (
+            "multiple current states for one strategy or silent loss of historical evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026a_autonomous_orchestration_governance_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026c_typed_next_action_contract_001",
+        "roadmap_task_id": "ade_qre_026c_typed_next_action_contract",
+        "title": "Closed next-action artifact contract for machine-routable research decisions",
+        "phase": "ade_qre_026c",
+        "unit_kind": "schema_only",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/actions/typed_next_actions.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "next actions use a closed vocabulary with deterministic identities and cannot fall back to free-text execution control",
+        ),
+        "extra_stop_conditions": (
+            "any free-text-only action allowed to drive execution routing -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026b_unified_research_portfolio_model_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026d_autonomous_work_admission_001",
+        "roadmap_task_id": "ade_qre_026d_autonomous_work_admission",
+        "title": "Policy engine that converts typed actions into governed bounded work items",
+        "phase": "ade_qre_026d",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/work_items/admitted_work_items.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "work admission records authority proof, budgets, writable surfaces, forbidden surfaces, and replay targets for every admitted item",
+        ),
+        "extra_stop_conditions": (
+            "any work item admitted without explicit authority proof or bounded writable surfaces -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026c_typed_next_action_contract_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026e_dependency_blocker_graph_001",
+        "roadmap_task_id": "ade_qre_026e_dependency_and_causal_blocker_graph",
+        "title": "Deterministic dependency graph for causal blocker ordering and shared unlock discovery",
+        "phase": "ade_qre_026e",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/ledgers/dependency_blocker_graph.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "the scheduler prefers upstream shared blockers and records deterministic dependency ordering for every admitted work item",
+        ),
+        "extra_stop_conditions": (
+            "downstream symptom work selected ahead of a causally upstream shared blocker without explicit conflict reason -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026d_autonomous_work_admission_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026f_work_planner_router_001",
+        "roadmap_task_id": "ade_qre_026f_work_planner_and_router",
+        "title": "Planner and router that maps admitted work to governed repository-native capabilities",
+        "phase": "ade_qre_026f",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/ledgers/work_routes.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "every admitted work class resolves to an executable entrypoint or a bounded development work package with explicit replay targets",
+        ),
+        "extra_stop_conditions": (
+            "any route constructed from unrestricted free text or without an allowlisted capability contract -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026e_dependency_blocker_graph_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026g_capability_execution_adapters_001",
+        "roadmap_task_id": "ade_qre_026g_capability_execution_adapters",
+        "title": "Typed execution adapters for invoking local governed capabilities and validation commands",
+        "phase": "ade_qre_026g",
+        "unit_kind": "research_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/ledgers/execution_invocations.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "adapters use allowlisted command classes, bounded arguments, timeouts, and artifact verification rather than arbitrary shell text",
+        ),
+        "extra_stop_conditions": (
+            "any adapter path that allows arbitrary shell or network execution from model-produced text -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026f_work_planner_router_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026h_development_work_package_generator_001",
+        "roadmap_task_id": "ade_qre_026h_development_work_package_generator",
+        "title": "Bounded development work package generator for external executor handoff",
+        "phase": "ade_qre_026h",
+        "unit_kind": "schema_only",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/work_packages/latest_work_package.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "external-executor work packages are deterministic, architecture-bounded, and specify allowed files, validation, rollback, and replay targets",
+        ),
+        "extra_stop_conditions": (
+            "any work package that instructs unrestricted code edits or unbounded file changes -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026g_capability_execution_adapters_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026i_validation_evidence_gate_001",
+        "roadmap_task_id": "ade_qre_026i_validation_and_evidence_gate",
+        "title": "Validation and evidence gate for autonomous work success and composition",
+        "phase": "ade_qre_026i",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/ledgers/validation_results.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "validated work requires artifacts, identities, governance, architecture, protected-surface checks, and causal progress evidence",
+        ),
+        "extra_stop_conditions": (
+            "any zero-exit command treated as successful without artifact or causal-progress verification -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026h_development_work_package_generator_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026j_research_replay_controller_001",
+        "roadmap_task_id": "ade_qre_026j_research_replay_controller",
+        "title": "Targeted downstream replay controller that preserves historical evidence and consumed OOS records",
+        "phase": "ade_qre_026j",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/ledgers/research_replays.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "replay invalidates only affected derived artifacts, preserves historical evidence, and rebuilds new next actions for the affected objects",
+        ),
+        "extra_stop_conditions": (
+            "any replay that mutates consumed OOS evidence or reruns unrelated campaigns -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026i_validation_evidence_gate_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026k_research_throughput_scheduler_001",
+        "roadmap_task_id": "ade_qre_026k_research_throughput_scheduler",
+        "title": "Deterministic information-gain scheduler for safe research throughput",
+        "phase": "ade_qre_026k",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/scheduler/throughput_schedule.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "priority is driven by information gain, probability of conclusive evidence, shared unlock leverage, and scarce OOS cost rather than raw backtest count",
+        ),
+        "extra_stop_conditions": (
+            "any scheduler objective dominated by expected financial return or raw backtest volume -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026j_research_replay_controller_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026l_campaign_portfolio_scheduler_001",
+        "roadmap_task_id": "ade_qre_026l_campaign_portfolio_scheduler",
+        "title": "Conflict-aware scheduler for campaign cells, concurrency groups, and exclusive OOS resources",
+        "phase": "ade_qre_026l",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/scheduler/campaign_portfolio_schedule.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "independent jobs may run concurrently only when resource claims, registry writes, snapshots, and OOS reservations do not conflict",
+        ),
+        "extra_stop_conditions": (
+            "any scheduler path that allows conflicting OOS reservations or concurrent canonical registry writes without serialization -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026k_research_throughput_scheduler_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026m_oos_evidence_budget_manager_001",
+        "roadmap_task_id": "ade_qre_026m_oos_and_evidence_budget_manager",
+        "title": "Independent-OOS and evidence budget manager with pre-OOS conservation gate",
+        "phase": "ade_qre_026m",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/budgets/oos_budget.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "pre-OOS admission produces an explicit decision artifact and defers low-capacity campaigns before scarce independent OOS is consumed",
+        ),
+        "extra_stop_conditions": (
+            "any campaign allowed to consume independent OOS without a successful pre-OOS conservation decision -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026l_campaign_portfolio_scheduler_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026n_autonomous_data_oos_capacity_expansion_001",
+        "roadmap_task_id": "ade_qre_026n_autonomous_data_oos_capacity_expansion",
+        "title": "Repository-native execution of the A25 data/OOS capacity expansion next action",
+        "phase": "ade_qre_026n",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/ledgers/data_oos_capacity_expansion.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "the current portfolio is assessed for authoritative local data and new independent OOS capacity without mutating strategy logic or reusing consumed OOS evidence",
+        ),
+        "extra_stop_conditions": (
+            "any capacity expansion path that loosens criteria, rewrites historical evidence, or reuses qwl_06fd2878a7332daa as independent OOS -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026m_oos_evidence_budget_manager_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026o_continuous_research_loop_001",
+        "roadmap_task_id": "ade_qre_026o_continuous_research_loop",
+        "title": "Bounded continuous local orchestration loop with replay, preregistration, execution, and evidence ingestion",
+        "phase": "ade_qre_026o",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/ledgers/continuous_loop.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "the loop is bounded, resumable, cycle-aware, and continues while safe high-information work exists without requiring a new operator prompt per ordinary stage",
+        ),
+        "extra_stop_conditions": (
+            "equivalent-artifact regeneration without causal or evidentiary progress -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026n_autonomous_data_oos_capacity_expansion_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026p_operator_controls_kill_switches_001",
+        "roadmap_task_id": "ade_qre_026p_operator_controls_and_kill_switches",
+        "title": "Operator controls, pause/resume, graceful stop, and kill-switch state for the orchestration engine",
+        "phase": "ade_qre_026p",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_research_operations.py",
+            "generated_research/orchestration/status/current_status.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "operators can pause, resume, stop after a safe unit, and inspect current budgets and queue state without editing source code",
+        ),
+        "extra_stop_conditions": (
+            "any control surface that can enable trading or bypass governance boundaries -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026o_continuous_research_loop_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026r_simple_research_ops_001",
+        "roadmap_task_id": "ade_qre_026r_simple_research_operations_configuration_monitoring_and_daily_intelligence",
+        "title": "Central operations config, monitoring status, daily report, and operator command surface",
+        "phase": "ade_qre_026r",
+        "unit_kind": "reporting_module",
+        "target_layer": "reporting",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "reporting/qre_research_operations.py",
+            "generated_research/orchestration/config/operations_config.v1.json",
+            "generated_research/orchestration/reports/daily/latest.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "one typed configuration surface controls capacities, budgets, concurrency, alerts, daily reporting, and simple operator commands without source edits",
+        ),
+        "extra_stop_conditions": (
+            "any mutable runtime configuration written into protected empirical research paths or hidden in code constants rather than the central contract -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026p_operator_controls_kill_switches_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_026q_integrated_closeout_001",
+        "roadmap_task_id": "ade_qre_026q_integrated_closeout",
+        "title": "Integrated ADE-QRE-026 closeout with local autonomy boundary and exact resume command",
+        "phase": "ade_qre_026q",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_orchestration.py",
+            "generated_research/orchestration/reports/ade_qre_026_closeout.v1.json",
+            "tests/unit/test_qre_autonomous_orchestration.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_orchestration.py"
+        ),
+        "extra_definition_of_done": (
+            "closeout records autonomous stages, external boundaries, throughput metrics, executed work, stalled paths, and the exact governed resume command",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that claims external executor, GitHub submission, or merge work happened when the repository cannot prove it -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_026r_simple_research_ops_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",
         "roadmap_task_id": "phase_v3_15_16",
         "title": (
