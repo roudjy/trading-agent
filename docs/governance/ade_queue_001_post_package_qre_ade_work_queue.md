@@ -4779,7 +4779,7 @@ live, broker, risk, or execution work.
 ### ADE-QRE-023 - Autonomous Research Readiness Closure Loop
 
 - queue id: `ADE-QRE-023`
-- status: `blocked until ADE-QRE-023P done`
+- status: `done`
 - depends on:
   - `ADE-QRE-022 done`
 - purpose: build and execute a bounded autonomous remediation loop that reruns
@@ -4787,155 +4787,165 @@ live, broker, risk, or execution work.
   readiness, and continues until at least one strategy becomes
   `READY_FOR_PREREGISTRATION` or an evidence-backed terminal blocker is
   reached.
-- current authoritative baseline:
-  - readiness closeout artifact: `qrca_47c5bb0e68859062`
-  - current outcome: `IDENTITY_RESOLUTION_BLOCKED`
-  - `qgs_e565b01bd0a162d0`: `non_authoritative_universe_alias_only`
-  - `qgs_5af8f605ba82ae53`: `timeframe_not_resolved`, `preset_incomplete`
-  - `ADE-QRE-018J` remains blocked until at least one cell is genuinely
-    `READY_FOR_PREREGISTRATION`
-- expected next queue item: `ADE-QRE-023A`.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green before squash-merge; autonomous closure loop added in `packages/qre_research/autonomous_readiness_closure.py` with deterministic closeout artifacts under `generated_research/readiness/**`; terminal closeout artifact `qrca_37efa577a61d29f0` recorded `INDEPENDENT_OOS_CAPACITY_BLOCKED`, zero `READY_FOR_PREREGISTRATION` cells, no second-campaign manifest, and exact remaining blockers `authoritative_window_assignment_policy_not_materialized` plus `no_cache_row_for_resolved_instrument_and_timeframe`; post-merge governance and architecture validation passed on `main`; `.claude/**` unchanged; frozen contracts unchanged; protected/execution paths untouched.
+- exact next permitted action: preserve the fail-closed A23 closeout and route the surviving data/window-capacity blockers to the next canonical remediation program; `ADE-QRE-018J` remains blocked.
 
 ### ADE-QRE-023A - Autonomous Closure Governance
 
 - queue id: `ADE-QRE-023A`
-- status: `ready`
+- status: `done`
 - depends on: `ADE-QRE-022O done`.
 - purpose: admit the deterministic autonomous readiness-closure loop without
   weakening `.claude/**`, protected `research/**`, or trading-authority
   boundaries.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 closeout artifact `qrca_37efa577a61d29f0`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023B`.
 
 ### ADE-QRE-023B - Blocker Taxonomy and Dependency Graph
 
 - queue id: `ADE-QRE-023B`
-- status: `blocked until ADE-QRE-023A done`
+- status: `done`
 - depends on: `ADE-QRE-023A done`.
 - purpose: define a closed blocker contract and dependency ordering so the loop
   resolves upstream causes before downstream symptoms.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 closeout artifact `qrca_37efa577a61d29f0`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023C`.
 
 ### ADE-QRE-023C - Remediation Planner
 
 - queue id: `ADE-QRE-023C`
-- status: `blocked until ADE-QRE-023B done`
+- status: `done`
 - depends on: `ADE-QRE-023B done`.
 - purpose: map each blocker class to exactly one governed remediation action or
   fail-closed outcome.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 closeout artifact `qrca_37efa577a61d29f0`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023D`.
 
 ### ADE-QRE-023D - Canonical Universe Authority
 
 - queue id: `ADE-QRE-023D`
-- status: `blocked until ADE-QRE-023C done`
+- status: `done`
 - depends on: `ADE-QRE-023C done`.
 - purpose: resolve canonical universes, alias mappings, and authoritative
   point-in-time membership snapshots.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 resolved `qgs_e565b01bd0a162d0` from `non_authoritative_universe_alias_only` to downstream capacity blockers; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023E`.
 
 ### ADE-QRE-023E - Historical Universe Membership
 
 - queue id: `ADE-QRE-023E`
-- status: `blocked until ADE-QRE-023D done`
+- status: `done`
 - depends on: `ADE-QRE-023D done`.
 - purpose: preserve versioned point-in-time membership, inclusion and
   exclusion reasons, and minimum-breadth validation.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 closeout artifact `qrca_37efa577a61d29f0`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023F`.
 
 ### ADE-QRE-023F - Timeframe Resolution
 
 - queue id: `ADE-QRE-023F`
-- status: `blocked until ADE-QRE-023E done`
+- status: `done`
 - depends on: `ADE-QRE-023E done`.
 - purpose: resolve deterministic timeframes or split ambiguous strategies into
   distinct campaign cells.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 split `qgs_5af8f605ba82ae53` into deterministic `1d`, `4h`, and `1h` campaign cells; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023G`.
 
 ### ADE-QRE-023G - Preset Completion
 
 - queue id: `ADE-QRE-023G`
-- status: `blocked until ADE-QRE-023F done`
+- status: `done`
 - depends on: `ADE-QRE-023F done`.
 - purpose: complete bounded presets only after identity, timeframe, source,
   dataset, and snapshot bindings are authoritative.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 closeout artifact `qrca_37efa577a61d29f0`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023H`.
 
 ### ADE-QRE-023H - Source, Dataset and Snapshot Binding
 
 - queue id: `ADE-QRE-023H`
-- status: `blocked until ADE-QRE-023G done`
+- status: `done`
 - depends on: `ADE-QRE-023G done`.
 - purpose: bind authoritative source, dataset, schema, coverage, and immutable
   snapshot identities outside protected empirical surfaces.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 surfaced explicit data-binding and cache-coverage blockers without inventing snapshots or sources; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023I`.
 
 ### ADE-QRE-023I - Window and Independent OOS Capacity
 
 - queue id: `ADE-QRE-023I`
-- status: `blocked until ADE-QRE-023H done`
+- status: `done`
 - depends on: `ADE-QRE-023H done`.
 - purpose: materialize exact train, validation, and unseen OOS capacity while
   failing closed when independence cannot be proven.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 terminalized three campaign cells as `INDEPENDENT_OOS_CAPACITY_BLOCKED` rather than reusing or inventing OOS windows; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023J`.
 
 ### ADE-QRE-023J - Null-Control Implementation Closure
 
 - queue id: `ADE-QRE-023J`
-- status: `blocked until ADE-QRE-023I done`
+- status: `done`
 - depends on: `ADE-QRE-023I done`.
 - purpose: close null-control implementation and execution-readiness gaps
   without claiming empirical null outcomes.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 preserved specification-only null-control readiness and made no empirical null claims; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023K`.
 
 ### ADE-QRE-023K - Cost, Slippage and Regime Binding
 
 - queue id: `ADE-QRE-023K`
-- status: `blocked until ADE-QRE-023J done`
+- status: `done`
 - depends on: `ADE-QRE-023J done`.
 - purpose: resolve cost, slippage, session, timezone, and regime identities
   required for campaign readiness.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 bound deterministic cost/slippage and regime metadata where authoritative inputs existed; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023L`.
 
 ### ADE-QRE-023L - Campaign Metadata and Lineage Closure
 
 - queue id: `ADE-QRE-023L`
-- status: `blocked until ADE-QRE-023K done`
+- status: `done`
 - depends on: `ADE-QRE-023K done`.
 - purpose: materialize full campaign metadata and lineage only when every
   mandatory upstream field is authoritative and complete.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 emitted deterministic campaign metadata and lineage artifacts under `generated_research/readiness/campaigns/**`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023M`.
 
 ### ADE-QRE-023M - Autonomous Capability Generator Integration
 
 - queue id: `ADE-QRE-023M`
-- status: `blocked until ADE-QRE-023L done`
+- status: `done`
 - depends on: `ADE-QRE-023L done`.
 - purpose: integrate bounded remediation routing with the existing
   ADE-QRE-019/020/021/022 governed generators and fail-closed feedback paths.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 reused the governed A19-A22 pipelines and emitted exact next-machine actions instead of broad fallback behavior; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023N`.
 
 ### ADE-QRE-023N - Iterative Readiness Replay
 
 - queue id: `ADE-QRE-023N`
-- status: `blocked until ADE-QRE-023M done`
+- status: `done`
 - depends on: `ADE-QRE-023M done`.
 - purpose: execute the bounded multi-iteration readiness replay loop with cycle
   detection, iteration bounds, and persistent causal-progress evidence.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 persisted a four-iteration causal ledger in `generated_research/readiness/reports/autonomous_readiness_iteration_ledger.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023O`.
 
 ### ADE-QRE-023O - Second-Campaign Preregistration
 
 - queue id: `ADE-QRE-023O`
-- status: `blocked until ADE-QRE-023N done`
+- status: `done`
 - depends on: `ADE-QRE-023N done`.
 - purpose: admit a second-campaign preregistration manifest only when at least
   one cell is genuinely `READY_FOR_PREREGISTRATION`.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; A23 correctly persisted the no-manifest outcome because zero cells became `READY_FOR_PREREGISTRATION`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-023P`.
 
 ### ADE-QRE-023P - Integrated Closure Report
 
 - queue id: `ADE-QRE-023P`
-- status: `blocked until ADE-QRE-023O done`
+- status: `done`
 - depends on: `ADE-QRE-023O done`.
 - purpose: persist the integrated autonomous readiness-closure report, exact
   irreducible blockers, and the next permitted machine action.
+- completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; integrated closeout report `generated_research/readiness/reports/autonomous_readiness_closeout.v1.json` and operator report `generated_research/readiness/reports/autonomous_readiness_closeout.v1.md` recorded the terminal outcome `INDEPENDENT_OOS_CAPACITY_BLOCKED`, zero ready cells, and the exact next permitted action; frozen contracts unchanged; protected/execution paths untouched.
