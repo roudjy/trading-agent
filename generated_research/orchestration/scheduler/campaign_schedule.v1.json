@@ -1,0 +1,10 @@
+{
+  "campaign_schedule_identity": "qrcs_0af38c26c72ccbe2",
+  "deferred_cell_ids": [
+    "qrcell_fdd68e20fd2724dd"
+  ],
+  "module_version": "ade-qre-026.1",
+  "ready_cell_ids": [],
+  "report_kind": "qre_campaign_portfolio_schedule",
+  "schema_version": "1.0"
+}

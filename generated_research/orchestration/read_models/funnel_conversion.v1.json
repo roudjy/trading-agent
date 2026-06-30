@@ -1,0 +1,14 @@
+{
+  "executed_to_insufficient_evidence": {
+    "count": 1,
+    "reason": "oos_sample_size"
+  },
+  "opportunity_to_hypothesis": {
+    "count": 1,
+    "reason": "bounded_generated_registry_present"
+  },
+  "registered_strategy_to_ready_cell": {
+    "count": 1,
+    "reason": "campaign_readiness_artifacts"
+  }
+}

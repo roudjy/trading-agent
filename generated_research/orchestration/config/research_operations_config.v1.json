@@ -1,0 +1,108 @@
+{
+  "budgets": {
+    "maximum_artifact_growth_per_day": 200000000,
+    "maximum_campaign_executions_per_day": 1,
+    "maximum_campaign_executions_per_run": 0,
+    "maximum_compute_units_per_day": 100,
+    "maximum_compute_units_per_run": 20,
+    "maximum_cycles_per_run": 1,
+    "maximum_data_materialization_volume": 5,
+    "maximum_generated_hypotheses_per_cycle": 2,
+    "maximum_generated_strategies_per_cycle": 1,
+    "maximum_new_oos_consumptions_per_cycle": 1,
+    "maximum_new_oos_consumptions_per_day": 2,
+    "maximum_remediation_items_per_cycle": 3,
+    "maximum_wall_clock_seconds_per_run": 900,
+    "minimum_free_disk_space": 1000000000
+  },
+  "config_identity": "qroc_8f5b8485e3f33112",
+  "config_version": "ade-qre-026r.config.1",
+  "diversity_controls": {
+    "data_availability_weight": 1.0,
+    "failure_memory_penalty": 0.4,
+    "independent_evidence_weight": 1.75,
+    "maximum_near_duplicate_hypotheses": 3,
+    "maximum_share_per_mechanism_family": 0.6,
+    "maximum_share_per_strategy_family": 0.6,
+    "minimum_active_mechanism_families": 2,
+    "novelty_weight": 1.25,
+    "rejected_lineage_penalty": 0.8,
+    "shared_capability_unlock_weight": 1.5
+  },
+  "execution_capacity": {
+    "maximum_campaign_jobs": 1,
+    "maximum_concurrent_local_jobs": 2,
+    "maximum_data_materialization_jobs": 1,
+    "maximum_hypothesis_jobs": 1,
+    "maximum_null_control_jobs": 1,
+    "maximum_portfolio_closeout_writers": 1,
+    "maximum_readiness_jobs": 1,
+    "maximum_registry_writers": 1,
+    "maximum_strategy_generation_jobs": 1,
+    "maximum_train_jobs": 1,
+    "maximum_validation_jobs": 1
+  },
+  "operating_mode": "LOCAL_AUTONOMOUS",
+  "operator_controls": {
+    "allowed_datasets": [
+      "yfinance"
+    ],
+    "allowed_strategy_families": [
+      "trend",
+      "cross_sectional",
+      "relative_strength",
+      "breakout",
+      "volatility"
+    ],
+    "allowed_work_classes": [
+      "EXISTING_PIPELINE_REPLAY",
+      "GENERATED_ARTIFACT_REMEDIATION",
+      "BOUNDED_PRIMITIVE_EXTENSION",
+      "BOUNDED_STRATEGY_GENERATION",
+      "BOUNDED_NULL_CONTROL_EXTENSION",
+      "DATA_CAPACITY_EXPANSION",
+      "OOS_CAPACITY_EXPANSION",
+      "IDENTITY_RESOLUTION",
+      "PRESET_COMPLETION",
+      "CAMPAIGN_PREREGISTRATION",
+      "PREREGISTERED_CAMPAIGN_EXECUTION",
+      "DEVELOPMENT_WORK_PACKAGE",
+      "EXTERNAL_BLOCKER"
+    ],
+    "dry_run": false,
+    "stop_after_pr_preparation": false,
+    "stop_before_empirical_campaign_execution": true,
+    "stop_on_architecture_failure": true,
+    "stop_on_governance_warning": true
+  },
+  "portfolio_capacity": {
+    "maximum_active_hypotheses": 40,
+    "maximum_campaigns_awaiting_decision": 4,
+    "maximum_campaigns_per_mechanism_family": 3,
+    "maximum_campaigns_per_strategy_family": 3,
+    "maximum_preregistered_cells": 6,
+    "maximum_readiness_remediations": 8,
+    "maximum_strategies_in_generation": 16,
+    "target_active_hypotheses": 20,
+    "target_preregistered_cells": 2,
+    "target_readiness_remediations": 4,
+    "target_strategies_in_generation": 8
+  },
+  "report_kind": "qre_research_operations_config",
+  "schema_version": "1.0",
+  "scientific_admission_controls": {
+    "maximum_duplicate_similarity": 0.85,
+    "maximum_existing_window_exposure": 0,
+    "minimum_expected_null_control_capacity": 3,
+    "minimum_expected_oos_trades": 10,
+    "minimum_expected_signal_count": 6,
+    "minimum_expected_train_trades": 10,
+    "minimum_expected_validation_trades": 3,
+    "minimum_information_gain_score": 0.2,
+    "minimum_probability_of_conclusive_decision": 0.35,
+    "require_complete_identity": true,
+    "require_complete_snapshot": true,
+    "require_independent_oos_proof": true,
+    "require_null_controls_execution_ready": true
+  }
+}

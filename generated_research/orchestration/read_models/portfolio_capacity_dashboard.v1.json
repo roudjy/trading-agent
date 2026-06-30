@@ -1,0 +1,36 @@
+{
+  "counts": [
+    {
+      "current": 1,
+      "maximum": 40,
+      "metric": "active_hypotheses",
+      "shortage": 19,
+      "target": 20,
+      "utilization_pct": 2.5
+    },
+    {
+      "current": 2,
+      "maximum": 16,
+      "metric": "strategies_in_generation",
+      "shortage": 6,
+      "target": 8,
+      "utilization_pct": 12.5
+    },
+    {
+      "current": 2,
+      "maximum": 8,
+      "metric": "readiness_remediations",
+      "shortage": 2,
+      "target": 4,
+      "utilization_pct": 25.0
+    },
+    {
+      "current": 1,
+      "maximum": 6,
+      "metric": "preregistered_cells",
+      "shortage": 1,
+      "target": 2,
+      "utilization_pct": 16.67
+    }
+  ]
+}

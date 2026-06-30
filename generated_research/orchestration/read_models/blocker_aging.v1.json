@@ -1,0 +1,28 @@
+{
+  "blocker_counts": {
+    "oos_sample_size": 1,
+    "usable_history_below_minimum_policy_span": 1
+  },
+  "top_blockers": [
+    {
+      "affected_objects": [
+        "qgs_5af8f605ba82ae53"
+      ],
+      "age": 1,
+      "blocker": "oos_sample_size",
+      "current_next_action": "launch_data_oos_capacity_expansion",
+      "owner_class": "autonomous",
+      "retry_count": 0
+    },
+    {
+      "affected_objects": [
+        "qgs_e565b01bd0a162d0"
+      ],
+      "age": 1,
+      "blocker": "usable_history_below_minimum_policy_span",
+      "current_next_action": "launch_data_oos_capacity_expansion",
+      "owner_class": "autonomous",
+      "retry_count": 0
+    }
+  ]
+}

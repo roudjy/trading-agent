@@ -1,0 +1,40 @@
+{
+  "invocation_ledger_identity": "qril_463c70bff8ec4f6f",
+  "module_version": "ade-qre-026.1",
+  "report_kind": "qre_capability_invocations",
+  "rows": [
+    {
+      "bounded_arguments": {
+        "source_strategy": "qgs_5af8f605ba82ae53"
+      },
+      "command_class": "DATA_CAPACITY_EXPANSION",
+      "end_state": "request_replacement_hypothesis",
+      "failure_reason": "",
+      "input_identities": [
+        "qrw_0ecf94a24a35ea87",
+        "qrpf_00796ccd604b38df"
+      ],
+      "invocation_identity": "qinv_92496cf426a70822",
+      "output_identities": [
+        "qrx_6ad9cbd4211cdc86",
+        "qrv_416808378df72e40"
+      ],
+      "return_status": "VALIDATED_AND_COMPOSED",
+      "start_state": "oos_sample_size",
+      "validation_results": {
+        "causal_progress": true,
+        "evidence_reproducible": true,
+        "expected_artifacts_exist": true,
+        "frozen_contracts_unchanged": true,
+        "module_version": "ade-qre-026.1",
+        "outcome": "VALIDATED_AND_COMPOSED",
+        "protected_surfaces_unchanged": true,
+        "report_kind": "qre_work_validation_result",
+        "schema_version": "1.0",
+        "validation_identity": "qrv_416808378df72e40",
+        "work_item_id": "qrw_0ecf94a24a35ea87"
+      }
+    }
+  ],
+  "schema_version": "1.0"
+}

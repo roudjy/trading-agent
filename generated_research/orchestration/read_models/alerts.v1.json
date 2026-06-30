@@ -1,0 +1,25 @@
+{
+  "rows": [
+    {
+      "affected_objects": [
+        "portfolio"
+      ],
+      "alert_id": "qal_faf9ba07ab7d63fe",
+      "alert_type": "ACTIVE_HYPOTHESES_BELOW_MINIMUM",
+      "auto_remediation_state": "queued",
+      "first_observed": "2026-06-30",
+      "latest_observed": "2026-06-30",
+      "recommended_action": "GENERATE_HYPOTHESIS",
+      "severity": "warning",
+      "supporting_metrics": {
+        "current": 1,
+        "maximum": 40,
+        "metric": "active_hypotheses",
+        "shortage": 19,
+        "target": 20,
+        "utilization_pct": 2.5
+      }
+    }
+  ],
+  "schema_version": "1.0"
+}
