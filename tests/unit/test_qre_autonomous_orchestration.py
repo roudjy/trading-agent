@@ -5,7 +5,6 @@ from pathlib import Path
 from packages.qre_research import autonomous_orchestration as ao
 from packages.qre_research import generated_strategy_paths as gsp
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 

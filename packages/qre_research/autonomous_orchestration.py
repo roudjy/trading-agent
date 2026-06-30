@@ -7,13 +7,13 @@ import subprocess
 import sys
 import tempfile
 from collections import Counter, defaultdict
+from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
 from packages.qre_research.generated_strategy_paths import REPO_ROOT, validate_write_target
-
 
 SCHEMA_VERSION: Final[str] = "1.0"
 MODULE_VERSION: Final[str] = "ade-qre-026.1"
@@ -255,10 +255,8 @@ def _atomic_write(path: Path, payload: str) -> None:
             handle.write(payload)
         os.replace(tmp_name, path)
     except Exception:
-        try:
+        with suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise
 
 
