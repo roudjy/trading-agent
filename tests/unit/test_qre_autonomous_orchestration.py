@@ -319,6 +319,89 @@ def test_daily_report_generation_is_idempotent_for_same_inputs(orchestration_rep
     assert first["health"] == second["health"]
 
 
+
+def test_daily_report_uses_completed_cycle_next_action_and_counts_pre_oos_rejects(
+    orchestration_repo: Path,
+) -> None:
+    config = ao.default_operations_config()
+    portfolio = ao.build_unified_portfolio(repo_root=orchestration_repo)
+    actions = ao.build_typed_next_actions(portfolio=portfolio, config=config)
+    work_items = ao.admit_work_items(actions=actions, config=config)
+    oos_budget = ao.build_oos_budget(
+        repo_root=orchestration_repo,
+        portfolio=portfolio,
+        config=config,
+    )
+    kpis = ao._compute_kpis(
+        portfolio=portfolio,
+        work_items=work_items,
+        cycle_ledger=[
+            {
+                "execution_status": "completed",
+                "next_action": "request_replacement_hypothesis",
+            }
+        ],
+        oos_budget=oos_budget,
+        pre_oos_decisions={
+            "rows": [
+                {
+                    "outcome": "REJECT_EXPECTED_SAMPLE_TOO_LOW",
+                }
+            ]
+        },
+    )
+
+    assert kpis["executive_summary"]["top_next_actions"] == [
+        "request_replacement_hypothesis"
+    ]
+    assert (
+        kpis["evidence_quality"]["campaigns_deferred_by_pre_oos_gate"]
+        == 1
+    )
+
+
+def test_status_excludes_completed_scheduled_work_item(
+    orchestration_repo: Path,
+) -> None:
+    config = ao.default_operations_config()
+    portfolio = ao.build_unified_portfolio(repo_root=orchestration_repo)
+    actions = ao.build_typed_next_actions(portfolio=portfolio, config=config)
+    work_items = ao.admit_work_items(actions=actions, config=config)
+    oos_budget = ao.build_oos_budget(
+        repo_root=orchestration_repo,
+        portfolio=portfolio,
+        config=config,
+    )
+    completed_work_item = work_items["rows"][0]["work_item_id"]
+
+    status = ao.build_status_artifact(
+        config=config,
+        portfolio=portfolio,
+        work_items=work_items,
+        throughput_schedule={
+            "groups": [
+                {
+                    "group_id": "qrg_fixture",
+                    "work_item_ids": [completed_work_item],
+                }
+            ]
+        },
+        oos_budget=oos_budget,
+        alerts_payload={"rows": []},
+        latest_daily_report={"daily_report_identity": "qrdr_fixture"},
+        cycle_ledger=[
+            {
+                "execution_status": "completed",
+                "selected_work_item": completed_work_item,
+                "progress_status": "IRREDUCIBLE_BLOCKER_PROVEN",
+            }
+        ],
+    )
+
+    assert status["active_jobs"] == []
+    assert status["next_selected_work"] == ""
+
+
 def test_pause_resume_payloads_are_deterministic(orchestration_repo: Path) -> None:
     paused = ao.set_pause_state(repo_root=orchestration_repo, paused=True, write_outputs=False)
     resumed = ao.set_pause_state(repo_root=orchestration_repo, paused=False, write_outputs=False)
