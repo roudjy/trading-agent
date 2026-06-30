@@ -164,6 +164,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "README.md",
         "__init__.py",
         "automated_campaign_readiness.py",
+        "automated_data_window_capacity.py",
         "automated_hypothesis_generation.py",
         "automated_primitive_expansion.py",
         "automated_strategy_generation.py",
