@@ -1,0 +1,55 @@
+{
+  "module_version": "ade-qre-024.1",
+  "report_kind": "qre_canonical_data_cache_authority",
+  "rows": [
+    {
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "dataset_identity": "qds_06a953ddd59a2de5",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "resolver_identity": "qdr_27fa5efe8df635f1",
+      "source_identity": "yfinance",
+      "timeframe": "1d"
+    },
+    {
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "dataset_identity": "",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "resolver_identity": "qdr_6ce1f82d20521ce7",
+      "source_identity": "",
+      "timeframe": "1h"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "dataset_identity": "qds_9676f40476313c6b",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "resolver_identity": "qdr_97b5d160942098b2",
+      "source_identity": "yfinance",
+      "timeframe": "4h"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "dataset_identity": "qds_026da0b3d273598f",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "resolver_identity": "qdr_5c3162b651a3f91a",
+      "source_identity": "yfinance",
+      "timeframe": "1d"
+    }
+  ],
+  "schema_version": "1.0"
+}

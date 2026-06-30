@@ -1,0 +1,39 @@
+{
+  "module_version": "ade-qre-024.1",
+  "report_kind": "qre_oos_independence_proof",
+  "rows": [
+    {
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "INSUFFICIENT_EVIDENCE_TO_PROVE_INDEPENDENCE",
+      "reason": "usable_history_below_minimum_policy_span",
+      "snapshot_identity": "qsn_81ae54676629b223",
+      "timeframe": "1d"
+    },
+    {
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "INSUFFICIENT_EVIDENCE_TO_PROVE_INDEPENDENCE",
+      "reason": "windows_not_assigned",
+      "snapshot_identity": "",
+      "timeframe": "1h"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "INDEPENDENCE_PROVEN",
+      "reason": "window_not_previously_reserved_or_consumed_for_matching_snapshot_scope",
+      "snapshot_identity": "qsn_f8a7d624458bb131",
+      "timeframe": "4h"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "outcome": "INSUFFICIENT_EVIDENCE_TO_PROVE_INDEPENDENCE",
+      "reason": "usable_history_below_minimum_policy_span",
+      "snapshot_identity": "qsn_be8702b264081860",
+      "timeframe": "1d"
+    }
+  ],
+  "schema_version": "1.0"
+}

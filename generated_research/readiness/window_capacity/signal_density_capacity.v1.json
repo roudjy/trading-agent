@@ -1,0 +1,34 @@
+{
+  "module_version": "ade-qre-024.1",
+  "report_kind": "qre_signal_density_capacity",
+  "rows": [
+    {
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "INSUFFICIENT_EVIDENCE_TO_ESTIMATE",
+      "reason": "data_or_windows_not_ready"
+    },
+    {
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "INSUFFICIENT_EVIDENCE_TO_ESTIMATE",
+      "reason": "data_or_windows_not_ready"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "estimated_signals": 11,
+      "estimated_trades": 9,
+      "estimated_usable_bars": 901,
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "SIGNAL_CAPACITY_READY",
+      "reason": ""
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "outcome": "INSUFFICIENT_EVIDENCE_TO_ESTIMATE",
+      "reason": "data_or_windows_not_ready"
+    }
+  ],
+  "schema_version": "1.0"
+}

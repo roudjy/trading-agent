@@ -1,0 +1,44 @@
+{
+  "module_version": "ade-qre-024.1",
+  "report_kind": "qre_authoritative_window_policy",
+  "rows": [
+    {
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "INSUFFICIENT_USABLE_HISTORY",
+      "reason": "usable_history_below_minimum_policy_span",
+      "timeframe": "1d",
+      "version": "ade-qre-024.window-policy.1",
+      "window_policy_identity": "qwp_fb3dfdd9e5888515"
+    },
+    {
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "POLICY_INPUT_INCOMPLETE",
+      "reason": "snapshot_not_ready",
+      "timeframe": "1h",
+      "version": "ade-qre-024.window-policy.1",
+      "window_policy_identity": "qwp_b421a0d20f8602e2"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "WINDOW_POLICY_READY",
+      "reason": "",
+      "timeframe": "4h",
+      "version": "ade-qre-024.window-policy.1",
+      "window_policy_identity": "qwp_e1333a56aacaf169"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "outcome": "INSUFFICIENT_USABLE_HISTORY",
+      "reason": "usable_history_below_minimum_policy_span",
+      "timeframe": "1d",
+      "version": "ade-qre-024.window-policy.1",
+      "window_policy_identity": "qwp_fb3dfdd9e5888515"
+    }
+  ],
+  "schema_version": "1.0",
+  "window_policy_identity": "qwp_b53be9b143a1e063"
+}
