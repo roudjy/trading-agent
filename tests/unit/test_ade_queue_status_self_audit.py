@@ -149,7 +149,7 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     snap = audit.collect_snapshot(frozen_utc="2026-05-28T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-024"
+    assert snap["summary"]["next_eligible_ready_item"] is None
     assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
     assert "ADE-QRE-011" in snap["summary"]["stale_historical_ready_items"]
     assert snap["summary"]["selection_blocking_warning_items"] == []
@@ -260,14 +260,14 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     assert rows["ADE-QRE-018I"]["done_evidence"]["complete"] is True
 
 
-def test_current_queue_admits_ade_qre_024_as_next_ready_item() -> None:
+def test_current_queue_marks_ade_qre_024_complete_and_preserves_follow_on_block() -> None:
     snap = audit.collect_snapshot(frozen_utc="2026-06-29T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
     assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
     assert snap["summary"]["blocked_items_missing_reason"] == []
-    assert snap["summary"]["eligible_ready_items"] == ["ADE-QRE-024"]
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-024"
+    assert snap["summary"]["eligible_ready_items"] == []
+    assert snap["summary"]["next_eligible_ready_item"] is None
     assert rows["ADE-QRE-022"]["status"] == "done"
     assert rows["ADE-QRE-022"]["auto_selectable"] is False
     assert rows["ADE-QRE-022"]["done_evidence"]["complete"] is True
@@ -283,12 +283,14 @@ def test_current_queue_admits_ade_qre_024_as_next_ready_item() -> None:
     assert rows["ADE-QRE-023P"]["status"] == "done"
     assert rows["ADE-QRE-023P"]["auto_selectable"] is False
     assert rows["ADE-QRE-023P"]["done_evidence"]["complete"] is True
-    assert rows["ADE-QRE-024"]["status"] == "ready"
-    assert rows["ADE-QRE-024"]["auto_selectable"] is True
-    assert rows["ADE-QRE-024A"]["status"].startswith("blocked until ADE-QRE-024 is selected")
+    assert rows["ADE-QRE-024"]["status"] == "done"
+    assert rows["ADE-QRE-024"]["auto_selectable"] is False
+    assert rows["ADE-QRE-024"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-024A"]["status"] == "done"
     assert rows["ADE-QRE-024A"]["auto_selectable"] is False
-    assert rows["ADE-QRE-024P"]["status"] == "blocked until ADE-QRE-024O done"
+    assert rows["ADE-QRE-024P"]["status"] == "done"
     assert rows["ADE-QRE-024P"]["auto_selectable"] is False
+    assert rows["ADE-QRE-024P"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-019"]["status"] == "done"
     assert rows["ADE-QRE-019"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-019A"]["status"] == "done"
@@ -296,7 +298,7 @@ def test_current_queue_admits_ade_qre_024_as_next_ready_item() -> None:
     assert rows["ADE-QRE-019M"]["status"] == "done"
     assert rows["ADE-QRE-019M"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-018J"]["status"] == (
-        "blocked until at least one ADE-QRE-018H cell is READY_FOR_PREREGISTRATION"
+        "blocked until the current execution chain explicitly promotes the A24-backed second-campaign manifest into execution"
     )
     assert rows["ADE-QRE-018J"]["auto_selectable"] is False
     assert rows["ADE-QRE-007"]["queue_warning"]["classification"] == "missing_completion_evidence"

@@ -3822,10 +3822,16 @@ live, broker, risk, or execution work.
     lifecycle requires it.
 - current state:
   - `ADE-QRE-018A` through `ADE-QRE-018I` are complete with merged evidence.
-  - `ADE-QRE-018J` remains blocked because `ADE-QRE-018H` produced `0`
-    `READY_FOR_PREREGISTRATION` cells and no second-campaign manifest was
-    legitimately materialized.
-- expected next queue item: none while `ADE-QRE-018J` remains blocked.
+  - `ADE-QRE-024` produced one genuinely `READY_FOR_PREREGISTRATION` campaign
+    cell (`qrcell_fdd68e20fd2724dd`) plus canonical second-campaign manifest
+    `qcm_04f0e702e5be8884`, satisfying the scientific preregistration
+    prerequisites for `ADE-QRE-018J`.
+  - `ADE-QRE-018J` remains canonically blocked pending explicit current-chain
+    execution selection so the queue does not reintroduce a stale historical
+    ready state after the later ADE-QRE-019 through ADE-QRE-024 remediation
+    programs.
+- expected next queue item: none until the current execution chain explicitly
+  admits `ADE-QRE-018J`.
 
 ### ADE-QRE-018A - Historical Queue and Baseline Reconciliation
 
@@ -4012,27 +4018,25 @@ live, broker, risk, or execution work.
 ### ADE-QRE-018J - Second Broad Preregistered Campaign
 
 - queue id: `ADE-QRE-018J`
-- status: `blocked until at least one ADE-QRE-018H cell is READY_FOR_PREREGISTRATION`
-- depends on: `ADE-QRE-018I done`.
+- status: `blocked until the current execution chain explicitly promotes the A24-backed second-campaign manifest into execution`
+- depends on:
+  - `ADE-QRE-018I done`
+  - `ADE-QRE-024 done`
 - purpose: execute a second preregistered campaign only after genuinely ready
   cells and a canonically accepted preregistered artifact exist.
-- blocked conditions:
-  - no campaign execution unless at least one cell is
-    `READY_FOR_PREREGISTRATION`.
-  - no execution before merged remediation evidence confirms lineage, identity,
-    control, and evidence gates for the selected cell.
-- blocker evidence:
-  - PR #685, merge SHA `ae26b0d94a631d15dcaff5842fb2d7f0b4d5113e`; the merged
-    portfolio reconstruction recorded `0` `READY_FOR_PREREGISTRATION` cells and
-    explicitly did not materialize a second-campaign manifest, so execution
-    remains canonically blocked.
-  - PR #688, merge SHA `89af65d5e9c454df6e15f713fe882473e726bb85`; ADE-QRE-019
-    admitted one generated research-only strategy for `atr_adaptive_trend_v0`
-    but still produced `0` `READY_FOR_PREREGISTRATION` cells and no second
-    campaign manifest, so `ADE-QRE-018J` remains blocked after the generation
-    remediation attempt.
-- expected next queue item: none unless a later authorized remediation item
-  produces a genuinely ready cell.
+- readiness evidence:
+  - PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; ADE-QRE-024
+    integrated closeout `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.json`
+    recorded overall outcome `READY_FOR_SECOND_CAMPAIGN`, one genuinely
+    `READY_FOR_PREREGISTRATION` cell (`qrcell_fdd68e20fd2724dd`), authoritative
+    window policy `qwp_b53be9b143a1e063`, canonical window ledger
+    `qwlr_b3da7632dde054a1`, and canonical second-campaign manifest
+    `qcm_04f0e702e5be8884`; protected/execution paths untouched; frozen
+    contracts unchanged.
+- exact next permitted action: execute the second preregistered campaign using
+  manifest `qcm_04f0e702e5be8884`.
+- expected next queue item: none until the current queue explicitly selects
+  this execution item.
 
 ### ADE-QRE-018K - Second Synthesis-Readiness Review
 
@@ -4953,135 +4957,152 @@ live, broker, risk, or execution work.
 ### ADE-QRE-024 - Automated Data Capacity and Authoritative Window Assignment
 
 - queue id: `ADE-QRE-024`
-- status: `ready`
+- status: `done`
 - depends on:
   - `ADE-QRE-023 done`
 - purpose: build and execute the bounded deterministic data-capacity and authoritative-window-assignment loop so campaign cells can either become genuinely `READY_FOR_PREREGISTRATION` or remain fail-closed with exact data/window blockers.
-- exact next permitted action: implement ADE-QRE-024 on one governed branch/PR, then replay readiness and reevaluate `ADE-QRE-018J`.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; integrated closeout report `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.json` and operator report `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.md` recorded outcome `READY_FOR_SECOND_CAMPAIGN`, closeout identity `qrdc_21b40eac46ab39f8`, authoritative window policy `qwp_b53be9b143a1e063`, canonical window ledger `qwlr_b3da7632dde054a1`, one genuinely `READY_FOR_PREREGISTRATION` cell, and canonical second-campaign manifest `qcm_04f0e702e5be8884`; frozen contracts unchanged; protected/execution paths untouched.
+- exact next permitted action: execute the second preregistered campaign using manifest `qcm_04f0e702e5be8884` and replay downstream governance from that evidence.
 
 ### ADE-QRE-024A - Governance and Data/Window Authority
 
 - queue id: `ADE-QRE-024A`
-- status: `blocked until ADE-QRE-024 is selected for execution`
+- status: `done`
 - depends on: `ADE-QRE-023P done`.
 - purpose: admit the deterministic A24 data/window remediation loop without weakening `.claude/**`, protected `research/**`, or execution/trading safety boundaries.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; `.claude/**` remained unchanged, protected empirical `research/**` remained write-denied, and A24 admitted only the bounded deterministic data/window closure authority; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024B`.
 
 ### ADE-QRE-024B - Data Capacity Diagnosis
 
 - queue id: `ADE-QRE-024B`
-- status: `blocked until ADE-QRE-024A done`
+- status: `done`
 - depends on: `ADE-QRE-024A done`.
 - purpose: diagnose exact cache, coverage, snapshot, point-in-time membership, and data-capacity blockers for every A23 campaign cell.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 diagnosed all four A23 campaign cells and recorded exact initial blockers including `authoritative_window_assignment_policy_not_materialized` and `no_cache_row_for_resolved_instrument_and_timeframe` in `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024C`.
 
 ### ADE-QRE-024C - Canonical Data Binding and Cache Authority
 
 - queue id: `ADE-QRE-024C`
-- status: `blocked until ADE-QRE-024B done`
+- status: `done`
 - depends on: `ADE-QRE-024B done`.
 - purpose: resolve one canonical source/dataset/cache-row/snapshot authority per campaign cell.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 persisted canonical data/cache authority resolution in `generated_research/readiness/data_capacity/canonical_data_cache_authority.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024D`.
 
 ### ADE-QRE-024D - Missing Cache Row Materialization
 
 - queue id: `ADE-QRE-024D`
-- status: `blocked until ADE-QRE-024C done`
+- status: `done`
 - depends on: `ADE-QRE-024C done`.
 - purpose: materialize missing authoritative cache rows only from governed local inputs or fail closed when no safe source exists.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 attempted governed cache-row materialization, recorded `0` materialized rows, and preserved the unresolved `cache_row_missing` blocker fail-closed in `generated_research/readiness/data_capacity/materialized_cache_rows.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024E`.
 
 ### ADE-QRE-024E - Data Quality and Coverage Validation
 
 - queue id: `ADE-QRE-024E`
-- status: `blocked until ADE-QRE-024D done`
+- status: `done`
 - depends on: `ADE-QRE-024D done`.
 - purpose: validate usable coverage, schema, timestamps, quality, and fail-closed gaps before snapshot and window assignment.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 persisted deterministic quality and coverage validation in `generated_research/readiness/data_capacity/strategy_data_quality_coverage.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024F`.
 
 ### ADE-QRE-024F - Immutable Snapshot Materialization
 
 - queue id: `ADE-QRE-024F`
-- status: `blocked until ADE-QRE-024E done`
+- status: `done`
 - depends on: `ADE-QRE-024E done`.
 - purpose: freeze source, dataset, cache rows, timeframe, universe, schema, and content hashes into immutable strategy snapshots.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 persisted immutable strategy snapshots in `generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024G`.
 
 ### ADE-QRE-024G - Authoritative Window Policy
 
 - queue id: `ADE-QRE-024G`
-- status: `blocked until ADE-QRE-024F done`
+- status: `done`
 - depends on: `ADE-QRE-024F done`.
 - purpose: define a deterministic policy for train, validation, and unseen OOS assignment before any strategy-result inspection.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 materialized authoritative window policy `qwp_b53be9b143a1e063` in `generated_research/readiness/window_capacity/authoritative_window_policy.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024H`.
 
 ### ADE-QRE-024H - Window Ledger and Consumption Registry
 
 - queue id: `ADE-QRE-024H`
-- status: `blocked until ADE-QRE-024G done`
+- status: `done`
 - depends on: `ADE-QRE-024G done`.
 - purpose: reserve, consume, invalidate, and supersede windows in one canonical ledger that prevents consumed OOS reuse.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 materialized canonical window ledger `qwlr_b3da7632dde054a1` in `generated_research/readiness/window_ledger/canonical_window_ledger.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024I`.
 
 ### ADE-QRE-024I - Train/Validation/OOS Assignment
 
 - queue id: `ADE-QRE-024I`
-- status: `blocked until ADE-QRE-024H done`
+- status: `done`
 - depends on: `ADE-QRE-024H done`.
 - purpose: assign deterministic train, validation, OOS, warmup, embargo, and null-control windows for valid campaign cells.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 persisted deterministic window assignments in `generated_research/readiness/window_capacity/authoritative_window_assignments.v1.json`, including the ready cell windows later frozen into manifest `qcm_04f0e702e5be8884`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024J`.
 
 ### ADE-QRE-024J - OOS Independence and Leakage Proof
 
 - queue id: `ADE-QRE-024J`
-- status: `blocked until ADE-QRE-024I done`
+- status: `done`
 - depends on: `ADE-QRE-024I done`.
 - purpose: prove each reserved OOS window is unseen, embargo-compliant, and free of train/validation contamination.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 persisted machine-readable OOS independence proofs in `generated_research/readiness/window_capacity/oos_independence_proof.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024K`.
 
 ### ADE-QRE-024K - Point-in-Time Universe and Breadth Validation
 
 - queue id: `ADE-QRE-024K`
-- status: `blocked until ADE-QRE-024J done`
+- status: `done`
 - depends on: `ADE-QRE-024J done`.
 - purpose: validate point-in-time universe membership, listing state, breadth, and no-survivorship assumptions for campaign cells.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 persisted point-in-time universe and breadth validation in `generated_research/readiness/window_capacity/point_in_time_universe_validation.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024L`.
 
 ### ADE-QRE-024L - Signal-Density Capacity Validation
 
 - queue id: `ADE-QRE-024L`
-- status: `blocked until ADE-QRE-024K done`
+- status: `done`
 - depends on: `ADE-QRE-024K done`.
 - purpose: estimate whether assigned windows can plausibly satisfy required sample and signal counts without using returns.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 persisted signal-density capacity validation in `generated_research/readiness/window_capacity/signal_density_capacity.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024M`.
 
 ### ADE-QRE-024M - Iterative Data/Window Closure Loop
 
 - queue id: `ADE-QRE-024M`
-- status: `blocked until ADE-QRE-024L done`
+- status: `done`
 - depends on: `ADE-QRE-024L done`.
 - purpose: run the bounded autonomous data/window remediation loop until a ready cell or irreducible blocker is proven.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 executed four bounded remediation iterations and persisted the causal iteration ledger in `generated_research/readiness/reports/automated_data_window_iteration_ledger.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024N`.
 
 ### ADE-QRE-024N - Downstream Readiness Replay
 
 - queue id: `ADE-QRE-024N`
-- status: `blocked until ADE-QRE-024M done`
+- status: `done`
 - depends on: `ADE-QRE-024M done`.
 - purpose: replay downstream readiness, lineage, portfolio, and preregistration evaluation after every upstream data/window change.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 replayed downstream readiness and persisted portfolio reevaluation in `generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024O`.
 
 ### ADE-QRE-024O - Second-Campaign Preregistration
 
 - queue id: `ADE-QRE-024O`
-- status: `blocked until ADE-QRE-024N done`
+- status: `done`
 - depends on: `ADE-QRE-024N done`.
 - purpose: create a deterministic second-campaign manifest only when at least one cell is genuinely `READY_FOR_PREREGISTRATION`.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; A24 legitimately materialized second-campaign manifest `qcm_04f0e702e5be8884` in `generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json` after one cell became genuinely `READY_FOR_PREREGISTRATION`; frozen contracts unchanged; protected/execution paths untouched.
 - expected next queue item: `ADE-QRE-024P`.
 
 ### ADE-QRE-024P - Integrated Closeout
 
 - queue id: `ADE-QRE-024P`
-- status: `blocked until ADE-QRE-024O done`
+- status: `done`
 - depends on: `ADE-QRE-024O done`.
 - purpose: persist the integrated A24 closeout, exact resolved and irreducible blockers, readiness replay outcomes, manifest status, and next permitted machine action.
+- completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; integrated closeout report `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.json` and operator report `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.md` recorded outcome `READY_FOR_SECOND_CAMPAIGN`, one ready cell, manifest `qcm_04f0e702e5be8884`, and exact next action `execute_second_preregistered_campaign`; frozen contracts unchanged; protected/execution paths untouched.
