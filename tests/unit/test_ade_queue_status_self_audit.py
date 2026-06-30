@@ -268,8 +268,8 @@ def test_current_queue_marks_ade_qre_024_complete_and_selects_ade_qre_025_succes
 
     assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
     assert snap["summary"]["blocked_items_missing_reason"] == []
-    assert snap["summary"]["eligible_ready_items"] == ["ADE-QRE-025A"]
-    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-025A"
+    assert snap["summary"]["eligible_ready_items"] == []
+    assert snap["summary"]["next_eligible_ready_item"] is None
     assert rows["ADE-QRE-022"]["status"] == "done"
     assert rows["ADE-QRE-022"]["auto_selectable"] is False
     assert rows["ADE-QRE-022"]["done_evidence"]["complete"] is True
@@ -293,12 +293,17 @@ def test_current_queue_marks_ade_qre_024_complete_and_selects_ade_qre_025_succes
     assert rows["ADE-QRE-024P"]["status"] == "done"
     assert rows["ADE-QRE-024P"]["auto_selectable"] is False
     assert rows["ADE-QRE-024P"]["done_evidence"]["complete"] is True
-    assert rows["ADE-QRE-025"]["status"] == "blocked until ADE-QRE-025O done"
+    assert rows["ADE-QRE-025"]["status"] == "done"
     assert rows["ADE-QRE-025"]["auto_selectable"] is False
-    assert rows["ADE-QRE-025A"]["status"] == "ready"
-    assert rows["ADE-QRE-025A"]["auto_selectable"] is True
-    assert rows["ADE-QRE-025B"]["status"] == "blocked until ADE-QRE-025A done"
+    assert rows["ADE-QRE-025"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-025A"]["status"] == "done"
+    assert rows["ADE-QRE-025A"]["auto_selectable"] is False
+    assert rows["ADE-QRE-025A"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-025B"]["status"] == "done"
     assert rows["ADE-QRE-025B"]["auto_selectable"] is False
+    assert rows["ADE-QRE-025B"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-025O"]["status"] == "done"
+    assert rows["ADE-QRE-025O"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-019"]["status"] == "done"
     assert rows["ADE-QRE-019"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-019A"]["status"] == "done"
