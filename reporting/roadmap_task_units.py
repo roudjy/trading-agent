@@ -2851,6 +2851,490 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "status": "not_started",
     },
     {
+        "id": "u_ade_qre_023a_autonomous_closure_governance_001",
+        "roadmap_task_id": "ade_qre_023a_autonomous_closure_governance",
+        "title": "Governed admission of the ADE-QRE-023 autonomous readiness-closure loop",
+        "phase": "ade_qre_023a",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "docs/roadmap/qre_autonomous_readiness_closure_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "tests/unit/test_roadmap_task_catalog.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_roadmap_task_catalog.py"
+        ),
+        "extra_definition_of_done": (
+            "ADE-QRE-023 is canonically admitted without weakening `.claude/**`, protected `research/**`, or trading-authority boundaries",
+        ),
+        "extra_stop_conditions": (
+            "any ADE-QRE-023 admission that grants campaign execution or trading authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_022o_integrated_closeout_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023b_blocker_taxonomy_dependency_graph_001",
+        "roadmap_task_id": "ade_qre_023b_blocker_taxonomy_and_dependency_graph",
+        "title": "Typed blocker taxonomy and dependency ordering for autonomous closure",
+        "phase": "ade_qre_023b",
+        "unit_kind": "schema_only",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/reports/autonomous_readiness_blockers.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "blocker classes and dependency ordering keep the loop focused on upstream causes before downstream symptoms",
+        ),
+        "extra_stop_conditions": (
+            "any blocker ordering that prioritizes downstream symptoms over unresolved upstream authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023a_autonomous_closure_governance_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023c_remediation_planner_001",
+        "roadmap_task_id": "ade_qre_023c_remediation_planner",
+        "title": "Deterministic remediation planner for governed readiness blockers",
+        "phase": "ade_qre_023c",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/reports/autonomous_readiness_iteration_ledger.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "every blocker maps to exactly one deterministic remediation class or fail-closed terminal path",
+        ),
+        "extra_stop_conditions": (
+            "any remediation plan selected without matching authority or evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023b_blocker_taxonomy_dependency_graph_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023d_universe_authority_001",
+        "roadmap_task_id": "ade_qre_023d_canonical_universe_authority",
+        "title": "Canonical resolved universe authority and alias closure",
+        "phase": "ade_qre_023d",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/identity_decisions/autonomous_universe_authority.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "canonical universes, alias mappings, and point-in-time membership snapshots remain deterministic and fail closed on ambiguity",
+        ),
+        "extra_stop_conditions": (
+            "any universe authority that backfills current membership through history or accepts symbol-only identity -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023c_remediation_planner_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023e_historical_membership_001",
+        "roadmap_task_id": "ade_qre_023e_historical_universe_membership",
+        "title": "Historical point-in-time universe membership evidence and breadth validation",
+        "phase": "ade_qre_023e",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/identity_decisions/autonomous_universe_authority.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "universe membership records disclose inclusion, exclusion, and minimum-breadth evidence for each strategy cell",
+        ),
+        "extra_stop_conditions": (
+            "any member silently dropped from a cross-sectional universe without a reason record -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023d_universe_authority_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023f_timeframe_resolution_001",
+        "roadmap_task_id": "ade_qre_023f_timeframe_resolution",
+        "title": "Deterministic timeframe resolution and multi-cell split handling",
+        "phase": "ade_qre_023f",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/reports/autonomous_timeframe_resolution.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "ambiguous strategies are deterministically split into distinct campaign cells rather than silently selecting one timeframe",
+        ),
+        "extra_stop_conditions": (
+            "any timeframe selected solely from a strategy or thesis name -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023e_historical_membership_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023g_preset_completion_001",
+        "roadmap_task_id": "ade_qre_023g_preset_completion",
+        "title": "Bounded preset completion after authoritative readiness binding",
+        "phase": "ade_qre_023g",
+        "unit_kind": "research_module",
+        "target_layer": "preset",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/presets/autonomous_completed_presets.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "preset completion remains deterministic, bounded, and free of OOS-aware parameter search",
+        ),
+        "extra_stop_conditions": (
+            "any preset completion that changes parameters outside approved domains or uses OOS-derived values -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023f_timeframe_resolution_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023h_source_dataset_snapshot_binding_001",
+        "roadmap_task_id": "ade_qre_023h_source_dataset_and_snapshot_binding",
+        "title": "Authoritative source, dataset, and snapshot closure for readiness replay",
+        "phase": "ade_qre_023h",
+        "unit_kind": "research_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/data_bindings/autonomous_strategy_data_bindings.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "source, dataset, schema, coverage, and immutable snapshot bindings remain authoritative and deterministic",
+        ),
+        "extra_stop_conditions": (
+            "any snapshot identity invented without immutable local input evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023g_preset_completion_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023i_window_oos_capacity_001",
+        "roadmap_task_id": "ade_qre_023i_window_and_independent_oos_capacity",
+        "title": "Deterministic train, validation, and independent OOS capacity closure",
+        "phase": "ade_qre_023i",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/window_capacity/autonomous_window_capacity.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "window capacity discloses exact coverage and fails closed when authoritative independent OOS assignment cannot be proven",
+        ),
+        "extra_stop_conditions": (
+            "any reused or shifted consumed OOS window reported as independent -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023h_source_dataset_snapshot_binding_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023j_null_control_closure_001",
+        "roadmap_task_id": "ade_qre_023j_null_control_implementation_closure",
+        "title": "Execution-readiness closure for required null controls",
+        "phase": "ade_qre_023j",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/null_controls/autonomous_null_control_readiness.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "null-control readiness distinguishes execution-ready controls from specification-only surfaces without fabricating empirical nulls",
+        ),
+        "extra_stop_conditions": (
+            "any null-control report that implies empirical completion before execution -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023i_window_oos_capacity_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023k_cost_slippage_regime_binding_001",
+        "roadmap_task_id": "ade_qre_023k_cost_slippage_and_regime_binding",
+        "title": "Deterministic cost, slippage, and regime binding for campaign readiness",
+        "phase": "ade_qre_023k",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/campaigns/autonomous_campaign_metadata.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "costs, slippage, sessions, timezones, and regime identities are explicit before a campaign cell can be ready",
+        ),
+        "extra_stop_conditions": (
+            "any zero-cost or zero-slippage assumption introduced without explicit policy evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023j_null_control_closure_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023l_campaign_metadata_lineage_closure_001",
+        "roadmap_task_id": "ade_qre_023l_campaign_metadata_and_lineage_closure",
+        "title": "Campaign metadata and lineage closure from readiness inputs",
+        "phase": "ade_qre_023l",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/campaigns/autonomous_campaign_metadata.v1.json",
+            "generated_research/readiness/campaigns/autonomous_campaign_lineage.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "campaign metadata and lineage exist only when every mandatory upstream field is authoritative and complete",
+        ),
+        "extra_stop_conditions": (
+            "any lineage row that hides stale, orphaned, or mismatched edges -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023k_cost_slippage_regime_binding_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023m_capability_generator_integration_001",
+        "roadmap_task_id": "ade_qre_023m_autonomous_capability_generator_integration",
+        "title": "Integration of autonomous closure with governed remediation generators",
+        "phase": "ade_qre_023m",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/reports/autonomous_readiness_iteration_ledger.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "remaining blockers route to existing governed generators or fail closed without widening authority",
+        ),
+        "extra_stop_conditions": (
+            "any autonomous remediation that bypasses ADE-QRE-019/020/021/022 guardrails -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023l_campaign_metadata_lineage_closure_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023n_iterative_readiness_replay_001",
+        "roadmap_task_id": "ade_qre_023n_iterative_readiness_replay",
+        "title": "Bounded iterative readiness replay with causal-progress evidence",
+        "phase": "ade_qre_023n",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/reports/autonomous_readiness_iteration_ledger.v1.json",
+            "generated_research/readiness/reports/autonomous_readiness_closeout.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "the replay loop records iterations, detects cycles, enforces bounds, and demonstrates causal progress or irreducible fail-closed outcomes",
+        ),
+        "extra_stop_conditions": (
+            "any replay loop that regenerates equivalent artifacts without blocker progress and still claims remediation -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023m_capability_generator_integration_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023o_second_campaign_prereg_001",
+        "roadmap_task_id": "ade_qre_023o_second_campaign_preregistration",
+        "title": "Second-campaign preregistration only from genuinely ready cells",
+        "phase": "ade_qre_023o",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/campaigns/autonomous_second_campaign_manifest.v1.json",
+            "generated_research/readiness/campaigns/autonomous_portfolio_readiness.v1.json",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "a manifest is written only when at least one portfolio cell is genuinely READY_FOR_PREREGISTRATION",
+        ),
+        "extra_stop_conditions": (
+            "any second-campaign manifest created from blocked or insufficient-evidence cells -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023n_iterative_readiness_replay_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_023p_integrated_closure_report_001",
+        "roadmap_task_id": "ade_qre_023p_integrated_closure_report",
+        "title": "Integrated ADE-QRE-023 closeout with terminal outcomes and exact next action",
+        "phase": "ade_qre_023p",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/autonomous_readiness_closure.py",
+            "generated_research/readiness/reports/autonomous_readiness_closeout.v1.json",
+            "generated_research/readiness/reports/autonomous_readiness_closeout.v1.md",
+            "tests/unit/test_qre_autonomous_readiness_closure.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_autonomous_readiness_closure.py"
+        ),
+        "extra_definition_of_done": (
+            "closeout records strategies processed, iterations, blockers resolved, irreducible blockers, manifest status, and the exact next permitted action",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that overstates readiness or fabricates a campaign path -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023o_second_campaign_prereg_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",
         "roadmap_task_id": "phase_v3_15_16",
         "title": (

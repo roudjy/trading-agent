@@ -62,6 +62,11 @@ New implementation is justified only when it:
   identity and readiness remediation outside `research/**`, provided it
   preserves one resolved research strategy catalog, never guesses identities or
   windows, and does not execute campaigns.
+- ADE-QRE-023 may later admit bounded deterministic autonomous readiness
+  closure outside `research/**`, provided it preserves one resolved research
+  strategy catalog, replays downstream readiness without lowering gates, never
+  invents identities or OOS windows, and stops fail-closed when independent
+  OOS or authoritative data capacity cannot be proven.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.

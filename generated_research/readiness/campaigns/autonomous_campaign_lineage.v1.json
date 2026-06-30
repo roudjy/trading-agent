@@ -1,0 +1,65 @@
+{
+  "campaign_lineage_identity": "cam_703d5fbdc8004b47",
+  "module_version": "ade-qre-023.1",
+  "report_kind": "qre_autonomous_campaign_lineage",
+  "rows": [
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "lineage_identity": "qcl_ad3f81eb80c8ee9f",
+      "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
+      "provenance": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ]
+    },
+    {
+      "blockers": [
+        "no_cache_row_for_resolved_instrument_and_timeframe"
+      ],
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "lineage_identity": "qcl_a168acefaf67cf2d",
+      "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
+      "provenance": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ]
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "lineage_identity": "qcl_88c87d4f818d6f48",
+      "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
+      "provenance": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ]
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "lineage_identity": "qcl_4ed97288d92b5044",
+      "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ]
+    }
+  ],
+  "schema_version": "1.0"
+}

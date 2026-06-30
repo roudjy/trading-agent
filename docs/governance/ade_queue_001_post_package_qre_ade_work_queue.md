@@ -4775,3 +4775,167 @@ live, broker, risk, or execution work.
 - purpose: produce the integrated readiness-remediation closeout and exact next
   action without overstating campaign readiness.
 - completion evidence: PR #694, merge SHA `8e6f41caebe4566b77d6f47c9425bf1cfefa26d6`; post-merge validation repair PR #695, merge SHA `b63016c265b14f57d3dea52a4a37eb62af439df9`; checks green; frozen contracts unchanged; protected/execution paths untouched.
+
+### ADE-QRE-023 - Autonomous Research Readiness Closure Loop
+
+- queue id: `ADE-QRE-023`
+- status: `blocked until ADE-QRE-023P done`
+- depends on:
+  - `ADE-QRE-022 done`
+- purpose: build and execute a bounded autonomous remediation loop that reruns
+  readiness, resolves the next causally upstream blocker, replays downstream
+  readiness, and continues until at least one strategy becomes
+  `READY_FOR_PREREGISTRATION` or an evidence-backed terminal blocker is
+  reached.
+- current authoritative baseline:
+  - readiness closeout artifact: `qrca_47c5bb0e68859062`
+  - current outcome: `IDENTITY_RESOLUTION_BLOCKED`
+  - `qgs_e565b01bd0a162d0`: `non_authoritative_universe_alias_only`
+  - `qgs_5af8f605ba82ae53`: `timeframe_not_resolved`, `preset_incomplete`
+  - `ADE-QRE-018J` remains blocked until at least one cell is genuinely
+    `READY_FOR_PREREGISTRATION`
+- expected next queue item: `ADE-QRE-023A`.
+
+### ADE-QRE-023A - Autonomous Closure Governance
+
+- queue id: `ADE-QRE-023A`
+- status: `ready`
+- depends on: `ADE-QRE-022O done`.
+- purpose: admit the deterministic autonomous readiness-closure loop without
+  weakening `.claude/**`, protected `research/**`, or trading-authority
+  boundaries.
+- expected next queue item: `ADE-QRE-023B`.
+
+### ADE-QRE-023B - Blocker Taxonomy and Dependency Graph
+
+- queue id: `ADE-QRE-023B`
+- status: `blocked until ADE-QRE-023A done`
+- depends on: `ADE-QRE-023A done`.
+- purpose: define a closed blocker contract and dependency ordering so the loop
+  resolves upstream causes before downstream symptoms.
+- expected next queue item: `ADE-QRE-023C`.
+
+### ADE-QRE-023C - Remediation Planner
+
+- queue id: `ADE-QRE-023C`
+- status: `blocked until ADE-QRE-023B done`
+- depends on: `ADE-QRE-023B done`.
+- purpose: map each blocker class to exactly one governed remediation action or
+  fail-closed outcome.
+- expected next queue item: `ADE-QRE-023D`.
+
+### ADE-QRE-023D - Canonical Universe Authority
+
+- queue id: `ADE-QRE-023D`
+- status: `blocked until ADE-QRE-023C done`
+- depends on: `ADE-QRE-023C done`.
+- purpose: resolve canonical universes, alias mappings, and authoritative
+  point-in-time membership snapshots.
+- expected next queue item: `ADE-QRE-023E`.
+
+### ADE-QRE-023E - Historical Universe Membership
+
+- queue id: `ADE-QRE-023E`
+- status: `blocked until ADE-QRE-023D done`
+- depends on: `ADE-QRE-023D done`.
+- purpose: preserve versioned point-in-time membership, inclusion and
+  exclusion reasons, and minimum-breadth validation.
+- expected next queue item: `ADE-QRE-023F`.
+
+### ADE-QRE-023F - Timeframe Resolution
+
+- queue id: `ADE-QRE-023F`
+- status: `blocked until ADE-QRE-023E done`
+- depends on: `ADE-QRE-023E done`.
+- purpose: resolve deterministic timeframes or split ambiguous strategies into
+  distinct campaign cells.
+- expected next queue item: `ADE-QRE-023G`.
+
+### ADE-QRE-023G - Preset Completion
+
+- queue id: `ADE-QRE-023G`
+- status: `blocked until ADE-QRE-023F done`
+- depends on: `ADE-QRE-023F done`.
+- purpose: complete bounded presets only after identity, timeframe, source,
+  dataset, and snapshot bindings are authoritative.
+- expected next queue item: `ADE-QRE-023H`.
+
+### ADE-QRE-023H - Source, Dataset and Snapshot Binding
+
+- queue id: `ADE-QRE-023H`
+- status: `blocked until ADE-QRE-023G done`
+- depends on: `ADE-QRE-023G done`.
+- purpose: bind authoritative source, dataset, schema, coverage, and immutable
+  snapshot identities outside protected empirical surfaces.
+- expected next queue item: `ADE-QRE-023I`.
+
+### ADE-QRE-023I - Window and Independent OOS Capacity
+
+- queue id: `ADE-QRE-023I`
+- status: `blocked until ADE-QRE-023H done`
+- depends on: `ADE-QRE-023H done`.
+- purpose: materialize exact train, validation, and unseen OOS capacity while
+  failing closed when independence cannot be proven.
+- expected next queue item: `ADE-QRE-023J`.
+
+### ADE-QRE-023J - Null-Control Implementation Closure
+
+- queue id: `ADE-QRE-023J`
+- status: `blocked until ADE-QRE-023I done`
+- depends on: `ADE-QRE-023I done`.
+- purpose: close null-control implementation and execution-readiness gaps
+  without claiming empirical null outcomes.
+- expected next queue item: `ADE-QRE-023K`.
+
+### ADE-QRE-023K - Cost, Slippage and Regime Binding
+
+- queue id: `ADE-QRE-023K`
+- status: `blocked until ADE-QRE-023J done`
+- depends on: `ADE-QRE-023J done`.
+- purpose: resolve cost, slippage, session, timezone, and regime identities
+  required for campaign readiness.
+- expected next queue item: `ADE-QRE-023L`.
+
+### ADE-QRE-023L - Campaign Metadata and Lineage Closure
+
+- queue id: `ADE-QRE-023L`
+- status: `blocked until ADE-QRE-023K done`
+- depends on: `ADE-QRE-023K done`.
+- purpose: materialize full campaign metadata and lineage only when every
+  mandatory upstream field is authoritative and complete.
+- expected next queue item: `ADE-QRE-023M`.
+
+### ADE-QRE-023M - Autonomous Capability Generator Integration
+
+- queue id: `ADE-QRE-023M`
+- status: `blocked until ADE-QRE-023L done`
+- depends on: `ADE-QRE-023L done`.
+- purpose: integrate bounded remediation routing with the existing
+  ADE-QRE-019/020/021/022 governed generators and fail-closed feedback paths.
+- expected next queue item: `ADE-QRE-023N`.
+
+### ADE-QRE-023N - Iterative Readiness Replay
+
+- queue id: `ADE-QRE-023N`
+- status: `blocked until ADE-QRE-023M done`
+- depends on: `ADE-QRE-023M done`.
+- purpose: execute the bounded multi-iteration readiness replay loop with cycle
+  detection, iteration bounds, and persistent causal-progress evidence.
+- expected next queue item: `ADE-QRE-023O`.
+
+### ADE-QRE-023O - Second-Campaign Preregistration
+
+- queue id: `ADE-QRE-023O`
+- status: `blocked until ADE-QRE-023N done`
+- depends on: `ADE-QRE-023N done`.
+- purpose: admit a second-campaign preregistration manifest only when at least
+  one cell is genuinely `READY_FOR_PREREGISTRATION`.
+- expected next queue item: `ADE-QRE-023P`.
+
+### ADE-QRE-023P - Integrated Closure Report
+
+- queue id: `ADE-QRE-023P`
+- status: `blocked until ADE-QRE-023O done`
+- depends on: `ADE-QRE-023O done`.
+- purpose: persist the integrated autonomous readiness-closure report, exact
+  irreducible blockers, and the next permitted machine action.
