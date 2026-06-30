@@ -4,6 +4,8 @@ import json
 import shutil
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from packages.qre_research import second_preregistered_campaign as campaign
@@ -26,7 +28,6 @@ _COPIED_INPUTS = (
     "generated_research/lineage/generated_null_controls.v1.json",
     "artifacts/cache/cache_coverage_latest.v1.json",
     "agent/backtesting/generated_strategies/generated_qgs_5af8f605ba82ae53.py",
-    "data/cache/market/yfinance__ASML__4h__20240525__20260425__4d9f10c591dd4bf6.parquet",
 )
 
 
@@ -59,12 +60,68 @@ def _write_cache_manifest(repo_root: Path) -> None:
     )
 
 
+def _write_cache_row(repo_root: Path) -> None:
+    timestamps = pd.date_range(
+        start="2024-05-28T13:30:00Z",
+        end="2026-04-24T17:30:00Z",
+        freq="4h",
+        tz="UTC",
+    )
+    base = np.linspace(100.0, 160.0, len(timestamps), dtype=float)
+    frame = pd.DataFrame(
+        {
+            "timestamp_utc": timestamps,
+            "open": base,
+            "high": base + 1.0,
+            "low": base - 1.0,
+            "close": base + 0.5,
+            "volume": np.full(len(timestamps), 1_000.0, dtype=float),
+        }
+    )
+    target = (
+        repo_root
+        / "data/cache/market/yfinance__ASML__4h__20240525__20260425__4d9f10c591dd4bf6.parquet"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frame.to_parquet(target, index=False)
+
+
+def _fake_evaluate_strategy(frame: pd.DataFrame, bundle: dict[str, object]) -> dict[str, pd.Series]:
+    index = frame.index
+    signal = pd.Series(0, index=index, dtype=int)
+    position = pd.Series(0, index=index, dtype=int)
+    returns = pd.Series(0.001, index=index, dtype=float)
+
+    def activate(window: tuple[str, str], count: int, stride: int) -> None:
+        start, end = window
+        window_index = index[(index >= pd.Timestamp(start)) & (index <= pd.Timestamp(end))]
+        active = window_index[::stride][:count]
+        position.loc[active] = 1
+        signal.loc[active] = 1
+
+    activate(("2024-05-28T13:30:00Z", "2025-09-28T17:30:00Z"), count=12, stride=25)
+    activate(("2025-10-12T17:30:00Z", "2026-01-10T17:30:00Z"), count=4, stride=20)
+    activate(("2026-01-24T17:30:00Z", "2026-04-24T17:30:00Z"), count=3, stride=30)
+
+    gross_returns = position.astype(float) * returns
+    turnover = position.diff().abs().fillna(position).astype(int)
+    return {
+        "signal": signal,
+        "position": position,
+        "returns": returns,
+        "gross_returns": gross_returns,
+        "turnover": turnover,
+    }
+
+
 @pytest.fixture
 def qre025_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path / "repo"
     for relative in _COPIED_INPUTS:
         _copy(repo_root, relative)
     _write_cache_manifest(repo_root)
+    _write_cache_row(repo_root)
+    monkeypatch.setattr(campaign, "_evaluate_strategy", _fake_evaluate_strategy)
     monkeypatch.setattr(campaign, "validate_write_target", lambda path: None)
     return repo_root
 
