@@ -3335,6 +3335,491 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "status": "not_started",
     },
     {
+        "id": "u_ade_qre_024a_governance_data_window_authority_001",
+        "roadmap_task_id": "ade_qre_024a_governance_and_data_window_authority",
+        "title": "Governed admission of the deterministic ADE-QRE-024 data/window remediation loop",
+        "phase": "ade_qre_024a",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "docs/roadmap/qre_automated_data_capacity_window_assignment_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "tests/unit/test_roadmap_task_catalog.py",
+            "tests/unit/test_roadmap_task_units.py",
+            "tests/unit/test_roadmap_next_unit.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": (
+            "python -m pytest tests/unit/test_roadmap_task_catalog.py -v",
+            "python -m pytest tests/unit/test_roadmap_task_units.py -v",
+            "python -m pytest tests/unit/test_roadmap_next_unit.py -v",
+        ),
+        "extra_definition_of_done": (
+            "ADE-QRE-024 is admitted canonically with research-only authority and no protected-surface weakening",
+        ),
+        "extra_stop_conditions": (
+            "any governance text that weakens .claude/** or protected research/** -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_023p_integrated_closure_report_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024b_data_capacity_diagnosis_001",
+        "roadmap_task_id": "ade_qre_024b_data_capacity_diagnosis",
+        "title": "Deterministic campaign-cell data-capacity diagnosis",
+        "phase": "ade_qre_024b",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/data_capacity/strategy_data_capacity_diagnosis.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "diagnosis records exact cache, coverage, snapshot, and point-in-time blockers per campaign cell",
+        ),
+        "extra_stop_conditions": (
+            "any diagnosis that invents coverage or external availability -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024a_governance_data_window_authority_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024c_canonical_data_cache_authority_001",
+        "roadmap_task_id": "ade_qre_024c_canonical_data_binding_and_cache_authority",
+        "title": "Canonical data/cache authority resolver for campaign readiness",
+        "phase": "ade_qre_024c",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/data_capacity/canonical_data_cache_authority.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "resolver exposes one canonical source/dataset/cache-row/snapshot view per cell",
+        ),
+        "extra_stop_conditions": (
+            "any competing final data authority or alias-only authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024b_data_capacity_diagnosis_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024d_missing_cache_row_materialization_001",
+        "roadmap_task_id": "ade_qre_024d_missing_cache_row_materialization",
+        "title": "Governed local cache-row materialization and fail-closed data-source detection",
+        "phase": "ade_qre_024d",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/data_capacity/materialized_cache_rows.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "missing rows are materialized only from governed local inputs or remain fail-closed with exact reasons",
+        ),
+        "extra_stop_conditions": (
+            "any arbitrary external fetch or fabricated cache row -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024c_canonical_data_cache_authority_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024e_data_quality_coverage_validation_001",
+        "roadmap_task_id": "ade_qre_024e_data_quality_and_coverage_validation",
+        "title": "Deterministic data-quality and usable-coverage validation",
+        "phase": "ade_qre_024e",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/data_capacity/strategy_data_quality_coverage.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "quality report records usable range, blockers, and stable quality identity",
+        ),
+        "extra_stop_conditions": (
+            "any interpolation promoted as authoritative market evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024d_missing_cache_row_materialization_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024f_immutable_snapshot_materialization_001",
+        "roadmap_task_id": "ade_qre_024f_immutable_snapshot_materialization",
+        "title": "Immutable content-addressed strategy snapshots for campaign cells",
+        "phase": "ade_qre_024f",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "snapshots freeze source, dataset, coverage, schema, hashes, and point-in-time universe context deterministically",
+        ),
+        "extra_stop_conditions": (
+            "any snapshot identity derived from wall-clock or branch state -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024e_data_quality_coverage_validation_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024g_authoritative_window_policy_001",
+        "roadmap_task_id": "ade_qre_024g_authoritative_window_policy",
+        "title": "Versioned deterministic train/validation/OOS assignment policy",
+        "phase": "ade_qre_024g",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "policy assigns windows deterministically without inspecting returns or campaign outcomes",
+        ),
+        "extra_stop_conditions": (
+            "any performance-aware or post-hoc window selection -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024f_immutable_snapshot_materialization_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024h_window_ledger_registry_001",
+        "roadmap_task_id": "ade_qre_024h_window_ledger_and_consumption_registry",
+        "title": "Canonical window ledger and reservation registry",
+        "phase": "ade_qre_024h",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "ledger prevents consumed OOS reuse, overlap relabeling, and silent window shifts",
+        ),
+        "extra_stop_conditions": (
+            "any consumed OOS reuse or silent overlapping-independent claim -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024g_authoritative_window_policy_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024i_window_assignment_001",
+        "roadmap_task_id": "ade_qre_024i_train_validation_oos_assignment",
+        "title": "Deterministic train/validation/OOS assignment and reservation",
+        "phase": "ade_qre_024i",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/window_capacity/authoritative_window_assignments.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "valid cells receive deterministic train, validation, OOS, warmup, and embargo assignments with provenance",
+        ),
+        "extra_stop_conditions": (
+            "any window chosen from performance or silent multiple-choice collapse -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024h_window_ledger_registry_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024j_oos_independence_proof_001",
+        "roadmap_task_id": "ade_qre_024j_oos_independence_and_leakage_proof",
+        "title": "Machine-readable OOS independence and leakage proof",
+        "phase": "ade_qre_024j",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/window_capacity/oos_independence_proof.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "OOS windows proceed only when unseen, non-reused, non-overlapping where required, and embargo-compliant",
+        ),
+        "extra_stop_conditions": (
+            "any fabricated independence proof or hidden overlap -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024i_window_assignment_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024k_pit_universe_breadth_validation_001",
+        "roadmap_task_id": "ade_qre_024k_point_in_time_universe_and_breadth_validation",
+        "title": "Point-in-time universe and breadth validation for campaign cells",
+        "phase": "ade_qre_024k",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/window_capacity/point_in_time_universe_validation.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "point-in-time universe membership, listing state, and breadth are validated without survivor backfill",
+        ),
+        "extra_stop_conditions": (
+            "any current-universe backfill or silent member substitution -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024j_oos_independence_proof_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024l_signal_density_capacity_001",
+        "roadmap_task_id": "ade_qre_024l_signal_density_capacity_validation",
+        "title": "Signal-density and sample-capacity validation without returns",
+        "phase": "ade_qre_024l",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/window_capacity/signal_density_capacity.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "expected signals and trades are estimated from non-performance evidence and remain fail-closed when insufficient",
+        ),
+        "extra_stop_conditions": (
+            "any automatic signal-threshold relaxation -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024k_pit_universe_breadth_validation_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024m_iterative_data_window_closure_001",
+        "roadmap_task_id": "ade_qre_024m_iterative_data_window_closure_loop",
+        "title": "Bounded autonomous data/window remediation loop with progress ledger",
+        "phase": "ade_qre_024m",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/reports/automated_data_window_iteration_ledger.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "loop records before blockers, selected remediation, created artifacts, after blockers, and progress classification per iteration",
+        ),
+        "extra_stop_conditions": (
+            "any endless equivalent regeneration or silent no-progress loop -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024l_signal_density_capacity_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024n_downstream_readiness_replay_001",
+        "roadmap_task_id": "ade_qre_024n_downstream_readiness_replay",
+        "title": "Automatic downstream readiness replay after data/window remediation",
+        "phase": "ade_qre_024n",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "portfolio and readiness replay update automatically after each successful upstream data/window change",
+        ),
+        "extra_stop_conditions": (
+            "any operator-prompt requirement between remediation iterations -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024m_iterative_data_window_closure_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024o_second_campaign_prereg_001",
+        "roadmap_task_id": "ade_qre_024o_second_campaign_preregistration",
+        "title": "Second-campaign preregistration from genuinely ready campaign cells",
+        "phase": "ade_qre_024o",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "manifest is created only when at least one cell is genuinely READY_FOR_PREREGISTRATION",
+        ),
+        "extra_stop_conditions": (
+            "any manifest created from blocked or insufficient-evidence cells -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024n_downstream_readiness_replay_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_024p_integrated_closeout_001",
+        "roadmap_task_id": "ade_qre_024p_integrated_closeout",
+        "title": "Integrated ADE-QRE-024 closeout with resolved blockers, manifest status, and next action",
+        "phase": "ade_qre_024p",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/automated_data_window_capacity.py",
+            "generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.json",
+            "generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.md",
+            "tests/unit/test_qre_automated_data_window_capacity.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_automated_data_window_capacity.py"
+        ),
+        "extra_definition_of_done": (
+            "closeout records campaign cells processed, data blockers, snapshots, window assignments, independence proof, readiness replay, and the exact next permitted action",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that overstates readiness or invents independence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024o_second_campaign_prereg_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",
         "roadmap_task_id": "phase_v3_15_16",
         "title": (

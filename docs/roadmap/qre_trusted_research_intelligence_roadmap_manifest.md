@@ -67,6 +67,11 @@ New implementation is justified only when it:
   strategy catalog, replays downstream readiness without lowering gates, never
   invents identities or OOS windows, and stops fail-closed when independent
   OOS or authoritative data capacity cannot be proven.
+- ADE-QRE-024 may later admit bounded deterministic data-capacity and
+  authoritative-window assignment outside `research/**`, provided it preserves
+  one resolved data/cache authority, one canonical window ledger, never
+  assigns windows based on results, never reuses consumed OOS windows, and
+  only admits preregistration when independent unseen OOS capacity is proven.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.

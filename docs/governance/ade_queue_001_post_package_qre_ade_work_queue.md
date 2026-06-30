@@ -4949,3 +4949,139 @@ live, broker, risk, or execution work.
 - purpose: persist the integrated autonomous readiness-closure report, exact
   irreducible blockers, and the next permitted machine action.
 - completion evidence: PR #697, merge SHA `97707825d9cc823449e9160435b5525fe8432f7a`; checks green; integrated closeout report `generated_research/readiness/reports/autonomous_readiness_closeout.v1.json` and operator report `generated_research/readiness/reports/autonomous_readiness_closeout.v1.md` recorded the terminal outcome `INDEPENDENT_OOS_CAPACITY_BLOCKED`, zero ready cells, and the exact next permitted action; frozen contracts unchanged; protected/execution paths untouched.
+
+### ADE-QRE-024 - Automated Data Capacity and Authoritative Window Assignment
+
+- queue id: `ADE-QRE-024`
+- status: `ready`
+- depends on:
+  - `ADE-QRE-023 done`
+- purpose: build and execute the bounded deterministic data-capacity and authoritative-window-assignment loop so campaign cells can either become genuinely `READY_FOR_PREREGISTRATION` or remain fail-closed with exact data/window blockers.
+- exact next permitted action: implement ADE-QRE-024 on one governed branch/PR, then replay readiness and reevaluate `ADE-QRE-018J`.
+
+### ADE-QRE-024A - Governance and Data/Window Authority
+
+- queue id: `ADE-QRE-024A`
+- status: `blocked until ADE-QRE-024 is selected for execution`
+- depends on: `ADE-QRE-023P done`.
+- purpose: admit the deterministic A24 data/window remediation loop without weakening `.claude/**`, protected `research/**`, or execution/trading safety boundaries.
+- expected next queue item: `ADE-QRE-024B`.
+
+### ADE-QRE-024B - Data Capacity Diagnosis
+
+- queue id: `ADE-QRE-024B`
+- status: `blocked until ADE-QRE-024A done`
+- depends on: `ADE-QRE-024A done`.
+- purpose: diagnose exact cache, coverage, snapshot, point-in-time membership, and data-capacity blockers for every A23 campaign cell.
+- expected next queue item: `ADE-QRE-024C`.
+
+### ADE-QRE-024C - Canonical Data Binding and Cache Authority
+
+- queue id: `ADE-QRE-024C`
+- status: `blocked until ADE-QRE-024B done`
+- depends on: `ADE-QRE-024B done`.
+- purpose: resolve one canonical source/dataset/cache-row/snapshot authority per campaign cell.
+- expected next queue item: `ADE-QRE-024D`.
+
+### ADE-QRE-024D - Missing Cache Row Materialization
+
+- queue id: `ADE-QRE-024D`
+- status: `blocked until ADE-QRE-024C done`
+- depends on: `ADE-QRE-024C done`.
+- purpose: materialize missing authoritative cache rows only from governed local inputs or fail closed when no safe source exists.
+- expected next queue item: `ADE-QRE-024E`.
+
+### ADE-QRE-024E - Data Quality and Coverage Validation
+
+- queue id: `ADE-QRE-024E`
+- status: `blocked until ADE-QRE-024D done`
+- depends on: `ADE-QRE-024D done`.
+- purpose: validate usable coverage, schema, timestamps, quality, and fail-closed gaps before snapshot and window assignment.
+- expected next queue item: `ADE-QRE-024F`.
+
+### ADE-QRE-024F - Immutable Snapshot Materialization
+
+- queue id: `ADE-QRE-024F`
+- status: `blocked until ADE-QRE-024E done`
+- depends on: `ADE-QRE-024E done`.
+- purpose: freeze source, dataset, cache rows, timeframe, universe, schema, and content hashes into immutable strategy snapshots.
+- expected next queue item: `ADE-QRE-024G`.
+
+### ADE-QRE-024G - Authoritative Window Policy
+
+- queue id: `ADE-QRE-024G`
+- status: `blocked until ADE-QRE-024F done`
+- depends on: `ADE-QRE-024F done`.
+- purpose: define a deterministic policy for train, validation, and unseen OOS assignment before any strategy-result inspection.
+- expected next queue item: `ADE-QRE-024H`.
+
+### ADE-QRE-024H - Window Ledger and Consumption Registry
+
+- queue id: `ADE-QRE-024H`
+- status: `blocked until ADE-QRE-024G done`
+- depends on: `ADE-QRE-024G done`.
+- purpose: reserve, consume, invalidate, and supersede windows in one canonical ledger that prevents consumed OOS reuse.
+- expected next queue item: `ADE-QRE-024I`.
+
+### ADE-QRE-024I - Train/Validation/OOS Assignment
+
+- queue id: `ADE-QRE-024I`
+- status: `blocked until ADE-QRE-024H done`
+- depends on: `ADE-QRE-024H done`.
+- purpose: assign deterministic train, validation, OOS, warmup, embargo, and null-control windows for valid campaign cells.
+- expected next queue item: `ADE-QRE-024J`.
+
+### ADE-QRE-024J - OOS Independence and Leakage Proof
+
+- queue id: `ADE-QRE-024J`
+- status: `blocked until ADE-QRE-024I done`
+- depends on: `ADE-QRE-024I done`.
+- purpose: prove each reserved OOS window is unseen, embargo-compliant, and free of train/validation contamination.
+- expected next queue item: `ADE-QRE-024K`.
+
+### ADE-QRE-024K - Point-in-Time Universe and Breadth Validation
+
+- queue id: `ADE-QRE-024K`
+- status: `blocked until ADE-QRE-024J done`
+- depends on: `ADE-QRE-024J done`.
+- purpose: validate point-in-time universe membership, listing state, breadth, and no-survivorship assumptions for campaign cells.
+- expected next queue item: `ADE-QRE-024L`.
+
+### ADE-QRE-024L - Signal-Density Capacity Validation
+
+- queue id: `ADE-QRE-024L`
+- status: `blocked until ADE-QRE-024K done`
+- depends on: `ADE-QRE-024K done`.
+- purpose: estimate whether assigned windows can plausibly satisfy required sample and signal counts without using returns.
+- expected next queue item: `ADE-QRE-024M`.
+
+### ADE-QRE-024M - Iterative Data/Window Closure Loop
+
+- queue id: `ADE-QRE-024M`
+- status: `blocked until ADE-QRE-024L done`
+- depends on: `ADE-QRE-024L done`.
+- purpose: run the bounded autonomous data/window remediation loop until a ready cell or irreducible blocker is proven.
+- expected next queue item: `ADE-QRE-024N`.
+
+### ADE-QRE-024N - Downstream Readiness Replay
+
+- queue id: `ADE-QRE-024N`
+- status: `blocked until ADE-QRE-024M done`
+- depends on: `ADE-QRE-024M done`.
+- purpose: replay downstream readiness, lineage, portfolio, and preregistration evaluation after every upstream data/window change.
+- expected next queue item: `ADE-QRE-024O`.
+
+### ADE-QRE-024O - Second-Campaign Preregistration
+
+- queue id: `ADE-QRE-024O`
+- status: `blocked until ADE-QRE-024N done`
+- depends on: `ADE-QRE-024N done`.
+- purpose: create a deterministic second-campaign manifest only when at least one cell is genuinely `READY_FOR_PREREGISTRATION`.
+- expected next queue item: `ADE-QRE-024P`.
+
+### ADE-QRE-024P - Integrated Closeout
+
+- queue id: `ADE-QRE-024P`
+- status: `blocked until ADE-QRE-024O done`
+- depends on: `ADE-QRE-024O done`.
+- purpose: persist the integrated A24 closeout, exact resolved and irreducible blockers, readiness replay outcomes, manifest status, and next permitted machine action.
