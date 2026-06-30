@@ -1,0 +1,67 @@
+{
+  "closeout_identity": "qrca_37efa577a61d29f0",
+  "exact_next_action": "preserve_fail_closed_readiness_closure_and_route_window_or_data_capacity_blockers",
+  "initial_blockers": [
+    {
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "primary_blocker": "non_authoritative_universe_alias_only"
+    },
+    {
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "primary_blocker": "timeframe_not_resolved"
+    }
+  ],
+  "manifest": {},
+  "module_version": "ade-qre-023.1",
+  "overall_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
+  "remaining_blockers": [
+    "authoritative_window_assignment_policy_not_materialized",
+    "no_cache_row_for_resolved_instrument_and_timeframe"
+  ],
+  "report_kind": "qre_autonomous_readiness_closure",
+  "schema_version": "1.0",
+  "strategy_outcomes": [
+    {
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "portfolio_status": "BLOCKED_WINDOWS",
+      "terminal_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
+      "terminal_reason": "authoritative_window_assignment_policy_not_materialized",
+      "timeframe": "1d"
+    },
+    {
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "portfolio_status": "BLOCKED_DATA",
+      "terminal_outcome": "DATA_CAPACITY_BLOCKED",
+      "terminal_reason": "no_cache_row_for_resolved_instrument_and_timeframe",
+      "timeframe": "1h"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "portfolio_status": "BLOCKED_WINDOWS",
+      "terminal_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
+      "terminal_reason": "authoritative_window_assignment_policy_not_materialized",
+      "timeframe": "4h"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "portfolio_status": "BLOCKED_WINDOWS",
+      "terminal_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
+      "terminal_reason": "authoritative_window_assignment_policy_not_materialized",
+      "timeframe": "1d"
+    }
+  ],
+  "summary": {
+    "campaign_cells": 4,
+    "iteration_count": 4,
+    "ready_for_preregistration_count": 0,
+    "strategies_processed": 2,
+    "terminal_outcomes": {
+      "DATA_CAPACITY_BLOCKED": 1,
+      "INDEPENDENT_OOS_CAPACITY_BLOCKED": 3
+    }
+  }
+}

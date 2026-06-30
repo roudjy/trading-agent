@@ -1,0 +1,335 @@
+{
+  "module_version": "ade-qre-023.1",
+  "report_kind": "qre_autonomous_universe_authority",
+  "rows": [
+    {
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "excluded_members": [],
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "included_members": [
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:ASML"
+        }
+      ],
+      "membership_snapshot_id": "qum_5ed168d0afaeb749",
+      "provenance": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "requested_alias": "single_resolved_instrument_only",
+      "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
+      "selected_universe_id": "quv_fa4646ea49ea7bf2",
+      "selection_reason": "single_instrument_universe_bound_from_instrument"
+    },
+    {
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "excluded_members": [],
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "included_members": [
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:ASML"
+        }
+      ],
+      "membership_snapshot_id": "qum_a25238df61563935",
+      "provenance": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "requested_alias": "single_resolved_instrument_only",
+      "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
+      "selected_universe_id": "quv_fa4646ea49ea7bf2",
+      "selection_reason": "single_instrument_universe_bound_from_instrument"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "excluded_members": [],
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "included_members": [
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:ASML"
+        }
+      ],
+      "membership_snapshot_id": "qum_e61fcb1c85355c8c",
+      "provenance": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "requested_alias": "single_resolved_instrument_only",
+      "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
+      "selected_universe_id": "quv_fa4646ea49ea7bf2",
+      "selection_reason": "single_instrument_universe_bound_from_instrument"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "effective_from_utc": "2026-04-08T00:00:00Z",
+      "effective_to_utc": "2026-05-22T00:00:00Z",
+      "excluded_members": [
+        {
+          "canonical_instrument_id": "NASDAQ:ADBE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:AVGO",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:COST",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:PEP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:ABBV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:BAC",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:BRK-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:CAT",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:CRM",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:GS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:JPM",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:KO",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:LLY",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:MA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:MRK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:MS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:PG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:RTX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:UNH",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:V",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:WMT",
+          "reason": "missing_1d_coverage"
+        }
+      ],
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "included_members": [
+        {
+          "canonical_instrument_id": "NASDAQ:AAPL",
+          "coverage_hash": "sha256:84dd8c5359c1d4eafacbf647edbe6ffeffc920742e622a1ad8458ac1444775bd",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "AAPL",
+          "symbol": "AAPL"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:AMD",
+          "coverage_hash": "sha256:2d2f872e270601ba6ae91653d8f68d4c6c79dcc8e30f12ce95a413885330d491",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "AMD",
+          "symbol": "AMD"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:MSFT",
+          "coverage_hash": "sha256:d0c2bd6a4abe3926328a38dfc33f37854d016f041adcd33e6fe6267f7bcacd7c",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "MSFT",
+          "symbol": "MSFT"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:NVDA",
+          "coverage_hash": "sha256:c1fde4f3c570e9504208d5082f29dc2d735f565f48c7da67b655366441cf6e7d",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "NVDA",
+          "symbol": "NVDA"
+        }
+      ],
+      "matched_member_count": 4,
+      "membership_snapshot_id": "qum_3e90fe6dd0d7ccb3",
+      "minimum_universe_size": 3,
+      "provenance": [
+        "artifacts/universe/equity_universe_catalog_latest.v1.json",
+        "artifacts/identity/instrument_identity_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "requested_alias": "breadth_resolved_multi_asset_basket",
+      "resolution_outcome": "RESOLVED_UNIQUE_AUTHORITATIVE",
+      "selected_universe_id": "us_quality_liquid",
+      "selection_reason": "smallest authoritative universe with sufficient local breadth and non-global tie-break precedence",
+      "universe_kind": "quality_group",
+      "universe_region": "United States"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "excluded_members": [
+        {
+          "canonical_instrument_id": "NASDAQ:ADBE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:AVGO",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:COST",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:PEP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:ABBV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:BAC",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:BRK-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:CAT",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:CRM",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:GS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:JPM",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:KO",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:LLY",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:MA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:MRK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:MS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:PG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:RTX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:UNH",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:V",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:WMT",
+          "reason": "missing_1d_coverage"
+        }
+      ],
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "included_members": [
+        {
+          "canonical_instrument_id": "NASDAQ:AAPL",
+          "coverage_hash": "sha256:84dd8c5359c1d4eafacbf647edbe6ffeffc920742e622a1ad8458ac1444775bd",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "AAPL",
+          "symbol": "AAPL"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:AMD",
+          "coverage_hash": "sha256:2d2f872e270601ba6ae91653d8f68d4c6c79dcc8e30f12ce95a413885330d491",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "AMD",
+          "symbol": "AMD"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:MSFT",
+          "coverage_hash": "sha256:d0c2bd6a4abe3926328a38dfc33f37854d016f041adcd33e6fe6267f7bcacd7c",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "MSFT",
+          "symbol": "MSFT"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:NVDA",
+          "coverage_hash": "sha256:c1fde4f3c570e9504208d5082f29dc2d735f565f48c7da67b655366441cf6e7d",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "NVDA",
+          "symbol": "NVDA"
+        }
+      ],
+      "membership_snapshot_id": "qum_3e90fe6dd0d7ccb3",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "requested_alias": "breadth_resolved_multi_asset_basket",
+      "resolution_outcome": "RESOLVED_UNIQUE_AUTHORITATIVE",
+      "selected_universe_id": "us_quality_liquid",
+      "selection_reason": "authoritative_universe_membership_snapshot_materialized"
+    }
+  ],
+  "schema_version": "1.0",
+  "universe_authority_identity": "uni_a4214c8e91c370d9"
+}

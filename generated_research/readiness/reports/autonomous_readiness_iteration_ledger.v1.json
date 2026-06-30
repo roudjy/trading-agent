@@ -1,0 +1,312 @@
+{
+  "iteration_ledger_identity": "ite_cdef380cf636c2dc",
+  "module_version": "ade-qre-023.1",
+  "report_kind": "qre_autonomous_iteration_ledger",
+  "rows": [
+    {
+      "after_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {
+          "DATA_CAPACITY_BLOCKED": 1
+        }
+      },
+      "artifacts_created": [],
+      "before_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {}
+      },
+      "blocker_delta": {
+        "after": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "before": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        }
+      },
+      "iteration_id": "qri_0c0ad45e0a7d5b35",
+      "iteration_index": 1,
+      "next_action": "continue_fail_closed_readiness_remediation",
+      "progress_status": "progress",
+      "remediation": {
+        "artifacts": [],
+        "decision": "FAIL_CLOSED",
+        "progress": true,
+        "row": {}
+      },
+      "selected_blocker": {
+        "affected_campaign_cell": "qrcell_d5ded3130f132558",
+        "affected_strategy": "qgs_5af8f605ba82ae53",
+        "affected_thesis": "qbt_3b77618b0ddbd5b3",
+        "authority_state": "authoritative_local",
+        "blocker_class": "DATA_COVERAGE_INSUFFICIENT",
+        "blocker_id": "qrb_bc3c7f2df59237ef",
+        "deterministic_identity": "qrbx_bc3c7f2df59237ef",
+        "downstream_consequences": [
+          "BLOCKED_DATA"
+        ],
+        "evidence_references": [
+          "logs/qre_behavior_thesis_registry/latest.json",
+          "logs/qre_blocked_thesis_lineage_census/latest.json",
+          "logs/qre_identity_ambiguity_resolution/latest.json"
+        ],
+        "expected_output": "authoritative_source_dataset_snapshot_binding",
+        "next_action": "no_cache_row_for_resolved_instrument_and_timeframe",
+        "priority": 100,
+        "reason": "no_cache_row_for_resolved_instrument_and_timeframe",
+        "remediability": false,
+        "remediation_class": "FAIL_CLOSED",
+        "upstream_dependencies": [],
+        "validation_requirements": [
+          "deterministic_identity",
+          "no_protected_research_writes",
+          "no_trading_authority"
+        ]
+      },
+      "tests": []
+    },
+    {
+      "after_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {
+          "DATA_CAPACITY_BLOCKED": 1,
+          "INDEPENDENT_OOS_CAPACITY_BLOCKED": 1
+        }
+      },
+      "artifacts_created": [],
+      "before_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {
+          "DATA_CAPACITY_BLOCKED": 1
+        }
+      },
+      "blocker_delta": {
+        "after": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "before": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        }
+      },
+      "iteration_id": "qri_9339e6a0c661bf14",
+      "iteration_index": 2,
+      "next_action": "continue_fail_closed_readiness_remediation",
+      "progress_status": "progress",
+      "remediation": {
+        "artifacts": [],
+        "decision": "FAIL_CLOSED",
+        "progress": true,
+        "row": {}
+      },
+      "selected_blocker": {
+        "affected_campaign_cell": "qrcell_41d3efbcaa2aeddb",
+        "affected_strategy": "qgs_5af8f605ba82ae53",
+        "affected_thesis": "qbt_3b77618b0ddbd5b3",
+        "authority_state": "insufficient_authoritative_policy",
+        "blocker_class": "OOS_INDEPENDENCE_NOT_PROVEN",
+        "blocker_id": "qrb_6baa5dd9bf8f0642",
+        "deterministic_identity": "qrbx_6baa5dd9bf8f0642",
+        "downstream_consequences": [
+          "BLOCKED_WINDOWS"
+        ],
+        "evidence_references": [
+          "logs/qre_behavior_thesis_registry/latest.json",
+          "logs/qre_blocked_thesis_lineage_census/latest.json",
+          "logs/qre_identity_ambiguity_resolution/latest.json"
+        ],
+        "expected_output": "explicit_train_validation_oos_capacity",
+        "next_action": "authoritative_window_assignment_policy_not_materialized",
+        "priority": 140,
+        "reason": "authoritative_window_assignment_policy_not_materialized",
+        "remediability": false,
+        "remediation_class": "FAIL_CLOSED",
+        "upstream_dependencies": [],
+        "validation_requirements": [
+          "deterministic_identity",
+          "no_protected_research_writes",
+          "no_trading_authority"
+        ]
+      },
+      "tests": []
+    },
+    {
+      "after_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {
+          "DATA_CAPACITY_BLOCKED": 1,
+          "INDEPENDENT_OOS_CAPACITY_BLOCKED": 2
+        }
+      },
+      "artifacts_created": [],
+      "before_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {
+          "DATA_CAPACITY_BLOCKED": 1,
+          "INDEPENDENT_OOS_CAPACITY_BLOCKED": 1
+        }
+      },
+      "blocker_delta": {
+        "after": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "before": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        }
+      },
+      "iteration_id": "qri_d44aed35ae0be171",
+      "iteration_index": 3,
+      "next_action": "continue_fail_closed_readiness_remediation",
+      "progress_status": "progress",
+      "remediation": {
+        "artifacts": [],
+        "decision": "FAIL_CLOSED",
+        "progress": true,
+        "row": {}
+      },
+      "selected_blocker": {
+        "affected_campaign_cell": "qrcell_44aa81da7c2fc7c9",
+        "affected_strategy": "qgs_e565b01bd0a162d0",
+        "affected_thesis": "qhc_51bc7a5c7b3f64ba",
+        "authority_state": "insufficient_authoritative_policy",
+        "blocker_class": "OOS_INDEPENDENCE_NOT_PROVEN",
+        "blocker_id": "qrb_83c735c1c5542199",
+        "deterministic_identity": "qrbx_83c735c1c5542199",
+        "downstream_consequences": [
+          "BLOCKED_WINDOWS"
+        ],
+        "evidence_references": [
+          "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+          "logs/qre_behavior_thesis_registry/latest.json",
+          "logs/qre_blocked_thesis_lineage_census/latest.json",
+          "logs/qre_identity_ambiguity_resolution/latest.json"
+        ],
+        "expected_output": "explicit_train_validation_oos_capacity",
+        "next_action": "authoritative_window_assignment_policy_not_materialized",
+        "priority": 140,
+        "reason": "authoritative_window_assignment_policy_not_materialized",
+        "remediability": false,
+        "remediation_class": "FAIL_CLOSED",
+        "upstream_dependencies": [],
+        "validation_requirements": [
+          "deterministic_identity",
+          "no_protected_research_writes",
+          "no_trading_authority"
+        ]
+      },
+      "tests": []
+    },
+    {
+      "after_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {
+          "DATA_CAPACITY_BLOCKED": 1,
+          "INDEPENDENT_OOS_CAPACITY_BLOCKED": 3
+        }
+      },
+      "artifacts_created": [],
+      "before_state": {
+        "blocker_counts": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "next_action": "continue_fail_closed_readiness_remediation",
+        "ready_cells": 0,
+        "terminal_outcomes": {
+          "DATA_CAPACITY_BLOCKED": 1,
+          "INDEPENDENT_OOS_CAPACITY_BLOCKED": 2
+        }
+      },
+      "blocker_delta": {
+        "after": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        },
+        "before": {
+          "DATA_COVERAGE_INSUFFICIENT": 1,
+          "OOS_INDEPENDENCE_NOT_PROVEN": 3
+        }
+      },
+      "iteration_id": "qri_86359417751f0f9d",
+      "iteration_index": 4,
+      "next_action": "continue_fail_closed_readiness_remediation",
+      "progress_status": "progress",
+      "remediation": {
+        "artifacts": [],
+        "decision": "FAIL_CLOSED",
+        "progress": true,
+        "row": {}
+      },
+      "selected_blocker": {
+        "affected_campaign_cell": "qrcell_fdd68e20fd2724dd",
+        "affected_strategy": "qgs_5af8f605ba82ae53",
+        "affected_thesis": "qbt_3b77618b0ddbd5b3",
+        "authority_state": "insufficient_authoritative_policy",
+        "blocker_class": "OOS_INDEPENDENCE_NOT_PROVEN",
+        "blocker_id": "qrb_be5cf756ee601ec1",
+        "deterministic_identity": "qrbx_be5cf756ee601ec1",
+        "downstream_consequences": [
+          "BLOCKED_WINDOWS"
+        ],
+        "evidence_references": [
+          "logs/qre_behavior_thesis_registry/latest.json",
+          "logs/qre_blocked_thesis_lineage_census/latest.json",
+          "logs/qre_identity_ambiguity_resolution/latest.json"
+        ],
+        "expected_output": "explicit_train_validation_oos_capacity",
+        "next_action": "authoritative_window_assignment_policy_not_materialized",
+        "priority": 140,
+        "reason": "authoritative_window_assignment_policy_not_materialized",
+        "remediability": false,
+        "remediation_class": "FAIL_CLOSED",
+        "upstream_dependencies": [],
+        "validation_requirements": [
+          "deterministic_identity",
+          "no_protected_research_writes",
+          "no_trading_authority"
+        ]
+      },
+      "tests": []
+    }
+  ],
+  "schema_version": "1.0"
+}
