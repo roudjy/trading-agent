@@ -1,0 +1,26 @@
+{
+  "deferred_conflicts": [
+    {
+      "reason": "resource_conflict_or_capacity_limit",
+      "work_item_id": "qrw_25f9fc444e8399be"
+    },
+    {
+      "reason": "resource_conflict_or_capacity_limit",
+      "work_item_id": "qrw_65b687f000961e90"
+    }
+  ],
+  "groups": [
+    {
+      "compute_claim": 2,
+      "data_claim": 2,
+      "group_id": "qrg_3cd0425cdc69f9d2",
+      "work_item_ids": [
+        "qrw_0ecf94a24a35ea87"
+      ]
+    }
+  ],
+  "module_version": "ade-qre-026.1",
+  "report_kind": "qre_throughput_schedule",
+  "schedule_identity": "qrs_616d835833c0f041",
+  "schema_version": "1.0"
+}

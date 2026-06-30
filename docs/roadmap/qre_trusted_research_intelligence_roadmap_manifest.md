@@ -78,6 +78,13 @@ New implementation is justified only when it:
   executes only genuinely ready manifest cells, never mutates manifest inputs
   after verification, records OOS consumption canonically, and grants no
   trading or deployment authority.
+- ADE-QRE-026 may later admit bounded deterministic local orchestration of
+  typed next actions, work admission, resource-aware scheduling, validation,
+  replay, preregistration, and daily research operations reporting outside
+  `research/**`, provided it routes only to repository-native governed
+  capabilities, never fabricates external executor or GitHub authority, never
+  reuses consumed OOS, and preserves one canonical resolved portfolio plus one
+  canonical operations configuration surface.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.

@@ -1,0 +1,308 @@
+{
+  "alerts": [
+    {
+      "affected_objects": [
+        "portfolio"
+      ],
+      "alert_id": "qal_faf9ba07ab7d63fe",
+      "alert_type": "ACTIVE_HYPOTHESES_BELOW_MINIMUM",
+      "auto_remediation_state": "queued",
+      "first_observed": "2026-06-30",
+      "latest_observed": "2026-06-30",
+      "recommended_action": "GENERATE_HYPOTHESIS",
+      "severity": "warning",
+      "supporting_metrics": {
+        "current": 1,
+        "maximum": 40,
+        "metric": "active_hypotheses",
+        "shortage": 19,
+        "target": 20,
+        "utilization_pct": 2.5
+      }
+    }
+  ],
+  "blockers_and_remediation": {
+    "blocker_counts": {
+      "oos_sample_size": 1,
+      "usable_history_below_minimum_policy_span": 1
+    },
+    "top_blockers": [
+      {
+        "affected_objects": [
+          "qgs_5af8f605ba82ae53"
+        ],
+        "age": 1,
+        "blocker": "oos_sample_size",
+        "current_next_action": "launch_data_oos_capacity_expansion",
+        "owner_class": "autonomous",
+        "retry_count": 0
+      },
+      {
+        "affected_objects": [
+          "qgs_e565b01bd0a162d0"
+        ],
+        "age": 1,
+        "blocker": "usable_history_below_minimum_policy_span",
+        "current_next_action": "launch_data_oos_capacity_expansion",
+        "owner_class": "autonomous",
+        "retry_count": 0
+      }
+    ]
+  },
+  "compute_and_runtime": {
+    "concurrent_job_peak": 1,
+    "configured_budgets": {
+      "maximum_artifact_growth_per_day": 200000000,
+      "maximum_campaign_executions_per_day": 1,
+      "maximum_campaign_executions_per_run": 0,
+      "maximum_compute_units_per_day": 100,
+      "maximum_compute_units_per_run": 20,
+      "maximum_cycles_per_run": 1,
+      "maximum_data_materialization_volume": 5,
+      "maximum_generated_hypotheses_per_cycle": 2,
+      "maximum_generated_strategies_per_cycle": 1,
+      "maximum_new_oos_consumptions_per_cycle": 1,
+      "maximum_new_oos_consumptions_per_day": 2,
+      "maximum_remediation_items_per_cycle": 3,
+      "maximum_wall_clock_seconds_per_run": 900,
+      "minimum_free_disk_space": 1000000000
+    },
+    "errors": 0,
+    "jobs_executed": 1,
+    "retries": 0,
+    "timeouts": 0,
+    "wall_clock_runtime": 0
+  },
+  "current_strategy_buckets": [
+    {
+      "campaign_cells": [
+        "qrcell_41d3efbcaa2aeddb",
+        "qrcell_d5ded3130f132558",
+        "qrcell_fdd68e20fd2724dd"
+      ],
+      "confidence_evidence_state": "INSUFFICIENT_EVIDENCE",
+      "current_bucket": "OOS_CAPACITY_BLOCKED",
+      "last_state_change": "2026-06-30",
+      "latest_evidence_state": "INSUFFICIENT_EVIDENCE",
+      "mechanism_family": "trend_persistence",
+      "next_action": "launch_data_oos_capacity_expansion",
+      "oos_exposure": "consumed",
+      "primary_blocker": "oos_sample_size",
+      "strategy_family": "trend",
+      "strategy_id": "qgs_5af8f605ba82ae53",
+      "thesis": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "campaign_cells": [
+        "qrcell_44aa81da7c2fc7c9"
+      ],
+      "confidence_evidence_state": "RESEARCH_REGISTERED",
+      "current_bucket": "DATA_CAPACITY_BLOCKED",
+      "last_state_change": "2026-06-30",
+      "latest_evidence_state": "RESEARCH_REGISTERED",
+      "mechanism_family": "trend_persistence",
+      "next_action": "launch_data_oos_capacity_expansion",
+      "oos_exposure": "none",
+      "primary_blocker": "usable_history_below_minimum_policy_span",
+      "strategy_family": "trend",
+      "strategy_id": "qgs_e565b01bd0a162d0",
+      "thesis": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "daily_decisions": {
+    "campaigns_admitted_to_oos": 0,
+    "campaigns_deferred": 0,
+    "capabilities_admitted": 0,
+    "external_work_packages_generated": 0,
+    "hypotheses_rejected": 0,
+    "hypotheses_supported": 0,
+    "strategies_archived": 0,
+    "strategies_marked_insufficient_evidence": 1
+  },
+  "daily_report_identity": "qrdr_e229333f8b8f64de",
+  "data_capacity": {
+    "cache_gaps": 1,
+    "cache_rows_created": 0,
+    "datasets_used": [
+      "qds_81ae54676629b223",
+      "qds_be8702b264081860",
+      "qds_f8a7d624458bb131"
+    ],
+    "snapshots_used": [
+      "qsn_81ae54676629b223",
+      "qsn_be8702b264081860",
+      "qsn_f8a7d624458bb131"
+    ]
+  },
+  "evidence_quality": {
+    "campaigns_deferred_by_pre_oos_gate": 0,
+    "conclusive_decisions_per_independent_oos_window_consumed": 0.0,
+    "consumed_oos_without_conclusive_decision": 1,
+    "inconclusive_campaigns_per_oos_window_consumed": 1.0,
+    "independent_evidence_units_created": 0,
+    "independent_oos_windows_consumed": 1,
+    "independent_oos_windows_reserved": 0
+  },
+  "executive_summary": {
+    "autonomous_loop_state": "active",
+    "campaigns_completed": 1,
+    "cycles_completed": 1,
+    "final_decisions_produced": 1,
+    "major_blockers": [
+      "oos_sample_size",
+      "usable_history_below_minimum_policy_span"
+    ],
+    "operator_attention_required": true,
+    "overall_health": "HEALTHY_WITH_WARNINGS",
+    "top_next_actions": [
+      "launch_data_oos_capacity_expansion",
+      "launch_data_oos_capacity_expansion"
+    ],
+    "work_items_completed": 1
+  },
+  "funnel_conversion": {
+    "executed_to_insufficient_evidence": {
+      "count": 1,
+      "reason": "oos_sample_size"
+    },
+    "opportunity_to_hypothesis": {
+      "count": 1,
+      "reason": "bounded_generated_registry_present"
+    },
+    "registered_strategy_to_ready_cell": {
+      "count": 1,
+      "reason": "campaign_readiness_artifacts"
+    }
+  },
+  "health": "HEALTHY_WITH_WARNINGS",
+  "module_version": "ade-qre-026.1",
+  "next_24h_plan": {
+    "rows": [
+      {
+        "conflicts": [
+          "data_capacity_expansion"
+        ],
+        "dependencies": [
+          "snapshot_capacity",
+          "independent_oos"
+        ],
+        "expected_compute_cost": 2,
+        "expected_information_gain": 0.51,
+        "expected_objects_unlocked": 2,
+        "expected_oos_cost": 0,
+        "planned_concurrency_group": 1,
+        "priority_reason": "oos_sample_size",
+        "work_class": "DATA_CAPACITY_EXPANSION",
+        "work_item_id": "qrw_0ecf94a24a35ea87"
+      },
+      {
+        "conflicts": [],
+        "dependencies": [
+          "portfolio_state"
+        ],
+        "expected_compute_cost": 1,
+        "expected_information_gain": 0.25,
+        "expected_objects_unlocked": 1,
+        "expected_oos_cost": 0,
+        "planned_concurrency_group": 1,
+        "priority_reason": "active_hypotheses_below_target",
+        "work_class": "EXISTING_PIPELINE_REPLAY",
+        "work_item_id": "qrw_25f9fc444e8399be"
+      },
+      {
+        "conflicts": [
+          "data_capacity_expansion"
+        ],
+        "dependencies": [
+          "data_capacity",
+          "window_capacity"
+        ],
+        "expected_compute_cost": 2,
+        "expected_information_gain": 0.12,
+        "expected_objects_unlocked": 2,
+        "expected_oos_cost": 0,
+        "planned_concurrency_group": 1,
+        "priority_reason": "usable_history_below_minimum_policy_span",
+        "work_class": "DATA_CAPACITY_EXPANSION",
+        "work_item_id": "qrw_65b687f000961e90"
+      }
+    ]
+  },
+  "oos_budget": {
+    "available": 0,
+    "campaigns_awaiting_oos": 1,
+    "configured_cycle_maximum": 1,
+    "configured_daily_maximum": 2,
+    "consumed": 1,
+    "invalidated": 0,
+    "reserved": 0,
+    "total_known_independent_windows": 1
+  },
+  "operating_mode": "LOCAL_AUTONOMOUS",
+  "report_date": "2026-06-30",
+  "report_kind": "qre_daily_research_operations_report",
+  "research_portfolio": {
+    "counts": [
+      {
+        "current": 1,
+        "maximum": 40,
+        "metric": "active_hypotheses",
+        "shortage": 19,
+        "target": 20,
+        "utilization_pct": 2.5
+      },
+      {
+        "current": 2,
+        "maximum": 16,
+        "metric": "strategies_in_generation",
+        "shortage": 6,
+        "target": 8,
+        "utilization_pct": 12.5
+      },
+      {
+        "current": 2,
+        "maximum": 8,
+        "metric": "readiness_remediations",
+        "shortage": 2,
+        "target": 4,
+        "utilization_pct": 25.0
+      },
+      {
+        "current": 1,
+        "maximum": 6,
+        "metric": "preregistered_cells",
+        "shortage": 1,
+        "target": 2,
+        "utilization_pct": 16.67
+      }
+    ]
+  },
+  "research_throughput": {
+    "campaign_cells_created": 4,
+    "campaigns_executed": 1,
+    "final_decisions_produced": 1,
+    "hypotheses_admitted": 1,
+    "hypotheses_generated": 0,
+    "independent_evidence_units_consumed": 1,
+    "readiness_blockers_resolved": 1,
+    "shared_capabilities_unlocked": 0,
+    "strategies_generated": 2,
+    "strategies_registered": 2,
+    "strategies_validated": 2,
+    "work_items_completed": 1
+  },
+  "schema_version": "1.0",
+  "scientific_diversity": {
+    "active_mechanism_families": 1,
+    "active_strategy_families": 1,
+    "near_duplicate_hypotheses_suppressed": 0,
+    "rejected_lineage_suppressions": 1,
+    "repeated_failure_suppressions": 1
+  },
+  "source_artifact_identities": {
+    "oos_budget_identity": "qrob_cac490a67d5f3043",
+    "portfolio_identity": "qrpf_00796ccd604b38df",
+    "work_items_identity": "qrws_1ae512fce10387c3"
+  },
+  "trend_history_identity": "qrth_62c831b3a70660e2"
+}

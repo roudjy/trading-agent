@@ -1,0 +1,24 @@
+{
+  "concurrent_job_peak": 1,
+  "configured_budgets": {
+    "maximum_artifact_growth_per_day": 200000000,
+    "maximum_campaign_executions_per_day": 1,
+    "maximum_campaign_executions_per_run": 0,
+    "maximum_compute_units_per_day": 100,
+    "maximum_compute_units_per_run": 20,
+    "maximum_cycles_per_run": 1,
+    "maximum_data_materialization_volume": 5,
+    "maximum_generated_hypotheses_per_cycle": 2,
+    "maximum_generated_strategies_per_cycle": 1,
+    "maximum_new_oos_consumptions_per_cycle": 1,
+    "maximum_new_oos_consumptions_per_day": 2,
+    "maximum_remediation_items_per_cycle": 3,
+    "maximum_wall_clock_seconds_per_run": 900,
+    "minimum_free_disk_space": 1000000000
+  },
+  "errors": 0,
+  "jobs_executed": 1,
+  "retries": 0,
+  "timeouts": 0,
+  "wall_clock_runtime": 0
+}

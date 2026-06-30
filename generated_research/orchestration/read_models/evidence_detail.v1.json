@@ -1,0 +1,3114 @@
+{
+  "rows": [
+    {
+      "action_ledger": {
+        "action_ledger_identity": "qal_baaa6979a224fa02",
+        "module_version": "ade-qre-025.1",
+        "report_kind": "qre_second_campaign_autonomous_action_ledger",
+        "rows": [
+          {
+            "after_state": "DATA_OR_OOS_CAPACITY_BLOCKED",
+            "artifacts_created": [
+              "generated_research/campaign_execution/stages/train_and_screening.v1.json",
+              "generated_research/campaign_execution/stages/validation.v1.json",
+              "generated_research/campaign_execution/stages/oos.v1.json",
+              "generated_research/campaign_execution/stages/null_controls.v1.json"
+            ],
+            "before_state": "MANIFEST_VERIFIED",
+            "iteration": 1,
+            "next_action": "launch_data_oos_capacity_expansion",
+            "progress_status": "IRREDUCIBLE_BLOCKER_PROVEN",
+            "remediation": "execute_frozen_campaign_and_close_decision_loop",
+            "selected_blocker": "oos_sample_size"
+          }
+        ],
+        "schema_version": "1.0"
+      },
+      "closeout_identity": "qce_15a885f88aa417b3",
+      "decision": {
+        "contradiction_update": {
+          "evidence": "oos_sample_size_insufficient_after_ready_cell_execution",
+          "source_hypothesis_id": "atr_adaptive_trend_v0"
+        },
+        "decision_identity": "qdd_3a80bdcd74ec9519",
+        "failure_memory_update": {
+          "dominant_failure_mode": "oos_sample_size",
+          "generated_strategy_id": "qgs_5af8f605ba82ae53"
+        },
+        "hypothesis_decision": "BLOCKED_SAMPLE_SIZE",
+        "module_version": "ade-qre-025.1",
+        "operator_report_update": {
+          "campaign_ready_cells": 0,
+          "null_control_passed": false,
+          "oos_trade_count": 3,
+          "primary_bottleneck": "oos_sample_size"
+        },
+        "portfolio_state_update": {
+          "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+          "post_execution_status": "CONSUMED_OOS_INSUFFICIENT_EVIDENCE"
+        },
+        "report_kind": "qre_second_campaign_hypothesis_strategy_decision",
+        "schema_version": "1.0",
+        "strategy_decision": "INSUFFICIENT_EVIDENCE"
+      },
+      "evidence": {
+        "evidence_identity": "qev_9dbc0b8f54cb4b3f",
+        "module_version": "ade-qre-025.1",
+        "report_kind": "qre_second_campaign_evidence_reason_records",
+        "rows": [
+          {
+            "decision": "MANIFEST_VERIFIED",
+            "metric": "integrity_checks",
+            "next_action": "execute_ready_cell_only",
+            "source_artifact": "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json",
+            "stage": "manifest_integrity",
+            "status": "PRESENT_AUTHORITATIVE",
+            "threshold_or_policy": "all_frozen_identities_and_hashes_must_match"
+          },
+          {
+            "decision": "PASSED",
+            "metric": "trade_count",
+            "next_action": "continue_to_validation",
+            "source_artifact": "generated_research/campaign_execution/stages/train_and_screening.v1.json",
+            "stage": "train_and_screening",
+            "status": "PRESENT_AUTHORITATIVE",
+            "threshold_or_policy": 10
+          },
+          {
+            "decision": "PASSED",
+            "metric": "trade_count",
+            "next_action": "continue_to_oos",
+            "source_artifact": "generated_research/campaign_execution/stages/validation.v1.json",
+            "stage": "validation",
+            "status": "PRESENT_AUTHORITATIVE",
+            "threshold_or_policy": 3
+          },
+          {
+            "decision": "INSUFFICIENT_TRADES",
+            "metric": "oos_trade_count",
+            "next_action": "route_to_data_oos_capacity_expansion",
+            "source_artifact": "generated_research/campaign_execution/stages/oos.v1.json",
+            "stage": "oos",
+            "status": "PRESENT_AUTHORITATIVE",
+            "threshold_or_policy": 10
+          },
+          {
+            "decision": "FAILED",
+            "metric": "null_control_comparison",
+            "next_action": "route_to_post_campaign_decision",
+            "source_artifact": "generated_research/campaign_execution/stages/null_controls.v1.json",
+            "stage": "null_controls",
+            "status": "PRESENT_AUTHORITATIVE",
+            "threshold_or_policy": "actual_strategy_must_outperform_frozen_null_controls_or_remain_insufficient_evidence"
+          }
+        ],
+        "schema_version": "1.0"
+      },
+      "excluded_blocked_cells": [
+        {
+          "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+          "reason": "usable_history_below_minimum_policy_span"
+        },
+        {
+          "campaign_cell_id": "qrcell_d5ded3130f132558",
+          "reason": "cache_row_missing"
+        },
+        {
+          "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+          "reason": "usable_history_below_minimum_policy_span"
+        }
+      ],
+      "executed_campaign_cell": "qrcell_fdd68e20fd2724dd",
+      "executed_campaign_identity": "qcx_408c08d953bdf943",
+      "feedback_routing": {
+        "module_version": "ade-qre-025.1",
+        "next_action": "launch_data_oos_capacity_expansion",
+        "report_kind": "qre_second_campaign_autonomous_feedback_routing",
+        "route_reason": "INDEPENDENT_OOS_NOT_AVAILABLE",
+        "routing_identity": "qfr_c5a3905315319ea2",
+        "schema_version": "1.0",
+        "terminal_outcome": "DATA_OR_OOS_CAPACITY_BLOCKED"
+      },
+      "funnel": {
+        "executable_cells": 1,
+        "final_rejected_hypotheses": 0,
+        "final_supported_hypotheses": 0,
+        "funnel_identity": "qfd_3243a748865894cf",
+        "manifest_cells": 4,
+        "module_version": "ade-qre-025.1",
+        "null_control_complete": 1,
+        "null_control_passed": 0,
+        "oos_accepted": 0,
+        "oos_complete": 1,
+        "primary_bottleneck": "oos_sample_size",
+        "recommendations": [
+          {
+            "criterion": "screening",
+            "recommendation": "KEEP"
+          },
+          {
+            "criterion": "validation",
+            "recommendation": "KEEP"
+          },
+          {
+            "criterion": "oos_acceptance",
+            "recommendation": "INSUFFICIENT_EVIDENCE_TO_CHANGE"
+          },
+          {
+            "criterion": "null_controls",
+            "recommendation": "INSUFFICIENT_EVIDENCE_TO_CHANGE"
+          }
+        ],
+        "report_kind": "qre_second_campaign_funnel_diagnosis",
+        "schema_version": "1.0",
+        "screening_passed": 1,
+        "secondary_bottlenecks": [
+          "null_controls"
+        ],
+        "threshold_distances": {
+          "oos_trade_distance": -7,
+          "screening_trade_distance": 8,
+          "validation_trade_distance": 2
+        },
+        "train_complete": 1,
+        "validation_complete": 1,
+        "validation_passed": 1
+      },
+      "independent_oos": {
+        "assessment_identity": "qio_c0856b4bc14dfec9",
+        "future_preregistration_proposal": {},
+        "module_version": "ade-qre-025.1",
+        "outcome": "INDEPENDENT_OOS_NOT_AVAILABLE",
+        "reason": "snapshot_exhausted_at_consumed_oos_end",
+        "report_kind": "qre_second_campaign_independent_oos_assessment",
+        "schema_version": "1.0"
+      },
+      "manifest_integrity": {
+        "checks": {
+          "campaign_cell_id": true,
+          "dataset_identity": true,
+          "generated_strategy_id": true,
+          "module_hash_matches_registry": true,
+          "null_control_spec": true,
+          "oos_independence": true,
+          "oos_window": true,
+          "portfolio_ready": true,
+          "preset_id": true,
+          "quality_ready": true,
+          "registry_hash_matches_expected": true,
+          "registry_spec": true,
+          "registry_strategy": true,
+          "signal_capacity": true,
+          "snapshot_dataset": true,
+          "snapshot_identity": true,
+          "strategy_spec_id": true,
+          "timeframe": true,
+          "train_window": true,
+          "validation_hash": true,
+          "validation_state": true,
+          "validation_window": true
+        },
+        "manifest_identity": "qcm_04f0e702e5be8884",
+        "manifest_integrity_identity": "qmi_bb21790f8b9b4049",
+        "mismatches": [],
+        "missing_inputs": [],
+        "module_version": "ade-qre-025.1",
+        "provenance": [
+          "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json",
+          "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
+          "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+          "generated_research/readiness/window_capacity/authoritative_window_assignments.v1.json",
+          "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json",
+          "generated_research/readiness/window_capacity/oos_independence_proof.v1.json",
+          "generated_research/readiness/window_capacity/signal_density_capacity.v1.json",
+          "generated_research/readiness/data_capacity/strategy_data_quality_coverage.v1.json",
+          "generated_research/registry/generated_strategy_registry.v1.json",
+          "generated_research/specs/qsp_16800d656bf28677.json",
+          "generated_research/validation/qgs_5af8f605ba82ae53.json",
+          "generated_research/lineage/generated_null_controls.v1.json",
+          "agent/backtesting/generated_strategies/generated_qgs_5af8f605ba82ae53.py",
+          "data/cache/market/yfinance__ASML__4h__20240525__20260425__4d9f10c591dd4bf6.parquet"
+        ],
+        "report_kind": "qre_second_campaign_manifest_integrity",
+        "schema_version": "1.0",
+        "status": "MANIFEST_VERIFIED"
+      },
+      "module_version": "ade-qre-025.1",
+      "null_controls": {
+        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+        "generated_strategy_id": "qgs_5af8f605ba82ae53",
+        "module_version": "ade-qre-025.1",
+        "null_control_complete": true,
+        "null_control_execution_identity": "qne_6954d9eb7f9fe1c6",
+        "null_control_passed": false,
+        "reason": "null_controls_not_distinguishable_under_current_sample",
+        "report_kind": "qre_second_campaign_null_controls",
+        "rows": [
+          {
+            "accepted": false,
+            "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+            "comparison_outcome": "INSUFFICIENT_SAMPLE",
+            "control_class": "matched_frequency_null",
+            "control_identity": "qncx_6b7cab916a2af978",
+            "deterministic_seed": "01e1a2972b98d302",
+            "generated_strategy_id": "qgs_5af8f605ba82ae53",
+            "metrics": {
+              "active_bar_count": 74,
+              "bar_count": 126,
+              "costs": 0.0,
+              "expectancy": -0.015451052962830947,
+              "exposure_fraction": 0.587302,
+              "gross_return_compound": -0.040530201068545435,
+              "gross_return_sum": -0.020497263190851878,
+              "holding_period_bars_average": 37.0,
+              "max_drawdown": 0.17587167559432226,
+              "net_return_compound": -0.040530201068545435,
+              "profit_factor": 0.7307779600776825,
+              "signal_count": 74,
+              "signals": [
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-02-26T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-02-26T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-02-27T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-02-27T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-02T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-02T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-03T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-03T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-04T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-04T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-05T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-05T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-06T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-06T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-09T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-09T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-10T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-10T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-11T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-11T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-12T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-12T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-16T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-16T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-17T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-17T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-18T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-18T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-19T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-19T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-20T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-20T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-23T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-23T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-24T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-24T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-25T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-25T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-26T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-26T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-27T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-27T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-30T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-30T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-31T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-31T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-01T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-01T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-02T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-02T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-06T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-06T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-07T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-07T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-08T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-08T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-09T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-09T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-10T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-10T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-13T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-13T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-14T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-14T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-15T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-15T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-16T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-16T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-17T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-17T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-20T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-20T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-21T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-21T17:30:00Z"
+                }
+              ],
+              "slippage": 0.0,
+              "stage_name": "matched_frequency_null",
+              "trade_count": 2,
+              "trades": [
+                {
+                  "entry_timestamp_utc": "2026-02-26T14:30:00Z",
+                  "exit_timestamp_utc": "2026-03-13T13:30:00Z",
+                  "gross_return": -0.11478297220605904,
+                  "holding_bars": 22,
+                  "net_return": -0.11478297220605904
+                },
+                {
+                  "entry_timestamp_utc": "2026-03-16T13:30:00Z",
+                  "exit_timestamp_utc": "2026-04-22T13:30:00Z",
+                  "gross_return": 0.08388086628039715,
+                  "holding_bars": 52,
+                  "net_return": 0.08388086628039715
+                }
+              ],
+              "turnover": 4
+            },
+            "snapshot_identity": "qsn_f8a7d624458bb131",
+            "technical_validation_only": false,
+            "window": {
+              "end": "2026-04-24T17:30:00Z",
+              "start": "2026-01-24T17:30:00Z"
+            }
+          },
+          {
+            "accepted": false,
+            "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+            "comparison_outcome": "INSUFFICIENT_SAMPLE",
+            "control_class": "sign_flipped_signal",
+            "control_identity": "qncx_a1bbf5e7577cf022",
+            "deterministic_seed": "01e1a2972b98d302",
+            "generated_strategy_id": "qgs_5af8f605ba82ae53",
+            "metrics": {
+              "active_bar_count": 52,
+              "bar_count": 126,
+              "costs": 0.0,
+              "expectancy": 0.03741183871425602,
+              "exposure_fraction": 0.412698,
+              "gross_return_compound": 0.07622307672735018,
+              "gross_return_sum": 0.08789116534405239,
+              "holding_period_bars_average": 26.0,
+              "max_drawdown": 0.10775591985364752,
+              "net_return_compound": 0.07622307672735018,
+              "profit_factor": 999.0,
+              "signal_count": 52,
+              "signals": [
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-03T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-04T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-04T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-05T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-05T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-06T14:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-06T18:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-09T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-09T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-10T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-10T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-11T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-11T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-12T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-12T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-13T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-13T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-16T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-16T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-17T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-17T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-18T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-18T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-19T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-19T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-20T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-20T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-23T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-23T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-24T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-24T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-25T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-25T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-26T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-26T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-27T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-27T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-30T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-30T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-31T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-03-31T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-01T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-01T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-02T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-02T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-06T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-06T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-07T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-07T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-08T13:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-23T17:30:00Z"
+                },
+                {
+                  "signal": 1,
+                  "timestamp_utc": "2026-04-24T13:30:00Z"
+                }
+              ],
+              "slippage": 0.0,
+              "stage_name": "sign_flipped_signal",
+              "trade_count": 2,
+              "trades": [
+                {
+                  "entry_timestamp_utc": "2026-03-03T18:30:00Z",
+                  "exit_timestamp_utc": "2026-04-08T17:30:00Z",
+                  "gross_return": 0.03691547479185009,
+                  "holding_bars": 50,
+                  "net_return": 0.03691547479185009
+                },
+                {
+                  "entry_timestamp_utc": "2026-04-23T17:30:00Z",
+                  "exit_timestamp_utc": "2026-04-24T17:30:00Z",
+                  "gross_return": 0.03790820263666195,
+                  "holding_bars": 2,
+                  "net_return": 0.03790820263666195
+                }
+              ],
+              "turnover": 4
+            },
+            "snapshot_identity": "qsn_f8a7d624458bb131",
+            "technical_validation_only": false,
+            "window": {
+              "end": "2026-04-24T17:30:00Z",
+              "start": "2026-01-24T17:30:00Z"
+            }
+          },
+          {
+            "accepted": false,
+            "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+            "comparison_outcome": "INSUFFICIENT_SAMPLE",
+            "control_class": "cost_only_baseline",
+            "control_identity": "qncx_e04627d04f6b2131",
+            "deterministic_seed": "01e1a2972b98d302",
+            "generated_strategy_id": "qgs_5af8f605ba82ae53",
+            "metrics": {
+              "active_bar_count": 0,
+              "bar_count": 126,
+              "costs": 0.0,
+              "expectancy": 0.0,
+              "exposure_fraction": 0.0,
+              "gross_return_compound": 0.0,
+              "gross_return_sum": 0.0,
+              "holding_period_bars_average": 0.0,
+              "max_drawdown": 0.0,
+              "net_return_compound": 0.0,
+              "profit_factor": 0.0,
+              "signal_count": 0,
+              "signals": [],
+              "slippage": 0.0,
+              "stage_name": "cost_only_baseline",
+              "trade_count": 0,
+              "trades": [],
+              "turnover": 0
+            },
+            "snapshot_identity": "qsn_f8a7d624458bb131",
+            "technical_validation_only": false,
+            "window": {
+              "end": "2026-04-24T17:30:00Z",
+              "start": "2026-01-24T17:30:00Z"
+            }
+          }
+        ],
+        "schema_version": "1.0"
+      },
+      "oos_consumption": {
+        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+        "campaign_manifest_identity": "qcm_04f0e702e5be8884",
+        "generated_strategy_id": "qgs_5af8f605ba82ae53",
+        "module_version": "ade-qre-025.1",
+        "oos_consumption_identity": "qwc_8c9fcb2e33b0bb6b",
+        "provenance": [
+          "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json",
+          "generated_research/campaign_execution/stages/oos.v1.json"
+        ],
+        "report_kind": "qre_second_campaign_oos_consumption",
+        "schema_version": "1.0",
+        "status": "CONSUMED",
+        "window_id": "qwl_06fd2878a7332daa"
+      },
+      "oos_stage": {
+        "active_bar_count": 74,
+        "bar_count": 126,
+        "costs": 0.0,
+        "expectancy": -0.008774618206521626,
+        "exposure_fraction": 0.587302,
+        "gross_return_compound": -0.026132479750571314,
+        "gross_return_sum": -0.013108945438261355,
+        "holding_period_bars_average": 24.666667,
+        "max_drawdown": 0.11681204129183764,
+        "net_return_compound": -0.026132479750571314,
+        "oos_outcome": "INSUFFICIENT_TRADES",
+        "oos_window_id": "qwl_06fd2878a7332daa",
+        "profit_factor": 0.0,
+        "reason_records": [
+          {
+            "decision": "oos_gate",
+            "metric": "trade_count",
+            "next_action": "route_to_data_oos_capacity_expansion",
+            "status": "FAILED",
+            "threshold": 10,
+            "value": 3
+          }
+        ],
+        "signal_count": 74,
+        "signals": [
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-26T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-26T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-27T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-27T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-28T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-28T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-29T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-29T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-30T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-30T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-02T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-02T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-03T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-03T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-04T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-04T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-05T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-05T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-06T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-06T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-09T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-09T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-10T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-10T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-11T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-11T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-12T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-12T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-13T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-13T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-17T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-17T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-18T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-18T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-19T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-19T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-20T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-20T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-23T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-23T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-24T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-24T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-25T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-25T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-26T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-26T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-27T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-02-27T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-03-02T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-03-02T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-08T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-08T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-09T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-09T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-10T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-10T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-13T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-13T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-14T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-14T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-16T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-16T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-17T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-17T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-20T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-20T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-21T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-21T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-22T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-22T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-24T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-04-24T17:30:00Z"
+          }
+        ],
+        "slippage": 0.0,
+        "stage_name": "oos",
+        "trade_count": 3,
+        "trades": [
+          {
+            "entry_timestamp_utc": "2026-01-26T14:30:00Z",
+            "exit_timestamp_utc": "2026-03-03T18:30:00Z",
+            "gross_return": -0.015728305742025883,
+            "holding_bars": 51,
+            "net_return": -0.015728305742025883
+          },
+          {
+            "entry_timestamp_utc": "2026-04-08T17:30:00Z",
+            "exit_timestamp_utc": "2026-04-23T17:30:00Z",
+            "gross_return": -0.003581242088177672,
+            "holding_bars": 22,
+            "net_return": -0.003581242088177672
+          },
+          {
+            "entry_timestamp_utc": "2026-04-24T17:30:00Z",
+            "exit_timestamp_utc": "2026-04-24T17:30:00Z",
+            "gross_return": -0.007014306789361324,
+            "holding_bars": 1,
+            "net_return": -0.007014306789361324
+          }
+        ],
+        "turnover": 5,
+        "validation_evidence": {
+          "evidence_status": "insufficient_oos_trades",
+          "min_oos_trades": 10,
+          "oos_trade_count": 3
+        }
+      },
+      "recalibration": {
+        "module_version": "ade-qre-025.1",
+        "next_action": "same_input_replay_not_authorized_without_recalibration",
+        "outcome": "NO_RECALIBRATION_JUSTIFIED",
+        "recalibration_identity": "qra_da7acd957389da0b",
+        "report_kind": "qre_second_campaign_recalibration_decision",
+        "schema_version": "1.0",
+        "selected_criterion_class": ""
+      },
+      "replay": {
+        "independent_oos_evidence": false,
+        "module_version": "ade-qre-025.1",
+        "outcome": "NOT_RUN",
+        "reason": "no_recalibration_justified_and_no_control_replay_required",
+        "replay_identity": "qsr_6c5861663055dcbc",
+        "report_kind": "qre_second_campaign_same_input_replay",
+        "schema_version": "1.0"
+      },
+      "report_kind": "qre_second_preregistered_campaign",
+      "schema_version": "1.0",
+      "terminal_outcome": "DATA_OR_OOS_CAPACITY_BLOCKED",
+      "train_stage": {
+        "active_bar_count": 306,
+        "bar_count": 666,
+        "costs": 0.0,
+        "criteria_checks": {
+          "sufficient_signals": true,
+          "sufficient_trades": true
+        },
+        "expectancy": -0.008657564215064091,
+        "exposure_fraction": 0.459459,
+        "gross_return_compound": -0.18760249338875634,
+        "gross_return_sum": -0.15451403369121608,
+        "holding_period_bars_average": 17.0,
+        "max_drawdown": 0.4073325830919946,
+        "net_return_compound": -0.18760249338875634,
+        "profit_factor": 0.6947875567927402,
+        "reason_records": [
+          {
+            "decision": "screening_gate",
+            "metric": "trade_count",
+            "next_action": "continue_to_validation",
+            "status": "PASSED",
+            "threshold": 10,
+            "value": 18
+          },
+          {
+            "decision": "screening_gate",
+            "metric": "signal_count",
+            "next_action": "continue_to_validation",
+            "status": "PASSED",
+            "threshold": 6,
+            "value": 307
+          }
+        ],
+        "screening_outcome": "PASSED",
+        "signal_count": 307,
+        "signals": [
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-05T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-06T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-06T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-07T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-07T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-10T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-10T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-11T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-11T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-12T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-12T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-13T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-13T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-14T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-14T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-17T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-17T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-18T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-18T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-20T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-20T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-21T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-21T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-27T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-27T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-28T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-06-28T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-01T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-01T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-02T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-02T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-03T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-05T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-05T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-08T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-08T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-09T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-09T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-10T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-10T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-11T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-11T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-12T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-12T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-16T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-07-16T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-16T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-16T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-19T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-19T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-20T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-20T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-21T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-21T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-08-22T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-09-26T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-09-26T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-09-27T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-09-27T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-09T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-09T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-10T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-10T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-11T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-11T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-14T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-10-14T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-02T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-02T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-03T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-03T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-04T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-04T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-05T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-05T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-06T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-06T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-09T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-09T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-10T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-10T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-11T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-11T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-12T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-12T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-13T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-13T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-16T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-16T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-17T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-17T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-18T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-18T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-19T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-19T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-20T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-23T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-24T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-26T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2024-12-26T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-06T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-06T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-07T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-07T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-08T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-08T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-10T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-10T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-13T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-13T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-14T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-14T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-15T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-15T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-16T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-16T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-17T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-17T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-21T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-21T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-22T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-22T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-23T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-23T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-31T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-01-31T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-05T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-06T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-06T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-10T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-10T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-11T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-11T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-12T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-12T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-13T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-13T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-14T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-14T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-18T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-18T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-19T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-02-19T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-03-19T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-03-20T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-03-20T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-04-25T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-04-25T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-02T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-02T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-05T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-05T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-06T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-06T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-07T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-07T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-08T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-08T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-09T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-09T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-12T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-12T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-13T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-13T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-14T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-14T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-16T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-16T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-19T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-19T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-20T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-20T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-21T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-21T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-22T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-22T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-23T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-23T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-27T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-27T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-28T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-28T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-29T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-29T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-30T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-05-30T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-02T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-02T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-03T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-03T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-04T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-04T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-05T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-05T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-06T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-06T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-09T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-09T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-10T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-10T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-11T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-11T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-12T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-12T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-13T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-13T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-16T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-16T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-17T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-17T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-18T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-18T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-23T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-23T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-24T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-24T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-25T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-25T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-26T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-26T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-27T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-27T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-30T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-06-30T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-01T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-01T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-02T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-02T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-03T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-07T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-07T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-08T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-08T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-09T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-09T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-10T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-10T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-11T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-11T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-14T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-14T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-07-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-12T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-12T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-13T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-13T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-14T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-14T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-18T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-18T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-19T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-19T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-20T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-20T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-22T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-22T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-25T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-25T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-26T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-26T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-27T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-27T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-28T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-08-28T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-04T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-04T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-05T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-05T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-08T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-08T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-09T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-09T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-10T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-10T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-11T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-11T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-12T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-12T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-16T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-16T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-17T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-17T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-18T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-18T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-19T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-19T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-22T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-22T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-23T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-23T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-24T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-24T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-25T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-25T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-26T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-09-26T17:30:00Z"
+          }
+        ],
+        "slippage": 0.0,
+        "stage_name": "train",
+        "trade_count": 18,
+        "trades": [
+          {
+            "entry_timestamp_utc": "2024-06-06T13:30:00Z",
+            "exit_timestamp_utc": "2024-06-24T17:30:00Z",
+            "gross_return": -0.024775282472812576,
+            "holding_bars": 23,
+            "net_return": -0.024775282472812576
+          },
+          {
+            "entry_timestamp_utc": "2024-06-27T17:30:00Z",
+            "exit_timestamp_utc": "2024-07-17T17:30:00Z",
+            "gross_return": -0.08679777130624744,
+            "holding_bars": 25,
+            "net_return": -0.08679777130624744
+          },
+          {
+            "entry_timestamp_utc": "2024-08-15T17:30:00Z",
+            "exit_timestamp_utc": "2024-08-23T13:30:00Z",
+            "gross_return": -0.015059590558876956,
+            "holding_bars": 11,
+            "net_return": -0.015059590558876956
+          },
+          {
+            "entry_timestamp_utc": "2024-09-26T17:30:00Z",
+            "exit_timestamp_utc": "2024-09-30T17:30:00Z",
+            "gross_return": -0.021723031830222395,
+            "holding_bars": 4,
+            "net_return": -0.021723031830222395
+          },
+          {
+            "entry_timestamp_utc": "2024-10-09T17:30:00Z",
+            "exit_timestamp_utc": "2024-10-15T17:30:00Z",
+            "gross_return": -0.13597300746813112,
+            "holding_bars": 8,
+            "net_return": -0.13597300746813112
+          },
+          {
+            "entry_timestamp_utc": "2024-12-02T18:30:00Z",
+            "exit_timestamp_utc": "2024-12-23T14:30:00Z",
+            "gross_return": -0.00404348390501319,
+            "holding_bars": 29,
+            "net_return": -0.00404348390501319
+          },
+          {
+            "entry_timestamp_utc": "2024-12-24T14:30:00Z",
+            "exit_timestamp_utc": "2024-12-27T18:30:00Z",
+            "gross_return": -0.013561986340306587,
+            "holding_bars": 4,
+            "net_return": -0.013561986340306587
+          },
+          {
+            "entry_timestamp_utc": "2025-01-06T18:30:00Z",
+            "exit_timestamp_utc": "2025-01-24T18:30:00Z",
+            "gross_return": -0.04769480399778481,
+            "holding_bars": 24,
+            "net_return": -0.04769480399778481
+          },
+          {
+            "entry_timestamp_utc": "2025-01-31T18:30:00Z",
+            "exit_timestamp_utc": "2025-02-03T18:30:00Z",
+            "gross_return": -0.025735022645486882,
+            "holding_bars": 2,
+            "net_return": -0.025735022645486882
+          },
+          {
+            "entry_timestamp_utc": "2025-02-06T14:30:00Z",
+            "exit_timestamp_utc": "2025-02-07T18:30:00Z",
+            "gross_return": -0.016760153518712517,
+            "holding_bars": 3,
+            "net_return": -0.016760153518712517
+          },
+          {
+            "entry_timestamp_utc": "2025-02-10T18:30:00Z",
+            "exit_timestamp_utc": "2025-02-20T18:30:00Z",
+            "gross_return": -0.004909471194672221,
+            "holding_bars": 14,
+            "net_return": -0.004909471194672221
+          },
+          {
+            "entry_timestamp_utc": "2025-03-20T13:30:00Z",
+            "exit_timestamp_utc": "2025-03-21T17:30:00Z",
+            "gross_return": -0.02497280262225099,
+            "holding_bars": 3,
+            "net_return": -0.02497280262225099
+          },
+          {
+            "entry_timestamp_utc": "2025-04-25T17:30:00Z",
+            "exit_timestamp_utc": "2025-04-28T17:30:00Z",
+            "gross_return": -0.02962283069471694,
+            "holding_bars": 2,
+            "net_return": -0.02962283069471694
+          },
+          {
+            "entry_timestamp_utc": "2025-05-02T17:30:00Z",
+            "exit_timestamp_utc": "2025-06-20T17:30:00Z",
+            "gross_return": 0.08891052686228562,
+            "holding_bars": 66,
+            "net_return": 0.08891052686228562
+          },
+          {
+            "entry_timestamp_utc": "2025-06-23T17:30:00Z",
+            "exit_timestamp_utc": "2025-07-16T17:30:00Z",
+            "gross_return": -0.031460791978549896,
+            "holding_bars": 31,
+            "net_return": -0.031460791978549896
+          },
+          {
+            "entry_timestamp_utc": "2025-08-12T17:30:00Z",
+            "exit_timestamp_utc": "2025-08-21T17:30:00Z",
+            "gross_return": -0.009235455075740084,
+            "holding_bars": 14,
+            "net_return": -0.009235455075740084
+          },
+          {
+            "entry_timestamp_utc": "2025-08-22T17:30:00Z",
+            "exit_timestamp_utc": "2025-08-29T17:30:00Z",
+            "gross_return": -0.018257091671999848,
+            "holding_bars": 10,
+            "net_return": -0.018257091671999848
+          },
+          {
+            "entry_timestamp_utc": "2025-09-04T17:30:00Z",
+            "exit_timestamp_utc": "2025-09-26T17:30:00Z",
+            "gross_return": 0.2658358945480852,
+            "holding_bars": 33,
+            "net_return": 0.2658358945480852
+          }
+        ],
+        "turnover": 35
+      },
+      "validation_stage": {
+        "active_bar_count": 86,
+        "bar_count": 122,
+        "costs": 0.0,
+        "criteria_checks": {
+          "sufficient_signals": true,
+          "sufficient_trades": true
+        },
+        "expectancy": 0.04649870264552012,
+        "exposure_fraction": 0.704918,
+        "gross_return_compound": 0.23833795790487544,
+        "gross_return_sum": 0.22848992386921207,
+        "holding_period_bars_average": 17.2,
+        "max_drawdown": 0.11908613618000163,
+        "net_return_compound": 0.23833795790487544,
+        "profit_factor": 5.79923019936595,
+        "reason_records": [
+          {
+            "decision": "validation_gate",
+            "metric": "trade_count",
+            "next_action": "continue_to_oos",
+            "status": "PASSED",
+            "threshold": 3,
+            "value": 5
+          },
+          {
+            "decision": "validation_gate",
+            "metric": "signal_count",
+            "next_action": "continue_to_oos",
+            "status": "PASSED",
+            "threshold": 3,
+            "value": 86
+          }
+        ],
+        "signal_count": 86,
+        "signals": [
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-13T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-13T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-14T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-14T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-15T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-15T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-16T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-16T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-17T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-17T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-20T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-20T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-21T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-21T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-22T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-22T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-23T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-23T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-24T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-24T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-27T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-27T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-28T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-28T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-29T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-29T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-30T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-30T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-31T13:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-10-31T17:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-03T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-03T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-04T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-04T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-05T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-05T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-06T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-06T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-10T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-10T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-11T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-11T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-12T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-12T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-19T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-26T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-26T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-11-28T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-01T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-01T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-02T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-02T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-03T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-03T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-04T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-04T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-05T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-05T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-08T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-08T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-09T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-09T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-10T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-10T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-11T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-11T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-12T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-12T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-15T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-15T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-30T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-30T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-31T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2025-12-31T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-02T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-02T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-05T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-05T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-06T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-06T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-07T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-07T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-08T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-08T18:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-09T14:30:00Z"
+          },
+          {
+            "signal": 1,
+            "timestamp_utc": "2026-01-09T18:30:00Z"
+          }
+        ],
+        "slippage": 0.0,
+        "stage_name": "validation",
+        "trade_count": 5,
+        "trades": [
+          {
+            "entry_timestamp_utc": "2025-10-13T13:30:00Z",
+            "exit_timestamp_utc": "2025-11-07T18:30:00Z",
+            "gross_return": 0.07888156373975508,
+            "holding_bars": 39,
+            "net_return": 0.07888156373975508
+          },
+          {
+            "entry_timestamp_utc": "2025-11-10T18:30:00Z",
+            "exit_timestamp_utc": "2025-11-13T18:30:00Z",
+            "gross_return": -0.013051032866731815,
+            "holding_bars": 6,
+            "net_return": -0.013051032866731815
+          },
+          {
+            "entry_timestamp_utc": "2025-11-20T14:30:00Z",
+            "exit_timestamp_utc": "2025-11-20T18:30:00Z",
+            "gross_return": -0.03539288492206616,
+            "holding_bars": 1,
+            "net_return": -0.03539288492206616
+          },
+          {
+            "entry_timestamp_utc": "2025-11-26T18:30:00Z",
+            "exit_timestamp_utc": "2025-12-16T18:30:00Z",
+            "gross_return": 0.019693607071273433,
+            "holding_bars": 25,
+            "net_return": 0.019693607071273433
+          },
+          {
+            "entry_timestamp_utc": "2025-12-30T18:30:00Z",
+            "exit_timestamp_utc": "2026-01-09T18:30:00Z",
+            "gross_return": 0.18236226020537005,
+            "holding_bars": 15,
+            "net_return": 0.18236226020537005
+          }
+        ],
+        "train_to_validation_degradation": {
+          "net_return_compound_delta": 0.42594,
+          "signal_count_delta": -221,
+          "trade_count_delta": -13
+        },
+        "turnover": 9,
+        "validation_outcome": "PASSED"
+      }
+    }
+  ],
+  "schema_version": "1.0"
+}

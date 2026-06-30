@@ -176,6 +176,24 @@ def test_phase_vocabulary_is_closed_and_complete() -> None:
         "ade_qre_025m",
         "ade_qre_025n",
         "ade_qre_025o",
+        "ade_qre_026a",
+        "ade_qre_026b",
+        "ade_qre_026c",
+        "ade_qre_026d",
+        "ade_qre_026e",
+        "ade_qre_026f",
+        "ade_qre_026g",
+        "ade_qre_026h",
+        "ade_qre_026i",
+        "ade_qre_026j",
+        "ade_qre_026k",
+        "ade_qre_026l",
+        "ade_qre_026m",
+        "ade_qre_026n",
+        "ade_qre_026o",
+        "ade_qre_026p",
+        "ade_qre_026q",
+        "ade_qre_026r",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -201,6 +219,7 @@ def test_source_document_vocabulary_includes_addenda_2_and_3() -> None:
         "docs/roadmap/qre_autonomous_readiness_closure_program.md",
         "docs/roadmap/qre_automated_data_capacity_window_assignment_program.md",
         "docs/roadmap/qre_execute_second_preregistered_campaign_program.md",
+        "docs/roadmap/qre_autonomous_ade_work_admission_orchestration_program.md",
         "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
         "docs/governance/qre_synthesis_readiness_review.md",
         "docs/roadmap/Roadmap v6.md",
@@ -476,6 +495,28 @@ def test_ade_qre_025a_to_025o_tasks_present(snap: dict) -> None:
     assert tasks["ade_qre_025o"]["id"] == "ade_qre_025o_integrated_campaign_closeout"
 
 
+def test_ade_qre_026a_to_026r_tasks_present(snap: dict) -> None:
+    tasks = {row["phase"]: row for row in snap["roadmap_tasks"]}
+    assert tasks["ade_qre_026a"]["id"] == "ade_qre_026a_autonomous_orchestration_governance"
+    assert tasks["ade_qre_026b"]["id"] == "ade_qre_026b_unified_research_portfolio_model"
+    assert tasks["ade_qre_026c"]["id"] == "ade_qre_026c_typed_next_action_contract"
+    assert tasks["ade_qre_026d"]["id"] == "ade_qre_026d_autonomous_work_admission"
+    assert tasks["ade_qre_026e"]["id"] == "ade_qre_026e_dependency_and_causal_blocker_graph"
+    assert tasks["ade_qre_026f"]["id"] == "ade_qre_026f_work_planner_and_router"
+    assert tasks["ade_qre_026g"]["id"] == "ade_qre_026g_capability_execution_adapters"
+    assert tasks["ade_qre_026h"]["id"] == "ade_qre_026h_development_work_package_generator"
+    assert tasks["ade_qre_026i"]["id"] == "ade_qre_026i_validation_and_evidence_gate"
+    assert tasks["ade_qre_026j"]["id"] == "ade_qre_026j_research_replay_controller"
+    assert tasks["ade_qre_026k"]["id"] == "ade_qre_026k_research_throughput_scheduler"
+    assert tasks["ade_qre_026l"]["id"] == "ade_qre_026l_campaign_portfolio_scheduler"
+    assert tasks["ade_qre_026m"]["id"] == "ade_qre_026m_oos_and_evidence_budget_manager"
+    assert tasks["ade_qre_026n"]["id"] == "ade_qre_026n_autonomous_data_oos_capacity_expansion"
+    assert tasks["ade_qre_026o"]["id"] == "ade_qre_026o_continuous_research_loop"
+    assert tasks["ade_qre_026p"]["id"] == "ade_qre_026p_operator_controls_and_kill_switches"
+    assert tasks["ade_qre_026q"]["id"] == "ade_qre_026q_integrated_closeout"
+    assert tasks["ade_qre_026r"]["id"] == "ade_qre_026r_simple_research_operations_configuration_monitoring_and_daily_intelligence"
+
+
 def test_phase_v3_15_17_task_present(snap: dict) -> None:
     t = _tasks_by_phase(snap)["v3.15.17"]
     assert t["id"] == "phase_v3_15_17"
@@ -585,6 +626,24 @@ def test_v3_15_16_to_v3_15_20_all_present_in_order(snap: dict) -> None:
         "ade_qre_025m",
         "ade_qre_025n",
         "ade_qre_025o",
+        "ade_qre_026a",
+        "ade_qre_026b",
+        "ade_qre_026c",
+        "ade_qre_026d",
+        "ade_qre_026e",
+        "ade_qre_026f",
+        "ade_qre_026g",
+        "ade_qre_026h",
+        "ade_qre_026i",
+        "ade_qre_026j",
+        "ade_qre_026k",
+        "ade_qre_026l",
+        "ade_qre_026m",
+        "ade_qre_026n",
+        "ade_qre_026o",
+        "ade_qre_026p",
+        "ade_qre_026q",
+        "ade_qre_026r",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",

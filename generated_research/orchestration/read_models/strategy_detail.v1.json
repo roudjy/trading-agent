@@ -1,0 +1,74 @@
+{
+  "rows": [
+    {
+      "blocker_set": [
+        "cache_row_missing",
+        "oos_sample_size",
+        "usable_history_below_minimum_policy_span"
+      ],
+      "campaign_cells": [
+        "qrcell_41d3efbcaa2aeddb",
+        "qrcell_d5ded3130f132558",
+        "qrcell_fdd68e20fd2724dd"
+      ],
+      "current_stage": "OOS_CAPACITY_BLOCKED",
+      "data_requirements": [
+        "qds_81ae54676629b223",
+        "qds_f8a7d624458bb131"
+      ],
+      "duplicate_exposure": 0,
+      "evidence_strength": "INSUFFICIENT_EVIDENCE",
+      "expected_compute_cost": 3,
+      "expected_information_gain": 0.85,
+      "expected_oos_cost": 0,
+      "independence_group": "qrcell_41d3efbcaa2aeddb",
+      "mechanism_family": "trend_persistence",
+      "next_action": "launch_data_oos_capacity_expansion",
+      "object_identity": "qgs_5af8f605ba82ae53",
+      "object_type": "strategy",
+      "primary_blocker": "oos_sample_size",
+      "priority_score": 0.51,
+      "provenance": [
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "required_authority": "LOCAL_AUTONOMOUS",
+      "strategy_family": "trend",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "blocker_set": [
+        "usable_history_below_minimum_policy_span"
+      ],
+      "campaign_cells": [
+        "qrcell_44aa81da7c2fc7c9"
+      ],
+      "current_stage": "DATA_CAPACITY_BLOCKED",
+      "data_requirements": [
+        "qds_be8702b264081860"
+      ],
+      "duplicate_exposure": 0,
+      "evidence_strength": "RESEARCH_REGISTERED",
+      "expected_compute_cost": 2,
+      "expected_information_gain": 0.6,
+      "expected_oos_cost": 0,
+      "independence_group": "qrcell_44aa81da7c2fc7c9",
+      "mechanism_family": "trend_persistence",
+      "next_action": "launch_data_oos_capacity_expansion",
+      "object_identity": "qgs_e565b01bd0a162d0",
+      "object_type": "strategy",
+      "primary_blocker": "usable_history_below_minimum_policy_span",
+      "priority_score": 0.12,
+      "provenance": [
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "required_authority": "LOCAL_AUTONOMOUS",
+      "strategy_family": "trend",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0"
+}

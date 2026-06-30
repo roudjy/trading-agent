@@ -262,14 +262,14 @@ def test_current_queue_marks_017_program_complete_after_017ad_evidence() -> None
     assert rows["ADE-QRE-018I"]["done_evidence"]["complete"] is True
 
 
-def test_current_queue_marks_ade_qre_024_complete_and_selects_ade_qre_025_successor() -> None:
+def test_current_queue_marks_ade_qre_025_complete_and_admits_ade_qre_026() -> None:
     snap = audit.collect_snapshot(frozen_utc="2026-06-30T00:00:00Z")
     rows = {row["queue_item"]: row for row in snap["items"]}
 
     assert snap["final_recommendation"] == "queue_status_audit_ready_with_warnings"
     assert snap["summary"]["blocked_items_missing_reason"] == []
-    assert snap["summary"]["eligible_ready_items"] == []
-    assert snap["summary"]["next_eligible_ready_item"] is None
+    assert "ADE-QRE-026" in snap["summary"]["eligible_ready_items"]
+    assert snap["summary"]["next_eligible_ready_item"] == "ADE-QRE-026"
     assert rows["ADE-QRE-022"]["status"] == "done"
     assert rows["ADE-QRE-022"]["auto_selectable"] is False
     assert rows["ADE-QRE-022"]["done_evidence"]["complete"] is True
@@ -304,6 +304,14 @@ def test_current_queue_marks_ade_qre_024_complete_and_selects_ade_qre_025_succes
     assert rows["ADE-QRE-025B"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-025O"]["status"] == "done"
     assert rows["ADE-QRE-025O"]["done_evidence"]["complete"] is True
+    assert rows["ADE-QRE-026"]["status"] == "ready"
+    assert rows["ADE-QRE-026"]["auto_selectable"] is True
+    assert rows["ADE-QRE-026A"]["status"] == "not_started"
+    assert rows["ADE-QRE-026A"]["auto_selectable"] is False
+    assert rows["ADE-QRE-026Q"]["status"] == "not_started"
+    assert rows["ADE-QRE-026Q"]["auto_selectable"] is False
+    assert rows["ADE-QRE-026R"]["status"] == "not_started"
+    assert rows["ADE-QRE-026R"]["auto_selectable"] is False
     assert rows["ADE-QRE-019"]["status"] == "done"
     assert rows["ADE-QRE-019"]["done_evidence"]["complete"] is True
     assert rows["ADE-QRE-019A"]["status"] == "done"

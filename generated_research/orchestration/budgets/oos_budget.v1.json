@@ -1,0 +1,82 @@
+{
+  "module_version": "ade-qre-026.1",
+  "oos_budget_identity": "qrob_cac490a67d5f3043",
+  "report_kind": "qre_oos_budget",
+  "rows": [
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "dataset_identity": "qds_f8a7d624458bb131",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "independence_group": "qig_cc56f7ca711a218e",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "TRAIN",
+      "snapshot_identity": "qsn_f8a7d624458bb131",
+      "status": "RESERVED",
+      "timeframe": "4h",
+      "window": {
+        "end": "2025-09-28T17:30:00Z",
+        "start": "2024-05-28T13:30:00Z"
+      },
+      "window_id": "qwl_4088db5daab20be2"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "dataset_identity": "qds_f8a7d624458bb131",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "independence_group": "qig_cc56f7ca711a218e",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "VALIDATION",
+      "snapshot_identity": "qsn_f8a7d624458bb131",
+      "status": "RESERVED",
+      "timeframe": "4h",
+      "window": {
+        "end": "2026-01-10T17:30:00Z",
+        "start": "2025-10-12T17:30:00Z"
+      },
+      "window_id": "qwl_3c3cc6b2ebb76c08"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "consumption_evidence": {
+        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+        "campaign_manifest_identity": "qcm_04f0e702e5be8884",
+        "generated_strategy_id": "qgs_5af8f605ba82ae53",
+        "oos_stage_path": "generated_research/campaign_execution/stages/oos.v1.json"
+      },
+      "consumption_identity": "qwc_8c9fcb2e33b0bb6b",
+      "dataset_identity": "qds_f8a7d624458bb131",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "independence_group": "qig_cc56f7ca711a218e",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "OOS",
+      "snapshot_identity": "qsn_f8a7d624458bb131",
+      "status": "CONSUMED",
+      "timeframe": "4h",
+      "window": {
+        "end": "2026-04-24T17:30:00Z",
+        "start": "2026-01-24T17:30:00Z"
+      },
+      "window_id": "qwl_06fd2878a7332daa"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "available": 0,
+    "campaigns_awaiting_oos": 1,
+    "configured_cycle_maximum": 1,
+    "configured_daily_maximum": 2,
+    "consumed": 1,
+    "invalidated": 0,
+    "reserved": 0,
+    "total_known_independent_windows": 1
+  }
+}

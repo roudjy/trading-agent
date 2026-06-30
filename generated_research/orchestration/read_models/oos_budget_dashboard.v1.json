@@ -1,0 +1,10 @@
+{
+  "available": 0,
+  "campaigns_awaiting_oos": 1,
+  "configured_cycle_maximum": 1,
+  "configured_daily_maximum": 2,
+  "consumed": 1,
+  "invalidated": 0,
+  "reserved": 0,
+  "total_known_independent_windows": 1
+}

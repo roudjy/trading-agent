@@ -1,0 +1,13 @@
+{
+  "rows": [
+    {
+      "behavior_family": "relative_strength",
+      "lifecycle_state": "ADMITTED_GENERATION_BLOCKED",
+      "mechanism_class": "cross_sectional_continuation",
+      "primitive_compatibility": "COMPILABLE_AFTER_BOUNDED_PRIMITIVE_EXTENSION",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0"
+}

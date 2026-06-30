@@ -1,0 +1,42 @@
+{
+  "rows": [
+    {
+      "after_blockers": [
+        "DATA_CAPACITY_READY",
+        "EXTERNAL_DATA_REQUIRED",
+        "INDEPENDENT_OOS_CAPACITY_BLOCKED"
+      ],
+      "after_state": "request_replacement_hypothesis",
+      "artifacts_created": [
+        "generated_research/orchestration/work_items/admitted_work_items.v1.json",
+        "generated_research/orchestration/ledgers/orchestration_cycle_ledger.v1.json"
+      ],
+      "before_state": "oos_sample_size",
+      "cycle_id": "qrcy_3559c44ec9f5c9a1",
+      "cycle_index": 1,
+      "execution_status": "completed",
+      "next_action": "request_replacement_hypothesis",
+      "progress_status": "IRREDUCIBLE_BLOCKER_PROVEN",
+      "remediation": "DATA_CAPACITY_EXPANSION",
+      "selected_blocker": "oos_sample_size",
+      "selected_work_item": "qrw_0ecf94a24a35ea87",
+      "tests": [
+        "tests/unit/test_qre_autonomous_orchestration.py"
+      ],
+      "validation": {
+        "causal_progress": true,
+        "evidence_reproducible": true,
+        "expected_artifacts_exist": true,
+        "frozen_contracts_unchanged": true,
+        "module_version": "ade-qre-026.1",
+        "outcome": "VALIDATED_AND_COMPOSED",
+        "protected_surfaces_unchanged": true,
+        "report_kind": "qre_work_validation_result",
+        "schema_version": "1.0",
+        "validation_identity": "qrv_416808378df72e40",
+        "work_item_id": "qrw_0ecf94a24a35ea87"
+      }
+    }
+  ],
+  "schema_version": "1.0"
+}

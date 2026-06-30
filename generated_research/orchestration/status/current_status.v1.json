@@ -1,0 +1,94 @@
+{
+  "active_jobs": [
+    {
+      "group_id": "qrg_3cd0425cdc69f9d2",
+      "work_item_id": "qrw_0ecf94a24a35ea87"
+    }
+  ],
+  "current_alerts": [
+    {
+      "affected_objects": [
+        "portfolio"
+      ],
+      "alert_id": "qal_faf9ba07ab7d63fe",
+      "alert_type": "ACTIVE_HYPOTHESES_BELOW_MINIMUM",
+      "auto_remediation_state": "queued",
+      "first_observed": "2026-06-30",
+      "latest_observed": "2026-06-30",
+      "recommended_action": "GENERATE_HYPOTHESIS",
+      "severity": "warning",
+      "supporting_metrics": {
+        "current": 1,
+        "maximum": 40,
+        "metric": "active_hypotheses",
+        "shortage": 19,
+        "target": 20,
+        "utilization_pct": 2.5
+      }
+    }
+  ],
+  "current_budgets": {
+    "compute": {
+      "maximum_artifact_growth_per_day": 200000000,
+      "maximum_campaign_executions_per_day": 1,
+      "maximum_campaign_executions_per_run": 0,
+      "maximum_compute_units_per_day": 100,
+      "maximum_compute_units_per_run": 20,
+      "maximum_cycles_per_run": 1,
+      "maximum_data_materialization_volume": 5,
+      "maximum_generated_hypotheses_per_cycle": 2,
+      "maximum_generated_strategies_per_cycle": 1,
+      "maximum_new_oos_consumptions_per_cycle": 1,
+      "maximum_new_oos_consumptions_per_day": 2,
+      "maximum_remediation_items_per_cycle": 3,
+      "maximum_wall_clock_seconds_per_run": 900,
+      "minimum_free_disk_space": 1000000000
+    },
+    "oos": {
+      "available": 0,
+      "campaigns_awaiting_oos": 1,
+      "configured_cycle_maximum": 1,
+      "configured_daily_maximum": 2,
+      "consumed": 1,
+      "invalidated": 0,
+      "reserved": 0,
+      "total_known_independent_windows": 1
+    }
+  },
+  "current_cycle": 1,
+  "current_portfolio_counts": {
+    "campaign_cell_count": 4,
+    "cell_stage_counts": {
+      "BLOCKED_DATA": 1,
+      "BLOCKED_WINDOWS": 2,
+      "READY_FOR_PREREGISTRATION": 1
+    },
+    "executed_campaign_count": 1,
+    "generated_strategy_count": 2,
+    "hypothesis_count": 1,
+    "mechanism_count": 0,
+    "observation_count": 0,
+    "opportunity_count": 0,
+    "preset_count": 1,
+    "primitive_count": 1,
+    "strategy_stage_counts": {
+      "DATA_CAPACITY_BLOCKED": 1,
+      "OOS_CAPACITY_BLOCKED": 1
+    }
+  },
+  "last_campaign_execution": "qcx_408c08d953bdf943",
+  "last_successful_progress": "IRREDUCIBLE_BLOCKER_PROVEN",
+  "latest_daily_report_identity": "qrdr_e229333f8b8f64de",
+  "loop_state": "active",
+  "module_version": "ade-qre-026.1",
+  "next_selected_work": "qrw_0ecf94a24a35ea87",
+  "paused_state": false,
+  "queued_jobs": [
+    "qrw_0ecf94a24a35ea87",
+    "qrw_25f9fc444e8399be",
+    "qrw_65b687f000961e90"
+  ],
+  "report_kind": "qre_orchestration_current_status",
+  "schema_version": "1.0",
+  "status_identity": "qrsm_3aac91a5bc2bcd1e"
+}
