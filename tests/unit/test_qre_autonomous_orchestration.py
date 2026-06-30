@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -8,33 +9,151 @@ from packages.qre_research import autonomous_orchestration as ao
 from packages.qre_research import generated_strategy_paths as gsp
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_PATHS = (
-    "artifacts/cache/cache_coverage_latest.v1.json",
-    "generated_research/campaign_execution/ledgers/oos_consumption.v1.json",
-    "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json",
-    "generated_research/hypotheses/mechanisms/generated_mechanisms.v1.json",
-    "generated_research/hypotheses/observations/generated_observations.v1.json",
-    "generated_research/hypotheses/opportunities/generated_opportunities.v1.json",
-    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
-    "generated_research/presets/generated_research_presets.v1.json",
-    "generated_research/primitives/registry/generated_primitive_registry.v1.json",
-    "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
-    "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json",
-    "generated_research/registry/generated_strategy_registry.v1.json",
-)
-FIXTURE_BYTES = {
-    relative_path: (REPO_ROOT / relative_path).read_bytes()
-    for relative_path in FIXTURE_PATHS
+FIXTURE_PAYLOADS = {
+    "artifacts/cache/cache_coverage_latest.v1.json": {
+        "coverage": [
+            {"instrument": "ASML", "timeframe": "4h", "max_timestamp_utc": "2026-04-24T17:30:00Z"},
+            {"instrument": "ASML", "timeframe": "1d", "max_timestamp_utc": "2026-05-22T21:59:59Z"},
+            {"instrument": "AAPL", "timeframe": "1d", "max_timestamp_utc": "2026-05-22T21:59:59Z"},
+        ]
+    },
+    "generated_research/campaign_execution/ledgers/oos_consumption.v1.json": {
+        "rows": [
+            {
+                "consumption_id": "qwc_8c9fcb2e33b0bb6b",
+                "window_id": "qwl_06fd2878a7332daa",
+                "generated_strategy_id": "qgs_5af8f605ba82ae53",
+                "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+            }
+        ]
+    },
+    "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json": {
+        "executed_campaign": {"generated_strategy_id": "qgs_5af8f605ba82ae53"},
+        "executed_campaign_cell": "qrcell_fdd68e20fd2724dd",
+        "funnel": {"screening_passed": 1},
+        "decision": {
+            "failure_memory_update": {"generated_strategy_id": "qgs_5af8f605ba82ae53"},
+            "contradiction_update": {"source_hypothesis_id": "atr_adaptive_trend_v0"},
+        },
+    },
+    "generated_research/hypotheses/mechanisms/generated_mechanisms.v1.json": {"rows": [{"mechanism_id": "qm_1"}]},
+    "generated_research/hypotheses/observations/generated_observations.v1.json": {"rows": [{"observation_id": "qo_1"}]},
+    "generated_research/hypotheses/opportunities/generated_opportunities.v1.json": {"rows": [{"opportunity_id": "qp_1"}]},
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json": {
+        "rows": [
+            {
+                "thesis_id": "qht_1",
+                "source_hypothesis_id": "atr_adaptive_trend_v0",
+                "lifecycle_state": "HYPOTHESIS_ADMITTED_AUTOMATED",
+                "primitive_compatibility": "COMPILABLE_WITH_CURRENT_PRIMITIVES",
+                "mechanism_class": "trend_persistence",
+                "behavior_family": "trend",
+            },
+            {
+                "thesis_id": "qht_2",
+                "source_hypothesis_id": "qhc_51bc7a5c7b3f64ba",
+                "lifecycle_state": "ADMITTED_GENERATION_BLOCKED",
+                "primitive_compatibility": "COMPILABLE_AFTER_BOUNDED_PRIMITIVE_EXTENSION",
+                "mechanism_class": "cross_sectional_continuation",
+                "behavior_family": "cross_sectional",
+            },
+        ]
+    },
+    "generated_research/presets/generated_research_presets.v1.json": {"rows": [{"preset_id": "qgp_3150293b47cd6923"}]},
+    "generated_research/primitives/registry/generated_primitive_registry.v1.json": {
+        "rows": [{"primitive_id": "cross_sectional_rank", "generated_primitive_id": "qgp_bbfb1728e13038c1", "state": "PRIMITIVE_REGISTERED_AUTOMATED"}]
+    },
+    "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json": {
+        "rows": [
+            {
+                "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+                "generated_strategy_id": "qgs_5af8f605ba82ae53",
+                "strategy_spec_id": "qsp_16800d656bf28677",
+                "timeframe": "1d",
+                "status": "BLOCKED_WINDOWS",
+                "blockers": ["usable_history_below_minimum_policy_span"],
+                "next_action": "launch_data_oos_capacity_expansion",
+                "dataset_identity": "qds_f8a7d624458bb131",
+                "snapshot_identity": "qsn_f8a7d624458bb131",
+                "manifest_ready": False,
+                "train_window": {},
+                "validation_window": {},
+                "oos_window": {},
+            },
+            {
+                "campaign_cell_id": "qrcell_d5ded3130f132558",
+                "generated_strategy_id": "qgs_5af8f605ba82ae53",
+                "strategy_spec_id": "qsp_16800d656bf28677",
+                "timeframe": "1h",
+                "status": "BLOCKED_DATA",
+                "blockers": ["cache_row_missing"],
+                "next_action": "launch_data_oos_capacity_expansion",
+                "dataset_identity": "",
+                "snapshot_identity": "",
+                "manifest_ready": False,
+                "train_window": {},
+                "validation_window": {},
+                "oos_window": {},
+            },
+            {
+                "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+                "generated_strategy_id": "qgs_5af8f605ba82ae53",
+                "strategy_spec_id": "qsp_16800d656bf28677",
+                "timeframe": "4h",
+                "status": "READY_FOR_PREREGISTRATION",
+                "blockers": [],
+                "next_action": "execute_second_preregistered_campaign",
+                "dataset_identity": "qds_f8a7d624458bb131",
+                "snapshot_identity": "qsn_f8a7d624458bb131",
+                "manifest_ready": True,
+                "train_window": {"start": "2024-05-28T13:30:00Z", "end": "2025-09-28T17:30:00Z"},
+                "validation_window": {"start": "2025-10-12T17:30:00Z", "end": "2026-01-10T17:30:00Z"},
+                "oos_window": {"start": "2026-01-24T17:30:00Z", "end": "2026-04-24T17:30:00Z"},
+            },
+            {
+                "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+                "generated_strategy_id": "qgs_e565b01bd0a162d0",
+                "strategy_spec_id": "qsp_28cdbc0005ae7c93",
+                "timeframe": "1d",
+                "status": "BLOCKED_WINDOWS",
+                "blockers": ["usable_history_below_minimum_policy_span"],
+                "next_action": "launch_data_oos_capacity_expansion",
+                "dataset_identity": "qds_cross_sectional_v1",
+                "snapshot_identity": "qsn_cross_sectional_v1",
+                "manifest_ready": False,
+                "train_window": {},
+                "validation_window": {},
+                "oos_window": {},
+            },
+        ]
+    },
+    "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json": {
+        "rows": [
+            {
+                "window_id": "qwl_06fd2878a7332daa",
+                "purpose": "OOS",
+                "status": "CONSUMED",
+                "campaign_identity": "qcm_04f0e702e5be8884",
+                "strategy_identity": "qgs_5af8f605ba82ae53",
+            }
+        ]
+    },
+    "generated_research/registry/generated_strategy_registry.v1.json": {
+        "rows": [
+            {"generated_strategy_id": "qgs_5af8f605ba82ae53", "thesis_id": "atr_adaptive_trend_v0"},
+            {"generated_strategy_id": "qgs_e565b01bd0a162d0", "thesis_id": "qhc_51bc7a5c7b3f64ba"},
+        ]
+    },
 }
 
 
 @pytest.fixture()
 def orchestration_repo(tmp_path: Path) -> Path:
     repo_root = tmp_path / "repo"
-    for relative_path, payload in FIXTURE_BYTES.items():
+    for relative_path, payload in FIXTURE_PAYLOADS.items():
         target = repo_root / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(payload)
+        target.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return repo_root
 
 
