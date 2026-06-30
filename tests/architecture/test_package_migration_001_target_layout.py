@@ -175,6 +175,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "opportunity_value.py",
         "research_memory.py",
         "retrieval_coverage.py",
+        "second_preregistered_campaign.py",
         "universe.py",
     ], target
 

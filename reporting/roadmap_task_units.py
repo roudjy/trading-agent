@@ -3820,6 +3820,458 @@ _UNIT_SEED: Final[tuple[dict[str, Any], ...]] = (
         "status": "not_started",
     },
     {
+        "id": "u_ade_qre_025a_campaign_execution_governance_001",
+        "roadmap_task_id": "ade_qre_025a_campaign_execution_governance",
+        "title": "Governed admission of frozen second-campaign execution and post-campaign research loop",
+        "phase": "ade_qre_025a",
+        "unit_kind": "governance_doc",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "docs/roadmap/qre_execute_second_preregistered_campaign_program.md",
+            "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+            "tests/unit/test_roadmap_task_catalog.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_roadmap_task_catalog.py"
+        ),
+        "extra_definition_of_done": (
+            "ADE-QRE-025 is canonically admitted as the execution successor to the scientifically unblocked second-campaign path without granting any non-research authority",
+        ),
+        "extra_stop_conditions": (
+            "any ADE-QRE-025 admission that grants paper, shadow, live, broker, risk, or deployment authority -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_024p_integrated_closeout_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025b_manifest_integrity_verification_001",
+        "roadmap_task_id": "ade_qre_025b_manifest_integrity_verification",
+        "title": "Deterministic verifier for the frozen second-campaign manifest and all dependent identities",
+        "phase": "ade_qre_025b",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/integrity/manifest_integrity_verification.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "campaign execution fails closed unless manifest identity, strategy hash, preset, dataset, snapshot, windows, and null controls all match the frozen preregistration state",
+        ),
+        "extra_stop_conditions": (
+            "any manifest mismatch silently repaired or regenerated in-place -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025a_campaign_execution_governance_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025c_deterministic_campaign_runner_001",
+        "roadmap_task_id": "ade_qre_025c_deterministic_campaign_runner",
+        "title": "Deterministic runner that executes only the single ready preregistered campaign cell",
+        "phase": "ade_qre_025c",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/runs/second_campaign_execution.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "only qrcell_fdd68e20fd2724dd executes; blocked manifest cells remain excluded and no frozen input mutates during execution",
+        ),
+        "extra_stop_conditions": (
+            "any blocked cell admitted into execution or any mutable manifest field changed after execution begins -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025b_manifest_integrity_verification_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025d_train_screening_execution_001",
+        "roadmap_task_id": "ade_qre_025d_train_and_screening_execution",
+        "title": "Frozen train-window execution and screening accounting",
+        "phase": "ade_qre_025d",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/stages/train_and_screening.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "train and screening metrics, signals, trades, and threshold distances are persisted without any adaptive parameter changes",
+        ),
+        "extra_stop_conditions": (
+            "any train result used to change parameters, windows, or criteria -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025c_deterministic_campaign_runner_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025e_validation_execution_001",
+        "roadmap_task_id": "ade_qre_025e_validation_execution",
+        "title": "Frozen validation-window execution with degradation and stability reporting",
+        "phase": "ade_qre_025e",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/stages/validation.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "validation runs only when screening permits it and records exact pass/fail reasons plus train-to-validation degradation",
+        ),
+        "extra_stop_conditions": (
+            "any validation replay with altered preset, costs, windows, or thresholds -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025d_train_screening_execution_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025f_oos_execution_001",
+        "roadmap_task_id": "ade_qre_025f_oos_execution",
+        "title": "Exact reserved OOS execution with canonical consumption evidence",
+        "phase": "ade_qre_025f",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/stages/oos.v1.json",
+            "generated_research/campaign_execution/window_ledger/oos_consumption.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "the exact preregistered OOS window executes once, is marked consumed in the canonical ledger, and cannot be reused as independent evidence",
+        ),
+        "extra_stop_conditions": (
+            "any shifted, overlapping, or replayed OOS window treated as new independent evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025e_validation_execution_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025g_null_control_execution_001",
+        "roadmap_task_id": "ade_qre_025g_null_control_execution",
+        "title": "Execution of manifest-frozen null controls with deterministic seeds",
+        "phase": "ade_qre_025g",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/stages/null_controls.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "each required null control executes against the frozen snapshot, window, and preset and is persisted as authoritative executed evidence",
+        ),
+        "extra_stop_conditions": (
+            "any null-control specification treated as executed evidence without an actual run artifact -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025f_oos_execution_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025h_evidence_reason_record_completion_001",
+        "roadmap_task_id": "ade_qre_025h_evidence_and_reason_record_completion",
+        "title": "Complete campaign evidence, reason-record, and reproducibility accounting",
+        "phase": "ade_qre_025h",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/evidence/campaign_evidence_accounting.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "every stage decision is linked to authoritative metrics, policies, reasons, provenance, and replay identity",
+        ),
+        "extra_stop_conditions": (
+            "any decision state without linked metric, policy, or source artifact -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025g_null_control_execution_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025i_funnel_diagnosis_001",
+        "roadmap_task_id": "ade_qre_025i_funnel_diagnosis",
+        "title": "Deterministic campaign-funnel diagnosis with threshold distances and bottlenecks",
+        "phase": "ade_qre_025i",
+        "unit_kind": "reporting_module",
+        "target_layer": "funnel",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/reports/funnel_diagnosis.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "the executed funnel records counts, conversions, threshold distances, primary bottleneck, secondary bottlenecks, and one bounded recommendation per criterion",
+        ),
+        "extra_stop_conditions": (
+            "any funnel diagnosis that changes the criteria it is supposed to diagnose -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025h_evidence_reason_record_completion_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025j_hypothesis_strategy_decision_001",
+        "roadmap_task_id": "ade_qre_025j_hypothesis_and_strategy_decision",
+        "title": "Canonical research-only hypothesis and strategy decisions from campaign evidence",
+        "phase": "ade_qre_025j",
+        "unit_kind": "reporting_module",
+        "target_layer": "evidence",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/reports/hypothesis_strategy_decision.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "one canonical hypothesis decision and one canonical strategy decision are emitted without any paper, shadow, live, or deployment promotion",
+        ),
+        "extra_stop_conditions": (
+            "any decision artifact that implies candidate-quality, deployment, or trading promotion -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025i_funnel_diagnosis_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025k_recalibration_decision_001",
+        "roadmap_task_id": "ade_qre_025k_recalibration_decision",
+        "title": "Bounded one-class-only recalibration decision gate",
+        "phase": "ade_qre_025k",
+        "unit_kind": "reporting_module",
+        "target_layer": "policy",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/reports/recalibration_decision.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "recalibration is justified only when one bounded criterion class is demonstrably mislocated and all other frozen campaign inputs remain unchanged",
+        ),
+        "extra_stop_conditions": (
+            "any multi-criterion or post-OOS-tuned recalibration decision -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025j_hypothesis_strategy_decision_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025l_same_input_replay_001",
+        "roadmap_task_id": "ade_qre_025l_same_input_replay",
+        "title": "Same-input replay that preserves consumed-OOS semantics",
+        "phase": "ade_qre_025l",
+        "unit_kind": "research_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/reports/same_input_replay.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "replay runs only when canonically justified and records that replayed OOS is not new independent evidence",
+        ),
+        "extra_stop_conditions": (
+            "any replay result labeled as new unseen OOS evidence -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025k_recalibration_decision_001",),
+        "risk_class": "MEDIUM",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025m_independent_oos_assessment_001",
+        "roadmap_task_id": "ade_qre_025m_independent_oos_assessment",
+        "title": "Independent-OOS availability assessment using the canonical window ledger",
+        "phase": "ade_qre_025m",
+        "unit_kind": "reporting_module",
+        "target_layer": "campaign",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/reports/independent_oos_assessment.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "the system proves or blocks future independent OOS availability without subdividing, shifting, or reusing the consumed OOS window",
+        ),
+        "extra_stop_conditions": (
+            "any consumed or overlapping OOS window relabeled as independent -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025l_same_input_replay_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025n_autonomous_feedback_routing_001",
+        "roadmap_task_id": "ade_qre_025n_autonomous_feedback_routing",
+        "title": "Deterministic next-program routing from the campaign closeout evidence",
+        "phase": "ade_qre_025n",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/reports/autonomous_feedback_routing.v1.json",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "exactly one next machine-routable research action is selected from the closed campaign closeout vocabulary",
+        ),
+        "extra_stop_conditions": (
+            "any feedback route that mutates strategy parameters or launches an ungoverned execution path -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025m_independent_oos_assessment_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
+        "id": "u_ade_qre_025o_integrated_campaign_closeout_001",
+        "roadmap_task_id": "ade_qre_025o_integrated_campaign_closeout",
+        "title": "Integrated A25 closeout with manifest verification, campaign evidence, decisions, and terminal outcome",
+        "phase": "ade_qre_025o",
+        "unit_kind": "reporting_module",
+        "target_layer": "governance",
+        "source_requirement_ids": (),
+        "expected_files": (
+            "packages/qre_research/second_preregistered_campaign.py",
+            "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json",
+            "generated_research/campaign_execution/reports/second_campaign_closeout.v1.md",
+            "tests/unit/test_qre_second_preregistered_campaign.py",
+        ),
+        "extra_forbidden_files": (),
+        "extra_forbidden_surface_reasons": ("step5_blocked",),
+        "extra_required_tests": _targeted_unit_tests(
+            "tests/unit/test_qre_second_preregistered_campaign.py"
+        ),
+        "extra_definition_of_done": (
+            "closeout records manifest verification, executed cell, excluded blocked cells, train/validation/OOS/null outcomes, OOS consumption, decisions, next action, and terminal campaign status",
+        ),
+        "extra_stop_conditions": (
+            "any closeout that executes a new campaign or mutates the frozen manifest during reporting -> STOP",
+        ),
+        "prerequisites": ("u_ade_qre_025n_autonomous_feedback_routing_001",),
+        "risk_class": "LOW",
+        "authority_hint": "AUTO_ALLOWED_CANDIDATE",
+        "operator_gate": "none",
+        "status": "not_started",
+    },
+    {
         "id": "u_v3_15_16_diagnostic_routing_signals_schema_001",
         "roadmap_task_id": "phase_v3_15_16",
         "title": (

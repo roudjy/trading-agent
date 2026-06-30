@@ -5106,3 +5106,133 @@ live, broker, risk, or execution work.
 - depends on: `ADE-QRE-024O done`.
 - purpose: persist the integrated A24 closeout, exact resolved and irreducible blockers, readiness replay outcomes, manifest status, and next permitted machine action.
 - completion evidence: PR #700, merge SHA `03c7889eb81e8fc254bba8e1baa03c1d853f8b6f`; checks green; integrated closeout report `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.json` and operator report `generated_research/readiness/reports/automated_data_window_capacity_closeout.v1.md` recorded outcome `READY_FOR_SECOND_CAMPAIGN`, one ready cell, manifest `qcm_04f0e702e5be8884`, and exact next action `execute_second_preregistered_campaign`; frozen contracts unchanged; protected/execution paths untouched.
+
+### ADE-QRE-025 - Execute Second Preregistered Campaign and Continue Autonomous Research Loop
+
+- queue id: `ADE-QRE-025`
+- status: `blocked until ADE-QRE-025O done`
+- depends on:
+  - `ADE-QRE-024 done`
+- purpose: verify the frozen second-campaign manifest, execute only the ready preregistered campaign cell, complete the post-campaign research decision loop, and continue through the next exact governed machine action.
+- warning classification: `non_blocking_warning`
+- warning rationale: `ADE-QRE-018J` remains visible as the historical blocked campaign-preparation item, but ADE-QRE-025 is the canonical execution successor to that scientifically unblocked purpose and does not reactivate the stale historical queue state.
+- exact next permitted action: verify manifest `qcm_04f0e702e5be8884`, execute only cell `qrcell_fdd68e20fd2724dd`, and replay downstream governance from the resulting evidence.
+
+### ADE-QRE-025A - Campaign Execution Governance
+
+- queue id: `ADE-QRE-025A`
+- status: `ready`
+- depends on: `ADE-QRE-024P done`.
+- purpose: admit the bounded deterministic A25 execution loop without weakening manifest immutability, protected empirical surfaces, or trading/execution safety boundaries.
+- expected next queue item: `ADE-QRE-025B`.
+
+### ADE-QRE-025B - Manifest Integrity Verification
+
+- queue id: `ADE-QRE-025B`
+- status: `blocked until ADE-QRE-025A done`
+- depends on: `ADE-QRE-025A done`.
+- purpose: verify the frozen A24 manifest identity, hashes, lineage, and execution envelope before any campaign execution begins.
+- expected next queue item: `ADE-QRE-025C`.
+
+### ADE-QRE-025C - Deterministic Campaign Runner
+
+- queue id: `ADE-QRE-025C`
+- status: `blocked until ADE-QRE-025B done`
+- depends on: `ADE-QRE-025B done`.
+- purpose: execute only the ready manifest cell through deterministic train, validation, OOS, and null-control stages with no frozen-input mutation.
+- expected next queue item: `ADE-QRE-025D`.
+
+### ADE-QRE-025D - Train and Screening Execution
+
+- queue id: `ADE-QRE-025D`
+- status: `blocked until ADE-QRE-025C done`
+- depends on: `ADE-QRE-025C done`.
+- purpose: execute the frozen train window, persist screening metrics and stage accounting, and fail closed without changing campaign inputs.
+- expected next queue item: `ADE-QRE-025E`.
+
+### ADE-QRE-025E - Validation Execution
+
+- queue id: `ADE-QRE-025E`
+- status: `blocked until ADE-QRE-025D done`
+- depends on: `ADE-QRE-025D done`.
+- purpose: execute the frozen validation window and record degradation, stability, and exact validation pass/fail reasons.
+- expected next queue item: `ADE-QRE-025F`.
+
+### ADE-QRE-025F - OOS Execution
+
+- queue id: `ADE-QRE-025F`
+- status: `blocked until ADE-QRE-025E done`
+- depends on: `ADE-QRE-025E done`.
+- purpose: execute the exact reserved unseen OOS window, record consumption evidence, and prevent any future reuse.
+- expected next queue item: `ADE-QRE-025G`.
+
+### ADE-QRE-025G - Null-Control Execution
+
+- queue id: `ADE-QRE-025G`
+- status: `blocked until ADE-QRE-025F done`
+- depends on: `ADE-QRE-025F done`.
+- purpose: execute every manifest-frozen null control with deterministic seeds and authoritative comparison against the actual strategy path.
+- expected next queue item: `ADE-QRE-025H`.
+
+### ADE-QRE-025H - Evidence and Reason-Record Completion
+
+- queue id: `ADE-QRE-025H`
+- status: `blocked until ADE-QRE-025G done`
+- depends on: `ADE-QRE-025G done`.
+- purpose: complete stage-level evidence, reason-record, reproducibility, and provenance accounting for the campaign.
+- expected next queue item: `ADE-QRE-025I`.
+
+### ADE-QRE-025I - Funnel Diagnosis
+
+- queue id: `ADE-QRE-025I`
+- status: `blocked until ADE-QRE-025H done`
+- depends on: `ADE-QRE-025H done`.
+- purpose: diagnose conversion, threshold distance, bottlenecks, and exact stage failure taxonomy for the executed campaign.
+- expected next queue item: `ADE-QRE-025J`.
+
+### ADE-QRE-025J - Hypothesis and Strategy Decision
+
+- queue id: `ADE-QRE-025J`
+- status: `blocked until ADE-QRE-025I done`
+- depends on: `ADE-QRE-025I done`.
+- purpose: emit one canonical hypothesis decision and one canonical strategy decision without granting any promotion authority beyond research.
+- expected next queue item: `ADE-QRE-025K`.
+
+### ADE-QRE-025K - Recalibration Decision
+
+- queue id: `ADE-QRE-025K`
+- status: `blocked until ADE-QRE-025J done`
+- depends on: `ADE-QRE-025J done`.
+- purpose: determine whether exactly one bounded criterion class is justified for recalibration under current replay policy.
+- expected next queue item: `ADE-QRE-025L`.
+
+### ADE-QRE-025L - Same-Input Replay
+
+- queue id: `ADE-QRE-025L`
+- status: `blocked until ADE-QRE-025K done`
+- depends on: `ADE-QRE-025K done`.
+- purpose: run same-input replay only when canonically justified and preserve the consumed-OOS distinction from new independent evidence.
+- expected next queue item: `ADE-QRE-025M`.
+
+### ADE-QRE-025M - Independent OOS Assessment
+
+- queue id: `ADE-QRE-025M`
+- status: `blocked until ADE-QRE-025L done`
+- depends on: `ADE-QRE-025L done`.
+- purpose: assess whether another genuinely unseen independent OOS window exists using the canonical A24 ledger and independence rules.
+- expected next queue item: `ADE-QRE-025N`.
+
+### ADE-QRE-025N - Autonomous Feedback Routing
+
+- queue id: `ADE-QRE-025N`
+- status: `blocked until ADE-QRE-025M done`
+- depends on: `ADE-QRE-025M done`.
+- purpose: select exactly one deterministic next program-level action from the executed campaign evidence and route it through existing governed subsystems when locally executable.
+- expected next queue item: `ADE-QRE-025O`.
+
+### ADE-QRE-025O - Integrated Campaign Closeout
+
+- queue id: `ADE-QRE-025O`
+- status: `blocked until ADE-QRE-025N done`
+- depends on: `ADE-QRE-025N done`.
+- purpose: persist manifest verification, executed-cell evidence, funnel, decisions, replay, OOS consumption, readiness update, and the exact terminal next action for the second preregistered campaign.

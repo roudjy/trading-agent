@@ -161,6 +161,21 @@ def test_phase_vocabulary_is_closed_and_complete() -> None:
         "ade_qre_024n",
         "ade_qre_024o",
         "ade_qre_024p",
+        "ade_qre_025a",
+        "ade_qre_025b",
+        "ade_qre_025c",
+        "ade_qre_025d",
+        "ade_qre_025e",
+        "ade_qre_025f",
+        "ade_qre_025g",
+        "ade_qre_025h",
+        "ade_qre_025i",
+        "ade_qre_025j",
+        "ade_qre_025k",
+        "ade_qre_025l",
+        "ade_qre_025m",
+        "ade_qre_025n",
+        "ade_qre_025o",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",
@@ -185,6 +200,7 @@ def test_source_document_vocabulary_includes_addenda_2_and_3() -> None:
         "docs/roadmap/qre_automated_campaign_identity_readiness_resolution_program.md",
         "docs/roadmap/qre_autonomous_readiness_closure_program.md",
         "docs/roadmap/qre_automated_data_capacity_window_assignment_program.md",
+        "docs/roadmap/qre_execute_second_preregistered_campaign_program.md",
         "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
         "docs/governance/qre_synthesis_readiness_review.md",
         "docs/roadmap/Roadmap v6.md",
@@ -441,6 +457,25 @@ def test_ade_qre_020a_to_020q_tasks_present(snap: dict) -> None:
     assert tasks["ade_qre_020q"]["id"] == "ade_qre_020q_integrated_closeout"
 
 
+def test_ade_qre_025a_to_025o_tasks_present(snap: dict) -> None:
+    tasks = {row["phase"]: row for row in snap["roadmap_tasks"]}
+    assert tasks["ade_qre_025a"]["id"] == "ade_qre_025a_campaign_execution_governance"
+    assert tasks["ade_qre_025b"]["id"] == "ade_qre_025b_manifest_integrity_verification"
+    assert tasks["ade_qre_025c"]["id"] == "ade_qre_025c_deterministic_campaign_runner"
+    assert tasks["ade_qre_025d"]["id"] == "ade_qre_025d_train_and_screening_execution"
+    assert tasks["ade_qre_025e"]["id"] == "ade_qre_025e_validation_execution"
+    assert tasks["ade_qre_025f"]["id"] == "ade_qre_025f_oos_execution"
+    assert tasks["ade_qre_025g"]["id"] == "ade_qre_025g_null_control_execution"
+    assert tasks["ade_qre_025h"]["id"] == "ade_qre_025h_evidence_and_reason_record_completion"
+    assert tasks["ade_qre_025i"]["id"] == "ade_qre_025i_funnel_diagnosis"
+    assert tasks["ade_qre_025j"]["id"] == "ade_qre_025j_hypothesis_and_strategy_decision"
+    assert tasks["ade_qre_025k"]["id"] == "ade_qre_025k_recalibration_decision"
+    assert tasks["ade_qre_025l"]["id"] == "ade_qre_025l_same_input_replay"
+    assert tasks["ade_qre_025m"]["id"] == "ade_qre_025m_independent_oos_assessment"
+    assert tasks["ade_qre_025n"]["id"] == "ade_qre_025n_autonomous_feedback_routing"
+    assert tasks["ade_qre_025o"]["id"] == "ade_qre_025o_integrated_campaign_closeout"
+
+
 def test_phase_v3_15_17_task_present(snap: dict) -> None:
     t = _tasks_by_phase(snap)["v3.15.17"]
     assert t["id"] == "phase_v3_15_17"
@@ -535,6 +570,21 @@ def test_v3_15_16_to_v3_15_20_all_present_in_order(snap: dict) -> None:
         "ade_qre_020o",
         "ade_qre_020p",
         "ade_qre_020q",
+        "ade_qre_025a",
+        "ade_qre_025b",
+        "ade_qre_025c",
+        "ade_qre_025d",
+        "ade_qre_025e",
+        "ade_qre_025f",
+        "ade_qre_025g",
+        "ade_qre_025h",
+        "ade_qre_025i",
+        "ade_qre_025j",
+        "ade_qre_025k",
+        "ade_qre_025l",
+        "ade_qre_025m",
+        "ade_qre_025n",
+        "ade_qre_025o",
         "v3.15.16",
         "v3.15.17",
         "v3.15.18",

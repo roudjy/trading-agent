@@ -1,0 +1,53 @@
+{
+  "evidence_identity": "qev_9dbc0b8f54cb4b3f",
+  "module_version": "ade-qre-025.1",
+  "report_kind": "qre_second_campaign_evidence_reason_records",
+  "rows": [
+    {
+      "decision": "MANIFEST_VERIFIED",
+      "metric": "integrity_checks",
+      "next_action": "execute_ready_cell_only",
+      "source_artifact": "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json",
+      "stage": "manifest_integrity",
+      "status": "PRESENT_AUTHORITATIVE",
+      "threshold_or_policy": "all_frozen_identities_and_hashes_must_match"
+    },
+    {
+      "decision": "PASSED",
+      "metric": "trade_count",
+      "next_action": "continue_to_validation",
+      "source_artifact": "generated_research/campaign_execution/stages/train_and_screening.v1.json",
+      "stage": "train_and_screening",
+      "status": "PRESENT_AUTHORITATIVE",
+      "threshold_or_policy": 10
+    },
+    {
+      "decision": "PASSED",
+      "metric": "trade_count",
+      "next_action": "continue_to_oos",
+      "source_artifact": "generated_research/campaign_execution/stages/validation.v1.json",
+      "stage": "validation",
+      "status": "PRESENT_AUTHORITATIVE",
+      "threshold_or_policy": 3
+    },
+    {
+      "decision": "INSUFFICIENT_TRADES",
+      "metric": "oos_trade_count",
+      "next_action": "route_to_data_oos_capacity_expansion",
+      "source_artifact": "generated_research/campaign_execution/stages/oos.v1.json",
+      "stage": "oos",
+      "status": "PRESENT_AUTHORITATIVE",
+      "threshold_or_policy": 10
+    },
+    {
+      "decision": "FAILED",
+      "metric": "null_control_comparison",
+      "next_action": "route_to_post_campaign_decision",
+      "source_artifact": "generated_research/campaign_execution/stages/null_controls.v1.json",
+      "stage": "null_controls",
+      "status": "PRESENT_AUTHORITATIVE",
+      "threshold_or_policy": "actual_strategy_must_outperform_frozen_null_controls_or_remain_insufficient_evidence"
+    }
+  ],
+  "schema_version": "1.0"
+}

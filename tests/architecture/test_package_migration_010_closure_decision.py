@@ -46,6 +46,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "opportunity_value.py",
         "research_memory.py",
         "retrieval_coverage.py",
+        "second_preregistered_campaign.py",
         "universe.py",
     ],
     "qre_data": [

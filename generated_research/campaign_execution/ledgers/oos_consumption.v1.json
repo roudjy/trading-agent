@@ -1,0 +1,15 @@
+{
+  "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+  "campaign_manifest_identity": "qcm_04f0e702e5be8884",
+  "generated_strategy_id": "qgs_5af8f605ba82ae53",
+  "module_version": "ade-qre-025.1",
+  "oos_consumption_identity": "qwc_8c9fcb2e33b0bb6b",
+  "provenance": [
+    "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json",
+    "generated_research/campaign_execution/stages/oos.v1.json"
+  ],
+  "report_kind": "qre_second_campaign_oos_consumption",
+  "schema_version": "1.0",
+  "status": "CONSUMED",
+  "window_id": "qwl_06fd2878a7332daa"
+}
