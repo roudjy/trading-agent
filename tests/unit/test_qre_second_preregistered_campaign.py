@@ -24,7 +24,6 @@ _COPIED_INPUTS = (
     "generated_research/specs/qsp_16800d656bf28677.json",
     "generated_research/validation/qgs_5af8f605ba82ae53.json",
     "generated_research/lineage/generated_null_controls.v1.json",
-    "logs/qre_data_cache_manifest/latest.json",
     "artifacts/cache/cache_coverage_latest.v1.json",
     "agent/backtesting/generated_strategies/generated_qgs_5af8f605ba82ae53.py",
     "data/cache/market/yfinance__ASML__4h__20240525__20260425__4d9f10c591dd4bf6.parquet",
@@ -42,11 +41,30 @@ def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _write_cache_manifest(repo_root: Path) -> None:
+    payload = {
+        "files": [
+            {
+                "instrument": "ASML",
+                "timeframe": "4h",
+                "path": "data/cache/market/yfinance__ASML__4h__20240525__20260425__4d9f10c591dd4bf6.parquet",
+            }
+        ]
+    }
+    target = repo_root / "logs/qre_data_cache_manifest/latest.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 @pytest.fixture
 def qre025_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path / "repo"
     for relative in _COPIED_INPUTS:
         _copy(repo_root, relative)
+    _write_cache_manifest(repo_root)
     monkeypatch.setattr(campaign, "validate_write_target", lambda path: None)
     return repo_root
 
