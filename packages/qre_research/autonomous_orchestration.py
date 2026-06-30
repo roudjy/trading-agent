@@ -1697,9 +1697,24 @@ def _compute_kpis(
     work_items: dict[str, Any],
     cycle_ledger: list[dict[str, Any]],
     oos_budget: dict[str, Any],
+    pre_oos_decisions: dict[str, Any],
 ) -> dict[str, Any]:
     executed = [row for row in cycle_ledger if str(row.get("execution_status") or "") == "completed"]
     final_decisions = 1 if portfolio.get("executed_campaign") else 0
+    latest_cycle_next_action = next(
+        (
+            str(row.get("next_action") or "")
+            for row in reversed(cycle_ledger)
+            if str(row.get("execution_status") or "") == "completed"
+            and str(row.get("next_action") or "")
+        ),
+        "",
+    )
+    deferred_by_pre_oos_gate = sum(
+        1
+        for row in pre_oos_decisions.get("rows", [])
+        if str(row.get("outcome") or "").startswith("REJECT_")
+    )
     return {
         "executive_summary": {
             "autonomous_loop_state": "active" if cycle_ledger else "idle",
@@ -1715,7 +1730,15 @@ def _compute_kpis(
                     if str(row.get("primary_blocker") or "")
                 }
             ),
-            "top_next_actions": [str(row.get("next_action") or "") for row in portfolio.get("strategy_rows", [])],
+            "top_next_actions": (
+                [latest_cycle_next_action]
+                if latest_cycle_next_action
+                else [
+                    str(row.get("next_action") or "")
+                    for row in portfolio.get("strategy_rows", [])
+                    if str(row.get("next_action") or "")
+                ]
+            ),
             "operator_attention_required": bool(
                 any(
                     str(row.get("primary_blocker") or "") in {"cache_row_missing", "oos_sample_size", "usable_history_below_minimum_policy_span"}
@@ -1750,7 +1773,7 @@ def _compute_kpis(
             "consumed_oos_without_conclusive_decision": int(oos_budget.get("summary", {}).get("consumed") or 0),
             "conclusive_decisions_per_independent_oos_window_consumed": 0.0,
             "inconclusive_campaigns_per_oos_window_consumed": 1.0 if int(oos_budget.get("summary", {}).get("consumed") or 0) else 0.0,
-            "campaigns_deferred_by_pre_oos_gate": 0,
+            "campaigns_deferred_by_pre_oos_gate": deferred_by_pre_oos_gate,
         },
     }
 
@@ -1806,7 +1829,16 @@ def generate_daily_report(
     write_outputs: bool = True,
 ) -> dict[str, Any]:
     report_date = report_date or _today_utc()
-    kpis = _compute_kpis(portfolio=portfolio, work_items=work_items, cycle_ledger=cycle_ledger, oos_budget=oos_budget)
+    pre_oos_decisions = _read_json(
+        _scoped_path(PRE_OOS_PATH, repo_root=repo_root)
+    ) or {"rows": []}
+    kpis = _compute_kpis(
+        portfolio=portfolio,
+        work_items=work_items,
+        cycle_ledger=cycle_ledger,
+        oos_budget=oos_budget,
+        pre_oos_decisions=pre_oos_decisions,
+    )
     next_24h_rows = [
         {
             "work_item_id": str(row.get("work_item_id") or ""),
@@ -1983,6 +2015,11 @@ def build_status_artifact(
     latest_daily_report: dict[str, Any],
     cycle_ledger: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    completed_work_items = {
+        str(row.get("selected_work_item") or "")
+        for row in cycle_ledger
+        if str(row.get("execution_status") or "") == "completed"
+    }
     active_jobs = [
         {
             "work_item_id": work_id,
@@ -1990,6 +2027,7 @@ def build_status_artifact(
         }
         for group in throughput_schedule.get("groups", [])[:1]
         for work_id in group.get("work_item_ids", [])
+        if str(work_id) not in completed_work_items
     ]
     payload = {
         "schema_version": SCHEMA_VERSION,
