@@ -72,6 +72,12 @@ New implementation is justified only when it:
   one resolved data/cache authority, one canonical window ledger, never
   assigns windows based on results, never reuses consumed OOS windows, and
   only admits preregistration when independent unseen OOS capacity is proven.
+- ADE-QRE-025 may later admit bounded deterministic execution of a frozen
+  preregistered second campaign plus post-campaign funnel, decision, replay,
+  independent-OOS, and feedback routing outside `research/**`, provided it
+  executes only genuinely ready manifest cells, never mutates manifest inputs
+  after verification, records OOS consumption canonically, and grants no
+  trading or deployment authority.
 - No hidden ML/LLM selector.
 - No stochastic mutation or genetic programming.
 - No indicator-family expansion without a behavior thesis.
