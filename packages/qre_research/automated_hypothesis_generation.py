@@ -35,6 +35,8 @@ SCHEMA_VERSION: Final[str] = "1.0"
 GENERATOR_VERSION: Final[str] = "ade-qre-020.1"
 RESOLVER_VERSION: Final[str] = "ade-qre-020-resolver.1"
 REPORT_KIND: Final[str] = "qre_automated_hypothesis_generation"
+MAX_CANDIDATES_PER_INVOCATION: Final[int] = 4
+MAX_PERSISTED_HYPOTHESES_PER_INVOCATION: Final[int] = 2
 
 THESIS_LIFECYCLE_STATES: Final[tuple[str, ...]] = (
     "HYPOTHESIS_PROPOSED",
@@ -435,7 +437,7 @@ def build_observations(*, repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root or REPO_ROOT
     opportunities = detect_opportunities(repo_root=root)
     rows: list[dict[str, Any]] = []
-    for opportunity in opportunities["rows"]:
+    for opportunity in opportunities["rows"][:MAX_CANDIDATES_PER_INVOCATION]:
         payload = {
             "opportunity_id": opportunity["opportunity_id"],
             "opportunity_class": opportunity["opportunity_class"],
@@ -882,12 +884,23 @@ def compile_candidate_theses(*, repo_root: Path | None = None) -> dict[str, Any]
             "ADMITTED_GENERATION_BLOCKED",
         }:
             admitted_rows.append(row)
+    exact_duplicate_suppressed_count = sum(
+        1 for row in rows if str(row.get("novelty_outcome") or "") == "DUPLICATE"
+    )
+    near_duplicate_suppressed_count = sum(
+        1
+        for row in rows
+        if str(row.get("novelty_outcome") or "") in {"NOVEL_WITH_OVERLAP", "MECHANISM_NOT_DISTINCT"}
+    )
+    persisted_admitted_rows = sorted(admitted_rows, key=lambda row: row["thesis_id"])[
+        :MAX_PERSISTED_HYPOTHESES_PER_INVOCATION
+    ]
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": "qre_generated_candidate_theses",
         "generator_version": GENERATOR_VERSION,
         "rows": sorted(rows, key=lambda row: row["thesis_id"]),
-        "admitted_rows": sorted(admitted_rows, key=lambda row: row["thesis_id"]),
+        "admitted_rows": persisted_admitted_rows,
         "rejection_rows": sorted(rejection_rows, key=lambda row: row["thesis_id"]),
         "primitive_extension_requests": sorted(
             primitive_extension_requests,
@@ -895,9 +908,13 @@ def compile_candidate_theses(*, repo_root: Path | None = None) -> dict[str, Any]
         ),
         "summary": {
             "candidate_count": len(rows),
-            "admitted_count": len(admitted_rows),
+            "admitted_count": len(persisted_admitted_rows),
             "rejection_count": len(rejection_rows),
             "primitive_extension_request_count": len(primitive_extension_requests),
+            "exact_duplicate_suppressed_count": exact_duplicate_suppressed_count,
+            "near_duplicate_suppressed_count": near_duplicate_suppressed_count,
+            "candidate_limit": MAX_CANDIDATES_PER_INVOCATION,
+            "persisted_hypothesis_limit": MAX_PERSISTED_HYPOTHESES_PER_INVOCATION,
         },
         "provenance": opportunities["provenance"],
     }
@@ -1176,7 +1193,11 @@ def _closeout_markdown(closeout: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def run_automated_hypothesis_generation(*, repo_root: Path | None = None) -> dict[str, Any]:
+def run_automated_hypothesis_generation(
+    *,
+    repo_root: Path | None = None,
+    write_outputs: bool = True,
+) -> dict[str, Any]:
     root = repo_root or REPO_ROOT
     snapshot = build_evidence_snapshot(repo_root=root)
     opportunities = detect_opportunities(repo_root=root)
@@ -1200,10 +1221,15 @@ def run_automated_hypothesis_generation(*, repo_root: Path | None = None) -> dic
             "mechanism_count": mechanisms["summary"]["mechanism_count"],
             "candidate_count": compiled["summary"]["candidate_count"],
             "admitted_count": compiled["summary"]["admitted_count"],
+            "persisted_hypothesis_count": len(generated_registry["rows"]),
+            "exact_duplicate_suppressed_count": compiled["summary"]["exact_duplicate_suppressed_count"],
+            "near_duplicate_suppressed_count": compiled["summary"]["near_duplicate_suppressed_count"],
             "submitted_count": submission["summary"]["submitted_count"],
             "primitive_extension_request_count": compiled["summary"]["primitive_extension_request_count"],
             "generated_thesis_count": len(generated_registry["rows"]),
             "resolved_generated_count": resolved_catalog["summary"]["generated_count"],
+            "candidate_limit": MAX_CANDIDATES_PER_INVOCATION,
+            "persisted_hypothesis_limit": MAX_PERSISTED_HYPOTHESES_PER_INVOCATION,
         },
         "candidate_rows": compiled["rows"],
         "admitted_rows": compiled["admitted_rows"],
@@ -1254,9 +1280,10 @@ def run_automated_hypothesis_generation(*, repo_root: Path | None = None) -> dic
         FEEDBACK_PATH: feedback,
         INTEGRATED_CLOSEOUT_PATH: closeout,
     }
-    for path, payload in artifacts.items():
-        _atomic_write(root / path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    _atomic_write(root / INTEGRATED_CLOSEOUT_MD_PATH, _closeout_markdown(closeout))
+    if write_outputs:
+        for path, payload in artifacts.items():
+            _atomic_write(root / path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        _atomic_write(root / INTEGRATED_CLOSEOUT_MD_PATH, _closeout_markdown(closeout))
     return closeout
 
 

@@ -5,7 +5,7 @@ from typing import Final
 
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-GENERATED_RESEARCH_ROOT: Final[Path] = REPO_ROOT / "generated_research"
+GENERATED_RESEARCH_ROOT: Final[Path] = Path("generated_research")
 GENERATED_HYPOTHESIS_ROOT: Final[Path] = GENERATED_RESEARCH_ROOT / "hypotheses"
 
 GENERATED_HYPOTHESIS_OPPORTUNITIES_DIR: Final[Path] = (
@@ -31,6 +31,9 @@ GENERATED_HYPOTHESIS_PRIORITIES_DIR: Final[Path] = (
 )
 GENERATED_HYPOTHESIS_FEEDBACK_DIR: Final[Path] = (
     GENERATED_HYPOTHESIS_ROOT / "feedback"
+)
+GENERATED_HYPOTHESIS_LIFECYCLE_DIR: Final[Path] = (
+    GENERATED_HYPOTHESIS_ROOT / "lifecycle"
 )
 GENERATED_HYPOTHESIS_REPORTS_DIR: Final[Path] = (
     GENERATED_HYPOTHESIS_ROOT / "reports"
@@ -69,6 +72,30 @@ PRIMITIVE_EXTENSION_REQUESTS_PATH: Final[Path] = (
 FEEDBACK_PATH: Final[Path] = (
     GENERATED_HYPOTHESIS_FEEDBACK_DIR / "generated_hypothesis_feedback.v1.json"
 )
+FEASIBILITY_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "feasibility.v1.json"
+)
+ROUTING_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "routing.v1.json"
+)
+SAMPLING_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "sampling.v1.json"
+)
+REASON_RECORDS_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "reason_records.v1.json"
+)
+EVIDENCE_UPDATES_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "evidence_updates.v1.json"
+)
+FAILURE_ACTIONS_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "failure_actions.v1.json"
+)
+RESEARCH_MEMORY_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "research_memory.v1.json"
+)
+TRUSTED_LOOP_SUMMARY_PATH: Final[Path] = (
+    GENERATED_HYPOTHESIS_LIFECYCLE_DIR / "trusted_loop_summary.v1.json"
+)
 INTEGRATED_CLOSEOUT_PATH: Final[Path] = (
     GENERATED_HYPOTHESIS_REPORTS_DIR / "automated_hypothesis_generation_closeout.v1.json"
 )
@@ -85,6 +112,7 @@ WRITE_PREFIXES: Final[tuple[str, ...]] = (
     "generated_research/hypotheses/rejections/",
     "generated_research/hypotheses/priorities/",
     "generated_research/hypotheses/feedback/",
+    "generated_research/hypotheses/lifecycle/",
     "generated_research/hypotheses/reports/",
 )
 
@@ -105,9 +133,13 @@ def validate_write_target(path: Path) -> None:
 __all__ = [
     "CANDIDATES_PATH",
     "EVIDENCE_SNAPSHOT_PATH",
+    "EVIDENCE_UPDATES_PATH",
     "FEEDBACK_PATH",
+    "FAILURE_ACTIONS_PATH",
+    "FEASIBILITY_PATH",
     "GENERATED_HYPOTHESIS_CANDIDATES_DIR",
     "GENERATED_HYPOTHESIS_FEEDBACK_DIR",
+    "GENERATED_HYPOTHESIS_LIFECYCLE_DIR",
     "GENERATED_HYPOTHESIS_MECHANISMS_DIR",
     "GENERATED_HYPOTHESIS_OBSERVATIONS_DIR",
     "GENERATED_HYPOTHESIS_OPPORTUNITIES_DIR",
@@ -125,9 +157,14 @@ __all__ = [
     "OPPORTUNITIES_PATH",
     "PRIMITIVE_EXTENSION_REQUESTS_PATH",
     "PRIORITIES_PATH",
+    "REASON_RECORDS_PATH",
     "REJECTIONS_PATH",
     "REPO_ROOT",
+    "RESEARCH_MEMORY_PATH",
     "RESOLVED_THESIS_CATALOG_PATH",
+    "ROUTING_PATH",
+    "SAMPLING_PATH",
+    "TRUSTED_LOOP_SUMMARY_PATH",
     "WRITE_PREFIXES",
     "repo_relative",
     "validate_write_target",
