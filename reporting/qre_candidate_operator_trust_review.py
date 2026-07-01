@@ -197,16 +197,22 @@ def _is_pr3_portfolio_scheduler_snapshot(payload: dict[str, Any]) -> bool:
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
     if not summary:
         return False
+    terminal_outcomes = _read_rows(payload, "terminal_outcomes")
     candidate_count = int(summary.get("candidate_count") or 0)
     cycle_count = int(summary.get("cycle_count") or 0)
     admitted_count = int(summary.get("admitted_count") or 0)
     duplicate_suppressed_count = int(summary.get("duplicate_suppressed_count") or 0)
+    admitted_rows = sum(1 for row in terminal_outcomes if _text(row.get("admission_status")) == "ADMITTED")
+    duplicate_rows = sum(1 for row in terminal_outcomes if _text(row.get("admission_status")) == "SUPPRESSED_DUPLICATE")
     return (
         _text(payload.get("report_kind")) == "qre_historical_portfolio_scheduler"
         and candidate_count >= 8
         and cycle_count == 3
         and admitted_count >= 3
         and duplicate_suppressed_count >= 3
+        and len(terminal_outcomes) >= 8
+        and admitted_rows >= 3
+        and duplicate_rows >= 3
     )
 
 
