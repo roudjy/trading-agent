@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from packages.qre_research import automated_hypothesis_generation as a20
+from packages.qre_research import decision_calibration as dcal
 from packages.qre_research.generated_hypothesis_paths import (
     EVIDENCE_UPDATES_PATH,
     FAILURE_ACTIONS_PATH,
@@ -661,7 +662,13 @@ def build_research_memory_snapshot(*, repo_root: Path = REPO_ROOT) -> dict[str, 
     sampling = build_sampling_snapshot(repo_root=repo_root)
     evidence = build_evidence_updates_snapshot(repo_root=repo_root)
     failures = build_failure_actions_snapshot(repo_root=repo_root)
+    closeout = _read_json(repo_root / "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json") or {}
     empirical_pack = _read_empirical_pack(repo_root)
+    decision_semantics = (
+        dcal.classify_terminal_disposition(closeout=closeout, empirical_pack=empirical_pack)
+        if closeout and empirical_pack
+        else {}
+    )
     routing_index = {str(row.get("thesis_id") or ""): row for row in routing["rows"]}
     sampling_index = {str(row.get("thesis_id") or ""): row for row in sampling["rows"]}
     evidence_index = {str(row.get("thesis_id") or ""): row for row in evidence["rows"]}
@@ -676,6 +683,9 @@ def build_research_memory_snapshot(*, repo_root: Path = REPO_ROOT) -> dict[str, 
             if str(empirical_pack.get("source_hypothesis_id") or "") == str(routing_row.get("source_hypothesis_id") or "")
             else {}
         )
+        active_reason_codes = list(decision_semantics.get("reason_codes") or [])
+        resolved_reason_codes = list(decision_semantics.get("resolved_blockers") or [])
+        terminal_disposition = str(decision_semantics.get("terminal_disposition") or empirical_match.get("disposition") or "")
         rows.append(
             {
                 "memory_id": _content_id("qhm", {"thesis_id": thesis_id}),
@@ -688,8 +698,35 @@ def build_research_memory_snapshot(*, repo_root: Path = REPO_ROOT) -> dict[str, 
                 "campaign": str(empirical_match.get("campaign_identity") or ""),
                 "evidence_disposition": str(empirical_match.get("disposition") or ""),
                 "failure_reason": str(empirical_match.get("terminal_outcome") or ""),
+                "terminal_disposition": terminal_disposition,
+                "active_reason_codes": active_reason_codes,
+                "resolved_reason_codes": resolved_reason_codes,
                 "next_action": str(failure_row.get("next_action") or evidence_row.get("next_action") or ""),
-                "disposition": "preserve_for_replay",
+                "disposition": (
+                    terminal_disposition
+                    if terminal_disposition
+                    else "preserve_for_replay"
+                ),
+                "action_status": (
+                    "executed"
+                    if empirical_match and terminal_disposition
+                    else "mapped"
+                    if empirical_match or failure_row.get("next_action")
+                    else "not_evaluable"
+                ),
+                "supersedes": [],
+                "superseded_by": [],
+                "provenance": "REAL_EMPIRICAL" if empirical_match else "HISTORICAL",
+                "content_identity": _content_id(
+                    "qhmc",
+                    {
+                        "thesis_id": thesis_id,
+                        "terminal_disposition": terminal_disposition,
+                        "active_reason_codes": active_reason_codes,
+                        "resolved_reason_codes": resolved_reason_codes,
+                        "campaign": str(empirical_match.get("campaign_identity") or ""),
+                    },
+                ),
             }
         )
     return {
@@ -697,7 +734,13 @@ def build_research_memory_snapshot(*, repo_root: Path = REPO_ROOT) -> dict[str, 
         "module_version": MODULE_VERSION,
         "report_kind": "qre_generated_hypothesis_research_memory",
         "rows": rows,
-        "summary": {"memory_update_count": len(rows)},
+        "summary": {
+            "memory_update_count": len(rows),
+            "active_reason_count": sum(1 for row in rows if row.get("active_reason_codes")),
+            "resolved_reason_count": sum(1 for row in rows if row.get("resolved_reason_codes")),
+            "executed_action_count": sum(1 for row in rows if row.get("action_status") == "executed"),
+            "mapped_action_count": sum(1 for row in rows if row.get("action_status") == "mapped"),
+        },
     }
 
 
@@ -729,14 +772,26 @@ def run_trusted_hypothesis_loop(
         "contradiction_count": evidence_updates["summary"]["contradiction_count"],
         "failure_action_count": failure_actions["summary"]["failure_action_count"],
         "memory_update_count": research_memory["summary"]["memory_update_count"],
-        "unknown_failure_rate": None,
-        "actionable_failure_rate": (
+        "action_mapped_failure_rate": (
             round(
-                failure_actions["summary"]["actionable_failure_count"]
-                / max(failure_actions["summary"]["failure_action_count"], 1),
+                (
+                    failure_actions["summary"]["actionable_failure_count"]
+                    / max(failure_actions["summary"]["failure_action_count"], 1)
+                ),
                 6,
             )
             if failure_actions["summary"]["failure_action_count"]
+            else None
+        ),
+        "action_executed_failure_rate": (
+            round(
+                (
+                    research_memory["summary"]["executed_action_count"]
+                    / max(research_memory["summary"]["memory_update_count"], 1)
+                ),
+                6,
+            )
+            if research_memory["summary"]["memory_update_count"]
             else None
         ),
         "causal_next_action_rate": (
@@ -748,6 +803,7 @@ def run_trusted_hypothesis_loop(
             if failure_actions["rows"]
             else None
         ),
+        "unknown_failure_rate": None,
         "next_action": (
             str(
                 empirical_pack.get("recommended_next_action")

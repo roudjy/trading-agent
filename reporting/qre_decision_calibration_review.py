@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import datetime as _dt
 import hashlib
 import json
@@ -18,70 +19,7 @@ ARTIFACT_DIR: Final[Path] = REPO_ROOT / "logs" / "qre_decision_calibration_revie
 ARTIFACT_LATEST: Final[Path] = ARTIFACT_DIR / "latest.json"
 ARTIFACT_MARKDOWN: Final[Path] = ARTIFACT_DIR / "latest.md"
 WRITE_PREFIXES: Final[tuple[str, ...]] = ("logs/qre_decision_calibration_review/",)
-
-BENCHMARK_TRUTH_TABLE: Final[tuple[dict[str, str], ...]] = (
-    {
-        "benchmark_id": "clear_null",
-        "terminal_disposition": "REJECTED",
-        "active_blocker": "REJECT",
-        "next_action": "cool_down_family",
-    },
-    {
-        "benchmark_id": "regime_dependent",
-        "terminal_disposition": "NEEDS_MORE_EVIDENCE",
-        "active_blocker": "REROUTE",
-        "next_action": "bounded_regime_segmented_follow_up",
-    },
-    {
-        "benchmark_id": "cost_sensitive",
-        "terminal_disposition": "REJECTED",
-        "active_blocker": "REJECT",
-        "next_action": "cool_down_family",
-    },
-    {
-        "benchmark_id": "data_quality_failure",
-        "terminal_disposition": "NEEDS_MORE_EVIDENCE",
-        "active_blocker": "BLOCK_DATA_QUALITY",
-        "next_action": "extend_data_capability",
-    },
-    {
-        "benchmark_id": "insufficient_sample",
-        "terminal_disposition": "NEEDS_MORE_EVIDENCE",
-        "active_blocker": "REQUEST_MORE_EVIDENCE",
-        "next_action": "launch_data_oos_capacity_expansion",
-    },
-    {
-        "benchmark_id": "duplicate_hypothesis",
-        "terminal_disposition": "REJECTED",
-        "active_blocker": "COOL_DOWN_FAMILY",
-        "next_action": "cool_down_family",
-    },
-    {
-        "benchmark_id": "parameter_fragile",
-        "terminal_disposition": "REJECTED",
-        "active_blocker": "REJECT",
-        "next_action": "cool_down_family",
-    },
-    {
-        "benchmark_id": "concentrated_dependency",
-        "terminal_disposition": "REJECTED",
-        "active_blocker": "REJECT",
-        "next_action": "cool_down_family",
-    },
-    {
-        "benchmark_id": "valid_near_pass",
-        "terminal_disposition": "NEEDS_MORE_EVIDENCE",
-        "active_blocker": "REQUEST_MORE_EVIDENCE",
-        "next_action": "launch_data_oos_capacity_expansion",
-    },
-    {
-        "benchmark_id": "robust_survivor",
-        "terminal_disposition": "READY_FOR_SYNTHESIS",
-        "active_blocker": "NO_CAUSAL_PROGRESS",
-        "next_action": "conditional_synthesis",
-    },
-)
-
+_DECISION_CALIBRATION_MODULE: Any | None = None
 
 def _utcnow() -> str:
     return _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -120,13 +58,28 @@ def _atomic_write(path: Path, payload: str) -> None:
         raise
 
 
+def _decision_calibration() -> Any:
+    global _DECISION_CALIBRATION_MODULE
+    if _DECISION_CALIBRATION_MODULE is not None:
+        return _DECISION_CALIBRATION_MODULE
+    module_path = REPO_ROOT / "packages" / "qre_research" / "decision_calibration.py"
+    spec = importlib.util.spec_from_file_location("packages.qre_research.decision_calibration", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unable to load canonical decision_calibration module")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _DECISION_CALIBRATION_MODULE = module
+    return module
+
+
 def _render_markdown(snapshot: dict[str, Any]) -> str:
+    real_hypothesis = snapshot["real_hypothesis"]
     lines = [
         "# QRE Decision Calibration Review",
         "",
         f"- calibration_identity: `{snapshot['calibration_identity']}`",
-        f"- real_terminal_disposition: `{snapshot['real_hypothesis']['terminal_disposition']}`",
-        f"- real_next_action: `{snapshot['real_hypothesis']['next_action']}`",
+        f"- real_terminal_disposition: `{real_hypothesis['terminal_disposition_after']}`",
+        f"- real_next_action: `{real_hypothesis['next_action_after']}`",
         "",
         "## Benchmark Truth Table",
         "",
@@ -142,22 +95,16 @@ def _render_markdown(snapshot: dict[str, Any]) -> str:
 
 
 def collect_snapshot(*, repo_root: Path = REPO_ROOT, generated_at_utc: str | None = None) -> dict[str, Any]:
+    dcal = _decision_calibration()
     closeout = _read_json(repo_root / "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json")
     empirical_pack = _read_json(repo_root / "generated_research/campaign_execution/evidence/empirical_evidence_pack.v1.json")
-    benchmark_results = [dict(row) for row in BENCHMARK_TRUTH_TABLE]
-    decision_semantics = dict(empirical_pack.get("decision_semantics") or {})
-    kpis = {
-        "benchmark_count": len(benchmark_results),
-        "benchmark_decision_accuracy": 100.0,
-        "deterministic_replay_match": 100.0,
-        "false_synthesis_ready_count": 0,
-        "unknown_terminal_decision_count": 0,
-        "actionable_failure_rate": 0.0,
-        "reason_record_completeness": 100.0,
-        "disposition_next_action_contradictions": 0,
-        "resolved_blocker_leakage": 0,
-        "fixture_empirical_provenance_errors": 0,
-    }
+    benchmark_results = [dcal.evaluate_benchmark_case(dict(row)) for row in dcal.BENCHMARK_CASES]
+    decision_semantics = dcal.classify_terminal_disposition(closeout=closeout, empirical_pack=empirical_pack)
+    evidence_semantics = dcal.build_pack_evidence_semantics(empirical_pack)
+    kpis = dcal.build_decision_quality_summary(
+        benchmark_results,
+        replay_results=[dict(row) for row in benchmark_results],
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "module_version": MODULE_VERSION,
@@ -168,30 +115,33 @@ def collect_snapshot(*, repo_root: Path = REPO_ROOT, generated_at_utc: str | Non
             "hypothesis_id": empirical_pack.get("source_hypothesis_id"),
             "campaign_id": closeout.get("executed_campaign_identity"),
             "terminal_disposition_before": str((closeout.get("decision") or {}).get("strategy_decision") or ""),
-            "terminal_disposition_after": empirical_pack.get("disposition"),
+            "terminal_disposition_after": decision_semantics.get("terminal_disposition"),
             "next_action_before": str((closeout.get("feedback_routing") or {}).get("next_action") or ""),
-            "next_action_after": empirical_pack.get("recommended_next_action"),
+            "next_action_after": decision_semantics.get("next_action"),
             "active_blocker": decision_semantics.get("active_blocker"),
             "resolved_blockers": list(decision_semantics.get("resolved_blockers") or []),
+            "evidence_semantics": evidence_semantics,
             "evidence_presence": {
-                "oos": (empirical_pack.get("oos") or {}).get("presence"),
-                "transaction_costs": (empirical_pack.get("transaction_costs") or {}).get("presence"),
-                "slippage": (empirical_pack.get("slippage") or {}).get("presence"),
-                "null_model": (empirical_pack.get("null_model") or {}).get("presence"),
+                "oos": (evidence_semantics.get("oos") or {}).get("presence"),
+                "transaction_costs": (evidence_semantics.get("transaction_costs") or {}).get("presence"),
+                "slippage": (evidence_semantics.get("slippage") or {}).get("presence"),
+                "null_model": (evidence_semantics.get("null_model") or {}).get("presence"),
             },
             "evidence_sufficiency": {
-                "oos": (empirical_pack.get("oos") or {}).get("sufficiency"),
-                "transaction_costs": (empirical_pack.get("transaction_costs") or {}).get("sufficiency"),
-                "slippage": (empirical_pack.get("slippage") or {}).get("sufficiency"),
-                "null_model": (empirical_pack.get("null_model") or {}).get("sufficiency"),
+                "oos": (evidence_semantics.get("oos") or {}).get("sufficiency"),
+                "transaction_costs": (evidence_semantics.get("transaction_costs") or {}).get("sufficiency"),
+                "slippage": (evidence_semantics.get("slippage") or {}).get("sufficiency"),
+                "null_model": (evidence_semantics.get("null_model") or {}).get("sufficiency"),
             },
-            "synthesis_readiness": "READY_FOR_SYNTHESIS" if empirical_pack.get("disposition") == "READY_FOR_SYNTHESIS" else "BLOCKED",
+            "synthesis_readiness": decision_semantics.get("terminal_disposition"),
         },
         "benchmark_truth_table": benchmark_results,
         "decision_quality_kpis": kpis,
         "conditional_synthesis": {
             "real_hypotheses_considered": 1,
-            "real_hypotheses_ready_for_synthesis": 1 if empirical_pack.get("disposition") == "READY_FOR_SYNTHESIS" else 0,
+            "real_hypotheses_ready_for_synthesis": 1
+            if decision_semantics.get("terminal_disposition") == "READY_FOR_SYNTHESIS"
+            else 0,
             "real_blueprints_created": 0,
             "real_candidates_created": 0,
             "benchmark_synthesis_cases": len(benchmark_results),
