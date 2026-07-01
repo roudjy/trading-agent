@@ -1,6 +1,6 @@
 {
-  "evidence_identity": "qev_9dbc0b8f54cb4b3f",
-  "module_version": "ade-qre-025.1",
+  "evidence_identity": "qev_f481a877cb0df178",
+  "module_version": "ade-qre-025.2",
   "report_kind": "qre_second_campaign_evidence_reason_records",
   "rows": [
     {
@@ -13,26 +13,26 @@
       "threshold_or_policy": "all_frozen_identities_and_hashes_must_match"
     },
     {
-      "decision": "PASSED",
+      "decision": "INSUFFICIENT_TRADES",
       "metric": "trade_count",
-      "next_action": "continue_to_validation",
+      "next_action": "fail_closed_screening",
       "source_artifact": "generated_research/campaign_execution/stages/train_and_screening.v1.json",
       "stage": "train_and_screening",
       "status": "PRESENT_AUTHORITATIVE",
       "threshold_or_policy": 10
     },
     {
-      "decision": "PASSED",
+      "decision": "INSUFFICIENT_TRADES",
       "metric": "trade_count",
-      "next_action": "continue_to_oos",
+      "next_action": "fail_closed_validation",
       "source_artifact": "generated_research/campaign_execution/stages/validation.v1.json",
       "stage": "validation",
       "status": "PRESENT_AUTHORITATIVE",
       "threshold_or_policy": 3
     },
     {
-      "decision": "INSUFFICIENT_TRADES",
-      "metric": "oos_trade_count",
+      "decision": "INSUFFICIENT_SIGNALS",
+      "metric": "trade_count",
       "next_action": "route_to_data_oos_capacity_expansion",
       "source_artifact": "generated_research/campaign_execution/stages/oos.v1.json",
       "stage": "oos",
