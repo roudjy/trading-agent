@@ -142,3 +142,66 @@ def test_bounded_synthesis_materializes_disabled_research_only_candidate(
     assert candidate["shadow_ready"] is False
     assert candidate["live_eligible"] is False
     assert len(candidate["parameter_definitions"]) <= bss.MAX_TUNABLE_PARAMETERS
+
+
+def test_bounded_synthesis_uses_empirical_pack_for_research_validation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(gsp, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(
+        bss,
+        "materialize_synthesis_readiness",
+        lambda repo_root, write_outputs: {
+            "readiness_status": "ELIGIBLE",
+            "hypothesis_id": "qht_ready",
+            "criteria_passed": ["hypothesis_exists", "routing_ready", "sampling_ready"],
+            "criteria_failed": [],
+            "missing_evidence": [],
+        },
+    )
+    monkeypatch.setattr(
+        bss,
+        "_generated_hypothesis_rows",
+        lambda repo_root: {
+            "qht_ready": {
+                "thesis_id": "qht_ready",
+                "source_hypothesis_id": "cross_sectional_momentum_v0",
+                "behavior_family": "cross_sectional",
+                "mechanism_class": "cross_sectional_continuation",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        bss,
+        "_candidate_index",
+        lambda repo_root: {
+            "qht_ready": {
+                "behavior_id": "cross_sectional",
+                "timeframe": "1d",
+                "required_data": ["multi_asset_ohlcv_panel"],
+                "falsification_criteria": ["no_baseline_edge"],
+                "entry_relevant_observations": ["peer_rank_persistence"],
+                "known_risks": [],
+            }
+        },
+    )
+    empirical_path = tmp_path / bss.EMPIRICAL_EVIDENCE_PACK_PATH
+    empirical_path.parent.mkdir(parents=True, exist_ok=True)
+    empirical_path.write_text(
+        json.dumps(
+            {
+                "source_hypothesis_id": "cross_sectional_momentum_v0",
+                "evidence_pack_id": "qep_fixture",
+                "disposition": "READY_FOR_SYNTHESIS",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = bss.run_bounded_strategy_synthesis(repo_root=tmp_path, write_outputs=True)
+
+    assert result["research_validation"]["status"] == "PASSED"

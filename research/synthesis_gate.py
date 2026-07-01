@@ -65,6 +65,9 @@ GENERATED_HYPOTHESIS_ARTIFACT_PATHS: Final[dict[str, Path]] = {
     "trusted_loop_summary": Path(
         "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json"
     ),
+    "empirical_evidence_pack": Path(
+        "generated_research/campaign_execution/evidence/empirical_evidence_pack.v1.json"
+    ),
 }
 
 GATE_STATES: Final[tuple[str, ...]] = (
@@ -741,6 +744,7 @@ def build_generated_hypothesis_synthesis_payload(
     failure_rows = _list_value(_dict_value(generated_artifacts.get("failure_actions")).get("rows"))
     memory_rows = _list_value(_dict_value(generated_artifacts.get("research_memory")).get("rows"))
     trusted_summary = _dict_value(generated_artifacts.get("trusted_loop_summary"))
+    empirical_pack = _dict_value(generated_artifacts.get("empirical_evidence_pack"))
     selected_row = next((row for row in feasibility_rows if isinstance(row, dict)), {})
     hypothesis_id = str(selected_row.get("source_hypothesis_id") or selected_row.get("thesis_id") or "")
 
@@ -786,13 +790,13 @@ def build_generated_hypothesis_synthesis_payload(
         criteria_failed.append("evidence_chain_materialized")
         missing_evidence.append("evidence_updates")
 
-    empirical_missing = [
+    empirical_missing = {
         "oos_evidence",
         "transaction_cost_evidence",
         "null_model_evidence",
         "stability_evidence",
         "regime_evidence",
-    ]
+    }
     if evidence_rows:
         first_evidence = _dict_value(evidence_rows[0])
         missing_evidence.extend(
@@ -800,11 +804,48 @@ def build_generated_hypothesis_synthesis_payload(
             for item in _list_value(first_evidence.get("missing_evidence"))
             if item not in missing_evidence
         )
-        for item in empirical_missing:
-            if item not in missing_evidence:
-                missing_evidence.append(item)
+    if empirical_pack and str(empirical_pack.get("source_hypothesis_id") or "") == hypothesis_id:
+        controlled = _dict_value(empirical_pack.get("controlled_evaluation"))
+        oos = _dict_value(empirical_pack.get("oos"))
+        costs = _dict_value(empirical_pack.get("transaction_costs"))
+        null_model = _dict_value(empirical_pack.get("null_model"))
+        stability = _dict_value(empirical_pack.get("stability"))
+        regime = _dict_value(empirical_pack.get("regime_evidence"))
+        if controlled:
+            criteria_passed.append("controlled_evaluation_complete")
+        else:
+            criteria_failed.append("controlled_evaluation_complete")
+        if str(oos.get("status") or "") == "AVAILABLE":
+            criteria_passed.append("oos_ready")
+            empirical_missing.discard("oos_evidence")
+        if str(costs.get("status") or "") == "AVAILABLE":
+            criteria_passed.append("cost_evidence_ready")
+            empirical_missing.discard("transaction_cost_evidence")
+        if str(null_model.get("status") or "") == "AVAILABLE":
+            criteria_passed.append("null_model_evidence_ready")
+            empirical_missing.discard("null_model_evidence")
+        if str(stability.get("status") or "") == "AVAILABLE":
+            criteria_passed.append("stability_evidence_ready")
+            empirical_missing.discard("stability_evidence")
+        if str(regime.get("status") or "") == "AVAILABLE":
+            criteria_passed.append("regime_evidence_ready")
+            empirical_missing.discard("regime_evidence")
+        missing_evidence.extend(
+            item
+            for item in _list_value(empirical_pack.get("missing_evidence"))
+            if item not in missing_evidence
+        )
+        if str(empirical_pack.get("disposition") or "") == "READY_FOR_SYNTHESIS":
+            criteria_passed.append("evidence_complete")
+        else:
+            criteria_failed.append("evidence_complete")
+            blocking_reasons.append(
+                f"empirical_disposition:{str(empirical_pack.get('disposition') or 'UNKNOWN')}"
+            )
     else:
-        missing_evidence.extend(item for item in empirical_missing if item not in missing_evidence)
+        missing_evidence.extend(
+            item for item in sorted(empirical_missing) if item not in missing_evidence
+        )
 
     if missing_evidence:
         criteria_failed.extend(
@@ -862,6 +903,7 @@ def build_generated_hypothesis_synthesis_payload(
             "evidence_update_count": len(evidence_rows),
             "failure_action_count": len(failure_rows),
             "memory_update_count": len(memory_rows),
+            "empirical_evidence_pack": empirical_pack,
             "fixture_proof_not_empirical": True,
         },
     }

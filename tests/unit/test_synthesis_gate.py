@@ -338,3 +338,54 @@ def test_generated_hypothesis_readiness_tracks_missing_lifecycle_artifacts() -> 
     assert payload["readiness_status"] == "INELIGIBLE_EVIDENCE"
     assert "generated_hypothesis_lifecycle_artifacts_missing" in payload["blocking_reasons"]
     assert "generated_hypothesis_feasibility" in payload["missing_evidence"]
+
+
+def test_generated_hypothesis_readiness_becomes_eligible_with_empirical_pack() -> None:
+    payload = sg.build_generated_hypothesis_synthesis_payload(
+        generated_artifacts={
+            "generated_registry": {
+                "rows": [
+                    {
+                        "thesis_id": "qht_fixture",
+                        "source_hypothesis_id": "cross_sectional_momentum_v0",
+                    }
+                ]
+            },
+            "feasibility": {
+                "rows": [
+                    {
+                        "thesis_id": "qht_fixture",
+                        "source_hypothesis_id": "cross_sectional_momentum_v0",
+                        "status": "ready",
+                    }
+                ]
+            },
+            "routing": {"rows": [{"thesis_id": "qht_fixture", "routing_status": "ready"}]},
+            "sampling": {"rows": [{"thesis_id": "qht_fixture", "sampling_status": "ready"}]},
+            "reason_records": {"rows": [{"reason_record_id": "qrr_1"}]},
+            "evidence_updates": {"rows": [{"evidence_update_id": "qhe_1", "missing_evidence": []}]},
+            "failure_actions": {"rows": [{"failure_action_id": "qhfa_1"}]},
+            "research_memory": {"rows": [{"memory_id": "qhm_1"}]},
+            "trusted_loop_summary": {
+                "next_action": "continue",
+                "empirical_research_evidence_materialized": True,
+            },
+            "empirical_evidence_pack": {
+                "source_hypothesis_id": "cross_sectional_momentum_v0",
+                "controlled_evaluation": {"status": "AVAILABLE"},
+                "oos": {"status": "AVAILABLE"},
+                "transaction_costs": {"status": "AVAILABLE"},
+                "null_model": {"status": "AVAILABLE"},
+                "stability": {"status": "AVAILABLE"},
+                "regime_evidence": {"status": "AVAILABLE"},
+                "missing_evidence": [],
+                "disposition": "READY_FOR_SYNTHESIS",
+            },
+        },
+        artifact_status=_generated_statuses(),
+        generated_at_utc=datetime(2026, 5, 22, 12, 0, tzinfo=UTC),
+    )
+
+    assert payload["readiness_status"] == "ELIGIBLE"
+    assert "controlled_evaluation_complete" in payload["criteria_passed"]
+    assert "oos_ready" in payload["criteria_passed"]

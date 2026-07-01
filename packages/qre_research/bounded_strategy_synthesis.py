@@ -34,6 +34,9 @@ PROPOSALS_DIR: Final[Path] = Path("generated_research/strategies/proposals")
 READINESS_PATH: Final[Path] = Path(
     "generated_research/strategies/readiness/generated_hypothesis_synthesis_readiness.v1.json"
 )
+EMPIRICAL_EVIDENCE_PACK_PATH: Final[Path] = Path(
+    "generated_research/campaign_execution/evidence/empirical_evidence_pack.v1.json"
+)
 
 
 def _stable_json(value: Any) -> str:
@@ -77,6 +80,16 @@ def _read_rows(path: Path) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         return []
     return [dict(row) for row in rows if isinstance(row, dict)]
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _candidate_index(repo_root: Path) -> dict[str, dict[str, Any]]:
@@ -428,6 +441,25 @@ def run_bounded_strategy_synthesis(
         candidate=candidate,
         readiness_payload=readiness,
     )
+    empirical_pack = _read_json(repo_root / EMPIRICAL_EVIDENCE_PACK_PATH)
+    research_validation = {
+        "status": "READY_FOR_CENTRAL_ORCHESTRATOR_RESEARCH_VALIDATION",
+        "fixture_evidence_not_empirical": True,
+    }
+    if (
+        empirical_pack
+        and str(empirical_pack.get("source_hypothesis_id") or "") == str(candidate.get("source_hypothesis_id") or "")
+    ):
+        research_validation = {
+            "status": (
+                "PASSED"
+                if str(empirical_pack.get("disposition") or "") == "READY_FOR_SYNTHESIS"
+                else "FAILED"
+            ),
+            "fixture_evidence_not_empirical": False,
+            "evidence_pack_id": str(empirical_pack.get("evidence_pack_id") or ""),
+            "disposition": str(empirical_pack.get("disposition") or ""),
+        }
     paths = _blueprint_paths(repo_root, blueprint["blueprint_id"])
     if write_outputs:
         _atomic_write(paths["blueprint"], json.dumps(blueprint, indent=2, sort_keys=True) + "\n")
@@ -440,10 +472,7 @@ def run_bounded_strategy_synthesis(
                     "module_version": MODULE_VERSION,
                     "blueprint_validation": blueprint_validation,
                     "candidate_validation": candidate_validation,
-                    "research_validation": {
-                        "status": "READY_FOR_CENTRAL_ORCHESTRATOR_RESEARCH_VALIDATION",
-                        "fixture_evidence_not_empirical": True,
-                    },
+                    "research_validation": research_validation,
                 },
                 indent=2,
                 sort_keys=True,
@@ -460,6 +489,7 @@ def run_bounded_strategy_synthesis(
             "research_only_candidate_created": True,
             "candidate_id": candidate["candidate_id"],
             "candidate_validation": candidate_validation,
+            "research_validation": research_validation,
             "promotion_proposal_created": True,
             "artifact_paths": {
                 **result["artifact_paths"],
