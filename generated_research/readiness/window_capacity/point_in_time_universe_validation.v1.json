@@ -29,7 +29,7 @@
     {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
-      "included_member_count": 4,
+      "included_member_count": 3,
       "minimum_required": 3,
       "outcome": "POINT_IN_TIME_UNIVERSE_READY",
       "reason": ""

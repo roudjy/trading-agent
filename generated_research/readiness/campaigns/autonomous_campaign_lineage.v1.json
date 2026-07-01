@@ -1,5 +1,5 @@
 {
-  "campaign_lineage_identity": "cam_703d5fbdc8004b47",
+  "campaign_lineage_identity": "cam_6e1786b954b5411c",
   "module_version": "ade-qre-023.1",
   "report_kind": "qre_autonomous_campaign_lineage",
   "rows": [
@@ -9,7 +9,7 @@
       ],
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "lineage_identity": "qcl_ad3f81eb80c8ee9f",
+      "lineage_identity": "qcl_c6c8aed05d07ae55",
       "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
       "provenance": [
         "logs/qre_behavior_thesis_registry/latest.json",
@@ -37,7 +37,7 @@
       ],
       "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "lineage_identity": "qcl_88c87d4f818d6f48",
+      "lineage_identity": "qcl_7ec7852229ad4fee",
       "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
       "provenance": [
         "logs/qre_behavior_thesis_registry/latest.json",
@@ -51,7 +51,7 @@
       ],
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
-      "lineage_identity": "qcl_4ed97288d92b5044",
+      "lineage_identity": "qcl_64470e339d6ab4c8",
       "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
       "provenance": [
         "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",

@@ -1,0 +1,38 @@
+{
+  "final_recommendation": "ready_for_sampling",
+  "module_version": "ade-qre-027.1",
+  "report_kind": "qre_generated_hypothesis_routing",
+  "rows": [
+    {
+      "campaign_overlap": "none",
+      "compute_cost": "low",
+      "data_readiness": "data_binding_ready",
+      "dead_zone_risk": "INSUFFICIENT_CROSS_SECTION",
+      "decision": "prioritize",
+      "expected_information_gain": "high",
+      "next_action": "materialize_sampling_plan",
+      "orthogonality": "bounded_novel_mechanism",
+      "primitive_readiness": "COMPILABLE_WITH_CURRENT_PRIMITIVES",
+      "prior_failure_similarity": "lineage_aware",
+      "reason_codes": [],
+      "routing_id": "qhr_f2c92095b019e9b4",
+      "routing_status": "ready",
+      "score_tuple": [
+        1,
+        1,
+        0,
+        0,
+        2
+      ],
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "source_quality": "authoritative_or_not_materialized",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "blocked_count": 0,
+    "routing_ready_count": 1,
+    "selected_count": 1
+  }
+}

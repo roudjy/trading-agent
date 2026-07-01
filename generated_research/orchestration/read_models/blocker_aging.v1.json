@@ -1,7 +1,7 @@
 {
   "blocker_counts": {
-    "oos_sample_size": 1,
-    "usable_history_below_minimum_policy_span": 1
+    "cache_row_missing": 1,
+    "oos_sample_size": 1
   },
   "top_blockers": [
     {
@@ -9,9 +9,9 @@
         "qgs_5af8f605ba82ae53"
       ],
       "age": 1,
-      "blocker": "oos_sample_size",
+      "blocker": "cache_row_missing",
       "current_next_action": "launch_data_oos_capacity_expansion",
-      "owner_class": "autonomous",
+      "owner_class": "external data",
       "retry_count": 0
     },
     {
@@ -19,7 +19,7 @@
         "qgs_e565b01bd0a162d0"
       ],
       "age": 1,
-      "blocker": "usable_history_below_minimum_policy_span",
+      "blocker": "oos_sample_size",
       "current_next_action": "launch_data_oos_capacity_expansion",
       "owner_class": "autonomous",
       "retry_count": 0

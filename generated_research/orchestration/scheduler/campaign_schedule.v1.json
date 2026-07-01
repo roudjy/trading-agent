@@ -1,7 +1,8 @@
 {
-  "campaign_schedule_identity": "qrcs_0af38c26c72ccbe2",
+  "campaign_schedule_identity": "qrcs_e466d5f270ce605f",
   "deferred_cell_ids": [
-    "qrcell_fdd68e20fd2724dd"
+    "qrcell_fdd68e20fd2724dd",
+    "qrcell_44aa81da7c2fc7c9"
   ],
   "module_version": "ade-qre-026.1",
   "ready_cell_ids": [],

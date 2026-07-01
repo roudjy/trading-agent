@@ -64,6 +64,13 @@ def test_build_empirical_evidence_pack_is_canonical_and_fail_closed(tmp_path: Pa
             "null_control_passed": False,
             "rows": [{"control_class": "matched_frequency_null"}],
         },
+        "campaign_classification": {
+            "current_hypothesis_campaigns_executed": 1,
+            "new_empirical_campaigns_completed": 1,
+            "historical_campaigns_consumed": 0,
+            "fixture_campaigns_consumed": 0,
+            "null_or_synthetic_campaigns_executed": 0,
+        },
         "decision": {
             "hypothesis_decision": "BLOCKED_SAMPLE_SIZE",
             "strategy_decision": "INSUFFICIENT_EVIDENCE",
@@ -82,5 +89,7 @@ def test_build_empirical_evidence_pack_is_canonical_and_fail_closed(tmp_path: Pa
     assert payload["walk_forward"]["status"] == "AVAILABLE"
     assert payload["oos"]["status"] == "AVAILABLE"
     assert payload["null_model"]["status"] == "AVAILABLE"
+    assert payload["campaign_classification"]["current_hypothesis_campaigns_executed"] == 1
+    assert payload["regime_evidence"]["status"] == "NOT_AVAILABLE"
     assert payload["disposition"] == "NEEDS_MORE_EVIDENCE"
     assert payload["recommended_next_action"] == "launch_data_oos_capacity_expansion"

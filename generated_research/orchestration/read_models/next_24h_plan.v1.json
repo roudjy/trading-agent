@@ -1,23 +1,6 @@
 {
   "rows": [
     {
-      "conflicts": [
-        "data_capacity_expansion"
-      ],
-      "dependencies": [
-        "snapshot_capacity",
-        "independent_oos"
-      ],
-      "expected_compute_cost": 2,
-      "expected_information_gain": 0.51,
-      "expected_objects_unlocked": 2,
-      "expected_oos_cost": 0,
-      "planned_concurrency_group": 1,
-      "priority_reason": "oos_sample_size",
-      "work_class": "DATA_CAPACITY_EXPANSION",
-      "work_item_id": "qrw_0ecf94a24a35ea87"
-    },
-    {
       "conflicts": [],
       "dependencies": [
         "portfolio_state"
@@ -28,25 +11,8 @@
       "expected_oos_cost": 0,
       "planned_concurrency_group": 1,
       "priority_reason": "active_hypotheses_below_target",
-      "work_class": "EXISTING_PIPELINE_REPLAY",
-      "work_item_id": "qrw_25f9fc444e8399be"
-    },
-    {
-      "conflicts": [
-        "data_capacity_expansion"
-      ],
-      "dependencies": [
-        "data_capacity",
-        "window_capacity"
-      ],
-      "expected_compute_cost": 2,
-      "expected_information_gain": 0.12,
-      "expected_objects_unlocked": 2,
-      "expected_oos_cost": 0,
-      "planned_concurrency_group": 1,
-      "priority_reason": "usable_history_below_minimum_policy_span",
-      "work_class": "DATA_CAPACITY_EXPANSION",
-      "work_item_id": "qrw_65b687f000961e90"
+      "work_class": "BOUNDED_HYPOTHESIS_GENERATION",
+      "work_item_id": "qrw_50eeb67b33c44ac9"
     }
   ]
 }

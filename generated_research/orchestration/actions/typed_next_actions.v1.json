@@ -1,11 +1,11 @@
 {
-  "actions_identity": "qran_3521e910e72ab39f",
+  "actions_identity": "qran_22c925b17ff98cad",
   "module_version": "ade-qre-026.1",
   "report_kind": "qre_typed_next_actions",
   "rows": [
     {
-      "action_class": "EXPAND_DATA_CAPACITY",
-      "action_id": "qra_2554575001e4dcec",
+      "action_class": "MATERIALIZE_DATA",
+      "action_id": "qra_74e33e2833b80c99",
       "affected_objects": [
         "qrcell_41d3efbcaa2aeddb",
         "qrcell_d5ded3130f132558",
@@ -13,7 +13,7 @@
       ],
       "authority_class": "LOCAL_AUTONOMOUS",
       "causal_justification": "launch_data_oos_capacity_expansion",
-      "deterministic_content_identity": "qrax_abe687f160ea04bd",
+      "deterministic_content_identity": "qrax_aba3dd0684f11d21",
       "expected_artifacts": [
         "generated_research/orchestration/work_items/admitted_work_items.v1.json",
         "generated_research/orchestration/ledgers/orchestration_cycle_ledger.v1.json"
@@ -23,7 +23,7 @@
         "protected_surface_violation"
       ],
       "maximum_attempts": 2,
-      "priority": 0.51,
+      "priority": 0.36,
       "provenance": [
         "generated_research/registry/generated_strategy_registry.v1.json",
         "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
@@ -33,7 +33,7 @@
       "required_tests": [
         "tests/unit/test_qre_autonomous_orchestration.py"
       ],
-      "source_blocker": "oos_sample_size",
+      "source_blocker": "cache_row_missing",
       "source_object": "qgs_5af8f605ba82ae53",
       "success_criteria": [
         "blocker_is_refined_or_resolved",
@@ -72,13 +72,13 @@
     },
     {
       "action_class": "EXPAND_DATA_CAPACITY",
-      "action_id": "qra_0cbdbd0b7a5093a2",
+      "action_id": "qra_6261af7a536570b8",
       "affected_objects": [
         "qrcell_44aa81da7c2fc7c9"
       ],
       "authority_class": "LOCAL_AUTONOMOUS",
       "causal_justification": "launch_data_oos_capacity_expansion",
-      "deterministic_content_identity": "qrax_51c37d7971232695",
+      "deterministic_content_identity": "qrax_a3176af02908c33c",
       "expected_artifacts": [
         "generated_research/orchestration/work_items/admitted_work_items.v1.json",
         "generated_research/orchestration/ledgers/orchestration_cycle_ledger.v1.json"
@@ -88,7 +88,7 @@
         "protected_surface_violation"
       ],
       "maximum_attempts": 2,
-      "priority": 0.12,
+      "priority": 0.17,
       "provenance": [
         "generated_research/registry/generated_strategy_registry.v1.json",
         "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
@@ -98,7 +98,7 @@
       "required_tests": [
         "tests/unit/test_qre_autonomous_orchestration.py"
       ],
-      "source_blocker": "usable_history_below_minimum_policy_span",
+      "source_blocker": "oos_sample_size",
       "source_object": "qgs_e565b01bd0a162d0",
       "success_criteria": [
         "blocker_is_refined_or_resolved",

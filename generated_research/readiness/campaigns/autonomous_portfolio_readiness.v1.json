@@ -1,6 +1,6 @@
 {
   "module_version": "ade-qre-023.1",
-  "portfolio_identity": "por_106b36d316a65dcf",
+  "portfolio_identity": "por_a9aea2672ceba44d",
   "report_kind": "qre_autonomous_portfolio_readiness",
   "rows": [
     {
@@ -10,7 +10,7 @@
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
-      "preset_id": "qgp_018b8ac13cf0ed71",
+      "preset_id": "qgp_3730fa2cabbee856",
       "status": "BLOCKED_WINDOWS",
       "timeframe": "1d",
       "universe_identity": "quv_fa4646ea49ea7bf2"
@@ -34,7 +34,7 @@
       "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
-      "preset_id": "qgp_3150293b47cd6923",
+      "preset_id": "qgp_1be6cef139413c19",
       "status": "BLOCKED_WINDOWS",
       "timeframe": "4h",
       "universe_identity": "quv_fa4646ea49ea7bf2"
@@ -46,10 +46,10 @@
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
-      "preset_id": "qgp_2b995bee52e0662b",
+      "preset_id": "qgp_9aed29ac8e33741c",
       "status": "BLOCKED_WINDOWS",
       "timeframe": "1d",
-      "universe_identity": "us_quality_liquid"
+      "universe_identity": "global_developed_liquid"
     }
   ],
   "schema_version": "1.0"

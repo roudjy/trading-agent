@@ -12,7 +12,7 @@
     }
   ],
   "report_kind": "qre_materialized_cache_manifest",
-  "research_ready": true,
+  "research_ready": false,
   "safety_invariants": {
     "broker_risk_execution_forbidden": true,
     "mutates_cache": false,
@@ -22,16 +22,16 @@
     "read_only": true
   },
   "schema_version": "1.0",
-  "sidecar_status": "present_ready",
+  "sidecar_status": "present_not_ready",
   "source_path": "logs/qre_data_cache_manifest/latest.json",
   "source_report_kind": "qre_data_cache_manifest",
   "summary": {
-    "cache_file_count": 4189,
-    "coverage_row_count": 34,
-    "file_row_count": 4189,
-    "manifest_content_hash": "sha256:7017b28ce6c1886dd3d4c7778d57181ee825883bb744c56fed61893030ca910a",
+    "cache_file_count": 6556,
+    "coverage_row_count": 42,
+    "file_row_count": 6556,
+    "manifest_content_hash": "sha256:c399cd14431575b91c72b56955fc70bc21d9a0288be16f1dc653d1d3599d00b5",
     "missing_roots": 0,
-    "research_ready": true,
-    "total_rows": 763977
+    "research_ready": false,
+    "total_rows": 876307
   }
 }

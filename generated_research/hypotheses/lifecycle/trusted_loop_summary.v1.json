@@ -1,0 +1,21 @@
+{
+  "actionable_failure_rate": 0.0,
+  "campaigns_admitted": 1,
+  "causal_next_action_rate": 1.0,
+  "contradiction_count": 1,
+  "empirical_research_evidence_materialized": true,
+  "evidence_update_count": 1,
+  "failure_action_count": 1,
+  "feasibility_ready_count": 1,
+  "fixture_evidence_is_empirical": false,
+  "memory_update_count": 1,
+  "module_version": "ade-qre-027.1",
+  "next_action": "launch_data_oos_capacity_expansion",
+  "reason_record_count": 7,
+  "report_kind": "qre_generated_hypothesis_trusted_loop_summary",
+  "routing_ready_count": 1,
+  "sampling_ready_count": 1,
+  "schema_version": "1.0",
+  "selected_hypotheses": 1,
+  "unknown_failure_rate": null
+}

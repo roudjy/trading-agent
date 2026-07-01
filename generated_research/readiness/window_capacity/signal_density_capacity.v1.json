@@ -4,9 +4,11 @@
   "rows": [
     {
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "estimated_signals": 0,
+      "estimated_trades": 0,
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "outcome": "INSUFFICIENT_EVIDENCE_TO_ESTIMATE",
-      "reason": "data_or_windows_not_ready"
+      "outcome": "EXPECTED_SIGNALS_INSUFFICIENT",
+      "reason": "estimated_signals_below_policy_minimum"
     },
     {
       "campaign_cell_id": "qrcell_d5ded3130f132558",
@@ -15,19 +17,26 @@
       "reason": "data_or_windows_not_ready"
     },
     {
+      "breadth_adjusted_usable_bars": 4371,
       "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-      "estimated_signals": 11,
-      "estimated_trades": 9,
-      "estimated_usable_bars": 901,
+      "estimated_signals": 54,
+      "estimated_trades": 43,
+      "estimated_usable_bars": 4371,
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "instrument_count": 1,
       "outcome": "SIGNAL_CAPACITY_READY",
       "reason": ""
     },
     {
+      "breadth_adjusted_usable_bars": 186,
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "estimated_signals": 2,
+      "estimated_trades": 2,
+      "estimated_usable_bars": 62,
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
-      "outcome": "INSUFFICIENT_EVIDENCE_TO_ESTIMATE",
-      "reason": "data_or_windows_not_ready"
+      "instrument_count": 3,
+      "outcome": "SIGNAL_CAPACITY_READY_WITH_LIMITATIONS",
+      "reason": ""
     }
   ],
   "schema_version": "1.0"

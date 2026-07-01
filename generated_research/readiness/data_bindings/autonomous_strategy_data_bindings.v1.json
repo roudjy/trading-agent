@@ -1,11 +1,11 @@
 {
-  "data_binding_identity": "dat_1f8b7c575e5f79fc",
+  "data_binding_identity": "dat_0eea410ad19bd294",
   "module_version": "ade-qre-023.1",
   "report_kind": "qre_autonomous_strategy_data_bindings",
   "rows": [
     {
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
-      "dataset_identity": "qds_06a953ddd59a2de5",
+      "dataset_identity": "qds_adf92f9c0715c67b",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "outcome": "DATA_BINDING_READY",
       "provenance": [
@@ -14,7 +14,7 @@
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
       "reason": "single_cache_binding_available",
-      "snapshot_identity": "qsn_06a953ddd59a2de5",
+      "snapshot_identity": "qsn_adf92f9c0715c67b",
       "source_identity": "yfinance",
       "state": "RESOLVED_WITH_LIMITATIONS",
       "timeframe": "1d"
@@ -37,7 +37,7 @@
     },
     {
       "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-      "dataset_identity": "qds_9676f40476313c6b",
+      "dataset_identity": "qds_2a045f0a01f11af4",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "outcome": "DATA_BINDING_READY",
       "provenance": [
@@ -46,14 +46,14 @@
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
       "reason": "single_cache_binding_available",
-      "snapshot_identity": "qsn_9676f40476313c6b",
+      "snapshot_identity": "qsn_2a045f0a01f11af4",
       "source_identity": "yfinance",
       "state": "RESOLVED_WITH_LIMITATIONS",
       "timeframe": "4h"
     },
     {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
-      "dataset_identity": "qds_026da0b3d273598f",
+      "dataset_identity": "qds_e435652faeac00bd",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "outcome": "DATA_BINDING_READY",
       "provenance": [
@@ -63,7 +63,7 @@
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
       "reason": "single_source_cross_sectional_panel_binding_available",
-      "snapshot_identity": "qsn_026da0b3d273598f",
+      "snapshot_identity": "qsn_e435652faeac00bd",
       "source_identity": "yfinance",
       "state": "RESOLVED",
       "timeframe": "1d"

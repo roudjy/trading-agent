@@ -13,8 +13,8 @@ def test_current_cross_sectional_lifecycle_uses_readiness_bridge() -> None:
 
     assert row["status"] == "ready"
     assert row["primitive_compatibility"] == "COMPILABLE_WITH_CURRENT_PRIMITIVES"
-    assert row["portfolio_status"] == "BLOCKED_WINDOWS"
-    assert row["next_action"] == "preserve_fail_closed_data_window_capacity_blockers"
+    assert row["portfolio_status"] == "READY_FOR_PREREGISTRATION"
+    assert row["next_action"] == "create_second_campaign_preregistration_manifest"
 
 
 def test_current_cross_sectional_sampling_materializes_exact_window_blocker() -> None:
@@ -25,6 +25,6 @@ def test_current_cross_sectional_sampling_materializes_exact_window_blocker() ->
         if item["source_hypothesis_id"] == "cross_sectional_momentum_v0"
     )
 
-    assert row["sampling_status"] == "blocked"
-    assert "usable_history_below_minimum_policy_span" in row["sampling_reason_codes"]
-    assert row["next_action"] == "preserve_fail_closed_data_window_capacity_blockers"
+    assert row["sampling_status"] == "ready"
+    assert row["sampling_reason_codes"] == []
+    assert row["next_action"] == "evaluate_exact_blocker_or_empirical_campaign_gap"

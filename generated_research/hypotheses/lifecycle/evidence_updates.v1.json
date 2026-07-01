@@ -1,0 +1,35 @@
+{
+  "module_version": "ade-qre-027.1",
+  "report_kind": "qre_generated_hypothesis_evidence_updates",
+  "rows": [
+    {
+      "campaign_refs": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "contradicting_evidence": [
+        "DATA_OR_OOS_CAPACITY_BLOCKED"
+      ],
+      "decision": "REJECTED",
+      "evidence_update_id": "qhe_79042d0344f45c8d",
+      "missing_evidence": [
+        "oos_evidence",
+        "transaction_cost_evidence"
+      ],
+      "next_action": "launch_data_oos_capacity_expansion",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "supporting_evidence": [
+        "blocked thesis remains outside current generated primitive family",
+        "portfolio lacks diversified cross-sectional sleeve"
+      ],
+      "thesis_id": "qhc_51bc7a5c7b3f64ba",
+      "validation_refs": [
+        "generated_research/validation/qgs_e565b01bd0a162d0.json"
+      ]
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "contradiction_count": 1,
+    "evidence_update_count": 1
+  }
+}

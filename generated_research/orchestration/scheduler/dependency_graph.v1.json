@@ -1,5 +1,5 @@
 {
-  "graph_identity": "qrdg_c8fa24ee76dcf71e",
+  "graph_identity": "qrdg_a63c3f684e031d09",
   "module_version": "ade-qre-026.1",
   "report_kind": "qre_dependency_causal_blocker_graph",
   "rows": [
@@ -9,25 +9,7 @@
       "upstream_dependencies": [
         "portfolio_state"
       ],
-      "work_item_id": "qrw_25f9fc444e8399be"
-    },
-    {
-      "shared_blocker_count": 1,
-      "source_blocker": "oos_sample_size",
-      "upstream_dependencies": [
-        "snapshot_capacity",
-        "independent_oos"
-      ],
-      "work_item_id": "qrw_0ecf94a24a35ea87"
-    },
-    {
-      "shared_blocker_count": 1,
-      "source_blocker": "usable_history_below_minimum_policy_span",
-      "upstream_dependencies": [
-        "data_capacity",
-        "window_capacity"
-      ],
-      "work_item_id": "qrw_65b687f000961e90"
+      "work_item_id": "qrw_50eeb67b33c44ac9"
     }
   ],
   "schema_version": "1.0"

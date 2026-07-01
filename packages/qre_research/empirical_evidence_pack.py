@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final
 
 from packages.qre_research import second_preregistered_campaign as campaign
 from packages.qre_research.generated_strategy_paths import REPO_ROOT, validate_write_target
-
 
 SCHEMA_VERSION: Final[str] = "1.0"
 MODULE_VERSION: Final[str] = "ade-qre-032.1"
@@ -44,10 +44,8 @@ def _atomic_write(path: Path, payload: str) -> None:
             handle.write(payload)
         os.replace(tmp_name, path)
     except Exception:
-        try:
+        with suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise
 
 
@@ -178,6 +176,7 @@ def build_empirical_evidence_pack(
     validation_stage = dict(closeout.get("validation_stage") or {})
     oos_stage = dict(closeout.get("oos_stage") or {})
     null_controls = dict(closeout.get("null_controls") or {})
+    campaign_classification = dict(closeout.get("campaign_classification") or {})
     terminal_outcome = str(closeout.get("terminal_outcome") or "")
     disposition = _disposition(closeout)
     missing_evidence: list[str] = []
@@ -243,12 +242,12 @@ def build_empirical_evidence_pack(
             "trade_count": int(oos_stage.get("trade_count") or 0),
         },
         "transaction_costs": {
-            "status": "AVAILABLE" if "cost_assumptions" in spec else "UNKNOWN",
+            "status": "AVAILABLE" if "cost_assumptions" in spec else "NOT_AVAILABLE",
             "assumptions": dict(spec.get("cost_assumptions") or {}),
             "realized_costs": float(oos_stage.get("costs") or 0.0),
         },
         "slippage": {
-            "status": "AVAILABLE" if "slippage_assumptions" in spec else "UNKNOWN",
+            "status": "AVAILABLE" if "slippage_assumptions" in spec else "NOT_AVAILABLE",
             "assumptions": dict(spec.get("slippage_assumptions") or {}),
             "realized_slippage": float(oos_stage.get("slippage") or 0.0),
         },
@@ -259,14 +258,29 @@ def build_empirical_evidence_pack(
         },
         "stability": _stability_summary(train_stage, validation_stage, oos_stage),
         "regime_evidence": {
-            "status": "UNKNOWN",
+            "status": "NOT_AVAILABLE",
             "reason": "canonical_regime_segmentation_not_materialized_by_campaign_executor",
         },
         "parameter_fragility": {
-            "status": "NOT_AVAILABLE",
-            "reason": "bounded_parameter_sensitivity_not_run_in_campaign_executor",
+            "status": (
+                "NOT_AVAILABLE"
+                if spec.get("parameters")
+                else "NOT_APPLICABLE"
+            ),
+            "reason": (
+                "bounded_parameter_sensitivity_not_run_in_campaign_executor"
+                if spec.get("parameters")
+                else "parameterless_behavior_test"
+            ),
         },
         "outlier_dependency": _outlier_dependency(oos_stage),
+        "campaign_classification": {
+            "current_hypothesis_campaigns_executed": int(campaign_classification.get("current_hypothesis_campaigns_executed") or 0),
+            "new_empirical_campaigns_completed": int(campaign_classification.get("new_empirical_campaigns_completed") or 0),
+            "historical_campaigns_consumed": int(campaign_classification.get("historical_campaigns_consumed") or 0),
+            "fixture_campaigns_consumed": int(campaign_classification.get("fixture_campaigns_consumed") or 0),
+            "null_or_synthetic_campaigns_executed": int(campaign_classification.get("null_or_synthetic_campaigns_executed") or 0),
+        },
         "supporting_evidence": supporting_evidence,
         "contradicting_evidence": contradicting_evidence,
         "campaign_refs": [
