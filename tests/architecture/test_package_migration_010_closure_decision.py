@@ -42,6 +42,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "autonomous_orchestration.py",
         "autonomous_readiness_closure.py",
         "bounded_strategy_synthesis.py",
+        "decision_calibration.py",
         "empirical_evidence_pack.py",
         "empirical_research_flywheel.py",
         "generated_hypothesis_paths.py",

@@ -1,4 +1,7 @@
 {
+  "active_blockers": [
+    "REQUEST_MORE_EVIDENCE"
+  ],
   "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
   "campaign_classification": {
     "current_hypothesis_campaigns_executed": 1,
@@ -145,16 +148,190 @@
       "validation_outcome": "INSUFFICIENT_TRADES"
     }
   },
-  "disposition": "REJECTED",
+  "decision_semantics": {
+    "active_blocker": "REQUEST_MORE_EVIDENCE",
+    "active_blockers": [
+      "REQUEST_MORE_EVIDENCE"
+    ],
+    "next_action": "launch_data_oos_capacity_expansion",
+    "precedence": "insufficient_activity",
+    "reason_codes": [
+      "insufficient_activity",
+      "data_or_oos_capacity_blocked",
+      "blocked_policy",
+      "rejected_screening"
+    ],
+    "resolved_blockers": [
+      "DATA_OR_OOS_CAPACITY_BLOCKED"
+    ],
+    "terminal_disposition": "NEEDS_MORE_EVIDENCE"
+  },
+  "disposition": "NEEDS_MORE_EVIDENCE",
+  "evidence_gaps": {
+    "insufficient": [
+      "insufficient_activity",
+      "null_model_not_passing"
+    ],
+    "missing": [],
+    "resolved_blockers": [
+      "DATA_OR_OOS_CAPACITY_BLOCKED"
+    ]
+  },
   "evidence_pack_id": "qep_b0a8ecc18aa1718c",
+  "evidence_semantics": {
+    "controlled_evaluation": {
+      "applicability": "APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "controlled_evaluation",
+      "outcome": "PASS",
+      "presence": "AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [],
+      "required_by_policy": true,
+      "sufficiency": "SUFFICIENT"
+    },
+    "null_model": {
+      "applicability": "APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "null_model",
+      "outcome": "FAIL",
+      "presence": "AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [
+        "null_control_failed"
+      ],
+      "required_by_policy": true,
+      "sufficiency": "INSUFFICIENT"
+    },
+    "oos": {
+      "applicability": "APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "locked_oos",
+      "outcome": "INCONCLUSIVE",
+      "presence": "AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [
+        "insufficient_activity"
+      ],
+      "required_by_policy": true,
+      "sufficiency": "INSUFFICIENT"
+    },
+    "outlier_dependency": {
+      "applicability": "APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "outlier_dependency",
+      "outcome": "INCONCLUSIVE",
+      "presence": "UNKNOWN",
+      "provenance": "HISTORICAL",
+      "reason_codes": [
+        "no_trade_records"
+      ],
+      "required_by_policy": false,
+      "sufficiency": "UNKNOWN"
+    },
+    "parameter_fragility": {
+      "applicability": "APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "parameter_fragility",
+      "outcome": "INCONCLUSIVE",
+      "presence": "NOT_AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [
+        "bounded_parameter_sensitivity_not_run_in_campaign_executor"
+      ],
+      "required_by_policy": false,
+      "sufficiency": "UNKNOWN"
+    },
+    "regime_evidence": {
+      "applicability": "NOT_APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "regime_evidence",
+      "outcome": "INCONCLUSIVE",
+      "presence": "NOT_AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [
+        "canonical_regime_segmentation_not_materialized_by_campaign_executor"
+      ],
+      "required_by_policy": false,
+      "sufficiency": "UNKNOWN"
+    },
+    "slippage": {
+      "applicability": "NOT_EVALUABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "slippage",
+      "outcome": "INCONCLUSIVE",
+      "presence": "AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [
+        "insufficient_activity"
+      ],
+      "required_by_policy": true,
+      "sufficiency": "INSUFFICIENT"
+    },
+    "stability": {
+      "applicability": "APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "stability",
+      "outcome": "PASS",
+      "presence": "AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [],
+      "required_by_policy": true,
+      "sufficiency": "SUFFICIENT"
+    },
+    "transaction_costs": {
+      "applicability": "NOT_EVALUABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "transaction_costs",
+      "outcome": "INCONCLUSIVE",
+      "presence": "AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [
+        "insufficient_activity"
+      ],
+      "required_by_policy": true,
+      "sufficiency": "INSUFFICIENT"
+    },
+    "walk_forward": {
+      "applicability": "APPLICABLE",
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+      ],
+      "evidence_family": "walk_forward",
+      "outcome": "INCONCLUSIVE",
+      "presence": "AVAILABLE",
+      "provenance": "REAL_EMPIRICAL",
+      "reason_codes": [],
+      "required_by_policy": true,
+      "sufficiency": "INSUFFICIENT"
+    }
+  },
   "generated_strategy_id": "qgs_e565b01bd0a162d0",
-  "missing_evidence": [
-    "oos_evidence",
-    "transaction_cost_evidence"
-  ],
+  "missing_evidence": [],
   "module_version": "ade-qre-032.1",
   "null_model": {
+    "applicability": "APPLICABLE",
+    "outcome": "FAIL",
     "passed": false,
+    "presence": "AVAILABLE",
     "rows": [
       {
         "accepted": false,
@@ -192,11 +369,16 @@
         }
       }
     ],
-    "status": "AVAILABLE"
+    "status": "AVAILABLE",
+    "sufficiency": "INSUFFICIENT"
   },
   "oos": {
-    "outcome": "INSUFFICIENT_SIGNALS",
+    "applicability": "APPLICABLE",
+    "oos_outcome": "INSUFFICIENT_SIGNALS",
+    "outcome": "INCONCLUSIVE",
+    "presence": "AVAILABLE",
     "status": "AVAILABLE",
+    "sufficiency": "INSUFFICIENT",
     "trade_count": 0
   },
   "outlier_dependency": {
@@ -204,15 +386,26 @@
     "status": "UNKNOWN"
   },
   "parameter_fragility": {
+    "applicability": "APPLICABLE",
+    "outcome": "INCONCLUSIVE",
+    "presence": "NOT_AVAILABLE",
     "reason": "bounded_parameter_sensitivity_not_run_in_campaign_executor",
-    "status": "NOT_AVAILABLE"
+    "status": "NOT_AVAILABLE",
+    "sufficiency": "UNKNOWN"
   },
   "recommended_next_action": "launch_data_oos_capacity_expansion",
   "regime_evidence": {
+    "applicability": "NOT_APPLICABLE",
+    "outcome": "INCONCLUSIVE",
+    "presence": "NOT_AVAILABLE",
     "reason": "canonical_regime_segmentation_not_materialized_by_campaign_executor",
-    "status": "NOT_AVAILABLE"
+    "status": "NOT_AVAILABLE",
+    "sufficiency": "UNKNOWN"
   },
   "report_kind": "qre_empirical_evidence_pack",
+  "resolved_blockers": [
+    "DATA_OR_OOS_CAPACITY_BLOCKED"
+  ],
   "sample_boundaries": {
     "oos_window": {
       "end": "2026-06-29T00:00:00Z",
@@ -229,11 +422,16 @@
   },
   "schema_version": "1.0",
   "slippage": {
+    "applicability": "NOT_EVALUABLE",
     "assumptions": {
       "status": "not_materialized"
     },
+    "outcome": "INCONCLUSIVE",
+    "presence": "AVAILABLE",
     "realized_slippage": 0.0,
-    "status": "AVAILABLE"
+    "status": "AVAILABLE",
+    "sufficiency": "INSUFFICIENT",
+    "trade_count": 0
   },
   "source_hypothesis_id": "cross_sectional_momentum_v0",
   "stability": {
@@ -248,11 +446,16 @@
   "terminal_outcome": "DATA_OR_OOS_CAPACITY_BLOCKED",
   "timeframe": "1d",
   "transaction_costs": {
+    "applicability": "NOT_EVALUABLE",
     "assumptions": {
       "mode": "cost_class_visible_only"
     },
+    "outcome": "INCONCLUSIVE",
+    "presence": "AVAILABLE",
     "realized_costs": 0.0,
-    "status": "AVAILABLE"
+    "status": "AVAILABLE",
+    "sufficiency": "INSUFFICIENT",
+    "trade_count": 0
   },
   "validation_refs": [
     "generated_research/validation/qgs_e565b01bd0a162d0.json"
