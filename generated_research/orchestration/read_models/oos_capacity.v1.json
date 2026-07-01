@@ -1,79 +1,193 @@
 {
   "rows": [
     {
-      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-      "dataset_identity": "qds_f8a7d624458bb131",
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "dataset_identity": "qds_7122d363670ceae9",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "independence_group": "qig_cc56f7ca711a218e",
+      "independence_group": "qig_daadb76c45f7e6b9",
       "provenance": [
         "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
         "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
       ],
       "purpose": "TRAIN",
-      "snapshot_identity": "qsn_f8a7d624458bb131",
+      "snapshot_identity": "qsn_7122d363670ceae9",
       "status": "RESERVED",
-      "timeframe": "4h",
+      "timeframe": "1d",
       "window": {
-        "end": "2025-09-28T17:30:00Z",
-        "start": "2024-05-28T13:30:00Z"
+        "end": "2026-06-09T00:00:00Z",
+        "start": "2026-04-08T00:00:00Z"
       },
-      "window_id": "qwl_4088db5daab20be2"
+      "window_id": "qwl_5b83180d614e2836"
     },
     {
-      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-      "dataset_identity": "qds_f8a7d624458bb131",
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "dataset_identity": "qds_7122d363670ceae9",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "independence_group": "qig_cc56f7ca711a218e",
+      "independence_group": "qig_daadb76c45f7e6b9",
       "provenance": [
         "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
         "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
       ],
       "purpose": "VALIDATION",
-      "snapshot_identity": "qsn_f8a7d624458bb131",
+      "snapshot_identity": "qsn_7122d363670ceae9",
       "status": "RESERVED",
-      "timeframe": "4h",
+      "timeframe": "1d",
       "window": {
-        "end": "2026-01-10T17:30:00Z",
-        "start": "2025-10-12T17:30:00Z"
+        "end": "2026-06-19T00:00:00Z",
+        "start": "2026-06-12T00:00:00Z"
       },
-      "window_id": "qwl_3c3cc6b2ebb76c08"
+      "window_id": "qwl_f55ebaa7a5686930"
     },
     {
-      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-      "consumption_evidence": {
-        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-        "campaign_manifest_identity": "qcm_04f0e702e5be8884",
-        "generated_strategy_id": "qgs_5af8f605ba82ae53",
-        "oos_stage_path": "generated_research/campaign_execution/stages/oos.v1.json"
-      },
-      "consumption_identity": "qwc_8c9fcb2e33b0bb6b",
-      "dataset_identity": "qds_f8a7d624458bb131",
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "dataset_identity": "qds_7122d363670ceae9",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "independence_group": "qig_cc56f7ca711a218e",
+      "independence_group": "qig_daadb76c45f7e6b9",
       "provenance": [
         "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
         "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
       ],
       "purpose": "OOS",
-      "snapshot_identity": "qsn_f8a7d624458bb131",
-      "status": "CONSUMED",
+      "snapshot_identity": "qsn_7122d363670ceae9",
+      "status": "RESERVED",
+      "timeframe": "1d",
+      "window": {
+        "end": "2026-06-29T00:00:00Z",
+        "start": "2026-06-22T00:00:00Z"
+      },
+      "window_id": "qwl_e77394653c2407b8"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "dataset_identity": "qds_988d41124ea9cda2",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "independence_group": "qig_af3d4a66e818164f",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "TRAIN",
+      "snapshot_identity": "qsn_988d41124ea9cda2",
+      "status": "RESERVED",
       "timeframe": "4h",
       "window": {
-        "end": "2026-04-24T17:30:00Z",
-        "start": "2026-01-24T17:30:00Z"
+        "end": "2025-11-08T17:30:00Z",
+        "start": "2024-05-28T13:30:00Z"
       },
-      "window_id": "qwl_06fd2878a7332daa"
+      "window_id": "qwl_640061f07f179114"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "dataset_identity": "qds_988d41124ea9cda2",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "independence_group": "qig_af3d4a66e818164f",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "VALIDATION",
+      "snapshot_identity": "qsn_988d41124ea9cda2",
+      "status": "RESERVED",
+      "timeframe": "4h",
+      "window": {
+        "end": "2026-02-20T17:30:00Z",
+        "start": "2025-11-22T17:30:00Z"
+      },
+      "window_id": "qwl_32f70762220ba615"
+    },
+    {
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "dataset_identity": "qds_988d41124ea9cda2",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "independence_group": "qig_af3d4a66e818164f",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "OOS",
+      "snapshot_identity": "qsn_988d41124ea9cda2",
+      "status": "RESERVED",
+      "timeframe": "4h",
+      "window": {
+        "end": "2026-06-04T17:30:00Z",
+        "start": "2026-03-06T17:30:00Z"
+      },
+      "window_id": "qwl_66abbed68496e3ac"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "dataset_identity": "qds_bd7ce9df4dabc083",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "independence_group": "qig_dd2d1a5e50875ec4",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "TRAIN",
+      "snapshot_identity": "qsn_bd7ce9df4dabc083",
+      "status": "RESERVED",
+      "timeframe": "1d",
+      "window": {
+        "end": "2026-06-09T00:00:00Z",
+        "start": "2026-04-08T00:00:00Z"
+      },
+      "window_id": "qwl_cc2ad89f46af4ca4"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "dataset_identity": "qds_bd7ce9df4dabc083",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "independence_group": "qig_dd2d1a5e50875ec4",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "VALIDATION",
+      "snapshot_identity": "qsn_bd7ce9df4dabc083",
+      "status": "RESERVED",
+      "timeframe": "1d",
+      "window": {
+        "end": "2026-06-19T00:00:00Z",
+        "start": "2026-06-12T00:00:00Z"
+      },
+      "window_id": "qwl_b80f63e477e8fec2"
+    },
+    {
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "consumption_evidence": {
+        "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+        "campaign_manifest_identity": "qcm_ca4edb49cf33c620",
+        "generated_strategy_id": "qgs_e565b01bd0a162d0",
+        "oos_stage_path": "generated_research/campaign_execution/stages/oos.v1.json"
+      },
+      "consumption_identity": "qwc_0dddedec72875eb4",
+      "dataset_identity": "qds_bd7ce9df4dabc083",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "independence_group": "qig_dd2d1a5e50875ec4",
+      "provenance": [
+        "generated_research/readiness/snapshots/immutable_strategy_snapshots.v1.json",
+        "generated_research/readiness/window_capacity/authoritative_window_policy.v1.json"
+      ],
+      "purpose": "OOS",
+      "snapshot_identity": "qsn_bd7ce9df4dabc083",
+      "status": "CONSUMED",
+      "timeframe": "1d",
+      "window": {
+        "end": "2026-06-29T00:00:00Z",
+        "start": "2026-06-22T00:00:00Z"
+      },
+      "window_id": "qwl_76261008487bdc62"
     }
   ],
   "schema_version": "1.0",
   "summary": {
     "available": 0,
-    "campaigns_awaiting_oos": 1,
+    "campaigns_awaiting_oos": 2,
     "configured_cycle_maximum": 1,
     "configured_daily_maximum": 2,
     "consumed": 1,
     "invalidated": 0,
-    "reserved": 0,
-    "total_known_independent_windows": 1
+    "reserved": 2,
+    "total_known_independent_windows": 3
   }
 }

@@ -4,11 +4,11 @@
       "affected_objects": [
         "portfolio"
       ],
-      "alert_id": "qal_faf9ba07ab7d63fe",
+      "alert_id": "qal_19f8dbe430271a75",
       "alert_type": "ACTIVE_HYPOTHESES_BELOW_MINIMUM",
       "auto_remediation_state": "queued",
-      "first_observed": "2026-06-30",
-      "latest_observed": "2026-06-30",
+      "first_observed": "2026-07-01",
+      "latest_observed": "2026-07-01",
       "recommended_action": "GENERATE_HYPOTHESIS",
       "severity": "warning",
       "supporting_metrics": {

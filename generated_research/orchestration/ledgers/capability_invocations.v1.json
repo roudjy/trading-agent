@@ -1,5 +1,5 @@
 {
-  "invocation_ledger_identity": "qril_463c70bff8ec4f6f",
+  "invocation_ledger_identity": "qril_08c36f1ac7c77be1",
   "module_version": "ade-qre-026.1",
   "report_kind": "qre_capability_invocations",
   "rows": [
@@ -33,6 +33,70 @@
         "schema_version": "1.0",
         "validation_identity": "qrv_416808378df72e40",
         "work_item_id": "qrw_0ecf94a24a35ea87"
+      }
+    },
+    {
+      "bounded_arguments": {
+        "source_strategy": "qgs_5af8f605ba82ae53"
+      },
+      "command_class": "DATA_CAPACITY_EXPANSION",
+      "end_state": "request_replacement_hypothesis",
+      "failure_reason": "",
+      "input_identities": [
+        "qrw_fd9fa64d70df9032",
+        "qrpf_a2e55ef3261dfe1a"
+      ],
+      "invocation_identity": "qinv_a88f4a9ec7baf0e0",
+      "output_identities": [
+        "qrx_94a6657085dfad4a",
+        "qrv_0391f14ea2b8abe2"
+      ],
+      "return_status": "VALIDATED_AND_COMPOSED",
+      "start_state": "cache_row_missing",
+      "validation_results": {
+        "causal_progress": true,
+        "evidence_reproducible": true,
+        "expected_artifacts_exist": true,
+        "frozen_contracts_unchanged": true,
+        "module_version": "ade-qre-026.1",
+        "outcome": "VALIDATED_AND_COMPOSED",
+        "protected_surfaces_unchanged": true,
+        "report_kind": "qre_work_validation_result",
+        "schema_version": "1.0",
+        "validation_identity": "qrv_0391f14ea2b8abe2",
+        "work_item_id": "qrw_fd9fa64d70df9032"
+      }
+    },
+    {
+      "bounded_arguments": {
+        "source_strategy": "qgs_e565b01bd0a162d0"
+      },
+      "command_class": "DATA_CAPACITY_EXPANSION",
+      "end_state": "request_replacement_hypothesis",
+      "failure_reason": "",
+      "input_identities": [
+        "qrw_2c27622bcca21eed",
+        "qrpf_a2e55ef3261dfe1a"
+      ],
+      "invocation_identity": "qinv_a06c5a1bea96002d",
+      "output_identities": [
+        "qrx_22ad292d26875573",
+        "qrv_27b09a4a6d767da0"
+      ],
+      "return_status": "VALIDATED_AND_COMPOSED",
+      "start_state": "oos_sample_size",
+      "validation_results": {
+        "causal_progress": true,
+        "evidence_reproducible": true,
+        "expected_artifacts_exist": true,
+        "frozen_contracts_unchanged": true,
+        "module_version": "ade-qre-026.1",
+        "outcome": "VALIDATED_AND_COMPOSED",
+        "protected_surfaces_unchanged": true,
+        "report_kind": "qre_work_validation_result",
+        "schema_version": "1.0",
+        "validation_identity": "qrv_27b09a4a6d767da0",
+        "work_item_id": "qrw_2c27622bcca21eed"
       }
     }
   ],

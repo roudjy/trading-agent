@@ -1,0 +1,277 @@
+{
+  "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+  "campaign_classification": {
+    "current_hypothesis_campaigns_executed": 1,
+    "fixture_campaigns_consumed": 0,
+    "historical_campaigns_consumed": 0,
+    "new_empirical_campaigns_completed": 1,
+    "null_or_synthetic_campaigns_executed": 0
+  },
+  "campaign_identity": "qcx_40d35874111bcd98",
+  "campaign_refs": [
+    "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
+  ],
+  "contradicting_evidence": [
+    "DATA_OR_OOS_CAPACITY_BLOCKED"
+  ],
+  "controlled_evaluation": {
+    "oos_stage": {
+      "active_bar_count": 0,
+      "bar_count": 0,
+      "costs": 0.0,
+      "expectancy": 0.0,
+      "exposure_fraction": 0.0,
+      "gross_return_compound": 0.0,
+      "gross_return_sum": 0.0,
+      "holding_period_bars_average": 0.0,
+      "max_drawdown": 0.0,
+      "net_return_compound": 0.0,
+      "oos_outcome": "INSUFFICIENT_SIGNALS",
+      "oos_window_id": "qwl_76261008487bdc62",
+      "profit_factor": 0.0,
+      "reason_records": [
+        {
+          "decision": "oos_gate",
+          "metric": "trade_count",
+          "next_action": "route_to_data_oos_capacity_expansion",
+          "status": "FAILED",
+          "threshold": 10,
+          "value": 0
+        }
+      ],
+      "signal_count": 0,
+      "signals": [],
+      "slippage": 0.0,
+      "stage_name": "oos",
+      "trade_count": 0,
+      "trades": [],
+      "turnover": 0,
+      "validation_evidence": {
+        "evidence_status": "no_oos_trades",
+        "min_oos_trades": 10,
+        "oos_trade_count": 0
+      }
+    },
+    "status": "AVAILABLE",
+    "train_stage": {
+      "active_bar_count": 0,
+      "bar_count": 23,
+      "costs": 0.0,
+      "criteria_checks": {
+        "sufficient_signals": false,
+        "sufficient_trades": false
+      },
+      "expectancy": 0.0,
+      "exposure_fraction": 0.0,
+      "gross_return_compound": 0.0,
+      "gross_return_sum": 0.0,
+      "holding_period_bars_average": 0.0,
+      "max_drawdown": 0.0,
+      "net_return_compound": 0.0,
+      "profit_factor": 0.0,
+      "reason_records": [
+        {
+          "decision": "screening_gate",
+          "metric": "trade_count",
+          "next_action": "fail_closed_screening",
+          "status": "FAILED",
+          "threshold": 10,
+          "value": 0
+        },
+        {
+          "decision": "screening_gate",
+          "metric": "signal_count",
+          "next_action": "fail_closed_screening",
+          "status": "FAILED",
+          "threshold": 6,
+          "value": 0
+        }
+      ],
+      "screening_outcome": "INSUFFICIENT_TRADES",
+      "signal_count": 0,
+      "signals": [],
+      "slippage": 0.0,
+      "stage_name": "train",
+      "trade_count": 0,
+      "trades": [],
+      "turnover": 0
+    },
+    "validation_stage": {
+      "active_bar_count": 0,
+      "bar_count": 0,
+      "costs": 0.0,
+      "criteria_checks": {
+        "sufficient_signals": false,
+        "sufficient_trades": false
+      },
+      "expectancy": 0.0,
+      "exposure_fraction": 0.0,
+      "gross_return_compound": 0.0,
+      "gross_return_sum": 0.0,
+      "holding_period_bars_average": 0.0,
+      "max_drawdown": 0.0,
+      "net_return_compound": 0.0,
+      "profit_factor": 0.0,
+      "reason_records": [
+        {
+          "decision": "validation_gate",
+          "metric": "trade_count",
+          "next_action": "fail_closed_validation",
+          "status": "FAILED",
+          "threshold": 3,
+          "value": 0
+        },
+        {
+          "decision": "validation_gate",
+          "metric": "signal_count",
+          "next_action": "fail_closed_validation",
+          "status": "FAILED",
+          "threshold": 3,
+          "value": 0
+        }
+      ],
+      "signal_count": 0,
+      "signals": [],
+      "slippage": 0.0,
+      "stage_name": "validation",
+      "trade_count": 0,
+      "trades": [],
+      "train_to_validation_degradation": {
+        "net_return_compound_delta": 0.0,
+        "signal_count_delta": 0,
+        "trade_count_delta": 0
+      },
+      "turnover": 0,
+      "validation_outcome": "INSUFFICIENT_TRADES"
+    }
+  },
+  "disposition": "REJECTED",
+  "evidence_pack_id": "qep_b0a8ecc18aa1718c",
+  "generated_strategy_id": "qgs_e565b01bd0a162d0",
+  "missing_evidence": [
+    "oos_evidence",
+    "transaction_cost_evidence"
+  ],
+  "module_version": "ade-qre-032.1",
+  "null_model": {
+    "passed": false,
+    "rows": [
+      {
+        "accepted": false,
+        "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+        "comparison_outcome": "INSUFFICIENT_SAMPLE",
+        "control_class": "permuted_cross_sectional_ranking",
+        "control_identity": "qncx_256bb4a32efd7e21",
+        "deterministic_seed": "ce831448f139cb54",
+        "generated_strategy_id": "qgs_e565b01bd0a162d0",
+        "metrics": {
+          "active_bar_count": 0,
+          "bar_count": 0,
+          "costs": 0.0,
+          "expectancy": 0.0,
+          "exposure_fraction": 0.0,
+          "gross_return_compound": 0.0,
+          "gross_return_sum": 0.0,
+          "holding_period_bars_average": 0.0,
+          "max_drawdown": 0.0,
+          "net_return_compound": 0.0,
+          "profit_factor": 0.0,
+          "signal_count": 0,
+          "signals": [],
+          "slippage": 0.0,
+          "stage_name": "permuted_cross_sectional_ranking",
+          "trade_count": 0,
+          "trades": [],
+          "turnover": 0
+        },
+        "snapshot_identity": "qsn_bd7ce9df4dabc083",
+        "technical_validation_only": false,
+        "window": {
+          "end": "2026-06-29T00:00:00Z",
+          "start": "2026-06-22T00:00:00Z"
+        }
+      }
+    ],
+    "status": "AVAILABLE"
+  },
+  "oos": {
+    "outcome": "INSUFFICIENT_SIGNALS",
+    "status": "AVAILABLE",
+    "trade_count": 0
+  },
+  "outlier_dependency": {
+    "reason": "no_trade_records",
+    "status": "UNKNOWN"
+  },
+  "parameter_fragility": {
+    "reason": "bounded_parameter_sensitivity_not_run_in_campaign_executor",
+    "status": "NOT_AVAILABLE"
+  },
+  "recommended_next_action": "launch_data_oos_capacity_expansion",
+  "regime_evidence": {
+    "reason": "canonical_regime_segmentation_not_materialized_by_campaign_executor",
+    "status": "NOT_AVAILABLE"
+  },
+  "report_kind": "qre_empirical_evidence_pack",
+  "sample_boundaries": {
+    "oos_window": {
+      "end": "2026-06-29T00:00:00Z",
+      "start": "2026-06-22T00:00:00Z"
+    },
+    "train_window": {
+      "end": "2026-06-09T00:00:00Z",
+      "start": "2026-04-08T00:00:00Z"
+    },
+    "validation_window": {
+      "end": "2026-06-19T00:00:00Z",
+      "start": "2026-06-12T00:00:00Z"
+    }
+  },
+  "schema_version": "1.0",
+  "slippage": {
+    "assumptions": {
+      "status": "not_materialized"
+    },
+    "realized_slippage": 0.0,
+    "status": "AVAILABLE"
+  },
+  "source_hypothesis_id": "cross_sectional_momentum_v0",
+  "stability": {
+    "best_segment_return": 0.0,
+    "dispersion": 0.0,
+    "failure_concentration": "oos",
+    "status": "AVAILABLE",
+    "worst_segment_return": 0.0
+  },
+  "strategy_spec_id": "qsp_28cdbc0005ae7c93",
+  "supporting_evidence": [],
+  "terminal_outcome": "DATA_OR_OOS_CAPACITY_BLOCKED",
+  "timeframe": "1d",
+  "transaction_costs": {
+    "assumptions": {
+      "mode": "cost_class_visible_only"
+    },
+    "realized_costs": 0.0,
+    "status": "AVAILABLE"
+  },
+  "validation_refs": [
+    "generated_research/validation/qgs_e565b01bd0a162d0.json"
+  ],
+  "walk_forward": {
+    "segments": [
+      {
+        "stage": "train",
+        "trade_count": 0
+      },
+      {
+        "stage": "validation",
+        "trade_count": 0
+      },
+      {
+        "stage": "oos",
+        "trade_count": 0
+      }
+    ],
+    "status": "AVAILABLE"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "module_version": "ade-qre-027.1",
+  "report_kind": "qre_generated_hypothesis_research_memory",
+  "rows": [
+    {
+      "campaign": "qcx_40d35874111bcd98",
+      "contradiction_count": 1,
+      "disposition": "preserve_for_replay",
+      "evidence_decision": "REJECTED",
+      "evidence_disposition": "REJECTED",
+      "failure_reason": "DATA_OR_OOS_CAPACITY_BLOCKED",
+      "memory_id": "qhm_9f6853533b21443a",
+      "next_action": "evaluate_exact_blocker_or_empirical_campaign_gap",
+      "routing_decision": "prioritize",
+      "sampling_status": "ready",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "memory_update_count": 1
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "alerts_identity": "qras_1685b54428f6478f",
+  "alerts_identity": "qras_fd4cd681d31d811c",
   "health": "HEALTHY_WITH_WARNINGS",
   "module_version": "ade-qre-026.1",
   "report_kind": "qre_orchestration_alerts",
@@ -8,11 +8,11 @@
       "affected_objects": [
         "portfolio"
       ],
-      "alert_id": "qal_faf9ba07ab7d63fe",
+      "alert_id": "qal_19f8dbe430271a75",
       "alert_type": "ACTIVE_HYPOTHESES_BELOW_MINIMUM",
       "auto_remediation_state": "queued",
-      "first_observed": "2026-06-30",
-      "latest_observed": "2026-06-30",
+      "first_observed": "2026-07-01",
+      "latest_observed": "2026-07-01",
       "recommended_action": "GENERATE_HYPOTHESIS",
       "severity": "warning",
       "supporting_metrics": {

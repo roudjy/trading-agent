@@ -25,12 +25,12 @@
       "utilization_pct": 25.0
     },
     {
-      "current": 1,
+      "current": 2,
       "maximum": 6,
       "metric": "preregistered_cells",
-      "shortage": 1,
+      "shortage": 0,
       "target": 2,
-      "utilization_pct": 16.67
+      "utilization_pct": 33.33
     }
   ]
 }

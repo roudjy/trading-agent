@@ -4,11 +4,11 @@
       "affected_objects": [
         "portfolio"
       ],
-      "alert_id": "qal_faf9ba07ab7d63fe",
+      "alert_id": "qal_19f8dbe430271a75",
       "alert_type": "ACTIVE_HYPOTHESES_BELOW_MINIMUM",
       "auto_remediation_state": "queued",
-      "first_observed": "2026-06-30",
-      "latest_observed": "2026-06-30",
+      "first_observed": "2026-07-01",
+      "latest_observed": "2026-07-01",
       "recommended_action": "GENERATE_HYPOTHESIS",
       "severity": "warning",
       "supporting_metrics": {
@@ -23,8 +23,8 @@
   ],
   "blockers_and_remediation": {
     "blocker_counts": {
-      "oos_sample_size": 1,
-      "usable_history_below_minimum_policy_span": 1
+      "cache_row_missing": 1,
+      "oos_sample_size": 1
     },
     "top_blockers": [
       {
@@ -32,9 +32,9 @@
           "qgs_5af8f605ba82ae53"
         ],
         "age": 1,
-        "blocker": "oos_sample_size",
+        "blocker": "cache_row_missing",
         "current_next_action": "launch_data_oos_capacity_expansion",
-        "owner_class": "autonomous",
+        "owner_class": "external data",
         "retry_count": 0
       },
       {
@@ -42,7 +42,7 @@
           "qgs_e565b01bd0a162d0"
         ],
         "age": 1,
-        "blocker": "usable_history_below_minimum_policy_span",
+        "blocker": "oos_sample_size",
         "current_next_action": "launch_data_oos_capacity_expansion",
         "owner_class": "autonomous",
         "retry_count": 0
@@ -68,7 +68,7 @@
       "minimum_free_disk_space": 1000000000
     },
     "errors": 0,
-    "jobs_executed": 1,
+    "jobs_executed": 3,
     "retries": 0,
     "timeouts": 0,
     "wall_clock_runtime": 0
@@ -80,14 +80,14 @@
         "qrcell_d5ded3130f132558",
         "qrcell_fdd68e20fd2724dd"
       ],
-      "confidence_evidence_state": "INSUFFICIENT_EVIDENCE",
-      "current_bucket": "OOS_CAPACITY_BLOCKED",
-      "last_state_change": "2026-06-30",
-      "latest_evidence_state": "INSUFFICIENT_EVIDENCE",
+      "confidence_evidence_state": "RESEARCH_REGISTERED",
+      "current_bucket": "DATA_CAPACITY_BLOCKED",
+      "last_state_change": "2026-07-01",
+      "latest_evidence_state": "RESEARCH_REGISTERED",
       "mechanism_family": "trend_persistence",
       "next_action": "launch_data_oos_capacity_expansion",
-      "oos_exposure": "consumed",
-      "primary_blocker": "oos_sample_size",
+      "oos_exposure": "none",
+      "primary_blocker": "cache_row_missing",
       "strategy_family": "trend",
       "strategy_id": "qgs_5af8f605ba82ae53",
       "thesis": "qbt_3b77618b0ddbd5b3"
@@ -96,14 +96,14 @@
       "campaign_cells": [
         "qrcell_44aa81da7c2fc7c9"
       ],
-      "confidence_evidence_state": "RESEARCH_REGISTERED",
-      "current_bucket": "DATA_CAPACITY_BLOCKED",
-      "last_state_change": "2026-06-30",
-      "latest_evidence_state": "RESEARCH_REGISTERED",
+      "confidence_evidence_state": "INSUFFICIENT_EVIDENCE",
+      "current_bucket": "OOS_CAPACITY_BLOCKED",
+      "last_state_change": "2026-07-01",
+      "latest_evidence_state": "INSUFFICIENT_EVIDENCE",
       "mechanism_family": "trend_persistence",
       "next_action": "launch_data_oos_capacity_expansion",
-      "oos_exposure": "none",
-      "primary_blocker": "usable_history_below_minimum_policy_span",
+      "oos_exposure": "consumed",
+      "primary_blocker": "oos_sample_size",
       "strategy_family": "trend",
       "strategy_id": "qgs_e565b01bd0a162d0",
       "thesis": "qhc_51bc7a5c7b3f64ba"
@@ -119,46 +119,45 @@
     "strategies_archived": 0,
     "strategies_marked_insufficient_evidence": 1
   },
-  "daily_report_identity": "qrdr_e229333f8b8f64de",
+  "daily_report_identity": "qrdr_a8754616c9dfadf3",
   "data_capacity": {
     "cache_gaps": 1,
     "cache_rows_created": 0,
     "datasets_used": [
-      "qds_81ae54676629b223",
-      "qds_be8702b264081860",
-      "qds_f8a7d624458bb131"
+      "qds_7122d363670ceae9",
+      "qds_988d41124ea9cda2",
+      "qds_bd7ce9df4dabc083"
     ],
     "snapshots_used": [
-      "qsn_81ae54676629b223",
-      "qsn_be8702b264081860",
-      "qsn_f8a7d624458bb131"
+      "qsn_7122d363670ceae9",
+      "qsn_988d41124ea9cda2",
+      "qsn_bd7ce9df4dabc083"
     ]
   },
   "evidence_quality": {
-    "campaigns_deferred_by_pre_oos_gate": 0,
+    "campaigns_deferred_by_pre_oos_gate": 1,
     "conclusive_decisions_per_independent_oos_window_consumed": 0.0,
     "consumed_oos_without_conclusive_decision": 1,
     "inconclusive_campaigns_per_oos_window_consumed": 1.0,
     "independent_evidence_units_created": 0,
     "independent_oos_windows_consumed": 1,
-    "independent_oos_windows_reserved": 0
+    "independent_oos_windows_reserved": 2
   },
   "executive_summary": {
     "autonomous_loop_state": "active",
     "campaigns_completed": 1,
-    "cycles_completed": 1,
+    "cycles_completed": 3,
     "final_decisions_produced": 1,
     "major_blockers": [
-      "oos_sample_size",
-      "usable_history_below_minimum_policy_span"
+      "cache_row_missing",
+      "oos_sample_size"
     ],
     "operator_attention_required": true,
     "overall_health": "HEALTHY_WITH_WARNINGS",
     "top_next_actions": [
-      "launch_data_oos_capacity_expansion",
-      "launch_data_oos_capacity_expansion"
+      "request_replacement_hypothesis"
     ],
-    "work_items_completed": 1
+    "work_items_completed": 3
   },
   "funnel_conversion": {
     "executed_to_insufficient_evidence": {
@@ -170,7 +169,7 @@
       "reason": "bounded_generated_registry_present"
     },
     "registered_strategy_to_ready_cell": {
-      "count": 1,
+      "count": 2,
       "reason": "campaign_readiness_artifacts"
     }
   },
@@ -178,23 +177,6 @@
   "module_version": "ade-qre-026.1",
   "next_24h_plan": {
     "rows": [
-      {
-        "conflicts": [
-          "data_capacity_expansion"
-        ],
-        "dependencies": [
-          "snapshot_capacity",
-          "independent_oos"
-        ],
-        "expected_compute_cost": 2,
-        "expected_information_gain": 0.51,
-        "expected_objects_unlocked": 2,
-        "expected_oos_cost": 0,
-        "planned_concurrency_group": 1,
-        "priority_reason": "oos_sample_size",
-        "work_class": "DATA_CAPACITY_EXPANSION",
-        "work_item_id": "qrw_0ecf94a24a35ea87"
-      },
       {
         "conflicts": [],
         "dependencies": [
@@ -206,40 +188,23 @@
         "expected_oos_cost": 0,
         "planned_concurrency_group": 1,
         "priority_reason": "active_hypotheses_below_target",
-        "work_class": "EXISTING_PIPELINE_REPLAY",
-        "work_item_id": "qrw_25f9fc444e8399be"
-      },
-      {
-        "conflicts": [
-          "data_capacity_expansion"
-        ],
-        "dependencies": [
-          "data_capacity",
-          "window_capacity"
-        ],
-        "expected_compute_cost": 2,
-        "expected_information_gain": 0.12,
-        "expected_objects_unlocked": 2,
-        "expected_oos_cost": 0,
-        "planned_concurrency_group": 1,
-        "priority_reason": "usable_history_below_minimum_policy_span",
-        "work_class": "DATA_CAPACITY_EXPANSION",
-        "work_item_id": "qrw_65b687f000961e90"
+        "work_class": "BOUNDED_HYPOTHESIS_GENERATION",
+        "work_item_id": "qrw_50eeb67b33c44ac9"
       }
     ]
   },
   "oos_budget": {
     "available": 0,
-    "campaigns_awaiting_oos": 1,
+    "campaigns_awaiting_oos": 2,
     "configured_cycle_maximum": 1,
     "configured_daily_maximum": 2,
     "consumed": 1,
     "invalidated": 0,
-    "reserved": 0,
-    "total_known_independent_windows": 1
+    "reserved": 2,
+    "total_known_independent_windows": 3
   },
   "operating_mode": "LOCAL_AUTONOMOUS",
-  "report_date": "2026-06-30",
+  "report_date": "2026-07-01",
   "report_kind": "qre_daily_research_operations_report",
   "research_portfolio": {
     "counts": [
@@ -268,12 +233,12 @@
         "utilization_pct": 25.0
       },
       {
-        "current": 1,
+        "current": 2,
         "maximum": 6,
         "metric": "preregistered_cells",
-        "shortage": 1,
+        "shortage": 0,
         "target": 2,
-        "utilization_pct": 16.67
+        "utilization_pct": 33.33
       }
     ]
   },
@@ -284,12 +249,12 @@
     "hypotheses_admitted": 1,
     "hypotheses_generated": 0,
     "independent_evidence_units_consumed": 1,
-    "readiness_blockers_resolved": 1,
+    "readiness_blockers_resolved": 3,
     "shared_capabilities_unlocked": 0,
     "strategies_generated": 2,
     "strategies_registered": 2,
     "strategies_validated": 2,
-    "work_items_completed": 1
+    "work_items_completed": 3
   },
   "schema_version": "1.0",
   "scientific_diversity": {
@@ -300,9 +265,9 @@
     "repeated_failure_suppressions": 1
   },
   "source_artifact_identities": {
-    "oos_budget_identity": "qrob_cac490a67d5f3043",
-    "portfolio_identity": "qrpf_00796ccd604b38df",
-    "work_items_identity": "qrws_1ae512fce10387c3"
+    "oos_budget_identity": "qrob_d95854f927d64357",
+    "portfolio_identity": "qrpf_a2e55ef3261dfe1a",
+    "work_items_identity": "qrws_01b52cd2b00d8b46"
   },
-  "trend_history_identity": "qrth_62c831b3a70660e2"
+  "trend_history_identity": "qrth_36799587dc805997"
 }

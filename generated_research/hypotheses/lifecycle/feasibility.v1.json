@@ -1,0 +1,43 @@
+{
+  "module_version": "ade-qre-027.1",
+  "report_kind": "qre_generated_hypothesis_feasibility",
+  "rows": [
+    {
+      "behavior_family": "relative_strength",
+      "duplicate_active_research_path": false,
+      "expected_observables": [
+        "qob_a80447ba6a2612d0"
+      ],
+      "falsification_criteria": [
+        "insufficient_cross_section",
+        "identity_blocked",
+        "cost_fragile",
+        "no_baseline_edge"
+      ],
+      "feasibility_id": "qhf_5936df7b0f53af08",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "identity_status": "MISSING",
+      "lifecycle_state": "ADMITTED_GENERATION_BLOCKED",
+      "missing_prerequisites": [],
+      "next_action": "create_second_campaign_preregistration_manifest",
+      "policy_denial": false,
+      "portfolio_blockers": [],
+      "portfolio_status": "READY_FOR_PREREGISTRATION",
+      "primitive_compatibility": "COMPILABLE_WITH_CURRENT_PRIMITIVES",
+      "required_data_capabilities": [
+        "multi_asset_ohlcv_panel",
+        "resolved_instrument_identity"
+      ],
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "status": "ready",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "blocked_count": 0,
+    "feasibility_ready_count": 1,
+    "max_hypotheses_per_cycle": 10,
+    "selected_hypothesis_count": 1
+  }
+}

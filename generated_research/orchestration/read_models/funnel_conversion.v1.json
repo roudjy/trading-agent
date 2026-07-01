@@ -8,7 +8,7 @@
     "reason": "bounded_generated_registry_present"
   },
   "registered_strategy_to_ready_cell": {
-    "count": 1,
+    "count": 2,
     "reason": "campaign_readiness_artifacts"
   }
 }

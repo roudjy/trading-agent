@@ -1,0 +1,19 @@
+{
+  "module_version": "ade-qre-027.1",
+  "report_kind": "qre_generated_hypothesis_failure_actions",
+  "rows": [
+    {
+      "actionable": false,
+      "failure_action_id": "qhfa_9bc1a11d620f5eb1",
+      "failure_codes": [],
+      "next_action": "evaluate_exact_blocker_or_empirical_campaign_gap",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "actionable_failure_count": 0,
+    "failure_action_count": 1
+  }
+}

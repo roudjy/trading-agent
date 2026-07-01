@@ -3,89 +3,14 @@
   "report_kind": "qre_admitted_work_items",
   "rows": [
     {
-      "admission_result": "ADMITTED_AUTONOMOUS",
-      "authority_proof": "LOCAL_AUTONOMOUS",
-      "compute_budget": 2,
-      "data_budget": 2,
-      "dependency_ids": [
-        "snapshot_capacity",
-        "independent_oos"
-      ],
-      "deterministic_identity": "qrw_0ecf94a24a35ea87",
-      "expected_outputs": [
-        "generated_research/orchestration/work_items/admitted_work_items.v1.json",
-        "generated_research/orchestration/ledgers/orchestration_cycle_ledger.v1.json"
-      ],
-      "forbidden_surfaces": [
-        ".claude/**",
-        "research/research_latest.json",
-        "research/strategy_matrix.csv",
-        "paper/**",
-        "shadow/**",
-        "live/**",
-        "broker/**",
-        "risk/**",
-        "execution/**"
-      ],
-      "inputs": {
-        "causal_justification": "launch_data_oos_capacity_expansion",
-        "source_blocker": "oos_sample_size"
-      },
-      "oos_budget": 0,
-      "priority": 0.51,
-      "replay_target": "qgs_5af8f605ba82ae53",
-      "required_validations": [
-        "tests/unit/test_qre_autonomous_orchestration.py"
-      ],
-      "resource_claim": {
-        "compute_claim": 2,
-        "data_claim": 2,
-        "exclusive_resources": [
-          "data_capacity_expansion"
-        ],
-        "expected_artifact_paths": [
-          "generated_research/orchestration/ledgers/orchestration_cycle_ledger.v1.json"
-        ],
-        "oos_independence_group": "",
-        "read_resources": [
-          "portfolio",
-          "cache_manifest",
-          "window_ledger"
-        ],
-        "write_resources": [
-          "orchestration_budget",
-          "orchestration_cycle"
-        ]
-      },
-      "retry_policy": {
-        "maximum_attempts": 2
-      },
-      "source_action": "qra_2554575001e4dcec",
-      "source_campaign": "qrcell_41d3efbcaa2aeddb",
-      "source_hypothesis": "",
-      "source_strategy": "qgs_5af8f605ba82ae53",
-      "terminal_outcomes": [
-        "VALIDATED_AND_COMPOSED",
-        "NO_CAUSAL_PROGRESS",
-        "EXTERNAL_DATA_REQUIRED"
-      ],
-      "work_class": "DATA_CAPACITY_EXPANSION",
-      "work_item_id": "qrw_0ecf94a24a35ea87",
-      "writable_surfaces": [
-        "generated_research/orchestration",
-        "orchestration_budget",
-        "orchestration_cycle"
-      ]
-    },
-    {
-      "admission_result": "ADMITTED_LOCAL_ONLY",
+      "admission_result": "BLOCKED_POLICY",
       "authority_proof": "LOCAL_AUTONOMOUS",
       "compute_budget": 1,
       "data_budget": 0,
       "dependency_ids": [
         "portfolio_state"
       ],
-      "deterministic_identity": "qrw_25f9fc444e8399be",
+      "deterministic_identity": "qrw_50eeb67b33c44ac9",
       "expected_outputs": [
         "generated_research/orchestration/actions/typed_next_actions.v1.json"
       ],
@@ -115,7 +40,8 @@
         "data_claim": 0,
         "exclusive_resources": [],
         "expected_artifact_paths": [
-          "generated_research/orchestration/actions/typed_next_actions.v1.json"
+          "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+          "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json"
         ],
         "oos_independence_group": "",
         "read_resources": [
@@ -124,7 +50,9 @@
           "contradictions"
         ],
         "write_resources": [
-          "orchestration_cycle"
+          "orchestration_cycle",
+          "generated_hypotheses",
+          "trusted_loop_memory"
         ]
       },
       "retry_policy": {
@@ -139,89 +67,16 @@
         "NO_CAUSAL_PROGRESS",
         "EXTERNAL_DATA_REQUIRED"
       ],
-      "work_class": "EXISTING_PIPELINE_REPLAY",
-      "work_item_id": "qrw_25f9fc444e8399be",
+      "work_class": "BOUNDED_HYPOTHESIS_GENERATION",
+      "work_item_id": "qrw_50eeb67b33c44ac9",
       "writable_surfaces": [
+        "generated_hypotheses",
         "generated_research/orchestration",
-        "orchestration_cycle"
-      ]
-    },
-    {
-      "admission_result": "ADMITTED_AUTONOMOUS",
-      "authority_proof": "LOCAL_AUTONOMOUS",
-      "compute_budget": 2,
-      "data_budget": 2,
-      "dependency_ids": [
-        "data_capacity",
-        "window_capacity"
-      ],
-      "deterministic_identity": "qrw_65b687f000961e90",
-      "expected_outputs": [
-        "generated_research/orchestration/work_items/admitted_work_items.v1.json",
-        "generated_research/orchestration/ledgers/orchestration_cycle_ledger.v1.json"
-      ],
-      "forbidden_surfaces": [
-        ".claude/**",
-        "research/research_latest.json",
-        "research/strategy_matrix.csv",
-        "paper/**",
-        "shadow/**",
-        "live/**",
-        "broker/**",
-        "risk/**",
-        "execution/**"
-      ],
-      "inputs": {
-        "causal_justification": "launch_data_oos_capacity_expansion",
-        "source_blocker": "usable_history_below_minimum_policy_span"
-      },
-      "oos_budget": 0,
-      "priority": 0.12,
-      "replay_target": "qgs_e565b01bd0a162d0",
-      "required_validations": [
-        "tests/unit/test_qre_autonomous_orchestration.py"
-      ],
-      "resource_claim": {
-        "compute_claim": 2,
-        "data_claim": 2,
-        "exclusive_resources": [
-          "data_capacity_expansion"
-        ],
-        "expected_artifact_paths": [
-          "generated_research/orchestration/ledgers/orchestration_cycle_ledger.v1.json"
-        ],
-        "oos_independence_group": "",
-        "read_resources": [
-          "portfolio",
-          "cache_manifest",
-          "window_ledger"
-        ],
-        "write_resources": [
-          "orchestration_budget",
-          "orchestration_cycle"
-        ]
-      },
-      "retry_policy": {
-        "maximum_attempts": 2
-      },
-      "source_action": "qra_0cbdbd0b7a5093a2",
-      "source_campaign": "qrcell_44aa81da7c2fc7c9",
-      "source_hypothesis": "",
-      "source_strategy": "qgs_e565b01bd0a162d0",
-      "terminal_outcomes": [
-        "VALIDATED_AND_COMPOSED",
-        "NO_CAUSAL_PROGRESS",
-        "EXTERNAL_DATA_REQUIRED"
-      ],
-      "work_class": "DATA_CAPACITY_EXPANSION",
-      "work_item_id": "qrw_65b687f000961e90",
-      "writable_surfaces": [
-        "generated_research/orchestration",
-        "orchestration_budget",
-        "orchestration_cycle"
+        "orchestration_cycle",
+        "trusted_loop_memory"
       ]
     }
   ],
   "schema_version": "1.0",
-  "work_items_identity": "qrws_1ae512fce10387c3"
+  "work_items_identity": "qrws_01b52cd2b00d8b46"
 }
