@@ -11,7 +11,6 @@ from packages.qre_research import automated_data_window_capacity as adwc
 from packages.qre_research import autonomous_readiness_closure as arc
 from packages.qre_research import generated_strategy_paths as gsp
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _COPIED_INPUTS = (
@@ -33,6 +32,7 @@ def _copy(repo_root: Path, relative: str) -> None:
     target = repo_root / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
+    target.chmod(0o666)
 
 
 def _write_json(repo_root: Path, relative: str, payload: dict) -> None:
@@ -200,7 +200,48 @@ def _build_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, directory_na
         "logs/qre_data_cache_manifest/latest.json",
         {
             "report_kind": "qre_data_cache_manifest",
-            "coverage": [],
+            "coverage": [
+                {
+                    "content_hash": "sha256:aapl-1d-fresh",
+                    "instrument": "AAPL",
+                    "max_timestamp_utc": "2026-06-30T00:00:00Z",
+                    "min_timestamp_utc": "2025-10-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 3200,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+                {
+                    "content_hash": "sha256:amd-1d-fresh",
+                    "instrument": "AMD",
+                    "max_timestamp_utc": "2026-06-30T00:00:00Z",
+                    "min_timestamp_utc": "2025-10-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 3180,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+                {
+                    "content_hash": "sha256:msft-1d-fresh",
+                    "instrument": "MSFT",
+                    "max_timestamp_utc": "2026-06-30T00:00:00Z",
+                    "min_timestamp_utc": "2025-10-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 3210,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+                {
+                    "content_hash": "sha256:nvda-1d-fresh",
+                    "instrument": "NVDA",
+                    "max_timestamp_utc": "2026-06-30T00:00:00Z",
+                    "min_timestamp_utc": "2025-10-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 3300,
+                    "source": "yfinance",
+                    "timeframe": "1d",
+                },
+            ],
             "files": [],
         },
     )
@@ -284,6 +325,27 @@ def test_short_span_single_instrument_1d_cell_stays_window_blocked(readiness_rep
     )
     assert row["status"] == "BLOCKED_WINDOWS"
     assert row["blockers"] == ["usable_history_below_minimum_policy_span"]
+
+
+def test_fresher_manifest_coverage_overrides_stale_artifact_for_cross_sectional_cell(
+    readiness_repo: Path,
+) -> None:
+    result = adwc.run_data_window_closure(repo_root=readiness_repo)
+    row = next(
+        item
+        for item in result["portfolio_rows"]
+        if item["campaign_cell_id"] == "qrcell_44aa81da7c2fc7c9"
+    )
+    assert row["status"] == "READY_FOR_PREREGISTRATION"
+    assert row["blockers"] == []
+    manifest = _read_json(
+        readiness_repo
+        / "generated_research"
+        / "readiness"
+        / "campaigns"
+        / "generated_second_campaign_manifest.v1.json"
+    )
+    assert any(item["campaign_cell_id"] == "qrcell_44aa81da7c2fc7c9" for item in manifest["rows"])
 
 
 def test_window_ledger_reserves_windows_for_ready_cell(readiness_repo: Path) -> None:
