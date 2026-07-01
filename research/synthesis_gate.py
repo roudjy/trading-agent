@@ -43,6 +43,29 @@ ARTIFACT_PATHS: Final[dict[str, Path]] = {
     ),
     "viability": Path("research/campaigns/evidence/viability_latest.v1.json"),
 }
+GENERATED_HYPOTHESIS_ARTIFACT_PATHS: Final[dict[str, Path]] = {
+    "generated_registry": Path(
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+    ),
+    "feasibility": Path("generated_research/hypotheses/lifecycle/feasibility.v1.json"),
+    "routing": Path("generated_research/hypotheses/lifecycle/routing.v1.json"),
+    "sampling": Path("generated_research/hypotheses/lifecycle/sampling.v1.json"),
+    "reason_records": Path(
+        "generated_research/hypotheses/lifecycle/reason_records.v1.json"
+    ),
+    "evidence_updates": Path(
+        "generated_research/hypotheses/lifecycle/evidence_updates.v1.json"
+    ),
+    "failure_actions": Path(
+        "generated_research/hypotheses/lifecycle/failure_actions.v1.json"
+    ),
+    "research_memory": Path(
+        "generated_research/hypotheses/lifecycle/research_memory.v1.json"
+    ),
+    "trusted_loop_summary": Path(
+        "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json"
+    ),
+}
 
 GATE_STATES: Final[tuple[str, ...]] = (
     "blocked_insufficient_attribution",
@@ -689,6 +712,161 @@ def _write_text_atomic(path: Path, content: str) -> None:
     tmp.replace(path)
 
 
+def load_generated_hypothesis_artifacts(
+    *,
+    root: Path = Path("."),
+) -> tuple[dict[str, Any], dict[str, dict[str, str]]]:
+    payloads: dict[str, Any] = {}
+    statuses: dict[str, dict[str, str]] = {}
+    for name, relative_path in GENERATED_HYPOTHESIS_ARTIFACT_PATHS.items():
+        path = root / relative_path
+        payload, status = _read_json(path)
+        payloads[name] = payload
+        statuses[name] = {"path": relative_path.as_posix(), "status": status}
+    return payloads, statuses
+
+
+def build_generated_hypothesis_synthesis_payload(
+    *,
+    generated_artifacts: dict[str, Any],
+    artifact_status: dict[str, dict[str, str]],
+    generated_at_utc: datetime | None = None,
+) -> dict[str, Any]:
+    generated = generated_at_utc or _now_utc()
+    feasibility_rows = _list_value(_dict_value(generated_artifacts.get("feasibility")).get("rows"))
+    routing_rows = _list_value(_dict_value(generated_artifacts.get("routing")).get("rows"))
+    sampling_rows = _list_value(_dict_value(generated_artifacts.get("sampling")).get("rows"))
+    reason_rows = _list_value(_dict_value(generated_artifacts.get("reason_records")).get("rows"))
+    evidence_rows = _list_value(_dict_value(generated_artifacts.get("evidence_updates")).get("rows"))
+    failure_rows = _list_value(_dict_value(generated_artifacts.get("failure_actions")).get("rows"))
+    memory_rows = _list_value(_dict_value(generated_artifacts.get("research_memory")).get("rows"))
+    trusted_summary = _dict_value(generated_artifacts.get("trusted_loop_summary"))
+    selected_row = next((row for row in feasibility_rows if isinstance(row, dict)), {})
+    hypothesis_id = str(selected_row.get("source_hypothesis_id") or selected_row.get("thesis_id") or "")
+
+    criteria_passed: list[str] = []
+    criteria_failed: list[str] = []
+    missing_evidence: list[str] = []
+    blocking_reasons: list[str] = []
+    recommended_next_actions: list[str] = []
+
+    if feasibility_rows:
+        criteria_passed.append("hypothesis_exists")
+    else:
+        criteria_failed.append("hypothesis_exists")
+        missing_evidence.append("generated_hypothesis_feasibility")
+    if reason_rows:
+        criteria_passed.append("reason_records_non_empty")
+    else:
+        criteria_failed.append("reason_records_non_empty")
+        missing_evidence.append("reason_records")
+    if any(str(row.get("routing_status") or "") == "ready" for row in routing_rows if isinstance(row, dict)):
+        criteria_passed.append("routing_ready")
+    else:
+        criteria_failed.append("routing_ready")
+        missing_evidence.append("routing_ready_evidence")
+    if any(str(row.get("sampling_status") or "") == "ready" for row in sampling_rows if isinstance(row, dict)):
+        criteria_passed.append("sampling_ready")
+    else:
+        criteria_failed.append("sampling_ready")
+        missing_evidence.append("sampling_ready_evidence")
+    if failure_rows:
+        criteria_passed.append("failure_action_mapping_materialized")
+    else:
+        criteria_failed.append("failure_action_mapping_materialized")
+        missing_evidence.append("failure_action_mapping")
+    if memory_rows:
+        criteria_passed.append("research_memory_materialized")
+    else:
+        criteria_failed.append("research_memory_materialized")
+        missing_evidence.append("research_memory")
+    if evidence_rows:
+        criteria_passed.append("evidence_chain_materialized")
+    else:
+        criteria_failed.append("evidence_chain_materialized")
+        missing_evidence.append("evidence_updates")
+
+    empirical_missing = [
+        "oos_evidence",
+        "transaction_cost_evidence",
+        "null_model_evidence",
+        "stability_evidence",
+        "regime_evidence",
+    ]
+    if evidence_rows:
+        first_evidence = _dict_value(evidence_rows[0])
+        missing_evidence.extend(
+            item
+            for item in _list_value(first_evidence.get("missing_evidence"))
+            if item not in missing_evidence
+        )
+        for item in empirical_missing:
+            if item not in missing_evidence:
+                missing_evidence.append(item)
+    else:
+        missing_evidence.extend(item for item in empirical_missing if item not in missing_evidence)
+
+    if missing_evidence:
+        criteria_failed.extend(
+            item for item in ("evidence_complete", "oos_ready", "cost_evidence_ready") if item not in criteria_failed
+        )
+        blocking_reasons.append("empirical_research_evidence_incomplete")
+    if not all(status.get("status") == "present" for status in artifact_status.values()):
+        blocking_reasons.append("generated_hypothesis_lifecycle_artifacts_missing")
+    if trusted_summary.get("empirical_research_evidence_materialized") is not True:
+        blocking_reasons.append("fixture_or_repository_structure_proof_is_not_empirical_validation")
+
+    next_action = str(trusted_summary.get("next_action") or "")
+    if next_action:
+        recommended_next_actions.append(next_action)
+    recommended_next_actions.extend(
+        [
+            "materialize_controlled_evaluation_evidence",
+            "materialize_oos_and_cost_evidence",
+            "reassess_synthesis_after_empirical_evidence_update",
+        ]
+    )
+
+    readiness_status = "ELIGIBLE"
+    if blocking_reasons:
+        readiness_status = "INELIGIBLE_EVIDENCE"
+
+    return {
+        "schema_version": SYNTHESIS_GATE_SCHEMA_VERSION,
+        "generated_at_utc": _iso_utc(generated),
+        "report_kind": "qre_generated_hypothesis_synthesis_readiness",
+        "readiness_status": readiness_status,
+        "hypothesis_id": hypothesis_id,
+        "criteria_passed": sorted(set(criteria_passed)),
+        "criteria_failed": sorted(set(criteria_failed)),
+        "missing_evidence": sorted(set(missing_evidence)),
+        "blocking_reasons": sorted(set(blocking_reasons)),
+        "recommended_next_actions": list(dict.fromkeys(recommended_next_actions)),
+        "reassessment_conditions": [
+            "generated_hypothesis_lifecycle_artifacts_present",
+            "controlled_evaluation_materialized",
+            "oos_evidence_materialized",
+            "transaction_cost_and_null_model_evidence_materialized",
+        ],
+        "operator_gates": [],
+        "strategy_authority": False,
+        "candidate_authority": False,
+        "deployment_authority": False,
+        "supporting_evidence": {
+            "artifact_inputs": artifact_status,
+            "trusted_loop_summary": trusted_summary,
+            "feasibility_rows": feasibility_rows,
+            "routing_rows": routing_rows,
+            "sampling_rows": sampling_rows,
+            "reason_record_count": len(reason_rows),
+            "evidence_update_count": len(evidence_rows),
+            "failure_action_count": len(failure_rows),
+            "memory_update_count": len(memory_rows),
+            "fixture_proof_not_empirical": True,
+        },
+    }
+
+
 def build_from_current_artifacts(
     *,
     root: Path = Path("."),
@@ -751,9 +929,12 @@ __all__ = [
     "DEFAULT_REPORT_MD_PATH",
     "DISALLOWED_PATHS",
     "GATE_STATES",
+    "GENERATED_HYPOTHESIS_ARTIFACT_PATHS",
     "SYNTHESIS_GATE_SCHEMA_VERSION",
     "build_from_current_artifacts",
+    "build_generated_hypothesis_synthesis_payload",
     "build_synthesis_gate_payload",
+    "load_generated_hypothesis_artifacts",
     "load_current_artifacts",
     "main",
     "render_markdown_report",

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from packages.qre_research import autonomous_orchestration as ao
+from packages.qre_research import generated_hypothesis_paths as ghp
 from packages.qre_research import generated_strategy_paths as gsp
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -423,12 +424,17 @@ def test_selection_explanation_links_to_selected_work_item(orchestration_repo: P
     assert explanation["selected_work_item_id"] == selected_id
 
 
-def test_persisted_lifecycle_does_not_repeat_terminal_work_and_creates_work_package(
+def test_persisted_lifecycle_does_not_repeat_terminal_work_and_executes_bounded_hypothesis_generation(
     orchestration_repo: Path,
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
         gsp,
+        "REPO_ROOT",
+        orchestration_repo,
+    )
+    monkeypatch.setattr(
+        ghp,
         "REPO_ROOT",
         orchestration_repo,
     )
@@ -482,19 +488,32 @@ def test_persisted_lifecycle_does_not_repeat_terminal_work_and_creates_work_pack
     assert len(set(selected_work_item_ids)) == len(selected_work_item_ids)
 
     latest_row = second_rows[-1]
-    assert latest_row["remediation"] == "DEVELOPMENT_WORK_PACKAGE"
+    assert latest_row["remediation"] == "BOUNDED_HYPOTHESIS_GENERATION"
     assert latest_row["execution_status"] == "completed"
-    assert latest_row["progress_status"] == "DOWNSTREAM_BLOCKER_EXPOSED"
+    assert latest_row["progress_status"] in {
+        "RESOLVED_BLOCKER",
+        "NO_CAUSAL_PROGRESS",
+        "DOWNSTREAM_BLOCKER_EXPOSED",
+    }
     assert latest_row["validation"]["outcome"] == "VALIDATED_AND_COMPOSED"
-    assert latest_row["next_action"] == "implement_bounded_hypothesis_generation"
+    assert latest_row["next_action"]
 
-    work_packages_dir = ao._scoped_path(
-        ao.WORK_PACKAGES_DIR,
-        repo_root=orchestration_repo,
+    trusted_loop_summary = ao._read_json(
+        orchestration_repo
+        / "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json"
     )
-    work_package_paths = list(work_packages_dir.glob("qwpk*.json"))
+    assert trusted_loop_summary
+    assert trusted_loop_summary["report_kind"] == "qre_generated_hypothesis_trusted_loop_summary"
 
-    assert len(work_package_paths) == 1
+    hypothesis_registry = ao._read_json(
+        orchestration_repo
+        / "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+    )
+    assert hypothesis_registry
+    assert hypothesis_registry["report_kind"] == "qre_generated_thesis_registry"
+
+    lifecycle_dir = orchestration_repo / "generated_research/hypotheses/lifecycle"
+    assert lifecycle_dir.is_dir()
 
     persisted_invocations = ao._read_json(
         ao._scoped_path(

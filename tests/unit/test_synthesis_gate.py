@@ -266,3 +266,75 @@ def test_missing_artifacts_are_handled_gracefully_with_cli(tmp_path: Path) -> No
     written = json.loads((tmp_path / "gate.json").read_text(encoding="utf-8"))
     assert written["schema_version"] == "1.0"
     assert (tmp_path / "gate.md").exists()
+
+
+def _generated_statuses(status: str = "present") -> dict[str, dict[str, str]]:
+    return {
+        name: {"path": path.as_posix(), "status": status}
+        for name, path in sg.GENERATED_HYPOTHESIS_ARTIFACT_PATHS.items()
+    }
+
+
+def test_generated_hypothesis_readiness_fails_closed_without_empirical_evidence() -> None:
+    payload = sg.build_generated_hypothesis_synthesis_payload(
+        generated_artifacts={
+            "generated_registry": {
+                "rows": [
+                    {
+                        "thesis_id": "qht_fixture",
+                        "source_hypothesis_id": "atr_adaptive_trend_v0",
+                    }
+                ]
+            },
+            "feasibility": {
+                "rows": [
+                    {
+                        "thesis_id": "qht_fixture",
+                        "source_hypothesis_id": "atr_adaptive_trend_v0",
+                        "status": "ready",
+                    }
+                ]
+            },
+            "routing": {"rows": [{"thesis_id": "qht_fixture", "routing_status": "ready"}]},
+            "sampling": {"rows": [{"thesis_id": "qht_fixture", "sampling_status": "ready"}]},
+            "reason_records": {"rows": [{"reason_record_id": "qrr_1"}]},
+            "evidence_updates": {
+                "rows": [
+                    {
+                        "evidence_update_id": "qhe_1",
+                        "missing_evidence": ["controlled_evaluation", "oos_evidence"],
+                    }
+                ]
+            },
+            "failure_actions": {"rows": [{"failure_action_id": "qhfa_1"}]},
+            "research_memory": {"rows": [{"memory_id": "qhm_1"}]},
+            "trusted_loop_summary": {
+                "next_action": "materialize_controlled_evaluation_evidence",
+                "empirical_research_evidence_materialized": False,
+            },
+        },
+        artifact_status=_generated_statuses(),
+        generated_at_utc=datetime(2026, 5, 22, 12, 0, tzinfo=UTC),
+    )
+
+    assert payload["readiness_status"] == "INELIGIBLE_EVIDENCE"
+    assert payload["strategy_authority"] is False
+    assert payload["candidate_authority"] is False
+    assert payload["deployment_authority"] is False
+    assert "oos_evidence" in payload["missing_evidence"]
+    assert (
+        "fixture_or_repository_structure_proof_is_not_empirical_validation"
+        in payload["blocking_reasons"]
+    )
+
+
+def test_generated_hypothesis_readiness_tracks_missing_lifecycle_artifacts() -> None:
+    payload = sg.build_generated_hypothesis_synthesis_payload(
+        generated_artifacts={},
+        artifact_status=_generated_statuses(status="missing"),
+        generated_at_utc=datetime(2026, 5, 22, 12, 0, tzinfo=UTC),
+    )
+
+    assert payload["readiness_status"] == "INELIGIBLE_EVIDENCE"
+    assert "generated_hypothesis_lifecycle_artifacts_missing" in payload["blocking_reasons"]
+    assert "generated_hypothesis_feasibility" in payload["missing_evidence"]

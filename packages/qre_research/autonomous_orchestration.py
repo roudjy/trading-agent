@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
+from packages.qre_research import automated_hypothesis_generation as a20
+from packages.qre_research import hypothesis_lifecycle as qhl
 from packages.qre_research.generated_strategy_paths import REPO_ROOT, validate_write_target
 
 SCHEMA_VERSION: Final[str] = "1.0"
@@ -79,6 +81,7 @@ ACTION_CLASSES: Final[tuple[str, ...]] = (
 )
 WORK_CLASSES: Final[tuple[str, ...]] = (
     "EXISTING_PIPELINE_REPLAY",
+    "BOUNDED_HYPOTHESIS_GENERATION",
     "GENERATED_ARTIFACT_REMEDIATION",
     "BOUNDED_PRIMITIVE_EXTENSION",
     "BOUNDED_STRATEGY_GENERATION",
@@ -880,12 +883,15 @@ def _resource_claim_for_action(action: dict[str, Any]) -> ResourceClaim:
     if action_class == "GENERATE_HYPOTHESIS":
         return ResourceClaim(
             read_resources=("portfolio", "failure_memory", "contradictions"),
-            write_resources=("orchestration_cycle",),
+            write_resources=("orchestration_cycle", "generated_hypotheses", "trusted_loop_memory"),
             exclusive_resources=(),
             oos_independence_group="",
             compute_claim=1,
             data_claim=0,
-            expected_artifact_paths=("generated_research/orchestration/actions/typed_next_actions.v1.json",),
+            expected_artifact_paths=(
+                "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+                "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json",
+            ),
         )
     if action_class == "EXECUTE_PREREGISTERED_CAMPAIGN":
         return ResourceClaim(
@@ -922,7 +928,7 @@ def admit_work_items(
             "EXPAND_DATA_CAPACITY": "DATA_CAPACITY_EXPANSION",
             "EXPAND_OOS_CAPACITY": "OOS_CAPACITY_EXPANSION",
             "MATERIALIZE_DATA": "DATA_CAPACITY_EXPANSION",
-            "GENERATE_HYPOTHESIS": "DEVELOPMENT_WORK_PACKAGE",
+            "GENERATE_HYPOTHESIS": "BOUNDED_HYPOTHESIS_GENERATION",
             "EXECUTE_PREREGISTERED_CAMPAIGN": "PREREGISTERED_CAMPAIGN_EXECUTION",
             "CREATE_PREREGISTRATION": "CAMPAIGN_PREREGISTRATION",
             "REASSESS_READINESS": "EXISTING_PIPELINE_REPLAY",
@@ -940,7 +946,7 @@ def admit_work_items(
         elif work_class not in allowed_work_classes:
             admission_result = "BLOCKED_POLICY"
         elif action_class == "GENERATE_HYPOTHESIS":
-            admission_result = "ADMITTED_LOCAL_ONLY"
+            admission_result = "ADMITTED_AUTONOMOUS"
         else:
             admission_result = "ADMITTED_AUTONOMOUS"
         seen_identities.add(identity)
@@ -1516,6 +1522,92 @@ def execute_work_item(
             portfolio=portfolio,
             work_item=work_item,
         )
+    elif work_class == "BOUNDED_HYPOTHESIS_GENERATION":
+        generation = a20.run_automated_hypothesis_generation(
+            repo_root=repo_root,
+            write_outputs=write_outputs,
+        )
+        trusted_loop = qhl.run_trusted_hypothesis_loop(
+            repo_root=repo_root,
+            write_outputs=write_outputs,
+        )
+        persisted_hypothesis_count = int(
+            generation.get("summary", {}).get("persisted_hypothesis_count") or 0
+        )
+        duplicate_suppressed_count = int(
+            generation.get("summary", {}).get("exact_duplicate_suppressed_count") or 0
+        )
+        rejected_candidate_count = int(
+            generation.get("summary", {}).get("rejection_count") or 0
+        )
+        if persisted_hypothesis_count > 0:
+            progress_status = "RESOLVED_BLOCKER"
+            next_action = str(
+                trusted_loop.get("next_action") or "materialize_sampling_plan"
+            )
+            blocker_delta: list[str] = []
+        elif duplicate_suppressed_count > 0 and rejected_candidate_count == duplicate_suppressed_count:
+            progress_status = "NO_CAUSAL_PROGRESS"
+            next_action = "preserve_existing_hypothesis_lineage"
+            blocker_delta = ["duplicate_generation_suppressed"]
+        else:
+            progress_status = "DOWNSTREAM_BLOCKER_EXPOSED"
+            next_action = str(
+                trusted_loop.get("next_action")
+                or "collect_empirical_validation_evidence"
+            )
+            blocker_delta = ["trusted_research_loop_requires_empirical_evidence"]
+        execution_result = {
+            "execution_identity": _content_id(
+                "qrx",
+                {
+                    "work_item_id": work_item["work_item_id"],
+                    "generation_outcome": generation.get("program_outcome"),
+                    "trusted_loop_next_action": trusted_loop.get("next_action"),
+                },
+            ),
+            "work_item_id": str(work_item.get("work_item_id") or ""),
+            "work_class": work_class,
+            "status": "completed",
+            "progress_status": progress_status,
+            "selected_input_refs": list(generation.get("provenance") or []),
+            "generated_candidate_count": int(
+                generation.get("summary", {}).get("candidate_count") or 0
+            ),
+            "persisted_hypothesis_count": persisted_hypothesis_count,
+            "duplicate_suppressed_count": duplicate_suppressed_count,
+            "rejected_candidate_count": rejected_candidate_count,
+            "output_artifact_refs": [
+                "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+                "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json",
+            ],
+            "next_action": next_action,
+            "blocker_delta": blocker_delta,
+            "findings": [
+                {
+                    "generation_summary": dict(generation.get("summary") or {}),
+                    "trusted_loop_summary": {
+                        key: trusted_loop.get(key)
+                        for key in (
+                            "feasibility_ready_count",
+                            "routing_ready_count",
+                            "sampling_ready_count",
+                            "campaigns_admitted",
+                            "reason_record_count",
+                            "evidence_update_count",
+                            "contradiction_count",
+                            "failure_action_count",
+                            "memory_update_count",
+                            "next_action",
+                        )
+                    },
+                }
+            ],
+            "provenance": [
+                "generated_research/hypotheses/reports/automated_hypothesis_generation_closeout.v1.json",
+                "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json",
+            ],
+        }
     elif work_class == "DEVELOPMENT_WORK_PACKAGE":
         work_package = _generate_work_package(
             repo_root=repo_root,

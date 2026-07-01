@@ -5,7 +5,7 @@ from typing import Final
 
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-GENERATED_RESEARCH_ROOT: Final[Path] = REPO_ROOT / "generated_research"
+GENERATED_RESEARCH_ROOT: Final[Path] = Path("generated_research")
 GENERATED_SPECS_DIR: Final[Path] = GENERATED_RESEARCH_ROOT / "specs"
 GENERATED_MANIFESTS_DIR: Final[Path] = GENERATED_RESEARCH_ROOT / "manifests"
 GENERATED_REGISTRY_DIR: Final[Path] = GENERATED_RESEARCH_ROOT / "registry"
@@ -13,6 +13,21 @@ GENERATED_PRESETS_DIR: Final[Path] = GENERATED_RESEARCH_ROOT / "presets"
 GENERATED_VALIDATION_DIR: Final[Path] = GENERATED_RESEARCH_ROOT / "validation"
 GENERATED_LINEAGE_DIR: Final[Path] = GENERATED_RESEARCH_ROOT / "lineage"
 GENERATED_REPORTS_DIR: Final[Path] = GENERATED_RESEARCH_ROOT / "reports"
+GENERATED_STRATEGY_BLUEPRINTS_DIR: Final[Path] = (
+    GENERATED_RESEARCH_ROOT / "strategies" / "blueprints"
+)
+GENERATED_STRATEGY_CANDIDATES_DIR: Final[Path] = (
+    GENERATED_RESEARCH_ROOT / "strategies" / "candidates"
+)
+GENERATED_STRATEGY_VALIDATION_DIR: Final[Path] = (
+    GENERATED_RESEARCH_ROOT / "strategies" / "validation"
+)
+GENERATED_STRATEGY_PROPOSALS_DIR: Final[Path] = (
+    GENERATED_RESEARCH_ROOT / "strategies" / "proposals"
+)
+GENERATED_STRATEGY_READINESS_DIR: Final[Path] = (
+    GENERATED_RESEARCH_ROOT / "strategies" / "readiness"
+)
 
 GENERATED_REGISTRY_PATH: Final[Path] = (
     GENERATED_REGISTRY_DIR / "generated_strategy_registry.v1.json"
@@ -31,9 +46,9 @@ GENERATED_CLOSEOUT_PATH: Final[Path] = (
 )
 
 GENERATED_STRATEGY_PACKAGE_DIR: Final[Path] = (
-    REPO_ROOT / "agent" / "backtesting" / "generated_strategies"
+    Path("agent") / "backtesting" / "generated_strategies"
 )
-GENERATED_STRATEGY_TEST_DIR: Final[Path] = REPO_ROOT / "tests" / "generated_strategies"
+GENERATED_STRATEGY_TEST_DIR: Final[Path] = Path("tests") / "generated_strategies"
 
 WRITE_PREFIXES: Final[tuple[str, ...]] = (
     "generated_research/specs/",
@@ -68,6 +83,11 @@ WRITE_PREFIXES: Final[tuple[str, ...]] = (
     "generated_research/campaign_execution/ledgers/",
     "generated_research/campaign_execution/reports/",
     "generated_research/orchestration/",
+    "generated_research/strategies/blueprints/",
+    "generated_research/strategies/candidates/",
+    "generated_research/strategies/validation/",
+    "generated_research/strategies/proposals/",
+    "generated_research/strategies/readiness/",
     "agent/backtesting/generated_primitives/",
     "tests/generated_primitives/",
 )
@@ -97,7 +117,12 @@ __all__ = [
     "GENERATED_RESEARCH_ROOT",
     "GENERATED_SPECS_DIR",
     "GENERATED_STRATEGY_PACKAGE_DIR",
+    "GENERATED_STRATEGY_BLUEPRINTS_DIR",
+    "GENERATED_STRATEGY_CANDIDATES_DIR",
+    "GENERATED_STRATEGY_PROPOSALS_DIR",
+    "GENERATED_STRATEGY_READINESS_DIR",
     "GENERATED_STRATEGY_TEST_DIR",
+    "GENERATED_STRATEGY_VALIDATION_DIR",
     "GENERATED_VALIDATION_DIR",
     "REPO_ROOT",
     "repo_relative",
