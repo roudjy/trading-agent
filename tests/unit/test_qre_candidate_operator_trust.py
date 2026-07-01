@@ -1,0 +1,73 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from reporting import qre_candidate_operator_trust_review as trust
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_candidate_operator_trust_audit_separates_portfolio_and_empirical_outcomes() -> None:
+    report = trust.build_candidate_operator_trust_report(repo_root=REPO_ROOT)
+
+    audit = report["pr3_evidence_integrity_audit"]
+    corrected = audit["corrected_longitudinal_evidence"]
+    readiness = report["readiness_decisions"]
+    consistency = report["summary_artifact_consistency"]
+
+    assert corrected["portfolio_planning_cycles"] == 3
+    assert corrected["empirical_research_cycles"] == 1
+    assert corrected["empirical_terminal_dispositions"] == 1
+    assert corrected["portfolio_admission_decisions"] == 3
+    assert corrected["suppressed_duplicate_decisions"] == 3
+    assert corrected["resolved_historical_blockers"] == ["DATA_OR_OOS_CAPACITY_BLOCKED"]
+    assert corrected["active_contradictions"] == []
+    assert readiness["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
+    assert readiness["shadow_readiness"] == "INSUFFICIENT_HISTORY"
+    assert readiness["pr5_entrygate_satisfied"] is False
+    assert consistency["status"] == "PASS"
+    assert audit["issues"]["portfolio_outcomes_vs_empirical_outcomes"]["before"]["portfolio_outcomes_reported_as_terminal_outcomes"] == 8
+
+
+def test_candidate_operator_trust_acceptance_cycles_are_deterministic() -> None:
+    report = trust.build_candidate_operator_trust_report(repo_root=REPO_ROOT)
+
+    acceptance = report["acceptance_cycles"]
+    rows = acceptance["rows"]
+
+    assert len(rows) == trust.ACCEPTANCE_CYCLE_COUNT
+    assert acceptance["deterministic_replay"] is True
+    assert len({row["artifact_identity"] for row in rows}) == 1
+    assert all(row["result"] == "INSUFFICIENT_HISTORY" for row in rows)
+
+
+def test_candidate_operator_trust_policy_and_recovery_fail_closed() -> None:
+    report = trust.build_candidate_operator_trust_report(repo_root=REPO_ROOT)
+
+    policy = report["operator_trust_policy"]
+    recovery = report["recovery_validation"]
+    readiness = report["readiness_decisions"]
+
+    assert policy["minimum_empirical_research_cycles"] == 2
+    assert policy["minimum_real_campaigns"] == 2
+    assert len(recovery["rows"]) == 10
+    assert all(row["pass"] is True for row in recovery["rows"])
+    assert readiness["candidate_maturity_readiness"] == "INSUFFICIENT_HISTORY"
+    assert "empirical research cycles" in readiness["insufficient_history_criteria"]
+
+
+def test_candidate_operator_trust_review_writes_sidecars(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(trust, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(trust, "ARTIFACT_DIR", tmp_path / "logs" / "qre_candidate_operator_trust_review")
+    monkeypatch.setattr(trust, "LATEST_JSON", tmp_path / "logs" / "qre_candidate_operator_trust_review" / "latest.json")
+    monkeypatch.setattr(trust, "LATEST_MD", tmp_path / "logs" / "qre_candidate_operator_trust_review" / "latest.md")
+
+    payload = trust.run_candidate_operator_trust_review(repo_root=REPO_ROOT, write_outputs_flag=True)
+    paths = payload["_artifact_paths"]
+
+    assert paths["latest_json"] == "logs/qre_candidate_operator_trust_review/latest.json"
+    assert paths["latest_markdown"] == "logs/qre_candidate_operator_trust_review/latest.md"
+    assert (tmp_path / paths["latest_json"]).is_file()
+    assert (tmp_path / paths["candidate_inventory.json"]).is_file()
+    assert (tmp_path / paths["shadow_readiness.json"]).is_file()
