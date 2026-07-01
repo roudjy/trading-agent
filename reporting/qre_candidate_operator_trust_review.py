@@ -193,9 +193,26 @@ def _fallback_portfolio_scheduler(repo_root: Path) -> dict[str, Any]:
     }
 
 
+def _is_pr3_portfolio_scheduler_snapshot(payload: dict[str, Any]) -> bool:
+    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+    if not summary:
+        return False
+    candidate_count = int(summary.get("candidate_count") or 0)
+    cycle_count = int(summary.get("cycle_count") or 0)
+    admitted_count = int(summary.get("admitted_count") or 0)
+    duplicate_suppressed_count = int(summary.get("duplicate_suppressed_count") or 0)
+    return (
+        _text(payload.get("report_kind")) == "qre_historical_portfolio_scheduler"
+        and candidate_count >= 8
+        and cycle_count == 3
+        and admitted_count >= 3
+        and duplicate_suppressed_count >= 3
+    )
+
+
 def _portfolio_scheduler(repo_root: Path) -> dict[str, Any]:
     payload = _read_json(repo_root / "logs" / "qre_historical_portfolio_scheduler" / "latest.json")
-    if payload:
+    if payload and _is_pr3_portfolio_scheduler_snapshot(payload):
         return payload
     return _fallback_portfolio_scheduler(repo_root)
 

@@ -60,6 +60,39 @@ def test_candidate_operator_trust_falls_back_when_runtime_logs_are_missing(monke
     assert report["readiness_decisions"]["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
 
 
+def test_candidate_operator_trust_ignores_noncanonical_runtime_scheduler_logs(monkeypatch) -> None:
+    real_read_json = trust._read_json
+
+    def _read_with_noncanonical_scheduler(path: Path) -> dict[str, object]:
+        normalized = path.as_posix().replace("\\", "/")
+        if normalized.endswith("logs/qre_historical_portfolio_scheduler/latest.json"):
+            return {
+                "report_kind": "qre_historical_portfolio_scheduler",
+                "summary": {
+                    "candidate_count": 1,
+                    "cycle_count": 1,
+                    "admitted_count": 1,
+                    "duplicate_suppressed_count": 0,
+                },
+                "terminal_outcomes": [
+                    {
+                        "candidate_variant_id": "fixture_candidate",
+                        "admission_status": "ADMITTED",
+                    }
+                ],
+            }
+        return real_read_json(path)
+
+    monkeypatch.setattr(trust, "_read_json", _read_with_noncanonical_scheduler)
+
+    report = trust.build_candidate_operator_trust_report(repo_root=REPO_ROOT)
+    corrected = report["pr3_evidence_integrity_audit"]["corrected_longitudinal_evidence"]
+
+    assert corrected["portfolio_planning_cycles"] == 3
+    assert corrected["portfolio_admission_decisions"] == 3
+    assert report["readiness_decisions"]["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
+
+
 def test_candidate_operator_trust_policy_and_recovery_fail_closed() -> None:
     report = trust.build_candidate_operator_trust_report(repo_root=REPO_ROOT)
 
