@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import os
 import re
 import tempfile
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Final
@@ -14,7 +14,6 @@ from typing import Any, Final
 from packages.qre_research import automated_campaign_readiness as acr
 from packages.qre_research import autonomous_readiness_closure as arc
 from packages.qre_research.generated_strategy_paths import REPO_ROOT, validate_write_target
-
 
 SCHEMA_VERSION: Final[str] = "1.0"
 MODULE_VERSION: Final[str] = "ade-qre-024.1"
@@ -152,10 +151,8 @@ def _atomic_write(path: Path, payload: str) -> None:
             handle.write(payload)
         os.replace(tmp_name, path)
     except Exception:
-        try:
+        with suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise
 
 
@@ -268,10 +265,34 @@ def _load_a23_cells(repo_root: Path) -> list[dict[str, Any]]:
 
 
 def _load_coverage_rows(repo_root: Path) -> list[dict[str, Any]]:
-    coverage = _read_rows(repo_root / "artifacts/cache/cache_coverage_latest.v1.json", "coverage")
-    if coverage:
-        return coverage
-    return _read_rows(repo_root / "logs/qre_data_cache_manifest/latest.json", "coverage")
+    artifact_rows = _read_rows(repo_root / "artifacts/cache/cache_coverage_latest.v1.json", "coverage")
+    manifest_rows = _read_rows(repo_root / "logs/qre_data_cache_manifest/latest.json", "coverage")
+    combined: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for row in [*artifact_rows, *manifest_rows]:
+        key = (
+            str(row.get("source") or ""),
+            str(row.get("instrument") or "").upper(),
+            str(row.get("timeframe") or ""),
+        )
+        existing = combined.get(key)
+        if existing is None or _coverage_priority(row) > _coverage_priority(existing):
+            combined[key] = dict(row)
+    return sorted(
+        combined.values(),
+        key=lambda row: (
+            str(row.get("source") or ""),
+            str(row.get("instrument") or ""),
+            str(row.get("timeframe") or ""),
+        ),
+    )
+
+
+def _coverage_priority(row: dict[str, Any]) -> tuple[int, str, int, int]:
+    ready_rank = 1 if bool(row.get("ready")) else 0
+    max_ts = str(row.get("max_timestamp_utc") or "")
+    row_count = int(row.get("row_count") or 0)
+    file_count = int(row.get("file_count") or 0)
+    return (max_ts, ready_rank, row_count, file_count)
 
 
 def _load_cache_files(repo_root: Path) -> list[dict[str, Any]]:
@@ -385,18 +406,19 @@ def _coverage_rows_for_cell(
     universe_row = dict(cell.get("universe_row") or {})
     included = list(universe_row.get("included_members") or [])
     matched: list[dict[str, Any]] = []
+    materialized_rows: list[dict[str, Any]] = []
     for member in included:
         symbol = _symbol_from_canonical(str(member.get("canonical_instrument_id") or ""))
         row = _match_coverage_row(coverage_rows=coverage_rows, symbol=symbol, timeframe=timeframe)
         if row:
             matched.append(row)
-    if matched:
-        return matched, None
-    if len(included) == 1:
-        symbol = _symbol_from_canonical(str(included[0].get("canonical_instrument_id") or ""))
+            continue
         materialized = _materialize_from_cache_files(repo_root=repo_root, symbol=symbol, timeframe=timeframe)
         if materialized:
-            return [materialized], materialized
+            matched.append(materialized)
+            materialized_rows.append(materialized)
+    if matched:
+        return matched, (materialized_rows[0] if len(materialized_rows) == 1 else None)
     return [], None
 
 
@@ -618,11 +640,6 @@ def _assign_windows(cell: dict[str, Any], snapshot: dict[str, Any], ledger_rows:
         "oos_window": {"start": _dt_to_iso(oos_start), "end": _dt_to_iso(oos_end)},
         "embargo_days": policy["embargo_days"],
     }
-    oos_key = {
-        "snapshot_identity": str(snapshot.get("snapshot_identity") or ""),
-        "timeframe": timeframe,
-        "oos_window": windows["oos_window"],
-    }
     overlap = next(
         (
             row
@@ -738,15 +755,18 @@ def _estimate_signal_capacity(cell: dict[str, Any], diagnosis: dict[str, Any], s
             "reason": "data_or_windows_not_ready",
         }
     timeframe = str(cell.get("timeframe") or "")
-    coverage_row = list(diagnosis.get("coverage_rows") or [])[0]
+    coverage_rows = list(diagnosis.get("coverage_rows") or [])
+    coverage_row = next(iter(coverage_rows))
+    instrument_count = max(len(coverage_rows), 1)
     row_count = int(coverage_row.get("row_count") or 0)
     span_days = (_iso_to_dt(diagnosis["authoritative_value"]["latest_timestamp_utc"]) - _iso_to_dt(diagnosis["authoritative_value"]["earliest_timestamp_utc"])).days
     timeframe_divisor = {"1h": 24, "4h": 6, "1d": 1}.get(timeframe, 1)
     estimated_bars = min(max(span_days * timeframe_divisor, 0), row_count if row_count else span_days * timeframe_divisor)
     warmup = max([int(value) for value in dict(spec.get("warmup_requirements") or {}).values() if isinstance(value, int)] or [0])
     usable_bars = max(estimated_bars - warmup, 0)
-    expected_signals = max(0, usable_bars // 80)
-    expected_trades = max(0, usable_bars // 100)
+    breadth_adjusted_bars = usable_bars * instrument_count if instrument_count > 1 else usable_bars
+    expected_signals = max(0, breadth_adjusted_bars // 80)
+    expected_trades = max(0, breadth_adjusted_bars // (80 if instrument_count > 1 else 100))
     policy = _window_policy_for_timeframe(timeframe)
     if expected_signals < policy["min_expected_signals"]:
         return {
@@ -775,6 +795,8 @@ def _estimate_signal_capacity(cell: dict[str, Any], diagnosis: dict[str, Any], s
         "estimated_signals": expected_signals,
         "estimated_trades": expected_trades,
         "estimated_usable_bars": usable_bars,
+        "breadth_adjusted_usable_bars": breadth_adjusted_bars,
+        "instrument_count": instrument_count,
     }
 
 
@@ -994,7 +1016,6 @@ def run_data_window_closure(
             signal=signal,
         )
         portfolio_rows.append(portfolio)
-        after = list(before)
         if portfolio["status"] == "READY_FOR_PREREGISTRATION":
             progress = "RESOLVED_BLOCKER"
             next_action = "create_second_campaign_preregistration_manifest"

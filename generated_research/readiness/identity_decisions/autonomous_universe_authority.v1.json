@@ -65,10 +65,226 @@
     {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "effective_from_utc": "2026-04-08T00:00:00Z",
-      "effective_to_utc": "2026-05-22T00:00:00Z",
+      "effective_to_utc": "2026-06-29T00:00:00Z",
       "excluded_members": [
         {
+          "canonical_instrument_id": "ASX:BHP.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:CBA.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:CSL.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:NAB.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:WBC.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:WES.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Bolsa de Madrid:IBE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Bolsa de Madrid:ITX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Borsa Italiana:ENI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Borsa Italiana:ISP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:ABN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:AD",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:ADYEN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:AKZA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:BESI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:DSFIR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:HEIA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:INGA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:PHIA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:PRX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:UNA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:WKL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:ABI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:KBC",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:SOLB",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:UCB",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:WDP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:ACA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:AIR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:BN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:CAP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:DG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:KER",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:MC",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:OR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:SAN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:SU",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:0005.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:0700.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:1299.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:2318.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:9618.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:9988.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:AZN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:BP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:DGE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:GSK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:HSBA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:LSEG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:REL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:RIO",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:SHEL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:ULVR",
+          "reason": "missing_1d_coverage"
+        },
+        {
           "canonical_instrument_id": "NASDAQ:ADBE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:AMZN",
           "reason": "missing_1d_coverage"
         },
         {
@@ -80,7 +296,27 @@
           "reason": "missing_1d_coverage"
         },
         {
+          "canonical_instrument_id": "NASDAQ:GOOGL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:META",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:MSFT",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:NVDA",
+          "reason": "missing_1d_coverage"
+        },
+        {
           "canonical_instrument_id": "NASDAQ:PEP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:TSLA",
           "reason": "missing_1d_coverage"
         },
         {
@@ -104,7 +340,19 @@
           "reason": "missing_1d_coverage"
         },
         {
+          "canonical_instrument_id": "NYSE:CVX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:DE",
+          "reason": "missing_1d_coverage"
+        },
+        {
           "canonical_instrument_id": "NYSE:GS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:HD",
           "reason": "missing_1d_coverage"
         },
         {
@@ -150,41 +398,258 @@
         {
           "canonical_instrument_id": "NYSE:WMT",
           "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:XOM",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:CARL-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:DSV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:MAERSK-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:ORSTED",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Helsinki:KNEBV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Helsinki:NDA-FI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Helsinki:NOKIA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:ATCO-A",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:ERIC-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:HEXA-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:SAND",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:SEB-A",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:VOLV-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Oslo Bors:DNB",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Oslo Bors:NEL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Oslo Bors:YAR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:C38U.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:D05.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:O39.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:U11.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:Z74.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:ABBN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:CFR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:GIVN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:HOLN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:NESN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:NOVN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:ROG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:SIKA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:UBSG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:ZURN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:4063.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:4502.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:6501.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:6758.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:6861.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:7203.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8035.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8058.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8306.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8766.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:9432.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:9984.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:ADS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:ALV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:BAS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:BEI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:BMW",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:DTE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:HNR1",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:IFX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:MBG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:MUV2",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:RWE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:SIE",
+          "reason": "missing_1d_coverage"
         }
       ],
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "included_members": [
         {
+          "canonical_instrument_id": "Euronext Amsterdam:ASML",
+          "coverage_hash": "sha256:1441238f08dfa416bf9c24bda22f63ef79344f45ee721f2aff66eea6291d5716",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "ASML.AS",
+          "symbol": "ASML"
+        },
+        {
           "canonical_instrument_id": "NASDAQ:AAPL",
-          "coverage_hash": "sha256:84dd8c5359c1d4eafacbf647edbe6ffeffc920742e622a1ad8458ac1444775bd",
+          "coverage_hash": "sha256:8932fdb659844af32bc0b1a4d7ae425d5dfeb5fa56d64c747e5f700955f2bff3",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AAPL",
           "symbol": "AAPL"
         },
         {
           "canonical_instrument_id": "NASDAQ:AMD",
-          "coverage_hash": "sha256:2d2f872e270601ba6ae91653d8f68d4c6c79dcc8e30f12ce95a413885330d491",
+          "coverage_hash": "sha256:071bde873ccdf0aedebd302abf96333a2a741b66c3655bad6669ec2698edee25",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AMD",
           "symbol": "AMD"
-        },
-        {
-          "canonical_instrument_id": "NASDAQ:MSFT",
-          "coverage_hash": "sha256:d0c2bd6a4abe3926328a38dfc33f37854d016f041adcd33e6fe6267f7bcacd7c",
-          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
-          "provider_symbol": "MSFT",
-          "symbol": "MSFT"
-        },
-        {
-          "canonical_instrument_id": "NASDAQ:NVDA",
-          "coverage_hash": "sha256:c1fde4f3c570e9504208d5082f29dc2d735f565f48c7da67b655366441cf6e7d",
-          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
-          "provider_symbol": "NVDA",
-          "symbol": "NVDA"
         }
       ],
-      "matched_member_count": 4,
-      "membership_snapshot_id": "qum_3e90fe6dd0d7ccb3",
+      "matched_member_count": 3,
+      "membership_snapshot_id": "qum_ee55ca88aaef5b42",
       "minimum_universe_size": 3,
       "provenance": [
         "artifacts/universe/equity_universe_catalog_latest.v1.json",
@@ -193,16 +658,232 @@
       ],
       "requested_alias": "breadth_resolved_multi_asset_basket",
       "resolution_outcome": "RESOLVED_UNIQUE_AUTHORITATIVE",
-      "selected_universe_id": "us_quality_liquid",
+      "selected_universe_id": "global_developed_liquid",
       "selection_reason": "smallest authoritative universe with sufficient local breadth and non-global tie-break precedence",
-      "universe_kind": "quality_group",
-      "universe_region": "United States"
+      "universe_kind": "macro_region",
+      "universe_region": "Global Developed"
     },
     {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "excluded_members": [
         {
+          "canonical_instrument_id": "ASX:BHP.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:CBA.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:CSL.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:NAB.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:WBC.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "ASX:WES.AX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Bolsa de Madrid:IBE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Bolsa de Madrid:ITX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Borsa Italiana:ENI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Borsa Italiana:ISP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:ABN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:AD",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:ADYEN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:AKZA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:BESI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:DSFIR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:HEIA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:INGA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:PHIA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:PRX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:UNA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Amsterdam:WKL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:ABI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:KBC",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:SOLB",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:UCB",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Brussels:WDP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:ACA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:AIR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:BN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:CAP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:DG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:KER",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:MC",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:OR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:SAN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Euronext Paris:SU",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:0005.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:0700.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:1299.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:2318.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:9618.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "HKEX:9988.HK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:AZN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:BP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:DGE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:GSK",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:HSBA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:LSEG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:REL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:RIO",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:SHEL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "LSE:ULVR",
+          "reason": "missing_1d_coverage"
+        },
+        {
           "canonical_instrument_id": "NASDAQ:ADBE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:AMZN",
           "reason": "missing_1d_coverage"
         },
         {
@@ -214,7 +895,27 @@
           "reason": "missing_1d_coverage"
         },
         {
+          "canonical_instrument_id": "NASDAQ:GOOGL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:META",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:MSFT",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:NVDA",
+          "reason": "missing_1d_coverage"
+        },
+        {
           "canonical_instrument_id": "NASDAQ:PEP",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NASDAQ:TSLA",
           "reason": "missing_1d_coverage"
         },
         {
@@ -238,7 +939,19 @@
           "reason": "missing_1d_coverage"
         },
         {
+          "canonical_instrument_id": "NYSE:CVX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:DE",
+          "reason": "missing_1d_coverage"
+        },
+        {
           "canonical_instrument_id": "NYSE:GS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:HD",
           "reason": "missing_1d_coverage"
         },
         {
@@ -284,40 +997,257 @@
         {
           "canonical_instrument_id": "NYSE:WMT",
           "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "NYSE:XOM",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:CARL-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:DSV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:MAERSK-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Copenhagen:ORSTED",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Helsinki:KNEBV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Helsinki:NDA-FI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Helsinki:NOKIA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:ATCO-A",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:ERIC-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:HEXA-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:SAND",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:SEB-A",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Nasdaq Stockholm:VOLV-B",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Oslo Bors:DNB",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Oslo Bors:NEL",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Oslo Bors:YAR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:C38U.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:D05.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:O39.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:U11.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SGX:Z74.SI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:ABBN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:CFR",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:GIVN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:HOLN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:NESN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:NOVN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:ROG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:SIKA",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:UBSG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "SIX Swiss Exchange:ZURN",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:4063.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:4502.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:6501.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:6758.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:6861.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:7203.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8035.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8058.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8306.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:8766.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:9432.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "TSE:9984.T",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:ADS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:ALV",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:BAS",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:BEI",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:BMW",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:DTE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:HNR1",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:IFX",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:MBG",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:MUV2",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:RWE",
+          "reason": "missing_1d_coverage"
+        },
+        {
+          "canonical_instrument_id": "Xetra:SIE",
+          "reason": "missing_1d_coverage"
         }
       ],
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "included_members": [
         {
+          "canonical_instrument_id": "Euronext Amsterdam:ASML",
+          "coverage_hash": "sha256:1441238f08dfa416bf9c24bda22f63ef79344f45ee721f2aff66eea6291d5716",
+          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
+          "provider_symbol": "ASML.AS",
+          "symbol": "ASML"
+        },
+        {
           "canonical_instrument_id": "NASDAQ:AAPL",
-          "coverage_hash": "sha256:84dd8c5359c1d4eafacbf647edbe6ffeffc920742e622a1ad8458ac1444775bd",
+          "coverage_hash": "sha256:8932fdb659844af32bc0b1a4d7ae425d5dfeb5fa56d64c747e5f700955f2bff3",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AAPL",
           "symbol": "AAPL"
         },
         {
           "canonical_instrument_id": "NASDAQ:AMD",
-          "coverage_hash": "sha256:2d2f872e270601ba6ae91653d8f68d4c6c79dcc8e30f12ce95a413885330d491",
+          "coverage_hash": "sha256:071bde873ccdf0aedebd302abf96333a2a741b66c3655bad6669ec2698edee25",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AMD",
           "symbol": "AMD"
-        },
-        {
-          "canonical_instrument_id": "NASDAQ:MSFT",
-          "coverage_hash": "sha256:d0c2bd6a4abe3926328a38dfc33f37854d016f041adcd33e6fe6267f7bcacd7c",
-          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
-          "provider_symbol": "MSFT",
-          "symbol": "MSFT"
-        },
-        {
-          "canonical_instrument_id": "NASDAQ:NVDA",
-          "coverage_hash": "sha256:c1fde4f3c570e9504208d5082f29dc2d735f565f48c7da67b655366441cf6e7d",
-          "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
-          "provider_symbol": "NVDA",
-          "symbol": "NVDA"
         }
       ],
-      "membership_snapshot_id": "qum_3e90fe6dd0d7ccb3",
+      "membership_snapshot_id": "qum_ee55ca88aaef5b42",
       "provenance": [
         "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
         "logs/qre_behavior_thesis_registry/latest.json",
@@ -326,10 +1256,10 @@
       ],
       "requested_alias": "breadth_resolved_multi_asset_basket",
       "resolution_outcome": "RESOLVED_UNIQUE_AUTHORITATIVE",
-      "selected_universe_id": "us_quality_liquid",
+      "selected_universe_id": "global_developed_liquid",
       "selection_reason": "authoritative_universe_membership_snapshot_materialized"
     }
   ],
   "schema_version": "1.0",
-  "universe_authority_identity": "uni_a4214c8e91c370d9"
+  "universe_authority_identity": "uni_c48267b7b5f53a68"
 }

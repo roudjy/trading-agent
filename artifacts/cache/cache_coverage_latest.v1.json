@@ -1,18 +1,32 @@
 {
   "coverage": [
     {
-      "content_hash": "sha256:84dd8c5359c1d4eafacbf647edbe6ffeffc920742e622a1ad8458ac1444775bd",
-      "file_count": 476,
+      "content_hash": "sha256:8932fdb659844af32bc0b1a4d7ae425d5dfeb5fa56d64c747e5f700955f2bff3",
+      "file_count": 734,
       "instrument": "AAPL",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-08T00:00:00Z",
       "ready": true,
-      "row_count": 2380,
+      "row_count": 3601,
       "source": "yfinance",
       "status_counts": {
-        "ready": 476
+        "ready": 734
       },
       "timeframe": "1d"
+    },
+    {
+      "content_hash": "sha256:ebb57571eacc2fec9df2f543b85a896854e4f2783fa4655eafab20e6106da823",
+      "file_count": 8,
+      "instrument": "AAPL",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
+      "ready": true,
+      "row_count": 7640,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 8
+      },
+      "timeframe": "4h"
     },
     {
       "content_hash": "sha256:48a62e5b03a30cc0610e6336d461a827355922a426f7efa98b37ac0d46320e1b",
@@ -43,86 +57,100 @@
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:2d2f872e270601ba6ae91653d8f68d4c6c79dcc8e30f12ce95a413885330d491",
-      "file_count": 454,
+      "content_hash": "sha256:071bde873ccdf0aedebd302abf96333a2a741b66c3655bad6669ec2698edee25",
+      "file_count": 703,
       "instrument": "AMD",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-08T00:00:00Z",
       "ready": true,
-      "row_count": 2270,
+      "row_count": 3446,
       "source": "yfinance",
       "status_counts": {
-        "ready": 454
+        "ready": 703
       },
       "timeframe": "1d"
     },
     {
-      "content_hash": "sha256:4b7263a814fa8ac1be866ac194646ca6996fda1230a9a2140e3ee8607d3fab1d",
-      "file_count": 1,
+      "content_hash": "sha256:b295a5a13414735240c7c4213684ea933b44e9c7e4845f69a4fb39c1500dafb6",
+      "file_count": 8,
       "instrument": "AMD",
-      "max_timestamp_utc": "2026-04-24T17:30:00Z",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
       "min_timestamp_utc": "2024-05-28T13:30:00Z",
       "ready": true,
-      "row_count": 952,
+      "row_count": 7670,
       "source": "yfinance",
       "status_counts": {
-        "ready": 1
+        "ready": 8
       },
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:439810abd387fe8a725eb985cf90e5b2c9505940bac0a905e52242d3f63de59f",
-      "file_count": 1,
+      "content_hash": "sha256:fcbc2c3147fe9fe2372cd94b8d14d3143e3b6c84cb4756dfce65385d052a6b88",
+      "file_count": 8,
       "instrument": "AMZN",
-      "max_timestamp_utc": "2026-04-24T17:30:00Z",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
       "min_timestamp_utc": "2024-05-28T13:30:00Z",
       "ready": true,
-      "row_count": 952,
+      "row_count": 7670,
       "source": "yfinance",
       "status_counts": {
-        "ready": 1
+        "ready": 8
       },
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:d77557956a7b53ced169eaf32062357a6aa1dcc8eb58e70c709dc087921302ad",
-      "file_count": 463,
+      "content_hash": "sha256:1441238f08dfa416bf9c24bda22f63ef79344f45ee721f2aff66eea6291d5716",
+      "file_count": 714,
       "instrument": "ASML",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-08T00:00:00Z",
       "ready": true,
-      "row_count": 2315,
+      "row_count": 3501,
       "source": "yfinance",
       "status_counts": {
-        "ready": 463
+        "ready": 714
       },
       "timeframe": "1d"
     },
     {
-      "content_hash": "sha256:bfcf62c1f46529440bd32fa0475abf67ece219f930bed02f483af7cbfc079676",
-      "file_count": 1,
+      "content_hash": "sha256:21e0ae8d96831198e7b5927646f0fc1a748037471823d12fe8dea8c9d130ecd6",
+      "file_count": 8,
       "instrument": "ASML",
-      "max_timestamp_utc": "2026-04-24T17:30:00Z",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
       "min_timestamp_utc": "2024-05-28T13:30:00Z",
       "ready": true,
-      "row_count": 952,
+      "row_count": 7670,
       "source": "yfinance",
       "status_counts": {
-        "ready": 1
+        "ready": 8
       },
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:a9b91d4a0c30867911cc0c1a94c189e4ecbf31eb9ae0114e58bfc2f072e93d37",
-      "file_count": 431,
-      "instrument": "BNB-EUR",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
-      "min_timestamp_utc": "2026-04-08T00:00:00Z",
+      "content_hash": "sha256:20899cbed325bf6148ef93afeca1d3ddabf3020f1e871726151976e54d228b0b",
+      "file_count": 6,
+      "instrument": "AVGO",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
       "ready": true,
-      "row_count": 2973,
+      "row_count": 5732,
       "source": "yfinance",
       "status_counts": {
-        "ready": 431
+        "ready": 6
+      },
+      "timeframe": "4h"
+    },
+    {
+      "content_hash": "sha256:456da757aa21fa5168b475d1dca5c8acaa7590d70c2bab8207c4e073db32a328",
+      "file_count": 675,
+      "instrument": "BNB-EUR",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
+      "min_timestamp_utc": "2026-04-08T00:00:00Z",
+      "ready": true,
+      "row_count": 4646,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 675
       },
       "timeframe": "1d"
     },
@@ -155,16 +183,16 @@
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:5305a1b3e90648282c383467cf577941cb2ae87af524fd3c4d1e7a07a44ad25f",
-      "file_count": 452,
+      "content_hash": "sha256:0897730d384278064abc62365253535fd96f0f6a32f480b7c963e2b49eab9d97",
+      "file_count": 700,
       "instrument": "BTC-EUR",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-08T00:00:00Z",
       "ready": true,
-      "row_count": 3118,
+      "row_count": 4819,
       "source": "yfinance",
       "status_counts": {
-        "ready": 452
+        "ready": 700
       },
       "timeframe": "1d"
     },
@@ -211,6 +239,20 @@
       "timeframe": "4h"
     },
     {
+      "content_hash": "sha256:a607fc715a16a7747c6009220b20e1477bd97fafeb40e48754df3af612a499a9",
+      "file_count": 4,
+      "instrument": "COST",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
+      "ready": true,
+      "row_count": 3820,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 4
+      },
+      "timeframe": "4h"
+    },
+    {
       "content_hash": "sha256:ab8c8d02c5bc76ea99e733e9f062a89415e0b2fd94c628be09c041f62f1f6689",
       "file_count": 4,
       "instrument": "DOT-USD",
@@ -239,16 +281,16 @@
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:8266d7aa2341062ef424b6122abcc5766cfdb5285a66d94f34aaf5d505352b7d",
-      "file_count": 447,
+      "content_hash": "sha256:73e43193cad8556d8c5cf94a01e582236c720fd70e6d3556e276f29a05d6b63b",
+      "file_count": 693,
       "instrument": "ETH-EUR",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-04T00:00:00Z",
       "ready": true,
-      "row_count": 3085,
+      "row_count": 4772,
       "source": "yfinance",
       "status_counts": {
-        "ready": 447
+        "ready": 693
       },
       "timeframe": "1d"
     },
@@ -295,6 +337,48 @@
       "timeframe": "4h"
     },
     {
+      "content_hash": "sha256:dac136d3aa25328bbfb303bf601d7a832bee6dc9d2b3eac2765e2ce050373372",
+      "file_count": 8,
+      "instrument": "GOOGL",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
+      "ready": true,
+      "row_count": 7640,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 8
+      },
+      "timeframe": "4h"
+    },
+    {
+      "content_hash": "sha256:160113d3982baa9b6b05614a4e2db6429f66c2062e57128f320471480207f449",
+      "file_count": 8,
+      "instrument": "HD",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
+      "ready": true,
+      "row_count": 7640,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 8
+      },
+      "timeframe": "4h"
+    },
+    {
+      "content_hash": "sha256:baf8a43d170956d1ea931d852f6b034546765b6facf9bf69b9ce0006ee2303b5",
+      "file_count": 4,
+      "instrument": "JPM",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
+      "ready": true,
+      "row_count": 3820,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 4
+      },
+      "timeframe": "4h"
+    },
+    {
       "content_hash": "sha256:77baaa09f463a1af96093ea2d97744f02a6302ef36394f0e0f47d1d75c785ff6",
       "file_count": 4,
       "instrument": "LINK-USD",
@@ -323,86 +407,102 @@
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:8041001d3ce01cfc503f0ab5a59bc152bdec3738a26d8e73fc997c313bba1d8a",
-      "file_count": 1,
+      "content_hash": "sha256:a84217bb30be6b2323fc4dcbfe5372a33d4b93e047bc66a3a9478bc37916a5bf",
+      "file_count": 4,
+      "instrument": "LLY",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
+      "ready": true,
+      "row_count": 3820,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 4
+      },
+      "timeframe": "4h"
+    },
+    {
+      "content_hash": "sha256:e1898daf07d1623efc80f52fa3bd7f03c68dca3704255a549bdee071960da6eb",
+      "file_count": 8,
       "instrument": "META",
-      "max_timestamp_utc": "2026-04-24T17:30:00Z",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
       "min_timestamp_utc": "2024-05-28T13:30:00Z",
       "ready": true,
-      "row_count": 952,
+      "row_count": 7670,
       "source": "yfinance",
       "status_counts": {
-        "ready": 1
+        "ready": 8
       },
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:d0c2bd6a4abe3926328a38dfc33f37854d016f041adcd33e6fe6267f7bcacd7c",
-      "file_count": 465,
+      "content_hash": "sha256:327acffdd37d9df331315b30eb22a6bb0c83e76d59bb12f561f0b55e8c19b741",
+      "file_count": 721,
       "instrument": "MSFT",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-08T00:00:00Z",
-      "ready": true,
-      "row_count": 2325,
+      "ready": false,
+      "row_count": 3526,
       "source": "yfinance",
       "status_counts": {
-        "ready": 465
+        "ready": 719,
+        "unreadable": 2
       },
       "timeframe": "1d"
     },
     {
-      "content_hash": "sha256:127207bc47bf93e04d8cfcb1545a889a72de9df39c9836a6105d920f632c66ae",
-      "file_count": 1,
+      "content_hash": "sha256:c804ab0fbb5d002dc3f555dc5e727ca6a32495161447019c169061eed2bdbf1a",
+      "file_count": 8,
       "instrument": "MSFT",
-      "max_timestamp_utc": "2026-04-24T17:30:00Z",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
       "min_timestamp_utc": "2024-05-28T13:30:00Z",
       "ready": true,
-      "row_count": 952,
+      "row_count": 7670,
       "source": "yfinance",
       "status_counts": {
-        "ready": 1
+        "ready": 8
       },
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:c1fde4f3c570e9504208d5082f29dc2d735f565f48c7da67b655366441cf6e7d",
-      "file_count": 485,
+      "content_hash": "sha256:d89c5b8d6e542ae04bebef75922281c26c4de8fb6d851fb31abed081411ebbc2",
+      "file_count": 750,
       "instrument": "NVDA",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-06T00:00:00Z",
-      "ready": true,
-      "row_count": 2425,
+      "ready": false,
+      "row_count": 3671,
       "source": "yfinance",
       "status_counts": {
-        "ready": 485
+        "ready": 748,
+        "unreadable": 2
       },
       "timeframe": "1d"
     },
     {
-      "content_hash": "sha256:92c37ba17473ce118acde948b1f03123367668526938cf1587c2c4cfe975cd3d",
-      "file_count": 2,
+      "content_hash": "sha256:ab1887a3f960925bd9bfa5c54b7f005ffe008104de507060006a0c34f06a9ebf",
+      "file_count": 12,
       "instrument": "NVDA",
-      "max_timestamp_utc": "2026-04-24T17:30:00Z",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
       "min_timestamp_utc": "2024-05-15T13:30:00Z",
       "ready": true,
-      "row_count": 1904,
+      "row_count": 11488,
       "source": "yfinance",
       "status_counts": {
-        "ready": 2
+        "ready": 12
       },
       "timeframe": "4h"
     },
     {
-      "content_hash": "sha256:ef9455ce9a7e419455fd62e40ba724ec3dde3fa5890680cba6e89ec293caf221",
-      "file_count": 439,
+      "content_hash": "sha256:14565b00eb251423fc08e118fd081b0195680a35894c17db3e1654aae330a15b",
+      "file_count": 685,
       "instrument": "SOL-EUR",
-      "max_timestamp_utc": "2026-05-22T00:00:00Z",
+      "max_timestamp_utc": "2026-06-29T00:00:00Z",
       "min_timestamp_utc": "2026-04-08T00:00:00Z",
       "ready": true,
-      "row_count": 3029,
+      "row_count": 4716,
       "source": "yfinance",
       "status_counts": {
-        "ready": 439
+        "ready": 685
       },
       "timeframe": "1d"
     },
@@ -463,22 +563,36 @@
       "timeframe": "1d"
     },
     {
-      "content_hash": "sha256:37f9903d2e0671e54b1803e32e1bdac3fbc8bf1b735cd1fe058e97c795d80d3a",
-      "file_count": 1,
+      "content_hash": "sha256:a896e2c410d70c87f0b7fcfba45cd3d13961ad394cda2c4bfeaad8eb8273530e",
+      "file_count": 14,
       "instrument": "TSM",
-      "max_timestamp_utc": "2026-04-24T17:30:00Z",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
       "min_timestamp_utc": "2024-05-28T13:30:00Z",
       "ready": true,
-      "row_count": 952,
+      "row_count": 13398,
       "source": "yfinance",
       "status_counts": {
-        "ready": 1
+        "ready": 14
+      },
+      "timeframe": "4h"
+    },
+    {
+      "content_hash": "sha256:dac832dab0b5e47e5b4fa36ef603a65f8d814d59af368964167ada0ab7891112",
+      "file_count": 4,
+      "instrument": "XOM",
+      "max_timestamp_utc": "2026-06-04T17:30:00Z",
+      "min_timestamp_utc": "2024-07-01T13:30:00Z",
+      "ready": true,
+      "row_count": 3820,
+      "source": "yfinance",
+      "status_counts": {
+        "ready": 4
       },
       "timeframe": "4h"
     }
   ],
   "report_kind": "qre_materialized_cache_coverage",
-  "research_ready": true,
+  "research_ready": false,
   "safety_invariants": {
     "broker_risk_execution_forbidden": true,
     "mutates_cache": false,
@@ -488,12 +602,12 @@
     "read_only": true
   },
   "schema_version": "1.0",
-  "sidecar_status": "present_ready",
+  "sidecar_status": "present_not_ready",
   "source_path": "logs/qre_data_cache_manifest/latest.json",
   "source_report_kind": "qre_data_cache_manifest",
   "summary": {
-    "blocked_coverage_row_count": 0,
-    "coverage_row_count": 34,
-    "ready_coverage_row_count": 34
+    "blocked_coverage_row_count": 2,
+    "coverage_row_count": 42,
+    "ready_coverage_row_count": 40
   }
 }
