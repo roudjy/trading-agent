@@ -106,11 +106,21 @@ def _closeout(repo_root: Path) -> dict[str, Any]:
 
 
 def _decision_review(repo_root: Path) -> dict[str, Any]:
-    return _read_json(repo_root / "logs" / "qre_decision_calibration_review" / "latest.json")
+    payload = _read_json(repo_root / "logs" / "qre_decision_calibration_review" / "latest.json")
+    if payload:
+        return payload
+    from reporting import qre_decision_calibration_review as review
+
+    return review.collect_snapshot(repo_root=repo_root)
 
 
 def _portfolio_scheduler(repo_root: Path) -> dict[str, Any]:
-    return _read_json(repo_root / "logs" / "qre_historical_portfolio_scheduler" / "latest.json")
+    payload = _read_json(repo_root / "logs" / "qre_historical_portfolio_scheduler" / "latest.json")
+    if payload:
+        return payload
+    from research import qre_historical_portfolio_scheduler as scheduler
+
+    return scheduler.build_historical_portfolio_scheduler(repo_root=repo_root)
 
 
 def _trusted_loop_summary(repo_root: Path) -> dict[str, Any]:
@@ -126,7 +136,14 @@ def _reason_records(repo_root: Path) -> dict[str, Any]:
 
 
 def _research_memory(repo_root: Path) -> dict[str, Any]:
-    return _read_json(repo_root / "logs" / "qre_research_memory" / "latest.json")
+    payload = _read_json(repo_root / "logs" / "qre_research_memory" / "latest.json")
+    if payload:
+        return payload
+    generated = _read_json(repo_root / "generated_research" / "hypotheses" / "lifecycle" / "research_memory.v1.json")
+    if generated:
+        rows = _read_rows(generated, "rows")
+        return {"entries": rows, "summary": dict(generated.get("summary") or {})}
+    return {}
 
 
 def _source_usefulness(repo_root: Path) -> dict[str, Any]:
@@ -134,7 +151,23 @@ def _source_usefulness(repo_root: Path) -> dict[str, Any]:
 
 
 def _historical_disposition(repo_root: Path) -> dict[str, Any]:
-    return _read_json(repo_root / "logs" / "qre_hypothesis_disposition_memory" / "latest.json")
+    payload = _read_json(repo_root / "logs" / "qre_hypothesis_disposition_memory" / "latest.json")
+    if payload:
+        return payload
+    memory = _read_json(repo_root / "generated_research" / "hypotheses" / "lifecycle" / "research_memory.v1.json")
+    rows = _read_rows(memory, "rows")
+    if not rows:
+        return {}
+    first = rows[0]
+    return {
+        "record": {
+            "memory_record_id": _text(first.get("memory_id")),
+            "disposition_scope": {
+                "hypothesis_id": _text(first.get("source_hypothesis_id")),
+                "campaign_id": _text(first.get("campaign")),
+            },
+        }
+    }
 
 
 def _result(required: bool, actual: Any, measurement_type: str, result: str, evidence: list[str]) -> dict[str, Any]:

@@ -42,6 +42,24 @@ def test_candidate_operator_trust_acceptance_cycles_are_deterministic() -> None:
     assert all(row["result"] == "INSUFFICIENT_HISTORY" for row in rows)
 
 
+def test_candidate_operator_trust_falls_back_when_runtime_logs_are_missing(monkeypatch) -> None:
+    real_read_json = trust._read_json
+
+    def _read_without_logs(path: Path) -> dict[str, object]:
+        if "logs/" in path.as_posix().replace("\\", "/"):
+            return {}
+        return real_read_json(path)
+
+    monkeypatch.setattr(trust, "_read_json", _read_without_logs)
+
+    report = trust.build_candidate_operator_trust_report(repo_root=REPO_ROOT)
+    corrected = report["pr3_evidence_integrity_audit"]["corrected_longitudinal_evidence"]
+
+    assert corrected["portfolio_planning_cycles"] == 3
+    assert corrected["empirical_research_cycles"] == 1
+    assert report["readiness_decisions"]["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
+
+
 def test_candidate_operator_trust_policy_and_recovery_fail_closed() -> None:
     report = trust.build_candidate_operator_trust_report(repo_root=REPO_ROOT)
 
