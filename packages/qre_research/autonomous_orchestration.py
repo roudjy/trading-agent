@@ -922,7 +922,7 @@ def admit_work_items(
             "EXPAND_DATA_CAPACITY": "DATA_CAPACITY_EXPANSION",
             "EXPAND_OOS_CAPACITY": "OOS_CAPACITY_EXPANSION",
             "MATERIALIZE_DATA": "DATA_CAPACITY_EXPANSION",
-            "GENERATE_HYPOTHESIS": "EXISTING_PIPELINE_REPLAY",
+            "GENERATE_HYPOTHESIS": "DEVELOPMENT_WORK_PACKAGE",
             "EXECUTE_PREREGISTERED_CAMPAIGN": "PREREGISTERED_CAMPAIGN_EXECUTION",
             "CREATE_PREREGISTRATION": "CAMPAIGN_PREREGISTRATION",
             "REASSESS_READINESS": "EXISTING_PIPELINE_REPLAY",
@@ -1517,11 +1517,32 @@ def execute_work_item(
             work_item=work_item,
         )
     elif work_class == "DEVELOPMENT_WORK_PACKAGE":
-        execution_result = _generate_work_package(
+        work_package = _generate_work_package(
             repo_root=repo_root,
             work_item=work_item,
             write_outputs=write_outputs,
         )
+        execution_result = {
+            "execution_identity": _content_id(
+                "qrx",
+                {
+                    "work_item_id": work_item["work_item_id"],
+                    "work_package_id": work_package["work_package_id"],
+                },
+            ),
+            "work_item_id": str(work_item.get("work_item_id") or ""),
+            "status": "completed",
+            "progress_status": "DOWNSTREAM_BLOCKER_EXPOSED",
+            "next_action": "implement_bounded_hypothesis_generation",
+            "blocker_delta": ["hypothesis_generation_capability_missing"],
+            "findings": [work_package],
+            "provenance": [
+                (
+                    "generated_research/orchestration/work_packages/"
+                    f"{work_package['work_package_id']}.json"
+                )
+            ],
+        }
     else:
         execution_result = {
             "execution_identity": _content_id("qrx", {"work_item": work_item["work_item_id"], "status": "deferred"}),
@@ -2187,11 +2208,55 @@ def _run_one_cycle(
     write_outputs: bool,
     report_date: str | None,
 ) -> dict[str, Any]:
+    existing_cycle_rows = list(
+        (
+            _read_json(
+                _scoped_path(CYCLE_LEDGER_PATH, repo_root=repo_root)
+            )
+            or {}
+        ).get("rows")
+        or []
+    )
+    existing_invocation_rows = list(
+        (
+            _read_json(
+                _scoped_path(INVOCATION_LEDGER_PATH, repo_root=repo_root)
+            )
+            or {}
+        ).get("rows")
+        or []
+    )
+
+    terminal_validation_outcomes = {
+        "VALIDATED_AND_COMPOSED",
+        "NO_CAUSAL_PROGRESS",
+        "EXTERNAL_BOUNDARY",
+    }
+    terminal_work_item_ids = {
+        str(row.get("selected_work_item") or "")
+        for row in existing_cycle_rows
+        if str((row.get("validation") or {}).get("outcome") or "")
+        in terminal_validation_outcomes
+    }
+    terminal_work_item_ids.discard("")
+
     portfolio = build_unified_portfolio(repo_root=repo_root)
     actions = build_typed_next_actions(portfolio=portfolio, config=config)
     work_items = admit_work_items(actions=actions, config=config)
-    dependency_graph = build_dependency_graph(portfolio=portfolio, work_items=work_items)
-    throughput_schedule = build_throughput_schedule(work_items=work_items, config=config)
+    work_items = dict(work_items)
+    work_items["rows"] = [
+        row
+        for row in work_items.get("rows", [])
+        if str(row.get("work_item_id") or "") not in terminal_work_item_ids
+    ]
+    dependency_graph = build_dependency_graph(
+        portfolio=portfolio,
+        work_items=work_items,
+    )
+    throughput_schedule = build_throughput_schedule(
+        work_items=work_items,
+        config=config,
+    )
     campaign_schedule = build_campaign_schedule(portfolio=portfolio, config=config)
     oos_budget = build_oos_budget(repo_root=repo_root, portfolio=portfolio, config=config)
     pre_oos_decisions = {
@@ -2202,11 +2267,9 @@ def _run_one_cycle(
         "pre_oos_identity": _content_id("qrpo", _validation_fixture_from_a25(repo_root)),
     }
     selected_batch = _select_batch(work_items=work_items, throughput_schedule=throughput_schedule)
-    cycle_rows: list[dict[str, Any]] = []
-    invocation_rows: list[dict[str, Any]] = []
+    new_cycle_rows: list[dict[str, Any]] = []
+    new_invocation_rows: list[dict[str, Any]] = []
     for work_item in selected_batch:
-        if str(work_item.get("work_class") or "") == "EXISTING_PIPELINE_REPLAY":
-            continue
         execution_result, validation = execute_work_item(
             repo_root=repo_root,
             work_item=work_item,
@@ -2214,7 +2277,7 @@ def _run_one_cycle(
             config=config,
             write_outputs=write_outputs,
         )
-        invocation_rows.append(
+        new_invocation_rows.append(
             {
                 "invocation_identity": _content_id(
                     "qinv",
@@ -2234,7 +2297,7 @@ def _run_one_cycle(
                 "failure_reason": "" if str(validation.get("outcome") or "") == "VALIDATED_AND_COMPOSED" else str(validation.get("outcome") or ""),
             }
         )
-        cycle_rows.append(
+        new_cycle_rows.append(
             {
                 "cycle_id": _content_id("qrcy", {"cycle": cycle_index, "work_item_id": work_item["work_item_id"]}),
                 "cycle_index": cycle_index,
@@ -2252,6 +2315,10 @@ def _run_one_cycle(
                 "execution_status": str(execution_result.get("status") or ""),
             }
         )
+
+    cycle_rows = existing_cycle_rows + new_cycle_rows
+    invocation_rows = existing_invocation_rows + new_invocation_rows
+
     daily_report = generate_daily_report(
         repo_root=repo_root,
         config=config,
@@ -2323,8 +2390,10 @@ def _run_one_cycle(
         "campaign_schedule": campaign_schedule,
         "oos_budget": oos_budget,
         "pre_oos_decisions": pre_oos_decisions,
-        "cycle_rows": cycle_rows,
-        "invocation_rows": invocation_rows,
+        "cycle_rows": new_cycle_rows,
+        "invocation_rows": new_invocation_rows,
+        "cycle_history": cycle_rows,
+        "invocation_history": invocation_rows,
         "status": status,
         "daily_report": daily_report,
         "read_model_paths": read_model_paths,

@@ -421,3 +421,94 @@ def test_selection_explanation_links_to_selected_work_item(orchestration_repo: P
 
     assert explanation["status"] == "present"
     assert explanation["selected_work_item_id"] == selected_id
+
+
+def test_persisted_lifecycle_does_not_repeat_terminal_work_and_creates_work_package(
+    orchestration_repo: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        gsp,
+        "REPO_ROOT",
+        orchestration_repo,
+    )
+
+    first_closeout = ao.run_orchestration(
+        repo_root=orchestration_repo,
+        mode="LOCAL_AUTONOMOUS",
+        max_cycles=1,
+        write_outputs=True,
+        report_date="2026-06-30",
+    )
+
+    first_ledger = ao._read_json(
+        ao._scoped_path(
+            ao.CYCLE_LEDGER_PATH,
+            repo_root=orchestration_repo,
+        )
+    )
+    first_rows = list((first_ledger or {}).get("rows") or [])
+
+    assert first_closeout["work_items_executed"] == 1
+    assert len(first_rows) == 1
+
+    first_work_item_id = str(first_rows[0].get("selected_work_item") or "")
+    assert first_work_item_id
+
+    second_closeout = ao.run_orchestration(
+        repo_root=orchestration_repo,
+        mode="LOCAL_AUTONOMOUS",
+        max_cycles=1,
+        write_outputs=True,
+        report_date="2026-06-30",
+    )
+
+    second_ledger = ao._read_json(
+        ao._scoped_path(
+            ao.CYCLE_LEDGER_PATH,
+            repo_root=orchestration_repo,
+        )
+    )
+    second_rows = list((second_ledger or {}).get("rows") or [])
+
+    assert second_closeout["work_items_executed"] == 1
+    assert len(second_rows) == 2
+
+    selected_work_item_ids = [
+        str(row.get("selected_work_item") or "")
+        for row in second_rows
+    ]
+    assert selected_work_item_ids.count(first_work_item_id) == 1
+    assert len(set(selected_work_item_ids)) == len(selected_work_item_ids)
+
+    latest_row = second_rows[-1]
+    assert latest_row["remediation"] == "DEVELOPMENT_WORK_PACKAGE"
+    assert latest_row["execution_status"] == "completed"
+    assert latest_row["progress_status"] == "DOWNSTREAM_BLOCKER_EXPOSED"
+    assert latest_row["validation"]["outcome"] == "VALIDATED_AND_COMPOSED"
+    assert latest_row["next_action"] == "implement_bounded_hypothesis_generation"
+
+    work_packages_dir = ao._scoped_path(
+        ao.WORK_PACKAGES_DIR,
+        repo_root=orchestration_repo,
+    )
+    work_package_paths = list(work_packages_dir.glob("qwpk*.json"))
+
+    assert len(work_package_paths) == 1
+
+    persisted_invocations = ao._read_json(
+        ao._scoped_path(
+            ao.INVOCATION_LEDGER_PATH,
+            repo_root=orchestration_repo,
+        )
+    )
+    invocation_rows = list(
+        (persisted_invocations or {}).get("rows") or []
+    )
+    invocation_identities = [
+        str(row.get("invocation_identity") or "")
+        for row in invocation_rows
+    ]
+
+    assert len(invocation_rows) == 2
+    assert len(set(invocation_identities)) == len(invocation_identities)
