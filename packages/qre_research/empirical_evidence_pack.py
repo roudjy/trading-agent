@@ -7,6 +7,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final
 
+from packages.qre_research import decision_calibration as dcal
 from packages.qre_research import second_preregistered_campaign as campaign
 from packages.qre_research.generated_strategy_paths import REPO_ROOT, validate_write_target
 
@@ -144,23 +145,6 @@ def _outlier_dependency(stage: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _disposition(closeout: dict[str, Any]) -> str:
-    decision = closeout.get("decision")
-    if not isinstance(decision, dict):
-        return "NEEDS_MORE_EVIDENCE"
-    hypothesis = str(decision.get("hypothesis_decision") or "")
-    strategy = str(decision.get("strategy_decision") or "")
-    if hypothesis == "SUPPORTED_FOR_FURTHER_RESEARCH" and strategy == "RESEARCH_SURVIVOR":
-        return "READY_FOR_SYNTHESIS"
-    if hypothesis == "BLOCKED_SAMPLE_SIZE":
-        return "NEEDS_MORE_EVIDENCE"
-    if hypothesis == "BLOCKED_CONTROLS":
-        return "REQUIRES_PRIMITIVE_EXTENSION"
-    if strategy.startswith("REJECTED"):
-        return "REJECTED"
-    return "NEEDS_MORE_EVIDENCE"
-
-
 def build_empirical_evidence_pack(
     *,
     repo_root: Path = REPO_ROOT,
@@ -178,26 +162,18 @@ def build_empirical_evidence_pack(
     null_controls = dict(closeout.get("null_controls") or {})
     campaign_classification = dict(closeout.get("campaign_classification") or {})
     terminal_outcome = str(closeout.get("terminal_outcome") or "")
-    disposition = _disposition(closeout)
+    contradiction_update = dict((closeout.get("decision") or {}).get("contradiction_update") or {})
+    oos_trade_count = int(oos_stage.get("trade_count") or 0)
+    oos_outcome = str(oos_stage.get("oos_outcome") or "")
     missing_evidence: list[str] = []
-    if oos_stage.get("oos_outcome") != "COMPLETED":
+    if not oos_stage:
         missing_evidence.append("oos_evidence")
     if not null_controls:
         missing_evidence.append("null_model_evidence")
-    if float(oos_stage.get("costs") or 0.0) == 0.0:
-        missing_evidence.append("transaction_cost_evidence")
     if not portfolio_row.get("train_window"):
         missing_evidence.append("sampling_window_evidence")
-    contradiction_update = dict((closeout.get("decision") or {}).get("contradiction_update") or {})
-    supporting_evidence: list[str] = []
-    contradicting_evidence: list[str] = []
-    if disposition == "READY_FOR_SYNTHESIS":
-        supporting_evidence.append("campaign_survived_train_validation_oos_and_null_controls")
-    else:
-        contradicting_evidence.append(terminal_outcome or "campaign_not_supportive")
-    contradiction_evidence = str(contradiction_update.get("evidence") or "")
-    if contradiction_evidence:
-        contradicting_evidence.append(contradiction_evidence)
+    if not train_stage or not validation_stage:
+        missing_evidence.append("controlled_evaluation_evidence")
 
     pack = {
         "schema_version": SCHEMA_VERSION,
@@ -237,36 +213,58 @@ def build_empirical_evidence_pack(
             ],
         },
         "oos": {
-            "status": "AVAILABLE" if oos_stage else "UNKNOWN",
-            "outcome": str(oos_stage.get("oos_outcome") or ""),
-            "trade_count": int(oos_stage.get("trade_count") or 0),
+            "status": "AVAILABLE" if oos_stage else "NOT_AVAILABLE",
+            "presence": "AVAILABLE" if oos_stage else "NOT_AVAILABLE",
+            "applicability": "APPLICABLE" if oos_stage else "NOT_EVALUABLE",
+            "sufficiency": "SUFFICIENT" if oos_trade_count > 0 and oos_outcome == "COMPLETED" else "INSUFFICIENT",
+            "outcome": "PASS" if oos_trade_count > 0 and oos_outcome == "COMPLETED" else "INCONCLUSIVE",
+            "trade_count": oos_trade_count,
+            "oos_outcome": oos_outcome,
         },
         "transaction_costs": {
             "status": "AVAILABLE" if "cost_assumptions" in spec else "NOT_AVAILABLE",
+            "presence": "AVAILABLE" if "cost_assumptions" in spec else "NOT_AVAILABLE",
+            "applicability": "APPLICABLE" if oos_trade_count > 0 else "NOT_EVALUABLE",
+            "sufficiency": "SUFFICIENT" if oos_trade_count > 0 and float(oos_stage.get("costs") or 0.0) != 0.0 else "INSUFFICIENT",
+            "outcome": "PASS" if oos_trade_count > 0 and float(oos_stage.get("costs") or 0.0) != 0.0 else "INCONCLUSIVE",
             "assumptions": dict(spec.get("cost_assumptions") or {}),
             "realized_costs": float(oos_stage.get("costs") or 0.0),
+            "trade_count": oos_trade_count,
         },
         "slippage": {
             "status": "AVAILABLE" if "slippage_assumptions" in spec else "NOT_AVAILABLE",
+            "presence": "AVAILABLE" if "slippage_assumptions" in spec else "NOT_AVAILABLE",
+            "applicability": "APPLICABLE" if oos_trade_count > 0 else "NOT_EVALUABLE",
+            "sufficiency": "SUFFICIENT" if oos_trade_count > 0 and float(oos_stage.get("slippage") or 0.0) != 0.0 else "INSUFFICIENT",
+            "outcome": "PASS" if oos_trade_count > 0 and float(oos_stage.get("slippage") or 0.0) != 0.0 else "INCONCLUSIVE",
             "assumptions": dict(spec.get("slippage_assumptions") or {}),
             "realized_slippage": float(oos_stage.get("slippage") or 0.0),
+            "trade_count": oos_trade_count,
         },
         "null_model": {
-            "status": "AVAILABLE" if null_controls else "UNKNOWN",
+            "status": "AVAILABLE" if null_controls else "NOT_AVAILABLE",
+            "presence": "AVAILABLE" if null_controls else "NOT_AVAILABLE",
+            "applicability": "APPLICABLE" if null_controls else "NOT_EVALUABLE",
+            "sufficiency": "SUFFICIENT" if bool(null_controls.get("null_control_passed")) and null_controls else "INSUFFICIENT",
+            "outcome": "PASS" if bool(null_controls.get("null_control_passed")) and null_controls else "FAIL" if null_controls else "INCONCLUSIVE",
             "passed": bool(null_controls.get("null_control_passed")),
             "rows": list(null_controls.get("rows") or []),
         },
         "stability": _stability_summary(train_stage, validation_stage, oos_stage),
         "regime_evidence": {
             "status": "NOT_AVAILABLE",
+            "presence": "NOT_AVAILABLE",
+            "applicability": "NOT_APPLICABLE",
+            "sufficiency": "UNKNOWN",
+            "outcome": "INCONCLUSIVE",
             "reason": "canonical_regime_segmentation_not_materialized_by_campaign_executor",
         },
         "parameter_fragility": {
-            "status": (
-                "NOT_AVAILABLE"
-                if spec.get("parameters")
-                else "NOT_APPLICABLE"
-            ),
+            "status": "NOT_AVAILABLE" if spec.get("parameters") else "NOT_APPLICABLE",
+            "presence": "NOT_AVAILABLE" if spec.get("parameters") else "NOT_AVAILABLE",
+            "applicability": "APPLICABLE" if spec.get("parameters") else "NOT_APPLICABLE",
+            "sufficiency": "UNKNOWN",
+            "outcome": "INCONCLUSIVE",
             "reason": (
                 "bounded_parameter_sensitivity_not_run_in_campaign_executor"
                 if spec.get("parameters")
@@ -281,8 +279,6 @@ def build_empirical_evidence_pack(
             "fixture_campaigns_consumed": int(campaign_classification.get("fixture_campaigns_consumed") or 0),
             "null_or_synthetic_campaigns_executed": int(campaign_classification.get("null_or_synthetic_campaigns_executed") or 0),
         },
-        "supporting_evidence": supporting_evidence,
-        "contradicting_evidence": contradicting_evidence,
         "campaign_refs": [
             "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json",
         ],
@@ -290,13 +286,38 @@ def build_empirical_evidence_pack(
             str(registry_row.get("sandbox_validation_path") or ""),
         ],
         "missing_evidence": missing_evidence,
-        "disposition": disposition,
-        "terminal_outcome": terminal_outcome,
-        "recommended_next_action": str(
-            (closeout.get("feedback_routing") or {}).get("next_action")
-            or "preserve_fail_closed_empirical_evidence"
-        ),
     }
+    decision_semantics = dcal.classify_terminal_disposition(closeout=closeout, empirical_pack=pack)
+    supporting_evidence: list[str] = []
+    contradicting_evidence: list[str] = []
+    if decision_semantics["terminal_disposition"] == "READY_FOR_SYNTHESIS":
+        supporting_evidence.append("campaign_survived_train_validation_oos_and_null_controls")
+    else:
+        contradicting_evidence.append(terminal_outcome or "campaign_not_supportive")
+    contradiction_evidence = str(contradiction_update.get("evidence") or "")
+    if contradiction_evidence:
+        contradicting_evidence.append(contradiction_evidence)
+    pack["supporting_evidence"] = supporting_evidence
+    pack["contradicting_evidence"] = contradicting_evidence
+    pack["evidence_gaps"] = {
+        "missing": list(missing_evidence),
+        "insufficient": [
+            reason
+            for reason in (
+                "insufficient_activity" if oos_trade_count == 0 else "",
+                "null_model_not_passing" if not bool(null_controls.get("null_control_passed")) and null_controls else "",
+            )
+            if reason
+        ],
+        "resolved_blockers": [terminal_outcome] if terminal_outcome else [],
+    }
+    pack["decision_semantics"] = decision_semantics
+    pack["disposition"] = decision_semantics["terminal_disposition"]
+    pack["terminal_outcome"] = terminal_outcome
+    pack["recommended_next_action"] = decision_semantics["next_action"]
+    pack["resolved_blockers"] = decision_semantics["resolved_blockers"]
+    pack["active_blockers"] = decision_semantics["active_blockers"]
+    pack["evidence_semantics"] = dcal.build_pack_evidence_semantics(pack)
     return pack
 
 
