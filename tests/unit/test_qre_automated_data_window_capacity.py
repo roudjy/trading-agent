@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -39,6 +41,12 @@ def _write_json(repo_root: Path, relative: str, payload: dict) -> None:
     target = repo_root / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _make_tree_writable(root: Path) -> None:
+    for path in sorted(root.rglob("*")):
+        with contextlib.suppress(OSError):
+            os.chmod(path, 0o777 if path.is_dir() else 0o666)
 
 
 def _patch_paths(monkeypatch: pytest.MonkeyPatch, repo_root: Path) -> None:
@@ -249,6 +257,7 @@ def _build_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, directory_na
     monkeypatch.setattr(arc, "validate_write_target", lambda path: None)
     monkeypatch.setattr(adwc, "validate_write_target", lambda path: None)
     _patch_paths(monkeypatch, repo_root)
+    _make_tree_writable(repo_root)
     return repo_root
 
 
