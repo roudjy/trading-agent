@@ -106,9 +106,6 @@ def _closeout(repo_root: Path) -> dict[str, Any]:
 
 
 def _decision_review(repo_root: Path) -> dict[str, Any]:
-    payload = _read_json(repo_root / "logs" / "qre_decision_calibration_review" / "latest.json")
-    if payload:
-        return payload
     from reporting import qre_decision_calibration_review as review
 
     return review.collect_snapshot(repo_root=repo_root)
@@ -193,33 +190,7 @@ def _fallback_portfolio_scheduler(repo_root: Path) -> dict[str, Any]:
     }
 
 
-def _is_pr3_portfolio_scheduler_snapshot(payload: dict[str, Any]) -> bool:
-    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
-    if not summary:
-        return False
-    terminal_outcomes = _read_rows(payload, "terminal_outcomes")
-    candidate_count = int(summary.get("candidate_count") or 0)
-    cycle_count = int(summary.get("cycle_count") or 0)
-    admitted_count = int(summary.get("admitted_count") or 0)
-    duplicate_suppressed_count = int(summary.get("duplicate_suppressed_count") or 0)
-    admitted_rows = sum(1 for row in terminal_outcomes if _text(row.get("admission_status")) == "ADMITTED")
-    duplicate_rows = sum(1 for row in terminal_outcomes if _text(row.get("admission_status")) == "SUPPRESSED_DUPLICATE")
-    return (
-        _text(payload.get("report_kind")) == "qre_historical_portfolio_scheduler"
-        and candidate_count >= 8
-        and cycle_count == 3
-        and admitted_count >= 3
-        and duplicate_suppressed_count >= 3
-        and len(terminal_outcomes) >= 8
-        and admitted_rows >= 3
-        and duplicate_rows >= 3
-    )
-
-
 def _portfolio_scheduler(repo_root: Path) -> dict[str, Any]:
-    payload = _read_json(repo_root / "logs" / "qre_historical_portfolio_scheduler" / "latest.json")
-    if payload and _is_pr3_portfolio_scheduler_snapshot(payload):
-        return payload
     return _fallback_portfolio_scheduler(repo_root)
 
 
@@ -236,9 +207,6 @@ def _reason_records(repo_root: Path) -> dict[str, Any]:
 
 
 def _research_memory(repo_root: Path) -> dict[str, Any]:
-    payload = _read_json(repo_root / "logs" / "qre_research_memory" / "latest.json")
-    if payload:
-        return payload
     generated = _read_json(repo_root / "generated_research" / "hypotheses" / "lifecycle" / "research_memory.v1.json")
     if generated:
         rows = _read_rows(generated, "rows")
@@ -251,9 +219,6 @@ def _source_usefulness(repo_root: Path) -> dict[str, Any]:
 
 
 def _historical_disposition(repo_root: Path) -> dict[str, Any]:
-    payload = _read_json(repo_root / "logs" / "qre_hypothesis_disposition_memory" / "latest.json")
-    if payload:
-        return payload
     memory = _read_json(repo_root / "generated_research" / "hypotheses" / "lifecycle" / "research_memory.v1.json")
     rows = _read_rows(memory, "rows")
     if not rows:
