@@ -1,0 +1,80 @@
+{
+  "admitted_rows": [],
+  "module_version": "ade-qre-036.1",
+  "plan_identity": "qpp_5f03bd2a2b4edcf9",
+  "report_kind": "qre_empirical_campaign_portfolio_plan",
+  "rows": [
+    {
+      "admitted": false,
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "data_ready": "yes",
+      "family": "relative_strength",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "identity_ready": "yes",
+      "novelty": "NO_NOVELTY_IDENTICAL_FROZEN_CAMPAIGN",
+      "primitive_ready": "yes",
+      "priority": 15.0,
+      "rank": 1,
+      "reason": "identical_frozen_campaign_already_executed",
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "status": "READY_FOR_PREREGISTRATION"
+    },
+    {
+      "admitted": false,
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "data_ready": "yes",
+      "family": "trend_continuation",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_ready": "yes",
+      "novelty": "NO_NOVELTY_IDENTICAL_FROZEN_CAMPAIGN",
+      "primitive_ready": "yes",
+      "priority": 15.0,
+      "rank": 2,
+      "reason": "identical_frozen_campaign_already_executed",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "status": "READY_FOR_PREREGISTRATION"
+    },
+    {
+      "admitted": false,
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "data_ready": "no",
+      "family": "trend_continuation",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_ready": "yes",
+      "novelty": "NEW_CAMPAIGN_CELL",
+      "primitive_ready": "yes",
+      "priority": 10.0,
+      "rank": 3,
+      "reason": "estimated_signals_below_policy_minimum",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "status": "BLOCKED_SIGNAL_DENSITY"
+    },
+    {
+      "admitted": false,
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "data_ready": "no",
+      "family": "trend_continuation",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_ready": "yes",
+      "novelty": "NEW_CAMPAIGN_CELL",
+      "primitive_ready": "yes",
+      "priority": 10.0,
+      "rank": 4,
+      "reason": "cache_row_missing",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "status": "BLOCKED_DATA"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "campaigns_admitted": 0,
+    "campaigns_blocked": 4,
+    "campaigns_planned": 0,
+    "compute_budget": 6,
+    "compute_used": 0,
+    "exact_duplicates_suppressed": 2,
+    "hypotheses_considered": 4,
+    "insufficient_generation_boundary": true,
+    "near_duplicates_suppressed": 0
+  }
+}

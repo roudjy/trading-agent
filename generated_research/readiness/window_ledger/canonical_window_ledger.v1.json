@@ -99,6 +99,13 @@
     },
     {
       "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "consumption_evidence": {
+        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+        "campaign_manifest_identity": "qcm_ca4edb49cf33c620",
+        "generated_strategy_id": "qgs_5af8f605ba82ae53",
+        "oos_stage_path": "generated_research/campaign_execution/stages/oos.v1.json"
+      },
+      "consumption_identity": "qwc_552f3f79958d5306",
       "dataset_identity": "qds_988d41124ea9cda2",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "independence_group": "qig_af3d4a66e818164f",
@@ -108,7 +115,7 @@
       ],
       "purpose": "OOS",
       "snapshot_identity": "qsn_988d41124ea9cda2",
-      "status": "RESERVED",
+      "status": "CONSUMED",
       "timeframe": "4h",
       "window": {
         "end": "2026-06-04T17:30:00Z",
@@ -182,5 +189,5 @@
     }
   ],
   "schema_version": "1.0",
-  "window_ledger_identity": "qwlr_d1733e9409e88eb1"
+  "window_ledger_identity": "qwlr_9b674ec179ccd01c"
 }

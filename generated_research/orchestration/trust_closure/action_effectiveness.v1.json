@@ -1,0 +1,28 @@
+{
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_action_effectiveness",
+  "rows": [
+    {
+      "action_effective": true,
+      "action_executed": true,
+      "action_proposed": "execute_preregistered_real_empirical_campaign",
+      "action_record_id": "qact_edb87f10b16132e7",
+      "evidence_after": "NEEDS_MORE_EVIDENCE",
+      "evidence_before": "no_prior_real_empirical_campaign",
+      "execution_campaign": "qcx_984253c682dfbaeb",
+      "new_information_gained": true,
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "terminal_outcome_changed": true
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "action_effectiveness_rate": 1.0,
+    "action_executed_failure_rate": 0.5,
+    "action_mapped_failure_rate": 0.5,
+    "actions_effective": 1,
+    "actions_executed": 1,
+    "actions_proposed": 1,
+    "causal_next_action_rate": 1.0
+  }
+}

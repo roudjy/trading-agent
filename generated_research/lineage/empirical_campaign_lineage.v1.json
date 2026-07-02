@@ -1,0 +1,32 @@
+{
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_empirical_campaign_lineage",
+  "rows": [
+    {
+      "campaign_identity": "qcx_40d35874111bcd98",
+      "dataset_fingerprint": "qsn_bd7ce9df4dabc083",
+      "disposition": "NEEDS_MORE_EVIDENCE",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "lineage_id": "qcl_329b5b189b885ee6",
+      "next_action": "launch_data_oos_capacity_expansion",
+      "novelty_type": "historical_baseline",
+      "prior_campaign_identity": "",
+      "source_hypothesis_id": "cross_sectional_momentum_v0"
+    },
+    {
+      "campaign_identity": "qcx_984253c682dfbaeb",
+      "dataset_fingerprint": "qsn_988d41124ea9cda2",
+      "disposition": "NEEDS_MORE_EVIDENCE",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "lineage_id": "qcl_23b34c09dc0f30b4",
+      "next_action": "launch_data_oos_capacity_expansion",
+      "novelty_type": "NEW_CAMPAIGN_CELL",
+      "prior_campaign_identity": "",
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "lineage_count": 2
+  }
+}

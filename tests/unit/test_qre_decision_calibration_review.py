@@ -10,7 +10,7 @@ def test_decision_calibration_review_reads_current_artifacts_and_is_fail_closed(
     assert snapshot["real_hypothesis"]["terminal_disposition_after"] == "NEEDS_MORE_EVIDENCE"
     assert snapshot["real_hypothesis"]["next_action_after"] == "launch_data_oos_capacity_expansion"
     assert snapshot["real_hypothesis"]["evidence_semantics"]["oos"]["presence"] == "AVAILABLE"
-    assert snapshot["real_hypothesis"]["evidence_semantics"]["transaction_costs"]["applicability"] == "NOT_EVALUABLE"
+    assert snapshot["real_hypothesis"]["evidence_semantics"]["transaction_costs"]["applicability"] == "APPLICABLE"
     assert snapshot["real_hypothesis"]["evidence_sufficiency"]["transaction_costs"] == "INSUFFICIENT"
     assert snapshot["decision_quality_kpis"]["benchmark_decision_accuracy"] == 100.0
     assert snapshot["decision_quality_kpis"]["false_synthesis_ready_count"] == 0
