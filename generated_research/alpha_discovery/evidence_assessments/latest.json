@@ -1,0 +1,30 @@
+{
+  "rows": [
+    {
+      "activity_effect": "activity_insufficient",
+      "assessment_id": "qaea_281fea49c27348d7",
+      "asset_effect": "single_asset_liquid_cache_universe",
+      "campaign_id": "qcam_91538224108520b6",
+      "confidence_update": "LOW",
+      "content_identity": "qaea_83a7fd638e7e43c4",
+      "contradicting_evidence": [
+        "insufficient_activity"
+      ],
+      "cost_effect": "costs_included_in_backtest",
+      "experiment_id": "qexp_c4dd1709861569a0",
+      "fragility_effect": "fragile",
+      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "inconclusive_evidence": [],
+      "null_result": "REJECTED",
+      "outlier_effect": "unknown",
+      "prediction_tested": "positive continuation with modest holding periods",
+      "reason_codes": [
+        "insufficient_activity"
+      ],
+      "regime_effect": "single_asset_liquid_cache_universe",
+      "supporting_evidence": [],
+      "terminal_disposition": "NEEDS_MORE_EVIDENCE"
+    }
+  ],
+  "schema_version": "1.0"
+}

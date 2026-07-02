@@ -1,0 +1,42 @@
+{
+  "lesson": {
+    "actionable_cause": "expand evidence window",
+    "campaign_id": "qcam_91538224108520b6",
+    "content_identity": "qrlp_01a381702fcb5b48",
+    "decisive_evidence": [],
+    "do_not_repeat": [
+      "do not rerun the same unchanged contract"
+    ],
+    "experiment_id": "qexp_c4dd1709861569a0",
+    "failure_mode": "insufficient_activity",
+    "generator_constraints": [
+      "max_three_hypotheses",
+      "max_one_rewrite",
+      "no_oos_selection"
+    ],
+    "hypothesis_id": "qah_56279ba7fa7a26d4",
+    "lesson_id": "qrl_0b65902a2b53ac3c",
+    "mechanism_contradicted": "uncertain",
+    "mechanism_supported": "inconclusive",
+    "new_falsification_requirements": [
+      "require explicit cost comparison",
+      "require regime-neutral null"
+    ],
+    "non_actionable_cause": "raw market randomness is not a code gap",
+    "prior_adjustments": [
+      "lower prior on duplicated mechanism families"
+    ],
+    "recommended_next_question": "obtain more decisive data or lower the minimum activity threshold",
+    "strategy_spec_id": "qss_66f5c3993eb6429c",
+    "supporting_artifact_refs": [
+      "qaea_83a7fd638e7e43c4"
+    ],
+    "terminal_disposition": "NEEDS_MORE_EVIDENCE",
+    "unresolved_uncertainty": []
+  },
+  "policy_version": "qre_alpha_discovery_mvp_v2",
+  "prior_fingerprint": "b6a74ec5b041a6f99e3fb67b919e5613fa4c168a3bf1f182e3fcc4115ca7aa3d",
+  "report_kind": "qre_alpha_discovery_lesson",
+  "schema_version": "1.0",
+  "selected_hypothesis_id": "qah_56279ba7fa7a26d4"
+}

@@ -1,0 +1,15 @@
+{
+  "content_identity": "qasd_status_397e2e3af7da1f45",
+  "current_wait_reason": "lesson_written",
+  "next_wake_conditions": [
+    "new_data",
+    "new_lesson",
+    "new_memory"
+  ],
+  "policy_version": "qre_alpha_discovery_mvp_v2",
+  "report_kind": "qre_alpha_discovery_status",
+  "schema_version": "1.0",
+  "selected_hypothesis_id": "qah_56279ba7fa7a26d4",
+  "state": "COMPLETE",
+  "terminal_disposition": "NEEDS_MORE_EVIDENCE"
+}

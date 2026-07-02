@@ -16,6 +16,10 @@ def _aol() -> Any:
     return importlib.import_module("packages.qre_research.autonomous_opportunity_loop")
 
 
+def _adr() -> Any:
+    return importlib.import_module("packages.qre_research.alpha_discovery.runner")
+
+
 def _print_json(payload: dict[str, Any], *, indent: int) -> None:
     json.dump(payload, sys.stdout, indent=indent, sort_keys=True)
     sys.stdout.write("\n")
@@ -112,6 +116,11 @@ def _build_parser() -> argparse.ArgumentParser:
     opportunity_run_once = sub.add_parser("opportunity-loop-run-once")
     opportunity_run_once.add_argument("--max-cycles", type=int, default=None)
 
+    alpha_run_once = sub.add_parser("alpha-discovery-run-once")
+    alpha_run_once.add_argument("--dry-run", action="store_true")
+    alpha_run_once.add_argument("--max-hypotheses", type=int, default=3)
+    alpha_run_once.add_argument("--status", action="store_true")
+
     sub.add_parser("pause")
     sub.add_parser("resume")
     sub.add_parser("daily-report")
@@ -204,6 +213,19 @@ def main(argv: list[str] | None = None) -> int:
             repo_root=repo_root,
             max_cycles=args.max_cycles,
             write_outputs=True,
+        )
+        _print_json(payload, indent=indent)
+        return 0
+
+    if args.command == "alpha-discovery-run-once":
+        adr = _adr()
+        if args.status:
+            _print_json(adr.read_status(repo_root), indent=indent)
+            return 0
+        payload = adr.run_alpha_discovery_mvp(
+            repo_root=repo_root,
+            dry_run=bool(args.dry_run),
+            max_hypotheses=int(args.max_hypotheses or 3),
         )
         _print_json(payload, indent=indent)
         return 0

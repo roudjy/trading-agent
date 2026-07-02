@@ -1,0 +1,68 @@
+{
+  "rows": [
+    {
+      "data_path": "C:/Users/joery.van.rooij/trading-agent/data/cache/market/yfinance__AAPL__1d__20260408__20260415__3b2fbad30360ef1a.parquet",
+      "quality_summary": {
+        "blocking_reason_counts": {
+          "manifest_status_unreadable": 4,
+          "row_count_not_positive": 4,
+          "timestamp_range_missing": 4
+        },
+        "evidence_content_hash": "sha256:c399cd14431575b91c72b56955fc70bc21d9a0288be16f1dc653d1d3599d00b5",
+        "fail_closed": true,
+        "file_count": 6556,
+        "identity_confidence_counts": {
+          "high": 6556
+        },
+        "manifest_research_ready": false,
+        "operator_summary": "Source quality is not research-ready; inspect data/source/identity readiness blockers (data, source) and row explanations.",
+        "quality_status_counts": {
+          "blocked": 4,
+          "ready": 6552
+        },
+        "readiness_blocker_category_counts": {
+          "data": 8,
+          "source": 4
+        },
+        "readiness_blocker_reason_counts": {
+          "data_row_count_not_positive": 4,
+          "data_timestamp_range_missing": 4,
+          "source_manifest_status_not_ready": 4
+        },
+        "report_readiness_blockers": [
+          {
+            "category": "source",
+            "evidence_field": "summary.research_ready",
+            "evidence_status": "false_or_missing",
+            "fail_closed": true,
+            "operator_explanation": "The upstream cache manifest is not research-ready; source readiness fails closed.",
+            "reason": "source_manifest_research_not_ready"
+          }
+        ],
+        "research_ready": false,
+        "source_count": 1,
+        "source_quality_ready": false,
+        "status": "not_ready"
+      },
+      "row_count": 5,
+      "selected_row": {
+        "cache_key": "3b2fbad30360ef1a",
+        "cache_kind": "market",
+        "content_hash": "sha256:6007809657bde3d97ddd7d1cf153dd183b5057c3b345235cbba3a9f7740f6d99",
+        "instrument": "AAPL",
+        "max_timestamp_utc": "2026-04-14T00:00:00Z",
+        "min_timestamp_utc": "2026-04-08T00:00:00Z",
+        "path": "data/cache/market/yfinance__AAPL__1d__20260408__20260415__3b2fbad30360ef1a.parquet",
+        "requested_end": "2026-04-15",
+        "requested_start": "2026-04-08",
+        "row_count": 5,
+        "size_bytes": 10833,
+        "source": "yfinance",
+        "status": "ready",
+        "timeframe": "1d"
+      },
+      "source_quality_rows": 6556
+    }
+  ],
+  "schema_version": "1.0"
+}

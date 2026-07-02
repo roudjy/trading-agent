@@ -1,0 +1,120 @@
+{
+  "rows": [
+    {
+      "behavior_family": "trend_continuation",
+      "content_identity": "qasd_bec3c1d75300e944",
+      "cost_assumption": {
+        "slippage_bps": 0.0,
+        "spread_bps": 0.0,
+        "transaction_cost_bps": 0.0
+      },
+      "exit_rules": [],
+      "feature_nodes": [
+        {
+          "alias": "normalized_trend_move",
+          "params": {
+            "atr_window": 14,
+            "trend_anchor_window": 50
+          },
+          "primitive": "normalized_trend_move"
+        },
+        {
+          "alias": "trend_anchor_delta",
+          "params": {
+            "window": 50
+          },
+          "primitive": "trend_anchor_delta"
+        }
+      ],
+      "grammar_version": "1.0",
+      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "mechanism_family": "trend_persistence",
+      "parameter_schema": [
+        {
+          "name": "atr_window",
+          "type": "int",
+          "value": 14
+        },
+        {
+          "name": "entry_threshold",
+          "type": "float",
+          "value": 0.75
+        },
+        {
+          "name": "trend_anchor_window",
+          "type": "int",
+          "value": 50
+        }
+      ],
+      "portfolio_rule": {
+        "max_gross_exposure": 1.0,
+        "max_rules": 1
+      },
+      "position_rule": {
+        "direction": "long_only",
+        "max_legs": 1
+      },
+      "regime_scope": "trend_or_expanding_volatility|regime_conditioned",
+      "signal": {
+        "direction": "long_only",
+        "entry": {
+          "left": {
+            "left": {
+              "alias": "trend_anchor_delta",
+              "params": {
+                "window": 50
+              },
+              "primitive": "trend_anchor_delta"
+            },
+            "operator": "greater_than",
+            "right": 0.0
+          },
+          "operator": "and",
+          "right": {
+            "left": {
+              "alias": "normalized_trend_move",
+              "params": {
+                "atr_window": 14,
+                "trend_anchor_window": 50
+              },
+              "primitive": "normalized_trend_move"
+            },
+            "operator": "greater_than",
+            "right": 0.75
+          }
+        },
+        "exit": {
+          "left": {
+            "left": {
+              "alias": "trend_anchor_delta",
+              "params": {
+                "window": 50
+              },
+              "primitive": "trend_anchor_delta"
+            },
+            "operator": "less_than",
+            "right": 0.0
+          },
+          "operator": "or",
+          "right": {
+            "left": {
+              "alias": "normalized_trend_move",
+              "params": {
+                "atr_window": 14,
+                "trend_anchor_window": 50
+              },
+              "primitive": "normalized_trend_move"
+            },
+            "operator": "less_than",
+            "right": 0.1
+          }
+        }
+      },
+      "strategy_spec_id": "qss_66f5c3993eb6429c",
+      "timeframe": "1d",
+      "transforms": [],
+      "universe": "single_asset_liquid_cache_universe"
+    }
+  ],
+  "schema_version": "1.0"
+}

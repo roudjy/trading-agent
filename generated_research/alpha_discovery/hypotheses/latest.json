@@ -1,0 +1,217 @@
+{
+  "rows": [
+    {
+      "behavior_family": "compression_release",
+      "causal_mechanism_statement": "compression should precede directional release when short-term volatility is suppressed and the trend-normalised move is constructive.",
+      "confounders": [
+        "event-driven jumps",
+        "calendar effects",
+        "survivorship bias"
+      ],
+      "content_identity": "qahr_82038253cef02dce",
+      "contradicting_observation_refs": [
+        "expand evidence window"
+      ],
+      "cost_sensitivity_expectation": "high; breakout edge weakens quickly with cost drag",
+      "expected_direction": "long_only",
+      "falsification_conditions": [
+        "compression ratio remains above threshold",
+        "normalized_trend_move fails to expand after entry",
+        "explicit_cost_falsification"
+      ],
+      "generation_policy_version": "qre_alpha_generation_policy_v1",
+      "hypothesis_id": "qah_82038253cef02dce",
+      "mechanism_family": "volatility_breakout",
+      "minimum_activity_expectation": "activity can be sparse but should not be absent",
+      "novelty_dimensions": [
+        "volatility compression release relation",
+        "regime_conditioning"
+      ],
+      "null_hypothesis": "volatility compression does not improve forward breakout expectancy after costs.",
+      "parameter_count": 3,
+      "parameter_schema": [
+        {
+          "name": "atr_short_window",
+          "type": "int",
+          "value": 5
+        },
+        {
+          "name": "atr_long_window",
+          "type": "int",
+          "value": 20
+        },
+        {
+          "name": "compression_threshold",
+          "type": "float",
+          "value": 0.6
+        }
+      ],
+      "parent_hypothesis_id": "qah_34110e7321db208d",
+      "predicted_observable_effect": "a breakout after compression with fewer but sharper trades",
+      "provider_id": "deterministic_mechanistic_hypothesis_provider",
+      "regime_scope": "compression_then_expansion|regime_conditioned",
+      "related_campaigns": [],
+      "related_hypotheses": [
+        "volatility_compression_breakout_v0"
+      ],
+      "required_controls": [
+        "null_hold_baseline",
+        "cost_only_baseline",
+        "regime_filter"
+      ],
+      "required_features": [
+        "compression_ratio",
+        "normalized_trend_move",
+        "rolling_high_previous"
+      ],
+      "schema_version": "1.0",
+      "stable_fingerprint": "db6421eff082323957da1af385b73e5abb2c818193a19fe4826aae90f9817bce",
+      "support_observation_refs": [
+        "qos_41c52fbff6230667"
+      ],
+      "timeframe_intent": "1d",
+      "universe_intent": "single_asset_liquid_cache_universe"
+    },
+    {
+      "behavior_family": "overextension_reversion",
+      "causal_mechanism_statement": "short-horizon overextension should mean revert when z-scores are extreme and volatility is not collapsing.",
+      "confounders": [
+        "news shocks",
+        "trend continuation",
+        "volatility clustering"
+      ],
+      "content_identity": "qahr_8bc98d08e1c5b080",
+      "contradicting_observation_refs": [],
+      "cost_sensitivity_expectation": "moderate; fewer trades should reduce cost pressure",
+      "expected_direction": "long_only",
+      "falsification_conditions": [
+        "zscore fails to revert toward zero",
+        "rolling volatility collapses into invalid data",
+        "explicit_cost_falsification"
+      ],
+      "generation_policy_version": "qre_alpha_generation_policy_v1",
+      "hypothesis_id": "qah_8bc98d08e1c5b080",
+      "mechanism_family": "mean_reversion",
+      "minimum_activity_expectation": "moderate signal frequency",
+      "novelty_dimensions": [
+        "extreme move reversion",
+        "regime_conditioning"
+      ],
+      "null_hypothesis": "extreme z-score does not predict forward reversal after costs.",
+      "parameter_count": 3,
+      "parameter_schema": [
+        {
+          "name": "lookback",
+          "type": "int",
+          "value": 20
+        },
+        {
+          "name": "entry_z",
+          "type": "float",
+          "value": -1.5
+        },
+        {
+          "name": "exit_z",
+          "type": "float",
+          "value": -0.25
+        }
+      ],
+      "parent_hypothesis_id": "qah_67a84d604cc07add",
+      "predicted_observable_effect": "contrarian recovery after extended move",
+      "provider_id": "deterministic_mechanistic_hypothesis_provider",
+      "regime_scope": "overextended_and_stable_liquidity|regime_conditioned",
+      "related_campaigns": [],
+      "related_hypotheses": [
+        "pairs_zscore_strategie"
+      ],
+      "required_controls": [
+        "null_hold_baseline",
+        "cost_only_baseline",
+        "regime_filter"
+      ],
+      "required_features": [
+        "zscore",
+        "rolling_volatility",
+        "log_returns"
+      ],
+      "schema_version": "1.0",
+      "stable_fingerprint": "e83135c4be5b558a006fba4f8537f799637559898cb455caa82033f99b7fe1a8",
+      "support_observation_refs": [
+        "qos_41c52fbff6230667"
+      ],
+      "timeframe_intent": "1d",
+      "universe_intent": "single_asset_liquid_cache_universe"
+    },
+    {
+      "behavior_family": "trend_continuation",
+      "causal_mechanism_statement": "trend persistence should continue when an anchored trend remains positive and volatility-normalised move stays elevated.",
+      "confounders": [
+        "broad market drift",
+        "simple momentum crowding",
+        "cost drag"
+      ],
+      "content_identity": "qahr_56279ba7fa7a26d4",
+      "contradicting_observation_refs": [],
+      "cost_sensitivity_expectation": "moderate; should tolerate small costs but not heavy turnover",
+      "expected_direction": "long_only",
+      "falsification_conditions": [
+        "trend_anchor_delta turns negative before trade horizon",
+        "normalized_trend_move stays below entry threshold",
+        "explicit_cost_falsification"
+      ],
+      "generation_policy_version": "qre_alpha_generation_policy_v1",
+      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "mechanism_family": "trend_persistence",
+      "minimum_activity_expectation": "at least a few aligned signals in the selected history",
+      "novelty_dimensions": [
+        "anchored trend with volatility-normalised continuation",
+        "regime_conditioning"
+      ],
+      "null_hypothesis": "positive anchored trend does not predict forward continuation after costs.",
+      "parameter_count": 3,
+      "parameter_schema": [
+        {
+          "name": "trend_anchor_window",
+          "type": "int",
+          "value": 50
+        },
+        {
+          "name": "atr_window",
+          "type": "int",
+          "value": 14
+        },
+        {
+          "name": "entry_threshold",
+          "type": "float",
+          "value": 0.75
+        }
+      ],
+      "parent_hypothesis_id": "qah_6ab1d4811cacfa31",
+      "predicted_observable_effect": "positive continuation with modest holding periods",
+      "provider_id": "deterministic_mechanistic_hypothesis_provider",
+      "regime_scope": "trend_or_expanding_volatility|regime_conditioned",
+      "related_campaigns": [],
+      "related_hypotheses": [
+        "cross_sectional_momentum_v0"
+      ],
+      "required_controls": [
+        "cost_only_baseline",
+        "null_hold_baseline",
+        "regime_filter"
+      ],
+      "required_features": [
+        "trend_anchor",
+        "trend_anchor_delta",
+        "normalized_trend_move"
+      ],
+      "schema_version": "1.0",
+      "stable_fingerprint": "b6a74ec5b041a6f99e3fb67b919e5613fa4c168a3bf1f182e3fcc4115ca7aa3d",
+      "support_observation_refs": [
+        "qos_41c52fbff6230667"
+      ],
+      "timeframe_intent": "1d",
+      "universe_intent": "single_asset_liquid_cache_universe"
+    }
+  ],
+  "schema_version": "1.0"
+}
