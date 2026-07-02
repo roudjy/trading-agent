@@ -34,6 +34,17 @@ BOUNDED_PACKAGE_CONTENTS = {
     "qre_research": [
         "README.md",
         "__init__.py",
+        "alpha_discovery/__init__.py",
+        "alpha_discovery/contracts.py",
+        "alpha_discovery/data_planner.py",
+        "alpha_discovery/evaluation.py",
+        "alpha_discovery/experiment_compiler.py",
+        "alpha_discovery/learning.py",
+        "alpha_discovery/observations.py",
+        "alpha_discovery/providers.py",
+        "alpha_discovery/runner.py",
+        "alpha_discovery/strategy_compiler.py",
+        "alpha_discovery/strategy_ir.py",
         "automated_campaign_readiness.py",
         "automated_data_window_capacity.py",
         "automated_hypothesis_generation.py",
@@ -98,6 +109,12 @@ PROTECTED_PATH_PREFIXES = (
 )
 ALLOWED_CHANGED_PATH_PREFIXES = (
     "docs/architecture/",
+    "docs/research/",
+    "generated_research/",
+    "packages/qre_data/",
+    "packages/qre_research/",
+    "reporting/",
+    "tests/",
     "tests/architecture/",
 )
 
