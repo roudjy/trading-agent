@@ -164,6 +164,65 @@ def test_build_precheck_new_oos_boundary_is_material_data_change(repo_root: Path
     assert "NEW_USABLE_OOS_WINDOW" in payload["triggers"]
 
 
+def test_bootstrap_precheck_baselines_without_material_triggers(repo_root: Path) -> None:
+    current = aol.build_watermark(
+        repo_root=repo_root,
+        previous_checkpoint=None,
+        bootstrap_state=aol.BOOTSTRAP_BASELINE,
+    )
+
+    payload = aol.build_precheck(None, current)
+
+    assert payload["precheck_status"] == "NO_MATERIAL_CHANGE"
+    assert payload["bootstrap_state"] == aol.BOOTSTRAP_BASELINE
+    assert payload["triggers"] == []
+
+
+def test_generated_hypothesis_output_does_not_emit_new_template(repo_root: Path) -> None:
+    previous = aol.build_watermark(repo_root=repo_root)
+    _write_json(
+        repo_root / "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        {"rows": [{"thesis_id": "qht_2"}]},
+    )
+
+    current = aol.build_watermark(repo_root=repo_root)
+    payload = aol.build_precheck(previous, current)
+
+    assert "NEW_HYPOTHESIS_TEMPLATE" not in payload["triggers"]
+
+
+def test_request_creation_does_not_emit_capability_gap_resolved(repo_root: Path) -> None:
+    previous_checkpoint = {
+        "tracked_request_statuses": {
+            "qrdr_1": ea.DECISION_NEEDS_HUMAN,
+        }
+    }
+    previous = aol.build_watermark(
+        repo_root=repo_root,
+        previous_checkpoint=previous_checkpoint,
+    )
+    _write_json(
+        repo_root / aol.ADE_REQUESTS_PATH,
+        {
+            "rows": [
+                {
+                    "request_id": "qrdr_1",
+                    "status": ea.DECISION_NEEDS_HUMAN,
+                    "deduplication_key": "dedup_1",
+                }
+            ]
+        },
+    )
+
+    current = aol.build_watermark(
+        repo_root=repo_root,
+        previous_checkpoint=previous_checkpoint,
+    )
+    payload = aol.build_precheck(previous, current)
+
+    assert "CAPABILITY_GAP_RESOLVED" not in payload["triggers"]
+
+
 def test_generate_hypothesis_batch_is_deterministic_and_bounded(repo_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         aol.a20,
@@ -269,6 +328,33 @@ def test_build_ade_requests_deduplicates_persistent_generic_gap(repo_root: Path)
     }
 
 
+def test_build_ade_requests_blocks_loop_output_trigger_origin(repo_root: Path) -> None:
+    gap_registry = {
+        "rows": [
+            {
+                "gap_id": "gap_loop",
+                "gap_class": "PRIMITIVE_CAPABILITY_GAP",
+                "persistent": True,
+                "code_addressable": True,
+                "deduplication_key": "dedup_loop",
+                "occurrence_count": 2,
+                "first_seen_state": "state_1",
+                "latest_seen_state": "state_2",
+                "evidence_refs": [aol.CAMPAIGN_CELL_PATH.as_posix()],
+                "source_hypothesis_id": "hyp_source_1",
+                "campaign_cell_id": "qrcell_1",
+                "trigger_origin_class": "QRE_LOOP_OUTPUT",
+                "trigger_authority": "loop_output_checkpoint",
+            }
+        ]
+    }
+
+    payload = aol.build_ade_requests(repo_root=repo_root, gap_registry=gap_registry, run_id="run_1")
+
+    assert payload["requests"]["summary"]["request_count"] == 0
+    assert payload["proposal_intake_payload"]["proposals"] == []
+
+
 def test_consume_resolution_feedback_reopens_resolved_request(repo_root: Path) -> None:
     _write_json(
         repo_root / "logs/development_work_queue/latest.json",
@@ -344,6 +430,11 @@ def test_run_opportunity_loop_stops_early_on_no_material_change(
         "run_trusted_hypothesis_loop",
         lambda *, repo_root=None, write_outputs=True: trusted_calls.append("trusted") or {"summary": {}},
     )
+    monkeypatch.setattr(
+        aol,
+        "_write_ade_bridge_artifacts",
+        lambda **kwargs: {"promotion_snapshot": None, "admission_snapshot": None},
+    )
     monkeypatch.setattr(aol, "discover_opportunities", lambda **kwargs: (_ for _ in ()).throw(AssertionError("discover should not run")))
     monkeypatch.setattr(aol, "generate_hypothesis_batch", lambda **kwargs: (_ for _ in ()).throw(AssertionError("generate should not run")))
     monkeypatch.setattr(aol, "materialize_campaign_cells", lambda **kwargs: (_ for _ in ()).throw(AssertionError("cells should not run")))
@@ -359,10 +450,52 @@ def test_run_opportunity_loop_stops_early_on_no_material_change(
     assert trusted_calls == ["trusted"]
 
 
+def test_run_opportunity_loop_second_identical_invocation_is_no_op(
+    repo_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    trusted_calls: list[str] = []
+    monkeypatch.setattr(
+        aol.qhl,
+        "run_trusted_hypothesis_loop",
+        lambda *, repo_root=None, write_outputs=True: trusted_calls.append("trusted") or {"summary": {}},
+    )
+    monkeypatch.setattr(
+        aol,
+        "_write_ade_bridge_artifacts",
+        lambda **kwargs: {"promotion_snapshot": None, "admission_snapshot": None},
+    )
+
+    first = aol.run_opportunity_loop(repo_root=repo_root, write_outputs=True)
+    second = aol.run_opportunity_loop(repo_root=repo_root, write_outputs=True)
+
+    assert first["precheck"]["bootstrap_state"] == aol.BOOTSTRAP_BASELINE
+    assert first["state"] == "WAITING_FOR_NOVELTY"
+    assert second["precheck"]["precheck_status"] == "NO_MATERIAL_CHANGE"
+    assert second["state"] == "WAITING_FOR_NOVELTY"
+    assert second["hypotheses"]["generated"] == 0
+    assert second["campaign_cells"]["materialized"] == 0
+    assert second["campaigns"]["executed"] == 0
+    assert second["ade_requests"]["new_requests"] == 0
+    assert first["watermark"]["watermark_id"] == second["watermark"]["watermark_id"]
+    assert trusted_calls == ["trusted", "trusted"]
+
+
 def test_run_opportunity_loop_executes_material_opportunity_and_writes_artifacts(
     repo_root: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    prior = aol.build_watermark(repo_root=repo_root)
+    changed = json.loads(json.dumps(prior))
+    changed["usable_oos_end_by_cell"]["qrcell_1"] = "2026-07-31T20:00:00Z"
+    changed["content_identity"] = "changed_identity"
+    changed["watermark_id"] = "changed_watermark"
+    _write_json(repo_root / aol.WATERMARK_PATH, prior)
+    monkeypatch.setattr(
+        aol,
+        "build_watermark",
+        lambda **kwargs: changed,
+    )
     monkeypatch.setattr(
         aol,
         "discover_opportunities",
@@ -466,6 +599,11 @@ def test_run_opportunity_loop_executes_material_opportunity_and_writes_artifacts
         lambda *, repo_root=None, write_outputs=True: trusted_calls.append("trusted") or {"summary": {}},
     )
     monkeypatch.setattr(
+        aol,
+        "_write_ade_bridge_artifacts",
+        lambda **kwargs: {"promotion_snapshot": None, "admission_snapshot": None},
+    )
+    monkeypatch.setattr(
         aol.spc,
         "run_second_preregistered_campaign",
         lambda **kwargs: {"campaign_cell_id": kwargs["campaign_cell_id"], "terminal_outcome": "NEEDS_MORE_EVIDENCE"},
@@ -495,11 +633,59 @@ def test_stale_lock_is_recovered(repo_root: Path, monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(aol, "materialize_campaign_cells", lambda **kwargs: {"registry": {"schema_version": aol.SCHEMA_VERSION, "policy_version": aol.POLICY_VERSION, "report_kind": "qre_campaign_cell_registry", "rows": [], "summary": {"materialized": 0, "admitted": 0}, "content_identity": "cells"}, "novelty": {"schema_version": aol.SCHEMA_VERSION, "policy_version": aol.POLICY_VERSION, "report_kind": "qre_campaign_cell_novelty_decisions", "rows": [], "content_identity": "cells_novelty"}})
     monkeypatch.setattr(aol, "build_gap_registry", lambda **kwargs: {"schema_version": aol.SCHEMA_VERSION, "policy_version": aol.POLICY_VERSION, "report_kind": "qre_capability_gap_registry", "rows": [], "summary": {"gap_count": 0}, "content_identity": "gaps"})
     monkeypatch.setattr(aol, "build_ade_requests", lambda **kwargs: {"requests": {"schema_version": aol.SCHEMA_VERSION, "policy_version": aol.POLICY_VERSION, "report_kind": "qre_ade_development_requests", "rows": [], "summary": {"request_count": 0, "new_requests": 0, "auto_allowed": 0, "needs_human": 0, "permanently_denied": 0}, "content_identity": "reqs"}, "proposal_intake_payload": {"schema_version": 1, "report_kind": "qre_research_action_proposal_intake", "generated_at_utc": "2026-07-02T00:00:00Z", "safe_to_execute": False, "proposals": []}, "promotion_snapshot": None})
+    monkeypatch.setattr(
+        aol,
+        "_write_ade_bridge_artifacts",
+        lambda **kwargs: {"promotion_snapshot": None, "admission_snapshot": None},
+    )
 
     payload = aol.run_opportunity_loop(repo_root=repo_root, write_outputs=True)
 
     assert payload["state"] == "WAITING_FOR_NOVELTY"
     assert not (repo_root / aol.LOCK_PATH).exists()
+
+
+def test_false_positive_request_cleanup_is_inactive_and_not_recreated(
+    repo_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_json(
+        repo_root / aol.PROPOSAL_INTAKE_PATH,
+        {
+            "schema_version": 1,
+            "report_kind": "qre_research_action_proposal_intake",
+            "generated_at_utc": "2026-07-02T00:00:00Z",
+            "safe_to_execute": False,
+            "proposals": [
+                {
+                    "proposal_id": aol.KNOWN_FALSE_POSITIVE_REQUEST_ID,
+                    "title": "False positive request",
+                    "status": "needs_human",
+                    "risk_class": ea.RISK_LOW,
+                    "affected_files": ["packages/qre_data/symbology_resolver.py"],
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        aol.qhl,
+        "run_trusted_hypothesis_loop",
+        lambda *, repo_root=None, write_outputs=True: {"summary": {}},
+    )
+    monkeypatch.setattr(
+        aol,
+        "_write_ade_bridge_artifacts",
+        lambda **kwargs: {"promotion_snapshot": None, "admission_snapshot": None},
+    )
+
+    aol.run_opportunity_loop(repo_root=repo_root, write_outputs=True)
+
+    lifecycle = json.loads((repo_root / aol.REQUEST_LIFECYCLE_PATH).read_text(encoding="utf-8"))
+    row = next(row for row in lifecycle["rows"] if row["request_id"] == aol.KNOWN_FALSE_POSITIVE_REQUEST_ID)
+    assert row["final_status"] == "SUPERSEDED"
+    assert row["active"] is False
+    requests = json.loads((repo_root / aol.ADE_REQUESTS_PATH).read_text(encoding="utf-8"))
+    assert requests["summary"]["new_requests"] == 0
 
 
 def test_qre_research_operations_exposes_opportunity_loop_status(repo_root: Path, capsys: pytest.CaptureFixture[str]) -> None:
