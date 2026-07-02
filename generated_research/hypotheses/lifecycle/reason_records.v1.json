@@ -43,10 +43,73 @@
       "stage": "terminal_disposition",
       "status": "completed",
       "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "evidence_refs": [
+        "qcx_63a2bb6bef61cf85"
+      ],
+      "reason_record_id": "qrr_f43ab4f03d473731",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "stage": "campaign_admitted",
+      "status": "completed",
+      "thesis_id": "qbt_cc01cda908553e5e"
+    },
+    {
+      "evidence_refs": [
+        "NEEDS_MORE_EVIDENCE",
+        "bounded_timeframe_or_universe_follow_up"
+      ],
+      "reason_record_id": "qrr_186f3ce494550faa",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "stage": "terminal_disposition",
+      "status": "completed",
+      "thesis_id": "qbt_cc01cda908553e5e"
+    },
+    {
+      "evidence_refs": [
+        "qcx_4189420903234e43"
+      ],
+      "reason_record_id": "qrr_beaa4765b1acb9c6",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "stage": "campaign_admitted",
+      "status": "completed",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "evidence_refs": [
+        "NEEDS_MORE_EVIDENCE",
+        "bounded_oos_activity_extension"
+      ],
+      "reason_record_id": "qrr_09c435f2619dee60",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "stage": "terminal_disposition",
+      "status": "completed",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "evidence_refs": [
+        "qcx_4d7d08d88ef9dca5"
+      ],
+      "reason_record_id": "qrr_6e46548f0e763049",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "stage": "campaign_admitted",
+      "status": "completed",
+      "thesis_id": "qbt_cc01cda908553e5e"
+    },
+    {
+      "evidence_refs": [
+        "NEEDS_MORE_EVIDENCE",
+        "bounded_timeframe_or_universe_follow_up"
+      ],
+      "reason_record_id": "qrr_708be543be9fa3af",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "stage": "terminal_disposition",
+      "status": "completed",
+      "thesis_id": "qbt_cc01cda908553e5e"
     }
   ],
   "schema_version": "1.0",
   "summary": {
-    "reason_record_count": 4
+    "reason_record_count": 10
   }
 }

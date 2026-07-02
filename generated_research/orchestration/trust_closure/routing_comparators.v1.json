@@ -5,26 +5,62 @@
     {
       "actual_information_outcome": "NEEDS_MORE_EVIDENCE",
       "data_readiness": "READY_FOR_PREREGISTRATION",
+      "eligible_alternatives": [
+        "qrcell_d5ded3130f132558",
+        "qrcell_e9645deb2e53460d"
+      ],
+      "estimated_compute_cost": "single_campaign",
+      "expected_information_value": "bounded_real_oos_evidence",
+      "historical_precedent": "distinct_strategy_cell_or_no_prior_execution",
+      "measurement_type": "DERIVED",
+      "primitive_readiness": "READY",
+      "routing_record_id": "qrrt_8ee44725873309b8",
+      "routing_regret": 0.0,
+      "routing_regret_evaluable": true,
+      "selected_route": "qrcell_d3b0070dbb9099fe",
+      "selection_reason": "ready_and_novel"
+    },
+    {
+      "actual_information_outcome": "NEEDS_MORE_EVIDENCE",
+      "data_readiness": "READY_FOR_PREREGISTRATION",
+      "eligible_alternatives": [
+        "qrcell_e9645deb2e53460d"
+      ],
+      "estimated_compute_cost": "single_campaign",
+      "expected_information_value": "bounded_real_oos_evidence",
+      "historical_precedent": "distinct_strategy_cell_or_no_prior_execution",
+      "measurement_type": "DERIVED",
+      "primitive_readiness": "READY",
+      "routing_record_id": "qrrt_a3871f61cad4199c",
+      "routing_regret": 0.0,
+      "routing_regret_evaluable": true,
+      "selected_route": "qrcell_d5ded3130f132558",
+      "selection_reason": "ready_and_novel"
+    },
+    {
+      "actual_information_outcome": "NEEDS_MORE_EVIDENCE",
+      "data_readiness": "READY_FOR_PREREGISTRATION",
       "eligible_alternatives": [],
       "estimated_compute_cost": "single_campaign",
       "expected_information_value": "bounded_real_oos_evidence",
       "historical_precedent": "distinct_strategy_cell_or_no_prior_execution",
       "measurement_type": "NOT_EVALUABLE",
       "primitive_readiness": "READY",
-      "routing_record_id": "qrrt_619a60915567c012",
+      "routing_record_id": "qrrt_024b30e890d15304",
       "routing_regret": null,
       "routing_regret_evaluable": false,
-      "selected_route": "qrcell_fdd68e20fd2724dd",
+      "selected_route": "qrcell_e9645deb2e53460d",
       "selection_reason": "ready_and_novel"
     }
   ],
   "schema_version": "1.0",
   "summary": {
     "measurement_types": [
+      "DERIVED",
       "NOT_EVALUABLE"
     ],
-    "routing_comparator_records": 1,
+    "routing_comparator_records": 3,
     "routing_regret": null,
-    "routing_regret_evaluable": false
+    "routing_regret_evaluable": true
   }
 }
