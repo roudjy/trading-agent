@@ -19,15 +19,15 @@ def test_candidate_operator_trust_audit_separates_portfolio_and_empirical_outcom
     assert corrected["portfolio_planning_cycles"] == 3
     assert corrected["empirical_research_cycles"] == 1
     assert corrected["empirical_terminal_dispositions"] == 1
-    assert corrected["portfolio_admission_decisions"] == 3
-    assert corrected["suppressed_duplicate_decisions"] == 3
+    assert corrected["portfolio_admission_decisions"] == 1
+    assert corrected["suppressed_duplicate_decisions"] == 0
     assert corrected["resolved_historical_blockers"] == ["DATA_OR_OOS_CAPACITY_BLOCKED"]
     assert corrected["active_contradictions"] == []
     assert readiness["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
     assert readiness["shadow_readiness"] == "INSUFFICIENT_HISTORY"
     assert readiness["pr5_entrygate_satisfied"] is False
     assert consistency["status"] == "PASS"
-    assert audit["issues"]["portfolio_outcomes_vs_empirical_outcomes"]["before"]["portfolio_outcomes_reported_as_terminal_outcomes"] == 8
+    assert audit["issues"]["portfolio_outcomes_vs_empirical_outcomes"]["before"]["portfolio_outcomes_reported_as_terminal_outcomes"] == 4
 
 
 def test_candidate_operator_trust_acceptance_cycles_are_deterministic() -> None:
@@ -89,7 +89,7 @@ def test_candidate_operator_trust_ignores_noncanonical_runtime_scheduler_logs(mo
     corrected = report["pr3_evidence_integrity_audit"]["corrected_longitudinal_evidence"]
 
     assert corrected["portfolio_planning_cycles"] == 3
-    assert corrected["portfolio_admission_decisions"] == 3
+    assert corrected["portfolio_admission_decisions"] == 1
     assert report["readiness_decisions"]["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
 
 

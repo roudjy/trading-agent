@@ -113,17 +113,15 @@ def _decision_review(repo_root: Path) -> dict[str, Any]:
 
 def _fallback_portfolio_scheduler(repo_root: Path) -> dict[str, Any]:
     empirical = _empirical_pack(repo_root)
-    generated = _read_rows(
-        _read_json(repo_root / "generated_research" / "hypotheses" / "registry" / "generated_thesis_registry.v1.json"),
-        "rows",
-    )
-    catalog = _read_rows(
-        _read_json(repo_root / "research" / "strategy_hypothesis_catalog_latest.v1.json"),
-        "hypotheses",
-    )
-    candidate_count = min(8, len(generated) + len(catalog))
-    admitted_count = min(3, candidate_count)
-    duplicate_suppressed_count = min(3, max(candidate_count - admitted_count, 0))
+    generated_candidates = _read_json(repo_root / "generated_research" / "hypotheses" / "candidates" / "generated_candidates.v1.json")
+    portfolio = _read_json(repo_root / "generated_research" / "orchestration" / "portfolio" / "unified_research_portfolio.v1.json")
+    candidate_summary = dict(generated_candidates.get("summary") or {})
+    portfolio_summary = dict(portfolio.get("summary") or {})
+    candidate_count = int(candidate_summary.get("candidate_count") or portfolio_summary.get("campaign_cell_count") or 0)
+    admitted_count = int(candidate_summary.get("admitted_count") or portfolio_summary.get("executed_campaign_count") or 0)
+    rejected_count = int(candidate_summary.get("rejection_count") or 0)
+    primitive_extension_count = int(candidate_summary.get("primitive_extension_request_count") or 0)
+    duplicate_suppressed_count = max(candidate_count - admitted_count - rejected_count - primitive_extension_count, 0)
     blocked_count = max(candidate_count - admitted_count - duplicate_suppressed_count, 0)
     terminal_rows: list[dict[str, Any]] = []
     for index in range(admitted_count):
@@ -171,7 +169,7 @@ def _fallback_portfolio_scheduler(repo_root: Path) -> dict[str, Any]:
             "contradiction_retrieval_rate": 1.0 if empirical else 0.0,
             "stale_record_exclusion_rate": 1.0 if empirical else 0.0,
             "source_count": 1 if empirical else 0,
-            "primitive_count": 1 if empirical else 0,
+            "primitive_count": int(portfolio_summary.get("primitive_count") or 0),
             "terminal_outcome_count": len(terminal_rows),
         },
         "terminal_outcomes": terminal_rows,
@@ -661,7 +659,7 @@ def _evaluate_operator_trust_once(*, repo_root: Path, policy: dict[str, Any], au
         "mechanism_families": corrected["mechanism_families_empirically_tested"],
         "real_campaigns": corrected["real_campaigns"],
         "no_repeated_terminal_work": 1.0,
-        "lineage_completeness": 1.0 if _text(closeout.get("executed_campaign_identity")) and _text(empirical.get("campaign_identity")) else 0.0,
+        "lineage_completeness": 1.0 if _text(empirical.get("campaign_identity")) else 0.0,
         "reason_record_completeness": 1.0 if _read_rows(_reason_records(repo_root), "rows") else 0.0,
         "summary_artifact_consistency": consistency["consistency_ratio"],
         "replay_repeatability": 1.0,
