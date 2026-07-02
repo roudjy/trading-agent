@@ -35,7 +35,9 @@ def test_acceptance_history_separates_evidence_changes_and_replays() -> None:
     assert payload["summary"]["deterministic_acceptance_replay_count"] == 3
     assert payload["rows"][0]["cycle_kind"] == "evidence_changing_acceptance_cycle"
     assert payload["rows"][0]["changed_evidence"] is True
+    assert payload["rows"][0]["acceptance_cycle_id"].startswith("qacc_")
     assert all(row["cycle_kind"] == "deterministic_acceptance_replay" for row in payload["rows"][1:])
+    assert all(str(row["replay_id"]).startswith("qreplay_") for row in payload["rows"][1:])
 
 
 def test_build_plan_blocks_identical_frozen_campaign_without_novelty(tmp_path: Path) -> None:
@@ -158,6 +160,30 @@ def test_operator_trust_review_consumes_closure_artifacts_fail_closed(tmp_path: 
         },
     )
     _write_json(
+        tmp_path / etc.TRUST_HORIZON_PATH,
+        {
+            "cumulative_campaign_count": 2,
+            "cumulative_hypothesis_count": 2,
+            "cumulative_family_count": 2,
+            "cumulative_evidence_changing_cycle_count": 1,
+            "cumulative_replay_count": 3,
+        },
+    )
+    _write_json(
+        tmp_path / etc.TRUST_HORIZON_LATEST_RUN_PATH,
+        {
+            "latest_run_new_campaign_count": 1,
+            "latest_run_new_evidence_cycle_count": 1,
+            "latest_run_replay_count": 3,
+        },
+    )
+    _write_json(
+        tmp_path / etc.TRUST_HORIZON_CONSISTENCY_PATH,
+        {
+            "status": "PASS",
+        },
+    )
+    _write_json(
         tmp_path / etc.POLICY_PATH,
         etc.build_operator_trust_policy_v1_1(),
     )
@@ -201,3 +227,62 @@ def test_operator_trust_review_consumes_closure_artifacts_fail_closed(tmp_path: 
     assert report["readiness_decisions"]["shadow_readiness"] == "INSUFFICIENT_HISTORY"
     assert "real campaigns" in report["readiness_decisions"]["insufficient_history_criteria"]
     assert report["acceptance_cycles"]["deterministic_replay"] is True
+
+
+def test_trust_horizon_preserves_cumulative_cycles_across_empty_rerun(tmp_path: Path) -> None:
+    _write_json(
+        tmp_path / etc.TRUST_HORIZON_PATH,
+        {
+            "trust_horizon_id": "qth_existing",
+            "trust_horizon_start": "2026-07-01T00:00:00Z",
+            "trust_horizon_end": "2026-07-02T00:00:00Z",
+            "policy_id": "qre_operator_trust_policy_v1_1",
+            "policy_version": "1.1",
+            "real_campaign_ids": ["qcx_1", "qcx_2", "qcx_3"],
+            "real_hypothesis_ids": ["h1", "h2", "h3"],
+            "mechanism_families": ["f1", "f2", "f3"],
+            "evidence_fingerprints": ["ef1", "ef2", "ef3"],
+            "evidence_changing_cycles": [
+                {"acceptance_cycle_id": "qacc_1", "cycle_kind": "evidence_changing_acceptance_cycle", "evidence_fingerprint": "ef1", "changed_evidence": True},
+                {"acceptance_cycle_id": "qacc_2", "cycle_kind": "evidence_changing_acceptance_cycle", "evidence_fingerprint": "ef2", "changed_evidence": True},
+                {"acceptance_cycle_id": "qacc_3", "cycle_kind": "evidence_changing_acceptance_cycle", "evidence_fingerprint": "ef3", "changed_evidence": True},
+            ],
+            "deterministic_replays": [
+                {"replay_id": "qreplay_1", "cycle_kind": "deterministic_acceptance_replay", "evidence_fingerprint": "ef3"},
+                {"replay_id": "qreplay_2", "cycle_kind": "deterministic_acceptance_replay", "evidence_fingerprint": "ef3"},
+                {"replay_id": "qreplay_3", "cycle_kind": "deterministic_acceptance_replay", "evidence_fingerprint": "ef3"},
+            ],
+            "cumulative_campaign_count": 3,
+            "cumulative_hypothesis_count": 3,
+            "cumulative_family_count": 3,
+            "cumulative_evidence_changing_cycle_count": 3,
+            "cumulative_replay_count": 3,
+            "latest_run_id": "qrun_old",
+            "latest_run_new_campaign_count": 1,
+            "latest_run_new_evidence_cycle_count": 1,
+        },
+    )
+
+    latest_acceptance = etc._build_acceptance_history_from_snapshots(
+        [[{"campaign_identity": "qcx_1"}], [{"campaign_identity": "qcx_1"}]]
+    )
+    history_rows = [
+        {"campaign_identity": "qcx_1", "source_hypothesis_id": "h1", "mechanism_family": "f1", "evidence_fingerprint": "ef1", "recorded_at_utc": "2026-07-01T00:00:00Z"},
+        {"campaign_identity": "qcx_2", "source_hypothesis_id": "h2", "mechanism_family": "f2", "evidence_fingerprint": "ef2", "recorded_at_utc": "2026-07-01T01:00:00Z"},
+        {"campaign_identity": "qcx_3", "source_hypothesis_id": "h3", "mechanism_family": "f3", "evidence_fingerprint": "ef3", "recorded_at_utc": "2026-07-01T02:00:00Z"},
+    ]
+
+    trust_horizon, latest_run, consistency = etc._build_trust_horizon(
+        tmp_path,
+        policy=etc.build_operator_trust_policy_v1_1(),
+        history_rows=history_rows,
+        latest_acceptance=latest_acceptance,
+        execution_rows=[],
+    )
+
+    assert latest_run["latest_run_new_campaign_count"] == 0
+    assert latest_run["latest_run_new_evidence_cycle_count"] == 0
+    assert trust_horizon["cumulative_campaign_count"] == 3
+    assert trust_horizon["cumulative_evidence_changing_cycle_count"] == 3
+    assert trust_horizon["cumulative_replay_count"] == 6
+    assert consistency["status"] == "PASS"
