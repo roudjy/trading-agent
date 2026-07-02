@@ -447,7 +447,7 @@ def test_run_opportunity_loop_stops_early_on_no_material_change(
     assert payload["hypotheses"]["generated"] == 0
     assert payload["campaigns"]["executed"] == 0
     assert payload["ade_requests"]["new_requests"] == 0
-    assert trusted_calls == ["trusted"]
+    assert trusted_calls == []
 
 
 def test_run_opportunity_loop_second_identical_invocation_is_no_op(
@@ -478,7 +478,7 @@ def test_run_opportunity_loop_second_identical_invocation_is_no_op(
     assert second["campaigns"]["executed"] == 0
     assert second["ade_requests"]["new_requests"] == 0
     assert first["watermark"]["watermark_id"] == second["watermark"]["watermark_id"]
-    assert trusted_calls == ["trusted", "trusted"]
+    assert trusted_calls == []
 
 
 def test_run_opportunity_loop_executes_material_opportunity_and_writes_artifacts(

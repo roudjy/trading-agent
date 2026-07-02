@@ -1733,7 +1733,6 @@ def run_opportunity_loop(
                 "summary": {"resolved_request_count": 0},
                 "content_identity": _content_id("qrafb", []),
             }
-            qhl.run_trusted_hypothesis_loop(repo_root=repo_root, write_outputs=write_outputs)
         else:
             opportunities = discover_opportunities(
                 repo_root=repo_root,
