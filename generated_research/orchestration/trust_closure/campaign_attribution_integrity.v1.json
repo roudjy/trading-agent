@@ -9,13 +9,13 @@
     "corrected_new_campaigns_from_pr3": 0,
     "corrected_new_campaigns_from_pr4": 0,
     "deterministic_acceptance_replays": 3,
-    "empirical_research_cycles": 4,
+    "empirical_research_cycles": 5,
     "evidence_changing_acceptance_cycles": 3,
     "fixture_campaigns": 0,
     "historical_campaigns_consumed": 1,
-    "new_campaigns_executed_this_run": 4,
-    "portfolio_planning_cycles": 4,
+    "new_campaigns_executed_this_run": 0,
+    "portfolio_planning_cycles": 1,
     "total_real_empirical_campaigns_after": 5,
-    "total_real_empirical_campaigns_before": 2
+    "total_real_empirical_campaigns_before": 5
   }
 }

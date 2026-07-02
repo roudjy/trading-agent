@@ -1,0 +1,68 @@
+{
+  "active_blocker": "NO_REAL_SHADOW_ELIGIBLE_CANDIDATE",
+  "blocked_cells": [
+    {
+      "blocker": "identical_frozen_campaign_already_executed",
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "family": "relative_strength",
+      "source_hypothesis_id": "cross_sectional_momentum_v0"
+    },
+    {
+      "blocker": "identical_frozen_campaign_already_executed",
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "family": "volatility_compression_breakout",
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
+    },
+    {
+      "blocker": "identical_frozen_campaign_already_executed",
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "family": "trend_continuation",
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "blocker": "identical_frozen_campaign_already_executed",
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "family": "volatility_compression_breakout",
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
+    },
+    {
+      "blocker": "identical_frozen_campaign_already_executed",
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "family": "trend_continuation",
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "blocker": "estimated_signals_below_policy_minimum",
+      "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
+      "family": "trend_continuation",
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    }
+  ],
+  "candidate_creation_prerequisites": [
+    "real_empirical_campaign_provenance",
+    "ready_for_synthesis",
+    "sufficient_locked_oos",
+    "sufficient_activity",
+    "required_robustness_evidence",
+    "complete_lineage_and_reason_records"
+  ],
+  "code_pr_required_for_next_research_run": false,
+  "eligible_portfolio_queue": [],
+  "module_version": "ade-qre-035.1",
+  "next_research_objective": "continue_bounded_empirical_research_runs_until_a_real_candidate_reaches_ready_for_synthesis_and_candidate_maturity_gates",
+  "operator_action_required": "continue_bounded_empirical_research_runs",
+  "operator_trust_status": "PASS",
+  "policy_id": "qre_operator_trust_policy_v1_1",
+  "policy_version": "1.1",
+  "report_kind": "qre_research_continuation_plan",
+  "required_novelty": [
+    "new_real_oos_period",
+    "materially_broader_admissible_universe",
+    "different_preregistered_timeframe",
+    "new_preregistered_regime_segment",
+    "new_falsification_control",
+    "material_data_quality_improvement"
+  ],
+  "schema_version": "1.0",
+  "shadow_readiness_status": "INSUFFICIENT_HISTORY"
+}

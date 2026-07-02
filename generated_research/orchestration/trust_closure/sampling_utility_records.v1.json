@@ -1,82 +1,12 @@
 {
   "module_version": "ade-qre-036.1",
   "report_kind": "qre_sampling_utility_records",
-  "rows": [
-    {
-      "compute_cost": "single_campaign",
-      "failure_zone_covered": [
-        "REQUEST_MORE_EVIDENCE"
-      ],
-      "measurement_type": "MEASURED",
-      "null_control_role": "required",
-      "oos_evidence_sufficient": false,
-      "oos_market_data_sufficient": true,
-      "oos_signal_activity_sufficient": false,
-      "oos_trade_activity_sufficient": false,
-      "oos_usability": "INSUFFICIENT",
-      "oos_window_present": true,
-      "redundancy": false,
-      "regime_window_covered": "4h",
-      "sample_identity": "qrcell_d3b0070dbb9099fe",
-      "sample_purpose": "locked_oos_empirical_validation",
-      "sampling_record_id": "qsrx_8ee44725873309b8",
-      "terminal_information_contribution": 1
-    },
-    {
-      "compute_cost": "single_campaign",
-      "failure_zone_covered": [
-        "REQUEST_MORE_EVIDENCE"
-      ],
-      "measurement_type": "MEASURED",
-      "null_control_role": "required",
-      "oos_evidence_sufficient": false,
-      "oos_market_data_sufficient": true,
-      "oos_signal_activity_sufficient": true,
-      "oos_trade_activity_sufficient": false,
-      "oos_usability": "INSUFFICIENT",
-      "oos_window_present": true,
-      "redundancy": false,
-      "regime_window_covered": "1h",
-      "sample_identity": "qrcell_d5ded3130f132558",
-      "sample_purpose": "locked_oos_empirical_validation",
-      "sampling_record_id": "qsrx_a3871f61cad4199c",
-      "terminal_information_contribution": 1
-    },
-    {
-      "compute_cost": "single_campaign",
-      "failure_zone_covered": [
-        "REQUEST_MORE_EVIDENCE"
-      ],
-      "measurement_type": "MEASURED",
-      "null_control_role": "required",
-      "oos_evidence_sufficient": false,
-      "oos_market_data_sufficient": true,
-      "oos_signal_activity_sufficient": false,
-      "oos_trade_activity_sufficient": false,
-      "oos_usability": "INSUFFICIENT",
-      "oos_window_present": true,
-      "redundancy": false,
-      "regime_window_covered": "1h",
-      "sample_identity": "qrcell_e9645deb2e53460d",
-      "sample_purpose": "locked_oos_empirical_validation",
-      "sampling_record_id": "qsrx_024b30e890d15304",
-      "terminal_information_contribution": 1
-    }
-  ],
+  "rows": [],
   "schema_version": "1.0",
   "summary": {
-    "measurement_types": [
-      "MEASURED"
-    ],
-    "sampling_utility": {
-      "evidence_sufficient_fraction": 0.0,
-      "market_data_sufficient_fraction": 1.0,
-      "mean_terminal_information_contribution": 1.0,
-      "signal_activity_sufficient_fraction": 0.333333,
-      "trade_activity_sufficient_fraction": 0.0,
-      "window_present_fraction": 1.0
-    },
-    "sampling_utility_evaluable": true,
-    "sampling_utility_records": 3
+    "measurement_types": [],
+    "sampling_utility": null,
+    "sampling_utility_evaluable": false,
+    "sampling_utility_records": 0
   }
 }

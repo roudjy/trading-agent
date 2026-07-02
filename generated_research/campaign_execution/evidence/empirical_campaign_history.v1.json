@@ -172,7 +172,7 @@
   "schema_version": "1.0",
   "summary": {
     "historical_real_campaigns_consumed": 1,
-    "new_real_empirical_campaigns_executed_this_run": 4,
+    "new_real_empirical_campaigns_executed_this_run": 0,
     "total_real_empirical_campaigns": 5
   }
 }

@@ -1,0 +1,172 @@
+{
+  "deterministic_replay": true,
+  "final_criteria": {
+    "OOS leakage": {
+      "actual": 0,
+      "evidence": [
+        "generated_research\\orchestration\\trust_closure\\empirical_campaign_execution_summary.v1.json"
+      ],
+      "measurement_type": "MEASURED",
+      "required": true,
+      "result": "PASS"
+    },
+    "artifact consistency": {
+      "actual": 1.0,
+      "evidence": [
+        "logs/qre_candidate_operator_trust_review/latest.json"
+      ],
+      "measurement_type": "DERIVED",
+      "required": true,
+      "result": "PASS"
+    },
+    "deterministic replays": {
+      "actual": {
+        "cumulative": 3,
+        "latest_run": 3
+      },
+      "evidence": [
+        "generated_research\\orchestration\\trust_closure\\trust_horizon.v1.json",
+        "generated_research\\orchestration\\trust_closure\\trust_horizon_latest_run.v1.json"
+      ],
+      "measurement_type": "MEASURED",
+      "required": true,
+      "result": "PASS"
+    },
+    "evidence-changing cycles": {
+      "actual": {
+        "cumulative": 3,
+        "latest_run": 0
+      },
+      "evidence": [
+        "generated_research\\orchestration\\trust_closure\\trust_horizon.v1.json",
+        "generated_research\\orchestration\\trust_closure\\trust_horizon_latest_run.v1.json"
+      ],
+      "measurement_type": "MEASURED",
+      "required": true,
+      "result": "PASS"
+    },
+    "false synthesis-ready rate": {
+      "actual": 0.0,
+      "evidence": [
+        "logs/qre_decision_calibration_review/latest.json"
+      ],
+      "measurement_type": "DERIVED",
+      "required": true,
+      "result": "PASS"
+    },
+    "lineage completeness": {
+      "actual": 1.0,
+      "evidence": [
+        "generated_research\\lineage\\empirical_campaign_lineage.v1.json"
+      ],
+      "measurement_type": "DERIVED",
+      "required": true,
+      "result": "PASS"
+    },
+    "mechanism families": {
+      "actual": {
+        "cumulative": 3,
+        "latest_run": 0
+      },
+      "evidence": [
+        "generated_research\\orchestration\\trust_closure\\trust_horizon.v1.json"
+      ],
+      "measurement_type": "MEASURED",
+      "required": true,
+      "result": "PASS"
+    },
+    "real campaigns": {
+      "actual": {
+        "cumulative": 5,
+        "latest_run": 0
+      },
+      "evidence": [
+        "generated_research\\orchestration\\trust_closure\\trust_horizon.v1.json"
+      ],
+      "measurement_type": "MEASURED",
+      "required": true,
+      "result": "PASS"
+    },
+    "real hypotheses": {
+      "actual": {
+        "cumulative": 3,
+        "latest_run": 0
+      },
+      "evidence": [
+        "generated_research\\orchestration\\trust_closure\\trust_horizon.v1.json"
+      ],
+      "measurement_type": "MEASURED",
+      "required": true,
+      "result": "PASS"
+    },
+    "reason completeness": {
+      "actual": 1.0,
+      "evidence": [
+        "generated_research\\hypotheses\\lifecycle\\reason_records.v1.json"
+      ],
+      "measurement_type": "DERIVED",
+      "required": true,
+      "result": "PASS"
+    },
+    "recovery success": {
+      "actual": 1.0,
+      "evidence": [
+        "runtime_recovery_validation"
+      ],
+      "measurement_type": "DERIVED",
+      "required": true,
+      "result": "PASS"
+    },
+    "unknown failure rate": {
+      "actual": 0.0,
+      "evidence": [
+        "logs/qre_decision_calibration_review/latest.json"
+      ],
+      "measurement_type": "DERIVED",
+      "required": true,
+      "result": "PASS"
+    }
+  },
+  "final_result": "PASS",
+  "rows": [
+    {
+      "acceptance_cycle_id": "qacc_9a984949689cd0c7",
+      "changed_evidence": false,
+      "cycle": 1,
+      "cycle_kind": "evidence_changing_acceptance_cycle",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "new_campaigns_since_prior": 0,
+      "result": "no_change"
+    },
+    {
+      "artifact_identity": "qreplay_fbb96e84c06d6362",
+      "changed_evidence": false,
+      "cycle": 2,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "exact_match": true,
+      "replay_id": "qreplay_fbb96e84c06d6362",
+      "result": "exact_match"
+    },
+    {
+      "artifact_identity": "qreplay_c4305edd61bb11ec",
+      "changed_evidence": false,
+      "cycle": 3,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "exact_match": true,
+      "replay_id": "qreplay_c4305edd61bb11ec",
+      "result": "exact_match"
+    },
+    {
+      "artifact_identity": "qreplay_d1caa1dc78aa542f",
+      "changed_evidence": false,
+      "cycle": 4,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "exact_match": true,
+      "replay_id": "qreplay_d1caa1dc78aa542f",
+      "result": "exact_match"
+    }
+  ]
+}

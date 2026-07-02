@@ -1,17 +1,17 @@
 {
   "acceptance_summary": {
     "deterministic_acceptance_replay_count": 3,
-    "evidence_changing_acceptance_cycle_count": 3,
-    "independent_empirical_research_cycle_count": 3
+    "evidence_changing_acceptance_cycle_count": 0,
+    "independent_empirical_research_cycle_count": 0
   },
   "action_summary": {
-    "action_effectiveness_rate": 0.333333,
-    "action_executed_failure_rate": 0.6,
-    "action_mapped_failure_rate": 0.6,
-    "actions_effective": 1,
-    "actions_executed": 3,
-    "actions_proposed": 3,
-    "causal_next_action_rate": 0.333333
+    "action_effectiveness_rate": 0.0,
+    "action_executed_failure_rate": 0.0,
+    "action_mapped_failure_rate": 0.0,
+    "actions_effective": 0,
+    "actions_executed": 0,
+    "actions_proposed": 0,
+    "causal_next_action_rate": 0.0
   },
   "attribution_integrity": {
     "attribution_errors_found": 2,
@@ -20,26 +20,26 @@
     "corrected_new_campaigns_from_pr3": 0,
     "corrected_new_campaigns_from_pr4": 0,
     "deterministic_acceptance_replays": 3,
-    "empirical_research_cycles": 4,
+    "empirical_research_cycles": 5,
     "evidence_changing_acceptance_cycles": 3,
     "fixture_campaigns": 0,
     "historical_campaigns_consumed": 1,
-    "new_campaigns_executed_this_run": 4,
-    "portfolio_planning_cycles": 4,
+    "new_campaigns_executed_this_run": 0,
+    "portfolio_planning_cycles": 1,
     "total_real_empirical_campaigns_after": 5,
-    "total_real_empirical_campaigns_before": 2
+    "total_real_empirical_campaigns_before": 5
   },
   "execution_summary": {
-    "campaigns_executed": 3,
-    "campaigns_needing_more_evidence": 3,
+    "campaigns_executed": 0,
+    "campaigns_needing_more_evidence": 0,
     "campaigns_ready_for_synthesis": 0,
     "campaigns_rejected": 0,
     "campaigns_requiring_data": 0,
     "campaigns_requiring_primitives": 0,
     "campaigns_with_sufficient_oos": 0,
-    "distinct_mechanism_families_this_run": 2,
-    "distinct_real_hypotheses_this_run": 2,
-    "new_real_campaigns": 3,
+    "distinct_mechanism_families_this_run": 0,
+    "distinct_real_hypotheses_this_run": 0,
+    "new_real_campaigns": 0,
     "oos_leakage_incidents": 0
   },
   "final_reranked_plan_summary": {
@@ -63,32 +63,7 @@
   "history_identity": "qeh_574d6d4a29bc719e",
   "inter_campaign_learning": {
     "repeated_terminal_work_prevented": 0,
-    "rows": [
-      {
-        "after_campaign_index": 1,
-        "campaign_identity": "qcx_63a2bb6bef61cf85",
-        "memory_update": "NEEDS_MORE_EVIDENCE",
-        "next_admission": "qrcell_d5ded3130f132558",
-        "ranking_change": true,
-        "reason": "campaign_history_now_blocks_repeated_terminal_work"
-      },
-      {
-        "after_campaign_index": 2,
-        "campaign_identity": "qcx_4189420903234e43",
-        "memory_update": "NEEDS_MORE_EVIDENCE",
-        "next_admission": "qrcell_e9645deb2e53460d",
-        "ranking_change": true,
-        "reason": "campaign_history_now_blocks_repeated_terminal_work"
-      },
-      {
-        "after_campaign_index": 3,
-        "campaign_identity": "qcx_4d7d08d88ef9dca5",
-        "memory_update": "NEEDS_MORE_EVIDENCE",
-        "next_admission": "",
-        "ranking_change": true,
-        "reason": "campaign_history_now_blocks_repeated_terminal_work"
-      }
-    ]
+    "rows": []
   },
   "memory_update_count": 5,
   "module_version": "ade-qre-036.1",
@@ -113,18 +88,18 @@
     "required_recovery_scenarios": 10
   },
   "portfolio_plan_summary": {
-    "campaigns_admitted": 3,
-    "campaigns_admitted_initially": 3,
-    "campaigns_blocked": 3,
+    "campaigns_admitted": 0,
+    "campaigns_admitted_initially": 0,
+    "campaigns_blocked": 6,
     "campaigns_blocked_post_execution": 0,
-    "campaigns_blocked_pre_admission": 3,
+    "campaigns_blocked_pre_admission": 6,
     "campaigns_executed": 0,
-    "campaigns_planned": 3,
-    "campaigns_planned_initially": 3,
+    "campaigns_planned": 0,
+    "campaigns_planned_initially": 0,
     "candidate_cells_considered": 6,
     "compute_budget": 6,
     "compute_used": 0,
-    "exact_duplicates_suppressed": 2,
+    "exact_duplicates_suppressed": 5,
     "hypotheses_considered": 6,
     "insufficient_generation_boundary": true,
     "near_duplicates_suppressed": 0,
@@ -132,28 +107,31 @@
   },
   "report_kind": "qre_empirical_trust_closure",
   "routing_summary": {
-    "measurement_types": [
-      "DERIVED",
-      "NOT_EVALUABLE"
-    ],
-    "routing_comparator_records": 3,
+    "measurement_types": [],
+    "routing_comparator_records": 0,
     "routing_regret": null,
-    "routing_regret_evaluable": true
+    "routing_regret_evaluable": false
   },
   "sampling_summary": {
-    "measurement_types": [
-      "MEASURED"
-    ],
-    "sampling_utility": {
-      "evidence_sufficient_fraction": 0.0,
-      "market_data_sufficient_fraction": 1.0,
-      "mean_terminal_information_contribution": 1.0,
-      "signal_activity_sufficient_fraction": 0.333333,
-      "trade_activity_sufficient_fraction": 0.0,
-      "window_present_fraction": 1.0
-    },
-    "sampling_utility_evaluable": true,
-    "sampling_utility_records": 3
+    "measurement_types": [],
+    "sampling_utility": null,
+    "sampling_utility_evaluable": false,
+    "sampling_utility_records": 0
   },
-  "schema_version": "1.0"
+  "schema_version": "1.0",
+  "trust_horizon_consistency": {
+    "content_identity": "qthc_bd989b6e70f667cd",
+    "status": "PASS"
+  },
+  "trust_horizon_summary": {
+    "cumulative_campaign_count": 5,
+    "cumulative_evidence_changing_cycle_count": 3,
+    "cumulative_family_count": 3,
+    "cumulative_hypothesis_count": 3,
+    "cumulative_replay_count": 3,
+    "latest_run_id": "qrun_5c9cf937e634f106",
+    "latest_run_new_campaign_count": 0,
+    "latest_run_new_evidence_cycle_count": 0,
+    "trust_horizon_id": "qth_7d6de39f57bc6595"
+  }
 }
