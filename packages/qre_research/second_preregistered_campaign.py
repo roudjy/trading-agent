@@ -186,9 +186,16 @@ def _iso_to_ts(value: str | None) -> pd.Timestamp:
 def _select_manifest_row(
     manifest_rows: list[dict[str, Any]],
     registry_by_strategy: dict[str, dict[str, Any]],
+    *,
+    campaign_cell_id: str | None = None,
 ) -> dict[str, Any]:
     if not manifest_rows:
         raise KeyError("generated second campaign manifest has no rows")
+    if campaign_cell_id:
+        for row in manifest_rows:
+            if str(row.get("campaign_cell_id") or "") == campaign_cell_id:
+                return dict(row)
+        raise KeyError(f"generated second campaign manifest missing campaign cell {campaign_cell_id}")
     ranked = sorted(
         manifest_rows,
         key=lambda row: (
@@ -269,7 +276,7 @@ def _minimal_cover(
     return selected
 
 
-def _load_bundle(repo_root: Path) -> dict[str, Any]:
+def _load_bundle(repo_root: Path, *, campaign_cell_id: str | None = None) -> dict[str, Any]:
     manifest = _read_json(repo_root / "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json")
     portfolio_rows = _read_rows(
         repo_root / "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
@@ -314,7 +321,11 @@ def _load_bundle(repo_root: Path) -> dict[str, Any]:
         for row in strategy_registry_rows
         if str(row.get("generated_strategy_id") or "")
     }
-    manifest_row = _select_manifest_row(_read_rows(repo_root / "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json", "rows"), registry_by_strategy)
+    manifest_row = _select_manifest_row(
+        _read_rows(repo_root / "generated_research/readiness/campaigns/generated_second_campaign_manifest.v1.json", "rows"),
+        registry_by_strategy,
+        campaign_cell_id=campaign_cell_id,
+    )
     campaign_cell_id = str(manifest_row.get("campaign_cell_id") or "")
     strategy_id = str(manifest_row.get("generated_strategy_id") or "")
     registry_row = dict(registry_by_strategy.get(strategy_id) or {})
@@ -1309,9 +1320,11 @@ def run_second_preregistered_campaign(
     repo_root: Path = REPO_ROOT,
     write_outputs: bool = True,
     max_iterations: int = 4,
+    campaign_cell_id: str | None = None,
+    current_hypothesis_id: str = TARGET_SOURCE_HYPOTHESIS_ID,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
-    bundle = _load_bundle(repo_root)
+    bundle = _load_bundle(repo_root, campaign_cell_id=campaign_cell_id)
     selection = dict(bundle["selection"])
     integrity = _verify_manifest(repo_root, bundle)
     if write_outputs:
@@ -1456,7 +1469,7 @@ def run_second_preregistered_campaign(
         if str(row.get("campaign_cell_id") or "") not in manifest_ids
     ]
     classification = {
-        "current_hypothesis_campaigns_executed": 1 if selection["source_hypothesis_id"] == TARGET_SOURCE_HYPOTHESIS_ID else 0,
+        "current_hypothesis_campaigns_executed": 1 if selection["source_hypothesis_id"] == current_hypothesis_id else 0,
         "new_empirical_campaigns_completed": 1,
         "historical_campaigns_consumed": 0,
         "fixture_campaigns_consumed": 0,
@@ -1523,6 +1536,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--max-iterations", type=int, default=4)
+    parser.add_argument("--campaign-cell-id", type=str, default=None)
     parser.add_argument("--indent", type=int, default=2)
     return parser
 
@@ -1534,6 +1548,7 @@ def main(argv: list[str] | None = None) -> int:
         repo_root=args.repo_root,
         write_outputs=not args.no_write,
         max_iterations=args.max_iterations,
+        campaign_cell_id=args.campaign_cell_id,
     )
     print(json.dumps(payload, indent=args.indent, sort_keys=True))
     return 0

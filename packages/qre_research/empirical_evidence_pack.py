@@ -326,10 +326,15 @@ def run_empirical_evidence_pack(
     repo_root: Path = REPO_ROOT,
     write_outputs: bool = True,
     execute_if_missing: bool = True,
+    campaign_cell_id: str | None = None,
 ) -> dict[str, Any]:
     closeout_path = repo_root / "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
     if not closeout_path.is_file() and execute_if_missing:
-        campaign.run_second_preregistered_campaign(repo_root=repo_root, write_outputs=write_outputs)
+        campaign.run_second_preregistered_campaign(
+            repo_root=repo_root,
+            write_outputs=write_outputs,
+            campaign_cell_id=campaign_cell_id,
+        )
     closeout = _read_json(closeout_path)
     payload = build_empirical_evidence_pack(repo_root=repo_root, closeout=closeout)
     if write_outputs:
