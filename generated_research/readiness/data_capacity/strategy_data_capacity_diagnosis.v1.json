@@ -6,22 +6,22 @@
       "authoritative_value": {
         "earliest_timestamp_utc": "2026-04-08T00:00:00Z",
         "instrument_count": 1,
-        "latest_timestamp_utc": "2026-06-29T00:00:00Z",
+        "latest_timestamp_utc": "2026-07-01T00:00:00Z",
         "source_identity": "yfinance"
       },
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
       "coverage_rows": [
         {
-          "content_hash": "sha256:1441238f08dfa416bf9c24bda22f63ef79344f45ee721f2aff66eea6291d5716",
-          "file_count": 714,
+          "content_hash": "sha256:982d44f4fd047e2430223e351a591b9b311e914902e89ac847bc0337f344ff61",
+          "file_count": 768,
           "instrument": "ASML",
-          "max_timestamp_utc": "2026-06-29T00:00:00Z",
+          "max_timestamp_utc": "2026-07-01T00:00:00Z",
           "min_timestamp_utc": "2026-04-08T00:00:00Z",
           "ready": true,
-          "row_count": 3501,
+          "row_count": 3771,
           "source": "yfinance",
           "status_counts": {
-            "ready": 714
+            "ready": 768
           },
           "timeframe": "1d"
         }
@@ -38,15 +38,38 @@
       "timeframe": "1d"
     },
     {
+      "authoritative_value": {
+        "earliest_timestamp_utc": "2024-07-05T13:30:00Z",
+        "instrument_count": 1,
+        "latest_timestamp_utc": "2026-07-01T19:30:00Z",
+        "source_identity": "yfinance"
+      },
       "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "coverage_rows": [
+        {
+          "content_hash": "sha256:414911e2ab20d9eef88c98a47d7c822580e9c72a0f7159226049aa9c65d56460",
+          "file_count": 1,
+          "instrument": "ASML",
+          "max_timestamp_utc": "2026-07-01T19:30:00Z",
+          "min_timestamp_utc": "2024-07-05T13:30:00Z",
+          "ready": true,
+          "row_count": 3466,
+          "source": "yfinance",
+          "status_counts": {
+            "ready": 1
+          },
+          "timeframe": "1h"
+        }
+      ],
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "next_action": "materialize_missing_cache_row_if_authoritative_local_input_exists",
+      "next_action": "materialize_immutable_snapshot_and_assign_authoritative_windows",
       "provenance": [
         "artifacts/cache/cache_coverage_latest.v1.json",
         "logs/qre_data_cache_manifest/latest.json"
       ],
-      "remediation_class": "materialize_cache_row_from_authorized_local_inputs",
-      "status": "CACHE_ROW_MISSING",
+      "quality_limitations": [],
+      "remediation_class": "none",
+      "status": "DATA_CAPACITY_READY",
       "timeframe": "1h"
     },
     {
@@ -86,52 +109,182 @@
     },
     {
       "authoritative_value": {
+        "earliest_timestamp_utc": "2024-05-25T00:00:00Z",
+        "instrument_count": 3,
+        "latest_timestamp_utc": "2026-04-24T23:00:00Z",
+        "source_identity": "yfinance"
+      },
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "coverage_rows": [
+        {
+          "content_hash": "sha256:f71fafc15a9c8f16c1e91639310a504be2aa828245e649c06f0c182f0fafb84b",
+          "file_count": 2,
+          "instrument": "BTC-EUR",
+          "max_timestamp_utc": "2026-04-24T23:00:00Z",
+          "min_timestamp_utc": "2024-05-15T00:00:00Z",
+          "ready": true,
+          "row_count": 33290,
+          "source": "yfinance",
+          "status_counts": {
+            "ready": 2
+          },
+          "timeframe": "1h"
+        },
+        {
+          "content_hash": "sha256:7429f66338f2ab09576e5fc1debf9f718eee5406a894a4621cf377a3f24f56b5",
+          "file_count": 1,
+          "instrument": "ETH-EUR",
+          "max_timestamp_utc": "2026-04-24T23:00:00Z",
+          "min_timestamp_utc": "2024-05-25T00:00:00Z",
+          "ready": true,
+          "row_count": 16645,
+          "source": "yfinance",
+          "status_counts": {
+            "ready": 1
+          },
+          "timeframe": "1h"
+        },
+        {
+          "content_hash": "sha256:496e237e7efdfcede2e2e75d52930699ff1f47440bb5a3b7b3d693ab02c1145a",
+          "file_count": 1,
+          "instrument": "SOL-EUR",
+          "max_timestamp_utc": "2026-04-24T23:00:00Z",
+          "min_timestamp_utc": "2024-05-25T00:00:00Z",
+          "ready": true,
+          "row_count": 16645,
+          "source": "yfinance",
+          "status_counts": {
+            "ready": 1
+          },
+          "timeframe": "1h"
+        }
+      ],
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "materialize_immutable_snapshot_and_assign_authoritative_windows",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "quality_limitations": [
+        "cross_sectional_common_range_intersection_applied"
+      ],
+      "remediation_class": "none",
+      "status": "DATA_CAPACITY_READY",
+      "timeframe": "1h"
+    },
+    {
+      "authoritative_value": {
+        "earliest_timestamp_utc": "2024-07-05T00:00:00Z",
+        "instrument_count": 3,
+        "latest_timestamp_utc": "2026-07-01T20:00:00Z",
+        "source_identity": "yfinance"
+      },
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "coverage_rows": [
+        {
+          "content_hash": "sha256:9c4d8714bdf545d999543d6c615142ed598c142e597b25910fa1297d2f2ad50b",
+          "file_count": 1,
+          "instrument": "BTC-EUR",
+          "max_timestamp_utc": "2026-07-01T20:00:00Z",
+          "min_timestamp_utc": "2024-07-05T00:00:00Z",
+          "ready": true,
+          "row_count": 4323,
+          "source": "yfinance",
+          "status_counts": {
+            "ready": 1
+          },
+          "timeframe": "4h"
+        },
+        {
+          "content_hash": "sha256:fdf436736dc351637c3e00db01b1b9d90054ba517e9bde267803e96c7e87202c",
+          "file_count": 1,
+          "instrument": "ETH-EUR",
+          "max_timestamp_utc": "2026-07-01T20:00:00Z",
+          "min_timestamp_utc": "2024-07-05T00:00:00Z",
+          "ready": true,
+          "row_count": 4323,
+          "source": "yfinance",
+          "status_counts": {
+            "ready": 1
+          },
+          "timeframe": "4h"
+        },
+        {
+          "content_hash": "sha256:0a6b34164f38ae3f2314fa3075adfcad6c9bfc1190c113ee965635da692e8f43",
+          "file_count": 1,
+          "instrument": "SOL-EUR",
+          "max_timestamp_utc": "2026-07-01T20:00:00Z",
+          "min_timestamp_utc": "2024-07-05T00:00:00Z",
+          "ready": true,
+          "row_count": 4323,
+          "source": "yfinance",
+          "status_counts": {
+            "ready": 1
+          },
+          "timeframe": "4h"
+        }
+      ],
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "materialize_immutable_snapshot_and_assign_authoritative_windows",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "quality_limitations": [
+        "cross_sectional_common_range_intersection_applied"
+      ],
+      "remediation_class": "none",
+      "status": "DATA_CAPACITY_READY",
+      "timeframe": "4h"
+    },
+    {
+      "authoritative_value": {
         "earliest_timestamp_utc": "2026-04-08T00:00:00Z",
         "instrument_count": 3,
-        "latest_timestamp_utc": "2026-06-29T00:00:00Z",
+        "latest_timestamp_utc": "2026-07-01T00:00:00Z",
         "source_identity": "yfinance"
       },
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "coverage_rows": [
         {
-          "content_hash": "sha256:1441238f08dfa416bf9c24bda22f63ef79344f45ee721f2aff66eea6291d5716",
-          "file_count": 714,
+          "content_hash": "sha256:982d44f4fd047e2430223e351a591b9b311e914902e89ac847bc0337f344ff61",
+          "file_count": 768,
           "instrument": "ASML",
-          "max_timestamp_utc": "2026-06-29T00:00:00Z",
+          "max_timestamp_utc": "2026-07-01T00:00:00Z",
           "min_timestamp_utc": "2026-04-08T00:00:00Z",
           "ready": true,
-          "row_count": 3501,
+          "row_count": 3771,
           "source": "yfinance",
           "status_counts": {
-            "ready": 714
+            "ready": 768
           },
           "timeframe": "1d"
         },
         {
-          "content_hash": "sha256:8932fdb659844af32bc0b1a4d7ae425d5dfeb5fa56d64c747e5f700955f2bff3",
-          "file_count": 734,
+          "content_hash": "sha256:6e8db659d9a609f173b38a1d165fa28890a47e1f5c6a34aaba279ca5d12d526a",
+          "file_count": 788,
           "instrument": "AAPL",
-          "max_timestamp_utc": "2026-06-29T00:00:00Z",
+          "max_timestamp_utc": "2026-07-01T00:00:00Z",
           "min_timestamp_utc": "2026-04-08T00:00:00Z",
           "ready": true,
-          "row_count": 3601,
+          "row_count": 3871,
           "source": "yfinance",
           "status_counts": {
-            "ready": 734
+            "ready": 788
           },
           "timeframe": "1d"
         },
         {
-          "content_hash": "sha256:071bde873ccdf0aedebd302abf96333a2a741b66c3655bad6669ec2698edee25",
-          "file_count": 703,
+          "content_hash": "sha256:9f5a0487c1abb65fbeac924a48d87e7cdcb396c43d76730b75774d278f6c3e87",
+          "file_count": 757,
           "instrument": "AMD",
-          "max_timestamp_utc": "2026-06-29T00:00:00Z",
+          "max_timestamp_utc": "2026-07-01T00:00:00Z",
           "min_timestamp_utc": "2026-04-08T00:00:00Z",
           "ready": true,
-          "row_count": 3446,
+          "row_count": 3716,
           "source": "yfinance",
           "status_counts": {
-            "ready": 703
+            "ready": 757
           },
           "timeframe": "1d"
         }

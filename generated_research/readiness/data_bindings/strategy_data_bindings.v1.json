@@ -1,5 +1,5 @@
 {
-  "data_binding_identity": "qrr_e3814f481dc5d920",
+  "data_binding_identity": "qrr_195315d286b87b48",
   "module_version": "ade-qre-022.1",
   "report_kind": "qre_strategy_data_bindings",
   "rows": [
@@ -14,6 +14,20 @@
       "reason": "timeframe_not_resolved",
       "snapshot_identity": "",
       "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "source_identity": "",
+      "state": "BLOCKED"
+    },
+    {
+      "coverage_row": {},
+      "dataset_identity": "",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "DATASET_MISSING",
+      "provenance": [
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "reason": "instrument_identity_not_resolved",
+      "snapshot_identity": "",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
       "source_identity": "",
       "state": "BLOCKED"
     },

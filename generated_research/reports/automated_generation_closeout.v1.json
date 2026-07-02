@@ -1,7 +1,7 @@
 {
   "module_version": "ade-qre-019.1",
   "report_kind": "qre_automated_generation_closeout",
-  "resolved_catalog_identity": "qrc_5f3d883520aa0d4a",
+  "resolved_catalog_identity": "qrc_cab17367fc87d61a",
   "rows": [
     {
       "blockers": [
@@ -39,15 +39,21 @@
       "source_hypothesis_id": "regime_diagnostics_v1"
     },
     {
-      "final_generation_outcome": "BLOCKED_IDENTITY",
-      "reason": "identity_blocked_in_census",
+      "blockers": [
+        "oos_evidence_not_materialized",
+        "null_controls_not_executed"
+      ],
+      "campaign_readiness_state": "READY_WITH_LIMITATIONS",
+      "final_generation_outcome": "RESEARCH_REGISTERED_AUTOMATED",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "preset_generated": true,
       "source_hypothesis_id": "volatility_compression_breakout_v0"
     }
   ],
   "schema_version": "1.0",
   "summary": {
-    "blocked_count": 4,
-    "registered_count": 2,
+    "blocked_count": 3,
+    "registered_count": 3,
     "thesis_count": 6
   }
 }

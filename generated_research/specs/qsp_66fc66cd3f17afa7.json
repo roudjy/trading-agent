@@ -1,0 +1,96 @@
+{
+  "allowed_direction": "long_only",
+  "behavior_family": "volatility_compression_breakout",
+  "cost_assumptions": {
+    "mode": "cost_class_visible_only"
+  },
+  "deterministic_hash": "3cc7f484ba81026b326ecd954d2dcb6f9f4a2d8435e9722b43677601f168fe5d",
+  "entry_conditions": [
+    "prior_compression_below_threshold",
+    "close_breaks_above_prior_range_high"
+  ],
+  "exit_conditions": [
+    "close_breaks_below_prior_range_low",
+    "prior_compression_released_above_long_baseline"
+  ],
+  "expected_behavior": "narrow_range_compression; range_break_or_gap; post_breakout_expansion",
+  "expected_failure_modes": [
+    "insufficient_trades",
+    "regime_not_observed",
+    "cost_fragile",
+    "no_baseline_edge"
+  ],
+  "expected_signal_density_range": "moderate",
+  "filters": [
+    "compression_ratio_not_missing"
+  ],
+  "forbidden_behavior": [
+    "arbitrary_python",
+    "arbitrary_imports",
+    "shell_commands",
+    "network_access",
+    "file_system_writes",
+    "eval",
+    "exec",
+    "broker_access",
+    "live_execution",
+    "real_capital_sizing",
+    "nondeterministic_strategy_construction"
+  ],
+  "generator_version": "ade-qre-019.1",
+  "mechanism": "Compressed volatility resolves into expansion with a directional breakout after a bounded consolidation. v3.15.4 second controlled active_discovery: long-only range-breakout entry uit een prior compressed-vol regime (compression_ratio[t-1] < threshold AND close[t] > rolling_high_previous[t]). Flat op opposite-side breakdown of compression release. Bridges naar de volatility_compression_breakout family in research.registry; v0 id behouden (geen destructieve rename) want geen historische evidence-ledger entries onder v0.",
+  "null_control_requirements": [
+    "shuffled_signal_timing",
+    "matched_frequency_null"
+  ],
+  "parameter_domains": {
+    "atr_long_window": [
+      20
+    ],
+    "atr_short_window": [
+      5
+    ],
+    "compression_threshold": [
+      0.6
+    ]
+  },
+  "parameters": {
+    "atr_long_window": 20,
+    "atr_short_window": 5,
+    "compression_threshold": 0.6
+  },
+  "provenance": [
+    "logs/qre_behavior_thesis_registry/latest.json",
+    "logs/qre_identity_ambiguity_resolution/latest.json",
+    "logs/qre_blocked_thesis_lineage_census/latest.json",
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+  ],
+  "required_feature_primitives": [
+    "compression_ratio",
+    "rolling_high_previous",
+    "rolling_low_previous"
+  ],
+  "research_sizing_assumptions": {
+    "mode": "unit_notional_research_only"
+  },
+  "schema_version": "1.0",
+  "slippage_assumptions": {
+    "status": "not_materialized"
+  },
+  "source_hypothesis_id": "volatility_compression_breakout_v0",
+  "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+  "template_version": "thin-strategy-template.1",
+  "thesis_id": "qbt_cc01cda908553e5e",
+  "timeframe": [
+    "1h",
+    "4h"
+  ],
+  "universe_constraints": [
+    "existing_preset_bound_universes_only"
+  ],
+  "warmup_requirements": {
+    "compression_ratio": 20,
+    "rolling_high_previous": 20,
+    "rolling_low_previous": 20
+  }
+}

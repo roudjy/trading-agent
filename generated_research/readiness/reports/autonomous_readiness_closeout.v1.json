@@ -1,5 +1,5 @@
 {
-  "closeout_identity": "qrca_37efa577a61d29f0",
+  "closeout_identity": "qrca_4fc9b2717e95e1ae",
   "exact_next_action": "preserve_fail_closed_readiness_closure_and_route_window_or_data_capacity_blockers",
   "initial_blockers": [
     {
@@ -15,8 +15,7 @@
   "module_version": "ade-qre-023.1",
   "overall_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
   "remaining_blockers": [
-    "authoritative_window_assignment_policy_not_materialized",
-    "no_cache_row_for_resolved_instrument_and_timeframe"
+    "authoritative_window_assignment_policy_not_materialized"
   ],
   "report_kind": "qre_autonomous_readiness_closure",
   "schema_version": "1.0",
@@ -32,9 +31,9 @@
     {
       "campaign_cell_id": "qrcell_d5ded3130f132558",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "portfolio_status": "BLOCKED_DATA",
-      "terminal_outcome": "DATA_CAPACITY_BLOCKED",
-      "terminal_reason": "no_cache_row_for_resolved_instrument_and_timeframe",
+      "portfolio_status": "BLOCKED_WINDOWS",
+      "terminal_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
+      "terminal_reason": "authoritative_window_assignment_policy_not_materialized",
       "timeframe": "1h"
     },
     {
@@ -46,6 +45,22 @@
       "timeframe": "4h"
     },
     {
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "portfolio_status": "BLOCKED_WINDOWS",
+      "terminal_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
+      "terminal_reason": "authoritative_window_assignment_policy_not_materialized",
+      "timeframe": "4h"
+    },
+    {
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "portfolio_status": "BLOCKED_WINDOWS",
+      "terminal_outcome": "INDEPENDENT_OOS_CAPACITY_BLOCKED",
+      "terminal_reason": "authoritative_window_assignment_policy_not_materialized",
+      "timeframe": "1h"
+    },
+    {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "portfolio_status": "BLOCKED_WINDOWS",
@@ -55,13 +70,12 @@
     }
   ],
   "summary": {
-    "campaign_cells": 4,
-    "iteration_count": 4,
+    "campaign_cells": 6,
+    "iteration_count": 6,
     "ready_for_preregistration_count": 0,
-    "strategies_processed": 2,
+    "strategies_processed": 3,
     "terminal_outcomes": {
-      "DATA_CAPACITY_BLOCKED": 1,
-      "INDEPENDENT_OOS_CAPACITY_BLOCKED": 3
+      "INDEPENDENT_OOS_CAPACITY_BLOCKED": 6
     }
   }
 }

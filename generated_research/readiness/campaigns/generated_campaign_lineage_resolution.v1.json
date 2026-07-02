@@ -1,5 +1,5 @@
 {
-  "campaign_lineage_resolution_identity": "qrr_affdf90bd9ee7ad4",
+  "campaign_lineage_resolution_identity": "qrr_46be97fd643df0fe",
   "module_version": "ade-qre-022.1",
   "report_kind": "qre_generated_campaign_lineage_resolution",
   "rows": [
@@ -22,6 +22,25 @@
         "generated_research/lineage/generated_null_controls.v1.json"
       ],
       "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "blockers": [
+        "universe_not_resolved",
+        "data_binding_not_ready",
+        "null_controls_not_execution_ready"
+      ],
+      "campaign_candidate_id": "qcmr_9b8e70d0c76316e2",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "lineage_identity": "qcl_dfa29effa8635856",
+      "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "generated_research/primitives/registry/generated_primitive_registry.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "generated_research/lineage/generated_null_controls.v1.json"
+      ],
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
     },
     {
       "blockers": [

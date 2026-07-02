@@ -1,5 +1,5 @@
 {
-  "blocker_report_identity": "blo_8d3692ee523040a3",
+  "blocker_report_identity": "blo_536a4fda7b47d3c5",
   "module_version": "ade-qre-023.1",
   "report_kind": "qre_autonomous_readiness_blockers",
   "rows": [
@@ -36,22 +36,22 @@
       "affected_campaign_cell": "qrcell_d5ded3130f132558",
       "affected_strategy": "qgs_5af8f605ba82ae53",
       "affected_thesis": "qbt_3b77618b0ddbd5b3",
-      "authority_state": "authoritative_local",
-      "blocker_class": "DATA_COVERAGE_INSUFFICIENT",
-      "blocker_id": "qrb_bc3c7f2df59237ef",
-      "deterministic_identity": "qrbx_bc3c7f2df59237ef",
+      "authority_state": "insufficient_authoritative_policy",
+      "blocker_class": "OOS_INDEPENDENCE_NOT_PROVEN",
+      "blocker_id": "qrb_7ba75def326fec83",
+      "deterministic_identity": "qrbx_7ba75def326fec83",
       "downstream_consequences": [
-        "BLOCKED_DATA"
+        "BLOCKED_WINDOWS"
       ],
       "evidence_references": [
         "logs/qre_behavior_thesis_registry/latest.json",
         "logs/qre_blocked_thesis_lineage_census/latest.json",
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
-      "expected_output": "authoritative_source_dataset_snapshot_binding",
-      "next_action": "no_cache_row_for_resolved_instrument_and_timeframe",
-      "priority": 100,
-      "reason": "no_cache_row_for_resolved_instrument_and_timeframe",
+      "expected_output": "explicit_train_validation_oos_capacity",
+      "next_action": "authoritative_window_assignment_policy_not_materialized",
+      "priority": 140,
+      "reason": "authoritative_window_assignment_policy_not_materialized",
       "remediability": false,
       "remediation_class": "FAIL_CLOSED",
       "upstream_dependencies": [],
@@ -73,6 +73,66 @@
         "BLOCKED_WINDOWS"
       ],
       "evidence_references": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "expected_output": "explicit_train_validation_oos_capacity",
+      "next_action": "authoritative_window_assignment_policy_not_materialized",
+      "priority": 140,
+      "reason": "authoritative_window_assignment_policy_not_materialized",
+      "remediability": false,
+      "remediation_class": "FAIL_CLOSED",
+      "upstream_dependencies": [],
+      "validation_requirements": [
+        "deterministic_identity",
+        "no_protected_research_writes",
+        "no_trading_authority"
+      ]
+    },
+    {
+      "affected_campaign_cell": "qrcell_d3b0070dbb9099fe",
+      "affected_strategy": "qgs_a266464219e0d498",
+      "affected_thesis": "qbt_cc01cda908553e5e",
+      "authority_state": "insufficient_authoritative_policy",
+      "blocker_class": "OOS_INDEPENDENCE_NOT_PROVEN",
+      "blocker_id": "qrb_d51deb5d22a299d8",
+      "deterministic_identity": "qrbx_d51deb5d22a299d8",
+      "downstream_consequences": [
+        "BLOCKED_WINDOWS"
+      ],
+      "evidence_references": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "expected_output": "explicit_train_validation_oos_capacity",
+      "next_action": "authoritative_window_assignment_policy_not_materialized",
+      "priority": 140,
+      "reason": "authoritative_window_assignment_policy_not_materialized",
+      "remediability": false,
+      "remediation_class": "FAIL_CLOSED",
+      "upstream_dependencies": [],
+      "validation_requirements": [
+        "deterministic_identity",
+        "no_protected_research_writes",
+        "no_trading_authority"
+      ]
+    },
+    {
+      "affected_campaign_cell": "qrcell_e9645deb2e53460d",
+      "affected_strategy": "qgs_a266464219e0d498",
+      "affected_thesis": "qbt_cc01cda908553e5e",
+      "authority_state": "insufficient_authoritative_policy",
+      "blocker_class": "OOS_INDEPENDENCE_NOT_PROVEN",
+      "blocker_id": "qrb_ba32d711416adf5e",
+      "deterministic_identity": "qrbx_ba32d711416adf5e",
+      "downstream_consequences": [
+        "BLOCKED_WINDOWS"
+      ],
+      "evidence_references": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
         "logs/qre_behavior_thesis_registry/latest.json",
         "logs/qre_blocked_thesis_lineage_census/latest.json",
         "logs/qre_identity_ambiguity_resolution/latest.json"

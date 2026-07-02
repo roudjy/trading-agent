@@ -1,11 +1,11 @@
 {
-  "data_binding_identity": "dat_0eea410ad19bd294",
+  "data_binding_identity": "dat_d09249400987cdd0",
   "module_version": "ade-qre-023.1",
   "report_kind": "qre_autonomous_strategy_data_bindings",
   "rows": [
     {
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
-      "dataset_identity": "qds_adf92f9c0715c67b",
+      "dataset_identity": "qds_7974cafcea4e2da1",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "outcome": "DATA_BINDING_READY",
       "provenance": [
@@ -14,25 +14,25 @@
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
       "reason": "single_cache_binding_available",
-      "snapshot_identity": "qsn_adf92f9c0715c67b",
+      "snapshot_identity": "qsn_7974cafcea4e2da1",
       "source_identity": "yfinance",
       "state": "RESOLVED_WITH_LIMITATIONS",
       "timeframe": "1d"
     },
     {
       "campaign_cell_id": "qrcell_d5ded3130f132558",
-      "dataset_identity": "",
+      "dataset_identity": "qds_9259a9d6d1e18766",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "outcome": "DATASET_MISSING",
+      "outcome": "DATA_BINDING_READY",
       "provenance": [
         "logs/qre_behavior_thesis_registry/latest.json",
         "logs/qre_blocked_thesis_lineage_census/latest.json",
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
-      "reason": "no_cache_row_for_resolved_instrument_and_timeframe",
-      "snapshot_identity": "",
-      "source_identity": "",
-      "state": "BLOCKED",
+      "reason": "single_cache_binding_available",
+      "snapshot_identity": "qsn_9259a9d6d1e18766",
+      "source_identity": "yfinance",
+      "state": "RESOLVED_WITH_LIMITATIONS",
       "timeframe": "1h"
     },
     {
@@ -52,8 +52,42 @@
       "timeframe": "4h"
     },
     {
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "dataset_identity": "qds_ebf90fbe890a2018",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "DATA_BINDING_READY",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "reason": "single_source_cross_sectional_panel_binding_available",
+      "snapshot_identity": "qsn_ebf90fbe890a2018",
+      "source_identity": "yfinance",
+      "state": "RESOLVED",
+      "timeframe": "4h"
+    },
+    {
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "dataset_identity": "qds_9232cc9bf44238bf",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "DATA_BINDING_READY",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "reason": "single_source_cross_sectional_panel_binding_available",
+      "snapshot_identity": "qsn_9232cc9bf44238bf",
+      "source_identity": "yfinance",
+      "state": "RESOLVED",
+      "timeframe": "1h"
+    },
+    {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
-      "dataset_identity": "qds_e435652faeac00bd",
+      "dataset_identity": "qds_9c06097578a5ea83",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "outcome": "DATA_BINDING_READY",
       "provenance": [
@@ -63,7 +97,7 @@
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
       "reason": "single_source_cross_sectional_panel_binding_available",
-      "snapshot_identity": "qsn_e435652faeac00bd",
+      "snapshot_identity": "qsn_9c06097578a5ea83",
       "source_identity": "yfinance",
       "state": "RESOLVED",
       "timeframe": "1d"

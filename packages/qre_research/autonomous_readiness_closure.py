@@ -6,13 +6,13 @@ import json
 import os
 import tempfile
 from collections import Counter
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
 from packages.qre_research import automated_campaign_readiness as acr
 from packages.qre_research.generated_strategy_paths import REPO_ROOT, validate_write_target
-
 
 SCHEMA_VERSION: Final[str] = "1.0"
 MODULE_VERSION: Final[str] = "ade-qre-023.1"
@@ -171,10 +171,8 @@ def _atomic_write(path: Path, payload: str) -> None:
             handle.write(payload)
         os.replace(tmp_name, path)
     except Exception:
-        try:
+        with suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise
 
 
@@ -256,6 +254,14 @@ def _load_coverage_rows(repo_root: Path) -> list[dict[str, Any]]:
     return [dict(row) for row in rows if isinstance(row, dict)]
 
 
+def _load_preset_rows(repo_root: Path) -> list[dict[str, Any]]:
+    payload = _read_json(repo_root / "generated_research" / "presets" / "generated_research_presets.v1.json") or {}
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return []
+    return [dict(row) for row in rows if isinstance(row, dict)]
+
+
 def _load_null_control_rows(repo_root: Path) -> dict[str, dict[str, Any]]:
     rows = _read_rows(repo_root / "generated_research" / "lineage" / "generated_null_controls.v1.json")
     return {str(row.get("generated_strategy_id") or ""): row for row in rows}
@@ -269,6 +275,7 @@ def _load_baseline_inputs(repo_root: Path) -> dict[str, Any]:
     instrument_rows = _load_instrument_rows(repo_root)
     universe_instruments, universe_rows = _load_universe_catalog(repo_root)
     coverage_rows = _load_coverage_rows(repo_root)
+    preset_rows = _load_preset_rows(repo_root)
     null_rows = _load_null_control_rows(repo_root)
     return {
         "registry_rows": registry_rows,
@@ -281,8 +288,17 @@ def _load_baseline_inputs(repo_root: Path) -> dict[str, Any]:
         "universe_instruments": universe_instruments,
         "universe_rows": universe_rows,
         "coverage_rows": coverage_rows,
+        "preset_rows": preset_rows,
         "null_rows": null_rows,
     }
+
+
+def _default_target_ids(inputs: dict[str, Any]) -> list[str]:
+    return sorted(
+        str(row.get("generated_strategy_id") or "").strip()
+        for row in list(inputs.get("registry_rows") or [])
+        if str(row.get("generated_strategy_id") or "").strip()
+    )
 
 
 def _build_base_cell(
@@ -563,6 +579,123 @@ def _resolve_single_instrument_identity(
         "instrument_identities": [str(row.get("canonical_id") or "")],
         "selected_instrument_row": row,
     }
+
+
+def _preset_row_for_cell(*, cell: dict[str, Any], preset_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    generated_strategy_id = str(cell.get("generated_strategy_id") or "")
+    timeframe = str(cell.get("resolved_timeframe") or "")
+    matches = [
+        dict(row)
+        for row in preset_rows
+        if str(row.get("generated_strategy_id") or "") == generated_strategy_id
+        and str(row.get("timeframe") or "") == timeframe
+        and str(row.get("preset_state") or "") == "GENERATED"
+    ]
+    return sorted(matches, key=lambda row: str(row.get("preset_name") or ""))[0] if matches else {}
+
+
+def _preset_bound_instrument_identity(symbol: str, source: str) -> str:
+    return f"{source}:{symbol}"
+
+
+def _resolve_preset_bound_multi_asset_universe(
+    *,
+    cell: dict[str, Any],
+    preset_row: dict[str, Any],
+    coverage_rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    timeframe = str(cell.get("resolved_timeframe") or "")
+    symbols = [str(value) for value in preset_row.get("universe", []) if str(value)]
+    matched_members: list[dict[str, Any]] = []
+    excluded_members: list[dict[str, Any]] = []
+    for symbol in symbols:
+        matches = _coverage_matches(coverage_rows=coverage_rows, symbols={symbol}, timeframe=timeframe)
+        if not matches:
+            excluded_members.append(
+                {
+                    "canonical_instrument_id": _preset_bound_instrument_identity(symbol, "yfinance"),
+                    "reason": f"missing_{timeframe}_coverage",
+                }
+            )
+            continue
+        selected = sorted(matches, key=lambda row: str(row.get("content_hash") or ""))[0]
+        matched_members.append(
+            {
+                "canonical_instrument_id": _preset_bound_instrument_identity(symbol, str(selected.get("source") or "yfinance")),
+                "symbol": symbol,
+                "provider_symbol": symbol,
+                "coverage_hash": str(selected.get("content_hash") or ""),
+                "min_timestamp_utc": str(selected.get("min_timestamp_utc") or ""),
+                "max_timestamp_utc": str(selected.get("max_timestamp_utc") or ""),
+            }
+        )
+    if not matched_members or excluded_members:
+        return (
+            {
+                "state": "BLOCKED",
+                "reason": "preset_bound_multi_asset_coverage_incomplete",
+                "requested_alias": "existing_preset_bound_universes_only",
+                "candidates": [],
+            },
+            {},
+        )
+    effective_from = max(_iso_to_dt(member["min_timestamp_utc"]) for member in matched_members)
+    effective_to = min(_iso_to_dt(member["max_timestamp_utc"]) for member in matched_members)
+    universe_core = {
+        "generated_strategy_id": str(cell.get("generated_strategy_id") or ""),
+        "timeframe": timeframe,
+        "preset_name": str(preset_row.get("preset_name") or ""),
+        "members": [member["canonical_instrument_id"] for member in matched_members],
+    }
+    universe_id = _content_id("quv", universe_core)
+    snapshot_id = _content_id(
+        "qum",
+        {
+            **universe_core,
+            "effective_from": _dt_to_iso(effective_from),
+            "effective_to": _dt_to_iso(effective_to),
+            "coverage_hashes": [member["coverage_hash"] for member in matched_members],
+        },
+    )
+    row = {
+        "requested_alias": "existing_preset_bound_universes_only",
+        "resolution_outcome": "RESOLVED_PRESET_BOUND",
+        "selected_universe_id": universe_id,
+        "membership_snapshot_id": snapshot_id,
+        "effective_from_utc": _dt_to_iso(effective_from),
+        "effective_to_utc": _dt_to_iso(effective_to),
+        "matched_member_count": len(matched_members),
+        "included_members": [
+            {
+                "canonical_instrument_id": member["canonical_instrument_id"],
+                "symbol": member["symbol"],
+                "provider_symbol": member["provider_symbol"],
+                "inclusion_reason": "preset_member_with_ready_local_coverage",
+                "coverage_hash": member["coverage_hash"],
+            }
+            for member in matched_members
+        ],
+        "excluded_members": excluded_members,
+        "selection_reason": "generated preset binds a deterministic multi-asset universe for the selected timeframe",
+        "provenance": [
+            "generated_research/presets/generated_research_presets.v1.json",
+            "logs/qre_data_cache_manifest/latest.json",
+        ],
+    }
+    return (
+        {
+            "state": "RESOLVED",
+            "reason": "preset_bound_multi_asset_universe_materialized",
+            "universe_id": universe_id,
+            "membership_snapshot_id": snapshot_id,
+            "instrument_identities": [member["canonical_instrument_id"] for member in matched_members],
+            "effective_from_utc": _dt_to_iso(effective_from),
+            "effective_to_utc": _dt_to_iso(effective_to),
+            "included_members": list(row["included_members"]),
+            "excluded_members": list(row["excluded_members"]),
+        },
+        row,
+    )
 
 
 def _build_cross_sectional_data_binding(
@@ -934,13 +1067,45 @@ def _apply_strategy_specific_identity_resolution(
         cell["common_start_utc"] = str(resolved.get("effective_from_utc") or "")
         cell["common_end_utc"] = str(resolved.get("effective_to_utc") or "")
         return universe_row
-    symbol_hint = "ASML"
+    preset_row = _preset_row_for_cell(cell=cell, preset_rows=inputs["preset_rows"])
+    preset_universe = [str(value) for value in preset_row.get("universe", []) if str(value)]
+    if len(preset_universe) > 1:
+        resolved, universe_row = _resolve_preset_bound_multi_asset_universe(
+            cell=cell,
+            preset_row=preset_row,
+            coverage_rows=inputs["coverage_rows"],
+        )
+        cell["universe_state"] = str(resolved.get("state") or "BLOCKED")
+        cell["universe_reason"] = str(resolved.get("reason") or "")
+        cell["universe_identity"] = str(resolved.get("universe_id") or "")
+        cell["membership_snapshot_id"] = str(resolved.get("membership_snapshot_id") or "")
+        cell["instrument_identities"] = list(resolved.get("instrument_identities") or [])
+        cell["included_members"] = list(resolved.get("included_members") or [])
+        cell["excluded_members"] = list(resolved.get("excluded_members") or [])
+        cell["common_start_utc"] = str(resolved.get("effective_from_utc") or "")
+        cell["common_end_utc"] = str(resolved.get("effective_to_utc") or "")
+        cell["selected_preset_row"] = preset_row
+        return universe_row
+    symbol_hint = preset_universe[0] if preset_universe else "ASML"
     resolved = _resolve_single_instrument_identity(
         instrument_rows=inputs["instrument_rows"],
         symbol_hint=symbol_hint,
     )
+    if str(resolved.get("state") or "") != "RESOLVED" and preset_universe:
+        canonical_instrument_id = _preset_bound_instrument_identity(symbol_hint, "yfinance")
+        resolved = {
+            "state": "RESOLVED_WITH_LIMITATIONS",
+            "reason": "preset_bound_symbol_without_instrument_inventory",
+            "instrument_identities": [canonical_instrument_id],
+            "selected_instrument_row": {
+                "canonical_id": canonical_instrument_id,
+                "symbol": symbol_hint,
+                "provider_symbol": symbol_hint,
+                "identity_status": "OK",
+            },
+        }
     cell["universe_state"] = "RESOLVED_WITH_LIMITATIONS"
-    cell["universe_reason"] = "single_instrument_universe_bound_from_instrument"
+    cell["universe_reason"] = str(resolved.get("reason") or "single_instrument_universe_bound_from_instrument")
     cell["universe_identity"] = acr._single_instrument_universe_id(str(resolved.get("instrument_identities", [""])[0] if resolved.get("instrument_identities") else ""))
     cell["membership_snapshot_id"] = _content_id(
         "qum",
@@ -952,8 +1117,9 @@ def _apply_strategy_specific_identity_resolution(
     )
     cell["instrument_identities"] = list(resolved.get("instrument_identities") or [])
     cell["selected_instrument_row"] = dict(resolved.get("selected_instrument_row") or {})
+    cell["selected_preset_row"] = preset_row
     return {
-        "requested_alias": "single_resolved_instrument_only",
+        "requested_alias": "existing_preset_bound_universes_only" if preset_universe else "single_resolved_instrument_only",
         "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
         "selected_universe_id": str(cell.get("universe_identity") or ""),
         "membership_snapshot_id": str(cell.get("membership_snapshot_id") or ""),
@@ -974,7 +1140,7 @@ def _apply_strategy_specific_identity_resolution(
 
 
 def _apply_data_binding(*, cell: dict[str, Any], spec: dict[str, Any], inputs: dict[str, Any]) -> None:
-    if str(cell.get("source_hypothesis_id") or "") == "cross_sectional_momentum_v0":
+    if str(cell.get("source_hypothesis_id") or "") == "cross_sectional_momentum_v0" or len(list(cell.get("included_members") or [])) > 1:
         binding = _build_cross_sectional_data_binding(cell=cell, coverage_rows=inputs["coverage_rows"])
     else:
         binding = _build_single_instrument_data_binding(cell=cell, coverage_rows=inputs["coverage_rows"])
@@ -1156,9 +1322,11 @@ def _execute_remediation(
 def _refresh_cell_state(*, cell: dict[str, Any], spec: dict[str, Any], inputs: dict[str, Any]) -> None:
     if str(cell.get("terminal_outcome") or ""):
         return
-    if str(cell.get("source_hypothesis_id") or "") != "cross_sectional_momentum_v0":
-        if not cell.get("selected_instrument_row"):
-            _apply_strategy_specific_identity_resolution(cell=cell, spec=spec, inputs=inputs)
+    if (
+        str(cell.get("source_hypothesis_id") or "") != "cross_sectional_momentum_v0"
+        and not cell.get("selected_instrument_row")
+    ):
+        _apply_strategy_specific_identity_resolution(cell=cell, spec=spec, inputs=inputs)
     _apply_data_binding(cell=cell, spec=spec, inputs=inputs)
     _apply_preset_completion(cell=cell, spec=spec)
     _apply_window_capacity(cell=cell, spec=spec)
@@ -1380,7 +1548,7 @@ def run_autonomous_closure(
 ) -> dict[str, Any]:
     root = repo_root or REPO_ROOT
     inputs = _load_baseline_inputs(root)
-    target_ids = strategy_ids or ["qgs_e565b01bd0a162d0", "qgs_5af8f605ba82ae53"]
+    target_ids = list(strategy_ids) if strategy_ids is not None else _default_target_ids(inputs)
     cells: list[dict[str, Any]] = []
     universe_rows: list[dict[str, Any]] = []
     timeframe_rows: list[dict[str, Any]] = []
@@ -1514,8 +1682,20 @@ def run_autonomous_closure(
                 {
                     "generated_strategy_id": str(cell.get("generated_strategy_id") or ""),
                     "campaign_cell_id": str(cell.get("campaign_cell_id") or ""),
-                    "requested_alias": "breadth_resolved_multi_asset_basket" if str(cell.get("source_hypothesis_id") or "") == "cross_sectional_momentum_v0" else "single_resolved_instrument_only",
-                    "resolution_outcome": "RESOLVED_UNIQUE_AUTHORITATIVE" if str(cell.get("source_hypothesis_id") or "") == "cross_sectional_momentum_v0" else "RESOLVED_WITH_LIMITATIONS",
+                    "requested_alias": (
+                        "breadth_resolved_multi_asset_basket"
+                        if str(cell.get("source_hypothesis_id") or "") == "cross_sectional_momentum_v0"
+                        else "existing_preset_bound_universes_only"
+                        if len(list(cell.get("included_members") or [])) > 1
+                        else "single_resolved_instrument_only"
+                    ),
+                    "resolution_outcome": (
+                        "RESOLVED_UNIQUE_AUTHORITATIVE"
+                        if str(cell.get("source_hypothesis_id") or "") == "cross_sectional_momentum_v0"
+                        else "RESOLVED_PRESET_BOUND"
+                        if len(list(cell.get("included_members") or [])) > 1
+                        else "RESOLVED_WITH_LIMITATIONS"
+                    ),
                     "selected_universe_id": str(cell.get("universe_identity") or ""),
                     "membership_snapshot_id": str(cell.get("membership_snapshot_id") or ""),
                     "included_members": [

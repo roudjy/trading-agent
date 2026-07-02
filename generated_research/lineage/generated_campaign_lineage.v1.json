@@ -1,5 +1,5 @@
 {
-  "generated_lineage_identity": "qgl_25aa394aa69c0e6d",
+  "generated_lineage_identity": "qgl_fc9d8acc8122ab65",
   "report_kind": "generated_campaign_lineage",
   "rows": [
     {
@@ -35,6 +35,24 @@
       "source_hypothesis_id": "cross_sectional_momentum_v0",
       "strategy_spec_id": "qsp_28cdbc0005ae7c93",
       "thesis_id": "qbt_7bf72ac7046c3039"
+    },
+    {
+      "blockers": [
+        "oos_evidence_not_materialized",
+        "null_controls_not_executed"
+      ],
+      "campaign_readiness_state": "READY_WITH_LIMITATIONS",
+      "campaign_specification_identity": "qgc_6cd3efb3c16acbec",
+      "generated_lineage_id": "qgl_4d6cb44a6f0bed27",
+      "generated_registration_id": "qgr_7f235ca8f8fa7c23",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "complete_remaining_lineage_and_control_gaps",
+      "null_control_spec_id": "qnc_56f12bac75a94b32",
+      "portfolio_cell_id": "qpc_9add9e720393cf06",
+      "preset_id": "qgp_fb5209ac6cf6f887",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+      "thesis_id": "qbt_cc01cda908553e5e"
     }
   ],
   "schema_version": "1.0"

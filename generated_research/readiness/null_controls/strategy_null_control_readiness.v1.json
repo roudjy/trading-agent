@@ -1,6 +1,6 @@
 {
   "module_version": "ade-qre-022.1",
-  "null_control_readiness_identity": "qrr_9f43d5e2ba219475",
+  "null_control_readiness_identity": "qrr_f22690d914964b83",
   "report_kind": "qre_strategy_null_control_readiness",
   "rows": [
     {
@@ -56,6 +56,42 @@
         "resolved_strategy_registration"
       ],
       "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "blocker": "instrument_identity_not_resolved",
+      "control_class": "shuffled_signal_timing",
+      "control_identity": "qnr_b36942912ec2b0ca",
+      "deterministic_seed": "ef394c1b1c65653e",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "DATA_BLOCKED",
+      "provenance": [
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json"
+      ],
+      "required_inputs": [
+        "resolved_dataset",
+        "resolved_windows",
+        "resolved_strategy_registration"
+      ],
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
+    },
+    {
+      "blocker": "instrument_identity_not_resolved",
+      "control_class": "matched_frequency_null",
+      "control_identity": "qnr_dd759edb82380e7f",
+      "deterministic_seed": "ef394c1b1c65653e",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "DATA_BLOCKED",
+      "provenance": [
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json"
+      ],
+      "required_inputs": [
+        "resolved_dataset",
+        "resolved_windows",
+        "resolved_strategy_registration"
+      ],
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
     },
     {
       "blocker": "instrument_identity_not_resolved",

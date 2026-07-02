@@ -4,7 +4,7 @@
   "rows": [
     {
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
-      "dataset_identity": "qds_adf92f9c0715c67b",
+      "dataset_identity": "qds_7974cafcea4e2da1",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "provenance": [
         "artifacts/cache/cache_coverage_latest.v1.json",
@@ -16,14 +16,14 @@
     },
     {
       "campaign_cell_id": "qrcell_d5ded3130f132558",
-      "dataset_identity": "",
+      "dataset_identity": "qds_9259a9d6d1e18766",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "provenance": [
         "artifacts/cache/cache_coverage_latest.v1.json",
         "logs/qre_data_cache_manifest/latest.json"
       ],
       "resolver_identity": "qdr_6ce1f82d20521ce7",
-      "source_identity": "",
+      "source_identity": "yfinance",
       "timeframe": "1h"
     },
     {
@@ -39,8 +39,32 @@
       "timeframe": "4h"
     },
     {
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "dataset_identity": "qds_9232cc9bf44238bf",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "resolver_identity": "qdr_b72be975501d6057",
+      "source_identity": "yfinance",
+      "timeframe": "1h"
+    },
+    {
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "dataset_identity": "qds_ebf90fbe890a2018",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "provenance": [
+        "artifacts/cache/cache_coverage_latest.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "resolver_identity": "qdr_6aa1d50253b2a34d",
+      "source_identity": "yfinance",
+      "timeframe": "4h"
+    },
+    {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
-      "dataset_identity": "qds_e435652faeac00bd",
+      "dataset_identity": "qds_9c06097578a5ea83",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "provenance": [
         "artifacts/cache/cache_coverage_latest.v1.json",

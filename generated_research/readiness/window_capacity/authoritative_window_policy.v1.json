@@ -14,8 +14,8 @@
     {
       "campaign_cell_id": "qrcell_d5ded3130f132558",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "outcome": "POLICY_INPUT_INCOMPLETE",
-      "reason": "snapshot_not_ready",
+      "outcome": "WINDOW_POLICY_READY",
+      "reason": "",
       "timeframe": "1h",
       "version": "ade-qre-024.window-policy.1",
       "window_policy_identity": "qwp_b421a0d20f8602e2"
@@ -23,6 +23,24 @@
     {
       "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "outcome": "WINDOW_POLICY_READY",
+      "reason": "",
+      "timeframe": "4h",
+      "version": "ade-qre-024.window-policy.1",
+      "window_policy_identity": "qwp_e1333a56aacaf169"
+    },
+    {
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "WINDOW_POLICY_READY",
+      "reason": "",
+      "timeframe": "1h",
+      "version": "ade-qre-024.window-policy.1",
+      "window_policy_identity": "qwp_b421a0d20f8602e2"
+    },
+    {
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "generated_strategy_id": "qgs_a266464219e0d498",
       "outcome": "WINDOW_POLICY_READY",
       "reason": "",
       "timeframe": "4h",
@@ -40,5 +58,5 @@
     }
   ],
   "schema_version": "1.0",
-  "window_policy_identity": "qwp_3954f536fb43bd7f"
+  "window_policy_identity": "qwp_44ff849fee0f7757"
 }

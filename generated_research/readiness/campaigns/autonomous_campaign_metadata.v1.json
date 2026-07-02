@@ -1,5 +1,5 @@
 {
-  "campaign_metadata_identity": "cam_5ad18cbbb0996b3b",
+  "campaign_metadata_identity": "cam_eedf46ae142fa8ff",
   "module_version": "ade-qre-023.1",
   "report_kind": "qre_autonomous_campaign_metadata",
   "rows": [
@@ -8,46 +8,46 @@
         "authoritative_window_assignment_policy_not_materialized"
       ],
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
-      "campaign_metadata_id": "qcmd_bbe6642d2b934c50",
+      "campaign_metadata_id": "qcmd_7dc97e6c700ad3a1",
       "campaign_metadata_state": "PREREGISTRATION_BLOCKED",
-      "dataset_identity": "qds_adf92f9c0715c67b",
+      "dataset_identity": "qds_7974cafcea4e2da1",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "null_controls": [
         "matched_frequency_null",
         "sign_flipped_signal",
         "cost_only_baseline"
       ],
-      "preset_id": "qgp_3730fa2cabbee856",
+      "preset_id": "qgp_89068ef8ba64be83",
       "provenance": [
         "logs/qre_behavior_thesis_registry/latest.json",
         "logs/qre_blocked_thesis_lineage_census/latest.json",
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
-      "snapshot_identity": "qsn_adf92f9c0715c67b",
+      "snapshot_identity": "qsn_7974cafcea4e2da1",
       "timeframe": "1d",
       "universe_identity": "quv_fa4646ea49ea7bf2"
     },
     {
       "blockers": [
-        "no_cache_row_for_resolved_instrument_and_timeframe"
+        "authoritative_window_assignment_policy_not_materialized"
       ],
       "campaign_cell_id": "qrcell_d5ded3130f132558",
-      "campaign_metadata_id": "qcmd_34bbc7afdb9f83fa",
+      "campaign_metadata_id": "qcmd_d4f88ee451679ab5",
       "campaign_metadata_state": "PREREGISTRATION_BLOCKED",
-      "dataset_identity": "",
+      "dataset_identity": "qds_9259a9d6d1e18766",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "null_controls": [
         "matched_frequency_null",
         "sign_flipped_signal",
         "cost_only_baseline"
       ],
-      "preset_id": "",
+      "preset_id": "qgp_962b748f49f30524",
       "provenance": [
         "logs/qre_behavior_thesis_registry/latest.json",
         "logs/qre_blocked_thesis_lineage_census/latest.json",
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
-      "snapshot_identity": "",
+      "snapshot_identity": "qsn_9259a9d6d1e18766",
       "timeframe": "1h",
       "universe_identity": "quv_fa4646ea49ea7bf2"
     },
@@ -79,22 +79,70 @@
       "blockers": [
         "authoritative_window_assignment_policy_not_materialized"
       ],
-      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
-      "campaign_metadata_id": "qcmd_5d0d09f0ae737fb3",
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "campaign_metadata_id": "qcmd_27cb88a930fe650a",
       "campaign_metadata_state": "PREREGISTRATION_BLOCKED",
-      "dataset_identity": "qds_e435652faeac00bd",
-      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "dataset_identity": "qds_ebf90fbe890a2018",
+      "generated_strategy_id": "qgs_a266464219e0d498",
       "null_controls": [
-        "permuted_cross_sectional_ranking"
+        "shuffled_signal_timing",
+        "matched_frequency_null"
       ],
-      "preset_id": "qgp_9aed29ac8e33741c",
+      "preset_id": "qgp_fe54c77ae7b269cf",
       "provenance": [
         "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
         "logs/qre_behavior_thesis_registry/latest.json",
         "logs/qre_blocked_thesis_lineage_census/latest.json",
         "logs/qre_identity_ambiguity_resolution/latest.json"
       ],
-      "snapshot_identity": "qsn_e435652faeac00bd",
+      "snapshot_identity": "qsn_ebf90fbe890a2018",
+      "timeframe": "4h",
+      "universe_identity": "quv_ec46fa931ccf551e"
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "campaign_metadata_id": "qcmd_57fafe06fa98f7c7",
+      "campaign_metadata_state": "PREREGISTRATION_BLOCKED",
+      "dataset_identity": "qds_9232cc9bf44238bf",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "null_controls": [
+        "shuffled_signal_timing",
+        "matched_frequency_null"
+      ],
+      "preset_id": "qgp_55f99e0b362bb219",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "snapshot_identity": "qsn_9232cc9bf44238bf",
+      "timeframe": "1h",
+      "universe_identity": "quv_1cadf172ee0e0d1f"
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "campaign_metadata_id": "qcmd_d4a0d22bfa4b2cd3",
+      "campaign_metadata_state": "PREREGISTRATION_BLOCKED",
+      "dataset_identity": "qds_9c06097578a5ea83",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "null_controls": [
+        "permuted_cross_sectional_ranking"
+      ],
+      "preset_id": "qgp_fd2f76837859ad00",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "snapshot_identity": "qsn_9c06097578a5ea83",
       "timeframe": "1d",
       "universe_identity": "global_developed_liquid"
     }

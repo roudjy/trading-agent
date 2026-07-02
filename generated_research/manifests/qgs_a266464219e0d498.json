@@ -1,0 +1,19 @@
+{
+  "code_hash": "622329638afb4241ead56d5ad0ff3f955a51bf415a220ab4fc8fbd1eb3504af4",
+  "factory_symbol": "generated_strategy",
+  "generated_strategy_id": "qgs_a266464219e0d498",
+  "generator_version": "ade-qre-019.1",
+  "module_path": "agent/backtesting/generated_strategies/generated_qgs_a266464219e0d498.py",
+  "provenance": [
+    "logs/qre_behavior_thesis_registry/latest.json",
+    "logs/qre_identity_ambiguity_resolution/latest.json",
+    "logs/qre_blocked_thesis_lineage_census/latest.json",
+    "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+  ],
+  "schema_version": "1.0",
+  "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+  "template_version": "thin-strategy-template.1",
+  "test_hash": "587bb73e83e24bc971beec594514ab627856abeb2710d96c453c900af10d0dc8",
+  "test_manifest_id": "qgt_ab955ab0635a3e4c",
+  "test_module_path": "tests/generated_strategies/test_generated_qgs_a266464219e0d498.py"
+}

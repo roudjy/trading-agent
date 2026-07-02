@@ -1,5 +1,5 @@
 {
-  "campaign_lineage_identity": "cam_6e1786b954b5411c",
+  "campaign_lineage_identity": "cam_7be66fbf7786e6c2",
   "module_version": "ade-qre-023.1",
   "report_kind": "qre_autonomous_campaign_lineage",
   "rows": [
@@ -9,7 +9,7 @@
       ],
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "lineage_identity": "qcl_c6c8aed05d07ae55",
+      "lineage_identity": "qcl_e219dcc9ffec46d6",
       "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
       "provenance": [
         "logs/qre_behavior_thesis_registry/latest.json",
@@ -19,11 +19,11 @@
     },
     {
       "blockers": [
-        "no_cache_row_for_resolved_instrument_and_timeframe"
+        "authoritative_window_assignment_policy_not_materialized"
       ],
       "campaign_cell_id": "qrcell_d5ded3130f132558",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "lineage_identity": "qcl_a168acefaf67cf2d",
+      "lineage_identity": "qcl_7773fedc62a7d833",
       "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
       "provenance": [
         "logs/qre_behavior_thesis_registry/latest.json",
@@ -49,9 +49,39 @@
       "blockers": [
         "authoritative_window_assignment_policy_not_materialized"
       ],
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "lineage_identity": "qcl_baf683d3a7b787f6",
+      "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ]
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "lineage_identity": "qcl_586e9bc391f0ddf9",
+      "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ]
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
-      "lineage_identity": "qcl_64470e339d6ab4c8",
+      "lineage_identity": "qcl_8e362073d90c792d",
       "lineage_state": "CAMPAIGN_LINEAGE_COMPLETE_WITH_LIMITATIONS",
       "provenance": [
         "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",

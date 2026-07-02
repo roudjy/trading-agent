@@ -882,6 +882,10 @@ def _cost_only_baseline(position: pd.Series) -> pd.Series:
     return pd.Series(0, index=position.index, dtype=int)
 
 
+def _shuffled_signal_timing(position: pd.Series, seed_hex: str) -> pd.Series:
+    return _matched_frequency_null(position, seed_hex, "shuffled_signal_timing")
+
+
 def _evaluate_null_controls(
     *,
     stage_frame: pd.DataFrame,
@@ -896,6 +900,7 @@ def _evaluate_null_controls(
         "permuted_cross_sectional_ranking": lambda: _permuted_cross_sectional_ranking(position),
         "matched_frequency_null": lambda: _matched_frequency_null(position, seed_hex, "oos"),
         "sign_flipped_signal": lambda: _sign_flipped_signal(position),
+        "shuffled_signal_timing": lambda: _shuffled_signal_timing(position, seed_hex),
         "cost_only_baseline": lambda: _cost_only_baseline(position),
     }
     rows: list[dict[str, Any]] = []
