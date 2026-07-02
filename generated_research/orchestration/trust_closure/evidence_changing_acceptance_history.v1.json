@@ -1,0 +1,55 @@
+{
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_evidence_changing_acceptance_history",
+  "rows": [
+    {
+      "changed_evidence": true,
+      "cycle": 1,
+      "cycle_kind": "evidence_changing_acceptance_cycle",
+      "evidence_fingerprint": "qevidence_c4902b8f0ac44919",
+      "new_campaigns_since_prior": 1,
+      "result": "evidence_changed"
+    },
+    {
+      "changed_evidence": false,
+      "cycle": 2,
+      "cycle_kind": "evidence_changing_acceptance_cycle",
+      "evidence_fingerprint": "qevidence_c4902b8f0ac44919",
+      "new_campaigns_since_prior": 0,
+      "result": "no_change"
+    },
+    {
+      "artifact_identity": "qreplay_349c730d8261849b",
+      "changed_evidence": false,
+      "cycle": 3,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_c4902b8f0ac44919",
+      "exact_match": true,
+      "result": "exact_match"
+    },
+    {
+      "artifact_identity": "qreplay_bf6533b33f8f98da",
+      "changed_evidence": false,
+      "cycle": 4,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_c4902b8f0ac44919",
+      "exact_match": true,
+      "result": "exact_match"
+    },
+    {
+      "artifact_identity": "qreplay_c0bd81b0ce674877",
+      "changed_evidence": false,
+      "cycle": 5,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_c4902b8f0ac44919",
+      "exact_match": true,
+      "result": "exact_match"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "deterministic_acceptance_replay_count": 3,
+    "evidence_changing_acceptance_cycle_count": 1,
+    "independent_empirical_research_cycle_count": 1
+  }
+}

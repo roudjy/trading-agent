@@ -1,50 +1,12 @@
 {
-  "module_version": "ade-qre-027.1",
+  "module_version": "ade-qre-036.1",
   "report_kind": "qre_generated_hypothesis_reason_records",
   "rows": [
     {
       "evidence_refs": [
-        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
-      ],
-      "reason_record_id": "qrr_2d446db202dd4fc9",
-      "source_hypothesis_id": "cross_sectional_momentum_v0",
-      "stage": "generated",
-      "status": "completed",
-      "thesis_id": "qhc_51bc7a5c7b3f64ba"
-    },
-    {
-      "evidence_refs": [],
-      "reason_record_id": "qrr_7136949439350f54",
-      "source_hypothesis_id": "cross_sectional_momentum_v0",
-      "stage": "feasible",
-      "status": "ready",
-      "thesis_id": "qhc_51bc7a5c7b3f64ba"
-    },
-    {
-      "evidence_refs": [
-        "materialize_sampling_plan"
-      ],
-      "reason_record_id": "qrr_b11fd6a8ac37ca99",
-      "source_hypothesis_id": "cross_sectional_momentum_v0",
-      "stage": "routed",
-      "status": "ready",
-      "thesis_id": "qhc_51bc7a5c7b3f64ba"
-    },
-    {
-      "evidence_refs": [
-        "evaluate_exact_blocker_or_empirical_campaign_gap"
-      ],
-      "reason_record_id": "qrr_ac12408a0c96dec6",
-      "source_hypothesis_id": "cross_sectional_momentum_v0",
-      "stage": "sampled",
-      "status": "ready",
-      "thesis_id": "qhc_51bc7a5c7b3f64ba"
-    },
-    {
-      "evidence_refs": [
         "qcx_40d35874111bcd98"
       ],
-      "reason_record_id": "qrr_3b62aaf08f4b4606",
+      "reason_record_id": "qrr_812020b0f0c3aab2",
       "source_hypothesis_id": "cross_sectional_momentum_v0",
       "stage": "campaign_admitted",
       "status": "completed",
@@ -52,27 +14,39 @@
     },
     {
       "evidence_refs": [
-        "REJECTED"
+        "NEEDS_MORE_EVIDENCE",
+        "launch_data_oos_capacity_expansion"
       ],
-      "reason_record_id": "qrr_3a6516d6cac243ad",
+      "reason_record_id": "qrr_503d9bcb8ad50f4d",
       "source_hypothesis_id": "cross_sectional_momentum_v0",
-      "stage": "evidence_incomplete",
+      "stage": "terminal_disposition",
       "status": "completed",
       "thesis_id": "qhc_51bc7a5c7b3f64ba"
     },
     {
       "evidence_refs": [
-        "readiness_not_evidence_complete"
+        "qcx_984253c682dfbaeb"
       ],
-      "reason_record_id": "qrr_fd81b6c2ed0d5529",
-      "source_hypothesis_id": "cross_sectional_momentum_v0",
-      "stage": "synthesis_ineligible",
-      "status": "open",
-      "thesis_id": "qhc_51bc7a5c7b3f64ba"
+      "reason_record_id": "qrr_2e8d2d0bbf8d9ba3",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "stage": "campaign_admitted",
+      "status": "completed",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "evidence_refs": [
+        "NEEDS_MORE_EVIDENCE",
+        "launch_data_oos_capacity_expansion"
+      ],
+      "reason_record_id": "qrr_1fe914c9ec46588e",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "stage": "terminal_disposition",
+      "status": "completed",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
     }
   ],
   "schema_version": "1.0",
   "summary": {
-    "reason_record_count": 7
+    "reason_record_count": 4
   }
 }

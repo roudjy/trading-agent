@@ -1,0 +1,30 @@
+{
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_routing_comparators",
+  "rows": [
+    {
+      "actual_information_outcome": "NEEDS_MORE_EVIDENCE",
+      "data_readiness": "READY_FOR_PREREGISTRATION",
+      "eligible_alternatives": [],
+      "estimated_compute_cost": "single_campaign",
+      "expected_information_value": "bounded_real_oos_evidence",
+      "historical_precedent": "distinct_strategy_cell_or_no_prior_execution",
+      "measurement_type": "NOT_EVALUABLE",
+      "primitive_readiness": "READY",
+      "routing_record_id": "qrrt_619a60915567c012",
+      "routing_regret": null,
+      "routing_regret_evaluable": false,
+      "selected_route": "qrcell_fdd68e20fd2724dd",
+      "selection_reason": "ready_and_novel"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "measurement_types": [
+      "NOT_EVALUABLE"
+    ],
+    "routing_comparator_records": 1,
+    "routing_regret": null,
+    "routing_regret_evaluable": false
+  }
+}
