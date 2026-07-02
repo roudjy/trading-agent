@@ -105,7 +105,35 @@ REQUEST_STATUSES: Final[tuple[str, ...]] = (
     "EXTERNAL_BOUNDARY",
     "MERGED",
     "RESOLVED",
+    "SUPERSEDED",
 )
+INPUT_CLASSES: Final[tuple[str, ...]] = (
+    "EXTERNAL_MARKET_STATE",
+    "CANONICAL_SOURCE_STATE",
+    "CANONICAL_IDENTITY_STATE",
+    "CANONICAL_POLICY_STATE",
+    "CANONICAL_PRIMITIVE_STATE",
+    "CANONICAL_HYPOTHESIS_TEMPLATE_STATE",
+    "ADE_EXTERNAL_RESOLUTION_STATE",
+    "QRE_LOOP_OUTPUT",
+    "QRE_GENERATED_HYPOTHESIS_OUTPUT",
+    "QRE_CAPABILITY_REQUEST_OUTPUT",
+    "QRE_REPORTING_OUTPUT",
+    "REPLAY_OR_STATUS_OUTPUT",
+)
+NON_MATERIAL_INPUT_CLASSES: Final[frozenset[str]] = frozenset(
+    {
+        "QRE_LOOP_OUTPUT",
+        "QRE_GENERATED_HYPOTHESIS_OUTPUT",
+        "QRE_CAPABILITY_REQUEST_OUTPUT",
+        "QRE_REPORTING_OUTPUT",
+        "REPLAY_OR_STATUS_OUTPUT",
+    }
+)
+BOOTSTRAP_BASELINE: Final[str] = "BOOTSTRAP_BASELINE"
+SELF_TRIGGER_FALSE_POSITIVE_REASON: Final[str] = "SELF_TRIGGER_FALSE_POSITIVE"
+LOOP_OUTPUT_NOT_AUTHORIZED_REASON: Final[str] = "LOOP_OUTPUT_NOT_AUTHORIZED_AS_CAPABILITY_TRIGGER"
+KNOWN_FALSE_POSITIVE_REQUEST_ID: Final[str] = "qrdr_b5264c941dcf3e88"
 
 DEFAULT_LIMITS: Final[dict[str, int]] = {
     "maximum_cycles_per_run": 3,
@@ -117,7 +145,7 @@ LOCK_LEASE_SECONDS: Final[int] = 900
 
 REPO_ROOT: Final[Path] = gsp.REPO_ROOT
 LOOP_ROOT: Final[Path] = Path("generated_research/orchestration/opportunity_loop")
-WATERMARK_PATH: Final[Path] = LOOP_ROOT / "watermark" / "opportunity_watermark.v1.json"
+WATERMARK_PATH: Final[Path] = LOOP_ROOT / "watermark" / "external_input_watermark.v1.json"
 PRECHECK_PATH: Final[Path] = LOOP_ROOT / "watermark" / "material_change_detection.v1.json"
 OPPORTUNITIES_PATH: Final[Path] = LOOP_ROOT / "registry" / "research_opportunity_registry.v1.json"
 HYPOTHESIS_BATCH_PATH: Final[Path] = LOOP_ROOT / "registry" / "generated_hypothesis_batch.v1.json"
@@ -127,10 +155,14 @@ CAMPAIGN_CELL_NOVELTY_PATH: Final[Path] = LOOP_ROOT / "registry" / "campaign_cel
 STATE_PATH: Final[Path] = LOOP_ROOT / "status" / "opportunity_loop_state.v1.json"
 RUN_PATH: Final[Path] = LOOP_ROOT / "status" / "opportunity_loop_run.v1.json"
 LOCK_PATH: Final[Path] = LOOP_ROOT / "status" / "opportunity_loop_lock.v1.json"
+OUTPUT_CHECKPOINT_PATH: Final[Path] = LOOP_ROOT / "status" / "loop_output_checkpoint.v1.json"
+LATEST_RUN_SUMMARY_PATH: Final[Path] = LOOP_ROOT / "status" / "latest_run_summary.v1.json"
 GAP_REGISTRY_PATH: Final[Path] = LOOP_ROOT / "registry" / "capability_gap_registry.v1.json"
 ADE_REQUESTS_PATH: Final[Path] = LOOP_ROOT / "registry" / "ade_development_requests.v1.json"
 ADE_FEEDBACK_PATH: Final[Path] = LOOP_ROOT / "registry" / "ade_request_resolution_feedback.v1.json"
+REQUEST_LIFECYCLE_PATH: Final[Path] = LOOP_ROOT / "registry" / "ade_request_lifecycle.v1.json"
 CONTINUATION_PLAN_PATH: Final[Path] = LOOP_ROOT / "status" / "research_continuation_plan.v1.json"
+ROOT_CAUSE_PATH: Final[Path] = LOOP_ROOT / "diagnostics" / "self_trigger_root_cause.v1.json"
 PROPOSAL_INTAKE_PATH: Final[Path] = Path("logs/qre_research_action_proposal_intake/latest.json")
 
 
@@ -193,6 +225,9 @@ def _validate_write_target(path: Path, *, repo_root: Path) -> None:
 def _atomic_write(path: Path, payload: str, *, repo_root: Path) -> None:
     _validate_write_target(path, repo_root=repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
+    with suppress(OSError):
+        if path.read_text(encoding="utf-8-sig") == payload:
+            return
     fd, tmp_name = tempfile.mkstemp(prefix=".ade_qre_036.", suffix=".tmp", dir=str(path.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
@@ -296,12 +331,155 @@ def _load_oos_consumption(repo_root: Path) -> dict[str, Any]:
     return _read_json(Path("generated_research/campaign_execution/ledgers/oos_consumption.v1.json"), repo_root=repo_root) or {}
 
 
-def _watermark_components(repo_root: Path) -> dict[str, Any]:
+def _semantic_normalize(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _semantic_normalize(value[key]) for key in sorted(value)}
+    if isinstance(value, list):
+        normalized = [_semantic_normalize(item) for item in value]
+        if all(isinstance(item, dict | list | str | int | float | bool) or item is None for item in normalized):
+            return sorted(normalized, key=_stable_json)
+        return normalized
+    return value
+
+
+def _semantic_digest(value: Any) -> str:
+    return stable_digest(_semantic_normalize(value))
+
+
+def _external_input_descriptor(
+    *,
+    input_class: str,
+    canonical_owner: str,
+    producer: str,
+    scope: str,
+    eligible_as_material_trigger: bool,
+    eligible_trigger_types: list[str],
+    value: Any,
+) -> dict[str, Any]:
+    payload = {
+        "input_class": input_class,
+        "canonical_owner": canonical_owner,
+        "producer": producer,
+        "scope": scope,
+        "eligible_as_material_trigger": eligible_as_material_trigger,
+        "eligible_trigger_types": eligible_trigger_types,
+        "semantic_content_identity": _semantic_digest(value),
+        "canonical_entity_identity": _content_id(
+            "qrei",
+            {
+                "owner": canonical_owner,
+                "scope": scope,
+                "class": input_class,
+            },
+        ),
+        "canonical_version": POLICY_VERSION,
+        "effective_state": _semantic_normalize(value),
+    }
+    payload["content_identity"] = _content_id("qred", payload)
+    return payload
+
+
+def _tracked_request_statuses(previous_checkpoint: dict[str, Any] | None) -> dict[str, str]:
+    if not isinstance(previous_checkpoint, dict):
+        return {}
+    tracked = previous_checkpoint.get("tracked_request_statuses")
+    if not isinstance(tracked, dict):
+        return {}
+    return {
+        str(request_id): str(status or "")
+        for request_id, status in tracked.items()
+        if str(request_id or "")
+    }
+
+
+def _canonical_resolution_state(
+    *,
+    repo_root: Path,
+    previous_checkpoint: dict[str, Any] | None,
+) -> dict[str, str]:
+    tracked = _tracked_request_statuses(previous_checkpoint)
+    if not tracked:
+        return {}
+    work_queue = _read_json(Path("logs/development_work_queue/latest.json"), repo_root=repo_root) or {}
+    items = work_queue.get("items") if isinstance(work_queue.get("items"), list) else []
+    resolved_ids: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "")
+        if status not in {"done", "archived"}:
+            continue
+        text = " ".join(
+            [
+                str(item.get("title") or ""),
+                str(item.get("notes") or ""),
+                str(item.get("item_id") or ""),
+            ]
+        )
+        for request_id in tracked:
+            if request_id and request_id in text:
+                resolved_ids.add(request_id)
+    return {
+        request_id: ("RESOLVED" if request_id in resolved_ids else str(status or "PENDING"))
+        for request_id, status in tracked.items()
+    }
+
+
+def _load_root_cause_payload(*, repo_root: Path, previous_checkpoint: dict[str, Any] | None) -> dict[str, Any]:
+    generated_thesis = _read_json(ghp.GENERATED_THESIS_REGISTRY_PATH, repo_root=repo_root) or {}
+    generated_requests = _read_json(ADE_REQUESTS_PATH, repo_root=repo_root) or {}
+    generated_feedback = _read_json(ADE_FEEDBACK_PATH, repo_root=repo_root) or {}
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": POLICY_VERSION,
+        "report_kind": "qre_opportunity_loop_self_trigger_root_cause",
+        "affected_invocation": 2,
+        "false_request_id": KNOWN_FALSE_POSITIVE_REQUEST_ID,
+        "rows": [
+            {
+                "trigger_type": "NEW_HYPOTHESIS_TEMPLATE",
+                "source_artifact": ghp.GENERATED_THESIS_REGISTRY_PATH.as_posix(),
+                "artifact_producer": "packages.qre_research.automated_hypothesis_generation",
+                "artifact_owner": "QRE generated hypothesis output",
+                "previous_identity": "",
+                "current_identity": _semantic_digest(generated_thesis),
+                "why_it_changed": "invocation_1_generated_hypotheses_rewrote_the_generated_thesis_registry",
+                "loop_authored": True,
+                "externally_authoritative": False,
+                "incorrect_material_reason": "generated hypothesis output was folded into hypothesis_catalog_version",
+            },
+            {
+                "trigger_type": "CAPABILITY_GAP_RESOLVED",
+                "source_artifact": ADE_REQUESTS_PATH.as_posix(),
+                "artifact_producer": "packages.qre_research.autonomous_opportunity_loop",
+                "artifact_owner": "QRE capability request output",
+                "previous_identity": "",
+                "current_identity": _semantic_digest(
+                    {
+                        "requests": generated_requests,
+                        "feedback": generated_feedback,
+                        "tracked_request_statuses": _tracked_request_statuses(previous_checkpoint),
+                    }
+                ),
+                "why_it_changed": "invocation_1_created_or_rewrote_loop_authored_capability_request_artifacts",
+                "loop_authored": True,
+                "externally_authoritative": False,
+                "incorrect_material_reason": "loop request artifacts were folded into capability_inventory_version",
+            },
+        ],
+        "content_identity": "",
+    }
+
+
+def _watermark_components(
+    repo_root: Path,
+    *,
+    previous_checkpoint: dict[str, Any] | None,
+) -> dict[str, Any]:
     cache_manifest = _load_cache_manifest(repo_root)
     source_quality = _load_source_quality(repo_root)
     portfolio_rows = _load_portfolio_rows(repo_root)
     primitive_rows = _load_primitive_registry(repo_root)
-    thesis_registry = _read_json(ghp.GENERATED_THESIS_REGISTRY_PATH, repo_root=repo_root) or {}
     research_memory = _load_research_memory(repo_root)
     identity_rows = _load_identity_rows(repo_root)
     empirical_history = _load_empirical_history(repo_root)
@@ -340,39 +518,120 @@ def _watermark_components(repo_root: Path) -> dict[str, Any]:
     regime_signature = sorted(
         {
             str(regime)
-            for row in a20.compile_candidate_theses(repo_root=repo_root).get("rows", [])
+            for row in portfolio_rows
             if isinstance(row, dict)
-            for regime in row.get("regimes", []) or []
+            for regime in row.get("regime_scope", []) or row.get("regimes", []) or []
             if regime
         }
     )
-    capability_inventory_version = stable_digest(
-        {
-            "ade_requests": _read_json(ADE_REQUESTS_PATH, repo_root=repo_root) or {},
-            "ade_feedback": _read_json(ADE_FEEDBACK_PATH, repo_root=repo_root) or {},
-        }
+    ade_resolution_state = _canonical_resolution_state(
+        repo_root=repo_root,
+        previous_checkpoint=previous_checkpoint,
     )
-    primitive_inventory_version = stable_digest(primitive_rows)
-    hypothesis_catalog_version = stable_digest(
+    capability_inventory_version = _semantic_digest(ade_resolution_state)
+    primitive_inventory_version = _semantic_digest(primitive_rows)
+    hypothesis_catalog_version = _semantic_digest(
         {
-            "generated": thesis_registry,
             "manual_snapshot": a20.build_evidence_snapshot(repo_root=repo_root).get("manual_thesis_digest", ""),
         }
     )
-    research_memory_version = stable_digest(research_memory)
+    research_memory_version = _semantic_digest(research_memory)
     cooldown_state_version = stable_digest(
         {
             "active_blocker": _load_trust_continuation(repo_root).get("active_blocker"),
             "blocked_cells": _load_trust_continuation(repo_root).get("blocked_cells", []),
         }
     )
-    contradictory_evidence = stable_digest(
+    contradictory_evidence = _semantic_digest(
         _read_json(ghp.EVIDENCE_UPDATES_PATH, repo_root=repo_root) or {}
     )
+    inputs = [
+        _external_input_descriptor(
+            input_class="EXTERNAL_MARKET_STATE",
+            canonical_owner="logs/qre_data_cache_manifest/latest.json",
+            producer="qre_data_cache_manifest",
+            scope="market_data",
+            eligible_as_material_trigger=True,
+            eligible_trigger_types=["NEW_COMPLETE_MARKET_DATA", "MATERIAL_DATASET_CHANGE", "NEW_CANONICAL_TIMEFRAME"],
+            value={
+                "dataset_fingerprints": dataset_fingerprints,
+                "latest_complete_bar_by_asset_timeframe": latest_complete_bar,
+                "source_manifest_identities": source_identities,
+            },
+        ),
+        _external_input_descriptor(
+            input_class="CANONICAL_SOURCE_STATE",
+            canonical_owner="logs/qre_data_source_quality_readiness/latest.json",
+            producer="qre_data_source_quality_readiness",
+            scope="source_quality",
+            eligible_as_material_trigger=True,
+            eligible_trigger_types=["SOURCE_QUALITY_CHANGE"],
+            value=quality_status,
+        ),
+        _external_input_descriptor(
+            input_class="CANONICAL_IDENTITY_STATE",
+            canonical_owner="generated_research/readiness/identity_decisions/autonomous_universe_authority.v1.json",
+            producer="autonomous_universe_authority",
+            scope="identity_resolution",
+            eligible_as_material_trigger=True,
+            eligible_trigger_types=["IDENTITY_CHANGE", "NEW_ADMISSIBLE_UNIVERSE", "NEW_USABLE_OOS_WINDOW"],
+            value={
+                "identity_status_by_universe": identity_status,
+                "usable_history_end_by_cell": usable_history_end,
+                "usable_oos_end_by_cell": usable_oos_end,
+            },
+        ),
+        _external_input_descriptor(
+            input_class="CANONICAL_POLICY_STATE",
+            canonical_owner="packages/qre_research/autonomous_opportunity_loop.py",
+            producer="policy_constant",
+            scope="policy",
+            eligible_as_material_trigger=True,
+            eligible_trigger_types=["NEW_FALSIFICATION_CONTROL"],
+            value={"policy_version": POLICY_VERSION, "cooldown_state_version": cooldown_state_version},
+        ),
+        _external_input_descriptor(
+            input_class="CANONICAL_PRIMITIVE_STATE",
+            canonical_owner="generated_research/primitives/registry/generated_primitive_registry.v1.json",
+            producer="generated_primitive_registry",
+            scope="primitive_inventory",
+            eligible_as_material_trigger=True,
+            eligible_trigger_types=["NEW_CANONICAL_PRIMITIVE"],
+            value={"primitive_inventory_version": primitive_inventory_version},
+        ),
+        _external_input_descriptor(
+            input_class="CANONICAL_HYPOTHESIS_TEMPLATE_STATE",
+            canonical_owner="manual_thesis_digest",
+            producer="packages.qre_research.automated_hypothesis_generation.build_evidence_snapshot",
+            scope="canonical_hypothesis_templates",
+            eligible_as_material_trigger=True,
+            eligible_trigger_types=["NEW_HYPOTHESIS_TEMPLATE"],
+            value={"hypothesis_catalog_version": hypothesis_catalog_version},
+        ),
+        _external_input_descriptor(
+            input_class="ADE_EXTERNAL_RESOLUTION_STATE",
+            canonical_owner="logs/development_work_queue/latest.json",
+            producer="development_work_queue",
+            scope="ade_lifecycle_resolution",
+            eligible_as_material_trigger=True,
+            eligible_trigger_types=["CAPABILITY_GAP_RESOLVED"],
+            value=ade_resolution_state,
+        ),
+        _external_input_descriptor(
+            input_class="QRE_LOOP_OUTPUT",
+            canonical_owner=RUN_PATH.as_posix(),
+            producer="packages.qre_research.autonomous_opportunity_loop",
+            scope="loop_run_summary",
+            eligible_as_material_trigger=False,
+            eligible_trigger_types=[],
+            value={"tracked_request_statuses": _tracked_request_statuses(previous_checkpoint)},
+        ),
+    ]
     return {
         "watermark_id": "",
         "schema_version": SCHEMA_VERSION,
         "policy_version": POLICY_VERSION,
+        "bootstrap_state": "",
         "source_manifest_identities": source_identities,
         "dataset_fingerprints": dataset_fingerprints,
         "latest_complete_bar_by_asset_timeframe": latest_complete_bar,
@@ -388,20 +647,32 @@ def _watermark_components(repo_root: Path) -> dict[str, Any]:
         "cooldown_state_version": cooldown_state_version,
         "latest_empirical_history_identity": stable_digest(empirical_history),
         "contradictory_evidence_identity": contradictory_evidence,
+        "ade_resolution_state_by_request": ade_resolution_state,
+        "inputs": inputs,
     }
 
 
-def build_watermark(*, repo_root: Path, previous_state_identity: str = "") -> dict[str, Any]:
-    payload = _watermark_components(repo_root)
+def build_watermark(
+    *,
+    repo_root: Path,
+    previous_state_identity: str = "",
+    previous_checkpoint: dict[str, Any] | None = None,
+    bootstrap_state: str = "",
+) -> dict[str, Any]:
+    payload = _watermark_components(repo_root, previous_checkpoint=previous_checkpoint)
+    payload["bootstrap_state"] = bootstrap_state
     payload["last_processed_state_identity"] = previous_state_identity
-    payload["content_identity"] = _content_id("qrow", payload)
+    content_basis = dict(payload)
+    content_basis["bootstrap_state"] = ""
+    content_basis["last_processed_state_identity"] = ""
+    payload["content_identity"] = _content_id("qrow", content_basis)
     payload["watermark_id"] = _content_id("qrwm", payload["content_identity"])
     return payload
 
 
 def _collect_triggers(previous: dict[str, Any] | None, current: dict[str, Any]) -> list[str]:
     if previous is None:
-        return ["NEW_COMPLETE_MARKET_DATA", "NEW_HYPOTHESIS_TEMPLATE", "NEW_CANONICAL_PRIMITIVE"]
+        return []
     trigger_map = {
         "dataset_fingerprints": "MATERIAL_DATASET_CHANGE",
         "latest_complete_bar_by_asset_timeframe": "NEW_COMPLETE_MARKET_DATA",
@@ -428,7 +699,8 @@ def _collect_triggers(previous: dict[str, Any] | None, current: dict[str, Any]) 
 
 def build_precheck(previous: dict[str, Any] | None, current: dict[str, Any]) -> dict[str, Any]:
     triggers = _collect_triggers(previous, current)
-    if not triggers:
+    bootstrap = previous is None
+    if bootstrap or not triggers:
         status = "NO_MATERIAL_CHANGE"
     elif len(triggers) > 1:
         status = "MULTIPLE_MATERIAL_CHANGES"
@@ -450,11 +722,19 @@ def build_precheck(previous: dict[str, Any] | None, current: dict[str, Any]) -> 
         "report_kind": "qre_material_change_detection",
         "previous_watermark_id": str(previous.get("watermark_id") or "") if previous else "",
         "current_watermark_id": str(current.get("watermark_id") or ""),
+        "bootstrap_state": BOOTSTRAP_BASELINE if bootstrap else "",
         "triggers": triggers,
         "precheck_status": status,
+        "exact_reason": BOOTSTRAP_BASELINE if bootstrap else ("no_material_change" if not triggers else ",".join(triggers)),
         "content_identity": _content_id(
             "qrpc",
-            {"previous": str(previous.get("watermark_id") or "") if previous else "", "current": current["watermark_id"], "triggers": triggers, "status": status},
+            {
+                "previous": str(previous.get("watermark_id") or "") if previous else "",
+                "current": current["watermark_id"],
+                "triggers": triggers,
+                "status": status,
+                "bootstrap": bootstrap,
+            },
         ),
     }
     return payload
@@ -818,6 +1098,7 @@ def build_gap_registry(
     cells: dict[str, Any],
     run_id: str,
     opportunity_rows: list[dict[str, Any]],
+    precheck: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     previous = _read_json(GAP_REGISTRY_PATH, repo_root=repo_root) or {"rows": []}
     previous_by_key = {
@@ -827,6 +1108,8 @@ def build_gap_registry(
     }
     rows = list(previous.get("rows", []))
     current_rows: list[dict[str, Any]] = []
+    trigger_origin_class = "CANONICAL_SOURCE_STATE"
+    trigger_authority = str(precheck.get("current_watermark_id") or "") if isinstance(precheck, dict) else ""
     for hypothesis in hypotheses.get("rows", []):
         if hypothesis["admission_status"] in {"HYPOTHESIS_ADMITTED", "HYPOTHESIS_DUPLICATE", "HYPOTHESIS_NEAR_DUPLICATE"}:
             continue
@@ -846,6 +1129,8 @@ def build_gap_registry(
             "evidence_refs": [HYPOTHESIS_BATCH_PATH.as_posix()],
             "run_id": run_id,
             "source_hypothesis_id": hypothesis["source_hypothesis_id"],
+            "trigger_origin_class": trigger_origin_class,
+            "trigger_authority": trigger_authority,
             "content_identity": "",
         }
         payload["content_identity"] = _content_id("qrgc", payload)
@@ -871,6 +1156,8 @@ def build_gap_registry(
             "run_id": run_id,
             "source_hypothesis_id": "",
             "campaign_cell_id": cell["campaign_cell_id"],
+            "trigger_origin_class": trigger_origin_class,
+            "trigger_authority": trigger_authority,
             "content_identity": "",
         }
         payload["content_identity"] = _content_id("qrgc", payload)
@@ -935,7 +1222,145 @@ def _build_request_proposal(request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_ade_requests(*, repo_root: Path, gap_registry: dict[str, Any], run_id: str) -> dict[str, Any]:
+def _read_request_lifecycle(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(REQUEST_LIFECYCLE_PATH, repo_root=repo_root)
+    if isinstance(payload, dict):
+        return payload
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": POLICY_VERSION,
+        "report_kind": "qre_ade_request_lifecycle",
+        "rows": [],
+    }
+
+
+def _request_lifecycle_by_id(repo_root: Path) -> dict[str, dict[str, Any]]:
+    payload = _read_request_lifecycle(repo_root)
+    return {
+        str(row.get("request_id") or ""): dict(row)
+        for row in payload.get("rows", [])
+        if isinstance(row, dict) and str(row.get("request_id") or "")
+    }
+
+
+def _active_request_rows(*, repo_root: Path, request_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    lifecycle = _request_lifecycle_by_id(repo_root)
+    active_rows: list[dict[str, Any]] = []
+    for row in request_rows:
+        request_id = str(row.get("request_id") or "")
+        override = lifecycle.get(request_id, {})
+        if override.get("active") is False:
+            continue
+        active_rows.append(row)
+    return active_rows
+
+
+def _build_request_lifecycle(
+    *,
+    repo_root: Path,
+    root_cause: dict[str, Any],
+) -> dict[str, Any]:
+    previous = _read_request_lifecycle(repo_root)
+    rows = [
+        dict(row)
+        for row in previous.get("rows", [])
+        if isinstance(row, dict)
+    ]
+    by_id = {
+        str(row.get("request_id") or ""): row
+        for row in rows
+        if str(row.get("request_id") or "")
+    }
+    observed_status = ""
+    for path in (
+        PROPOSAL_INTAKE_PATH,
+        Path("logs/qre_development_intake_promotion/latest.json"),
+        Path("logs/qre_development_queue_admission_policy/latest.json"),
+    ):
+        payload = _read_json(path, repo_root=repo_root) or {}
+        for key in ("proposals", "rows"):
+            items = payload.get(key)
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                request_id = str(
+                    item.get("proposal_id")
+                    or item.get("candidate_id")
+                    or ""
+                )
+                if request_id == KNOWN_FALSE_POSITIVE_REQUEST_ID:
+                    observed_status = str(
+                        item.get("status")
+                        or item.get("upstream_proposal_status")
+                        or item.get("decision_state")
+                        or ""
+                    )
+                    break
+            if observed_status:
+                break
+        if observed_status:
+            break
+    prior = by_id.get(KNOWN_FALSE_POSITIVE_REQUEST_ID, {})
+    lifecycle_row = {
+        "request_id": KNOWN_FALSE_POSITIVE_REQUEST_ID,
+        "previous_status": str(prior.get("final_status") or observed_status or "needs_human"),
+        "final_status": "SUPERSEDED",
+        "effective_status": "SUPERSEDED",
+        "active": False,
+        "operator_action_required": False,
+        "resolution_reason": SELF_TRIGGER_FALSE_POSITIVE_REASON,
+        "superseded_by": str(prior.get("superseded_by") or "opportunity_loop_idempotence_fix"),
+        "root_cause_artifact": ROOT_CAUSE_PATH.as_posix(),
+        "root_cause_identity": str(root_cause.get("content_identity") or ""),
+        "historical_provenance_refs": [
+            PROPOSAL_INTAKE_PATH.as_posix(),
+            "logs/qre_development_intake_promotion/latest.json",
+            "logs/qre_development_queue_admission_policy/latest.json",
+        ],
+        "content_identity": "",
+    }
+    lifecycle_row["content_identity"] = _content_id("qrlc", lifecycle_row)
+    by_id[KNOWN_FALSE_POSITIVE_REQUEST_ID] = lifecycle_row
+    materialized_rows = sorted(
+        by_id.values(),
+        key=lambda row: (str(row.get("request_id") or ""), str(row.get("effective_status") or "")),
+    )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": POLICY_VERSION,
+        "report_kind": "qre_ade_request_lifecycle",
+        "rows": materialized_rows,
+        "summary": {
+            "inactive_false_positives": sum(
+                1
+                for row in materialized_rows
+                if row.get("resolution_reason") == SELF_TRIGGER_FALSE_POSITIVE_REASON
+                and row.get("active") is False
+            )
+        },
+        "content_identity": _content_id("qrlcf", materialized_rows),
+    }
+
+
+def _proposal_intake_payload(*, request_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "report_kind": "qre_research_action_proposal_intake",
+        "generated_at_utc": _iso_now(),
+        "safe_to_execute": False,
+        "proposals": [_build_request_proposal(row) for row in request_rows],
+    }
+
+
+def build_ade_requests(
+    *,
+    repo_root: Path,
+    gap_registry: dict[str, Any],
+    run_id: str,
+    precheck: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     previous = _read_json(ADE_REQUESTS_PATH, repo_root=repo_root) or {"rows": []}
     previous_by_key = {
         str(row.get("deduplication_key") or ""): dict(row)
@@ -948,7 +1373,10 @@ def build_ade_requests(*, repo_root: Path, gap_registry: dict[str, Any], run_id:
             continue
         if not gap.get("persistent") or not gap.get("code_addressable"):
             continue
-        owner_path, owner_group = _request_owner(str(gap["gap_class"]))
+        trigger_origin_class = str(gap.get("trigger_origin_class") or "")
+        if trigger_origin_class in NON_MATERIAL_INPUT_CLASSES:
+            continue
+        owner_path, _ = _request_owner(str(gap["gap_class"]))
         dedup_key = stable_digest(
             {
                 "gap_class": gap["gap_class"],
@@ -990,6 +1418,9 @@ def build_ade_requests(*, repo_root: Path, gap_registry: dict[str, Any], run_id:
             "risk_class": ea.RISK_LOW,
             "execution_authority_action": "file_edit",
             "execution_authority_result": authority.decision,
+            "self_trigger_check": "PASS",
+            "trigger_origin_class": trigger_origin_class or "CANONICAL_SOURCE_STATE",
+            "trigger_authority": str(gap.get("trigger_authority") or "canonical_gap_registry"),
             "deduplication_key": dedup_key,
             "status": authority.decision,
             "supersedes": str(prior.get("request_id") or ""),
@@ -999,17 +1430,12 @@ def build_ade_requests(*, repo_root: Path, gap_registry: dict[str, Any], run_id:
         previous_by_key[dedup_key] = request
         new_requests.append(request)
     merged = sorted(previous_by_key.values(), key=lambda row: (str(row.get("gap_class") or ""), str(row.get("request_id") or "")))
-    proposal_payload = {
-        "schema_version": 1,
-        "report_kind": "qre_research_action_proposal_intake",
-        "generated_at_utc": _iso_now(),
-        "safe_to_execute": False,
-        "proposals": [_build_request_proposal(row) for row in new_requests],
-    }
+    active_requests = _active_request_rows(repo_root=repo_root, request_rows=merged)
+    proposal_payload = _proposal_intake_payload(request_rows=active_requests)
     qdip_snapshot = qdip.collect_snapshot(
         input_artifact_path=_repo_path(PROPOSAL_INTAKE_PATH, repo_root=repo_root),
         generated_at_utc=_iso_now(),
-    ) if not new_requests else None
+    ) if not active_requests else None
     return {
         "requests": {
             "schema_version": SCHEMA_VERSION,
@@ -1018,6 +1444,7 @@ def build_ade_requests(*, repo_root: Path, gap_registry: dict[str, Any], run_id:
             "rows": merged,
             "summary": {
                 "request_count": len(merged),
+                "active_request_count": len(active_requests),
                 "new_requests": len(new_requests),
                 "auto_allowed": sum(1 for row in merged if row["execution_authority_result"] == ea.DECISION_AUTO_ALLOWED),
                 "needs_human": sum(1 for row in merged if row["execution_authority_result"] == ea.DECISION_NEEDS_HUMAN),
@@ -1025,6 +1452,7 @@ def build_ade_requests(*, repo_root: Path, gap_registry: dict[str, Any], run_id:
             },
             "content_identity": _content_id("qrar", merged),
         },
+        "active_requests": active_requests,
         "proposal_intake_payload": proposal_payload,
         "promotion_snapshot": qdip_snapshot,
     }
@@ -1084,6 +1512,35 @@ def consume_resolution_feedback(*, repo_root: Path, request_rows: list[dict[str,
         "summary": {"resolved_request_count": len(resolved_rows)},
         "content_identity": _content_id("qraff", resolved_rows),
     }
+
+
+def _build_output_checkpoint(
+    *,
+    opportunities: dict[str, Any],
+    hypotheses: dict[str, Any],
+    cells: dict[str, Any],
+    ade_requests: dict[str, Any],
+    loop_status: dict[str, Any],
+) -> dict[str, Any]:
+    tracked_request_statuses = {
+        str(row.get("request_id") or ""): str(row.get("status") or "")
+        for row in ade_requests.get("rows", [])
+        if isinstance(row, dict) and str(row.get("request_id") or "")
+    }
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": POLICY_VERSION,
+        "report_kind": "qre_loop_output_checkpoint",
+        "opportunity_identity": str(opportunities.get("content_identity") or ""),
+        "hypothesis_identity": str(hypotheses.get("content_identity") or ""),
+        "campaign_cell_identity": str(cells.get("content_identity") or ""),
+        "ade_request_identity": str(ade_requests.get("content_identity") or ""),
+        "loop_state_identity": str(loop_status.get("content_identity") or ""),
+        "tracked_request_statuses": tracked_request_statuses,
+        "content_identity": "",
+    }
+    payload["content_identity"] = _content_id("qroc", payload)
+    return payload
 
 
 def _acquire_lock(*, repo_root: Path) -> LoopLock:
@@ -1167,12 +1624,19 @@ def run_opportunity_loop(
     started_at = _iso_now()
     try:
         previous_watermark = _read_json(WATERMARK_PATH, repo_root=repo_root)
+        previous_checkpoint = _read_json(OUTPUT_CHECKPOINT_PATH, repo_root=repo_root)
         previous_state = _read_json(STATE_PATH, repo_root=repo_root) or {}
+        bootstrap_state = BOOTSTRAP_BASELINE if previous_watermark is None else ""
         current_watermark = build_watermark(
             repo_root=repo_root,
             previous_state_identity=str(previous_state.get("content_identity") or ""),
+            previous_checkpoint=previous_checkpoint,
+            bootstrap_state=bootstrap_state,
         )
         precheck = build_precheck(previous_watermark, current_watermark)
+        root_cause = _load_root_cause_payload(repo_root=repo_root, previous_checkpoint=previous_checkpoint)
+        root_cause["content_identity"] = _content_id("qrrc", root_cause)
+        request_lifecycle = _build_request_lifecycle(repo_root=repo_root, root_cause=root_cause)
         executed_campaigns: list[dict[str, Any]] = []
         if precheck["precheck_status"] == "NO_MATERIAL_CHANGE":
             opportunities = {
@@ -1241,14 +1705,16 @@ def run_opportunity_loop(
                     "report_kind": "qre_ade_development_requests",
                     "rows": [],
                     "summary": {
-                        "request_count": 0,
-                        "new_requests": 0,
-                        "auto_allowed": 0,
-                        "needs_human": 0,
+                    "request_count": 0,
+                    "active_request_count": 0,
+                    "new_requests": 0,
+                    "auto_allowed": 0,
+                    "needs_human": 0,
                         "permanently_denied": 0,
                     },
                     "content_identity": _content_id("qrar", []),
                 },
+                "active_requests": [],
                 "proposal_intake_payload": {
                     "schema_version": 1,
                     "report_kind": "qre_research_action_proposal_intake",
@@ -1303,19 +1769,22 @@ def run_opportunity_loop(
                 cells=cells_payload["registry"],
                 run_id=lock.run_id,
                 opportunity_rows=opportunities.get("rows", []),
+                precheck=precheck,
             )
-            ade_bundle = build_ade_requests(repo_root=repo_root, gap_registry=gap_registry, run_id=lock.run_id)
-            promotion_artifacts = {"promotion_snapshot": None, "admission_snapshot": None}
-            if ade_bundle["proposal_intake_payload"]["proposals"]:
-                promotion_artifacts = _write_ade_bridge_artifacts(
-                    repo_root=repo_root,
-                    proposal_intake_payload=ade_bundle["proposal_intake_payload"],
-                )
-            feedback = consume_resolution_feedback(repo_root=repo_root, request_rows=ade_bundle["requests"]["rows"])
+            ade_bundle = build_ade_requests(
+                repo_root=repo_root,
+                gap_registry=gap_registry,
+                run_id=lock.run_id,
+                precheck=precheck,
+            )
+            feedback = consume_resolution_feedback(
+                repo_root=repo_root,
+                request_rows=list(ade_bundle.get("active_requests") or []),
+            )
 
         if precheck["precheck_status"] == "NO_MATERIAL_CHANGE":
             final_state = "WAITING_FOR_NOVELTY"
-            wait_reason = "no_material_change"
+            wait_reason = BOOTSTRAP_BASELINE if bootstrap_state else "no_material_change"
         elif ade_bundle["requests"]["summary"]["new_requests"]:
             final_state = "CAPABILITY_REQUESTED"
             wait_reason = "persistent_generic_capability_gap"
@@ -1343,8 +1812,40 @@ def run_opportunity_loop(
             started_at=started_at,
             completed_at=_iso_now(),
         )
+        output_checkpoint = _build_output_checkpoint(
+            opportunities=opportunities,
+            hypotheses=hypotheses_payload["batch"],
+            cells=cells_payload["registry"],
+            ade_requests=ade_bundle["requests"],
+            loop_status=loop_status,
+        )
+        latest_run_summary = {
+            "schema_version": SCHEMA_VERSION,
+            "policy_version": POLICY_VERSION,
+            "report_kind": "qre_latest_run_summary",
+            "run_id": lock.run_id,
+            "state": final_state,
+            "precheck_status": precheck["precheck_status"],
+            "watermark_id": current_watermark["watermark_id"],
+            "content_identity": _content_id(
+                "qrlrs",
+                {
+                    "run_id": lock.run_id,
+                    "state": final_state,
+                    "precheck_status": precheck["precheck_status"],
+                    "watermark_id": current_watermark["watermark_id"],
+                },
+            ),
+        }
+        promotion_artifacts = {"promotion_snapshot": None, "admission_snapshot": None}
         if write_outputs:
-            _write_json(WATERMARK_PATH, current_watermark, repo_root=repo_root)
+            promotion_artifacts = _write_ade_bridge_artifacts(
+                repo_root=repo_root,
+                proposal_intake_payload=_proposal_intake_payload(
+                    request_rows=list(ade_bundle.get("active_requests") or []),
+                ),
+            )
+        if write_outputs:
             _write_json(PRECHECK_PATH, precheck, repo_root=repo_root)
             _write_json(OPPORTUNITIES_PATH, opportunities, repo_root=repo_root)
             _write_json(HYPOTHESIS_BATCH_PATH, hypotheses_payload["batch"], repo_root=repo_root)
@@ -1354,8 +1855,12 @@ def run_opportunity_loop(
             _write_json(GAP_REGISTRY_PATH, gap_registry, repo_root=repo_root)
             _write_json(ADE_REQUESTS_PATH, ade_bundle["requests"], repo_root=repo_root)
             _write_json(ADE_FEEDBACK_PATH, feedback, repo_root=repo_root)
+            _write_json(REQUEST_LIFECYCLE_PATH, request_lifecycle, repo_root=repo_root)
             _write_json(CONTINUATION_PLAN_PATH, continuation, repo_root=repo_root)
             _write_json(STATE_PATH, loop_status, repo_root=repo_root)
+            _write_json(OUTPUT_CHECKPOINT_PATH, output_checkpoint, repo_root=repo_root)
+            _write_json(LATEST_RUN_SUMMARY_PATH, latest_run_summary, repo_root=repo_root)
+            _write_json(ROOT_CAUSE_PATH, root_cause, repo_root=repo_root)
             _write_json(
                 RUN_PATH,
                 {
@@ -1373,6 +1878,7 @@ def run_opportunity_loop(
                 },
                 repo_root=repo_root,
             )
+            _write_json(WATERMARK_PATH, current_watermark, repo_root=repo_root)
         return {
             "schema_version": SCHEMA_VERSION,
             "module_version": MODULE_VERSION,
