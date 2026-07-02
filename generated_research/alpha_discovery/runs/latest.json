@@ -1,0 +1,270 @@
+{
+  "artifact_refs": {
+    "critiques": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/critiques/latest.json",
+    "data_plans": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/data_plans/latest.json",
+    "evidence_assessments": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/evidence_assessments/latest.json",
+    "experiments": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/experiments/latest.json",
+    "hypotheses": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/hypotheses/latest.json",
+    "lessons": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/lessons/latest.json",
+    "observation": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/observations/latest.json",
+    "rewrites": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/rewrites/latest.json",
+    "runs": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/runs/latest.json",
+    "scorecards": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/scorecards/latest.json",
+    "status": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/status/latest.json",
+    "strategies": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/strategies/latest.json"
+  },
+  "budget_usage": {
+    "campaigns_executed": 1,
+    "compiled_experiments": 1,
+    "critiques": 3,
+    "data_refresh_retries": 0,
+    "lessons_written": 1,
+    "observation_snapshots": 1,
+    "raw_hypotheses": 3,
+    "rewrites": 3,
+    "scorecards": 3,
+    "selected_hypotheses": 1,
+    "strategy_specs": 1
+  },
+  "campaign_id": "qcam_91538224108520b6",
+  "content_identity": "qarrc_397e2e3af7da1f45",
+  "critiques_created": 3,
+  "data_plan_status": "CACHE_READY",
+  "experiment_id": "qexp_c4dd1709861569a0",
+  "hypotheses_generated": 3,
+  "hypotheses_rewritten": 3,
+  "lesson_id": "qrl_0b65902a2b53ac3c",
+  "next_action": "repeat_mvp_on_next_novel_hypothesis",
+  "observation_snapshot_id": "qos_41c52fbff6230667",
+  "policy_version": "qre_alpha_discovery_mvp_v2",
+  "report_kind": "qre_alpha_discovery_run",
+  "run_id": "qarr_7d9bb4f66cf41485",
+  "schema_version": "1.0",
+  "scorecards": [
+    {
+      "complexity": 0.7,
+      "confounder_coverage": 0.7,
+      "content_identity": "qasc_d62bdd551478255f",
+      "data_feasibility": 0.9,
+      "estimated_compute_cost": 0.7,
+      "executor_readiness": 0.85,
+      "expected_decisiveness": 0.75,
+      "expected_information_gain": 0.8,
+      "falsifiability": 0.82,
+      "hard_blockers": [],
+      "hypothesis_id": "qah_82038253cef02dce",
+      "identity_readiness": 0.45,
+      "leakage_safety": 0.8,
+      "mechanistic_clarity": 0.88,
+      "novelty": 0.6,
+      "observation_grounding": 0.9,
+      "overall_score": 86.89,
+      "portfolio_orthogonality": 0.6,
+      "primitive_readiness": 0.95,
+      "prior_failure_distance": 0.7,
+      "reason_codes": [
+        "add an explicit regime condition",
+        "apparent",
+        "breakout",
+        "by",
+        "causal",
+        "claimed",
+        "effect",
+        "explained",
+        "is",
+        "mechanism",
+        "noise",
+        "rather",
+        "than",
+        "the",
+        "tighten falsification conditions",
+        "volatility"
+      ]
+    },
+    {
+      "complexity": 0.7,
+      "confounder_coverage": 0.7,
+      "content_identity": "qasc_57b806d8c8599b1e",
+      "data_feasibility": 0.9,
+      "estimated_compute_cost": 0.8,
+      "executor_readiness": 0.85,
+      "expected_decisiveness": 0.65,
+      "expected_information_gain": 0.7,
+      "falsifiability": 0.82,
+      "hard_blockers": [],
+      "hypothesis_id": "qah_8bc98d08e1c5b080",
+      "identity_readiness": 0.45,
+      "leakage_safety": 0.8,
+      "mechanistic_clarity": 0.88,
+      "novelty": 0.6,
+      "observation_grounding": 0.9,
+      "overall_score": 85.89,
+      "portfolio_orthogonality": 0.6,
+      "primitive_readiness": 0.95,
+      "prior_failure_distance": 0.7,
+      "reason_codes": [
+        "add an explicit regime condition",
+        "apparent",
+        "by",
+        "causal",
+        "claimed",
+        "effect",
+        "explained",
+        "is",
+        "mean",
+        "mechanism",
+        "noise",
+        "rather",
+        "reversion",
+        "than",
+        "the",
+        "tighten falsification conditions"
+      ]
+    },
+    {
+      "complexity": 0.7,
+      "confounder_coverage": 0.7,
+      "content_identity": "qasc_c50ad672dd673fe9",
+      "data_feasibility": 0.9,
+      "estimated_compute_cost": 0.8,
+      "executor_readiness": 0.85,
+      "expected_decisiveness": 0.65,
+      "expected_information_gain": 0.8,
+      "falsifiability": 0.82,
+      "hard_blockers": [],
+      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "identity_readiness": 0.45,
+      "leakage_safety": 0.8,
+      "mechanistic_clarity": 0.88,
+      "novelty": 0.6,
+      "observation_grounding": 0.9,
+      "overall_score": 86.29,
+      "portfolio_orthogonality": 0.5,
+      "primitive_readiness": 0.95,
+      "prior_failure_distance": 0.7,
+      "reason_codes": [
+        "add an explicit regime condition",
+        "apparent",
+        "by",
+        "causal",
+        "claimed",
+        "effect",
+        "explained",
+        "is",
+        "mechanism",
+        "noise",
+        "persistence",
+        "rather",
+        "than",
+        "the",
+        "tighten falsification conditions",
+        "trend"
+      ]
+    }
+  ],
+  "selected_hypothesis": {
+    "behavior_family": "trend_continuation",
+    "causal_mechanism_statement": "trend persistence should continue when an anchored trend remains positive and volatility-normalised move stays elevated.",
+    "confounders": [
+      "broad market drift",
+      "simple momentum crowding",
+      "cost drag"
+    ],
+    "content_identity": "qahr_56279ba7fa7a26d4",
+    "contradicting_observation_refs": [],
+    "cost_sensitivity_expectation": "moderate; should tolerate small costs but not heavy turnover",
+    "expected_direction": "long_only",
+    "falsification_conditions": [
+      "trend_anchor_delta turns negative before trade horizon",
+      "normalized_trend_move stays below entry threshold",
+      "explicit_cost_falsification"
+    ],
+    "generation_policy_version": "qre_alpha_generation_policy_v1",
+    "hypothesis_id": "qah_56279ba7fa7a26d4",
+    "mechanism_family": "trend_persistence",
+    "minimum_activity_expectation": "at least a few aligned signals in the selected history",
+    "novelty_dimensions": [
+      "anchored trend with volatility-normalised continuation",
+      "regime_conditioning"
+    ],
+    "null_hypothesis": "positive anchored trend does not predict forward continuation after costs.",
+    "parameter_count": 3,
+    "parameter_schema": [
+      {
+        "name": "trend_anchor_window",
+        "type": "int",
+        "value": 50
+      },
+      {
+        "name": "atr_window",
+        "type": "int",
+        "value": 14
+      },
+      {
+        "name": "entry_threshold",
+        "type": "float",
+        "value": 0.75
+      }
+    ],
+    "parent_hypothesis_id": "qah_6ab1d4811cacfa31",
+    "predicted_observable_effect": "positive continuation with modest holding periods",
+    "provider_id": "deterministic_mechanistic_hypothesis_provider",
+    "regime_scope": "trend_or_expanding_volatility|regime_conditioned",
+    "related_campaigns": [],
+    "related_hypotheses": [
+      "cross_sectional_momentum_v0"
+    ],
+    "required_controls": [
+      "cost_only_baseline",
+      "null_hold_baseline",
+      "regime_filter"
+    ],
+    "required_features": [
+      "trend_anchor",
+      "trend_anchor_delta",
+      "normalized_trend_move"
+    ],
+    "schema_version": "1.0",
+    "stable_fingerprint": "b6a74ec5b041a6f99e3fb67b919e5613fa4c168a3bf1f182e3fcc4115ca7aa3d",
+    "support_observation_refs": [
+      "qos_41c52fbff6230667"
+    ],
+    "timeframe_intent": "1d",
+    "universe_intent": "single_asset_liquid_cache_universe"
+  },
+  "selected_hypothesis_ids": [
+    "qah_82038253cef02dce",
+    "qah_8bc98d08e1c5b080",
+    "qah_56279ba7fa7a26d4"
+  ],
+  "state_trace": [
+    "OBSERVE",
+    "GENERATE",
+    "CRITIQUE",
+    "REWRITE",
+    "SCORE",
+    "SELECT",
+    "PLAN",
+    "VERIFY",
+    "RESOLVE_DATA",
+    "MATERIALIZE_CAMPAIGN",
+    "EXECUTE",
+    "EVALUATE",
+    "REMEMBER"
+  ],
+  "strategy_spec_id": "qss_66f5c3993eb6429c",
+  "terminal_disposition": "NEEDS_MORE_EVIDENCE",
+  "unselected_hypothesis_reasons": [
+    {
+      "hypothesis_id": "qah_82038253cef02dce",
+      "overall_score": 86.89,
+      "reason": "suppressed_by_recent_lesson"
+    },
+    {
+      "hypothesis_id": "qah_8bc98d08e1c5b080",
+      "overall_score": 85.89,
+      "reason": "lower_rank"
+    }
+  ],
+  "verification_result": "VERIFIED"
+}

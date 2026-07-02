@@ -1,0 +1,74 @@
+{
+  "rows": [
+    {
+      "IS_policy": "bounded in-sample only",
+      "confounder_controls": [
+        "cost_only_baseline",
+        "null_hold_baseline",
+        "regime_filter"
+      ],
+      "content_identity": "qexpc_a9d51044890a19a9",
+      "counter_hypothesis": "Alternative explanation: trend_persistence is spurious.",
+      "embargo_policy": "short embargo around boundary bars",
+      "entry_semantics": "frozen deterministic entry condition",
+      "exit_semantics": "frozen deterministic exit condition",
+      "experiment_id": "qexp_c4dd1709861569a0",
+      "failure_criteria": [
+        "no_activity",
+        "negative_after_costs",
+        "support_lost"
+      ],
+      "falsification_tests": [
+        "trend_anchor_delta turns negative before trade horizon",
+        "normalized_trend_move stays below entry threshold",
+        "explicit_cost_falsification"
+      ],
+      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "locked_OOS_policy": "static window if available, else unavailable",
+      "minimum_signal_count": 1,
+      "minimum_trade_count": 1,
+      "null_models": [
+        "null_hold",
+        "cost_only"
+      ],
+      "portfolio_semantics": "single-strategy unit-notional research only",
+      "position_semantics": "long_only",
+      "predicted_observable": "positive continuation with modest holding periods",
+      "required_data_fields": [
+        "close",
+        "high",
+        "low",
+        "open",
+        "volume"
+      ],
+      "required_evidence_families": [
+        "controlled_evaluation",
+        "transaction_costs",
+        "null_comparison"
+      ],
+      "required_features": [
+        "trend_anchor",
+        "trend_anchor_delta",
+        "normalized_trend_move"
+      ],
+      "required_history": "one continuous ready cache window",
+      "required_point_in_time_metadata": [
+        "timestamp_utc"
+      ],
+      "research_question": "Does trend persistence should continue when an anchored trend remains positive and volatility-normalised move stays elevated. produce positive continuation with modest holding periods?",
+      "sampling_frequency": "1d",
+      "signal_semantics": "trend_continuation",
+      "slippage_model": "canonical_zero_slippage_proxy",
+      "success_criteria": [
+        "supports_mechanism",
+        "evidence_is_not_null"
+      ],
+      "timeframe": "1d",
+      "transaction_cost_model": "canonical_fixed_cost_proxy",
+      "universe_spec": "single_asset_liquid_cache_universe",
+      "validation_policy": "no OOS selection",
+      "warmup_policy": "use primitive warmup requirements"
+    }
+  ],
+  "schema_version": "1.0"
+}

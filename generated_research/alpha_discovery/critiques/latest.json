@@ -1,0 +1,155 @@
+{
+  "rows": [
+    {
+      "activity_risks": [
+        "sparse activity can leave the signal underpowered"
+      ],
+      "alternative_explanations": [
+        "cost drag",
+        "calendar bias",
+        "broad market drift"
+      ],
+      "content_identity": "qacp_3019a25e211c0cec",
+      "cost_risks": [
+        "higher turnover can erase signal edge"
+      ],
+      "critique_id": "qac_3ca0f339e7aeefb5",
+      "data_feasibility_risks": [
+        "history may be too short for decisive OOS separation"
+      ],
+      "data_leakage_risks": [
+        "none from ex-ante snapshot, but the hypothesis must remain frozen"
+      ],
+      "executor_gaps": [],
+      "fatal_objections": [],
+      "hypothesis_id": "qah_34110e7321db208d",
+      "mechanism_weaknesses": [
+        "compression releases are often event driven and may be unstable across regimes."
+      ],
+      "missing_confounders": [
+        "market regime",
+        "transaction costs",
+        "selection bias"
+      ],
+      "overfitting_risks": [
+        "parameter freedom must stay at three or fewer"
+      ],
+      "primitive_gaps": [],
+      "required_repairs": [
+        "add an explicit regime condition",
+        "tighten falsification conditions"
+      ],
+      "selection_bias_risks": [
+        "selection on visible cache coverage"
+      ],
+      "semantic_duplicate_risks": [
+        "near-duplicate to prior mechanism family"
+      ],
+      "strongest_counter_hypothesis": "the apparent effect is explained by volatility breakout noise rather than the claimed causal mechanism",
+      "survivorship_bias_risks": [
+        "ready cache may omit unavailable series"
+      ]
+    },
+    {
+      "activity_risks": [
+        "sparse activity can leave the signal underpowered"
+      ],
+      "alternative_explanations": [
+        "cost drag",
+        "calendar bias",
+        "broad market drift"
+      ],
+      "content_identity": "qacp_c9f13359723ea4a4",
+      "cost_risks": [
+        "higher turnover can erase signal edge"
+      ],
+      "critique_id": "qac_71601550cee25ac1",
+      "data_feasibility_risks": [
+        "history may be too short for decisive OOS separation"
+      ],
+      "data_leakage_risks": [
+        "none from ex-ante snapshot, but the hypothesis must remain frozen"
+      ],
+      "executor_gaps": [],
+      "fatal_objections": [],
+      "hypothesis_id": "qah_67a84d604cc07add",
+      "mechanism_weaknesses": [
+        "mean reversion can be dominated by trend continuation and cost drag."
+      ],
+      "missing_confounders": [
+        "market regime",
+        "transaction costs",
+        "selection bias"
+      ],
+      "overfitting_risks": [
+        "parameter freedom must stay at three or fewer"
+      ],
+      "primitive_gaps": [],
+      "required_repairs": [
+        "add an explicit regime condition",
+        "tighten falsification conditions"
+      ],
+      "selection_bias_risks": [
+        "selection on visible cache coverage"
+      ],
+      "semantic_duplicate_risks": [
+        "near-duplicate to prior mechanism family"
+      ],
+      "strongest_counter_hypothesis": "the apparent effect is explained by mean reversion noise rather than the claimed causal mechanism",
+      "survivorship_bias_risks": [
+        "ready cache may omit unavailable series"
+      ]
+    },
+    {
+      "activity_risks": [
+        "sparse activity can leave the signal underpowered"
+      ],
+      "alternative_explanations": [
+        "cost drag",
+        "calendar bias",
+        "broad market drift"
+      ],
+      "content_identity": "qacp_8dcb31c5ba59c24e",
+      "cost_risks": [
+        "higher turnover can erase signal edge"
+      ],
+      "critique_id": "qac_2555c9cbbff45ad1",
+      "data_feasibility_risks": [
+        "history may be too short for decisive OOS separation"
+      ],
+      "data_leakage_risks": [
+        "none from ex-ante snapshot, but the hypothesis must remain frozen"
+      ],
+      "executor_gaps": [],
+      "fatal_objections": [],
+      "hypothesis_id": "qah_6ab1d4811cacfa31",
+      "mechanism_weaknesses": [
+        "trend persistence can be a proxy for broad drift rather than a mechanism."
+      ],
+      "missing_confounders": [
+        "market regime",
+        "transaction costs",
+        "selection bias"
+      ],
+      "overfitting_risks": [
+        "parameter freedom must stay at three or fewer"
+      ],
+      "primitive_gaps": [],
+      "required_repairs": [
+        "add an explicit regime condition",
+        "tighten falsification conditions"
+      ],
+      "selection_bias_risks": [
+        "selection on visible cache coverage"
+      ],
+      "semantic_duplicate_risks": [
+        "near-duplicate to prior mechanism family"
+      ],
+      "strongest_counter_hypothesis": "the apparent effect is explained by trend persistence noise rather than the claimed causal mechanism",
+      "survivorship_bias_risks": [
+        "ready cache may omit unavailable series"
+      ]
+    }
+  ],
+  "schema_version": "1.0"
+}

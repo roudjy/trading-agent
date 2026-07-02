@@ -1,0 +1,38 @@
+{
+  "rows": [
+    {
+      "changes_applied": [
+        "regime_conditioning",
+        "explicit_cost_falsification"
+      ],
+      "changes_rejected": [],
+      "content_identity": "qahrv_911dd5f5ec28268a",
+      "critique_id": "qac_3ca0f339e7aeefb5",
+      "original_hypothesis_id": "qah_34110e7321db208d",
+      "revised_hypothesis_id": "qah_82038253cef02dce"
+    },
+    {
+      "changes_applied": [
+        "regime_conditioning",
+        "explicit_cost_falsification"
+      ],
+      "changes_rejected": [],
+      "content_identity": "qahrv_6a86193355f9a2d4",
+      "critique_id": "qac_71601550cee25ac1",
+      "original_hypothesis_id": "qah_67a84d604cc07add",
+      "revised_hypothesis_id": "qah_8bc98d08e1c5b080"
+    },
+    {
+      "changes_applied": [
+        "regime_conditioning",
+        "explicit_cost_falsification"
+      ],
+      "changes_rejected": [],
+      "content_identity": "qahrv_1cf31f9e15aab5dc",
+      "critique_id": "qac_2555c9cbbff45ad1",
+      "original_hypothesis_id": "qah_6ab1d4811cacfa31",
+      "revised_hypothesis_id": "qah_56279ba7fa7a26d4"
+    }
+  ],
+  "schema_version": "1.0"
+}

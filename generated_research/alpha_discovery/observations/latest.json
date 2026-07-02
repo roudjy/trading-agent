@@ -1,0 +1,389 @@
+{
+  "active_contradictions": [],
+  "behavior_family_coverage": {
+    "resolved_strategy_count": 14
+  },
+  "content_identity": "qos_41c52fbff6230667",
+  "cross_asset_diagnostics": {
+    "status": "NOT_AVAILABLE"
+  },
+  "current_queue": [
+    {
+      "assets": "cross-sectional basket",
+      "contradicting_observations": [
+        "no authoritative evidence currently resolves cross-sectional identity and null-control execution"
+      ],
+      "data_readiness": "authoritative_repository_inputs_only",
+      "exact_blocker": "current_primitives_lack_cross_sectional_ranking_contract",
+      "expected_information_gain": "high",
+      "freshness": "repository_snapshot_current",
+      "identity_readiness": "resolved_or_contextual",
+      "next_action": "open_bounded_primitive_extension_request_for_cross_sectional_ranking",
+      "opportunity_class": "GENERATOR_CAPABILITY_GAP",
+      "opportunity_id": "qho_28ff392cef7f2164",
+      "prior_failures": [],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "regime": "broad campaign diversification gap",
+      "related_theses": [
+        "cross_sectional_momentum_v0"
+      ],
+      "supporting_observations": [
+        "blocked thesis remains outside current generated primitive family",
+        "portfolio lacks diversified cross-sectional sleeve"
+      ],
+      "timeframe": "1d|4h"
+    },
+    {
+      "assets": "breakout candidate universe",
+      "contradicting_observations": [
+        "existing thesis remains identity blocked and therefore not campaign-ready"
+      ],
+      "data_readiness": "authoritative_repository_inputs_only",
+      "exact_blocker": "identity_and_campaign_scope_unresolved",
+      "expected_information_gain": "medium",
+      "freshness": "repository_snapshot_current",
+      "identity_readiness": "blocked",
+      "next_action": "resolve_identity_before_thesis_admission",
+      "opportunity_class": "CONTRADICTION_OPPORTUNITY",
+      "opportunity_id": "qho_6b1f089e7cfd29e8",
+      "prior_failures": [],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "regime": "volatility compression breakout replacement path",
+      "related_theses": [
+        "volatility_compression_breakout_v0"
+      ],
+      "supporting_observations": [
+        "replacement plan already points to volatility compression breakout as distinct mechanism"
+      ],
+      "timeframe": "1d|4h"
+    },
+    {
+      "assets": "single-asset trend universe",
+      "contradicting_observations": [
+        "replacement cannot reuse trend_pullback thresholds or cosmetic variants"
+      ],
+      "data_readiness": "authoritative_repository_inputs_only",
+      "exact_blocker": "replacement_requires_novel_non_rejected_mechanism",
+      "expected_information_gain": "high",
+      "freshness": "repository_snapshot_current",
+      "identity_readiness": "resolved_or_contextual",
+      "next_action": "compile_replacement_candidate_without_reusing_rejected_pullback_lineage",
+      "opportunity_class": "REPLACEMENT_FOR_REJECTED_THESIS",
+      "opportunity_id": "qho_7a46e550b599516b",
+      "prior_failures": [],
+      "provenance": [
+        "generated_research/reports/automated_generation_closeout.v1.json",
+        "logs/qre_campaign_portfolio_reconstruction/latest.json"
+      ],
+      "regime": "post-rejection replacement search",
+      "related_theses": [
+        "trend_pullback_v1"
+      ],
+      "supporting_observations": [
+        "current portfolio has zero ready campaign cells",
+        "trend_pullback_v1 rejected with zero accepted OOS"
+      ],
+      "timeframe": "1d|4h|1h"
+    }
+  ],
+  "data_coverage": {
+    "coverage_rows": 46,
+    "ready_rows": 0,
+    "research_ready": false
+  },
+  "executor_inventory": {
+    "campaign_path": "canonical_backtesting_engine",
+    "canonical_engine": "agent.backtesting.engine.BacktestEngine",
+    "thin_contract": "agent.backtesting.thin_strategy"
+  },
+  "identity_readiness": "not_ready",
+  "market_diagnostics": {
+    "status": "NOT_AVAILABLE"
+  },
+  "mechanism_coverage": {
+    "from_evidence_snapshot": {
+      "generated_outcome_count": 6,
+      "generated_strategy_count": 3,
+      "manual_thesis_count": 7,
+      "resolved_strategy_count": 14
+    },
+    "opportunity_count": 4
+  },
+  "observation_snapshot_id": "qos_41c52fbff6230667",
+  "policy_version": "qre_alpha_discovery_mvp_v2",
+  "primitive_inventory": {
+    "available_primitives": [
+      "atr",
+      "compression_ratio",
+      "cross_sectional_rank",
+      "ema",
+      "log_returns",
+      "normalized_trend_move",
+      "pullback_distance",
+      "rolling_high_previous",
+      "rolling_low_previous",
+      "rolling_volatility",
+      "sma",
+      "spread",
+      "spread_zscore",
+      "trend_anchor",
+      "trend_anchor_delta",
+      "zscore"
+    ],
+    "feature_count": 16,
+    "resolved_feature_registry_version": "1.0"
+  },
+  "recent_terminal_outcomes": [
+    {
+      "artifact": "research_memory",
+      "record_kind": "artifact",
+      "title": "logs/qre_research_cycle_router/latest.json"
+    },
+    {
+      "artifact": "research_memory",
+      "record_kind": "artifact",
+      "title": "logs/qre_behavior_thesis_registry/latest.json"
+    },
+    {
+      "artifact": "research_memory",
+      "record_kind": "research_result",
+      "title": "research/strategy_matrix.csv row 100"
+    }
+  ],
+  "regime_diagnostics": {
+    "latest_complete_bar_by_asset_timeframe": {
+      "AAPL|1d": "2026-07-01T00:00:00Z",
+      "AAPL|4h": "2026-06-04T17:30:00Z",
+      "ADA-USD|1h": "2026-04-21T23:00:00Z",
+      "ADA-USD|4h": "2026-04-21T20:00:00Z",
+      "AMD|1d": "2026-07-01T00:00:00Z",
+      "AMD|4h": "2026-06-04T17:30:00Z",
+      "AMZN|4h": "2026-06-04T17:30:00Z",
+      "ASML|1d": "2026-07-01T00:00:00Z",
+      "ASML|1h": "2026-07-01T19:30:00Z",
+      "ASML|4h": "2026-06-04T17:30:00Z",
+      "AVGO|4h": "2026-06-04T17:30:00Z",
+      "BNB-EUR|1d": "2026-07-01T00:00:00Z",
+      "BNB-USD|1h": "2026-04-21T23:00:00Z",
+      "BNB-USD|4h": "2026-04-21T20:00:00Z",
+      "BTC-EUR|1d": "2026-07-01T00:00:00Z",
+      "BTC-EUR|1h": "2026-04-24T23:00:00Z",
+      "BTC-EUR|4h": "2026-07-01T20:00:00Z",
+      "BTC-USD|1h": "2026-04-21T23:00:00Z",
+      "BTC-USD|4h": "2026-04-21T20:00:00Z",
+      "COST|4h": "2026-06-04T17:30:00Z",
+      "DOT-USD|1h": "2026-04-21T23:00:00Z",
+      "DOT-USD|4h": "2026-04-21T20:00:00Z",
+      "ETH-EUR|1d": "2026-07-01T00:00:00Z",
+      "ETH-EUR|1h": "2026-04-24T23:00:00Z",
+      "ETH-EUR|4h": "2026-07-01T20:00:00Z",
+      "ETH-USD|1h": "2026-04-21T23:00:00Z",
+      "ETH-USD|4h": "2026-04-21T20:00:00Z",
+      "GOOGL|4h": "2026-06-04T17:30:00Z",
+      "HD|4h": "2026-06-04T17:30:00Z",
+      "JPM|4h": "2026-06-04T17:30:00Z",
+      "LINK-USD|1h": "2026-04-21T23:00:00Z",
+      "LINK-USD|4h": "2026-04-21T20:00:00Z",
+      "LLY|4h": "2026-06-04T17:30:00Z",
+      "META|4h": "2026-06-04T17:30:00Z",
+      "MSFT|1d": "2026-07-01T00:00:00Z",
+      "MSFT|4h": "2026-06-04T17:30:00Z",
+      "NVDA|1d": "2026-07-01T00:00:00Z",
+      "NVDA|4h": "2026-06-04T17:30:00Z",
+      "SOL-EUR|1d": "2026-07-01T00:00:00Z",
+      "SOL-EUR|1h": "2026-04-24T23:00:00Z",
+      "SOL-EUR|4h": "2026-07-01T20:00:00Z",
+      "SOL-USD|1h": "2026-04-21T23:00:00Z",
+      "SOL-USD|4h": "2026-04-21T20:00:00Z",
+      "TEST|1d": "2026-04-21T00:00:00Z",
+      "TSM|4h": "2026-06-04T17:30:00Z",
+      "XOM|4h": "2026-06-04T17:30:00Z"
+    },
+    "regime_signature": [
+      "0.0",
+      "0.0"
+    ]
+  },
+  "relevant_research_memory": {
+    "matches": [
+      {
+        "artifact_id": "logs/qre_research_cycle_router/latest.json",
+        "artifact_path": "logs/qre_research_cycle_router/latest.json",
+        "ontology_tags": [
+          "campaign",
+          "data_readiness",
+          "failure",
+          "hypothesis",
+          "policy",
+          "policy_action",
+          "strategy_context"
+        ],
+        "record_kind": "artifact",
+        "score": 12,
+        "text_preview": "authority_flags broker_risk_execution_forbidden True can_execute_research_cycle False can_promote_candidate False can_register_strategy False non_authoritative True paper_shadow_live_forbidden True safe_to_execute False deterministic_hash sha256:ae17072d4e0d7167f2d1ac73154b6292fc",
+        "title": "logs/qre_research_cycle_router/latest.json"
+      },
+      {
+        "artifact_id": "logs/qre_behavior_thesis_registry/latest.json",
+        "artifact_path": "logs/qre_behavior_thesis_registry/latest.json",
+        "ontology_tags": [
+          "behavior_thesis",
+          "campaign",
+          "data_readiness",
+          "failure",
+          "hypothesis",
+          "policy",
+          "policy_action",
+          "strategy_context"
+        ],
+        "record_kind": "artifact",
+        "score": 10,
+        "text_preview": "artifact_references behavior_catalog research/qre_behavior_catalog.py disposition_memory logs/qre_hypothesis_disposition_memory/latest.json strategy_hypothesis_catalog research/strategy_hypothesis_catalog.py module_version ade-qre-017l-2026-06-26 report_kind qre_behavior_thesis_r",
+        "title": "logs/qre_behavior_thesis_registry/latest.json"
+      },
+      {
+        "artifact_id": "research/strategy_matrix.csv#row[100]",
+        "artifact_path": "research/strategy_matrix.csv",
+        "ontology_tags": [
+          "data_readiness",
+          "hypothesis",
+          "strategy_context"
+        ],
+        "record_kind": "research_result",
+        "score": 10,
+        "text_preview": "None -1.305 0.2357 0.7 0.0 31 False {\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": true, \"trades_per_maand\": false, \"win_rate\": false} asset_type breakout_momentum assets trend consistentie 0.2581 max_dd True regime ETH-USD sharpe {\"ema_exit\": 10, \"lookback\": 3",
+        "title": "research/strategy_matrix.csv row 100"
+      },
+      {
+        "artifact_id": "research/strategy_matrix.csv#row[117]",
+        "artifact_path": "research/strategy_matrix.csv",
+        "ontology_tags": [
+          "data_readiness",
+          "hypothesis",
+          "strategy_context"
+        ],
+        "record_kind": "research_result",
+        "score": 10,
+        "text_preview": "None -11.647 0.6085 19.5 0.0 135 False {\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": false, \"trades_per_maand\": true, \"win_rate\": false} asset_type breakout_momentum assets trend consistentie 0.1852 max_dd True regime BTC-USD sharpe {\"ema_exit\": 10, \"lookback\"",
+        "title": "research/strategy_matrix.csv row 117"
+      },
+      {
+        "artifact_id": "research/strategy_matrix.csv#row[118]",
+        "artifact_path": "research/strategy_matrix.csv",
+        "ontology_tags": [
+          "data_readiness",
+          "hypothesis",
+          "strategy_context"
+        ],
+        "record_kind": "research_result",
+        "score": 10,
+        "text_preview": "None -9.552 0.617 19.8 0.0 137 False {\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": false, \"trades_per_maand\": true, \"win_rate\": false} asset_type breakout_momentum assets trend consistentie 0.1825 max_dd True regime ETH-USD sharpe {\"ema_exit\": 10, \"lookback\": ",
+        "title": "research/strategy_matrix.csv row 118"
+      }
+    ],
+    "summary": {
+      "artifact_count": 27,
+      "entry_count": 254,
+      "fail_closed": false,
+      "memory_content_hash": "sha256:2dea82eb1e96b9aa15bc69a99d361f54f5c90c907408ef63562e3707c9e43507",
+      "missing_artifact_count": 0,
+      "ontology_tag_counts": {
+        "behavior_thesis": 6,
+        "behavior_thesis_evidence": 5,
+        "campaign": 15,
+        "data_readiness": 254,
+        "failure": 16,
+        "hypothesis": 246,
+        "policy": 24,
+        "policy_action": 25,
+        "strategy_context": 237
+      },
+      "record_kind_counts": {
+        "artifact": 25,
+        "research_result": 229
+      },
+      "research_memory_ready": true,
+      "status": "ready"
+    }
+  },
+  "resolved_contradictions": [],
+  "schema_version": "1.0",
+  "source_quality": {
+    "sources": [
+      {
+        "blocking_reason_counts": {
+          "manifest_status_unreadable": 4,
+          "row_count_not_positive": 4,
+          "timestamp_range_missing": 4
+        },
+        "file_count": 6556,
+        "identity_confidence_counts": {
+          "high": 6556
+        },
+        "quality_status_counts": {
+          "blocked": 4,
+          "ready": 6552
+        },
+        "readiness_blocker_category_counts": {
+          "data": 8,
+          "source": 4
+        },
+        "readiness_blocker_reason_counts": {
+          "data_row_count_not_positive": 4,
+          "data_timestamp_range_missing": 4,
+          "source_manifest_status_not_ready": 4
+        },
+        "ready": false,
+        "source": "yfinance"
+      }
+    ],
+    "summary": {
+      "blocking_reason_counts": {
+        "manifest_status_unreadable": 4,
+        "row_count_not_positive": 4,
+        "timestamp_range_missing": 4
+      },
+      "evidence_content_hash": "sha256:c399cd14431575b91c72b56955fc70bc21d9a0288be16f1dc653d1d3599d00b5",
+      "fail_closed": true,
+      "file_count": 6556,
+      "identity_confidence_counts": {
+        "high": 6556
+      },
+      "manifest_research_ready": false,
+      "operator_summary": "Source quality is not research-ready; inspect data/source/identity readiness blockers (data, source) and row explanations.",
+      "quality_status_counts": {
+        "blocked": 4,
+        "ready": 6552
+      },
+      "readiness_blocker_category_counts": {
+        "data": 8,
+        "source": 4
+      },
+      "readiness_blocker_reason_counts": {
+        "data_row_count_not_positive": 4,
+        "data_timestamp_range_missing": 4,
+        "source_manifest_status_not_ready": 4
+      },
+      "report_readiness_blockers": [
+        {
+          "category": "source",
+          "evidence_field": "summary.research_ready",
+          "evidence_status": "false_or_missing",
+          "fail_closed": true,
+          "operator_explanation": "The upstream cache manifest is not research-ready; source readiness fails closed.",
+          "reason": "source_manifest_research_not_ready"
+        }
+      ],
+      "research_ready": false,
+      "source_count": 1,
+      "source_quality_ready": false,
+      "status": "not_ready"
+    }
+  }
+}
