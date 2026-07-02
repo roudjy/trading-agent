@@ -1,0 +1,115 @@
+{
+  "content_identity": "qthr_2fb05b422d88c59a",
+  "cumulative_campaign_count": 5,
+  "cumulative_evidence_changing_cycle_count": 3,
+  "cumulative_family_count": 3,
+  "cumulative_hypothesis_count": 3,
+  "cumulative_replay_count": 3,
+  "deterministic_replay_ids": [
+    "qreplay_fbb96e84c06d6362",
+    "qreplay_c4305edd61bb11ec",
+    "qreplay_d1caa1dc78aa542f"
+  ],
+  "deterministic_replays": [
+    {
+      "artifact_identity": "qreplay_fbb96e84c06d6362",
+      "changed_evidence": false,
+      "cycle": 4,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "exact_match": true,
+      "replay_id": "qreplay_fbb96e84c06d6362",
+      "result": "exact_match"
+    },
+    {
+      "artifact_identity": "qreplay_c4305edd61bb11ec",
+      "changed_evidence": false,
+      "cycle": 5,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "exact_match": true,
+      "replay_id": "qreplay_c4305edd61bb11ec",
+      "result": "exact_match"
+    },
+    {
+      "artifact_identity": "qreplay_d1caa1dc78aa542f",
+      "changed_evidence": false,
+      "cycle": 6,
+      "cycle_kind": "deterministic_acceptance_replay",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "exact_match": true,
+      "replay_id": "qreplay_d1caa1dc78aa542f",
+      "result": "exact_match"
+    }
+  ],
+  "evidence_changing_cycle_ids": [
+    "qacc_f70482134b3d86ea",
+    "qacc_71c6bd820627f4bf",
+    "qacc_bb4d98a5d79b54c2"
+  ],
+  "evidence_changing_cycles": [
+    {
+      "acceptance_cycle_id": "qacc_f70482134b3d86ea",
+      "changed_evidence": true,
+      "cycle": 1,
+      "cycle_kind": "evidence_changing_acceptance_cycle",
+      "evidence_fingerprint": "qevidence_70c2e3a9a30f6977",
+      "new_campaigns_since_prior": 1,
+      "result": "evidence_changed"
+    },
+    {
+      "acceptance_cycle_id": "qacc_71c6bd820627f4bf",
+      "changed_evidence": true,
+      "cycle": 2,
+      "cycle_kind": "evidence_changing_acceptance_cycle",
+      "evidence_fingerprint": "qevidence_b7f03cacce9ec1f5",
+      "new_campaigns_since_prior": 1,
+      "result": "evidence_changed"
+    },
+    {
+      "acceptance_cycle_id": "qacc_bb4d98a5d79b54c2",
+      "changed_evidence": true,
+      "cycle": 3,
+      "cycle_kind": "evidence_changing_acceptance_cycle",
+      "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
+      "new_campaigns_since_prior": 1,
+      "result": "evidence_changed"
+    }
+  ],
+  "evidence_fingerprints": [
+    "qefp_2e5d5000161a432d",
+    "qefp_69ab33253504b05f",
+    "qefp_876d8f4a10df46b7",
+    "qefp_887c32b7609c977a",
+    "qefp_e4abd06c94648f0e"
+  ],
+  "latest_run_id": "qrun_5c9cf937e634f106",
+  "latest_run_new_campaign_count": 0,
+  "latest_run_new_evidence_cycle_count": 0,
+  "measurement_scope": "cumulative_trust_horizon",
+  "mechanism_families": [
+    "relative_strength",
+    "trend_continuation",
+    "volatility_compression_breakout"
+  ],
+  "module_version": "ade-qre-036.1",
+  "policy_id": "qre_operator_trust_policy_v1_1",
+  "policy_version": "1.1",
+  "real_campaign_ids": [
+    "qcx_40d35874111bcd98",
+    "qcx_984253c682dfbaeb",
+    "qcx_63a2bb6bef61cf85",
+    "qcx_4189420903234e43",
+    "qcx_4d7d08d88ef9dca5"
+  ],
+  "real_hypothesis_ids": [
+    "atr_adaptive_trend_v0",
+    "cross_sectional_momentum_v0",
+    "volatility_compression_breakout_v0"
+  ],
+  "report_kind": "qre_trust_horizon",
+  "schema_version": "1.0",
+  "trust_horizon_end": "2026-07-02T10:41:12Z",
+  "trust_horizon_id": "qth_7d6de39f57bc6595",
+  "trust_horizon_start": "2026-07-02T05:54:49Z"
+}

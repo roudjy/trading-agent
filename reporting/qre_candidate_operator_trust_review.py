@@ -28,6 +28,9 @@ TRUST_ROUTING_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "routing_comparators.v1.j
 TRUST_SAMPLING_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "sampling_utility_records.v1.json"
 TRUST_ACTION_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "action_effectiveness.v1.json"
 TRUST_ACCEPTANCE_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "evidence_changing_acceptance_history.v1.json"
+TRUST_HORIZON_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "trust_horizon.v1.json"
+TRUST_HORIZON_LATEST_RUN_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "trust_horizon_latest_run.v1.json"
+TRUST_HORIZON_CONSISTENCY_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "trust_horizon_consistency.v1.json"
 TRUST_SUMMARY_PATH: Final[Path] = TRUST_CLOSURE_ROOT / "empirical_trust_closure.v1.json"
 TRUST_CAMPAIGN_HISTORY_PATH: Final[Path] = Path(
     "generated_research/campaign_execution/evidence/empirical_campaign_history.v1.json"
@@ -36,6 +39,7 @@ TRUST_REASON_RECORDS_PATH: Final[Path] = Path(
     "generated_research/hypotheses/lifecycle/reason_records.v1.json"
 )
 TRUST_LINEAGE_PATH: Final[Path] = Path("generated_research/lineage/empirical_campaign_lineage.v1.json")
+GENERATED_WRITE_PREFIX: Final[str] = "generated_research/orchestration/trust_closure/"
 
 
 def _text(value: Any) -> str:
@@ -602,6 +606,8 @@ def _operator_trust_criteria_from_closure(
     policy: dict[str, Any],
     attribution: dict[str, Any],
     acceptance: dict[str, Any],
+    trust_horizon: dict[str, Any],
+    latest_run: dict[str, Any],
     inventory: dict[str, Any],
     consistency: dict[str, Any],
     recovery: dict[str, Any],
@@ -612,23 +618,28 @@ def _operator_trust_criteria_from_closure(
     decision_review = _decision_review(repo_root)
     attribution_summary = dict(attribution.get("summary") or {})
     acceptance_summary = dict(acceptance.get("summary") or {})
+    trust_horizon = dict(trust_horizon or {})
+    latest_run = dict(latest_run or {})
     history_rows = _read_rows(history, "rows")
     lineage_rows = _read_rows(lineage, "rows")
     reason_rows = _read_rows(reasons, "rows")
     distinct_hypotheses = len({_text(row.get("source_hypothesis_id")) for row in history_rows if _text(row.get("source_hypothesis_id"))})
     distinct_families = len({_text(row.get("mechanism_family")) for row in history_rows if _text(row.get("mechanism_family"))})
-    campaign_count = int(attribution_summary.get("total_real_empirical_campaigns_after") or len(history_rows))
-    evidence_cycles = int(acceptance_summary.get("evidence_changing_acceptance_cycle_count") or 0)
-    replay_count = int(acceptance_summary.get("deterministic_acceptance_replay_count") or 0)
+    campaign_count = int(trust_horizon.get("cumulative_campaign_count") or attribution_summary.get("total_real_empirical_campaigns_after") or len(history_rows))
+    evidence_cycles = int(trust_horizon.get("cumulative_evidence_changing_cycle_count") or acceptance_summary.get("evidence_changing_acceptance_cycle_count") or 0)
+    replay_count = int(trust_horizon.get("cumulative_replay_count") or acceptance_summary.get("deterministic_acceptance_replay_count") or 0)
+    latest_campaign_count = int(latest_run.get("latest_run_new_campaign_count") or 0)
+    latest_evidence_cycles = int(latest_run.get("latest_run_new_evidence_cycle_count") or 0)
+    latest_replays = int(latest_run.get("latest_run_replay_count") or acceptance_summary.get("deterministic_acceptance_replay_count") or 0)
     lineage_ratio = round(len(lineage_rows) / max(len(history_rows), 1), 6) if history_rows else 0.0
     reason_ratio = round(len(reason_rows) / max(len(history_rows) * 2, 1), 6) if history_rows else 0.0
     false_ready = float((decision_review.get("decision_quality_kpis") or {}).get("false_synthesis_ready_count") or 0.0)
     criteria = {
-        "real campaigns": _result(True, campaign_count, "MEASURED", "PASS" if campaign_count >= int(policy["minimum_real_empirical_campaigns"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_CAMPAIGN_HISTORY_PATH)]),
-        "real hypotheses": _result(True, distinct_hypotheses, "MEASURED", "PASS" if distinct_hypotheses >= int(policy["minimum_distinct_real_hypotheses"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_CAMPAIGN_HISTORY_PATH)]),
-        "mechanism families": _result(True, distinct_families, "MEASURED", "PASS" if distinct_families >= int(policy["minimum_distinct_mechanism_families"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_CAMPAIGN_HISTORY_PATH)]),
-        "evidence-changing cycles": _result(True, evidence_cycles, "MEASURED", "PASS" if evidence_cycles >= int(policy["minimum_evidence_changing_acceptance_cycles"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_ACCEPTANCE_PATH)]),
-        "deterministic replays": _result(True, replay_count, "MEASURED", "PASS" if replay_count >= int(policy["minimum_deterministic_acceptance_replays"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_ACCEPTANCE_PATH)]),
+        "real campaigns": _result(True, {"cumulative": campaign_count, "latest_run": latest_campaign_count}, "MEASURED", "PASS" if campaign_count >= int(policy["minimum_real_empirical_campaigns"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_HORIZON_PATH)]),
+        "real hypotheses": _result(True, {"cumulative": distinct_hypotheses, "latest_run": len({_text(row.get("source_hypothesis_id")) for row in _read_rows(_trust_closure_artifact(repo_root, TRUST_EXECUTION_PATH), "rows") if _text(row.get("source_hypothesis_id"))})}, "MEASURED", "PASS" if distinct_hypotheses >= int(policy["minimum_distinct_real_hypotheses"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_HORIZON_PATH)]),
+        "mechanism families": _result(True, {"cumulative": distinct_families, "latest_run": len({_text(row.get("family")) for row in _read_rows(_trust_closure_artifact(repo_root, TRUST_EXECUTION_PATH), "rows") if _text(row.get("family"))})}, "MEASURED", "PASS" if distinct_families >= int(policy["minimum_distinct_mechanism_families"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_HORIZON_PATH)]),
+        "evidence-changing cycles": _result(True, {"cumulative": evidence_cycles, "latest_run": latest_evidence_cycles}, "MEASURED", "PASS" if evidence_cycles >= int(policy["minimum_evidence_changing_acceptance_cycles"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_HORIZON_PATH), _text(TRUST_HORIZON_LATEST_RUN_PATH)]),
+        "deterministic replays": _result(True, {"cumulative": replay_count, "latest_run": latest_replays}, "MEASURED", "PASS" if replay_count >= int(policy["minimum_deterministic_acceptance_replays"]) else "INSUFFICIENT_HISTORY", [_text(TRUST_HORIZON_PATH), _text(TRUST_HORIZON_LATEST_RUN_PATH)]),
         "lineage completeness": _result(True, lineage_ratio, "DERIVED", "PASS" if lineage_ratio >= float(policy["minimum_lineage_completeness"]) else "FAIL", [_text(TRUST_LINEAGE_PATH)]),
         "reason completeness": _result(True, reason_ratio, "DERIVED", "PASS" if reason_ratio >= float(policy["minimum_reason_record_completeness"]) else "FAIL", [_text(TRUST_REASON_RECORDS_PATH)]),
         "artifact consistency": _result(True, consistency["consistency_ratio"], "DERIVED", "PASS" if consistency["consistency_ratio"] >= float(policy["minimum_summary_artifact_consistency"]) else "FAIL", ["logs/qre_candidate_operator_trust_review/latest.json"]),
@@ -649,6 +660,9 @@ def _operator_trust_criteria_from_closure(
 
 def build_summary_artifact_consistency(*, repo_root: Path, audit: dict[str, Any], inventory: dict[str, Any]) -> dict[str, Any]:
     closure_summary = _trust_closure_artifact(repo_root, TRUST_SUMMARY_PATH)
+    trust_horizon = _trust_closure_artifact(repo_root, TRUST_HORIZON_PATH)
+    trust_horizon_latest = _trust_closure_artifact(repo_root, TRUST_HORIZON_LATEST_RUN_PATH)
+    trust_horizon_consistency = _trust_closure_artifact(repo_root, TRUST_HORIZON_CONSISTENCY_PATH)
     if closure_summary:
         corrected = audit["corrected_longitudinal_evidence"]
         execution = _trust_closure_artifact(repo_root, TRUST_EXECUTION_PATH)
@@ -671,6 +685,42 @@ def build_summary_artifact_consistency(*, repo_root: Path, audit: dict[str, Any]
                     "summary_value": corrected["empirical_terminal_dispositions"],
                     "artifact_value": actual_empirical,
                     "reason_code": "empirical_terminal_disposition_count_mismatch",
+                }
+            )
+        if trust_horizon and int(trust_horizon.get("cumulative_campaign_count") or 0) != int(corrected["real_campaigns"]):
+            mismatches.append(
+                {
+                    "field": "cumulative_campaign_count",
+                    "summary_value": corrected["real_campaigns"],
+                    "artifact_value": int(trust_horizon.get("cumulative_campaign_count") or 0),
+                    "reason_code": "trust_horizon_campaign_count_mismatch",
+                }
+            )
+        if trust_horizon and int(trust_horizon.get("cumulative_evidence_changing_cycle_count") or 0) < int(corrected.get("operator_trust_acceptance_cycles") or 0) - int(trust_horizon.get("cumulative_replay_count") or 0):
+            mismatches.append(
+                {
+                    "field": "cumulative_evidence_changing_cycle_count",
+                    "summary_value": corrected.get("operator_trust_acceptance_cycles"),
+                    "artifact_value": int(trust_horizon.get("cumulative_evidence_changing_cycle_count") or 0),
+                    "reason_code": "trust_horizon_evidence_cycle_count_mismatch",
+                }
+            )
+        if trust_horizon_consistency and _text(trust_horizon_consistency.get("status")) != "PASS":
+            mismatches.append(
+                {
+                    "field": "trust_horizon_consistency",
+                    "summary_value": "PASS",
+                    "artifact_value": _text(trust_horizon_consistency.get("status")),
+                    "reason_code": "trust_horizon_consistency_failed",
+                }
+            )
+        if trust_horizon_latest and int(trust_horizon_latest.get("latest_run_new_campaign_count") or 0) != actual_empirical:
+            mismatches.append(
+                {
+                    "field": "latest_run_new_campaign_count",
+                    "summary_value": actual_empirical,
+                    "artifact_value": int(trust_horizon_latest.get("latest_run_new_campaign_count") or 0),
+                    "reason_code": "latest_run_campaign_count_mismatch",
                 }
             )
         return {"status": "PASS" if not mismatches else "FAIL", "mismatches": mismatches, "consistency_ratio": 1.0 if not mismatches else 0.0}
@@ -836,11 +886,71 @@ def build_shadow_readiness(*, operator_trust: dict[str, Any], inventory: dict[st
     return {"result": "FAIL", "reason_codes": ["NO_REAL_SHADOW_ELIGIBLE_CANDIDATE"], "real_shadow_eligible_candidates": 0}
 
 
+def build_research_continuation_plan(*, repo_root: Path, report: dict[str, Any]) -> dict[str, Any]:
+    readiness = dict(report.get("readiness_decisions") or {})
+    plan = _trust_closure_artifact(repo_root, TRUST_CLOSURE_ROOT / "empirical_campaign_portfolio_plan.v1.json")
+    rows = _read_rows(plan, "rows")
+    eligible_queue = [
+        {
+            "campaign_cell_id": _text(row.get("campaign_cell_id")),
+            "source_hypothesis_id": _text(row.get("source_hypothesis_id")),
+            "family": _text(row.get("family")),
+            "reason": _text(row.get("reason")),
+        }
+        for row in rows
+        if bool(row.get("admitted"))
+    ]
+    blocked_cells = [
+        {
+            "campaign_cell_id": _text(row.get("campaign_cell_id")),
+            "source_hypothesis_id": _text(row.get("source_hypothesis_id")),
+            "family": _text(row.get("family")),
+            "blocker": _text(row.get("reason")),
+        }
+        for row in rows
+        if not bool(row.get("admitted"))
+    ]
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "module_version": MODULE_VERSION,
+        "report_kind": "qre_research_continuation_plan",
+        "policy_id": _text((report.get("operator_trust_policy") or {}).get("policy_id")),
+        "policy_version": _text((report.get("operator_trust_policy") or {}).get("policy_version")),
+        "operator_trust_status": _text(readiness.get("operator_trust_readiness")),
+        "shadow_readiness_status": _text(readiness.get("shadow_readiness")),
+        "active_blocker": (_text((readiness.get("top_level_reason_codes") or [""])[0]) or "NO_REAL_SHADOW_ELIGIBLE_CANDIDATE"),
+        "next_research_objective": "continue_bounded_empirical_research_runs_until_a_real_candidate_reaches_ready_for_synthesis_and_candidate_maturity_gates",
+        "eligible_portfolio_queue": eligible_queue,
+        "blocked_cells": blocked_cells,
+        "required_novelty": [
+            "new_real_oos_period",
+            "materially_broader_admissible_universe",
+            "different_preregistered_timeframe",
+            "new_preregistered_regime_segment",
+            "new_falsification_control",
+            "material_data_quality_improvement",
+        ],
+        "candidate_creation_prerequisites": [
+            "real_empirical_campaign_provenance",
+            "ready_for_synthesis",
+            "sufficient_locked_oos",
+            "sufficient_activity",
+            "required_robustness_evidence",
+            "complete_lineage_and_reason_records",
+        ],
+        "code_pr_required_for_next_research_run": False,
+        "operator_action_required": "continue_bounded_empirical_research_runs",
+    }
+
+
 def build_candidate_operator_trust_report(*, repo_root: Path = REPO_ROOT) -> dict[str, Any]:
     closure_summary = _trust_closure_artifact(repo_root, TRUST_SUMMARY_PATH)
     if closure_summary:
         attribution = _trust_closure_artifact(repo_root, TRUST_ATTRIBUTION_PATH)
         acceptance = _trust_closure_artifact(repo_root, TRUST_ACCEPTANCE_PATH)
+        trust_horizon = _trust_closure_artifact(repo_root, TRUST_HORIZON_PATH)
+        trust_horizon_latest = _trust_closure_artifact(repo_root, TRUST_HORIZON_LATEST_RUN_PATH)
+        trust_horizon_consistency = _trust_closure_artifact(repo_root, TRUST_HORIZON_CONSISTENCY_PATH)
         execution = _trust_closure_artifact(repo_root, TRUST_EXECUTION_PATH)
         routing = _trust_closure_artifact(repo_root, TRUST_ROUTING_PATH)
         sampling = _trust_closure_artifact(repo_root, TRUST_SAMPLING_PATH)
@@ -854,11 +964,11 @@ def build_candidate_operator_trust_report(*, repo_root: Path = REPO_ROOT) -> dic
             "portfolio_planning_cycles": int((attribution.get("summary") or {}).get("portfolio_planning_cycles") or 0),
             "empirical_research_cycles": int((attribution.get("summary") or {}).get("empirical_research_cycles") or 0),
             "decision_replay_cycles": 0,
-            "operator_trust_acceptance_cycles": int((acceptance.get("summary") or {}).get("deterministic_acceptance_replay_count") or 0) + int((acceptance.get("summary") or {}).get("evidence_changing_acceptance_cycle_count") or 0),
-            "real_campaigns": int((attribution.get("summary") or {}).get("total_real_empirical_campaigns_after") or 0),
+            "operator_trust_acceptance_cycles": int((trust_horizon.get("cumulative_replay_count") or 0) or (acceptance.get("summary") or {}).get("deterministic_acceptance_replay_count") or 0) + int((trust_horizon.get("cumulative_evidence_changing_cycle_count") or 0) or (acceptance.get("summary") or {}).get("evidence_changing_acceptance_cycle_count") or 0),
+            "real_campaigns": int((trust_horizon.get("cumulative_campaign_count") or 0) or (attribution.get("summary") or {}).get("total_real_empirical_campaigns_after") or 0),
             "new_real_campaigns_from_pr3": int((attribution.get("summary") or {}).get("corrected_new_campaigns_from_pr3") or 0),
             "new_real_campaigns_from_pr4": int((attribution.get("summary") or {}).get("corrected_new_campaigns_from_pr4") or 0),
-            "empirical_terminal_dispositions": int((execution.get("summary") or {}).get("new_real_campaigns") or 0),
+            "empirical_terminal_dispositions": int((trust_horizon_latest.get("latest_run_new_campaign_count") or 0) or (execution.get("summary") or {}).get("new_real_campaigns") or 0),
             "portfolio_admission_decisions": int((closure_summary.get("portfolio_plan_summary") or {}).get("campaigns_admitted") or 0),
             "suppressed_duplicate_decisions": int((closure_summary.get("portfolio_plan_summary") or {}).get("exact_duplicates_suppressed") or 0),
             "resolved_historical_blockers": list(_empirical_pack(repo_root).get("resolved_blockers") or []),
@@ -891,6 +1001,17 @@ def build_candidate_operator_trust_report(*, repo_root: Path = REPO_ROOT) -> dic
                     "after": actions.get("summary", {}),
                     "evidence": [_text(TRUST_ACTION_PATH)],
                 },
+                "trust_horizon_scope": {
+                    "before": {
+                        "latest_run_evidence_changing_cycles": int((acceptance.get("summary") or {}).get("evidence_changing_acceptance_cycle_count") or 0),
+                    },
+                    "after": {
+                        "cumulative_evidence_changing_cycles": int(trust_horizon.get("cumulative_evidence_changing_cycle_count") or 0),
+                        "latest_run_evidence_changing_cycles": int(trust_horizon_latest.get("latest_run_new_evidence_cycle_count") or 0),
+                        "consistency_status": _text(trust_horizon_consistency.get("status")),
+                    },
+                    "evidence": [_text(TRUST_HORIZON_PATH), _text(TRUST_HORIZON_LATEST_RUN_PATH)],
+                },
             },
             "corrected_longitudinal_evidence": corrected,
         }
@@ -901,6 +1022,8 @@ def build_candidate_operator_trust_report(*, repo_root: Path = REPO_ROOT) -> dic
             policy=policy,
             attribution=attribution,
             acceptance=acceptance,
+            trust_horizon=trust_horizon,
+            latest_run=trust_horizon_latest,
             inventory=inventory,
             consistency=consistency,
             recovery=recovery,
@@ -912,6 +1035,9 @@ def build_candidate_operator_trust_report(*, repo_root: Path = REPO_ROOT) -> dic
             "module_version": MODULE_VERSION,
             "report_kind": REPORT_KIND,
             "pr3_evidence_integrity_audit": audit,
+            "trust_horizon": trust_horizon,
+            "trust_horizon_latest_run": trust_horizon_latest,
+            "trust_horizon_consistency": trust_horizon_consistency,
             "candidate_inventory": inventory,
             "candidate_maturity": maturity,
             "candidate_robustness": robustness,
@@ -995,7 +1121,7 @@ def build_candidate_operator_trust_report(*, repo_root: Path = REPO_ROOT) -> dic
 
 def _validate_write_target(path: Path) -> None:
     relative = path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
-    if not relative.startswith(WRITE_PREFIX):
+    if not relative.startswith(WRITE_PREFIX) and not relative.startswith(GENERATED_WRITE_PREFIX):
         raise ValueError(f"{REPORT_KIND}: refusing write outside allowlist: {path!r}")
 
 
@@ -1018,13 +1144,18 @@ def _render_markdown(report: dict[str, Any]) -> str:
     audit = report.get("pr3_evidence_integrity_audit") or {}
     corrected = audit.get("corrected_longitudinal_evidence") or {}
     inventory = report.get("candidate_inventory", {}).get("counts", {})
+    trust_horizon = _trust_closure_artifact(REPO_ROOT, TRUST_HORIZON_PATH)
+    latest_scope = _trust_closure_artifact(REPO_ROOT, TRUST_HORIZON_LATEST_RUN_PATH)
     lines = [
         "# QRE Candidate Operator Trust Review",
         "",
         f"- operator_trust_readiness: `{readiness.get('operator_trust_readiness')}`",
         f"- shadow_readiness: `{readiness.get('shadow_readiness')}`",
         f"- portfolio_planning_cycles: `{corrected.get('portfolio_planning_cycles')}`",
-        f"- empirical_research_cycles: `{corrected.get('empirical_research_cycles')}`",
+        f"- cumulative_real_campaigns: `{trust_horizon.get('cumulative_campaign_count')}`",
+        f"- latest_run_new_campaigns: `{latest_scope.get('latest_run_new_campaign_count')}`",
+        f"- cumulative_evidence_cycles: `{trust_horizon.get('cumulative_evidence_changing_cycle_count')}`",
+        f"- latest_run_new_evidence_cycles: `{latest_scope.get('latest_run_new_evidence_cycle_count')}`",
         f"- real_candidates: `{inventory.get('real_candidates')}`",
         "",
     ]
@@ -1052,6 +1183,22 @@ def write_outputs(report: dict[str, Any]) -> dict[str, str]:
     }
     for filename, payload in sidecar_payloads.items():
         path = ARTIFACT_DIR / filename
+        _atomic_write(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        paths[filename] = path.relative_to(REPO_ROOT).as_posix()
+    generated_sidecars = {
+        "operator_trust_acceptance.v1.json": report.get("acceptance_cycles", {}),
+        "shadow_readiness.v1.json": {
+            "schema_version": SCHEMA_VERSION,
+            "module_version": MODULE_VERSION,
+            "report_kind": "qre_shadow_readiness",
+            "policy_id": _text((report.get("operator_trust_policy") or {}).get("policy_id")),
+            "policy_version": _text((report.get("operator_trust_policy") or {}).get("policy_version")),
+            "readiness_decisions": report.get("readiness_decisions", {}),
+        },
+        "research_continuation_plan.v1.json": build_research_continuation_plan(repo_root=REPO_ROOT, report=report),
+    }
+    for filename, payload in generated_sidecars.items():
+        path = REPO_ROOT / TRUST_CLOSURE_ROOT / filename
         _atomic_write(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
         paths[filename] = path.relative_to(REPO_ROOT).as_posix()
     return paths

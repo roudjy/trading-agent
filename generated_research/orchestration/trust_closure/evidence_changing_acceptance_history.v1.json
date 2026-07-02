@@ -1,63 +1,52 @@
 {
+  "latest_run_id": "qrun_5c9cf937e634f106",
   "module_version": "ade-qre-036.1",
   "report_kind": "qre_evidence_changing_acceptance_history",
   "rows": [
     {
-      "changed_evidence": true,
+      "acceptance_cycle_id": "qacc_9a984949689cd0c7",
+      "changed_evidence": false,
       "cycle": 1,
       "cycle_kind": "evidence_changing_acceptance_cycle",
-      "evidence_fingerprint": "qevidence_70c2e3a9a30f6977",
-      "new_campaigns_since_prior": 1,
-      "result": "evidence_changed"
-    },
-    {
-      "changed_evidence": true,
-      "cycle": 2,
-      "cycle_kind": "evidence_changing_acceptance_cycle",
-      "evidence_fingerprint": "qevidence_b7f03cacce9ec1f5",
-      "new_campaigns_since_prior": 1,
-      "result": "evidence_changed"
-    },
-    {
-      "changed_evidence": true,
-      "cycle": 3,
-      "cycle_kind": "evidence_changing_acceptance_cycle",
       "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
-      "new_campaigns_since_prior": 1,
-      "result": "evidence_changed"
+      "new_campaigns_since_prior": 0,
+      "result": "no_change"
     },
     {
       "artifact_identity": "qreplay_fbb96e84c06d6362",
       "changed_evidence": false,
-      "cycle": 4,
+      "cycle": 2,
       "cycle_kind": "deterministic_acceptance_replay",
       "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
       "exact_match": true,
+      "replay_id": "qreplay_fbb96e84c06d6362",
       "result": "exact_match"
     },
     {
       "artifact_identity": "qreplay_c4305edd61bb11ec",
       "changed_evidence": false,
-      "cycle": 5,
+      "cycle": 3,
       "cycle_kind": "deterministic_acceptance_replay",
       "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
       "exact_match": true,
+      "replay_id": "qreplay_c4305edd61bb11ec",
       "result": "exact_match"
     },
     {
       "artifact_identity": "qreplay_d1caa1dc78aa542f",
       "changed_evidence": false,
-      "cycle": 6,
+      "cycle": 4,
       "cycle_kind": "deterministic_acceptance_replay",
       "evidence_fingerprint": "qevidence_574d6d4a29bc719e",
       "exact_match": true,
+      "replay_id": "qreplay_d1caa1dc78aa542f",
       "result": "exact_match"
     }
   ],
   "schema_version": "1.0",
   "summary": {
     "deterministic_acceptance_replay_count": 3,
-    "evidence_changing_acceptance_cycle_count": 3,
-    "independent_empirical_research_cycle_count": 3
+    "evidence_changing_acceptance_cycle_count": 0,
+    "independent_empirical_research_cycle_count": 0
   }
 }

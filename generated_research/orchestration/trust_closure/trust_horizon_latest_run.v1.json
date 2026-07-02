@@ -1,0 +1,23 @@
+{
+  "content_identity": "qthr_latest_5a78c2733c073dfc",
+  "deterministic_replay_ids": [
+    "qreplay_fbb96e84c06d6362",
+    "qreplay_c4305edd61bb11ec",
+    "qreplay_d1caa1dc78aa542f"
+  ],
+  "evidence_changing_cycle_ids": [],
+  "evidence_fingerprints": [
+    "qevidence_574d6d4a29bc719e"
+  ],
+  "latest_run_id": "qrun_5c9cf937e634f106",
+  "latest_run_new_campaign_count": 0,
+  "latest_run_new_evidence_cycle_count": 0,
+  "latest_run_replay_count": 3,
+  "measurement_scope": "latest_run",
+  "module_version": "ade-qre-036.1",
+  "policy_id": "qre_operator_trust_policy_v1_1",
+  "policy_version": "1.1",
+  "real_campaign_ids": [],
+  "report_kind": "qre_trust_horizon_latest_run",
+  "schema_version": "1.0"
+}

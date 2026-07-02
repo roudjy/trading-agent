@@ -1,0 +1,36 @@
+{
+  "checks": [
+    {
+      "actual": 5,
+      "expected": 5,
+      "field": "cumulative_campaign_count",
+      "status": "PASS"
+    },
+    {
+      "actual": 3,
+      "expected": 3,
+      "field": "cumulative_evidence_changing_cycle_count",
+      "status": "PASS"
+    },
+    {
+      "actual": 0,
+      "expected": 0,
+      "field": "latest_run_new_campaign_count",
+      "status": "PASS"
+    },
+    {
+      "actual": 0,
+      "expected": 0,
+      "field": "latest_run_new_evidence_cycle_count",
+      "status": "PASS"
+    }
+  ],
+  "content_identity": "qthc_bd989b6e70f667cd",
+  "latest_run_id": "qrun_5c9cf937e634f106",
+  "measurement_scope": "cumulative_vs_latest",
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_trust_horizon_consistency",
+  "schema_version": "1.0",
+  "status": "PASS",
+  "trust_horizon_id": "qth_7d6de39f57bc6595"
+}

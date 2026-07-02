@@ -1,136 +1,9 @@
 {
-  "admitted_rows": [
-    {
-      "blockers": [],
-      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
-      "dataset_identity": "qds_eaf9994eba7cdebd",
-      "generated_strategy_id": "qgs_a266464219e0d498",
-      "manifest_ready": true,
-      "next_action": "create_second_campaign_preregistration_manifest",
-      "oos_window": {
-        "end": "2026-07-01T20:00:00Z",
-        "start": "2026-04-02T20:00:00Z"
-      },
-      "portfolio_readiness_identity": "qrp_0679e5189e55dbb6",
-      "preset_id": "qgp_fe54c77ae7b269cf",
-      "snapshot_identity": "qsn_eaf9994eba7cdebd",
-      "status": "READY_FOR_PREREGISTRATION",
-      "strategy_spec_id": "qsp_66fc66cd3f17afa7",
-      "timeframe": "4h",
-      "train_window": {
-        "end": "2025-12-05T20:00:00Z",
-        "start": "2024-07-05T00:00:00Z"
-      },
-      "validation_window": {
-        "end": "2026-03-19T20:00:00Z",
-        "start": "2025-12-19T20:00:00Z"
-      }
-    },
-    {
-      "blockers": [],
-      "campaign_cell_id": "qrcell_d5ded3130f132558",
-      "dataset_identity": "qds_5917a61216f89e7b",
-      "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "manifest_ready": true,
-      "next_action": "create_second_campaign_preregistration_manifest",
-      "oos_window": {
-        "end": "2026-07-01T19:30:00Z",
-        "start": "2026-06-01T19:30:00Z"
-      },
-      "portfolio_readiness_identity": "qrp_badd78fd8af393eb",
-      "preset_id": "qgp_962b748f49f30524",
-      "snapshot_identity": "qsn_5917a61216f89e7b",
-      "status": "READY_FOR_PREREGISTRATION",
-      "strategy_spec_id": "qsp_16800d656bf28677",
-      "timeframe": "1h",
-      "train_window": {
-        "end": "2026-04-18T19:30:00Z",
-        "start": "2024-07-05T13:30:00Z"
-      },
-      "validation_window": {
-        "end": "2026-05-25T19:30:00Z",
-        "start": "2026-04-25T19:30:00Z"
-      }
-    },
-    {
-      "blockers": [],
-      "campaign_cell_id": "qrcell_e9645deb2e53460d",
-      "dataset_identity": "qds_f625125ee68b8d16",
-      "generated_strategy_id": "qgs_a266464219e0d498",
-      "manifest_ready": true,
-      "next_action": "create_second_campaign_preregistration_manifest",
-      "oos_window": {
-        "end": "2026-04-24T23:00:00Z",
-        "start": "2026-03-25T23:00:00Z"
-      },
-      "portfolio_readiness_identity": "qrp_f2947a2974c46c70",
-      "preset_id": "qgp_55f99e0b362bb219",
-      "snapshot_identity": "qsn_f625125ee68b8d16",
-      "status": "READY_FOR_PREREGISTRATION",
-      "strategy_spec_id": "qsp_66fc66cd3f17afa7",
-      "timeframe": "1h",
-      "train_window": {
-        "end": "2026-02-09T23:00:00Z",
-        "start": "2024-05-25T00:00:00Z"
-      },
-      "validation_window": {
-        "end": "2026-03-18T23:00:00Z",
-        "start": "2026-02-16T23:00:00Z"
-      }
-    }
-  ],
+  "admitted_rows": [],
   "module_version": "ade-qre-036.1",
-  "plan_identity": "qpp_442ce7c46db67fcc",
+  "plan_identity": "qpp_2f2baf82e6d5657e",
   "report_kind": "qre_empirical_campaign_portfolio_plan",
   "rows": [
-    {
-      "admitted": true,
-      "blocked_stage": "",
-      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
-      "data_ready": "yes",
-      "family": "volatility_compression_breakout",
-      "generated_strategy_id": "qgs_a266464219e0d498",
-      "identity_ready": "yes",
-      "novelty": "NEW_CAMPAIGN_CELL",
-      "primitive_ready": "yes",
-      "priority": 100.0,
-      "rank": 1,
-      "reason": "ready_and_novel",
-      "source_hypothesis_id": "volatility_compression_breakout_v0",
-      "status": "READY_FOR_PREREGISTRATION"
-    },
-    {
-      "admitted": true,
-      "blocked_stage": "",
-      "campaign_cell_id": "qrcell_d5ded3130f132558",
-      "data_ready": "yes",
-      "family": "trend_continuation",
-      "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "identity_ready": "yes",
-      "novelty": "NEW_CAMPAIGN_CELL",
-      "primitive_ready": "yes",
-      "priority": 100.0,
-      "rank": 2,
-      "reason": "ready_and_novel",
-      "source_hypothesis_id": "atr_adaptive_trend_v0",
-      "status": "READY_FOR_PREREGISTRATION"
-    },
-    {
-      "admitted": true,
-      "blocked_stage": "",
-      "campaign_cell_id": "qrcell_e9645deb2e53460d",
-      "data_ready": "yes",
-      "family": "volatility_compression_breakout",
-      "generated_strategy_id": "qgs_a266464219e0d498",
-      "identity_ready": "yes",
-      "novelty": "NEW_CAMPAIGN_CELL",
-      "primitive_ready": "yes",
-      "priority": 100.0,
-      "rank": 3,
-      "reason": "ready_and_novel",
-      "source_hypothesis_id": "volatility_compression_breakout_v0",
-      "status": "READY_FOR_PREREGISTRATION"
-    },
     {
       "admitted": false,
       "blocked_stage": "pre_admission",
@@ -142,9 +15,57 @@
       "novelty": "NO_NOVELTY_IDENTICAL_FROZEN_CAMPAIGN",
       "primitive_ready": "yes",
       "priority": 15.0,
-      "rank": 4,
+      "rank": 1,
       "reason": "identical_frozen_campaign_already_executed",
       "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "status": "READY_FOR_PREREGISTRATION"
+    },
+    {
+      "admitted": false,
+      "blocked_stage": "pre_admission",
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "data_ready": "yes",
+      "family": "volatility_compression_breakout",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "identity_ready": "yes",
+      "novelty": "NO_NOVELTY_IDENTICAL_FROZEN_CAMPAIGN",
+      "primitive_ready": "yes",
+      "priority": 15.0,
+      "rank": 2,
+      "reason": "identical_frozen_campaign_already_executed",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "status": "READY_FOR_PREREGISTRATION"
+    },
+    {
+      "admitted": false,
+      "blocked_stage": "pre_admission",
+      "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "data_ready": "yes",
+      "family": "trend_continuation",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "identity_ready": "yes",
+      "novelty": "NO_NOVELTY_IDENTICAL_FROZEN_CAMPAIGN",
+      "primitive_ready": "yes",
+      "priority": 15.0,
+      "rank": 3,
+      "reason": "identical_frozen_campaign_already_executed",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "status": "READY_FOR_PREREGISTRATION"
+    },
+    {
+      "admitted": false,
+      "blocked_stage": "pre_admission",
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "data_ready": "yes",
+      "family": "volatility_compression_breakout",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "identity_ready": "yes",
+      "novelty": "NO_NOVELTY_IDENTICAL_FROZEN_CAMPAIGN",
+      "primitive_ready": "yes",
+      "priority": 15.0,
+      "rank": 4,
+      "reason": "identical_frozen_campaign_already_executed",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
       "status": "READY_FOR_PREREGISTRATION"
     },
     {
@@ -182,18 +103,18 @@
   ],
   "schema_version": "1.0",
   "summary": {
-    "campaigns_admitted": 3,
-    "campaigns_admitted_initially": 3,
-    "campaigns_blocked": 3,
+    "campaigns_admitted": 0,
+    "campaigns_admitted_initially": 0,
+    "campaigns_blocked": 6,
     "campaigns_blocked_post_execution": 0,
-    "campaigns_blocked_pre_admission": 3,
+    "campaigns_blocked_pre_admission": 6,
     "campaigns_executed": 0,
-    "campaigns_planned": 3,
-    "campaigns_planned_initially": 3,
+    "campaigns_planned": 0,
+    "campaigns_planned_initially": 0,
     "candidate_cells_considered": 6,
     "compute_budget": 6,
     "compute_used": 0,
-    "exact_duplicates_suppressed": 2,
+    "exact_duplicates_suppressed": 5,
     "hypotheses_considered": 6,
     "insufficient_generation_boundary": true,
     "near_duplicates_suppressed": 0,

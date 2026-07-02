@@ -1,0 +1,21 @@
+{
+  "module_version": "ade-qre-035.1",
+  "policy_id": "qre_operator_trust_policy_v1_1",
+  "policy_version": "1.1",
+  "readiness_decisions": {
+    "candidate_maturity_readiness": "INSUFFICIENT_HISTORY",
+    "hard_failures": [],
+    "insufficient_history_criteria": [],
+    "operator_trust_readiness": "PASS",
+    "pr5_entrygate_satisfied": false,
+    "real_shadow_eligible_candidates": 0,
+    "required_criteria_not_evaluable": [],
+    "required_criteria_unknown": [],
+    "shadow_readiness": "INSUFFICIENT_HISTORY",
+    "top_level_reason_codes": [
+      "NO_REAL_SHADOW_ELIGIBLE_CANDIDATE"
+    ]
+  },
+  "report_kind": "qre_shadow_readiness",
+  "schema_version": "1.0"
+}

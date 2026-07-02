@@ -44,6 +44,9 @@ ROUTING_PATH: Final[Path] = TRUST_ROOT / "routing_comparators.v1.json"
 SAMPLING_PATH: Final[Path] = TRUST_ROOT / "sampling_utility_records.v1.json"
 ACTION_PATH: Final[Path] = TRUST_ROOT / "action_effectiveness.v1.json"
 ACCEPTANCE_PATH: Final[Path] = TRUST_ROOT / "evidence_changing_acceptance_history.v1.json"
+TRUST_HORIZON_PATH: Final[Path] = TRUST_ROOT / "trust_horizon.v1.json"
+TRUST_HORIZON_LATEST_RUN_PATH: Final[Path] = TRUST_ROOT / "trust_horizon_latest_run.v1.json"
+TRUST_HORIZON_CONSISTENCY_PATH: Final[Path] = TRUST_ROOT / "trust_horizon_consistency.v1.json"
 SUMMARY_PATH: Final[Path] = TRUST_ROOT / "empirical_trust_closure.v1.json"
 
 MAX_NEW_REAL_CAMPAIGNS: Final[int] = 6
@@ -120,6 +123,71 @@ def _read_rows(path: Path, *keys: str) -> list[dict[str, Any]]:
         if isinstance(value, list):
             return [dict(row) for row in value if isinstance(row, dict)]
     return []
+
+
+def _first_text(*values: Any) -> str:
+    for value in values:
+        text = _text(value)
+        if text:
+            return text
+    return ""
+
+
+def _dedupe_rows(rows: list[dict[str, Any]], *, identity_keys: tuple[str, ...]) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    seen: set[tuple[str, ...]] = set()
+    for row in rows:
+        identity = tuple(_first_text(row.get(key)) for key in identity_keys)
+        if not any(identity):
+            identity = (_stable_json(row),)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        deduped.append(dict(row))
+    return deduped
+
+
+def _normalize_acceptance_row(row: dict[str, Any], *, cycle_index: int, run_id: str) -> dict[str, Any]:
+    normalized = dict(row)
+    cycle_kind = _text(normalized.get("cycle_kind")) or "deterministic_acceptance_replay"
+    evidence_fingerprint = _first_text(normalized.get("evidence_fingerprint"), _content_id("qevidence", normalized))
+    normalized["cycle_kind"] = cycle_kind
+    normalized["evidence_fingerprint"] = evidence_fingerprint
+    normalized["cycle"] = int(normalized.get("cycle") or cycle_index)
+    if cycle_kind == "evidence_changing_acceptance_cycle":
+        normalized["acceptance_cycle_id"] = _first_text(
+            normalized.get("acceptance_cycle_id"),
+            _content_id(
+                "qacc",
+                {
+                    "fingerprint": evidence_fingerprint,
+                    "new_campaigns": int(normalized.get("new_campaigns_since_prior") or 0),
+                    "result": _text(normalized.get("result")),
+                },
+            ),
+        )
+    else:
+        normalized["replay_id"] = _first_text(
+            normalized.get("replay_id"),
+            normalized.get("artifact_identity"),
+            _content_id(
+                "qreplay",
+                {
+                    "run_id": run_id,
+                    "cycle": int(normalized.get("cycle") or cycle_index),
+                    "fingerprint": evidence_fingerprint,
+                },
+            ),
+        )
+        normalized["artifact_identity"] = _first_text(
+            normalized.get("artifact_identity"),
+            normalized["replay_id"],
+        )
+    return normalized
+
+
+def _normalize_acceptance_rows(rows: list[dict[str, Any]], *, run_id: str) -> list[dict[str, Any]]:
+    return [_normalize_acceptance_row(row, cycle_index=index, run_id=run_id) for index, row in enumerate(rows, start=1)]
 
 
 def build_operator_trust_policy_v1_1() -> dict[str, Any]:
@@ -254,7 +322,7 @@ def _bootstrap_history(repo_root: Path) -> dict[str, Any]:
     return {"payload": payload, "rows": rows, "bootstrapped": True}
 
 
-def _write_history(repo_root: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
+def _write_history(repo_root: Path, rows: list[dict[str, Any]], *, latest_run_new_campaign_count: int | None = None) -> dict[str, Any]:
     payload = {
         "schema_version": SCHEMA_VERSION,
         "module_version": MODULE_VERSION,
@@ -264,7 +332,11 @@ def _write_history(repo_root: Path, rows: list[dict[str, Any]]) -> dict[str, Any
         "summary": {
             "total_real_empirical_campaigns": len(rows),
             "historical_real_campaigns_consumed": sum(1 for row in rows if not bool(row.get("new_this_run"))),
-            "new_real_empirical_campaigns_executed_this_run": sum(1 for row in rows if bool(row.get("new_this_run"))),
+            "new_real_empirical_campaigns_executed_this_run": int(
+                latest_run_new_campaign_count
+                if latest_run_new_campaign_count is not None
+                else sum(1 for row in rows if bool(row.get("new_this_run")))
+            ),
         },
     }
     _write_json(repo_root, CAMPAIGN_HISTORY_PATH, payload)
@@ -635,10 +707,13 @@ def _build_acceptance_history_from_snapshots(history_snapshots: list[list[dict[s
                 "changed_evidence": False,
             }
         )
+    run_id = _content_id("qrun", {"snapshots": normalized_snapshots})
+    rows = _normalize_acceptance_rows(rows, run_id=run_id)
     return {
         "schema_version": SCHEMA_VERSION,
         "module_version": MODULE_VERSION,
         "report_kind": "qre_evidence_changing_acceptance_history",
+        "latest_run_id": run_id,
         "rows": rows,
         "summary": {
             "deterministic_acceptance_replay_count": sum(1 for row in rows if row["cycle_kind"] == "deterministic_acceptance_replay"),
@@ -646,6 +721,154 @@ def _build_acceptance_history_from_snapshots(history_snapshots: list[list[dict[s
             "independent_empirical_research_cycle_count": max(len(normalized_snapshots[-1]) - len(normalized_snapshots[0]), 0),
         },
     }
+
+
+def _existing_horizon_rows(repo_root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    payload = _read_json(repo_root / TRUST_HORIZON_PATH)
+    if payload:
+        return (
+            _normalize_acceptance_rows(_read_rows(repo_root / TRUST_HORIZON_PATH, "evidence_changing_cycles"), run_id=_text(payload.get("latest_run_id")) or "qhorizon_existing"),
+            _normalize_acceptance_rows(_read_rows(repo_root / TRUST_HORIZON_PATH, "deterministic_replays"), run_id=_text(payload.get("latest_run_id")) or "qhorizon_existing"),
+            payload,
+        )
+    acceptance_payload = _read_json(repo_root / ACCEPTANCE_PATH)
+    run_id = _text(acceptance_payload.get("latest_run_id")) or "qacceptance_existing"
+    acceptance_rows = _normalize_acceptance_rows(_read_rows(repo_root / ACCEPTANCE_PATH, "rows"), run_id=run_id)
+    evidence_rows = [row for row in acceptance_rows if _text(row.get("cycle_kind")) == "evidence_changing_acceptance_cycle" and bool(row.get("changed_evidence"))]
+    replay_rows = [row for row in acceptance_rows if _text(row.get("cycle_kind")) == "deterministic_acceptance_replay"]
+    return evidence_rows, replay_rows, acceptance_payload
+
+
+def _build_trust_horizon(
+    repo_root: Path,
+    *,
+    policy: dict[str, Any],
+    history_rows: list[dict[str, Any]],
+    latest_acceptance: dict[str, Any],
+    execution_rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    existing_evidence_rows, existing_replay_rows, existing_payload = _existing_horizon_rows(repo_root)
+    latest_run_id = _text(latest_acceptance.get("latest_run_id")) or _content_id(
+        "qrun",
+        {
+            "campaigns": [_text(row.get("campaign_identity")) for row in execution_rows],
+            "history": [_text(row.get("campaign_identity")) for row in history_rows],
+        },
+    )
+    latest_rows = _normalize_acceptance_rows(_read_rows(repo_root / ACCEPTANCE_PATH, "rows") if False else list(latest_acceptance.get("rows") or []), run_id=latest_run_id)
+    latest_evidence_rows = [
+        row
+        for row in latest_rows
+        if _text(row.get("cycle_kind")) == "evidence_changing_acceptance_cycle" and bool(row.get("changed_evidence"))
+    ]
+    latest_replay_rows = [
+        row for row in latest_rows if _text(row.get("cycle_kind")) == "deterministic_acceptance_replay"
+    ]
+    cumulative_evidence_rows = _dedupe_rows(
+        [*existing_evidence_rows, *latest_evidence_rows],
+        identity_keys=("acceptance_cycle_id", "evidence_fingerprint"),
+    )
+    cumulative_replay_rows = _dedupe_rows(
+        [*existing_replay_rows, *latest_replay_rows],
+        identity_keys=("replay_id", "artifact_identity"),
+    )
+    deduped_history = _dedupe_rows(history_rows, identity_keys=("campaign_identity",))
+    campaign_ids = [_text(row.get("campaign_identity")) for row in deduped_history if _text(row.get("campaign_identity"))]
+    hypothesis_ids = sorted({_text(row.get("source_hypothesis_id")) for row in deduped_history if _text(row.get("source_hypothesis_id"))})
+    mechanism_families = sorted({_text(row.get("mechanism_family")) for row in deduped_history if _text(row.get("mechanism_family"))})
+    evidence_fingerprints = sorted({_text(row.get("evidence_fingerprint")) for row in deduped_history if _text(row.get("evidence_fingerprint"))})
+    recorded_times = sorted(_text(row.get("recorded_at_utc")) for row in deduped_history if _text(row.get("recorded_at_utc")))
+    start = recorded_times[0] if recorded_times else _text(existing_payload.get("trust_horizon_start")) or _now_utc()
+    end = recorded_times[-1] if recorded_times else _now_utc()
+    latest_scope = {
+        "schema_version": SCHEMA_VERSION,
+        "module_version": MODULE_VERSION,
+        "report_kind": "qre_trust_horizon_latest_run",
+        "measurement_scope": "latest_run",
+        "policy_id": _text(policy.get("policy_id")),
+        "policy_version": _text(policy.get("policy_version")),
+        "latest_run_id": latest_run_id,
+        "latest_run_new_campaign_count": len(execution_rows),
+        "latest_run_new_evidence_cycle_count": len(latest_evidence_rows),
+        "latest_run_replay_count": len(latest_replay_rows),
+        "real_campaign_ids": [_text(row.get("campaign_identity")) for row in execution_rows if _text(row.get("campaign_identity"))],
+        "evidence_fingerprints": sorted({_text(row.get("evidence_fingerprint")) for row in latest_rows if _text(row.get("evidence_fingerprint"))}),
+        "evidence_changing_cycle_ids": [_text(row.get("acceptance_cycle_id")) for row in latest_evidence_rows if _text(row.get("acceptance_cycle_id"))],
+        "deterministic_replay_ids": [_text(row.get("replay_id")) for row in latest_replay_rows if _text(row.get("replay_id"))],
+    }
+    latest_scope["content_identity"] = _content_id("qthr_latest", latest_scope)
+    cumulative = {
+        "schema_version": SCHEMA_VERSION,
+        "module_version": MODULE_VERSION,
+        "report_kind": "qre_trust_horizon",
+        "measurement_scope": "cumulative_trust_horizon",
+        "trust_horizon_id": _first_text(
+            (existing_payload.get("trust_horizon_id") if isinstance(existing_payload, dict) else None),
+            _content_id("qth", {"start": start, "campaigns": campaign_ids}),
+        ),
+        "trust_horizon_start": start,
+        "trust_horizon_end": end,
+        "policy_id": _text(policy.get("policy_id")),
+        "policy_version": _text(policy.get("policy_version")),
+        "real_campaign_ids": campaign_ids,
+        "real_hypothesis_ids": hypothesis_ids,
+        "mechanism_families": mechanism_families,
+        "evidence_fingerprints": evidence_fingerprints,
+        "evidence_changing_cycles": cumulative_evidence_rows,
+        "deterministic_replays": cumulative_replay_rows,
+        "evidence_changing_cycle_ids": [_text(row.get("acceptance_cycle_id")) for row in cumulative_evidence_rows if _text(row.get("acceptance_cycle_id"))],
+        "deterministic_replay_ids": [_text(row.get("replay_id")) for row in cumulative_replay_rows if _text(row.get("replay_id"))],
+        "latest_run_id": latest_run_id,
+        "latest_run_new_campaign_count": int(latest_scope["latest_run_new_campaign_count"]),
+        "latest_run_new_evidence_cycle_count": int(latest_scope["latest_run_new_evidence_cycle_count"]),
+        "cumulative_campaign_count": len(campaign_ids),
+        "cumulative_hypothesis_count": len(hypothesis_ids),
+        "cumulative_family_count": len(mechanism_families),
+        "cumulative_evidence_changing_cycle_count": len(cumulative_evidence_rows),
+        "cumulative_replay_count": len(cumulative_replay_rows),
+    }
+    cumulative["content_identity"] = _content_id("qthr", cumulative)
+    consistency = {
+        "schema_version": SCHEMA_VERSION,
+        "module_version": MODULE_VERSION,
+        "report_kind": "qre_trust_horizon_consistency",
+        "measurement_scope": "cumulative_vs_latest",
+        "trust_horizon_id": _text(cumulative.get("trust_horizon_id")),
+        "latest_run_id": latest_run_id,
+        "checks": [
+            {
+                "field": "cumulative_campaign_count",
+                "expected": len(campaign_ids),
+                "actual": int(cumulative.get("cumulative_campaign_count") or 0),
+                "status": "PASS" if int(cumulative.get("cumulative_campaign_count") or 0) == len(campaign_ids) else "FAIL",
+            },
+            {
+                "field": "cumulative_evidence_changing_cycle_count",
+                "expected": len(cumulative_evidence_rows),
+                "actual": int(cumulative.get("cumulative_evidence_changing_cycle_count") or 0),
+                "status": "PASS"
+                if int(cumulative.get("cumulative_evidence_changing_cycle_count") or 0) == len(cumulative_evidence_rows)
+                else "FAIL",
+            },
+            {
+                "field": "latest_run_new_campaign_count",
+                "expected": len(execution_rows),
+                "actual": int(latest_scope.get("latest_run_new_campaign_count") or 0),
+                "status": "PASS" if int(latest_scope.get("latest_run_new_campaign_count") or 0) == len(execution_rows) else "FAIL",
+            },
+            {
+                "field": "latest_run_new_evidence_cycle_count",
+                "expected": len(latest_evidence_rows),
+                "actual": int(latest_scope.get("latest_run_new_evidence_cycle_count") or 0),
+                "status": "PASS"
+                if int(latest_scope.get("latest_run_new_evidence_cycle_count") or 0) == len(latest_evidence_rows)
+                else "FAIL",
+            },
+        ],
+    }
+    consistency["status"] = "PASS" if all(check["status"] == "PASS" for check in consistency["checks"]) else "FAIL"
+    consistency["content_identity"] = _content_id("qthc", consistency)
+    return cumulative, latest_scope, consistency
 
 
 def _write_trust_artifacts(
@@ -659,6 +882,9 @@ def _write_trust_artifacts(
     sampling: dict[str, Any],
     actions: dict[str, Any],
     acceptance: dict[str, Any],
+    trust_horizon: dict[str, Any],
+    latest_run_scope: dict[str, Any],
+    trust_horizon_consistency: dict[str, Any],
     summary: dict[str, Any],
 ) -> None:
     _write_json(repo_root, ATTRIBUTION_PATH, attribution)
@@ -669,6 +895,9 @@ def _write_trust_artifacts(
     _write_json(repo_root, SAMPLING_PATH, sampling)
     _write_json(repo_root, ACTION_PATH, actions)
     _write_json(repo_root, ACCEPTANCE_PATH, acceptance)
+    _write_json(repo_root, TRUST_HORIZON_PATH, trust_horizon)
+    _write_json(repo_root, TRUST_HORIZON_LATEST_RUN_PATH, latest_run_scope)
+    _write_json(repo_root, TRUST_HORIZON_CONSISTENCY_PATH, trust_horizon_consistency)
     _write_json(repo_root, SUMMARY_PATH, summary)
 
 
@@ -682,7 +911,7 @@ def run_empirical_trust_closure(
     bootstrapped = _bootstrap_history(repo_root)
     history_before = [dict(row) for row in bootstrapped["rows"]]
     if write_outputs and bootstrapped["bootstrapped"]:
-        _write_history(repo_root, history_before)
+        _write_history(repo_root, history_before, latest_run_new_campaign_count=0)
 
     policy = build_operator_trust_policy_v1_1()
     initial_plan = _build_plan(repo_root, history_before)
@@ -707,7 +936,7 @@ def run_empirical_trust_closure(
         closeout, pack, history_row = _execute_campaign(repo_root, readiness_row, history_current)
         history_current.append(history_row)
         if write_outputs:
-            _write_history(repo_root, history_current)
+            _write_history(repo_root, history_current, latest_run_new_campaign_count=len(execution_rows))
             _update_memory_artifacts(repo_root, history_current)
         oos_state = _oos_semantics(pack)
         execution_rows.append(
@@ -750,18 +979,25 @@ def run_empirical_trust_closure(
         if admitted_index in {1, 2}:
             acceptance_snapshots.append([dict(row) for row in history_current])
 
-    history_payload = _write_history(repo_root, history_current) if write_outputs else {
+    history_payload = _write_history(repo_root, history_current, latest_run_new_campaign_count=len(execution_rows)) if write_outputs else {
         "rows": history_current,
         "summary": {
             "total_real_empirical_campaigns": len(history_current),
             "historical_real_campaigns_consumed": sum(1 for row in history_current if not bool(row.get("new_this_run"))),
-            "new_real_empirical_campaigns_executed_this_run": sum(1 for row in history_current if bool(row.get("new_this_run"))),
+            "new_real_empirical_campaigns_executed_this_run": len(execution_rows),
         },
     }
     memory_payloads = _update_memory_artifacts(repo_root, history_current) if write_outputs else {}
     if stable_digest(acceptance_snapshots[-1]) != stable_digest(history_current):
         acceptance_snapshots.append([dict(row) for row in history_current])
     acceptance = _build_acceptance_history_from_snapshots(acceptance_snapshots)
+    trust_horizon, latest_run_scope, trust_horizon_consistency = _build_trust_horizon(
+        repo_root,
+        policy=policy,
+        history_rows=history_current,
+        latest_acceptance=acceptance,
+        execution_rows=execution_rows,
+    )
 
     attribution = {
         "schema_version": SCHEMA_VERSION,
@@ -771,12 +1007,12 @@ def run_empirical_trust_closure(
             "total_real_empirical_campaigns_before": len(history_before),
             "corrected_new_campaigns_from_pr3": 0,
             "corrected_new_campaigns_from_pr4": 0,
-            "new_campaigns_executed_this_run": sum(1 for row in history_current if bool(row.get("new_this_run"))),
+            "new_campaigns_executed_this_run": len(execution_rows),
             "total_real_empirical_campaigns_after": len(history_current),
             "portfolio_planning_cycles": 1 + len(learning_rows),
-            "empirical_research_cycles": sum(1 for row in history_current if bool(row.get("new_this_run"))),
+            "empirical_research_cycles": len(history_current),
             "deterministic_acceptance_replays": int((acceptance.get("summary") or {}).get("deterministic_acceptance_replay_count") or 0),
-            "evidence_changing_acceptance_cycles": int((acceptance.get("summary") or {}).get("evidence_changing_acceptance_cycle_count") or 0),
+            "evidence_changing_acceptance_cycles": int(trust_horizon.get("cumulative_evidence_changing_cycle_count") or 0),
             "historical_campaigns_consumed": sum(1 for row in history_current if not bool(row.get("new_this_run"))),
             "fixture_campaigns": 0,
             "benchmark_outcomes": 0,
@@ -870,6 +1106,21 @@ def run_empirical_trust_closure(
         "sampling_summary": sampling["summary"],
         "action_summary": actions["summary"],
         "acceptance_summary": acceptance["summary"],
+        "trust_horizon_summary": {
+            "trust_horizon_id": _text(trust_horizon.get("trust_horizon_id")),
+            "cumulative_campaign_count": int(trust_horizon.get("cumulative_campaign_count") or 0),
+            "cumulative_hypothesis_count": int(trust_horizon.get("cumulative_hypothesis_count") or 0),
+            "cumulative_family_count": int(trust_horizon.get("cumulative_family_count") or 0),
+            "cumulative_evidence_changing_cycle_count": int(trust_horizon.get("cumulative_evidence_changing_cycle_count") or 0),
+            "cumulative_replay_count": int(trust_horizon.get("cumulative_replay_count") or 0),
+            "latest_run_id": _text(latest_run_scope.get("latest_run_id")),
+            "latest_run_new_campaign_count": int(latest_run_scope.get("latest_run_new_campaign_count") or 0),
+            "latest_run_new_evidence_cycle_count": int(latest_run_scope.get("latest_run_new_evidence_cycle_count") or 0),
+        },
+        "trust_horizon_consistency": {
+            "status": _text(trust_horizon_consistency.get("status")),
+            "content_identity": _text(trust_horizon_consistency.get("content_identity")),
+        },
         "history_identity": _text(history_payload.get("history_identity")),
         "memory_update_count": int(((memory_payloads.get("memory") or {}).get("summary") or {}).get("memory_update_count") or 0),
     }
@@ -885,6 +1136,9 @@ def run_empirical_trust_closure(
             sampling=sampling,
             actions=actions,
             acceptance=acceptance,
+            trust_horizon=trust_horizon,
+            latest_run_scope=latest_run_scope,
+            trust_horizon_consistency=trust_horizon_consistency,
             summary=summary,
         )
 
@@ -901,6 +1155,9 @@ def run_empirical_trust_closure(
         "sampling_utility": sampling,
         "action_effectiveness": actions,
         "acceptance_history": acceptance,
+        "trust_horizon": trust_horizon,
+        "trust_horizon_latest_run": latest_run_scope,
+        "trust_horizon_consistency": trust_horizon_consistency,
         "memory_payloads": memory_payloads,
         "summary": summary,
     }
