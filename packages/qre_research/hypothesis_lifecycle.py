@@ -616,6 +616,7 @@ def build_evidence_updates_snapshot(*, repo_root: Path = REPO_ROOT) -> dict[str,
 def build_failure_actions_snapshot(*, repo_root: Path = REPO_ROOT) -> dict[str, Any]:
     feasibility = build_feasibility_snapshot(repo_root=repo_root)
     sampling = build_sampling_snapshot(repo_root=repo_root)
+    empirical_pack = _read_empirical_pack(repo_root)
     sampling_index = {str(row.get("thesis_id") or ""): row for row in sampling["rows"]}
     rows: list[dict[str, Any]] = []
     mapping = {
@@ -634,15 +635,31 @@ def build_failure_actions_snapshot(*, repo_root: Path = REPO_ROOT) -> dict[str, 
         sampling_blockers = list(sampling_row.get("sampling_reason_codes") or [])
         if not blockers and sampling_blockers:
             blockers = sampling_blockers
-        action = mapping.get(blockers[0], str(sampling_row.get("next_action") or "collect_empirical_validation_evidence")) if blockers else str(sampling_row.get("next_action") or "collect_empirical_validation_evidence")
+        empirical_match = (
+            empirical_pack
+            if str(empirical_pack.get("source_hypothesis_id") or "") == str(row.get("source_hypothesis_id") or "")
+            else {}
+        )
+        action = (
+            str(empirical_match.get("recommended_next_action") or "")
+            or (
+                mapping.get(
+                    blockers[0],
+                    str(sampling_row.get("next_action") or "collect_empirical_validation_evidence"),
+                )
+                if blockers
+                else str(sampling_row.get("next_action") or "collect_empirical_validation_evidence")
+            )
+        )
+        action = action or "collect_empirical_validation_evidence"
         rows.append(
             {
                 "failure_action_id": _content_id("qhfa", {"thesis_id": row["thesis_id"], "action": action}),
                 "thesis_id": str(row.get("thesis_id") or ""),
                 "source_hypothesis_id": str(row.get("source_hypothesis_id") or ""),
-                "failure_codes": blockers,
+                "failure_codes": blockers or list(empirical_match.get("active_blockers") or []),
                 "next_action": action,
-                "actionable": bool(blockers) or action == "collect_empirical_validation_evidence",
+                "actionable": bool(action and action != "no_hypothesis_selected"),
             }
         )
     return {
