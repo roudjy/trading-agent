@@ -22,7 +22,7 @@ def test_candidate_operator_trust_audit_separates_portfolio_and_empirical_outcom
     assert corrected["suppressed_duplicate_decisions"] >= 0
     assert corrected["resolved_historical_blockers"] == ["DATA_OR_OOS_CAPACITY_BLOCKED"]
     assert corrected["active_contradictions"] == ["REQUEST_MORE_EVIDENCE"]
-    assert readiness["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
+    assert readiness["operator_trust_readiness"] == "PASS"
     assert readiness["shadow_readiness"] == "INSUFFICIENT_HISTORY"
     assert readiness["pr5_entrygate_satisfied"] is False
     assert consistency["status"] == "PASS"
@@ -56,7 +56,7 @@ def test_candidate_operator_trust_falls_back_when_runtime_logs_are_missing(monke
 
     assert corrected["portfolio_planning_cycles"] >= 2
     assert corrected["empirical_research_cycles"] >= 1
-    assert report["readiness_decisions"]["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
+    assert report["readiness_decisions"]["operator_trust_readiness"] == "PASS"
 
 
 def test_candidate_operator_trust_ignores_noncanonical_runtime_scheduler_logs(monkeypatch) -> None:
@@ -89,7 +89,7 @@ def test_candidate_operator_trust_ignores_noncanonical_runtime_scheduler_logs(mo
 
     assert corrected["portfolio_planning_cycles"] >= 2
     assert corrected["portfolio_admission_decisions"] >= 0
-    assert report["readiness_decisions"]["operator_trust_readiness"] == "INSUFFICIENT_HISTORY"
+    assert report["readiness_decisions"]["operator_trust_readiness"] == "PASS"
 
 
 def test_candidate_operator_trust_policy_and_recovery_fail_closed() -> None:
@@ -105,7 +105,8 @@ def test_candidate_operator_trust_policy_and_recovery_fail_closed() -> None:
     assert len(recovery["rows"]) == 10
     assert all(row["pass"] is True for row in recovery["rows"])
     assert readiness["candidate_maturity_readiness"] == "INSUFFICIENT_HISTORY"
-    assert "real campaigns" in readiness["insufficient_history_criteria"]
+    assert readiness["operator_trust_readiness"] == "PASS"
+    assert readiness["insufficient_history_criteria"] == []
 
 
 def test_candidate_operator_trust_review_writes_sidecars(tmp_path: Path, monkeypatch) -> None:

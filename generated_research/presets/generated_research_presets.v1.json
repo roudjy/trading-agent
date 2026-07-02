@@ -1,5 +1,5 @@
 {
-  "generated_preset_identity": "qgp_baee9712a7ca83a3",
+  "generated_preset_identity": "qgp_e89ab413521c3f2a",
   "report_kind": "generated_research_presets",
   "rows": [
     {
@@ -23,6 +23,56 @@
       "timeframe": "1d",
       "universe": [
         "breadth_resolved_multi_asset_basket"
+      ]
+    },
+    {
+      "cost_assumptions": {
+        "mode": "cost_class_visible_only"
+      },
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "evaluate_campaign_readiness_from_generated_preset",
+      "parameter_values": {
+        "atr_long_window": 20,
+        "atr_short_window": 5,
+        "compression_threshold": 0.6
+      },
+      "preset_id": "qgp_fb5209ac6cf6f887",
+      "preset_name": "vol_compression_breakout_crypto_1h",
+      "preset_state": "GENERATED",
+      "slippage_assumptions": {
+        "status": "not_materialized"
+      },
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "timeframe": "1h",
+      "universe": [
+        "BTC-EUR",
+        "ETH-EUR",
+        "SOL-EUR"
+      ]
+    },
+    {
+      "cost_assumptions": {
+        "mode": "cost_class_visible_only"
+      },
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "evaluate_campaign_readiness_from_generated_preset",
+      "parameter_values": {
+        "atr_long_window": 20,
+        "atr_short_window": 5,
+        "compression_threshold": 0.6
+      },
+      "preset_id": "qgp_9e19eb11d344e481",
+      "preset_name": "vol_compression_breakout_crypto_4h",
+      "preset_state": "GENERATED",
+      "slippage_assumptions": {
+        "status": "not_materialized"
+      },
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "timeframe": "4h",
+      "universe": [
+        "BTC-EUR",
+        "ETH-EUR",
+        "SOL-EUR"
       ]
     }
   ],

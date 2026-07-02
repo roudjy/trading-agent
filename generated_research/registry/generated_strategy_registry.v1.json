@@ -1,5 +1,5 @@
 {
-  "generated_registry_identity": "qrg_259dd418e81700d5",
+  "generated_registry_identity": "qrg_6cd066a8677389a8",
   "report_kind": "generated_strategy_registry",
   "rows": [
     {
@@ -25,6 +25,31 @@
       "template_version": "thin-strategy-template.1",
       "test_manifest_id": "qgt_14aee99589f8afa6",
       "thesis_id": "qbt_3b77618b0ddbd5b3"
+    },
+    {
+      "authority": "RESEARCH_ONLY_AUTOMATED",
+      "code_hash": "622329638afb4241ead56d5ad0ff3f955a51bf415a220ab4fc8fbd1eb3504af4",
+      "factory_symbol": "generated_strategy",
+      "generated_registration_id": "qgr_7f235ca8f8fa7c23",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "generator_version": "ade-qre-019.1",
+      "module_path": "agent/backtesting/generated_strategies/generated_qgs_a266464219e0d498.py",
+      "provenance": [
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json"
+      ],
+      "rejected_clone_lineage": false,
+      "sandbox_artifact_id": "qsv_7d7881b1a379e601",
+      "sandbox_validation_path": "generated_research/validation/qgs_a266464219e0d498.json",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "state": "RESEARCH_REGISTERED_AUTOMATED",
+      "strategy_name": "qgs_a266464219e0d498",
+      "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+      "template_version": "thin-strategy-template.1",
+      "test_manifest_id": "qgt_ab955ab0635a3e4c",
+      "thesis_id": "qbt_cc01cda908553e5e"
     },
     {
       "authority": "RESEARCH_ONLY_AUTOMATED",

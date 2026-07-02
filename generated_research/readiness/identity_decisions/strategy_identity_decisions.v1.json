@@ -1,5 +1,5 @@
 {
-  "identity_decision_identity": "qrr_f33eb473cd00748d",
+  "identity_decision_identity": "qrr_8beee30271864c37",
   "module_version": "ade-qre-022.1",
   "report_kind": "qre_strategy_identity_decisions",
   "rows": [
@@ -41,6 +41,45 @@
       "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
       "selected_identity": "quv_fa4646ea49ea7bf2",
       "selection_reason": "single-instrument strategy can bind a deterministic one-member research universe from the resolved instrument"
+    },
+    {
+      "candidate_authority": "missing",
+      "candidate_ids": [],
+      "confidence_or_authority_state": "missing",
+      "decision_id": "qrd_f122f651e4477790",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "identity_class": "instrument",
+      "provenance": [
+        "logs/qre_identity_ambiguity_resolution/latest.json",
+        "artifacts/identity/instrument_identity_latest.v1.json"
+      ],
+      "rejection_reasons": [
+        "instrument_identity_missing"
+      ],
+      "requested_identity": "SMH",
+      "resolution_outcome": "MISSING_NO_CANDIDATE",
+      "selected_identity": "",
+      "selection_reason": "no canonical instrument matched the authoritative hint"
+    },
+    {
+      "candidate_authority": "missing",
+      "candidate_ids": [],
+      "confidence_or_authority_state": "missing",
+      "decision_id": "qrd_327c176ac715ad80",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "identity_class": "universe",
+      "provenance": [
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "artifacts/universe/equity_universe_catalog_latest.v1.json"
+      ],
+      "rejection_reasons": [
+        "universe_identity_missing"
+      ],
+      "requested_identity": "existing_preset_bound_universes_only",
+      "resolution_outcome": "MISSING_NO_CANDIDATE",
+      "selected_identity": "",
+      "selection_reason": "no authoritative universe binding surfaced for the strategy"
     },
     {
       "candidate_authority": "missing",

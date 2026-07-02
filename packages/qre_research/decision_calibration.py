@@ -46,6 +46,23 @@ def _norm(value: Any, *, default: str = "") -> str:
     return str(value or default).strip()
 
 
+def _insufficient_activity_next_action(closeout: dict[str, Any]) -> tuple[str, str]:
+    train_stage = dict(closeout.get("train_stage") or {})
+    validation_stage = dict(closeout.get("validation_stage") or {})
+    oos_stage = dict(closeout.get("oos_stage") or {})
+    train_signal_count = int(train_stage.get("signal_count") or 0)
+    validation_signal_count = int(validation_stage.get("signal_count") or 0)
+    oos_signal_count = int(oos_stage.get("signal_count") or 0)
+    oos_trade_count = int(oos_stage.get("trade_count") or 0)
+    min_oos_trades = int(dict(oos_stage.get("validation_evidence") or {}).get("min_oos_trades") or 0)
+
+    if train_signal_count <= 0 and validation_signal_count <= 0 and oos_signal_count <= 0:
+        return ("low_signal_density", "bounded_timeframe_or_universe_follow_up")
+    if oos_signal_count > 0 and min_oos_trades > 0 and oos_trade_count < min_oos_trades:
+        return ("insufficient_oos_trade_activity", "bounded_oos_activity_extension")
+    return ("insufficient_activity", "launch_data_oos_capacity_expansion")
+
+
 def _unique(values: list[str]) -> list[str]:
     out: list[str] = []
     for value in values:
@@ -244,10 +261,14 @@ def classify_terminal_disposition(
     oos_outcome = _norm(dict(closeout.get("oos_stage") or {}).get("oos_outcome"))
     null_status = _norm(dict(pack.get("null_model") or {}).get("outcome")) if pack else ""
 
+    insufficient_precedence, insufficient_next_action = _insufficient_activity_next_action(closeout)
     active_blocker = "REQUEST_MORE_EVIDENCE"
-    precedence = "insufficient_activity"
+    precedence = insufficient_precedence
     disposition = "NEEDS_MORE_EVIDENCE"
-    next_action = _norm(feedback.get("next_action")) or "launch_data_oos_capacity_expansion"
+    feedback_next_action = _norm(feedback.get("next_action"))
+    next_action = feedback_next_action or insufficient_next_action
+    if feedback_next_action == "launch_data_oos_capacity_expansion" and insufficient_next_action != feedback_next_action:
+        next_action = insufficient_next_action
     resolved_blockers = []
     current_blockers = []
 
@@ -276,9 +297,9 @@ def classify_terminal_disposition(
             current_blockers = [active_blocker]
     elif terminal_outcome == "DATA_OR_OOS_CAPACITY_BLOCKED" or hypothesis_decision == "BLOCKED_SAMPLE_SIZE":
         active_blocker = "REQUEST_MORE_EVIDENCE"
-        precedence = "insufficient_activity"
+        precedence = insufficient_precedence
         disposition = "NEEDS_MORE_EVIDENCE"
-        next_action = "launch_data_oos_capacity_expansion"
+        next_action = insufficient_next_action
         current_blockers = [active_blocker]
     elif pack and evidence_semantic_map:
         oos_semantics = evidence_semantic_map["oos"]
@@ -297,9 +318,13 @@ def classify_terminal_disposition(
             current_blockers = []
         elif oos_semantics["applicability"] == "APPLICABLE" and oos_semantics["sufficiency"] == "INSUFFICIENT":
             active_blocker = "REQUEST_MORE_EVIDENCE"
-            precedence = "oos_evidence_insufficient"
+            precedence = (
+                insufficient_precedence
+                if insufficient_precedence != "insufficient_activity"
+                else "oos_evidence_insufficient"
+            )
             disposition = "NEEDS_MORE_EVIDENCE"
-            next_action = "launch_data_oos_capacity_expansion"
+            next_action = insufficient_next_action
             current_blockers = [active_blocker]
         elif null_semantics["outcome"] == "FAIL":
             active_blocker = "REJECT"

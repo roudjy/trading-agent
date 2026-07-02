@@ -39,6 +39,30 @@
       "selection_reason": "multiple independently valid spec timeframes split into distinct campaign cells"
     },
     {
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "provenance": [
+        "generated_research/specs",
+        "generated_research/readiness/gaps/strategy_readiness_gaps.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "requested_timeframe": "4h",
+      "resolution_outcome": "TIMEFRAME_SPLIT_INTO_DISTINCT_CELLS",
+      "selection_reason": "multiple independently valid spec timeframes split into distinct campaign cells"
+    },
+    {
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "provenance": [
+        "generated_research/specs",
+        "generated_research/readiness/gaps/strategy_readiness_gaps.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "requested_timeframe": "1h",
+      "resolution_outcome": "TIMEFRAME_SPLIT_INTO_DISTINCT_CELLS",
+      "selection_reason": "multiple independently valid spec timeframes split into distinct campaign cells"
+    },
+    {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "provenance": [
@@ -52,5 +76,5 @@
     }
   ],
   "schema_version": "1.0",
-  "timeframe_resolution_identity": "tim_566c6b35a6eb595d"
+  "timeframe_resolution_identity": "tim_56cc478f9ef4485d"
 }

@@ -1,6 +1,6 @@
 {
   "module_version": "ade-qre-022.1",
-  "portfolio_readiness_identity": "qrr_d6aa426fa8a3f8ab",
+  "portfolio_readiness_identity": "qrr_f706ee5a09056586",
   "report_kind": "qre_generated_portfolio_readiness",
   "rows": [
     {
@@ -13,6 +13,17 @@
       "source_hypothesis_id": "atr_adaptive_trend_v0",
       "status": "BLOCKED_WINDOWS",
       "strategy_spec_id": "qsp_16800d656bf28677"
+    },
+    {
+      "blockers": [
+        "universe_identity_missing"
+      ],
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "preserve_fail_closed_readiness_blockers",
+      "portfolio_cell_id": "qrp_adfdfed9c8edb0af",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "status": "BLOCKED_IDENTITY",
+      "strategy_spec_id": "qsp_66fc66cd3f17afa7"
     },
     {
       "blockers": [

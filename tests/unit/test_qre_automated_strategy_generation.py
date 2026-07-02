@@ -12,12 +12,21 @@ from packages.qre_research.generated_strategy_paths import (
     GENERATED_SPECS_DIR,
     validate_write_target,
 )
-from reporting import qre_automated_generation_closeout as closeout
-from reporting import qre_blocked_thesis_lineage_census as census
-from reporting import qre_campaign_lineage_materialization as materialization
-from reporting import qre_campaign_portfolio_reconstruction as portfolio
-from reporting import qre_null_control_readiness as controls
-
+from reporting import (
+    qre_automated_generation_closeout as closeout,
+)
+from reporting import (
+    qre_blocked_thesis_lineage_census as census,
+)
+from reporting import (
+    qre_campaign_lineage_materialization as materialization,
+)
+from reporting import (
+    qre_campaign_portfolio_reconstruction as portfolio,
+)
+from reporting import (
+    qre_null_control_readiness as controls,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -50,7 +59,7 @@ def test_compile_outcomes_for_current_blocked_theses_are_closed() -> None:
         "multi_asset_trend_sleeve_v0": "BLOCKED_POLICY",
         "cross_sectional_momentum_v0": cross_expected,
         "dynamic_pairs_v0": "BLOCKED_IDENTITY",
-        "volatility_compression_breakout_v0": "BLOCKED_IDENTITY",
+        "volatility_compression_breakout_v0": "SPECIFICATION_READY",
     }
     for hypothesis_id, outcome in expected.items():
         result = gen.compile_strategy_spec(
@@ -58,6 +67,34 @@ def test_compile_outcomes_for_current_blocked_theses_are_closed() -> None:
             source_hypothesis_id=hypothesis_id,
         )
         assert result["outcome"] == outcome, (hypothesis_id, result)
+
+
+def test_volatility_compression_breakout_generates_canonical_multi_preset_bindings() -> None:
+    compile_result = gen.compile_strategy_spec(
+        repo_root=REPO_ROOT,
+        source_hypothesis_id="volatility_compression_breakout_v0",
+    )
+
+    assert compile_result["outcome"] == "SPECIFICATION_READY"
+    specification = compile_result["specification"]
+    assert specification.behavior_family == "volatility_compression_breakout"
+    assert set(specification.timeframe) >= {"1h", "4h"}
+
+    registry_entry = {
+        "generated_strategy_id": "qgs_vol_fixture",
+        "source_hypothesis_id": "volatility_compression_breakout_v0",
+    }
+    preset_rows = gen.generate_preset_entries(
+        source_hypothesis_id="volatility_compression_breakout_v0",
+        thesis_row={},
+        registry_entry=registry_entry,
+        identity_row={},
+    )
+
+    assert len(preset_rows) >= 2
+    assert {row["timeframe"] for row in preset_rows} >= {"1h", "4h"}
+    assert all(row["preset_state"] == "GENERATED" for row in preset_rows)
+    assert all(len(row["universe"]) >= 1 for row in preset_rows)
 
 
 def test_generated_artifacts_exist_and_manifest_matches_strategy_source() -> None:

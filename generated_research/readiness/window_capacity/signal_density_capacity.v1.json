@@ -11,10 +11,15 @@
       "reason": "estimated_signals_below_policy_minimum"
     },
     {
+      "breadth_adjusted_usable_bars": 3415,
       "campaign_cell_id": "qrcell_d5ded3130f132558",
+      "estimated_signals": 42,
+      "estimated_trades": 34,
+      "estimated_usable_bars": 3415,
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "outcome": "INSUFFICIENT_EVIDENCE_TO_ESTIMATE",
-      "reason": "data_or_windows_not_ready"
+      "instrument_count": 1,
+      "outcome": "SIGNAL_CAPACITY_READY",
+      "reason": ""
     },
     {
       "breadth_adjusted_usable_bars": 4371,
@@ -28,11 +33,33 @@
       "reason": ""
     },
     {
-      "breadth_adjusted_usable_bars": 186,
+      "breadth_adjusted_usable_bars": 50268,
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "estimated_signals": 628,
+      "estimated_trades": 628,
+      "estimated_usable_bars": 16756,
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "instrument_count": 3,
+      "outcome": "SIGNAL_CAPACITY_READY",
+      "reason": ""
+    },
+    {
+      "breadth_adjusted_usable_bars": 12909,
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "estimated_signals": 161,
+      "estimated_trades": 161,
+      "estimated_usable_bars": 4303,
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "instrument_count": 3,
+      "outcome": "SIGNAL_CAPACITY_READY",
+      "reason": ""
+    },
+    {
+      "breadth_adjusted_usable_bars": 192,
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "estimated_signals": 2,
       "estimated_trades": 2,
-      "estimated_usable_bars": 62,
+      "estimated_usable_bars": 64,
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "instrument_count": 3,
       "outcome": "SIGNAL_CAPACITY_READY_WITH_LIMITATIONS",

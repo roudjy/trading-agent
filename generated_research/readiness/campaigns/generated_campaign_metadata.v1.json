@@ -1,5 +1,5 @@
 {
-  "campaign_metadata_identity": "qrr_43788acd07d74249",
+  "campaign_metadata_identity": "qrr_be4db11eadeceefe",
   "module_version": "ade-qre-022.1",
   "report_kind": "qre_generated_campaign_metadata",
   "rows": [
@@ -44,6 +44,47 @@
       "timeframe": "",
       "train_window": "",
       "universe_identity": "quv_fa4646ea49ea7bf2",
+      "validation_window": ""
+    },
+    {
+      "blockers": [
+        "universe_not_resolved",
+        "data_binding_not_ready",
+        "null_controls_not_execution_ready"
+      ],
+      "campaign_candidate_id": "qcmr_9b8e70d0c76316e2",
+      "costs": {
+        "mode": "cost_class_visible_only"
+      },
+      "dataset_identity": "",
+      "generated_registration_id": "qgr_7f235ca8f8fa7c23",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "instrument_identity": "",
+      "metadata_state": "PREREGISTRATION_BLOCKED",
+      "null_controls": [
+        "shuffled_signal_timing",
+        "matched_frequency_null"
+      ],
+      "oos_window": "",
+      "preset_id": "qgp_9e19eb11d344e481",
+      "provenance": [
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/specs",
+        "generated_research/presets/generated_research_presets.v1.json",
+        "generated_research/lineage/generated_null_controls.v1.json",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "slippage": {
+        "status": "not_materialized"
+      },
+      "snapshot_identity": "",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "source_identity": "",
+      "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+      "thesis_id": "qbt_cc01cda908553e5e",
+      "timeframe": "4h",
+      "train_window": "",
+      "universe_identity": "",
       "validation_window": ""
     },
     {

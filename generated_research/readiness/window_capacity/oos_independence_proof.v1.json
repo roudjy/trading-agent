@@ -7,15 +7,15 @@
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "outcome": "INDEPENDENCE_PROVEN",
       "reason": "window_not_previously_reserved_or_consumed_for_matching_snapshot_scope",
-      "snapshot_identity": "qsn_7122d363670ceae9",
+      "snapshot_identity": "qsn_503d8677958bf816",
       "timeframe": "1d"
     },
     {
       "campaign_cell_id": "qrcell_d5ded3130f132558",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
-      "outcome": "INSUFFICIENT_EVIDENCE_TO_PROVE_INDEPENDENCE",
-      "reason": "windows_not_assigned",
-      "snapshot_identity": "",
+      "outcome": "INDEPENDENCE_PROVEN",
+      "reason": "window_not_previously_reserved_or_consumed_for_matching_snapshot_scope",
+      "snapshot_identity": "qsn_5917a61216f89e7b",
       "timeframe": "1h"
     },
     {
@@ -27,11 +27,27 @@
       "timeframe": "4h"
     },
     {
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "INDEPENDENCE_PROVEN",
+      "reason": "window_not_previously_reserved_or_consumed_for_matching_snapshot_scope",
+      "snapshot_identity": "qsn_f625125ee68b8d16",
+      "timeframe": "1h"
+    },
+    {
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "INDEPENDENCE_PROVEN",
+      "reason": "window_not_previously_reserved_or_consumed_for_matching_snapshot_scope",
+      "snapshot_identity": "qsn_eaf9994eba7cdebd",
+      "timeframe": "4h"
+    },
+    {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "outcome": "INDEPENDENCE_PROVEN",
       "reason": "window_not_previously_reserved_or_consumed_for_matching_snapshot_scope",
-      "snapshot_identity": "qsn_bd7ce9df4dabc083",
+      "snapshot_identity": "qsn_2002ea84f5634b4b",
       "timeframe": "1d"
     }
   ],

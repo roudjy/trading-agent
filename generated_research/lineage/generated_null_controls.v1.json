@@ -1,5 +1,5 @@
 {
-  "generated_null_control_identity": "qgn_e8becd8e6b63b331",
+  "generated_null_control_identity": "qgn_6b52b50884ebb733",
   "report_kind": "generated_null_controls",
   "rows": [
     {
@@ -26,6 +26,19 @@
         "permuted_cross_sectional_ranking"
       ],
       "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "state": "SPECIFIED_NOT_EXECUTED"
+    },
+    {
+      "deterministic_seed": "ef394c1b1c65653e",
+      "execution_readiness": false,
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "implementation_readiness": true,
+      "null_control_spec_id": "qnc_56f12bac75a94b32",
+      "required_controls": [
+        "shuffled_signal_timing",
+        "matched_frequency_null"
+      ],
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
       "state": "SPECIFIED_NOT_EXECUTED"
     }
   ],

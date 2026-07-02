@@ -20,7 +20,7 @@
       "requested_alias": "single_resolved_instrument_only",
       "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
       "selected_universe_id": "quv_fa4646ea49ea7bf2",
-      "selection_reason": "single_instrument_universe_bound_from_instrument"
+      "selection_reason": "unique_high_confidence_single_instrument_identity"
     },
     {
       "campaign_cell_id": "qrcell_d5ded3130f132558",
@@ -40,7 +40,7 @@
       "requested_alias": "single_resolved_instrument_only",
       "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
       "selected_universe_id": "quv_fa4646ea49ea7bf2",
-      "selection_reason": "single_instrument_universe_bound_from_instrument"
+      "selection_reason": "unique_high_confidence_single_instrument_identity"
     },
     {
       "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
@@ -60,12 +60,90 @@
       "requested_alias": "single_resolved_instrument_only",
       "resolution_outcome": "RESOLVED_WITH_LIMITATIONS",
       "selected_universe_id": "quv_fa4646ea49ea7bf2",
-      "selection_reason": "single_instrument_universe_bound_from_instrument"
+      "selection_reason": "unique_high_confidence_single_instrument_identity"
+    },
+    {
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "excluded_members": [],
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "included_members": [
+        {
+          "canonical_instrument_id": "yfinance:BTC-EUR",
+          "coverage_hash": "sha256:9c4d8714bdf545d999543d6c615142ed598c142e597b25910fa1297d2f2ad50b",
+          "inclusion_reason": "preset_member_with_ready_local_coverage",
+          "provider_symbol": "BTC-EUR",
+          "symbol": "BTC-EUR"
+        },
+        {
+          "canonical_instrument_id": "yfinance:ETH-EUR",
+          "coverage_hash": "sha256:fdf436736dc351637c3e00db01b1b9d90054ba517e9bde267803e96c7e87202c",
+          "inclusion_reason": "preset_member_with_ready_local_coverage",
+          "provider_symbol": "ETH-EUR",
+          "symbol": "ETH-EUR"
+        },
+        {
+          "canonical_instrument_id": "yfinance:SOL-EUR",
+          "coverage_hash": "sha256:0a6b34164f38ae3f2314fa3075adfcad6c9bfc1190c113ee965635da692e8f43",
+          "inclusion_reason": "preset_member_with_ready_local_coverage",
+          "provider_symbol": "SOL-EUR",
+          "symbol": "SOL-EUR"
+        }
+      ],
+      "membership_snapshot_id": "qum_acf95391b40fb23f",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "requested_alias": "existing_preset_bound_universes_only",
+      "resolution_outcome": "RESOLVED_PRESET_BOUND",
+      "selected_universe_id": "quv_ec46fa931ccf551e",
+      "selection_reason": "preset_bound_multi_asset_universe_materialized"
+    },
+    {
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "excluded_members": [],
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "included_members": [
+        {
+          "canonical_instrument_id": "yfinance:BTC-EUR",
+          "coverage_hash": "sha256:f71fafc15a9c8f16c1e91639310a504be2aa828245e649c06f0c182f0fafb84b",
+          "inclusion_reason": "preset_member_with_ready_local_coverage",
+          "provider_symbol": "BTC-EUR",
+          "symbol": "BTC-EUR"
+        },
+        {
+          "canonical_instrument_id": "yfinance:ETH-EUR",
+          "coverage_hash": "sha256:7429f66338f2ab09576e5fc1debf9f718eee5406a894a4621cf377a3f24f56b5",
+          "inclusion_reason": "preset_member_with_ready_local_coverage",
+          "provider_symbol": "ETH-EUR",
+          "symbol": "ETH-EUR"
+        },
+        {
+          "canonical_instrument_id": "yfinance:SOL-EUR",
+          "coverage_hash": "sha256:496e237e7efdfcede2e2e75d52930699ff1f47440bb5a3b7b3d693ab02c1145a",
+          "inclusion_reason": "preset_member_with_ready_local_coverage",
+          "provider_symbol": "SOL-EUR",
+          "symbol": "SOL-EUR"
+        }
+      ],
+      "membership_snapshot_id": "qum_a8ac200e787a1606",
+      "provenance": [
+        "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
+        "logs/qre_behavior_thesis_registry/latest.json",
+        "logs/qre_blocked_thesis_lineage_census/latest.json",
+        "logs/qre_identity_ambiguity_resolution/latest.json"
+      ],
+      "requested_alias": "existing_preset_bound_universes_only",
+      "resolution_outcome": "RESOLVED_PRESET_BOUND",
+      "selected_universe_id": "quv_1cadf172ee0e0d1f",
+      "selection_reason": "preset_bound_multi_asset_universe_materialized"
     },
     {
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "effective_from_utc": "2026-04-08T00:00:00Z",
-      "effective_to_utc": "2026-06-29T00:00:00Z",
+      "effective_to_utc": "2026-07-01T00:00:00Z",
       "excluded_members": [
         {
           "canonical_instrument_id": "ASX:BHP.AX",
@@ -628,28 +706,28 @@
       "included_members": [
         {
           "canonical_instrument_id": "Euronext Amsterdam:ASML",
-          "coverage_hash": "sha256:1441238f08dfa416bf9c24bda22f63ef79344f45ee721f2aff66eea6291d5716",
+          "coverage_hash": "sha256:982d44f4fd047e2430223e351a591b9b311e914902e89ac847bc0337f344ff61",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "ASML.AS",
           "symbol": "ASML"
         },
         {
           "canonical_instrument_id": "NASDAQ:AAPL",
-          "coverage_hash": "sha256:8932fdb659844af32bc0b1a4d7ae425d5dfeb5fa56d64c747e5f700955f2bff3",
+          "coverage_hash": "sha256:6e8db659d9a609f173b38a1d165fa28890a47e1f5c6a34aaba279ca5d12d526a",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AAPL",
           "symbol": "AAPL"
         },
         {
           "canonical_instrument_id": "NASDAQ:AMD",
-          "coverage_hash": "sha256:071bde873ccdf0aedebd302abf96333a2a741b66c3655bad6669ec2698edee25",
+          "coverage_hash": "sha256:9f5a0487c1abb65fbeac924a48d87e7cdcb396c43d76730b75774d278f6c3e87",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AMD",
           "symbol": "AMD"
         }
       ],
       "matched_member_count": 3,
-      "membership_snapshot_id": "qum_ee55ca88aaef5b42",
+      "membership_snapshot_id": "qum_6954e04eb8195aad",
       "minimum_universe_size": 3,
       "provenance": [
         "artifacts/universe/equity_universe_catalog_latest.v1.json",
@@ -1227,27 +1305,27 @@
       "included_members": [
         {
           "canonical_instrument_id": "Euronext Amsterdam:ASML",
-          "coverage_hash": "sha256:1441238f08dfa416bf9c24bda22f63ef79344f45ee721f2aff66eea6291d5716",
+          "coverage_hash": "sha256:982d44f4fd047e2430223e351a591b9b311e914902e89ac847bc0337f344ff61",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "ASML.AS",
           "symbol": "ASML"
         },
         {
           "canonical_instrument_id": "NASDAQ:AAPL",
-          "coverage_hash": "sha256:8932fdb659844af32bc0b1a4d7ae425d5dfeb5fa56d64c747e5f700955f2bff3",
+          "coverage_hash": "sha256:6e8db659d9a609f173b38a1d165fa28890a47e1f5c6a34aaba279ca5d12d526a",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AAPL",
           "symbol": "AAPL"
         },
         {
           "canonical_instrument_id": "NASDAQ:AMD",
-          "coverage_hash": "sha256:071bde873ccdf0aedebd302abf96333a2a741b66c3655bad6669ec2698edee25",
+          "coverage_hash": "sha256:9f5a0487c1abb65fbeac924a48d87e7cdcb396c43d76730b75774d278f6c3e87",
           "inclusion_reason": "high_confidence_identity_and_matching_local_timeframe_coverage",
           "provider_symbol": "AMD",
           "symbol": "AMD"
         }
       ],
-      "membership_snapshot_id": "qum_ee55ca88aaef5b42",
+      "membership_snapshot_id": "qum_6954e04eb8195aad",
       "provenance": [
         "generated_research/hypotheses/registry/generated_thesis_registry.v1.json",
         "logs/qre_behavior_thesis_registry/latest.json",
@@ -1261,5 +1339,5 @@
     }
   ],
   "schema_version": "1.0",
-  "universe_authority_identity": "uni_c48267b7b5f53a68"
+  "universe_authority_identity": "uni_3fcb0c27c05df810"
 }

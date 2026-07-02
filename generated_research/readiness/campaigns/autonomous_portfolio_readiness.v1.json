@@ -1,6 +1,6 @@
 {
   "module_version": "ade-qre-023.1",
-  "portfolio_identity": "por_a9aea2672ceba44d",
+  "portfolio_identity": "por_a65b2ff6880a837e",
   "report_kind": "qre_autonomous_portfolio_readiness",
   "rows": [
     {
@@ -10,20 +10,20 @@
       "campaign_cell_id": "qrcell_41d3efbcaa2aeddb",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
-      "preset_id": "qgp_3730fa2cabbee856",
+      "preset_id": "qgp_89068ef8ba64be83",
       "status": "BLOCKED_WINDOWS",
       "timeframe": "1d",
       "universe_identity": "quv_fa4646ea49ea7bf2"
     },
     {
       "blockers": [
-        "no_cache_row_for_resolved_instrument_and_timeframe"
+        "authoritative_window_assignment_policy_not_materialized"
       ],
       "campaign_cell_id": "qrcell_d5ded3130f132558",
       "generated_strategy_id": "qgs_5af8f605ba82ae53",
       "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
-      "preset_id": "",
-      "status": "BLOCKED_DATA",
+      "preset_id": "qgp_962b748f49f30524",
+      "status": "BLOCKED_WINDOWS",
       "timeframe": "1h",
       "universe_identity": "quv_fa4646ea49ea7bf2"
     },
@@ -43,10 +43,34 @@
       "blockers": [
         "authoritative_window_assignment_policy_not_materialized"
       ],
+      "campaign_cell_id": "qrcell_d3b0070dbb9099fe",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
+      "preset_id": "qgp_fe54c77ae7b269cf",
+      "status": "BLOCKED_WINDOWS",
+      "timeframe": "4h",
+      "universe_identity": "quv_ec46fa931ccf551e"
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
+      "campaign_cell_id": "qrcell_e9645deb2e53460d",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
+      "preset_id": "qgp_55f99e0b362bb219",
+      "status": "BLOCKED_WINDOWS",
+      "timeframe": "1h",
+      "universe_identity": "quv_1cadf172ee0e0d1f"
+    },
+    {
+      "blockers": [
+        "authoritative_window_assignment_policy_not_materialized"
+      ],
       "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "next_action": "preserve_fail_closed_autonomous_readiness_blockers",
-      "preset_id": "qgp_9aed29ac8e33741c",
+      "preset_id": "qgp_fd2f76837859ad00",
       "status": "BLOCKED_WINDOWS",
       "timeframe": "1d",
       "universe_identity": "global_developed_liquid"

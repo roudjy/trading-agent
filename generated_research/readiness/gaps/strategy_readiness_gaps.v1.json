@@ -1,6 +1,6 @@
 {
   "module_version": "ade-qre-022.1",
-  "readiness_gap_identity": "qrr_ae610cf0a0773c91",
+  "readiness_gap_identity": "qrr_b28de7d27c61c953",
   "report_kind": "qre_strategy_readiness_gaps",
   "rows": [
     {
@@ -125,6 +125,127 @@
         "dataset",
         "snapshot",
         "timeframe"
+      ]
+    },
+    {
+      "aggregate_blocker": "identity_not_resolved",
+      "fields": [
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "instrument",
+          "missing_reason": "instrument_identity_missing",
+          "next_action": "resolve_instrument_identity",
+          "provenance": [
+            "artifacts/identity/instrument_identity_latest.v1.json",
+            "logs/qre_identity_ambiguity_resolution/latest.json"
+          ],
+          "source_authority": "artifacts/identity/instrument_identity_latest.v1.json",
+          "state": "MISSING"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "universe",
+          "missing_reason": "universe_identity_missing",
+          "next_action": "resolve_authoritative_universe_membership",
+          "provenance": [
+            "artifacts/universe/equity_universe_catalog_latest.v1.json",
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "artifacts/universe/equity_universe_catalog_latest.v1.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "4h",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "timeframe",
+          "missing_reason": "preset_timeframe",
+          "next_action": "use_preset_timeframe",
+          "provenance": [
+            "generated_research/specs",
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "generated_research/specs or generated preset",
+          "state": "RESOLVED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "source",
+          "missing_reason": "instrument_identity_not_resolved",
+          "next_action": "resolve_universe_and_timeframe_before_source_binding",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "dataset",
+          "missing_reason": "instrument_identity_not_resolved",
+          "next_action": "resolve_binding_before_dataset_identity",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "",
+          "candidate_refs": [],
+          "conflict_reason": "",
+          "field_name": "snapshot",
+          "missing_reason": "instrument_identity_not_resolved",
+          "next_action": "resolve_binding_before_snapshot_identity",
+          "provenance": [
+            "logs/qre_data_cache_manifest/latest.json"
+          ],
+          "source_authority": "logs/qre_data_cache_manifest/latest.json",
+          "state": "BLOCKED"
+        },
+        {
+          "authoritative_value": "qgp_9e19eb11d344e481",
+          "candidate_refs": [
+            "qgp_9e19eb11d344e481"
+          ],
+          "conflict_reason": "",
+          "field_name": "preset",
+          "missing_reason": "generated_preset_present",
+          "next_action": "preserve_generated_preset",
+          "provenance": [
+            "generated_research/presets/generated_research_presets.v1.json"
+          ],
+          "source_authority": "generated_research/presets/generated_research_presets.v1.json",
+          "state": "RESOLVED_WITH_LIMITATIONS"
+        }
+      ],
+      "generated_registration_id": "qgr_7f235ca8f8fa7c23",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "provenance": [
+        "generated_research/presets/generated_research_presets.v1.json",
+        "generated_research/registry/generated_strategy_registry.v1.json",
+        "generated_research/specs",
+        "logs/qre_data_cache_manifest/latest.json"
+      ],
+      "readiness_state": "READINESS_GAPS_IDENTIFIED",
+      "resolved_fields": [
+        "timeframe"
+      ],
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "unresolved_fields": [
+        "source",
+        "dataset",
+        "snapshot",
+        "instrument",
+        "universe"
       ]
     },
     {

@@ -14,6 +14,17 @@
       "state": "BLOCKED"
     },
     {
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "outcome": "DATA_COVERAGE_INSUFFICIENT",
+      "provenance": [
+        "logs/qre_data_cache_manifest/latest.json",
+        "generated_research/specs"
+      ],
+      "reason": "instrument_identity_not_resolved",
+      "source_hypothesis_id": "volatility_compression_breakout_v0",
+      "state": "BLOCKED"
+    },
+    {
       "generated_strategy_id": "qgs_e565b01bd0a162d0",
       "outcome": "DATA_COVERAGE_INSUFFICIENT",
       "provenance": [
@@ -26,5 +37,5 @@
     }
   ],
   "schema_version": "1.0",
-  "window_capacity_identity": "qrr_ea84087a6674dca0"
+  "window_capacity_identity": "qrr_74d339c8bc435fb8"
 }

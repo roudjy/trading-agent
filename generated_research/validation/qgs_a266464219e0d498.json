@@ -1,0 +1,15 @@
+{
+  "code_hash": "622329638afb4241ead56d5ad0ff3f955a51bf415a220ab4fc8fbd1eb3504af4",
+  "deterministic_replay_match": true,
+  "fixture_evidence_not_market_evidence": true,
+  "fixture_row_count": 96,
+  "generated_strategy_id": "qgs_a266464219e0d498",
+  "module_path": "agent/backtesting/generated_strategies/generated_qgs_a266464219e0d498.py",
+  "sandbox_validation_id": "qsv_7d7881b1a379e601",
+  "side_effects_detected": false,
+  "status": "VALIDATED",
+  "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+  "technical_validation_only": true,
+  "test_manifest_id": "qgt_ab955ab0635a3e4c",
+  "test_module_path": "tests/generated_strategies/test_generated_qgs_a266464219e0d498.py"
+}

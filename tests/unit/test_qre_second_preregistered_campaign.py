@@ -364,6 +364,20 @@ def test_null_controls_execute_with_frozen_seed(qre025_repo: Path) -> None:
     assert all(row["deterministic_seed"] for row in rows)
 
 
+def test_shuffled_signal_timing_uses_deterministic_rotation() -> None:
+    index = pd.date_range("2026-01-01", periods=6, freq="D")
+    position = pd.Series([0, 1, 1, 0, 0, 1], index=index, dtype=int)
+
+    first = campaign._shuffled_signal_timing(position, "seed-alpha")
+    second = campaign._shuffled_signal_timing(position, "seed-alpha")
+    third = campaign._shuffled_signal_timing(position, "seed-beta")
+
+    assert first.equals(second)
+    assert sorted(first.tolist()) == sorted(position.tolist())
+    assert not first.equals(position)
+    assert not first.equals(third)
+
+
 def test_campaign_execution_outputs_are_materialized(qre025_repo: Path) -> None:
     campaign.run_second_preregistered_campaign(repo_root=qre025_repo)
     for relative in (

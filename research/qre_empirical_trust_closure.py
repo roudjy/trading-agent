@@ -7,6 +7,7 @@ import os
 import tempfile
 from contextlib import suppress
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any, Final
 
@@ -441,11 +442,14 @@ def _build_plan(repo_root: Path, history_rows: list[dict[str, Any]]) -> dict[str
                 "reason": reason,
                 "status": status,
                 "priority": priority,
+                "blocked_stage": "" if admitted else "pre_admission",
             }
         )
     rows.sort(key=lambda row: (-float(row["priority"]), row["campaign_cell_id"]))
     for index, row in enumerate(rows, start=1):
         row["rank"] = index
+    campaigns_planned_initially = len(admitted_rows)
+    campaigns_blocked_pre_admission = blocked_count + duplicate_count
     return {
         "schema_version": SCHEMA_VERSION,
         "module_version": MODULE_VERSION,
@@ -453,12 +457,19 @@ def _build_plan(repo_root: Path, history_rows: list[dict[str, Any]]) -> dict[str
         "plan_identity": _content_id("qpp", rows),
         "rows": rows,
         "summary": {
+            "candidate_cells_considered": len(rows),
             "hypotheses_considered": len(rows),
             "exact_duplicates_suppressed": duplicate_count,
             "near_duplicates_suppressed": 0,
-            "campaigns_planned": len(admitted_rows),
-            "campaigns_admitted": len(admitted_rows),
-            "campaigns_blocked": blocked_count + duplicate_count,
+            "campaigns_planned_initially": campaigns_planned_initially,
+            "campaigns_admitted_initially": campaigns_planned_initially,
+            "campaigns_planned": campaigns_planned_initially,
+            "campaigns_admitted": campaigns_planned_initially,
+            "campaigns_executed": 0,
+            "campaigns_blocked_pre_admission": campaigns_blocked_pre_admission,
+            "campaigns_blocked_post_execution": 0,
+            "campaigns_blocked": campaigns_blocked_pre_admission,
+            "queue_exhausted_after_execution": False,
             "compute_budget": MAX_NEW_REAL_CAMPAIGNS,
             "compute_used": 0,
             "insufficient_generation_boundary": len(admitted_rows) < TARGET_NEW_REAL_CAMPAIGNS,
@@ -497,6 +508,34 @@ def _execute_campaign(
     return closeout, pack, history_row
 
 
+def _oos_semantics(pack: dict[str, Any]) -> dict[str, Any]:
+    oos = dict(pack.get("oos") or {})
+    controlled = dict(pack.get("controlled_evaluation") or {})
+    oos_stage = dict(controlled.get("oos_stage") or {})
+    validation = dict(oos_stage.get("validation_evidence") or {})
+    signal_count = int(oos_stage.get("signal_count") or 0)
+    trade_count = int(oos_stage.get("trade_count") or oos.get("trade_count") or 0)
+    bar_count = int(oos_stage.get("bar_count") or 0)
+    min_oos_trades = int(validation.get("min_oos_trades") or 0)
+    evidence_status = _text(validation.get("evidence_status"))
+    sufficiency = _text(oos.get("sufficiency")) or (
+        "SUFFICIENT" if evidence_status == "sufficient_oos_trades" else "INSUFFICIENT"
+    )
+    return {
+        "oos_window_present": bool(oos_stage) or bool(_text(oos_stage.get("oos_window_id"))),
+        "oos_market_data_sufficient": bar_count > 0,
+        "oos_signal_activity_sufficient": signal_count > 0,
+        "oos_trade_activity_sufficient": trade_count >= min_oos_trades if min_oos_trades > 0 else trade_count > 0,
+        "oos_evidence_sufficient": sufficiency == "SUFFICIENT",
+        "oos_signal_count": signal_count,
+        "oos_trade_count": trade_count,
+        "oos_bar_count": bar_count,
+        "oos_sufficiency": sufficiency,
+        "oos_evidence_status": evidence_status or sufficiency.lower(),
+        "min_oos_trades": min_oos_trades,
+    }
+
+
 def _build_routing_record(readiness_row: dict[str, Any], pack: dict[str, Any], *, alternatives: list[dict[str, Any]]) -> dict[str, Any]:
     evaluable = any(_text(row.get("campaign_cell_id")) != _text(readiness_row.get("campaign_cell_id")) and bool(row.get("admitted")) for row in alternatives)
     return {
@@ -517,14 +556,19 @@ def _build_routing_record(readiness_row: dict[str, Any], pack: dict[str, Any], *
 
 
 def _build_sampling_record(readiness_row: dict[str, Any], pack: dict[str, Any]) -> dict[str, Any]:
-    oos = dict(pack.get("oos") or {})
+    oos_state = _oos_semantics(pack)
     return {
         "sampling_record_id": _content_id("qsrx", {"cell": readiness_row.get("campaign_cell_id"), "campaign": pack.get("campaign_identity")}),
         "sample_identity": _text(readiness_row.get("campaign_cell_id")),
         "sample_purpose": "locked_oos_empirical_validation",
         "failure_zone_covered": list(pack.get("active_blockers") or []),
         "regime_window_covered": _text(pack.get("timeframe")),
-        "oos_usability": _text(oos.get("sufficiency")) or "INSUFFICIENT",
+        "oos_usability": _text(oos_state.get("oos_sufficiency")) or "INSUFFICIENT",
+        "oos_window_present": bool(oos_state.get("oos_window_present")),
+        "oos_market_data_sufficient": bool(oos_state.get("oos_market_data_sufficient")),
+        "oos_signal_activity_sufficient": bool(oos_state.get("oos_signal_activity_sufficient")),
+        "oos_trade_activity_sufficient": bool(oos_state.get("oos_trade_activity_sufficient")),
+        "oos_evidence_sufficient": bool(oos_state.get("oos_evidence_sufficient")),
         "null_control_role": "required",
         "redundancy": False,
         "compute_cost": "single_campaign",
@@ -555,36 +599,37 @@ def _build_action_row(history_before: list[dict[str, Any]], history_after: list[
 
 
 def _build_acceptance_history(history_rows_before: list[dict[str, Any]], history_rows_after: list[dict[str, Any]]) -> dict[str, Any]:
+    return _build_acceptance_history_from_snapshots([history_rows_before, history_rows_after])
+
+
+def _build_acceptance_history_from_snapshots(history_snapshots: list[list[dict[str, Any]]]) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
-    before_fingerprint = _content_id("qevidence", history_rows_before)
-    after_fingerprint = _content_id("qevidence", history_rows_after)
-    rows.append(
-        {
-            "cycle": 1,
-            "cycle_kind": "evidence_changing_acceptance_cycle",
-            "evidence_fingerprint": after_fingerprint,
-            "new_campaigns_since_prior": max(len(history_rows_after) - len(history_rows_before), 0),
-            "result": "evidence_changed" if before_fingerprint != after_fingerprint else "no_change",
-            "changed_evidence": before_fingerprint != after_fingerprint,
-        }
-    )
-    rows.append(
-        {
-            "cycle": 2,
-            "cycle_kind": "evidence_changing_acceptance_cycle",
-            "evidence_fingerprint": after_fingerprint,
-            "new_campaigns_since_prior": 0,
-            "result": "no_change",
-            "changed_evidence": False,
-        }
-    )
+    normalized_snapshots = [list(snapshot) for snapshot in history_snapshots if isinstance(snapshot, list)]
+    if not normalized_snapshots:
+        normalized_snapshots = [[]]
+    if len(normalized_snapshots) == 1:
+        normalized_snapshots = [normalized_snapshots[0], normalized_snapshots[0]]
+    for previous, current in pairwise(normalized_snapshots):
+        previous_fingerprint = _content_id("qevidence", previous)
+        current_fingerprint = _content_id("qevidence", current)
+        rows.append(
+            {
+                "cycle": len(rows) + 1,
+                "cycle_kind": "evidence_changing_acceptance_cycle",
+                "evidence_fingerprint": current_fingerprint,
+                "new_campaigns_since_prior": max(len(current) - len(previous), 0),
+                "result": "evidence_changed" if previous_fingerprint != current_fingerprint else "no_change",
+                "changed_evidence": previous_fingerprint != current_fingerprint,
+            }
+        )
+    final_fingerprint = _content_id("qevidence", normalized_snapshots[-1])
     for replay_index in range(1, DETERMINISTIC_REPLAY_COUNT + 1):
         rows.append(
             {
                 "cycle": len(rows) + 1,
                 "cycle_kind": "deterministic_acceptance_replay",
-                "evidence_fingerprint": after_fingerprint,
-                "artifact_identity": _content_id("qreplay", {"replay": replay_index, "fingerprint": after_fingerprint}),
+                "evidence_fingerprint": final_fingerprint,
+                "artifact_identity": _content_id("qreplay", {"replay": replay_index, "fingerprint": final_fingerprint}),
                 "result": "exact_match",
                 "exact_match": True,
                 "changed_evidence": False,
@@ -598,7 +643,7 @@ def _build_acceptance_history(history_rows_before: list[dict[str, Any]], history
         "summary": {
             "deterministic_acceptance_replay_count": sum(1 for row in rows if row["cycle_kind"] == "deterministic_acceptance_replay"),
             "evidence_changing_acceptance_cycle_count": sum(1 for row in rows if row["cycle_kind"] == "evidence_changing_acceptance_cycle" and bool(row.get("changed_evidence"))),
-            "independent_empirical_research_cycle_count": max(len(history_rows_after) - len(history_rows_before), 0),
+            "independent_empirical_research_cycle_count": max(len(normalized_snapshots[-1]) - len(normalized_snapshots[0]), 0),
         },
     }
 
@@ -641,7 +686,6 @@ def run_empirical_trust_closure(
 
     policy = build_operator_trust_policy_v1_1()
     initial_plan = _build_plan(repo_root, history_before)
-    admitted_rows = [dict(row) for row in initial_plan.get("admitted_rows", [])][:max_new_campaigns]
     execution_rows: list[dict[str, Any]] = []
     routing_rows: list[dict[str, Any]] = []
     sampling_rows: list[dict[str, Any]] = []
@@ -649,14 +693,23 @@ def run_empirical_trust_closure(
     learning_rows: list[dict[str, Any]] = []
     history_current = [dict(row) for row in history_before]
     reranked_plan = initial_plan
+    acceptance_snapshots: list[list[dict[str, Any]]] = [[dict(row) for row in history_before]]
 
-    for admitted_index, readiness_row in enumerate(admitted_rows, start=1):
+    while len(execution_rows) < max_new_campaigns:
+        current_plan = _build_plan(repo_root, history_current)
+        current_admitted = [dict(row) for row in current_plan.get("admitted_rows", [])]
+        if not current_admitted:
+            reranked_plan = current_plan
+            break
+        admitted_index = len(execution_rows) + 1
+        readiness_row = current_admitted[0]
         before_iteration = [dict(row) for row in history_current]
         closeout, pack, history_row = _execute_campaign(repo_root, readiness_row, history_current)
         history_current.append(history_row)
         if write_outputs:
             _write_history(repo_root, history_current)
             _update_memory_artifacts(repo_root, history_current)
+        oos_state = _oos_semantics(pack)
         execution_rows.append(
             {
                 "campaign_identity": _text(pack.get("campaign_identity")),
@@ -665,12 +718,21 @@ def run_empirical_trust_closure(
                 "family": _text(history_row.get("mechanism_family")),
                 "dataset_fingerprint": _text(history_row.get("dataset_fingerprint")),
                 "novelty": _text(history_row.get("novelty_type")),
-                "oos_activity": int((pack.get("oos") or {}).get("trade_count") or 0),
+                "oos_window_present": bool(oos_state.get("oos_window_present")),
+                "oos_market_data_sufficient": bool(oos_state.get("oos_market_data_sufficient")),
+                "oos_signal_activity_sufficient": bool(oos_state.get("oos_signal_activity_sufficient")),
+                "oos_trade_activity_sufficient": bool(oos_state.get("oos_trade_activity_sufficient")),
+                "oos_evidence_sufficient": bool(oos_state.get("oos_evidence_sufficient")),
+                "oos_signal_count": int(oos_state.get("oos_signal_count") or 0),
+                "oos_trade_count": int(oos_state.get("oos_trade_count") or 0),
+                "oos_bar_count": int(oos_state.get("oos_bar_count") or 0),
+                "oos_activity": int(oos_state.get("oos_trade_count") or 0),
+                "evidence_sufficiency": _text(oos_state.get("oos_sufficiency")),
                 "disposition": _text(pack.get("disposition")),
                 "next_action": _text(pack.get("recommended_next_action")),
             }
         )
-        routing_rows.append(_build_routing_record(readiness_row, pack, alternatives=initial_plan.get("rows", [])))
+        routing_rows.append(_build_routing_record(readiness_row, pack, alternatives=current_plan.get("rows", [])))
         sampling_rows.append(_build_sampling_record(readiness_row, pack))
         action_rows.append(_build_action_row(before_iteration, history_current, pack))
         reranked_plan = _build_plan(repo_root, history_current)
@@ -680,12 +742,13 @@ def run_empirical_trust_closure(
                 "after_campaign_index": admitted_index,
                 "campaign_identity": _text(pack.get("campaign_identity")),
                 "memory_update": _text(history_row.get("disposition")),
-                "ranking_change": initial_plan.get("plan_identity") != reranked_plan.get("plan_identity"),
+                "ranking_change": current_plan.get("plan_identity") != reranked_plan.get("plan_identity"),
                 "next_admission": _text((next_admitted or {}).get("campaign_cell_id")),
                 "reason": "campaign_history_now_blocks_repeated_terminal_work",
             }
         )
-        initial_plan = reranked_plan
+        if admitted_index in {1, 2}:
+            acceptance_snapshots.append([dict(row) for row in history_current])
 
     history_payload = _write_history(repo_root, history_current) if write_outputs else {
         "rows": history_current,
@@ -696,7 +759,9 @@ def run_empirical_trust_closure(
         },
     }
     memory_payloads = _update_memory_artifacts(repo_root, history_current) if write_outputs else {}
-    acceptance = _build_acceptance_history(history_before, history_current)
+    if stable_digest(acceptance_snapshots[-1]) != stable_digest(history_current):
+        acceptance_snapshots.append([dict(row) for row in history_current])
+    acceptance = _build_acceptance_history_from_snapshots(acceptance_snapshots)
 
     attribution = {
         "schema_version": SCHEMA_VERSION,
@@ -726,9 +791,10 @@ def run_empirical_trust_closure(
         "rows": execution_rows,
         "summary": {
             "new_real_campaigns": len(execution_rows),
+            "campaigns_executed": len(execution_rows),
             "distinct_real_hypotheses_this_run": len({_text(row.get("source_hypothesis_id")) for row in execution_rows}),
             "distinct_mechanism_families_this_run": len({_text(row.get("family")) for row in execution_rows}),
-            "campaigns_with_sufficient_oos": sum(1 for row in execution_rows if int(row.get("oos_activity") or 0) > 0),
+            "campaigns_with_sufficient_oos": sum(1 for row in execution_rows if bool(row.get("oos_evidence_sufficient"))),
             "campaigns_rejected": sum(1 for row in execution_rows if _text(row.get("disposition")) == "REJECTED"),
             "campaigns_needing_more_evidence": sum(1 for row in execution_rows if _text(row.get("disposition")) == "NEEDS_MORE_EVIDENCE"),
             "campaigns_requiring_data": sum(1 for row in execution_rows if _text(row.get("disposition")) == "REQUIRES_DATA_EXTENSION"),
@@ -757,7 +823,14 @@ def run_empirical_trust_closure(
         "summary": {
             "sampling_utility_records": len(sampling_rows),
             "sampling_utility_evaluable": bool(sampling_rows),
-            "sampling_utility": None,
+            "sampling_utility": None if not sampling_rows else {
+                "window_present_fraction": round(sum(1 for row in sampling_rows if bool(row.get("oos_window_present"))) / len(sampling_rows), 6),
+                "market_data_sufficient_fraction": round(sum(1 for row in sampling_rows if bool(row.get("oos_market_data_sufficient"))) / len(sampling_rows), 6),
+                "signal_activity_sufficient_fraction": round(sum(1 for row in sampling_rows if bool(row.get("oos_signal_activity_sufficient"))) / len(sampling_rows), 6),
+                "trade_activity_sufficient_fraction": round(sum(1 for row in sampling_rows if bool(row.get("oos_trade_activity_sufficient"))) / len(sampling_rows), 6),
+                "evidence_sufficient_fraction": round(sum(1 for row in sampling_rows if bool(row.get("oos_evidence_sufficient"))) / len(sampling_rows), 6),
+                "mean_terminal_information_contribution": round(sum(int(row.get("terminal_information_contribution") or 0) for row in sampling_rows) / len(sampling_rows), 6),
+            },
             "measurement_types": sorted({row.get("measurement_type") for row in sampling_rows if row.get("measurement_type")}),
         },
     }
@@ -787,6 +860,7 @@ def run_empirical_trust_closure(
         "attribution_integrity": attribution["summary"],
         "policy": policy,
         "portfolio_plan_summary": initial_plan["summary"],
+        "final_reranked_plan_summary": reranked_plan["summary"],
         "execution_summary": execution["summary"],
         "inter_campaign_learning": {
             "rows": learning_rows,

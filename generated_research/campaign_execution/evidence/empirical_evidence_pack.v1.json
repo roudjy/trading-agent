@@ -2,7 +2,7 @@
   "active_blockers": [
     "REQUEST_MORE_EVIDENCE"
   ],
-  "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+  "campaign_cell_id": "qrcell_e9645deb2e53460d",
   "campaign_classification": {
     "current_hypothesis_campaigns_executed": 0,
     "fixture_campaigns_consumed": 0,
@@ -10,28 +10,27 @@
     "new_empirical_campaigns_completed": 1,
     "null_or_synthetic_campaigns_executed": 0
   },
-  "campaign_identity": "qcx_984253c682dfbaeb",
+  "campaign_identity": "qcx_4d7d08d88ef9dca5",
   "campaign_refs": [
     "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
   ],
   "contradicting_evidence": [
-    "DATA_OR_OOS_CAPACITY_BLOCKED",
-    "oos_sample_size_insufficient_after_ready_cell_execution"
+    "DATA_OR_OOS_CAPACITY_BLOCKED"
   ],
   "controlled_evaluation": {
     "oos_stage": {
-      "active_bar_count": 23,
-      "bar_count": 69,
+      "active_bar_count": 0,
+      "bar_count": 721,
       "costs": 0.0,
-      "expectancy": -0.005297774438769498,
-      "exposure_fraction": 0.333333,
-      "gross_return_compound": -0.010570428946845567,
-      "gross_return_sum": -0.005340899538675226,
-      "holding_period_bars_average": 11.5,
-      "max_drawdown": 0.0759178973797775,
-      "net_return_compound": -0.010570428946845567,
-      "oos_outcome": "INSUFFICIENT_TRADES",
-      "oos_window_id": "qwl_66abbed68496e3ac",
+      "expectancy": 0.0,
+      "exposure_fraction": 0.0,
+      "gross_return_compound": 0.0,
+      "gross_return_sum": 0.0,
+      "holding_period_bars_average": 0.0,
+      "max_drawdown": 0.0,
+      "net_return_compound": 0.0,
+      "oos_outcome": "INSUFFICIENT_SIGNALS",
+      "oos_window_id": "qwl_3ba73d93843acd3f",
       "profit_factor": 0.0,
       "reason_records": [
         {
@@ -40,1822 +39,82 @@
           "next_action": "route_to_data_oos_capacity_expansion",
           "status": "FAILED",
           "threshold": 10,
-          "value": 2
+          "value": 0
         }
       ],
-      "signal_count": 24,
-      "signals": [
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-08T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-08T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-13T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-13T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-14T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-14T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-16T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-16T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-17T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-17T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-20T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-20T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-21T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-21T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-22T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-22T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-24T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-04-24T17:30:00Z"
-        }
-      ],
+      "signal_count": 0,
+      "signals": [],
       "slippage": 0.0,
       "stage_name": "oos",
-      "trade_count": 2,
-      "trades": [
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2026-04-08T17:30:00Z",
-          "exit_timestamp_utc": "2026-04-23T17:30:00Z",
-          "gross_return": -0.003581242088177672,
-          "holding_bars": 22,
-          "net_return": -0.003581242088177672,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2026-04-24T17:30:00Z",
-          "exit_timestamp_utc": "2026-04-24T17:30:00Z",
-          "gross_return": -0.007014306789361324,
-          "holding_bars": 1,
-          "net_return": -0.007014306789361324,
-          "side": 1
-        }
-      ],
-      "turnover": 3,
+      "trade_count": 0,
+      "trades": [],
+      "turnover": 0,
       "validation_evidence": {
-        "evidence_status": "insufficient_oos_trades",
+        "evidence_status": "no_oos_trades",
         "min_oos_trades": 10,
-        "oos_trade_count": 2
+        "oos_trade_count": 0
       }
     },
     "status": "AVAILABLE",
     "train_stage": {
-      "active_bar_count": 365,
-      "bar_count": 726,
+      "active_bar_count": 0,
+      "bar_count": 14869,
       "costs": 0.0,
       "criteria_checks": {
-        "sufficient_signals": true,
-        "sufficient_trades": true
+        "sufficient_signals": false,
+        "sufficient_trades": false
       },
-      "expectancy": -0.004330834827136044,
-      "exposure_fraction": 0.502755,
-      "gross_return_compound": -0.13761936740052827,
-      "gross_return_sum": -0.08878715522309089,
-      "holding_period_bars_average": 20.277778,
-      "max_drawdown": 0.4073325830919946,
-      "net_return_compound": -0.13761936740052827,
-      "profit_factor": 0.8473214121337594,
+      "expectancy": 0.0,
+      "exposure_fraction": 0.0,
+      "gross_return_compound": 0.0,
+      "gross_return_sum": 0.0,
+      "holding_period_bars_average": 0.0,
+      "max_drawdown": 0.0,
+      "net_return_compound": 0.0,
+      "profit_factor": 0.0,
       "reason_records": [
         {
           "decision": "screening_gate",
           "metric": "trade_count",
-          "next_action": "continue_to_validation",
-          "status": "PASSED",
+          "next_action": "fail_closed_screening",
+          "status": "FAILED",
           "threshold": 10,
-          "value": 18
+          "value": 0
         },
         {
           "decision": "screening_gate",
           "metric": "signal_count",
-          "next_action": "continue_to_validation",
-          "status": "PASSED",
+          "next_action": "fail_closed_screening",
+          "status": "FAILED",
           "threshold": 6,
-          "value": 365
+          "value": 0
         }
       ],
-      "screening_outcome": "PASSED",
-      "signal_count": 365,
-      "signals": [
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-05T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-06T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-06T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-07T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-07T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-11T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-11T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-12T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-12T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-13T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-13T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-14T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-14T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-17T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-17T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-18T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-18T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-20T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-20T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-21T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-21T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-27T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-27T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-28T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-06-28T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-01T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-01T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-02T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-02T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-03T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-05T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-05T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-08T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-08T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-11T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-11T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-12T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-12T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-16T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-07-16T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-16T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-16T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-19T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-19T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-20T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-20T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-21T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-21T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-08-22T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-09-26T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-09-26T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-09-27T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-09-27T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-11T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-11T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-14T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-10-14T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-02T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-02T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-03T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-03T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-04T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-04T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-05T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-05T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-06T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-06T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-09T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-09T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-10T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-10T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-11T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-11T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-12T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-12T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-13T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-13T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-16T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-16T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-17T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-17T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-18T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-18T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-19T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-19T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-20T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-23T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-24T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-26T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2024-12-26T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-06T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-06T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-07T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-07T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-08T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-08T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-10T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-10T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-13T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-13T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-14T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-14T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-15T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-15T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-16T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-16T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-17T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-17T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-21T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-21T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-22T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-22T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-23T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-23T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-31T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-01-31T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-05T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-06T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-06T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-10T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-10T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-11T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-11T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-12T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-12T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-13T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-13T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-14T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-14T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-18T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-18T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-19T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-02-19T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-03-19T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-03-20T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-03-20T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-04-25T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-04-25T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-02T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-02T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-05T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-05T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-06T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-06T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-07T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-07T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-08T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-08T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-12T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-12T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-13T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-13T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-14T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-14T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-16T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-16T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-19T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-19T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-20T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-20T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-21T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-21T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-22T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-22T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-23T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-23T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-27T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-27T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-28T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-28T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-29T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-29T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-30T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-05-30T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-02T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-02T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-03T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-03T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-04T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-04T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-05T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-05T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-06T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-06T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-11T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-11T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-12T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-12T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-13T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-13T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-16T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-16T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-17T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-17T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-18T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-18T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-23T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-23T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-24T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-24T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-25T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-25T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-26T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-26T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-27T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-27T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-30T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-06-30T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-01T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-01T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-02T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-02T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-03T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-07T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-07T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-08T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-08T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-11T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-11T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-14T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-14T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-07-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-12T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-12T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-13T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-13T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-14T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-14T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-18T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-18T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-19T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-19T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-20T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-20T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-22T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-22T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-25T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-25T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-26T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-26T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-27T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-27T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-28T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-08-28T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-04T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-04T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-05T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-05T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-08T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-08T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-11T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-11T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-12T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-12T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-16T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-16T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-17T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-17T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-18T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-18T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-19T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-19T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-22T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-22T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-23T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-23T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-24T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-24T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-25T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-25T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-26T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-26T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-29T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-29T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-30T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-09-30T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-01T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-01T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-02T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-02T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-03T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-03T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-06T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-06T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-07T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-07T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-08T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-08T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-09T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-09T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-10T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-10T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-13T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-13T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-14T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-14T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-15T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-15T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-16T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-16T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-17T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-17T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-20T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-20T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-21T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-21T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-22T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-22T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-23T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-23T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-24T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-24T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-27T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-27T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-28T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-28T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-29T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-29T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-30T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-30T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-31T13:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-10-31T17:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-03T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-03T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-04T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-04T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-05T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-05T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-06T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-06T18:30:00Z"
-        }
-      ],
+      "screening_outcome": "INSUFFICIENT_TRADES",
+      "signal_count": 0,
+      "signals": [],
       "slippage": 0.0,
       "stage_name": "train",
-      "trade_count": 18,
-      "trades": [
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2024-06-06T13:30:00Z",
-          "exit_timestamp_utc": "2024-06-24T17:30:00Z",
-          "gross_return": -0.024775282472812576,
-          "holding_bars": 23,
-          "net_return": -0.024775282472812576,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2024-06-27T17:30:00Z",
-          "exit_timestamp_utc": "2024-07-17T17:30:00Z",
-          "gross_return": -0.08679777130624744,
-          "holding_bars": 25,
-          "net_return": -0.08679777130624744,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2024-08-15T17:30:00Z",
-          "exit_timestamp_utc": "2024-08-23T13:30:00Z",
-          "gross_return": -0.015059590558876956,
-          "holding_bars": 11,
-          "net_return": -0.015059590558876956,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2024-09-26T17:30:00Z",
-          "exit_timestamp_utc": "2024-09-30T17:30:00Z",
-          "gross_return": -0.021723031830222395,
-          "holding_bars": 4,
-          "net_return": -0.021723031830222395,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2024-10-09T17:30:00Z",
-          "exit_timestamp_utc": "2024-10-15T17:30:00Z",
-          "gross_return": -0.13597300746813112,
-          "holding_bars": 8,
-          "net_return": -0.13597300746813112,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2024-12-02T18:30:00Z",
-          "exit_timestamp_utc": "2024-12-23T14:30:00Z",
-          "gross_return": -0.00404348390501319,
-          "holding_bars": 29,
-          "net_return": -0.00404348390501319,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2024-12-24T14:30:00Z",
-          "exit_timestamp_utc": "2024-12-27T18:30:00Z",
-          "gross_return": -0.013561986340306587,
-          "holding_bars": 4,
-          "net_return": -0.013561986340306587,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-01-06T18:30:00Z",
-          "exit_timestamp_utc": "2025-01-24T18:30:00Z",
-          "gross_return": -0.04769480399778481,
-          "holding_bars": 24,
-          "net_return": -0.04769480399778481,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-01-31T18:30:00Z",
-          "exit_timestamp_utc": "2025-02-03T18:30:00Z",
-          "gross_return": -0.025735022645486882,
-          "holding_bars": 2,
-          "net_return": -0.025735022645486882,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-02-06T14:30:00Z",
-          "exit_timestamp_utc": "2025-02-07T18:30:00Z",
-          "gross_return": -0.016760153518712517,
-          "holding_bars": 3,
-          "net_return": -0.016760153518712517,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-02-10T18:30:00Z",
-          "exit_timestamp_utc": "2025-02-20T18:30:00Z",
-          "gross_return": -0.004909471194672221,
-          "holding_bars": 14,
-          "net_return": -0.004909471194672221,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-03-20T13:30:00Z",
-          "exit_timestamp_utc": "2025-03-21T17:30:00Z",
-          "gross_return": -0.02497280262225099,
-          "holding_bars": 3,
-          "net_return": -0.02497280262225099,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-04-25T17:30:00Z",
-          "exit_timestamp_utc": "2025-04-28T17:30:00Z",
-          "gross_return": -0.02962283069471694,
-          "holding_bars": 2,
-          "net_return": -0.02962283069471694,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-05-02T17:30:00Z",
-          "exit_timestamp_utc": "2025-06-20T17:30:00Z",
-          "gross_return": 0.08891052686228562,
-          "holding_bars": 66,
-          "net_return": 0.08891052686228562,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-06-23T17:30:00Z",
-          "exit_timestamp_utc": "2025-07-16T17:30:00Z",
-          "gross_return": -0.031460791978549896,
-          "holding_bars": 31,
-          "net_return": -0.031460791978549896,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-08-12T17:30:00Z",
-          "exit_timestamp_utc": "2025-08-21T17:30:00Z",
-          "gross_return": -0.009235455075740084,
-          "holding_bars": 14,
-          "net_return": -0.009235455075740084,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-08-22T17:30:00Z",
-          "exit_timestamp_utc": "2025-08-29T17:30:00Z",
-          "gross_return": -0.018257091671999848,
-          "holding_bars": 10,
-          "net_return": -0.018257091671999848,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-09-04T17:30:00Z",
-          "exit_timestamp_utc": "2025-11-07T18:30:00Z",
-          "gross_return": 0.34371702353079003,
-          "holding_bars": 92,
-          "net_return": 0.34371702353079003,
-          "side": 1
-        }
-      ],
-      "turnover": 36
+      "trade_count": 0,
+      "trades": [],
+      "turnover": 0
     },
     "validation_stage": {
-      "active_bar_count": 95,
-      "bar_count": 117,
+      "active_bar_count": 0,
+      "bar_count": 721,
       "costs": 0.0,
       "criteria_checks": {
-        "sufficient_signals": true,
+        "sufficient_signals": false,
         "sufficient_trades": false
       },
-      "expectancy": 0.19151958829324722,
-      "exposure_fraction": 0.811966,
-      "gross_return_compound": 0.3901947614636163,
-      "gross_return_sum": 0.3479470139272778,
-      "holding_period_bars_average": 47.5,
-      "max_drawdown": 0.0930658807703939,
-      "net_return_compound": 0.3901947614636163,
-      "profit_factor": 999.0,
+      "expectancy": 0.0,
+      "exposure_fraction": 0.0,
+      "gross_return_compound": 0.0,
+      "gross_return_sum": 0.0,
+      "holding_period_bars_average": 0.0,
+      "max_drawdown": 0.0,
+      "net_return_compound": 0.0,
+      "profit_factor": 0.0,
       "reason_records": [
         {
           "decision": "validation_gate",
@@ -1863,433 +122,29 @@
           "next_action": "fail_closed_validation",
           "status": "FAILED",
           "threshold": 3,
-          "value": 2
+          "value": 0
         },
         {
           "decision": "validation_gate",
           "metric": "signal_count",
           "next_action": "fail_closed_validation",
-          "status": "PASSED",
+          "status": "FAILED",
           "threshold": 3,
-          "value": 96
+          "value": 0
         }
       ],
-      "signal_count": 96,
-      "signals": [
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-26T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-26T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-11-28T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-01T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-01T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-02T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-02T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-03T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-03T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-04T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-04T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-05T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-05T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-08T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-08T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-09T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-09T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-10T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-10T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-11T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-11T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-12T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-12T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-15T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-15T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-30T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-30T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-31T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2025-12-31T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-02T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-02T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-05T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-05T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-06T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-06T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-07T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-07T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-08T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-08T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-09T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-09T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-12T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-12T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-13T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-13T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-14T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-14T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-15T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-15T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-16T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-16T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-20T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-20T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-21T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-21T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-22T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-22T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-23T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-23T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-26T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-26T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-27T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-27T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-28T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-28T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-29T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-29T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-30T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-01-30T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-02T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-02T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-03T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-03T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-04T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-04T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-05T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-05T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-06T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-06T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-09T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-09T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-10T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-10T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-11T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-11T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-12T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-12T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-13T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-13T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-17T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-17T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-18T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-18T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-19T14:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-19T18:30:00Z"
-        },
-        {
-          "signal": 1,
-          "timestamp_utc": "2026-02-20T14:30:00Z"
-        }
-      ],
+      "signal_count": 0,
+      "signals": [],
       "slippage": 0.0,
       "stage_name": "validation",
-      "trade_count": 2,
-      "trades": [
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-11-26T18:30:00Z",
-          "exit_timestamp_utc": "2025-12-16T18:30:00Z",
-          "gross_return": 0.019693607071273433,
-          "holding_bars": 25,
-          "net_return": 0.019693607071273433,
-          "side": 1
-        },
-        {
-          "asset": "",
-          "entry_timestamp_utc": "2025-12-30T18:30:00Z",
-          "exit_timestamp_utc": "2026-02-20T14:30:00Z",
-          "gross_return": 0.363345569515221,
-          "holding_bars": 70,
-          "net_return": 0.363345569515221,
-          "side": 1
-        }
-      ],
+      "trade_count": 0,
+      "trades": [],
       "train_to_validation_degradation": {
-        "net_return_compound_delta": 0.527814,
-        "signal_count_delta": -269,
-        "trade_count_delta": -16
+        "net_return_compound_delta": 0.0,
+        "signal_count_delta": 0,
+        "trade_count_delta": 0
       },
-      "turnover": 3,
+      "turnover": 0,
       "validation_outcome": "INSUFFICIENT_TRADES"
     }
   },
@@ -2298,13 +153,13 @@
     "active_blockers": [
       "REQUEST_MORE_EVIDENCE"
     ],
-    "next_action": "launch_data_oos_capacity_expansion",
-    "precedence": "insufficient_activity",
+    "next_action": "bounded_timeframe_or_universe_follow_up",
+    "precedence": "low_signal_density",
     "reason_codes": [
-      "insufficient_activity",
+      "low_signal_density",
       "data_or_oos_capacity_blocked",
-      "blocked_sample_size",
-      "rejected_validation"
+      "blocked_policy",
+      "rejected_screening"
     ],
     "resolved_blockers": [
       "DATA_OR_OOS_CAPACITY_BLOCKED"
@@ -2314,6 +169,7 @@
   "disposition": "NEEDS_MORE_EVIDENCE",
   "evidence_gaps": {
     "insufficient": [
+      "insufficient_activity",
       "null_model_not_passing"
     ],
     "missing": [],
@@ -2321,7 +177,7 @@
       "DATA_OR_OOS_CAPACITY_BLOCKED"
     ]
   },
-  "evidence_pack_id": "qep_5dfccfca0785c1e6",
+  "evidence_pack_id": "qep_6b4e197ed0b61335",
   "evidence_semantics": {
     "controlled_evaluation": {
       "applicability": "APPLICABLE",
@@ -2360,7 +216,9 @@
       "outcome": "INCONCLUSIVE",
       "presence": "AVAILABLE",
       "provenance": "REAL_EMPIRICAL",
-      "reason_codes": [],
+      "reason_codes": [
+        "insufficient_activity"
+      ],
       "required_by_policy": true,
       "sufficiency": "INSUFFICIENT"
     },
@@ -2371,10 +229,10 @@
       ],
       "evidence_family": "outlier_dependency",
       "outcome": "INCONCLUSIVE",
-      "presence": "AVAILABLE",
-      "provenance": "REAL_EMPIRICAL",
+      "presence": "UNKNOWN",
+      "provenance": "HISTORICAL",
       "reason_codes": [
-        "outlier_dependency_unknown"
+        "no_trade_records"
       ],
       "required_by_policy": false,
       "sufficiency": "UNKNOWN"
@@ -2410,7 +268,7 @@
       "sufficiency": "UNKNOWN"
     },
     "slippage": {
-      "applicability": "APPLICABLE",
+      "applicability": "NOT_EVALUABLE",
       "artifact_references": [
         "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
       ],
@@ -2418,7 +276,9 @@
       "outcome": "INCONCLUSIVE",
       "presence": "AVAILABLE",
       "provenance": "REAL_EMPIRICAL",
-      "reason_codes": [],
+      "reason_codes": [
+        "insufficient_activity"
+      ],
       "required_by_policy": true,
       "sufficiency": "INSUFFICIENT"
     },
@@ -2436,7 +296,7 @@
       "sufficiency": "SUFFICIENT"
     },
     "transaction_costs": {
-      "applicability": "APPLICABLE",
+      "applicability": "NOT_EVALUABLE",
       "artifact_references": [
         "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
       ],
@@ -2444,7 +304,9 @@
       "outcome": "INCONCLUSIVE",
       "presence": "AVAILABLE",
       "provenance": "REAL_EMPIRICAL",
-      "reason_codes": [],
+      "reason_codes": [
+        "insufficient_activity"
+      ],
       "required_by_policy": true,
       "sufficiency": "INSUFFICIENT"
     },
@@ -2454,15 +316,15 @@
         "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json"
       ],
       "evidence_family": "walk_forward",
-      "outcome": "PASS",
+      "outcome": "INCONCLUSIVE",
       "presence": "AVAILABLE",
       "provenance": "REAL_EMPIRICAL",
       "reason_codes": [],
       "required_by_policy": true,
-      "sufficiency": "SUFFICIENT"
+      "sufficiency": "INSUFFICIENT"
     }
   },
-  "generated_strategy_id": "qgs_5af8f605ba82ae53",
+  "generated_strategy_id": "qgs_a266464219e0d498",
   "missing_evidence": [],
   "module_version": "ade-qre-032.1",
   "null_model": {
@@ -2473,401 +335,15 @@
     "rows": [
       {
         "accepted": false,
-        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+        "campaign_cell_id": "qrcell_e9645deb2e53460d",
         "comparison_outcome": "INSUFFICIENT_SAMPLE",
-        "control_class": "matched_frequency_null",
-        "control_identity": "qncx_6b7cab916a2af978",
-        "deterministic_seed": "01e1a2972b98d302",
-        "generated_strategy_id": "qgs_5af8f605ba82ae53",
-        "metrics": {
-          "active_bar_count": 23,
-          "bar_count": 69,
-          "costs": 0.0,
-          "expectancy": -0.004305639493526525,
-          "exposure_fraction": 0.333333,
-          "gross_return_compound": -0.008724060786476473,
-          "gross_return_sum": -0.006010433566131734,
-          "holding_period_bars_average": 11.5,
-          "max_drawdown": 0.05557757492978965,
-          "net_return_compound": -0.008724060786476473,
-          "profit_factor": 0.4537774659364204,
-          "signal_count": 23,
-          "signals": [
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-11T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-11T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-12T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-12T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-13T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-13T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-16T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-16T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-17T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-17T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-18T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-18T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-19T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-19T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-20T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-20T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-23T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-23T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-24T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-24T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-25T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-25T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-27T13:30:00Z"
-            }
-          ],
-          "slippage": 0.0,
-          "stage_name": "matched_frequency_null",
-          "trade_count": 2,
-          "trades": [
-            {
-              "asset": "",
-              "entry_timestamp_utc": "2026-03-11T13:30:00Z",
-              "exit_timestamp_utc": "2026-03-26T13:30:00Z",
-              "gross_return": 0.007153868823657206,
-              "holding_bars": 22,
-              "net_return": 0.007153868823657206,
-              "side": 1
-            },
-            {
-              "asset": "",
-              "entry_timestamp_utc": "2026-03-27T13:30:00Z",
-              "exit_timestamp_utc": "2026-03-27T17:30:00Z",
-              "gross_return": -0.015765147810710256,
-              "holding_bars": 1,
-              "net_return": -0.015765147810710256,
-              "side": 1
-            }
-          ],
-          "turnover": 4
-        },
-        "snapshot_identity": "qsn_988d41124ea9cda2",
-        "technical_validation_only": false,
-        "window": {
-          "end": "2026-06-04T17:30:00Z",
-          "start": "2026-03-06T17:30:00Z"
-        }
-      },
-      {
-        "accepted": false,
-        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-        "comparison_outcome": "INSUFFICIENT_SAMPLE",
-        "control_class": "sign_flipped_signal",
-        "control_identity": "qncx_a1bbf5e7577cf022",
-        "deterministic_seed": "01e1a2972b98d302",
-        "generated_strategy_id": "qgs_5af8f605ba82ae53",
-        "metrics": {
-          "active_bar_count": 46,
-          "bar_count": 69,
-          "costs": 0.0,
-          "expectancy": 0.054852165360074534,
-          "exposure_fraction": 0.666667,
-          "gross_return_compound": 0.11242599289206567,
-          "gross_return_sum": 0.11896133872462689,
-          "holding_period_bars_average": 23.0,
-          "max_drawdown": 0.1077559198536473,
-          "net_return_compound": 0.11242599289206567,
-          "profit_factor": 999.0,
-          "signal_count": 46,
-          "signals": [
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-06T18:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-09T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-09T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-10T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-10T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-11T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-11T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-12T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-12T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-13T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-13T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-16T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-16T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-17T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-17T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-18T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-18T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-19T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-19T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-20T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-20T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-23T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-23T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-24T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-24T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-25T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-25T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-26T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-26T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-27T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-27T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-30T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-30T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-31T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-03-31T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-01T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-01T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-02T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-02T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-06T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-06T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-07T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-07T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-08T13:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-23T17:30:00Z"
-            },
-            {
-              "signal": 1,
-              "timestamp_utc": "2026-04-24T13:30:00Z"
-            }
-          ],
-          "slippage": 0.0,
-          "stage_name": "sign_flipped_signal",
-          "trade_count": 2,
-          "trades": [
-            {
-              "asset": "",
-              "entry_timestamp_utc": "2026-03-06T18:30:00Z",
-              "exit_timestamp_utc": "2026-04-08T17:30:00Z",
-              "gross_return": 0.07179612808348712,
-              "holding_bars": 44,
-              "net_return": 0.07179612808348712,
-              "side": 1
-            },
-            {
-              "asset": "",
-              "entry_timestamp_utc": "2026-04-23T17:30:00Z",
-              "exit_timestamp_utc": "2026-04-24T17:30:00Z",
-              "gross_return": 0.03790820263666195,
-              "holding_bars": 2,
-              "net_return": 0.03790820263666195,
-              "side": 1
-            }
-          ],
-          "turnover": 4
-        },
-        "snapshot_identity": "qsn_988d41124ea9cda2",
-        "technical_validation_only": false,
-        "window": {
-          "end": "2026-06-04T17:30:00Z",
-          "start": "2026-03-06T17:30:00Z"
-        }
-      },
-      {
-        "accepted": false,
-        "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
-        "comparison_outcome": "INSUFFICIENT_SAMPLE",
-        "control_class": "cost_only_baseline",
-        "control_identity": "qncx_e04627d04f6b2131",
-        "deterministic_seed": "01e1a2972b98d302",
-        "generated_strategy_id": "qgs_5af8f605ba82ae53",
+        "control_class": "shuffled_signal_timing",
+        "control_identity": "qncx_e93900b0c9849335",
+        "deterministic_seed": "ef394c1b1c65653e",
+        "generated_strategy_id": "qgs_a266464219e0d498",
         "metrics": {
           "active_bar_count": 0,
-          "bar_count": 69,
+          "bar_count": 721,
           "costs": 0.0,
           "expectancy": 0.0,
           "exposure_fraction": 0.0,
@@ -2880,16 +356,51 @@
           "signal_count": 0,
           "signals": [],
           "slippage": 0.0,
-          "stage_name": "cost_only_baseline",
+          "stage_name": "shuffled_signal_timing",
           "trade_count": 0,
           "trades": [],
           "turnover": 0
         },
-        "snapshot_identity": "qsn_988d41124ea9cda2",
+        "snapshot_identity": "qsn_f625125ee68b8d16",
         "technical_validation_only": false,
         "window": {
-          "end": "2026-06-04T17:30:00Z",
-          "start": "2026-03-06T17:30:00Z"
+          "end": "2026-04-24T23:00:00Z",
+          "start": "2026-03-25T23:00:00Z"
+        }
+      },
+      {
+        "accepted": false,
+        "campaign_cell_id": "qrcell_e9645deb2e53460d",
+        "comparison_outcome": "INSUFFICIENT_SAMPLE",
+        "control_class": "matched_frequency_null",
+        "control_identity": "qncx_3dd024814a58c79e",
+        "deterministic_seed": "ef394c1b1c65653e",
+        "generated_strategy_id": "qgs_a266464219e0d498",
+        "metrics": {
+          "active_bar_count": 0,
+          "bar_count": 721,
+          "costs": 0.0,
+          "expectancy": 0.0,
+          "exposure_fraction": 0.0,
+          "gross_return_compound": 0.0,
+          "gross_return_sum": 0.0,
+          "holding_period_bars_average": 0.0,
+          "max_drawdown": 0.0,
+          "net_return_compound": 0.0,
+          "profit_factor": 0.0,
+          "signal_count": 0,
+          "signals": [],
+          "slippage": 0.0,
+          "stage_name": "matched_frequency_null",
+          "trade_count": 0,
+          "trades": [],
+          "turnover": 0
+        },
+        "snapshot_identity": "qsn_f625125ee68b8d16",
+        "technical_validation_only": false,
+        "window": {
+          "end": "2026-04-24T23:00:00Z",
+          "start": "2026-03-25T23:00:00Z"
         }
       }
     ],
@@ -2898,17 +409,16 @@
   },
   "oos": {
     "applicability": "APPLICABLE",
-    "oos_outcome": "INSUFFICIENT_TRADES",
+    "oos_outcome": "INSUFFICIENT_SIGNALS",
     "outcome": "INCONCLUSIVE",
     "presence": "AVAILABLE",
     "status": "AVAILABLE",
     "sufficiency": "INSUFFICIENT",
-    "trade_count": 2
+    "trade_count": 0
   },
   "outlier_dependency": {
-    "dominant_trade_fraction": 0.662005,
-    "status": "AVAILABLE",
-    "warning": "single_outlier_dependency_warning"
+    "reason": "no_trade_records",
+    "status": "UNKNOWN"
   },
   "parameter_fragility": {
     "applicability": "APPLICABLE",
@@ -2918,7 +428,7 @@
     "status": "NOT_AVAILABLE",
     "sufficiency": "UNKNOWN"
   },
-  "recommended_next_action": "launch_data_oos_capacity_expansion",
+  "recommended_next_action": "bounded_timeframe_or_universe_follow_up",
   "regime_evidence": {
     "applicability": "NOT_APPLICABLE",
     "outcome": "INCONCLUSIVE",
@@ -2933,21 +443,21 @@
   ],
   "sample_boundaries": {
     "oos_window": {
-      "end": "2026-06-04T17:30:00Z",
-      "start": "2026-03-06T17:30:00Z"
+      "end": "2026-04-24T23:00:00Z",
+      "start": "2026-03-25T23:00:00Z"
     },
     "train_window": {
-      "end": "2025-11-08T17:30:00Z",
-      "start": "2024-05-28T13:30:00Z"
+      "end": "2026-02-09T23:00:00Z",
+      "start": "2024-05-25T00:00:00Z"
     },
     "validation_window": {
-      "end": "2026-02-20T17:30:00Z",
-      "start": "2025-11-22T17:30:00Z"
+      "end": "2026-03-18T23:00:00Z",
+      "start": "2026-02-16T23:00:00Z"
     }
   },
   "schema_version": "1.0",
   "slippage": {
-    "applicability": "APPLICABLE",
+    "applicability": "NOT_EVALUABLE",
     "assumptions": {
       "status": "not_materialized"
     },
@@ -2956,22 +466,22 @@
     "realized_slippage": 0.0,
     "status": "AVAILABLE",
     "sufficiency": "INSUFFICIENT",
-    "trade_count": 2
+    "trade_count": 0
   },
-  "source_hypothesis_id": "atr_adaptive_trend_v0",
+  "source_hypothesis_id": "volatility_compression_breakout_v0",
   "stability": {
-    "best_segment_return": 0.3901947614636163,
-    "dispersion": 0.527814,
-    "failure_concentration": "train_or_validation",
+    "best_segment_return": 0.0,
+    "dispersion": 0.0,
+    "failure_concentration": "oos",
     "status": "AVAILABLE",
-    "worst_segment_return": -0.13761936740052827
+    "worst_segment_return": 0.0
   },
-  "strategy_spec_id": "qsp_16800d656bf28677",
+  "strategy_spec_id": "qsp_66fc66cd3f17afa7",
   "supporting_evidence": [],
   "terminal_outcome": "DATA_OR_OOS_CAPACITY_BLOCKED",
-  "timeframe": "4h",
+  "timeframe": "1h",
   "transaction_costs": {
-    "applicability": "APPLICABLE",
+    "applicability": "NOT_EVALUABLE",
     "assumptions": {
       "mode": "cost_class_visible_only"
     },
@@ -2980,24 +490,24 @@
     "realized_costs": 0.0,
     "status": "AVAILABLE",
     "sufficiency": "INSUFFICIENT",
-    "trade_count": 2
+    "trade_count": 0
   },
   "validation_refs": [
-    "generated_research/validation/qgs_5af8f605ba82ae53.json"
+    "generated_research/validation/qgs_a266464219e0d498.json"
   ],
   "walk_forward": {
     "segments": [
       {
         "stage": "train",
-        "trade_count": 18
+        "trade_count": 0
       },
       {
         "stage": "validation",
-        "trade_count": 2
+        "trade_count": 0
       },
       {
         "stage": "oos",
-        "trade_count": 2
+        "trade_count": 0
       }
     ],
     "status": "AVAILABLE"

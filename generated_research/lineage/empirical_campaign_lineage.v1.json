@@ -23,10 +23,43 @@
       "novelty_type": "NEW_CAMPAIGN_CELL",
       "prior_campaign_identity": "",
       "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "campaign_identity": "qcx_63a2bb6bef61cf85",
+      "dataset_fingerprint": "qsn_eaf9994eba7cdebd",
+      "disposition": "NEEDS_MORE_EVIDENCE",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "lineage_id": "qcl_07d1873bd95dd4e1",
+      "next_action": "bounded_timeframe_or_universe_follow_up",
+      "novelty_type": "NEW_CAMPAIGN_CELL",
+      "prior_campaign_identity": "",
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
+    },
+    {
+      "campaign_identity": "qcx_4189420903234e43",
+      "dataset_fingerprint": "qsn_5917a61216f89e7b",
+      "disposition": "NEEDS_MORE_EVIDENCE",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "lineage_id": "qcl_448c0605f54b9244",
+      "next_action": "bounded_oos_activity_extension",
+      "novelty_type": "NEW_CAMPAIGN_CELL",
+      "prior_campaign_identity": "qcx_984253c682dfbaeb",
+      "source_hypothesis_id": "atr_adaptive_trend_v0"
+    },
+    {
+      "campaign_identity": "qcx_4d7d08d88ef9dca5",
+      "dataset_fingerprint": "qsn_f625125ee68b8d16",
+      "disposition": "NEEDS_MORE_EVIDENCE",
+      "generated_strategy_id": "qgs_a266464219e0d498",
+      "lineage_id": "qcl_162afe735b3e8254",
+      "next_action": "bounded_timeframe_or_universe_follow_up",
+      "novelty_type": "NEW_CAMPAIGN_CELL",
+      "prior_campaign_identity": "qcx_63a2bb6bef61cf85",
+      "source_hypothesis_id": "volatility_compression_breakout_v0"
     }
   ],
   "schema_version": "1.0",
   "summary": {
-    "lineage_count": 2
+    "lineage_count": 5
   }
 }

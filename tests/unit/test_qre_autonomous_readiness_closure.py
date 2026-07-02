@@ -9,7 +9,6 @@ import pytest
 from packages.qre_research import automated_campaign_readiness as acr
 from packages.qre_research import autonomous_readiness_closure as arc
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _COPIED_INPUTS = (
@@ -77,6 +76,80 @@ def _build_repo(
     repo_root = tmp_path / directory_name
     for relative in _COPIED_INPUTS:
         _copy(repo_root, relative)
+    registry_path = repo_root / "generated_research/registry/generated_strategy_registry.v1.json"
+    registry_payload = _read_json(registry_path)
+    registry_payload["rows"].append(
+        {
+            "authority": "RESEARCH_ONLY_AUTOMATED",
+            "generated_registration_id": "qgr_vol_fixture",
+            "generated_strategy_id": "qgs_a266464219e0d498",
+            "generator_version": "ade-qre-019.1",
+            "module_path": "agent/backtesting/generated_strategies/generated_qgs_a266464219e0d498.py",
+            "source_hypothesis_id": "volatility_compression_breakout_v0",
+            "state": "RESEARCH_REGISTERED_AUTOMATED",
+            "strategy_name": "qgs_a266464219e0d498",
+            "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+            "template_version": "thin-strategy-template.1",
+            "thesis_id": "qhc_vol_fixture",
+        }
+    )
+    _write_json(repo_root, "generated_research/registry/generated_strategy_registry.v1.json", registry_payload)
+    _write_json(
+        repo_root,
+        "generated_research/specs/qsp_66fc66cd3f17afa7.json",
+        {
+            "strategy_spec_id": "qsp_66fc66cd3f17afa7",
+            "source_hypothesis_id": "volatility_compression_breakout_v0",
+            "behavior_family": "volatility_compression_breakout",
+            "timeframe": ["1h", "4h"],
+            "parameters": {
+                "atr_short_window": 5,
+                "atr_long_window": 20,
+                "compression_threshold": 0.6,
+            },
+            "warmup_requirements": {
+                "atr": 20,
+                "compression_ratio": 20,
+                "rolling_high_previous": 20,
+                "rolling_low_previous": 20,
+            },
+        },
+    )
+    presets_path = repo_root / "generated_research/presets/generated_research_presets.v1.json"
+    presets_payload = _read_json(presets_path)
+    presets_payload["rows"].extend(
+        [
+            {
+                "preset_id": "qgp_vol_1h",
+                "preset_name": "vol_compression_breakout_crypto_1h",
+                "source_hypothesis_id": "volatility_compression_breakout_v0",
+                "generated_strategy_id": "qgs_a266464219e0d498",
+                "timeframe": "1h",
+                "universe": ["BTC-EUR", "ETH-EUR", "SOL-EUR"],
+                "parameter_values": {
+                    "atr_short_window": 5,
+                    "atr_long_window": 20,
+                    "compression_threshold": 0.6,
+                },
+                "preset_state": "GENERATED",
+            },
+            {
+                "preset_id": "qgp_vol_4h",
+                "preset_name": "vol_compression_breakout_crypto_4h",
+                "source_hypothesis_id": "volatility_compression_breakout_v0",
+                "generated_strategy_id": "qgs_a266464219e0d498",
+                "timeframe": "4h",
+                "universe": ["BTC-USD", "ETH-USD", "SOL-USD"],
+                "parameter_values": {
+                    "atr_short_window": 5,
+                    "atr_long_window": 20,
+                    "compression_threshold": 0.6,
+                },
+                "preset_state": "GENERATED",
+            },
+        ]
+    )
+    _write_json(repo_root, "generated_research/presets/generated_research_presets.v1.json", presets_payload)
     _write_json(
         repo_root,
         "logs/qre_identity_ambiguity_resolution/latest.json",
@@ -106,6 +179,12 @@ def _build_repo(
                     "instrument_identity": "NVDA",
                     "resolution_state": "RESOLVED",
                     "source_hypothesis_id": "cross_sectional_momentum_v0",
+                },
+                {
+                    "dataset_identity": "equity-ohlcv-us-v1",
+                    "instrument_identity": "SMH",
+                    "resolution_state": "BLOCKED",
+                    "source_hypothesis_id": "volatility_compression_breakout_v0",
                 },
             ],
         },
@@ -159,6 +238,66 @@ def _build_repo(
                 {
                     "content_hash": "sha256:asml-4h",
                     "instrument": "ASML",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 6000,
+                    "source": "yfinance",
+                    "timeframe": "4h",
+                },
+                {
+                    "content_hash": "sha256:btc-eur-1h",
+                    "instrument": "BTC-EUR",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 12000,
+                    "source": "yfinance",
+                    "timeframe": "1h",
+                },
+                {
+                    "content_hash": "sha256:eth-eur-1h",
+                    "instrument": "ETH-EUR",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 12000,
+                    "source": "yfinance",
+                    "timeframe": "1h",
+                },
+                {
+                    "content_hash": "sha256:sol-eur-1h",
+                    "instrument": "SOL-EUR",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 12000,
+                    "source": "yfinance",
+                    "timeframe": "1h",
+                },
+                {
+                    "content_hash": "sha256:btc-usd-4h",
+                    "instrument": "BTC-USD",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 6000,
+                    "source": "yfinance",
+                    "timeframe": "4h",
+                },
+                {
+                    "content_hash": "sha256:eth-usd-4h",
+                    "instrument": "ETH-USD",
+                    "max_timestamp_utc": "2026-01-01T00:00:00Z",
+                    "min_timestamp_utc": "2020-01-01T00:00:00Z",
+                    "ready": True,
+                    "row_count": 6000,
+                    "source": "yfinance",
+                    "timeframe": "4h",
+                },
+                {
+                    "content_hash": "sha256:sol-usd-4h",
+                    "instrument": "SOL-USD",
                     "max_timestamp_utc": "2026-01-01T00:00:00Z",
                     "min_timestamp_utc": "2020-01-01T00:00:00Z",
                     "ready": True,
@@ -273,3 +412,40 @@ def test_no_manifest_is_written_when_no_cells_are_ready(readiness_repo: Path) ->
         / "campaigns"
         / "autonomous_second_campaign_manifest.v1.json"
     ).exists()
+
+
+def test_volatility_breakout_uses_preset_bound_multi_asset_identity_instead_of_stale_single_symbol(
+    readiness_repo: Path,
+) -> None:
+    result = arc.run_autonomous_closure(repo_root=readiness_repo, max_iterations=8)
+    vol_rows = [
+        row
+        for row in result["strategy_outcomes"]
+        if row["generated_strategy_id"] == "qgs_a266464219e0d498"
+    ]
+
+    assert vol_rows
+
+    authority_payload = _read_json(
+        readiness_repo
+        / "generated_research"
+        / "readiness"
+        / "identity_decisions"
+        / "autonomous_universe_authority.v1.json"
+    )
+    authority_rows = [
+        row
+        for row in authority_payload["rows"]
+        if row["generated_strategy_id"] == "qgs_a266464219e0d498"
+    ]
+
+    assert authority_rows
+    assert any(row["resolution_outcome"] == "RESOLVED_PRESET_BOUND" for row in authority_rows)
+    assert all(row["requested_alias"] == "existing_preset_bound_universes_only" for row in authority_rows)
+    included_symbols = {
+        member["canonical_instrument_id"]
+        for row in authority_rows
+        for member in row["included_members"]
+        if isinstance(member, dict)
+    }
+    assert not any(symbol.endswith(":SMH") for symbol in included_symbols)

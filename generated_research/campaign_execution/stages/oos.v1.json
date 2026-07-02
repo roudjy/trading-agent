@@ -1,16 +1,16 @@
 {
-  "active_bar_count": 23,
-  "bar_count": 69,
+  "active_bar_count": 0,
+  "bar_count": 721,
   "costs": 0.0,
-  "expectancy": -0.005297774438769498,
-  "exposure_fraction": 0.333333,
-  "gross_return_compound": -0.010570428946845567,
-  "gross_return_sum": -0.005340899538675226,
-  "holding_period_bars_average": 11.5,
-  "max_drawdown": 0.0759178973797775,
-  "net_return_compound": -0.010570428946845567,
-  "oos_outcome": "INSUFFICIENT_TRADES",
-  "oos_window_id": "qwl_66abbed68496e3ac",
+  "expectancy": 0.0,
+  "exposure_fraction": 0.0,
+  "gross_return_compound": 0.0,
+  "gross_return_sum": 0.0,
+  "holding_period_bars_average": 0.0,
+  "max_drawdown": 0.0,
+  "net_return_compound": 0.0,
+  "oos_outcome": "INSUFFICIENT_SIGNALS",
+  "oos_window_id": "qwl_3ba73d93843acd3f",
   "profit_factor": 0.0,
   "reason_records": [
     {
@@ -19,135 +19,19 @@
       "next_action": "route_to_data_oos_capacity_expansion",
       "status": "FAILED",
       "threshold": 10,
-      "value": 2
+      "value": 0
     }
   ],
-  "signal_count": 24,
-  "signals": [
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-08T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-08T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-09T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-09T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-10T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-10T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-13T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-13T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-14T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-14T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-15T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-15T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-16T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-16T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-17T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-17T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-20T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-20T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-21T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-21T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-22T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-22T17:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-24T13:30:00Z"
-    },
-    {
-      "signal": 1,
-      "timestamp_utc": "2026-04-24T17:30:00Z"
-    }
-  ],
+  "signal_count": 0,
+  "signals": [],
   "slippage": 0.0,
   "stage_name": "oos",
-  "trade_count": 2,
-  "trades": [
-    {
-      "asset": "",
-      "entry_timestamp_utc": "2026-04-08T17:30:00Z",
-      "exit_timestamp_utc": "2026-04-23T17:30:00Z",
-      "gross_return": -0.003581242088177672,
-      "holding_bars": 22,
-      "net_return": -0.003581242088177672,
-      "side": 1
-    },
-    {
-      "asset": "",
-      "entry_timestamp_utc": "2026-04-24T17:30:00Z",
-      "exit_timestamp_utc": "2026-04-24T17:30:00Z",
-      "gross_return": -0.007014306789361324,
-      "holding_bars": 1,
-      "net_return": -0.007014306789361324,
-      "side": 1
-    }
-  ],
-  "turnover": 3,
+  "trade_count": 0,
+  "trades": [],
+  "turnover": 0,
   "validation_evidence": {
-    "evidence_status": "insufficient_oos_trades",
+    "evidence_status": "no_oos_trades",
     "min_oos_trades": 10,
-    "oos_trade_count": 2
+    "oos_trade_count": 0
   }
 }
