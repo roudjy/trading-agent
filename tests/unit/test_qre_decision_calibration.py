@@ -18,15 +18,21 @@ def _closeout(*, strategy_decision: str, hypothesis_decision: str, terminal_outc
     return {
         "executed_campaign_identity": "qcx_fixture",
         "executed_campaign_cell": "qrcell_fixture",
-        "train_stage": {"trade_count": 12, "net_return_compound": 0.11},
-        "validation_stage": {"trade_count": 4, "net_return_compound": 0.03},
+        "train_stage": {"trade_count": 12, "signal_count": 12, "net_return_compound": 0.11},
+        "validation_stage": {"trade_count": 4, "signal_count": 4, "net_return_compound": 0.03},
         "oos_stage": {
             "trade_count": 0,
+            "signal_count": 4,
             "net_return_compound": 0.0,
             "oos_outcome": "INSUFFICIENT_SIGNALS",
             "costs": 0.0,
             "slippage": 0.0,
             "trades": [],
+            "validation_evidence": {
+                "evidence_status": "no_oos_trades",
+                "min_oos_trades": 10,
+                "oos_trade_count": 0,
+            },
         },
         "null_controls": {
             "null_control_passed": False,
@@ -99,14 +105,74 @@ def test_terminal_precedence_prefers_insufficient_activity_over_rejected_screeni
     semantics = pack["decision_semantics"]
     assert pack["disposition"] == "NEEDS_MORE_EVIDENCE"
     assert semantics["active_blocker"] == "REQUEST_MORE_EVIDENCE"
-    assert semantics["next_action"] == "launch_data_oos_capacity_expansion"
+    assert semantics["next_action"] == "bounded_oos_activity_extension"
     assert semantics["resolved_blockers"] == ["DATA_OR_OOS_CAPACITY_BLOCKED"]
-    assert semantics["precedence"] == "insufficient_activity"
+    assert semantics["precedence"] == "insufficient_oos_trade_activity"
     assert pack["transaction_costs"]["applicability"] == "NOT_EVALUABLE"
     assert pack["transaction_costs"]["sufficiency"] == "INSUFFICIENT"
     assert pack["transaction_costs"]["outcome"] == "INCONCLUSIVE"
     assert pack["evidence_semantics"]["transaction_costs"]["presence"] == "AVAILABLE"
     assert pack["evidence_semantics"]["transaction_costs"]["sufficiency"] == "INSUFFICIENT"
+
+
+def test_terminal_precedence_classifies_zero_signal_density_as_non_data_follow_up(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    _write_json(
+        repo_root / "generated_research/registry/generated_strategy_registry.v1.json",
+        {
+            "rows": [
+                {
+                    "generated_strategy_id": "qgs_fixture",
+                    "source_hypothesis_id": "volatility_compression_breakout_v0",
+                    "strategy_spec_id": "qsp_fixture",
+                    "sandbox_validation_path": "generated_research/validation/qgs_fixture.json",
+                }
+            ]
+        },
+    )
+    _write_json(
+        repo_root / "generated_research/readiness/campaigns/automated_portfolio_readiness.v1.json",
+        {
+            "rows": [
+                {
+                    "campaign_cell_id": "qrcell_fixture",
+                    "timeframe": "1h",
+                    "train_window": {"start": "2024-01-01T00:00:00Z", "end": "2024-06-01T00:00:00Z"},
+                    "validation_window": {"start": "2024-06-15T00:00:00Z", "end": "2024-09-01T00:00:00Z"},
+                    "oos_window": {"start": "2024-09-15T00:00:00Z", "end": "2024-12-01T00:00:00Z"},
+                }
+            ]
+        },
+    )
+    _write_json(
+        repo_root / "generated_research/specs/qsp_fixture.json",
+        {
+            "cost_assumptions": {"mode": "cost_class_visible_only"},
+            "slippage_assumptions": {"status": "visible"},
+        },
+    )
+
+    closeout = _closeout(
+        strategy_decision="REJECTED_SCREENING",
+        hypothesis_decision="BLOCKED_SAMPLE_SIZE",
+        terminal_outcome="DATA_OR_OOS_CAPACITY_BLOCKED",
+    )
+    closeout["train_stage"]["trade_count"] = 0
+    closeout["train_stage"]["signal_count"] = 0
+    closeout["validation_stage"]["trade_count"] = 0
+    closeout["validation_stage"]["signal_count"] = 0
+    closeout["oos_stage"]["signal_count"] = 0
+    closeout["oos_stage"]["validation_evidence"] = {
+        "evidence_status": "no_oos_trades",
+        "min_oos_trades": 10,
+        "oos_trade_count": 0,
+    }
+
+    pack = eep.build_empirical_evidence_pack(repo_root=repo_root, closeout=closeout)
+    semantics = pack["decision_semantics"]
+
+    assert semantics["precedence"] == "low_signal_density"
+    assert semantics["next_action"] == "bounded_timeframe_or_universe_follow_up"
 
 
 @pytest.mark.parametrize("case", dcal.BENCHMARK_CASES, ids=lambda row: row["benchmark_id"])

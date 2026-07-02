@@ -35,9 +35,7 @@ def test_acceptance_history_separates_evidence_changes_and_replays() -> None:
     assert payload["summary"]["deterministic_acceptance_replay_count"] == 3
     assert payload["rows"][0]["cycle_kind"] == "evidence_changing_acceptance_cycle"
     assert payload["rows"][0]["changed_evidence"] is True
-    assert payload["rows"][1]["cycle_kind"] == "evidence_changing_acceptance_cycle"
-    assert payload["rows"][1]["changed_evidence"] is False
-    assert all(row["cycle_kind"] == "deterministic_acceptance_replay" for row in payload["rows"][2:])
+    assert all(row["cycle_kind"] == "deterministic_acceptance_replay" for row in payload["rows"][1:])
 
 
 def test_build_plan_blocks_identical_frozen_campaign_without_novelty(tmp_path: Path) -> None:
