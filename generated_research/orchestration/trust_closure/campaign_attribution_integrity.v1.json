@@ -1,0 +1,21 @@
+{
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_campaign_attribution_integrity",
+  "schema_version": "1.0",
+  "summary": {
+    "attribution_errors_found": 2,
+    "attribution_errors_remaining": 0,
+    "benchmark_outcomes": 0,
+    "corrected_new_campaigns_from_pr3": 0,
+    "corrected_new_campaigns_from_pr4": 0,
+    "deterministic_acceptance_replays": 3,
+    "empirical_research_cycles": 1,
+    "evidence_changing_acceptance_cycles": 1,
+    "fixture_campaigns": 0,
+    "historical_campaigns_consumed": 1,
+    "new_campaigns_executed_this_run": 1,
+    "portfolio_planning_cycles": 2,
+    "total_real_empirical_campaigns_after": 2,
+    "total_real_empirical_campaigns_before": 1
+  }
+}

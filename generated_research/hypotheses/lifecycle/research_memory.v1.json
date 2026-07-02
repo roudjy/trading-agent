@@ -1,24 +1,52 @@
 {
-  "module_version": "ade-qre-027.1",
+  "module_version": "ade-qre-036.1",
   "report_kind": "qre_generated_hypothesis_research_memory",
   "rows": [
     {
       "campaign": "qcx_40d35874111bcd98",
       "contradiction_count": 1,
+      "dataset_fingerprint": "qsn_bd7ce9df4dabc083",
       "disposition": "preserve_for_replay",
-      "evidence_decision": "REJECTED",
-      "evidence_disposition": "REJECTED",
+      "evidence_decision": "NEEDS_MORE_EVIDENCE",
+      "evidence_disposition": "NEEDS_MORE_EVIDENCE",
       "failure_reason": "DATA_OR_OOS_CAPACITY_BLOCKED",
-      "memory_id": "qhm_9f6853533b21443a",
-      "next_action": "evaluate_exact_blocker_or_empirical_campaign_gap",
-      "routing_decision": "prioritize",
+      "mechanism_family": "relative_strength",
+      "memory_id": "qhm_7ad4986c2cb06bec",
+      "metadata": {
+        "action_status": "active",
+        "new_this_run": false,
+        "record_kind": "real_empirical_campaign"
+      },
+      "next_action": "launch_data_oos_capacity_expansion",
+      "routing_decision": "historical_context_only",
       "sampling_status": "ready",
       "source_hypothesis_id": "cross_sectional_momentum_v0",
       "thesis_id": "qhc_51bc7a5c7b3f64ba"
+    },
+    {
+      "campaign": "qcx_984253c682dfbaeb",
+      "contradiction_count": 1,
+      "dataset_fingerprint": "qsn_988d41124ea9cda2",
+      "disposition": "preserve_for_replay",
+      "evidence_decision": "NEEDS_MORE_EVIDENCE",
+      "evidence_disposition": "NEEDS_MORE_EVIDENCE",
+      "failure_reason": "DATA_OR_OOS_CAPACITY_BLOCKED",
+      "mechanism_family": "trend_continuation",
+      "memory_id": "qhm_57ec94f9f089a89e",
+      "metadata": {
+        "action_status": "active",
+        "new_this_run": true,
+        "record_kind": "real_empirical_campaign"
+      },
+      "next_action": "launch_data_oos_capacity_expansion",
+      "routing_decision": "prioritize",
+      "sampling_status": "ready",
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "thesis_id": "qbt_3b77618b0ddbd5b3"
     }
   ],
   "schema_version": "1.0",
   "summary": {
-    "memory_update_count": 1
+    "memory_update_count": 2
   }
 }

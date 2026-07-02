@@ -1,0 +1,79 @@
+{
+  "history_identity": "qeh_c4902b8f0ac44919",
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_empirical_campaign_history",
+  "rows": [
+    {
+      "active_blockers": [
+        "REQUEST_MORE_EVIDENCE"
+      ],
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json",
+        "generated_research/campaign_execution/evidence/empirical_evidence_pack.v1.json"
+      ],
+      "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+      "campaign_identity": "qcx_40d35874111bcd98",
+      "dataset_fingerprint": "qsn_bd7ce9df4dabc083",
+      "dataset_identity": "qds_bd7ce9df4dabc083",
+      "disposition": "NEEDS_MORE_EVIDENCE",
+      "evidence_fingerprint": "qefp_69ab33253504b05f",
+      "expected_information_gain": "historical_baseline_only",
+      "falsification_condition": "historical_campaign_already_closed",
+      "generated_strategy_id": "qgs_e565b01bd0a162d0",
+      "mechanism_family": "relative_strength",
+      "new_this_run": false,
+      "next_action": "launch_data_oos_capacity_expansion",
+      "novelty_type": "historical_baseline",
+      "null_model_outcome": "FAIL",
+      "oos_sufficiency": "INSUFFICIENT",
+      "oos_trade_count": 0,
+      "prior_campaign_identity": "",
+      "recorded_at_utc": "2026-07-02T05:54:49Z",
+      "resolved_blockers": [
+        "DATA_OR_OOS_CAPACITY_BLOCKED"
+      ],
+      "source_hypothesis_id": "cross_sectional_momentum_v0",
+      "terminal_outcome": "DATA_OR_OOS_CAPACITY_BLOCKED",
+      "timeframe": "1d"
+    },
+    {
+      "active_blockers": [
+        "REQUEST_MORE_EVIDENCE"
+      ],
+      "artifact_references": [
+        "generated_research/campaign_execution/reports/second_campaign_closeout.v1.json",
+        "generated_research/campaign_execution/evidence/empirical_evidence_pack.v1.json"
+      ],
+      "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
+      "campaign_identity": "qcx_984253c682dfbaeb",
+      "dataset_fingerprint": "qsn_988d41124ea9cda2",
+      "dataset_identity": "qds_988d41124ea9cda2",
+      "disposition": "NEEDS_MORE_EVIDENCE",
+      "evidence_fingerprint": "qefp_e4abd06c94648f0e",
+      "expected_information_gain": "new_real_oos_evidence_for_distinct_strategy_cell",
+      "falsification_condition": "non_positive_or_insufficient_oos_activity_under_frozen_null_controls",
+      "generated_strategy_id": "qgs_5af8f605ba82ae53",
+      "mechanism_family": "trend_continuation",
+      "new_this_run": true,
+      "next_action": "launch_data_oos_capacity_expansion",
+      "novelty_type": "NEW_CAMPAIGN_CELL",
+      "null_model_outcome": "FAIL",
+      "oos_sufficiency": "INSUFFICIENT",
+      "oos_trade_count": 2,
+      "prior_campaign_identity": "",
+      "recorded_at_utc": "2026-07-02T05:54:49Z",
+      "resolved_blockers": [
+        "DATA_OR_OOS_CAPACITY_BLOCKED"
+      ],
+      "source_hypothesis_id": "atr_adaptive_trend_v0",
+      "terminal_outcome": "DATA_OR_OOS_CAPACITY_BLOCKED",
+      "timeframe": "4h"
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "historical_real_campaigns_consumed": 1,
+    "new_real_empirical_campaigns_executed_this_run": 1,
+    "total_real_empirical_campaigns": 2
+  }
+}

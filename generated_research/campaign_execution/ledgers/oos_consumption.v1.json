@@ -1,9 +1,9 @@
 {
-  "campaign_cell_id": "qrcell_44aa81da7c2fc7c9",
+  "campaign_cell_id": "qrcell_fdd68e20fd2724dd",
   "campaign_manifest_identity": "qcm_ca4edb49cf33c620",
-  "generated_strategy_id": "qgs_e565b01bd0a162d0",
+  "generated_strategy_id": "qgs_5af8f605ba82ae53",
   "module_version": "ade-qre-025.2",
-  "oos_consumption_identity": "qwc_0dddedec72875eb4",
+  "oos_consumption_identity": "qwc_552f3f79958d5306",
   "provenance": [
     "generated_research/readiness/window_ledger/canonical_window_ledger.v1.json",
     "generated_research/campaign_execution/stages/oos.v1.json"
@@ -11,5 +11,5 @@
   "report_kind": "qre_second_campaign_oos_consumption",
   "schema_version": "1.0",
   "status": "CONSUMED",
-  "window_id": "qwl_76261008487bdc62"
+  "window_id": "qwl_66abbed68496e3ac"
 }

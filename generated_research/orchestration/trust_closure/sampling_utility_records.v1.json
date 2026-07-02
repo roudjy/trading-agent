@@ -1,0 +1,30 @@
+{
+  "module_version": "ade-qre-036.1",
+  "report_kind": "qre_sampling_utility_records",
+  "rows": [
+    {
+      "compute_cost": "single_campaign",
+      "failure_zone_covered": [
+        "REQUEST_MORE_EVIDENCE"
+      ],
+      "measurement_type": "MEASURED",
+      "null_control_role": "required",
+      "oos_usability": "INSUFFICIENT",
+      "redundancy": false,
+      "regime_window_covered": "4h",
+      "sample_identity": "qrcell_fdd68e20fd2724dd",
+      "sample_purpose": "locked_oos_empirical_validation",
+      "sampling_record_id": "qsrx_619a60915567c012",
+      "terminal_information_contribution": 1
+    }
+  ],
+  "schema_version": "1.0",
+  "summary": {
+    "measurement_types": [
+      "MEASURED"
+    ],
+    "sampling_utility": null,
+    "sampling_utility_evaluable": true,
+    "sampling_utility_records": 1
+  }
+}

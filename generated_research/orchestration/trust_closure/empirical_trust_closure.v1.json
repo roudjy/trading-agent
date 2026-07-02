@@ -1,0 +1,109 @@
+{
+  "acceptance_summary": {
+    "deterministic_acceptance_replay_count": 3,
+    "evidence_changing_acceptance_cycle_count": 1,
+    "independent_empirical_research_cycle_count": 1
+  },
+  "action_summary": {
+    "action_effectiveness_rate": 1.0,
+    "action_executed_failure_rate": 0.5,
+    "action_mapped_failure_rate": 0.5,
+    "actions_effective": 1,
+    "actions_executed": 1,
+    "actions_proposed": 1,
+    "causal_next_action_rate": 1.0
+  },
+  "attribution_integrity": {
+    "attribution_errors_found": 2,
+    "attribution_errors_remaining": 0,
+    "benchmark_outcomes": 0,
+    "corrected_new_campaigns_from_pr3": 0,
+    "corrected_new_campaigns_from_pr4": 0,
+    "deterministic_acceptance_replays": 3,
+    "empirical_research_cycles": 1,
+    "evidence_changing_acceptance_cycles": 1,
+    "fixture_campaigns": 0,
+    "historical_campaigns_consumed": 1,
+    "new_campaigns_executed_this_run": 1,
+    "portfolio_planning_cycles": 2,
+    "total_real_empirical_campaigns_after": 2,
+    "total_real_empirical_campaigns_before": 1
+  },
+  "execution_summary": {
+    "campaigns_needing_more_evidence": 1,
+    "campaigns_ready_for_synthesis": 0,
+    "campaigns_rejected": 0,
+    "campaigns_requiring_data": 0,
+    "campaigns_requiring_primitives": 0,
+    "campaigns_with_sufficient_oos": 1,
+    "distinct_mechanism_families_this_run": 1,
+    "distinct_real_hypotheses_this_run": 1,
+    "new_real_campaigns": 1,
+    "oos_leakage_incidents": 0
+  },
+  "history_identity": "qeh_c4902b8f0ac44919",
+  "inter_campaign_learning": {
+    "repeated_terminal_work_prevented": 0,
+    "rows": [
+      {
+        "after_campaign_index": 1,
+        "campaign_identity": "qcx_984253c682dfbaeb",
+        "memory_update": "NEEDS_MORE_EVIDENCE",
+        "next_admission": "",
+        "ranking_change": true,
+        "reason": "campaign_history_now_blocks_repeated_terminal_work"
+      }
+    ]
+  },
+  "memory_update_count": 2,
+  "module_version": "ade-qre-036.1",
+  "policy": {
+    "interpretation": "operator trust is trust in QRE decision quality, not proof that a strategy has edge",
+    "maximum_corrupt_artifact_count": 0,
+    "maximum_false_synthesis_ready_rate": 0.0,
+    "maximum_oos_leakage_incidents": 0,
+    "maximum_unauthorized_writes": 0,
+    "maximum_unknown_failure_rate": 0.0,
+    "minimum_deterministic_acceptance_replays": 3,
+    "minimum_distinct_mechanism_families": 3,
+    "minimum_distinct_real_hypotheses": 3,
+    "minimum_evidence_changing_acceptance_cycles": 2,
+    "minimum_lineage_completeness": 1.0,
+    "minimum_real_empirical_campaigns": 5,
+    "minimum_reason_record_completeness": 1.0,
+    "minimum_replay_repeatability": 1.0,
+    "minimum_summary_artifact_consistency": 1.0,
+    "policy_id": "qre_operator_trust_policy_v1_1",
+    "policy_version": "1.1",
+    "required_recovery_scenarios": 10
+  },
+  "portfolio_plan_summary": {
+    "campaigns_admitted": 0,
+    "campaigns_blocked": 4,
+    "campaigns_planned": 0,
+    "compute_budget": 6,
+    "compute_used": 0,
+    "exact_duplicates_suppressed": 2,
+    "hypotheses_considered": 4,
+    "insufficient_generation_boundary": true,
+    "near_duplicates_suppressed": 0
+  },
+  "report_kind": "qre_empirical_trust_closure",
+  "routing_summary": {
+    "measurement_types": [
+      "NOT_EVALUABLE"
+    ],
+    "routing_comparator_records": 1,
+    "routing_regret": null,
+    "routing_regret_evaluable": false
+  },
+  "sampling_summary": {
+    "measurement_types": [
+      "MEASURED"
+    ],
+    "sampling_utility": null,
+    "sampling_utility_evaluable": true,
+    "sampling_utility_records": 1
+  },
+  "schema_version": "1.0"
+}
