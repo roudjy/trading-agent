@@ -12,6 +12,10 @@ def _ao() -> Any:
     return importlib.import_module("packages.qre_research.autonomous_orchestration")
 
 
+def _aol() -> Any:
+    return importlib.import_module("packages.qre_research.autonomous_opportunity_loop")
+
+
 def _print_json(payload: dict[str, Any], *, indent: int) -> None:
     json.dump(payload, sys.stdout, indent=indent, sort_keys=True)
     sys.stdout.write("\n")
@@ -92,6 +96,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("validate-config")
     sub.add_parser("status")
+    sub.add_parser("opportunity-loop-status")
     sub.add_parser("portfolio")
     sub.add_parser("queue")
     sub.add_parser("budgets")
@@ -103,6 +108,9 @@ def _build_parser() -> argparse.ArgumentParser:
     run_bounded = sub.add_parser("run-bounded")
     run_bounded.add_argument("--mode", choices=ao.OPERATING_MODES)
     run_bounded.add_argument("--max-cycles", type=int, default=None)
+
+    opportunity_run_once = sub.add_parser("opportunity-loop-run-once")
+    opportunity_run_once.add_argument("--max-cycles", type=int, default=None)
 
     sub.add_parser("pause")
     sub.add_parser("resume")
@@ -131,6 +139,21 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "status":
         _print_json(_status_payload(repo_root), indent=indent)
+        return 0
+
+    if args.command == "opportunity-loop-status":
+        aol = _aol()
+        payload = aol._read_json(aol.STATE_PATH, repo_root=repo_root)
+        if payload is None:
+            payload = {
+                "schema_version": aol.SCHEMA_VERSION,
+                "policy_version": aol.POLICY_VERSION,
+                "report_kind": aol.REPORT_KIND,
+                "state": "WAITING_FOR_TRIGGER",
+                "current_wait_reason": "status_not_materialized",
+                "content_identity": aol._content_id("qrls", "status_not_materialized"),
+            }
+        _print_json(payload, indent=indent)
         return 0
 
     if args.command == "portfolio":
@@ -169,6 +192,16 @@ def main(argv: list[str] | None = None) -> int:
         payload = ao.run_orchestration(
             repo_root=repo_root,
             mode=args.mode or "GOVERNED_CONTINUOUS_LOOP",
+            max_cycles=args.max_cycles,
+            write_outputs=True,
+        )
+        _print_json(payload, indent=indent)
+        return 0
+
+    if args.command == "opportunity-loop-run-once":
+        aol = _aol()
+        payload = aol.run_opportunity_loop(
+            repo_root=repo_root,
             max_cycles=args.max_cycles,
             write_outputs=True,
         )
