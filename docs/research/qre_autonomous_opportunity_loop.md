@@ -62,6 +62,14 @@ The persisted watermark captures:
 - primitive, capability, hypothesis-catalog, and memory versions
 - cooldown state
 
+The loop now separates:
+
+- `external_input_watermark` - canonical trigger inputs only
+- `loop_output_checkpoint` - loop-authored outputs for replay/recovery only
+- `latest_run_summary` - observability only
+
+Bootstrap semantics are explicit: the first invocation records the canonical external input snapshot without treating loop-authored outputs as material triggers. A repeated invocation against the same external state must remain `NO_MATERIAL_CHANGE`.
+
 `NO_MATERIAL_CHANGE` is a hard early stop. In that path the loop does not generate hypotheses, materialize campaign cells, execute campaigns, or duplicate ADE requests.
 
 ## Hypothesis and Campaign Boundaries
@@ -80,11 +88,13 @@ This loop does not activate Step 5. `AUTO_ALLOWED` only means the request is cla
 
 The loop writes canonical artifacts under `generated_research/orchestration/opportunity_loop/`:
 
-- watermark and material change detection
+- external-input watermark and material change detection
+- loop-output checkpoint and latest run summary
 - opportunity registry
 - generated hypothesis batch and novelty decisions
 - campaign cell registry and novelty decisions
 - loop state and latest run
 - capability gap registry
 - ADE development requests and resolution feedback
+- ADE request lifecycle and self-trigger root-cause diagnostics
 - continuation plan
