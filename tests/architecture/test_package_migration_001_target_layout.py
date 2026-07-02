@@ -168,6 +168,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "automated_hypothesis_generation.py",
         "automated_primitive_expansion.py",
         "automated_strategy_generation.py",
+        "autonomous_opportunity_loop.py",
         "autonomous_orchestration.py",
         "autonomous_readiness_closure.py",
         "bounded_strategy_synthesis.py",
