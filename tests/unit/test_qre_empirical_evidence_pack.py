@@ -92,7 +92,7 @@ def test_build_empirical_evidence_pack_is_canonical_and_fail_closed(tmp_path: Pa
     assert payload["campaign_classification"]["current_hypothesis_campaigns_executed"] == 1
     assert payload["regime_evidence"]["status"] == "NOT_AVAILABLE"
     assert payload["disposition"] == "NEEDS_MORE_EVIDENCE"
-    assert payload["recommended_next_action"] == "launch_data_oos_capacity_expansion"
+    assert payload["recommended_next_action"] == "bounded_timeframe_or_universe_follow_up"
     assert payload["transaction_costs"]["presence"] == "AVAILABLE"
     assert payload["transaction_costs"]["applicability"] == "APPLICABLE"
     assert payload["transaction_costs"]["sufficiency"] == "INSUFFICIENT"
