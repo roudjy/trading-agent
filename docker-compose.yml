@@ -63,6 +63,36 @@ services:
 
   # nginx reverse proxy — anti-indexing + AI-crawler UA block.
   # Terminates host :8050 en proxyt naar dashboard:8050 intern.
+  qre-research-supervisor:
+    build: .
+    container_name: jvr_qre_research_supervisor
+    command:
+      - python
+      - -m
+      - reporting.qre_research_supervisor
+      - --loop
+      - --interval-seconds
+      - "300"
+      - --max-iterations
+      - "24"
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./config:/app/config
+      - ./state:/app/state
+      - ./research:/app/research
+      - ./generated_research:/app/generated_research
+      - ./data/cache:/app/data/cache
+      - ./artifacts/cache:/app/artifacts/cache
+    environment:
+      - TZ=Europe/Amsterdam
+      - PYTHONPATH=/app
+    networks:
+      - agent_netwerk
+    depends_on:
+      - agent
+
   nginx:
     image: nginx:alpine
     container_name: jvr_nginx
