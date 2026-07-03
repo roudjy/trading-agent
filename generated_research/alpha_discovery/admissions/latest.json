@@ -1,0 +1,37 @@
+{
+  "rows": [
+    {
+      "OOS_sufficiency": "INSUFFICIENT",
+      "activity_sufficiency": "INSUFFICIENT",
+      "admitted_tier": "EXECUTOR_SMOKE",
+      "content_identity": "qadm_9292d0de5c297e6d",
+      "cost_model_sufficiency": "SUFFICIENT",
+      "data_requirement_id": "qdr_320eb408d29bbe68",
+      "decision": "ADMIT_EXECUTOR_SMOKE",
+      "empirical_campaign_created": false,
+      "experiment_id": "qexp_3ebcac17e5d1f228",
+      "fragility_readiness": "INSUFFICIENT",
+      "history_sufficiency": "INSUFFICIENT",
+      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "identity_readiness": "SUFFICIENT",
+      "mechanism_learning_allowed": false,
+      "null_control_readiness": "SUFFICIENT",
+      "outlier_readiness": "INSUFFICIENT",
+      "reason_codes": [
+        "expected_activity_too_low",
+        "history_span_too_short_for_empirical",
+        "minimum_rows_not_met",
+        "source_quality_not_research_ready"
+      ],
+      "requested_tier": "EMPIRICAL_SCREENING",
+      "requested_tier_not_met": true,
+      "slippage_model_sufficiency": "INSUFFICIENT",
+      "smoke_execution_created": true,
+      "source_quality": "BLOCKED",
+      "stability_readiness": "INSUFFICIENT",
+      "strategy_spec_id": "qss_66f5c3993eb6429c",
+      "validation_sufficiency": "INSUFFICIENT"
+    }
+  ],
+  "schema_version": "1.1"
+}

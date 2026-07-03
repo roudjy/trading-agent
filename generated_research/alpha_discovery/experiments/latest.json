@@ -7,16 +7,16 @@
         "null_hold_baseline",
         "regime_filter"
       ],
-      "content_identity": "qexpc_a9d51044890a19a9",
+      "content_identity": "qexpc_07a5be38d6791527",
       "counter_hypothesis": "Alternative explanation: trend_persistence is spurious.",
       "embargo_policy": "short embargo around boundary bars",
       "entry_semantics": "frozen deterministic entry condition",
       "exit_semantics": "frozen deterministic exit condition",
-      "experiment_id": "qexp_c4dd1709861569a0",
+      "experiment_id": "qexp_3ebcac17e5d1f228",
       "failure_criteria": [
-        "no_activity",
-        "negative_after_costs",
-        "support_lost"
+        "insufficient_activity",
+        "insufficient_oos",
+        "negative_after_costs"
       ],
       "falsification_tests": [
         "trend_anchor_delta turns negative before trade horizon",
@@ -24,9 +24,9 @@
         "explicit_cost_falsification"
       ],
       "hypothesis_id": "qah_56279ba7fa7a26d4",
-      "locked_OOS_policy": "static window if available, else unavailable",
-      "minimum_signal_count": 1,
-      "minimum_trade_count": 1,
+      "locked_OOS_policy": "locked OOS required for locked OOS validation tier",
+      "minimum_signal_count": 3,
+      "minimum_trade_count": 3,
       "null_models": [
         "null_hold",
         "cost_only"
@@ -34,6 +34,7 @@
       "portfolio_semantics": "single-strategy unit-notional research only",
       "position_semantics": "long_only",
       "predicted_observable": "positive continuation with modest holding periods",
+      "requested_execution_tier": "EMPIRICAL_SCREENING",
       "required_data_fields": [
         "close",
         "high",
@@ -44,14 +45,16 @@
       "required_evidence_families": [
         "controlled_evaluation",
         "transaction_costs",
-        "null_comparison"
+        "slippage",
+        "null_comparison",
+        "window_stability"
       ],
       "required_features": [
         "trend_anchor",
         "trend_anchor_delta",
         "normalized_trend_move"
       ],
-      "required_history": "one continuous ready cache window",
+      "required_history": "research-ready continuous history with validation and locked OOS when required by tier",
       "required_point_in_time_metadata": [
         "timestamp_utc"
       ],
@@ -61,14 +64,15 @@
       "slippage_model": "canonical_zero_slippage_proxy",
       "success_criteria": [
         "supports_mechanism",
-        "evidence_is_not_null"
+        "evidence_is_sufficient",
+        "costs_not_invalidating"
       ],
       "timeframe": "1d",
       "transaction_cost_model": "canonical_fixed_cost_proxy",
       "universe_spec": "single_asset_liquid_cache_universe",
-      "validation_policy": "no OOS selection",
+      "validation_policy": "validation split required for empirical screening and above",
       "warmup_policy": "use primitive warmup requirements"
     }
   ],
-  "schema_version": "1.0"
+  "schema_version": "1.1"
 }

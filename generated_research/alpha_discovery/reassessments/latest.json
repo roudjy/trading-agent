@@ -1,0 +1,34 @@
+{
+  "content_identity": "qras_390e8fc2866472bd",
+  "policy_version": "qre_alpha_discovery_followup_pr1_v1",
+  "report_kind": "qre_alpha_discovery_reassessments",
+  "rows": [
+    {
+      "artifact_id": "qcam_4c691604bc936a8e",
+      "artifact_type": "campaign",
+      "corrected_evidence_tier": "EXECUTOR_SMOKE",
+      "empirical_authority": "none",
+      "execution_validity": "valid_smoke_execution",
+      "historical_provenance_retained": true,
+      "mechanism_prior_authority": "none"
+    },
+    {
+      "artifact_id": "qcam_91538224108520b6",
+      "artifact_type": "campaign",
+      "corrected_evidence_tier": "EXECUTOR_SMOKE",
+      "empirical_authority": "none",
+      "execution_validity": "valid_smoke_execution",
+      "historical_provenance_retained": true,
+      "mechanism_prior_authority": "none"
+    },
+    {
+      "artifact_id": "qrl_48a61c8a441143f6",
+      "artifact_type": "lesson",
+      "corrected_lesson_type": "PROCESS_LESSON",
+      "historical_provenance_retained": true,
+      "prior_adjustment_retained": false,
+      "reason": "INSUFFICIENT_EMPIRICAL_EVIDENCE"
+    }
+  ],
+  "schema_version": "1.1"
+}

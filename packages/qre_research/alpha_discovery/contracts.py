@@ -3,16 +3,40 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 from packages.qre_research.generated_strategy_paths import validate_write_target
 
-SCHEMA_VERSION = "1.0"
-POLICY_VERSION = "qre_alpha_discovery_mvp_v2"
+SCHEMA_VERSION = "1.1"
+POLICY_VERSION = "qre_alpha_discovery_followup_pr1_v1"
 REPORT_KIND = "qre_alpha_discovery_mvp"
 DEFAULT_OUTPUT_ROOT = Path("generated_research/alpha_discovery")
+
+EXECUTION_TIER_COMPILER_ONLY = "COMPILER_ONLY"
+EXECUTION_TIER_EXECUTOR_SMOKE = "EXECUTOR_SMOKE"
+EXECUTION_TIER_EMPIRICAL_SCREENING = "EMPIRICAL_SCREENING"
+EXECUTION_TIER_LOCKED_OOS_VALIDATION = "LOCKED_OOS_VALIDATION"
+EXECUTION_TIERS = (
+    EXECUTION_TIER_COMPILER_ONLY,
+    EXECUTION_TIER_EXECUTOR_SMOKE,
+    EXECUTION_TIER_EMPIRICAL_SCREENING,
+    EXECUTION_TIER_LOCKED_OOS_VALIDATION,
+)
+
+LESSON_TYPE_PROCESS = "PROCESS_LESSON"
+LESSON_TYPE_DATA = "DATA_LESSON"
+LESSON_TYPE_CAPABILITY = "CAPABILITY_LESSON"
+LESSON_TYPE_EMPIRICAL_MECHANISM = "EMPIRICAL_MECHANISM_LESSON"
+LESSON_TYPE_EVIDENCE_DESIGN = "EVIDENCE_DESIGN_LESSON"
+LESSON_TYPES = (
+    LESSON_TYPE_PROCESS,
+    LESSON_TYPE_DATA,
+    LESSON_TYPE_CAPABILITY,
+    LESSON_TYPE_EMPIRICAL_MECHANISM,
+    LESSON_TYPE_EVIDENCE_DESIGN,
+)
 
 
 def _stable_json(value: Any) -> str:
@@ -66,6 +90,7 @@ class DiscoveryContext:
     execution_budget: int = 1
     dry_run: bool = False
     max_hypotheses: int = 3
+    requested_execution_tier: str = EXECUTION_TIER_EMPIRICAL_SCREENING
 
 
 @dataclass(frozen=True, slots=True)
@@ -222,6 +247,7 @@ class ExperimentContract:
     success_criteria: tuple[str, ...]
     failure_criteria: tuple[str, ...]
     required_evidence_families: tuple[str, ...]
+    requested_execution_tier: str
     content_identity: str
 
 
@@ -236,6 +262,17 @@ class DataRequirement:
     required_history_end: str
     minimum_rows: int
     minimum_assets: int
+    requested_execution_tier: str
+    minimum_history_span: str
+    minimum_expected_signals: int
+    minimum_expected_trades: int
+    minimum_validation_rows: int
+    minimum_locked_oos_rows: int
+    minimum_locked_oos_activity: int
+    required_source_quality: str
+    required_identity_status: str
+    required_cost_model: str
+    required_slippage_model: str
     point_in_time_requirement: str
     corporate_action_requirement: str
     session_calendar_requirement: str
@@ -248,9 +285,58 @@ class DataRequirement:
 @dataclass(frozen=True, slots=True)
 class CoverageDecision:
     decision: str
+    coverage_decision: str
+    requested_execution_tier: str
+    admissible_execution_tier: str
+    tier_downgrade_reasons: tuple[str, ...]
     reason_codes: tuple[str, ...]
     selected_data: dict[str, Any]
     approved_fetch: bool
+    dataset_inventory: tuple[dict[str, Any], ...]
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class MechanismImplementationAlignment:
+    predicted_observable: str
+    strategy_observable: str
+    signal_alignment: str
+    holding_horizon_alignment: str
+    universe_alignment: str
+    regime_alignment: str
+    control_alignment: str
+    falsification_alignment: str
+    alignment_status: str
+    reason_codes: tuple[str, ...]
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class ExperimentAdmissionDecision:
+    hypothesis_id: str
+    experiment_id: str
+    strategy_spec_id: str
+    data_requirement_id: str
+    requested_tier: str
+    admitted_tier: str
+    source_quality: str
+    identity_readiness: str
+    history_sufficiency: str
+    activity_sufficiency: str
+    validation_sufficiency: str
+    OOS_sufficiency: str
+    cost_model_sufficiency: str
+    slippage_model_sufficiency: str
+    null_control_readiness: str
+    stability_readiness: str
+    fragility_readiness: str
+    outlier_readiness: str
+    requested_tier_not_met: bool
+    empirical_campaign_created: bool
+    smoke_execution_created: bool
+    mechanism_learning_allowed: bool
+    decision: str
+    reason_codes: tuple[str, ...]
     content_identity: str
 
 
@@ -259,6 +345,8 @@ class CampaignEvidence:
     campaign_id: str
     experiment_id: str
     strategy_spec_id: str
+    execution_tier: str
+    empirical: bool
     backtest_result: dict[str, Any]
     data_plan: dict[str, Any]
     content_identity: str
@@ -270,11 +358,25 @@ class EvidenceAssessment:
     hypothesis_id: str
     experiment_id: str
     campaign_id: str
+    execution_tier: str
+    empirical: bool
+    evidence_grade: str
     prediction_tested: str
     supporting_evidence: tuple[str, ...]
     contradicting_evidence: tuple[str, ...]
     inconclusive_evidence: tuple[str, ...]
-    null_result: str
+    null_presence: str
+    null_applicability: str
+    null_sufficiency: str
+    null_outcome: str
+    mechanism_support_outcome: str
+    OOS_presence: str
+    OOS_sufficiency: str
+    OOS_outcome: str
+    cost_presence: str
+    cost_sufficiency: str
+    slippage_presence: str
+    slippage_sufficiency: str
     cost_effect: str
     activity_effect: str
     regime_effect: str
@@ -282,6 +384,9 @@ class EvidenceAssessment:
     fragility_effect: str
     outlier_effect: str
     confidence_update: str
+    prior_adjustment_allowed: bool
+    prior_adjustment_basis: str
+    qualifying_evidence_refs: tuple[str, ...]
     terminal_disposition: str
     reason_codes: tuple[str, ...]
     content_identity: str
@@ -294,6 +399,7 @@ class ResearchLesson:
     experiment_id: str
     strategy_spec_id: str
     campaign_id: str
+    lesson_type: str
     terminal_disposition: str
     mechanism_supported: str
     mechanism_contradicted: str
@@ -305,6 +411,8 @@ class ResearchLesson:
     do_not_repeat: tuple[str, ...]
     generator_constraints: tuple[str, ...]
     new_falsification_requirements: tuple[str, ...]
+    prior_adjustment_allowed: bool
+    prior_adjustment_basis: str
     prior_adjustments: tuple[str, ...]
     recommended_next_question: str
     supporting_artifact_refs: tuple[str, ...]
@@ -366,7 +474,7 @@ class HypothesisEvaluator(Protocol):
 
 
 class ExperimentPlanner(Protocol):
-    def plan(self, hypothesis: MechanisticHypothesis) -> ExperimentContract: ...
+    def plan(self, hypothesis: MechanisticHypothesis, *, requested_execution_tier: str) -> ExperimentContract: ...
 
 
 class EvidenceEvaluator(Protocol):
@@ -374,6 +482,7 @@ class EvidenceEvaluator(Protocol):
         self,
         experiment: ExperimentContract,
         campaign_evidence: CampaignEvidence,
+        admission: ExperimentAdmissionDecision,
     ) -> EvidenceAssessment: ...
 
 
@@ -383,4 +492,3 @@ class LessonCompressor(Protocol):
         assessment: EvidenceAssessment,
         prior_memory: dict[str, Any],
     ) -> ResearchLesson: ...
-

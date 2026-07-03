@@ -4,6 +4,8 @@ This MVP deliberately stops at a bounded evaluator-driven loop. The next four PR
 
 ## PR 1 - Grammar, DSL and Experiment Breadth
 
+Status: completed by `feat/qre-alpha-empirical-admission-dsl`
+
 - richer typed grammar
 - cross-sectional operators
 - portfolio neutralization
@@ -41,5 +43,6 @@ This MVP deliberately stops at a bounded evaluator-driven loop. The next four PR
 
 ## Scope Boundary
 
+- Follow-up PR 1 is complete
 - exactly four follow-up PRs are defined
 - no fifth PR is proposed
