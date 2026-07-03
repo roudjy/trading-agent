@@ -6,10 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from packages.qre_research.alpha_discovery import runner as adr
-from packages.qre_research.alpha_discovery.contracts import (
-    ObservationSnapshot,
-    content_id,
-)
+from packages.qre_research.alpha_discovery.contracts import ObservationSnapshot, content_id
 from reporting import qre_research_operations as ops
 
 
@@ -23,8 +20,8 @@ def _snapshot() -> ObservationSnapshot:
         "market_diagnostics": {"status": "READY"},
         "regime_diagnostics": {"regime_signature": ["trend", "calm"]},
         "cross_asset_diagnostics": {"status": "NOT_AVAILABLE"},
-        "data_coverage": {"coverage_rows": 1, "ready_rows": 1, "research_ready": True},
-        "source_quality": {"summary": {"status": "ready"}, "sources": []},
+        "data_coverage": {"coverage_rows": 1, "ready_rows": 1, "research_ready": False},
+        "source_quality": {"summary": {"status": "blocked"}, "sources": []},
         "identity_readiness": "ready",
         "current_queue": [],
         "recent_terminal_outcomes": [],
@@ -40,8 +37,8 @@ def _snapshot() -> ObservationSnapshot:
     payload["content_identity"] = content_id("qos", payload)
     return ObservationSnapshot(
         observation_snapshot_id=content_id("qos", payload),
-        schema_version="1.0",
-        policy_version="qre_alpha_discovery_mvp_v2",
+        schema_version="1.1",
+        policy_version="qre_alpha_discovery_followup_pr1_v1",
         **payload,
     )
 
@@ -77,44 +74,50 @@ def _prepare_repo(repo_root: Path) -> None:
                     "min_timestamp_utc": "2026-04-08T00:00:00Z",
                     "max_timestamp_utc": "2026-04-12T00:00:00Z",
                     "content_hash": "sha256:test",
-                }
-            ],
-            "coverage": [
-                {
-                    "source": "yfinance",
-                    "instrument": "AAPL",
-                    "timeframe": "1d",
-                    "status": "ready",
-                    "row_count": 5,
-                    "content_hash": "sha256:test",
+                    "identity_status": "ready",
                 }
             ],
         },
     )
-    _write_json(repo_root / "logs/qre_data_source_quality_readiness/latest.json", {"schema_version": "1.0", "rows": []})
+    _write_json(
+        repo_root / "logs/qre_data_source_quality_readiness/latest.json",
+        {
+            "schema_version": "1.0",
+            "summary": {"status": "blocked", "identity_status": "ready"},
+            "rows": [
+                {
+                    "source": "yfinance",
+                    "instrument": "AAPL",
+                    "timeframe": "1d",
+                    "effective_research_quality_status": "blocked",
+                    "source_quality_status": "blocked",
+                    "identity_status": "ready",
+                }
+            ],
+        },
+    )
 
 
-def test_cli_run_uses_lesson_to_suppress_repeated_campaign(tmp_path: Path, monkeypatch, capsys) -> None:
+def test_cli_run_reclassifies_tiny_dataset_as_smoke_and_prevents_same_campaign_rerun(tmp_path: Path, monkeypatch, capsys) -> None:
     repo_root = tmp_path / "repo"
     _prepare_repo(repo_root)
     monkeypatch.setattr(adr, "build_observation_snapshot", lambda context: _snapshot())
     monkeypatch.setattr(adr, "validate_write_target", lambda path: None)
 
-    first_rc = ops.main(["--repo-root", str(repo_root), "alpha-discovery-run-once", "--max-hypotheses", "3"])
+    first_rc = ops.main(["--repo-root", str(repo_root), "alpha-discovery-run-once", "--max-hypotheses", "3", "--execution-tier", "auto"])
     first_payload = json.loads(capsys.readouterr().out)
     assert first_rc == 0
-    assert first_payload["data_plan_status"] == "CACHE_READY"
-    assert first_payload["campaign_id"]
+    assert first_payload["admitted_execution_tier"] == "EXECUTOR_SMOKE"
+    assert first_payload["empirical_campaign_created"] is False
+    assert first_payload["smoke_execution_created"] is True
+    assert first_payload["terminal_disposition"] == "COMPLETED_SMOKE_ONLY"
     assert first_payload["lesson_id"]
 
-    second_rc = ops.main(["--repo-root", str(repo_root), "alpha-discovery-run-once", "--max-hypotheses", "3"])
+    second_rc = ops.main(["--repo-root", str(repo_root), "alpha-discovery-run-once", "--max-hypotheses", "3", "--execution-tier", "auto"])
     second_payload = json.loads(capsys.readouterr().out)
     assert second_rc == 0
-    assert second_payload["data_plan_status"] == "CACHE_READY"
-    assert second_payload["selected_hypothesis"]["stable_fingerprint"] != first_payload["selected_hypothesis"]["stable_fingerprint"]
-    assert any(
-        item.get("reason") == "suppressed_by_recent_lesson"
-        for item in second_payload["unselected_hypothesis_reasons"]
-    )
+    assert second_payload["admitted_execution_tier"] == "EXECUTOR_SMOKE"
     assert second_payload["campaign_id"] != first_payload["campaign_id"]
-    assert second_payload["terminal_disposition"] == "NEEDS_MORE_EVIDENCE"
+    assert second_payload["selected_hypothesis"]["stable_fingerprint"] != first_payload["selected_hypothesis"]["stable_fingerprint"]
+    assert any(item.get("reason") == "suppressed_by_recent_lesson" for item in second_payload["unselected_hypothesis_reasons"])
+    assert second_payload["prior_adjustment_allowed"] is False

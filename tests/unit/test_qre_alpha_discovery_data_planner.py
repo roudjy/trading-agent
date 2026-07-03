@@ -6,6 +6,9 @@ from pathlib import Path
 import pandas as pd
 
 from packages.qre_research.alpha_discovery.contracts import (
+    EXECUTION_TIER_EMPIRICAL_SCREENING,
+    EXECUTION_TIER_EXECUTOR_SMOKE,
+    EXECUTION_TIER_LOCKED_OOS_VALIDATION,
     ExperimentContract,
     content_id,
 )
@@ -20,56 +23,8 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def test_resolve_data_plan_uses_ready_cache_file_even_when_manifest_is_not_research_ready(tmp_path: Path) -> None:
-    repo_root = tmp_path / "repo"
-    cache_path = repo_root / "data/cache/market/yfinance__AAPL__1d__20260408__20260415__abc.parquet"
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    frame = pd.DataFrame(
-        {
-            "timestamp_utc": pd.date_range("2026-04-08", periods=5, freq="D", tz="UTC"),
-            "open": [1.0, 1.1, 1.2, 1.3, 1.4],
-            "high": [1.1, 1.2, 1.3, 1.4, 1.5],
-            "low": [0.9, 1.0, 1.1, 1.2, 1.3],
-            "close": [1.05, 1.15, 1.25, 1.35, 1.45],
-            "volume": [100, 110, 120, 130, 140],
-        }
-    )
-    frame.to_parquet(cache_path, index=False)
-    _write_json(
-        repo_root / "logs/qre_data_cache_manifest/latest.json",
-        {
-            "schema_version": "1.0",
-            "report_kind": "qre_data_cache_manifest",
-            "summary": {"research_ready": False},
-            "files": [
-                {
-                    "path": cache_path.relative_to(repo_root).as_posix(),
-                    "cache_kind": "market",
-                    "source": "yfinance",
-                    "instrument": "AAPL",
-                    "timeframe": "1d",
-                    "status": "ready",
-                    "row_count": 5,
-                    "min_timestamp_utc": "2026-04-08T00:00:00Z",
-                    "max_timestamp_utc": "2026-04-12T00:00:00Z",
-                    "content_hash": "sha256:test",
-                }
-            ],
-            "coverage": [
-                {
-                    "source": "yfinance",
-                    "instrument": "AAPL",
-                    "timeframe": "1d",
-                    "status": "ready",
-                    "row_count": 5,
-                    "content_hash": "sha256:test",
-                }
-            ],
-        },
-    )
-    _write_json(repo_root / "logs/qre_data_source_quality_readiness/latest.json", {"schema_version": "1.0", "rows": []})
-
-    contract = ExperimentContract(
+def _contract(*, requested_tier: str) -> ExperimentContract:
+    return ExperimentContract(
         experiment_id="qexp_fixture",
         hypothesis_id="qah_fixture",
         research_question="fixture question",
@@ -97,19 +52,111 @@ def test_resolve_data_plan_uses_ready_cache_file_even_when_manifest_is_not_resea
         locked_OOS_policy="fixture",
         embargo_policy="fixture",
         warmup_policy="fixture",
-        minimum_signal_count=1,
-        minimum_trade_count=1,
+        minimum_signal_count=3,
+        minimum_trade_count=3,
         success_criteria=("fixture",),
         failure_criteria=("fixture",),
         required_evidence_families=("controlled_evaluation",),
-        content_identity=content_id("qexp", {"fixture": True}),
+        requested_execution_tier=requested_tier,
+        content_identity=content_id("qexp", {"fixture": True, "tier": requested_tier}),
     )
 
-    requirement = build_data_requirement(contract)
+
+def _prepare_dataset(
+    repo_root: Path,
+    *,
+    row_count: int,
+    start: str,
+    source_ready: bool,
+    identity_status: str = "ready",
+) -> Path:
+    cache_path = repo_root / "data/cache/market/yfinance__AAPL__1d__fixture.parquet"
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(
+        {
+            "timestamp_utc": pd.date_range(start, periods=row_count, freq="D", tz="UTC"),
+            "open": [float(index + 1) for index in range(row_count)],
+            "high": [float(index + 2) for index in range(row_count)],
+            "low": [float(index) for index in range(row_count)],
+            "close": [float(index + 1.5) for index in range(row_count)],
+            "volume": [100 + index for index in range(row_count)],
+        }
+    )
+    frame.to_parquet(cache_path, index=False)
+    _write_json(
+        repo_root / "logs/qre_data_cache_manifest/latest.json",
+        {
+            "schema_version": "1.0",
+            "report_kind": "qre_data_cache_manifest",
+            "summary": {"research_ready": source_ready},
+            "files": [
+                {
+                    "path": cache_path.relative_to(repo_root).as_posix(),
+                    "cache_kind": "market",
+                    "source": "yfinance",
+                    "instrument": "AAPL",
+                    "timeframe": "1d",
+                    "status": "ready",
+                    "row_count": row_count,
+                    "min_timestamp_utc": frame["timestamp_utc"].iloc[0].isoformat().replace("+00:00", "Z"),
+                    "max_timestamp_utc": frame["timestamp_utc"].iloc[-1].isoformat().replace("+00:00", "Z"),
+                    "content_hash": "sha256:test",
+                    "identity_status": identity_status,
+                }
+            ],
+        },
+    )
+    _write_json(
+        repo_root / "logs/qre_data_source_quality_readiness/latest.json",
+        {
+            "schema_version": "1.0",
+            "summary": {"status": "ready" if source_ready else "blocked", "identity_status": identity_status},
+            "rows": [
+                {
+                    "source": "yfinance",
+                    "instrument": "AAPL",
+                    "timeframe": "1d",
+                    "effective_research_quality_status": "ready" if source_ready else "blocked",
+                    "source_quality_status": "ready" if source_ready else "blocked",
+                    "identity_status": identity_status,
+                }
+            ],
+        },
+    )
+    return cache_path
+
+
+def test_tiny_cache_row_is_only_executor_smoke_when_upstream_source_is_blocked(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    _prepare_dataset(repo_root, row_count=5, start="2026-04-08", source_ready=False)
+
+    requirement = build_data_requirement(_contract(requested_tier=EXECUTION_TIER_EMPIRICAL_SCREENING))
     decision = resolve_data_plan(repo_root, requirement)
 
     assert decision.decision == "CACHE_READY"
-    assert decision.approved_fetch is False
-    assert decision.selected_data["selected_row"]["path"] == cache_path.relative_to(repo_root).as_posix()
-    assert decision.selected_data["row_count"] == 5
-    assert "frame" in decision.selected_data
+    assert decision.admissible_execution_tier == EXECUTION_TIER_EXECUTOR_SMOKE
+    assert "source_quality_not_research_ready" in decision.tier_downgrade_reasons
+    assert decision.selected_data["effective_research_quality_status"] == "blocked"
+
+
+def test_sufficient_history_without_locked_oos_caps_at_empirical_screening(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    _prepare_dataset(repo_root, row_count=120, start="2026-01-01", source_ready=True)
+
+    requirement = build_data_requirement(_contract(requested_tier=EXECUTION_TIER_LOCKED_OOS_VALIDATION))
+    decision = resolve_data_plan(repo_root, requirement)
+
+    assert decision.decision == "CACHE_READY"
+    assert decision.admissible_execution_tier == EXECUTION_TIER_EMPIRICAL_SCREENING
+    assert "locked_oos_not_available" in decision.tier_downgrade_reasons
+
+
+def test_row_ready_but_identity_ambiguous_fails_closed_for_empirical_admission(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    _prepare_dataset(repo_root, row_count=120, start="2026-01-01", source_ready=True, identity_status="ambiguous")
+
+    requirement = build_data_requirement(_contract(requested_tier=EXECUTION_TIER_EMPIRICAL_SCREENING))
+    decision = resolve_data_plan(repo_root, requirement)
+
+    assert decision.admissible_execution_tier == EXECUTION_TIER_EXECUTOR_SMOKE
+    assert "identity_not_resolved" in decision.tier_downgrade_reasons
