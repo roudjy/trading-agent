@@ -1,0 +1,36 @@
+{
+  "allowed_asset_classes": [
+    "equity",
+    "crypto"
+  ],
+  "allowed_markets": [
+    "global"
+  ],
+  "base_timeframes": [
+    "1d",
+    "4h",
+    "1h"
+  ],
+  "content_identity": "qdbase_5f41bad13ad4101a",
+  "history_targets": {
+    "1d": "365d",
+    "1h": "120d",
+    "4h": "365d"
+  },
+  "identity_requirements": [
+    "resolved_identity"
+  ],
+  "maximum_number_of_assets": 20,
+  "minimum_liquidity": "cache_discovered_liquid_only",
+  "policy_version": "qre_alpha_data_truth_v1",
+  "quality_requirements": [
+    "effective_research_quality_ready"
+  ],
+  "refresh_cadence_metadata": "bounded_on_demand",
+  "report_kind": "qre_baseline_corpus_policy",
+  "schema_version": "1.0",
+  "source_requirements": [
+    "quality_gate_allowed",
+    "research_lineage_required"
+  ]
+}

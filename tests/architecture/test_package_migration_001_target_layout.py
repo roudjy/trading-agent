@@ -145,6 +145,7 @@ def test_package_migration_001_qre_data_has_only_bounded_read_only_seed() -> Non
         "__init__.py",
         "cache_manifest.py",
         "contracts.py",
+        "dataset_catalog.py",
         "historical_accounting.py",
         "source_lifecycle.py",
         "source_quality_readiness.py",
@@ -164,6 +165,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "README.md",
         "__init__.py",
         "alpha_discovery/__init__.py",
+        "alpha_discovery/acquisition.py",
         "alpha_discovery/contracts.py",
         "alpha_discovery/data_planner.py",
         "alpha_discovery/evaluation.py",
@@ -174,6 +176,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "alpha_discovery/runner.py",
         "alpha_discovery/strategy_compiler.py",
         "alpha_discovery/strategy_ir.py",
+        "alpha_discovery/universe_planner.py",
         "automated_campaign_readiness.py",
         "automated_data_window_capacity.py",
         "automated_hypothesis_generation.py",
@@ -209,6 +212,7 @@ def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_path("packages/qre_data/README.md") == DOMAIN_QRE
     assert classify_path("packages/qre_data/cache_manifest.py") == DOMAIN_QRE
     assert classify_path("packages/qre_data/contracts.py") == DOMAIN_QRE
+    assert classify_path("packages/qre_data/dataset_catalog.py") == DOMAIN_QRE
     assert classify_path("packages/qre_data/historical_accounting.py") == DOMAIN_QRE
     assert classify_path("packages/qre_data/symbology_resolver.py") == DOMAIN_QRE
     assert classify_path("packages/qre_data/source_lifecycle.py") == DOMAIN_QRE
@@ -229,6 +233,7 @@ def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_module("packages.qre_research.universe") == DOMAIN_QRE
     assert classify_module("packages.qre_data.cache_manifest") == DOMAIN_QRE
     assert classify_module("packages.qre_data.contracts") == DOMAIN_QRE
+    assert classify_module("packages.qre_data.dataset_catalog") == DOMAIN_QRE
     assert classify_module("packages.qre_data.historical_accounting") == DOMAIN_QRE
     assert classify_module("packages.qre_data.symbology_resolver") == DOMAIN_QRE
     assert classify_module("packages.qre_data.source_lifecycle") == DOMAIN_QRE

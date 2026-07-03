@@ -1,0 +1,49 @@
+{
+  "rows": [
+    {
+      "content_identity": "qcovc_4f140da60acccd98",
+      "coverage_assessment_id": "qcov_c5cde2bc0e4c54dd",
+      "decision": "SOURCE_QUALITY_BLOCKED",
+      "highest_admissible_tier": "EXECUTOR_SMOKE",
+      "requirement_id": "qdr_8d6245038a5bda9b",
+      "rows": [
+        {
+          "PIT_blockers": [],
+          "available_end": "2026-07-01T00:00:00Z",
+          "available_start": "2026-04-08T00:00:00Z",
+          "complete_bar_end": "2026-07-01T00:00:00Z",
+          "corporate_action_blockers": [],
+          "dataset_id": "qds_0fb8e6c50816b82c",
+          "dataset_path": "data/cache/market/yfinance__BTC-EUR__1d__20260408__20260415__9f4c62fc8b732b6c.parquet",
+          "decision": "SOURCE_QUALITY_BLOCKED",
+          "duplicate_ranges": [],
+          "estimated_activity": 129,
+          "identity_blockers": [],
+          "instrument": "BTC-EUR",
+          "invalid_ranges": [],
+          "missing_ranges": [],
+          "quality_blockers": [
+            "source_quality_not_research_ready"
+          ],
+          "reason_codes": [
+            "source_quality_not_research_ready"
+          ],
+          "row_count": 5186,
+          "session_blockers": [],
+          "timeframe": "1d",
+          "window_capacity": {
+            "locked_oos_ready": true,
+            "minimum_oos_days": 0,
+            "minimum_train_days": 0,
+            "minimum_validation_days": 0,
+            "policy_timeframe": "1d",
+            "span_days": 84,
+            "validation_ready": true
+          }
+        }
+      ],
+      "universe_plan_id": "qup_391c708f3ca3a851"
+    }
+  ],
+  "schema_version": "1.1"
+}

@@ -1,0 +1,43 @@
+{
+  "rows": [
+    {
+      "acquisition_plan_id": "qap_04764ce04b9ab7b5",
+      "backfill": false,
+      "base_timeframe": "1d",
+      "content_identity": "qapc_5f3f239e0923fd6c",
+      "corporate_action_actions": [],
+      "end": "latest_complete_bar",
+      "estimated_bytes": 0,
+      "estimated_calls": 0,
+      "expected_rows": 90,
+      "expected_unlock": "EXECUTOR_SMOKE",
+      "external_boundary": "STOPPED_SOURCE_QUALITY_BOUNDARY",
+      "identity_actions": [],
+      "incremental": false,
+      "instrument_ids": [
+        "BTC-EUR"
+      ],
+      "quality_checks": [
+        "timestamp_monotonicity",
+        "ohlc_consistency",
+        "deduplicate_rows"
+      ],
+      "rate_limit_budget": 100,
+      "reason_codes": [
+        "source_quality_not_research_ready"
+      ],
+      "request_batches": [],
+      "requirement_id": "qdr_8d6245038a5bda9b",
+      "resample_targets": [
+        "1d"
+      ],
+      "retry_budget": 2,
+      "source_ids": [
+        "yfinance"
+      ],
+      "source_selection_decision": "NO_APPROVED_SOURCE",
+      "start": "derived_from_catalog"
+    }
+  ],
+  "schema_version": "1.1"
+}

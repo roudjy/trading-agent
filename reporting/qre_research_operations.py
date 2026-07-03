@@ -20,6 +20,22 @@ def _adr() -> Any:
     return importlib.import_module("packages.qre_research.alpha_discovery.runner")
 
 
+def _adc() -> Any:
+    return importlib.import_module("packages.qre_data.dataset_catalog")
+
+
+def _adp() -> Any:
+    return importlib.import_module("packages.qre_research.alpha_discovery.data_planner")
+
+
+def _aup() -> Any:
+    return importlib.import_module("packages.qre_research.alpha_discovery.universe_planner")
+
+
+def _aaq() -> Any:
+    return importlib.import_module("packages.qre_research.alpha_discovery.acquisition")
+
+
 def _print_json(payload: dict[str, Any], *, indent: int) -> None:
     json.dump(payload, sys.stdout, indent=indent, sort_keys=True)
     sys.stdout.write("\n")
@@ -121,6 +137,32 @@ def _build_parser() -> argparse.ArgumentParser:
     alpha_run_once.add_argument("--max-hypotheses", type=int, default=3)
     alpha_run_once.add_argument("--execution-tier", choices=("compiler", "smoke", "screening", "oos", "auto"), default="auto")
     alpha_run_once.add_argument("--status", action="store_true")
+
+    data_census = sub.add_parser("data-census")
+    data_census.add_argument("--dry-run", action="store_true")
+
+    data_reconcile = sub.add_parser("data-reconcile")
+    data_reconcile.add_argument("--dry-run", action="store_true")
+
+    sub.add_parser("data-status")
+
+    universe_plan = sub.add_parser("universe-plan")
+    universe_plan.add_argument("--experiment-id", type=str, default=None)
+    universe_plan.add_argument("--execution-tier", choices=("compiler", "smoke", "screening", "oos", "auto"), default="auto")
+    universe_plan.add_argument("--max-assets", type=int, default=20)
+
+    data_plan = sub.add_parser("data-plan")
+    data_plan.add_argument("--experiment-id", type=str, default=None)
+    data_plan.add_argument("--execution-tier", choices=("compiler", "smoke", "screening", "oos", "auto"), default="auto")
+    data_plan.add_argument("--max-assets", type=int, default=20)
+
+    data_acquire = sub.add_parser("data-acquire-once")
+    data_acquire.add_argument("--experiment-id", type=str, default=None)
+    data_acquire.add_argument("--execution-tier", choices=("compiler", "smoke", "screening", "oos", "auto"), default="auto")
+    data_acquire.add_argument("--max-assets", type=int, default=20)
+    data_acquire.add_argument("--max-api-calls", type=int, default=100)
+    data_acquire.add_argument("--max-download-bytes", type=int, default=0)
+    data_acquire.add_argument("--dry-run", action="store_true")
 
     sub.add_parser("pause")
     sub.add_parser("resume")
@@ -230,6 +272,66 @@ def main(argv: list[str] | None = None) -> int:
             execution_tier=str(args.execution_tier or "auto"),
         )
         _print_json(payload, indent=indent)
+        return 0
+
+    if args.command in {"data-census", "data-reconcile", "data-status", "universe-plan", "data-plan", "data-acquire-once"}:
+        adc = _adc()
+        adr = _adr()
+        aaq = _aaq()
+        truth = adc.materialize_data_truth(repo_root)
+        if args.command == "data-census":
+            _print_json(truth["census"], indent=indent)
+            return 0
+        if args.command == "data-reconcile":
+            _print_json(truth["reconciliation"], indent=indent)
+            return 0
+        if args.command == "data-status":
+            _print_json(truth["status"], indent=indent)
+            return 0
+
+        preview = adr.run_alpha_discovery_mvp(
+            repo_root=repo_root,
+            dry_run=True,
+            max_hypotheses=3,
+            execution_tier=str(args.execution_tier or "auto"),
+        )
+        artifacts = preview.get("artifacts") or {}
+        universe = artifacts.get("universe_plans")
+        requirement = artifacts.get("requirements")
+        coverage = artifacts.get("coverage")
+        decision = artifacts.get("data_plans")
+        acquisition = artifacts.get("acquisitions")
+        if args.command == "universe-plan":
+            _print_json({"schema_version": "1.0", "rows": [universe] if universe else []}, indent=indent)
+            return 0
+        if args.command == "data-plan":
+            payload = {
+                "schema_version": "1.0",
+                "universe_plan": universe,
+                "data_requirement": requirement,
+                "coverage": coverage,
+                "decision": decision,
+                "acquisition": acquisition,
+            }
+            _print_json(payload, indent=indent)
+            return 0
+        telemetry = {"dry_run": bool(args.dry_run), "max_api_calls": int(args.max_api_calls or 100), "max_download_bytes": int(args.max_download_bytes or 0)}
+        if not args.dry_run:
+            telemetry = aaq.execute_acquisition_once(
+                repo_root=repo_root,
+                plan=aaq.AcquisitionPlan(**acquisition),
+            )
+        _print_json(
+            {
+                "schema_version": "1.0",
+                "universe_plan": universe,
+                "data_requirement": requirement,
+                "coverage": coverage,
+                "acquisition": acquisition,
+                "telemetry": telemetry,
+            },
+            indent=indent,
+        )
         return 0
 
     if args.command == "pause":

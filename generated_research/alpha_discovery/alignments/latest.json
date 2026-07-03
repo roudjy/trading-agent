@@ -2,15 +2,15 @@
   "rows": [
     {
       "alignment_status": "ALIGNED",
-      "content_identity": "qmai_560774ffa07e3f3e",
+      "content_identity": "qmai_6a7f9d781c1b0166",
       "control_alignment": "ALIGNED",
       "falsification_alignment": "ALIGNED",
       "holding_horizon_alignment": "ALIGNED",
-      "predicted_observable": "trend_continuation",
+      "predicted_observable": "compression_release",
       "reason_codes": [],
       "regime_alignment": "ALIGNED",
       "signal_alignment": "ALIGNED",
-      "strategy_observable": "normalized_trend_move,trend_anchor,trend_anchor_delta",
+      "strategy_observable": "compression_ratio,normalized_trend_move,rolling_high_previous",
       "universe_alignment": "ALIGNED"
     }
   ],

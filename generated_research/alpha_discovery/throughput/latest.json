@@ -1,0 +1,29 @@
+{
+  "rows": [
+    {
+      "API_calls": 0,
+      "API_calls_avoided": 0,
+      "OOS_capacity_gained": 0,
+      "assets_made_ready": 27,
+      "bytes_downloaded": 0,
+      "cache_hit_rate": 1.0,
+      "catalog_datasets_discovered": 46,
+      "compute_spent_on_ingestion": 0,
+      "duplicate_bytes_avoided": 0,
+      "history_span_gained": 0,
+      "identity_failures": 0,
+      "manifest_references": 7046,
+      "missing_files": 0,
+      "orphaned_files": 0,
+      "physical_files_discovered": 7046,
+      "quality_failures": 1,
+      "rows_downloaded": 0,
+      "rows_reused": 895560,
+      "source_failures": 1,
+      "stale_manifests": 0,
+      "time_to_evidence_ready_dataset": null,
+      "timeframes_made_ready": 3
+    }
+  ],
+  "schema_version": "1.1"
+}

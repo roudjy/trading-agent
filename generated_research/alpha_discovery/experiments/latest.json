@@ -3,27 +3,27 @@
     {
       "IS_policy": "bounded in-sample only",
       "confounder_controls": [
-        "cost_only_baseline",
         "null_hold_baseline",
+        "cost_only_baseline",
         "regime_filter"
       ],
-      "content_identity": "qexpc_07a5be38d6791527",
-      "counter_hypothesis": "Alternative explanation: trend_persistence is spurious.",
+      "content_identity": "qexpc_9919ebc0dcc3f684",
+      "counter_hypothesis": "Alternative explanation: volatility_breakout is spurious.",
       "embargo_policy": "short embargo around boundary bars",
       "entry_semantics": "frozen deterministic entry condition",
       "exit_semantics": "frozen deterministic exit condition",
-      "experiment_id": "qexp_3ebcac17e5d1f228",
+      "experiment_id": "qexp_7fd2af268b95a91c",
       "failure_criteria": [
         "insufficient_activity",
         "insufficient_oos",
         "negative_after_costs"
       ],
       "falsification_tests": [
-        "trend_anchor_delta turns negative before trade horizon",
-        "normalized_trend_move stays below entry threshold",
+        "compression ratio remains above threshold",
+        "normalized_trend_move fails to expand after entry",
         "explicit_cost_falsification"
       ],
-      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "hypothesis_id": "qah_0a3044c270860c7c",
       "locked_OOS_policy": "locked OOS required for locked OOS validation tier",
       "minimum_signal_count": 3,
       "minimum_trade_count": 3,
@@ -33,7 +33,7 @@
       ],
       "portfolio_semantics": "single-strategy unit-notional research only",
       "position_semantics": "long_only",
-      "predicted_observable": "positive continuation with modest holding periods",
+      "predicted_observable": "a breakout after compression with fewer but sharper trades",
       "requested_execution_tier": "EMPIRICAL_SCREENING",
       "required_data_fields": [
         "close",
@@ -50,17 +50,17 @@
         "window_stability"
       ],
       "required_features": [
-        "trend_anchor",
-        "trend_anchor_delta",
-        "normalized_trend_move"
+        "compression_ratio",
+        "normalized_trend_move",
+        "rolling_high_previous"
       ],
       "required_history": "research-ready continuous history with validation and locked OOS when required by tier",
       "required_point_in_time_metadata": [
         "timestamp_utc"
       ],
-      "research_question": "Does trend persistence should continue when an anchored trend remains positive and volatility-normalised move stays elevated. produce positive continuation with modest holding periods?",
+      "research_question": "Does compression should precede directional release when short-term volatility is suppressed and the trend-normalised move is constructive. produce a breakout after compression with fewer but sharper trades?",
       "sampling_frequency": "1d",
-      "signal_semantics": "trend_continuation",
+      "signal_semantics": "compression_release",
       "slippage_model": "canonical_zero_slippage_proxy",
       "success_criteria": [
         "supports_mechanism",
