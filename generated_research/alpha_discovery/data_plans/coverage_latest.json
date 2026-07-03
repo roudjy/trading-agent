@@ -1,56 +1,44 @@
 {
   "rows": [
     {
-      "content_identity": "qcovc_6c34bbef53cfb8a5",
-      "coverage_assessment_id": "qcov_a429d8475fe9b38e",
-      "decision": "EXTERNAL_DATA_BOUNDARY",
-      "highest_admissible_tier": "COMPILER_ONLY",
-      "requirement_id": "qdr_373a40d5d5ac3032",
+      "content_identity": "qcovc_8debdd9824566a94",
+      "coverage_assessment_id": "qcov_e664d0ad2a740e5a",
+      "decision": "COVERAGE_READY",
+      "highest_admissible_tier": "LOCKED_OOS_VALIDATION",
+      "requirement_id": "qdr_9d27942249b80606",
       "rows": [
         {
           "PIT_blockers": [],
-          "available_end": "2026-07-01T00:00:00Z",
-          "available_start": "2026-04-04T00:00:00Z",
-          "complete_bar_end": "2026-07-01T00:00:00Z",
-          "conflicting_row_count": 7,
+          "available_end": "2026-07-02T00:00:00Z",
+          "available_start": "2026-01-04T00:00:00Z",
+          "complete_bar_end": "2026-07-02T00:00:00Z",
+          "conflicting_row_count": 0,
           "corporate_action_blockers": [],
-          "dataset_id": "qds_f4903471c672fd2f",
-          "dataset_path": "data/cache/market/yfinance__ETH-EUR__1d__20260404__20260411__b87d3721971a605d.parquet",
-          "decision": "EXTERNAL_DATA_BOUNDARY",
+          "dataset_id": "yfinance|ETH-EUR|1d",
+          "dataset_path": "data/cache/market/yfinance__ETH-EUR__1d__20260104__20260703__8da9c4720ceeec42.parquet",
+          "dataset_snapshot_id": "qdsnap_7bc0291180909324",
+          "decision": "COVERAGE_READY",
           "duplicate_ranges": [],
-          "estimated_activity": 1,
-          "expected_bar_count": 89,
+          "estimated_activity": 4,
+          "expected_bar_count": null,
           "identity_blockers": [],
           "instrument": "ETH-EUR",
           "invalid_ranges": [],
           "missing_ranges": [],
-          "overlapping_row_count": 5063,
-          "quality_blockers": [
-            "source_quality_not_research_ready"
-          ],
-          "raw_row_count": 5139,
-          "reason_codes": [
-            "conflicting_canonical_bars"
-          ],
-          "row_count": 69,
+          "overlapping_row_count": 0,
+          "quality_blockers": [],
+          "raw_row_count": 180,
+          "reason_codes": [],
+          "row_count": 180,
           "session_blockers": [],
+          "source_tier": "SOURCE_SCREENING_ELIGIBLE",
           "timeframe": "1d",
-          "unique_bar_count": 69,
-          "window_capacity": {
-            "locked_oos_ready": true,
-            "minimum_oos_days": 0,
-            "minimum_train_days": 0,
-            "minimum_validation_days": 0,
-            "policy_timeframe": "1d",
-            "raw_history_rows": 5139,
-            "span_days": 88,
-            "unique_history_rows": 69,
-            "validation_ready": true
-          }
+          "unique_bar_count": 180,
+          "window_capacity": {}
         }
       ],
-      "universe_plan_id": "qup_6001b48b51d37c8c"
+      "universe_plan_id": "qup_0d67840007112ba6"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

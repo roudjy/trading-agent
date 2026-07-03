@@ -3,7 +3,7 @@
     {
       "complexity": 0.7,
       "confounder_coverage": 0.7,
-      "content_identity": "qasc_d4874d80b4aa8cf3",
+      "content_identity": "qasc_7f674bec7b705d97",
       "data_feasibility": 0.9,
       "estimated_compute_cost": 0.7,
       "executor_readiness": 0.85,
@@ -11,7 +11,7 @@
       "expected_information_gain": 0.8,
       "falsifiability": 0.82,
       "hard_blockers": [],
-      "hypothesis_id": "qah_2fce2b335aa0af4c",
+      "hypothesis_id": "qah_add593d92dfe5c0a",
       "identity_readiness": 0.45,
       "leakage_safety": 0.8,
       "mechanistic_clarity": 0.88,
@@ -37,7 +37,7 @@
     {
       "complexity": 0.7,
       "confounder_coverage": 0.7,
-      "content_identity": "qasc_f044639d068d3777",
+      "content_identity": "qasc_d456de96d833dd68",
       "data_feasibility": 0.9,
       "estimated_compute_cost": 0.8,
       "executor_readiness": 0.85,
@@ -45,7 +45,7 @@
       "expected_information_gain": 0.8,
       "falsifiability": 0.82,
       "hard_blockers": [],
-      "hypothesis_id": "qah_0f2b68609264343f",
+      "hypothesis_id": "qah_a07b837d05295dee",
       "identity_readiness": 0.45,
       "leakage_safety": 0.8,
       "mechanistic_clarity": 0.88,
@@ -73,7 +73,7 @@
     {
       "complexity": 0.7,
       "confounder_coverage": 0.7,
-      "content_identity": "qasc_f3bbcf78657f7df0",
+      "content_identity": "qasc_e8ff99e928adcd41",
       "data_feasibility": 0.9,
       "estimated_compute_cost": 0.8,
       "executor_readiness": 0.85,
@@ -81,7 +81,7 @@
       "expected_information_gain": 0.8,
       "falsifiability": 0.82,
       "hard_blockers": [],
-      "hypothesis_id": "qah_50bd8a85af84d666",
+      "hypothesis_id": "qah_1631f6b12a9d62a9",
       "identity_readiness": 0.45,
       "leakage_safety": 0.8,
       "mechanistic_clarity": 0.88,
@@ -106,41 +106,7 @@
         "the",
         "tighten falsification condition"
       ]
-    },
-    {
-      "complexity": 0.7,
-      "confounder_coverage": 0.7,
-      "content_identity": "qasc_34b6f29192fb2d59",
-      "data_feasibility": 0.9,
-      "estimated_compute_cost": 0.8,
-      "executor_readiness": 0.85,
-      "expected_decisiveness": 0.65,
-      "expected_information_gain": 0.8,
-      "falsifiability": 0.82,
-      "hard_blockers": [],
-      "hypothesis_id": "qah_818ba1e900c0294a",
-      "identity_readiness": 0.45,
-      "leakage_safety": 0.8,
-      "mechanistic_clarity": 0.88,
-      "novelty": 0.6,
-      "observation_grounding": 0.9,
-      "overall_score": 86.19,
-      "portfolio_orthogonality": 0.6,
-      "primitive_readiness": 0.95,
-      "prior_failure_distance": 0.5,
-      "reason_codes": [
-        "add explicit market-beta control",
-        "benchmark",
-        "concentration",
-        "dispersion",
-        "drift",
-        "generic",
-        "is",
-        "leadership",
-        "plus",
-        "tighten falsification condition"
-      ]
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

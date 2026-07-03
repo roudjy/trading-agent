@@ -6,10 +6,10 @@
         "explicit_cost_falsification"
       ],
       "changes_rejected": [],
-      "content_identity": "qahrv_92a6dd5d40b16641",
+      "content_identity": "qahrv_1adf44d4bb80093f",
       "critique_id": "qac_eed8b043f9c1d94a",
       "original_hypothesis_id": "qah_50812603a540b70b",
-      "revised_hypothesis_id": "qah_2fce2b335aa0af4c"
+      "revised_hypothesis_id": "qah_add593d92dfe5c0a"
     },
     {
       "changes_applied": [
@@ -17,10 +17,10 @@
         "explicit_cost_falsification"
       ],
       "changes_rejected": [],
-      "content_identity": "qahrv_fb16b009d9a42582",
+      "content_identity": "qahrv_dc5105a61ab091b8",
       "critique_id": "qac_6ecc8d6f1a37464d",
       "original_hypothesis_id": "qah_c60403deaeb32fd0",
-      "revised_hypothesis_id": "qah_0f2b68609264343f"
+      "revised_hypothesis_id": "qah_a07b837d05295dee"
     },
     {
       "changes_applied": [
@@ -28,22 +28,11 @@
         "explicit_cost_falsification"
       ],
       "changes_rejected": [],
-      "content_identity": "qahrv_1fbe7d5c9196d8ec",
+      "content_identity": "qahrv_227644d0f935cd2e",
       "critique_id": "qac_6be5d515d3b78f21",
       "original_hypothesis_id": "qah_8ce7620ce07d4256",
-      "revised_hypothesis_id": "qah_50bd8a85af84d666"
-    },
-    {
-      "changes_applied": [
-        "regime_conditioning",
-        "explicit_cost_falsification"
-      ],
-      "changes_rejected": [],
-      "content_identity": "qahrv_48e0e4752405bced",
-      "critique_id": "qac_042357ecbaf9f55f",
-      "original_hypothesis_id": "qah_3284b5d99e05ef1b",
-      "revised_hypothesis_id": "qah_818ba1e900c0294a"
+      "revised_hypothesis_id": "qah_1631f6b12a9d62a9"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

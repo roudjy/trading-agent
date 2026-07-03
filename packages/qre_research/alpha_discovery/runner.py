@@ -4,6 +4,7 @@ import importlib
 import json
 import os
 import tempfile
+import threading
 from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import asdict
@@ -15,7 +16,16 @@ import pandas as pd
 from packages.qre_data.dataset_catalog import materialize_data_truth
 from packages.qre_research.generated_strategy_paths import validate_write_target
 
-from .acquisition import execute_acquisition_once, throughput_snapshot
+from .acquisition import _screening_slippage_model, execute_acquisition_once, throughput_snapshot
+from .capability_loop import (
+    BLOCKED_EXPERIMENTS_PATH,
+    GAP_REGISTRY_PATH,
+    RESOLUTION_FEEDBACK_PATH,
+    build_gap_from_admission,
+    consume_resolution_feedback as consume_capability_resolution_feedback,
+    persist_gap_state,
+    route_code_gaps_to_ade,
+)
 from .contracts import (
     EXECUTION_TIER_COMPILER_ONLY,
     EXECUTION_TIER_EMPIRICAL_SCREENING,
@@ -53,6 +63,8 @@ from .providers import (
     MultiProviderHypothesisProvider,
 )
 from .source_qualification import qualify_datasets, reconcile_source_policy
+from .source_resolution import SOURCE_RESOLUTION_PATH, persist_source_resolution, resolve_source
+from .snapshot_lineage import REVISIONS_PATH, SNAPSHOT_LINEAGE_PATH, load_snapshot_lineage, materialize_snapshot_lineage
 from .strategy_compiler import build_alignment, build_strategy_spec, compile_strategy_spec
 from .strategy_ir import ConditionNode, ControlNode, FeatureNode, PortfolioRule, SignalNode
 from .universe_planner import plan_universe
@@ -77,6 +89,7 @@ LESSONS_PATH = OUTPUT_ROOT / "lessons" / "latest.json"
 REASSESSMENTS_PATH = OUTPUT_ROOT / "reassessments" / "latest.json"
 SOURCE_POLICY_PATH = OUTPUT_ROOT / "source_policy" / "latest.json"
 SOURCE_QUALIFICATIONS_PATH = OUTPUT_ROOT / "source_qualifications" / "latest.json"
+SOURCE_RESOLUTION_ARTIFACT_PATH = OUTPUT_ROOT / "source_resolution" / "latest.json"
 SEARCH_LEDGER_PATH = OUTPUT_ROOT / "search_ledger" / "latest.json"
 DISCOVERY_VIEW_PATH = OUTPUT_ROOT / "views" / "discovery_latest.json"
 VALIDATION_VIEW_PATH = OUTPUT_ROOT / "views" / "validation_latest.json"
@@ -434,7 +447,38 @@ def _run_empirical_campaign_via_canonical_orchestrator(
         timeframe=str(selected_row.get("timeframe") or experiment.timeframe),
     )
     module = importlib.import_module("research.run_research")
-    module.run_research(preset_override=preset_override)
+    holder: dict[str, Any] = {}
+
+    def _invoke() -> None:
+        try:
+            holder["value"] = module.run_research(preset_override=preset_override)
+        except BaseException as exc:  # noqa: BLE001
+            holder["error"] = exc
+
+    worker = threading.Thread(target=_invoke, daemon=True)
+    worker.start()
+    worker.join(timeout=120)
+    if worker.is_alive():
+        return {
+            "summary": {"totaal_trades": 0, "net_return_compound": 0.0, "gross_return_compound": 0.0, "goedgekeurd": False},
+            "execution_tier": data_plan.admissible_execution_tier,
+            "canonical_orchestrator": "research.run_research.run_research",
+            "preset_override": preset_override.name,
+            "selected_instrument": str(selected_row.get("instrument") or ""),
+            "selected_timeframe": str(selected_row.get("timeframe") or ""),
+            "timeout_seconds": 120,
+            "bounded_timeout": True,
+        }
+    if "error" in holder:
+        return {
+            "summary": {"totaal_trades": 0, "net_return_compound": 0.0, "gross_return_compound": 0.0, "goedgekeurd": False},
+            "execution_tier": data_plan.admissible_execution_tier,
+            "canonical_orchestrator": "research.run_research.run_research",
+            "preset_override": preset_override.name,
+            "selected_instrument": str(selected_row.get("instrument") or ""),
+            "selected_timeframe": str(selected_row.get("timeframe") or ""),
+            "error": type(holder["error"]).__name__,
+        }
     return {
         "summary": {"totaal_trades": 0, "net_return_compound": 0.0, "gross_return_compound": 0.0, "goedgekeurd": False},
         "execution_tier": data_plan.admissible_execution_tier,
@@ -646,16 +690,44 @@ def run_alpha_discovery_mvp(
     experiment = planner.plan(selected, requested_execution_tier=requested_execution_tier) if selected is not None else None
     data_truth = materialize_data_truth(repo_root)
     source_policy = reconcile_source_policy(repo_root=repo_root, dataset_catalog=data_truth["catalog"])
-    source_qualifications = qualify_datasets(dataset_catalog=data_truth["catalog"], policy_reconciliation=source_policy)
+    snapshot_lineage = load_snapshot_lineage(repo_root)
+    source_qualifications = qualify_datasets(repo_root=repo_root, dataset_catalog=data_truth["catalog"], policy_reconciliation=source_policy)
     universe_plan = plan_universe(repo_root=repo_root, experiment=experiment, catalog=data_truth["catalog"]) if experiment is not None else None
     data_requirement = build_data_requirement(experiment, universe_plan) if experiment is not None and universe_plan is not None else None
     data_plan = coverage = acquisition = None
+    source_resolution = None
     if data_requirement is not None and universe_plan is not None:
         data_plan, coverage, acquisition, data_truth, universe_plan = resolve_data_plan(
             repo_root,
             data_requirement,
             universe_plan=universe_plan,
         )
+        source_resolution = resolve_source(
+            repo_root=repo_root,
+            requirement=data_requirement,
+            target_source_tier="SOURCE_SCREENING_ELIGIBLE" if requested_execution_tier != EXECUTION_TIER_EXECUTOR_SMOKE else "SOURCE_SMOKE_ONLY",
+        )
+        persist_source_resolution(repo_root=repo_root, resolution=source_resolution)
+        if (
+            not dry_run
+            and acquisition is not None
+            and source_resolution is not None
+            and source_resolution.automatic_actions_allowed
+            and coverage is not None
+            and coverage.decision in {"COVERAGE_PARTIAL_FETCHABLE", "EXTERNAL_DATA_BOUNDARY"}
+        ):
+            execute_acquisition_once(repo_root=repo_root, plan=acquisition)
+            data_plan, coverage, acquisition, data_truth, universe_plan = resolve_data_plan(
+                repo_root,
+                data_requirement,
+                universe_plan=universe_plan,
+            )
+            source_resolution = resolve_source(
+                repo_root=repo_root,
+                requirement=data_requirement,
+                target_source_tier="SOURCE_SCREENING_ELIGIBLE" if requested_execution_tier != EXECUTION_TIER_EXECUTOR_SMOKE else "SOURCE_SMOKE_ONLY",
+            )
+            persist_source_resolution(repo_root=repo_root, resolution=source_resolution)
     compiled = None
     strategy_spec = None
     alignment = None
@@ -663,6 +735,10 @@ def run_alpha_discovery_mvp(
     campaign_evidence: CampaignEvidence | None = None
     assessment: EvidenceAssessment | None = None
     lesson: ResearchLesson | None = None
+    gap_rows = []
+    blocked_rows = []
+    ade_requests = None
+    resolution_feedback = None
     terminal_disposition = "NO_NOVEL_HYPOTHESIS"
     campaign_id = None
     ingestion_telemetry = None
@@ -671,6 +747,12 @@ def run_alpha_discovery_mvp(
     locked_oos_view = None
     if selected is not None and experiment is not None and data_plan is not None and coverage is not None and acquisition is not None:
         compiled, strategy_spec, alignment = _build_strategy_artifact(selected)
+        if requested_execution_tier != EXECUTION_TIER_EXECUTOR_SMOKE and experiment.slippage_model == "canonical_zero_slippage_proxy":
+            slippage_model = _screening_slippage_model(
+                symbol=str((universe_plan.resolved_assets or ("AAPL",))[0]),
+                timeframe=experiment.timeframe,
+            )
+            experiment = experiment.__class__(**{**asdict(experiment), "slippage_model": slippage_model.slippage_model_id})
         validation_view = build_validation_view(
             experiment_id=experiment.experiment_id,
             strategy_spec_id=strategy_spec.strategy_spec_id,
@@ -691,7 +773,27 @@ def run_alpha_discovery_mvp(
             alignment=alignment,
             requested_execution_tier=requested_execution_tier,
         )
-        ingestion_telemetry = execute_acquisition_once(repo_root=repo_root, plan=acquisition)
+        if dry_run:
+            ingestion_telemetry = {
+                "provider_calls": 0,
+                "provider_calls_avoided": int(acquisition.estimated_calls or 0),
+                "rows_downloaded": 0,
+                "rows_reused": 0,
+                "rows_rejected": 0,
+                "incomplete_bars_excluded": 0,
+                "duplicates_rejected": 0,
+                "gaps_detected": 0,
+                "partial_failures": 0,
+                "atomic_commit": True,
+                "fingerprints_before": [],
+                "fingerprints_after": [],
+                "external_boundary": acquisition.external_boundary,
+                "source_selection_decision": acquisition.source_selection_decision,
+                "content_identity": content_id("qdracq", acquisition.content_identity),
+                "cache_hit_rate": 1.0,
+            }
+        else:
+            ingestion_telemetry = execute_acquisition_once(repo_root=repo_root, plan=acquisition)
         throughput = throughput_snapshot(catalog=data_truth["catalog"], telemetry=ingestion_telemetry)
         if compiled["status"] != "VERIFIED":
             terminal_disposition = "POLICY_BLOCKED"
@@ -739,6 +841,20 @@ def run_alpha_discovery_mvp(
             terminal_disposition = "STOPPED_PIT_BOUNDARY"
         else:
             terminal_disposition = "STOPPED_EXTERNAL_DATA_BOUNDARY"
+        if admission.decision not in {"ADMIT_EMPIRICAL_SCREENING", "ADMIT_LOCKED_OOS_VALIDATION"}:
+            gap_rows, blocked_rows = build_gap_from_admission(
+                experiment_id=experiment.experiment_id,
+                hypothesis_id=selected.hypothesis_id,
+                strategy_spec_id=strategy_spec.strategy_spec_id,
+                preregistration_id=experiment.experiment_id,
+                admission=admission,
+                source_resolution=source_resolution,
+                blocking_stage="EXECUTE",
+            )
+            if gap_rows or blocked_rows:
+                gap_state = persist_gap_state(repo_root=repo_root, gaps=gap_rows, blocked=blocked_rows)
+                ade_requests = route_code_gaps_to_ade(repo_root=repo_root, gap_payload=gap_state["gaps"], run_id=content_id("qar", {"experiment": experiment.experiment_id, "selected": selected.hypothesis_id}))
+                resolution_feedback = consume_capability_resolution_feedback(repo_root=repo_root)
 
     budget_usage = RunBudgetUsage(
         observation_snapshots=1,
@@ -805,6 +921,8 @@ def run_alpha_discovery_mvp(
         "unselected_hypothesis_reasons": unselected,
         "five_row_inventory_root_cause": data_truth["census"]["root_cause"] if isinstance(data_truth, dict) and "census" in data_truth else None,
         "throughput": throughput,
+        "gap_ids": [row.gap_id for row in gap_rows],
+        "blocked_experiment_ids": [row.experiment_id for row in blocked_rows],
     }
     artifacts = {
         "observation": observation.to_payload(),
@@ -827,7 +945,14 @@ def run_alpha_discovery_mvp(
         "reassessments": reassessments,
         "source_policy": source_policy,
         "source_qualifications": source_qualifications,
+        "source_resolution": asdict(source_resolution) if source_resolution is not None else None,
+        "snapshot_lineage": snapshot_lineage["snapshot_lineage"],
+        "snapshot_revisions": snapshot_lineage["revisions"],
         "search_ledger": asdict(search_ledger),
+        "capability_gaps": {"rows": [asdict(row) for row in gap_rows]},
+        "blocked_experiments": {"rows": [asdict(row) for row in blocked_rows]},
+        "ade_requests": ade_requests["requests"] if isinstance(ade_requests, dict) and "requests" in ade_requests else None,
+        "resolution_feedback": resolution_feedback,
         "discovery_view": discovery_view,
         "validation_view": validation_view,
         "locked_oos_view": locked_oos_view,
@@ -879,7 +1004,13 @@ def run_alpha_discovery_mvp(
         "reassessments": _write_artifact(REASSESSMENTS_PATH, reassessments, repo_root=repo_root),
         "source_policy": _write_artifact(SOURCE_POLICY_PATH, source_policy, repo_root=repo_root),
         "source_qualifications": _write_artifact(SOURCE_QUALIFICATIONS_PATH, source_qualifications, repo_root=repo_root),
+        "source_resolution": _write_artifact(SOURCE_RESOLUTION_ARTIFACT_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["source_resolution"]] if artifacts["source_resolution"] else []}, repo_root=repo_root),
+        "snapshot_lineage": (repo_root / SNAPSHOT_LINEAGE_PATH).as_posix(),
+        "snapshot_revisions": (repo_root / REVISIONS_PATH).as_posix(),
         "search_ledger": _write_artifact(SEARCH_LEDGER_PATH, {"schema_version": SCHEMA_VERSION, "policy_version": POLICY_VERSION, "report_kind": "qre_alpha_search_ledger", "ledger": artifacts["search_ledger"]}, repo_root=repo_root),
+        "capability_gaps": _write_artifact(GAP_REGISTRY_PATH, {"schema_version": SCHEMA_VERSION, "rows": artifacts["capability_gaps"]["rows"]}, repo_root=repo_root),
+        "blocked_experiments": _write_artifact(BLOCKED_EXPERIMENTS_PATH, {"schema_version": SCHEMA_VERSION, "rows": artifacts["blocked_experiments"]["rows"]}, repo_root=repo_root),
+        "resolution_feedback": _write_artifact(RESOLUTION_FEEDBACK_PATH, artifacts["resolution_feedback"] or {"schema_version": SCHEMA_VERSION, "rows": []}, repo_root=repo_root),
         "discovery_view": _write_artifact(DISCOVERY_VIEW_PATH, {"schema_version": SCHEMA_VERSION, "policy_version": POLICY_VERSION, "report_kind": "qre_alpha_discovery_view", "view": discovery_view}, repo_root=repo_root),
         "runs": _write_artifact(RUNS_PATH, artifacts["runs"], repo_root=repo_root),
         "status": _write_artifact(STATUS_PATH, artifacts["status"], repo_root=repo_root),

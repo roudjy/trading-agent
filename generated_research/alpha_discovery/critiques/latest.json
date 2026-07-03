@@ -149,57 +149,7 @@
       "survivorship_bias_risks": [
         "single surviving series can overstate stability"
       ]
-    },
-    {
-      "activity_risks": [
-        "expected signal density may remain too low"
-      ],
-      "alternative_explanations": [
-        "alternative risk premium",
-        "market beta",
-        "regime shift"
-      ],
-      "content_identity": "qacp_f34dbd7752a9bf9d",
-      "cost_risks": [
-        "costs can erase thin effects"
-      ],
-      "critique_id": "qac_042357ecbaf9f55f",
-      "data_feasibility_risks": [
-        "history may remain insufficient for decisive screening"
-      ],
-      "data_leakage_risks": [
-        "discovery-only data must remain frozen before validation"
-      ],
-      "executor_gaps": [],
-      "fatal_objections": [],
-      "hypothesis_id": "qah_3284b5d99e05ef1b",
-      "mechanism_weaknesses": [
-        "cross-sectional separation may be market beta in disguise."
-      ],
-      "missing_confounders": [
-        "cost drag",
-        "selection bias",
-        "data quality"
-      ],
-      "overfitting_risks": [
-        "multiple hypothesis generation increases search risk"
-      ],
-      "primitive_gaps": [],
-      "required_repairs": [
-        "add explicit market-beta control",
-        "tighten falsification condition"
-      ],
-      "selection_bias_risks": [
-        "cache-visible assets can bias proposal generation"
-      ],
-      "semantic_duplicate_risks": [
-        "same mechanism under different phrasing"
-      ],
-      "strongest_counter_hypothesis": "leadership dispersion is generic drift plus benchmark concentration",
-      "survivorship_bias_risks": [
-        "single surviving series can overstate stability"
-      ]
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

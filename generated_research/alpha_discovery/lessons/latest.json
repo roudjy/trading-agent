@@ -1,45 +1,46 @@
 {
   "lesson": {
-    "actionable_cause": "route future runs through evidence-grade admission",
-    "campaign_id": "qcam_55bd8d2a900daada",
-    "content_identity": "qrlp_c98a87f54cf6c8dd",
+    "actionable_cause": "obtain evidence-grade data without weakening thresholds",
+    "campaign_id": "qcam_00498b2704a7deef",
+    "content_identity": "qrlp_2ad0840871fb7f77",
     "decisive_evidence": [],
     "do_not_repeat": [
       "do not rerun the same unchanged contract"
     ],
-    "experiment_id": "qexp_3ebcac17e5d1f228",
+    "experiment_id": "qexp_7e21c050e448d71a",
     "failure_mode": "insufficient_activity",
     "generator_constraints": [
       "max_three_hypotheses",
       "max_one_rewrite",
       "no_oos_selection"
     ],
-    "hypothesis_id": "qah_56279ba7fa7a26d4",
-    "lesson_id": "qrl_23fc56b9e0af8849",
-    "lesson_type": "PROCESS_LESSON",
-    "mechanism_contradicted": "not_evaluable",
-    "mechanism_supported": "not_evaluable",
+    "hypothesis_id": "qah_a07b837d05295dee",
+    "lesson_id": "qrl_4e0231d784e6103e",
+    "lesson_type": "DATA_LESSON",
+    "mechanism_contradicted": "uncertain",
+    "mechanism_supported": "inconclusive",
     "new_falsification_requirements": [
       "require explicit cost comparison",
       "require regime-neutral null"
     ],
-    "non_actionable_cause": "executor smoke does not imply mechanism evidence",
+    "non_actionable_cause": "insufficient data cannot lower a mechanism prior",
     "prior_adjustment_allowed": false,
     "prior_adjustment_basis": "INSUFFICIENT_EMPIRICAL_EVIDENCE",
     "prior_adjustments": [],
-    "recommended_next_question": "obtain evidence-grade data before empirical screening",
-    "strategy_spec_id": "qss_66f5c3993eb6429c",
+    "recommended_next_question": "obtain more history or a broader justified universe",
+    "strategy_spec_id": "qss_abbd7479b113b04c",
     "supporting_artifact_refs": [
-      "qaea_4d9b589a5732d26d"
+      "qaea_35de961da1651c88"
     ],
     "terminal_disposition": "NEEDS_MORE_EVIDENCE",
     "unresolved_uncertainty": [
-      "no_empirical_authority"
+      "null_insufficient",
+      "mechanism_not_decidable"
     ]
   },
-  "policy_version": "qre_alpha_discovery_followup_pr1_v1",
-  "prior_fingerprint": "b6a74ec5b041a6f99e3fb67b919e5613fa4c168a3bf1f182e3fcc4115ca7aa3d",
+  "policy_version": "qre_alpha_discovery_followup_pr4_v1",
+  "prior_fingerprint": "d91d965084bdad45ec93f86046868eb5562ab92051d04a484c1ce7f17f4ecf56",
   "report_kind": "qre_alpha_discovery_lesson",
-  "schema_version": "1.1",
-  "selected_hypothesis_id": "qah_56279ba7fa7a26d4"
+  "schema_version": "1.2",
+  "selected_hypothesis_id": "qah_a07b837d05295dee"
 }

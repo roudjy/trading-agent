@@ -472,7 +472,18 @@ def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
         raise
 
 
-def materialize_data_truth(repo_root: Path) -> dict[str, Any]:
+def materialize_data_truth(repo_root: Path, *, force_refresh: bool = False) -> dict[str, Any]:
+    if not force_refresh:
+        cached = {
+            "census": _read_json(repo_root / CENSUS_PATH),
+            "catalog": _read_json(repo_root / CATALOG_PATH),
+            "reconciliation": _read_json(repo_root / RECONCILIATION_PATH),
+            "baseline_policy": _read_json(repo_root / BASELINE_POLICY_PATH),
+            "status": _read_json(repo_root / STATUS_PATH),
+            "unique_bar_integrity": _read_json(repo_root / UNIQUE_BAR_INTEGRITY_PATH),
+        }
+        if all(isinstance(value, dict) and value for value in cached.values()):
+            return cached
     census = build_data_census(repo_root)
     catalog = {
         "schema_version": SCHEMA_VERSION,
@@ -542,7 +553,7 @@ def load_catalog(repo_root: Path) -> dict[str, Any]:
     payload = _read_json(repo_root / CATALOG_PATH)
     if isinstance(payload, dict) and payload.get("datasets"):
         return payload
-    return materialize_data_truth(repo_root)["catalog"]
+    return materialize_data_truth(repo_root, force_refresh=True)["catalog"]
 
 
 __all__ = [

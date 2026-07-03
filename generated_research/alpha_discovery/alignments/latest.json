@@ -2,17 +2,17 @@
   "rows": [
     {
       "alignment_status": "ALIGNED",
-      "content_identity": "qmai_9498700c69141ff4",
+      "content_identity": "qmai_a8c8cb6c4b2e8608",
       "control_alignment": "ALIGNED",
       "falsification_alignment": "ALIGNED",
       "holding_horizon_alignment": "ALIGNED",
-      "predicted_observable": "regime_conditioned_follow_up",
+      "predicted_observable": "trend_continuation",
       "reason_codes": [],
-      "regime_alignment": "ALIGNED",
+      "regime_alignment": "PARTIALLY_ALIGNED",
       "signal_alignment": "ALIGNED",
-      "strategy_observable": "compression_ratio,trend_anchor_delta",
+      "strategy_observable": "normalized_trend_move,trend_anchor,trend_anchor_delta",
       "universe_alignment": "ALIGNED"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

@@ -36,6 +36,10 @@ def _aaq() -> Any:
     return importlib.import_module("packages.qre_research.alpha_discovery.acquisition")
 
 
+def _qrs() -> Any:
+    return importlib.import_module("reporting.qre_research_supervisor")
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.is_file():
         return None
@@ -175,6 +179,15 @@ def _build_parser() -> argparse.ArgumentParser:
     data_acquire.add_argument("--max-api-calls", type=int, default=100)
     data_acquire.add_argument("--max-download-bytes", type=int, default=0)
     data_acquire.add_argument("--dry-run", action="store_true")
+
+    supervisor = sub.add_parser("alpha-supervisor")
+    supervisor.add_argument("--run-once", action="store_true")
+    supervisor.add_argument("--loop", action="store_true")
+    supervisor.add_argument("--status", action="store_true")
+    supervisor.add_argument("--healthcheck", action="store_true")
+    supervisor.add_argument("--dry-run", action="store_true")
+    supervisor.add_argument("--interval-seconds", type=int, default=300)
+    supervisor.add_argument("--max-iterations", type=int, default=1)
 
     sub.add_parser("pause")
     sub.add_parser("resume")
@@ -363,6 +376,26 @@ def main(argv: list[str] | None = None) -> int:
             },
             indent=indent,
         )
+        return 0
+
+    if args.command == "alpha-supervisor":
+        qrs = _qrs()
+        payload = qrs.main(
+            [
+                *([] if not args.run_once else ["--run-once"]),
+                *([] if not args.loop else ["--loop"]),
+                *([] if not args.status else ["--status"]),
+                *([] if not args.healthcheck else ["--healthcheck"]),
+                *([] if not args.dry_run else ["--dry-run"]),
+                "--interval-seconds",
+                str(int(args.interval_seconds or 300)),
+                "--max-iterations",
+                str(int(args.max_iterations or 1)),
+            ]
+        )
+        if isinstance(payload, int):
+            return payload
+        _print_json(payload, indent=indent)
         return 0
 
     if args.command == "pause":

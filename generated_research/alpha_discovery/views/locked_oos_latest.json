@@ -1,10 +1,10 @@
 {
-  "policy_version": "qre_alpha_discovery_followup_pr1_v1",
+  "policy_version": "qre_alpha_discovery_followup_pr4_v1",
   "report_kind": "qre_alpha_locked_oos_view",
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "view": {
     "access_policy": "canonical_orchestrator_only",
-    "experiment_id": "qexp_f5cca6e42955f345",
-    "strategy_spec_id": "qss_14085b9d9ba748ae"
+    "experiment_id": "qexp_7e21c050e448d71a",
+    "strategy_spec_id": "qss_abbd7479b113b04c"
   }
 }

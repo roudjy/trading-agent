@@ -1,4 +1,52 @@
 {
-  "rows": [],
-  "schema_version": "1.1"
+  "rows": [
+    {
+      "OOS_outcome": "INCONCLUSIVE",
+      "OOS_presence": "NOT_AVAILABLE",
+      "OOS_sufficiency": "INSUFFICIENT",
+      "activity_effect": "activity_insufficient",
+      "assessment_id": "qaea_4b0f9bcc8674bb8b",
+      "asset_effect": "single_asset_liquid_cache_universe",
+      "campaign_id": "qcam_00498b2704a7deef",
+      "confidence_update": "UNCHANGED",
+      "content_identity": "qaea_35de961da1651c88",
+      "contradicting_evidence": [
+        "insufficient_activity"
+      ],
+      "cost_effect": "costs_included_in_backtest",
+      "cost_presence": "AVAILABLE",
+      "cost_sufficiency": "SUFFICIENT",
+      "empirical": true,
+      "evidence_grade": "empirical",
+      "execution_tier": "LOCKED_OOS_VALIDATION",
+      "experiment_id": "qexp_7e21c050e448d71a",
+      "fragility_effect": "fragile",
+      "hypothesis_id": "qah_a07b837d05295dee",
+      "inconclusive_evidence": [
+        "null_insufficient",
+        "mechanism_not_decidable"
+      ],
+      "mechanism_support_outcome": "INCONCLUSIVE",
+      "null_applicability": "EVALUABLE",
+      "null_outcome": "INCONCLUSIVE",
+      "null_presence": "AVAILABLE",
+      "null_sufficiency": "INSUFFICIENT",
+      "outlier_effect": "unknown",
+      "prediction_tested": "positive continuation over the next few bars",
+      "prior_adjustment_allowed": false,
+      "prior_adjustment_basis": "INSUFFICIENT_EMPIRICAL_EVIDENCE",
+      "qualifying_evidence_refs": [],
+      "reason_codes": [
+        "insufficient_activity",
+        "mechanism_not_decidable",
+        "null_insufficient"
+      ],
+      "regime_effect": "single_asset_liquid_cache_universe",
+      "slippage_presence": "AVAILABLE",
+      "slippage_sufficiency": "SUFFICIENT",
+      "supporting_evidence": [],
+      "terminal_disposition": "NEEDS_MORE_EVIDENCE"
+    }
+  ],
+  "schema_version": "1.2"
 }

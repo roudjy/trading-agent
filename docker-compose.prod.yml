@@ -23,5 +23,9 @@ services:
     image: ghcr.io/roudjy/trading-agent-dashboard:${IMAGE_TAG:-latest}
     pull_policy: always
 
+  qre-research-supervisor:
+    image: ghcr.io/roudjy/trading-agent-agent:${IMAGE_TAG:-latest}
+    pull_policy: always
+
   # nginx + ops config files are mounted from the repo checkout on the VPS;
   # no image override needed.

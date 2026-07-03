@@ -38,6 +38,8 @@ Status: completed by `feat/qre-source-certification-alpha-intelligence`
 
 ## PR 4 - Research Capability Loop and Linux Supervisor
 
+Status: completed by `feat/qre-capability-loop-linux-supervisor`
+
 - generic missing-primitive ADE requests
 - bounded research-only implementation lane
 - experiment resumption
@@ -50,5 +52,6 @@ Status: completed by `feat/qre-source-certification-alpha-intelligence`
 - Follow-up PR 1 is complete
 - Follow-up PR 2 is complete
 - Follow-up PR 3 is complete
+- Follow-up PR 4 is complete
 - exactly four follow-up PRs are defined
 - no fifth PR is proposed

@@ -6,7 +6,7 @@
       "corporate_actions_required": false,
       "excluded_assets": [],
       "exclusion_reasons": [],
-      "experiment_id": "qexp_f5cca6e42955f345",
+      "experiment_id": "qexp_7e21c050e448d71a",
       "final_universe_decision": "UNIVERSE_READY",
       "identity_requirements": "resolved_identity",
       "liquidity_requirements": "baseline_corpus_liquid_only",
@@ -26,9 +26,9 @@
       "session_calendar_required": true,
       "survivorship_bias_status": "PIT_NOT_REQUIRED",
       "target_assets": 1,
-      "universe_plan_id": "qup_6001b48b51d37c8c",
+      "universe_plan_id": "qup_0d67840007112ba6",
       "universe_type": "SINGLE_INSTRUMENT"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

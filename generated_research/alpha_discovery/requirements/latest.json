@@ -3,11 +3,11 @@
     {
       "PIT_requirement": "PIT_NOT_REQUIRED",
       "base_timeframe": "1d",
-      "content_identity": "qdrp_e973bf1380071540",
+      "content_identity": "qdrp_b5ec038aa458a425",
       "corporate_action_requirement": "not_applicable_or_canonical",
       "cost_data_requirement": "canonical_fixed_cost_proxy",
       "embargo_requirement": "short embargo around boundary bars",
-      "experiment_id": "qexp_f5cca6e42955f345",
+      "experiment_id": "qexp_7e21c050e448d71a",
       "identity_policy": "identity_resolved_only",
       "instrument_requirements": [
         "ETH-EUR"
@@ -47,7 +47,7 @@
       "required_timeframes": [
         "1d"
       ],
-      "requirement_id": "qdr_373a40d5d5ac3032",
+      "requirement_id": "qdr_9d27942249b80606",
       "resolved_instrument_ids": [
         "ETH-EUR"
       ],
@@ -55,11 +55,11 @@
       "slippage_data_requirement": "canonical_zero_slippage_proxy",
       "target_assets": 1,
       "timeframe": "1d",
-      "universe_plan_id": "qup_6001b48b51d37c8c",
+      "universe_plan_id": "qup_0d67840007112ba6",
       "universe_selector": "single_asset_liquid_cache_universe",
       "validation_requirement": "validation split required for empirical screening and above",
       "warmup_requirement": "use primitive warmup requirements"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }
