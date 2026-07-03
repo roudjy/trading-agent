@@ -39,4 +39,3 @@ def test_provider_ensemble_is_deterministic_and_budgeted() -> None:
     assert [item.hypothesis_id for item in first] == [item.hypothesis_id for item in second]
     assert len(first) <= 4
     assert {item.provider_id for item in first}.issubset({"anomaly", "contradiction", "coverage"})
-

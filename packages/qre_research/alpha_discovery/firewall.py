@@ -38,4 +38,3 @@ def build_locked_oos_view(*, experiment_id: str, strategy_spec_id: str) -> dict[
         "strategy_spec_id": strategy_spec_id,
         "access_policy": "canonical_orchestrator_only",
     }
-

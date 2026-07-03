@@ -41,4 +41,3 @@ def test_manual_research_only_source_stays_blocked_even_with_ready_snapshot(tmp_
     assert policy["exact_cause"] in {"MANUAL_RESEARCH_ONLY_BY_DESIGN", "GLOBAL_VERSUS_CAMPAIGN_SCOPE"}
     assert row["allowed_evidence_tier"] == SOURCE_BLOCKED
     assert "global_policy_ceiling_manual_research_only" in row["reason_codes"]
-
