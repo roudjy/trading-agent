@@ -3,7 +3,7 @@
   "behavior_family_coverage": {
     "resolved_strategy_count": 14
   },
-  "content_identity": "qos_41c52fbff6230667",
+  "content_identity": "qos_a8df097bd3835e35",
   "cross_asset_diagnostics": {
     "status": "NOT_AVAILABLE"
   },
@@ -94,7 +94,7 @@
   ],
   "data_coverage": {
     "coverage_rows": 46,
-    "ready_rows": 0,
+    "ready_rows": 46,
     "research_ready": false
   },
   "executor_inventory": {
@@ -104,7 +104,16 @@
   },
   "identity_readiness": "not_ready",
   "market_diagnostics": {
-    "status": "NOT_AVAILABLE"
+    "asset": "unknown",
+    "close_max": 315.20001220703125,
+    "close_min": 258.8299865722656,
+    "content_identity": "qadm_5bbfb9ec7679b114",
+    "recent_return_mean": -0.005226995380080257,
+    "recent_trend": -13.772003173828125,
+    "recent_volatility": 0.01975447922703893,
+    "row_count": 51,
+    "status": "READY",
+    "timeframe": "1d"
   },
   "mechanism_coverage": {
     "from_evidence_snapshot": {
@@ -115,7 +124,7 @@
     },
     "opportunity_count": 4
   },
-  "observation_snapshot_id": "qos_41c52fbff6230667",
+  "observation_snapshot_id": "qos_a8df097bd3835e35",
   "policy_version": "qre_alpha_discovery_mvp_v2",
   "primitive_inventory": {
     "available_primitives": [
@@ -206,8 +215,8 @@
       "XOM|4h": "2026-06-04T17:30:00Z"
     },
     "regime_signature": [
-      "0.0",
-      "0.0"
+      "-13.7720",
+      "0.019754"
     ]
   },
   "relevant_research_memory": {

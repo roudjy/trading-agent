@@ -6,14 +6,14 @@ from typing import Any
 
 import pandas as pd
 
+from agent.backtesting.features import resolved_feature_registry
 from packages.qre_data import cache_manifest as cm
 from packages.qre_data import source_quality_readiness as sqr
-from agent.backtesting.features import resolved_feature_registry
+from packages.qre_data.dataset_catalog import materialize_data_truth
 from packages.qre_research import automated_hypothesis_generation as a20
 from packages.qre_research import research_memory as rm
-from packages.qre_research.generated_strategy_paths import REPO_ROOT
 
-from .contracts import DiscoveryContext, ObservationSnapshot, content_id, payload_identity, stable_digest
+from .contracts import DiscoveryContext, ObservationSnapshot, content_id, payload_identity
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -57,16 +57,11 @@ def _single_frame_diagnostics(repo_root: Path, rows: list[dict[str, Any]]) -> di
     if not rows:
         return {"status": "NOT_AVAILABLE"}
     row = rows[0]
-    rel_path = str(row.get("path") or "")
-    file_path = repo_root / rel_path
-    if not file_path.is_file():
-        return {"status": "NOT_AVAILABLE", "missing_path": rel_path}
-    try:
-        frame = pd.read_parquet(file_path)
-    except Exception as exc:
-        return {"status": "NOT_AVAILABLE", "error": str(exc)}
+    frame = row.get("__frame__")
+    if not isinstance(frame, pd.DataFrame) or frame.empty:
+        return {"status": "NOT_AVAILABLE", "missing_dataset_id": str(row.get("dataset_id") or "")}
+    frame = frame.copy()
     if "timestamp_utc" in frame.columns:
-        frame = frame.copy()
         frame["timestamp_utc"] = pd.to_datetime(frame["timestamp_utc"], utc=True)
         frame = frame.sort_values("timestamp_utc")
     close = frame["close"].astype(float) if "close" in frame.columns else pd.Series(dtype=float)
@@ -92,13 +87,25 @@ def build_observation_snapshot(context: DiscoveryContext) -> ObservationSnapshot
     repo_root = context.repo_root
     manifest = _load_manifest(repo_root)
     source_quality = _load_source_quality(repo_root, manifest)
+    data_truth = materialize_data_truth(repo_root)
     memory = _load_memory(repo_root)
-    coverage_rows = _latest_cov_rows(manifest)
-    selected_rows = [
-        row
-        for row in coverage_rows
-        if str(row.get("status") or "") == "ready" and str(row.get("source") or "")
-    ]
+    coverage_rows = [dict(row) for row in data_truth["catalog"].get("datasets") or [] if isinstance(row, dict)]
+    selected_rows = [row for row in coverage_rows if str(row.get("timeframe") or "") and str(row.get("source_id") or "")]
+    for row in selected_rows[:3]:
+        partitions = [str(item) for item in row.get("partition_refs") or [] if item]
+        frames: list[pd.DataFrame] = []
+        for rel_path in partitions:
+            path = repo_root / rel_path
+            if not path.is_file():
+                continue
+            frame = pd.read_parquet(path)
+            if "timestamp_utc" in frame.columns:
+                frame = frame.copy()
+                frame["timestamp_utc"] = pd.to_datetime(frame["timestamp_utc"], utc=True)
+            frames.append(frame)
+        if frames:
+            combined = pd.concat(frames, ignore_index=True).sort_values("timestamp_utc").drop_duplicates(subset=["timestamp_utc"], keep="last")
+            row["__frame__"] = combined
     diagnostics = _single_frame_diagnostics(repo_root, selected_rows)
     try:
         evidence_snapshot = a20.build_evidence_snapshot(repo_root=repo_root)
@@ -136,9 +143,9 @@ def build_observation_snapshot(context: DiscoveryContext) -> ObservationSnapshot
             str(diagnostics.get("recent_volatility") or 0.0)[:8],
         ],
         "latest_complete_bar_by_asset_timeframe": {
-            f"{row.get('instrument')}|{row.get('timeframe')}": str(row.get("max_timestamp_utc") or "")
+            f"{(row.get('instrument_ids') or ['unknown'])[0]}|{row.get('timeframe')}": str(row.get("complete_bar_end") or "")
             for row in coverage_rows
-            if row.get("instrument") and row.get("timeframe")
+            if row.get("timeframe")
         },
     }
     current_queue = list((opportunities.get("rows") or [])[:3]) if isinstance(opportunities, dict) else []
@@ -182,7 +189,7 @@ def build_observation_snapshot(context: DiscoveryContext) -> ObservationSnapshot
         data_coverage={
             "coverage_rows": len(coverage_rows),
             "ready_rows": len(selected_rows),
-            "research_ready": bool(manifest.get("summary", {}).get("research_ready")),
+            "research_ready": any(str(row.get("highest_admissible_tier") or "") in {"EMPIRICAL_SCREENING", "LOCKED_OOS_VALIDATION"} for row in coverage_rows),
         },
         source_quality={
             "summary": source_quality.get("summary", {}),

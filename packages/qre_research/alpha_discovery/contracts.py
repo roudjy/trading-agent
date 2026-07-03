@@ -38,6 +38,11 @@ LESSON_TYPES = (
     LESSON_TYPE_EVIDENCE_DESIGN,
 )
 
+SOURCE_TIER_SMOKE_ONLY = "SOURCE_SMOKE_ONLY"
+SOURCE_TIER_SCREENING_ELIGIBLE = "SOURCE_SCREENING_ELIGIBLE"
+SOURCE_TIER_VALIDATION_ELIGIBLE = "SOURCE_VALIDATION_ELIGIBLE"
+SOURCE_TIER_BLOCKED = "SOURCE_BLOCKED"
+
 
 def _stable_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, default=str)
@@ -79,7 +84,12 @@ def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
             pass
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8", newline="\n")
-    tmp.replace(path)
+    try:
+        tmp.replace(path)
+    except PermissionError:
+        path.write_text(text, encoding="utf-8", newline="\n")
+        if tmp.exists():
+            tmp.unlink()
 
 
 @dataclass(frozen=True, slots=True)
@@ -499,6 +509,29 @@ class ResearchLesson:
     prior_adjustments: tuple[str, ...]
     recommended_next_question: str
     supporting_artifact_refs: tuple[str, ...]
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class AlphaSearchLedger:
+    search_run_id: str
+    discovery_dataset_fingerprint: str
+    provider_ids: tuple[str, ...]
+    raw_proposals: int
+    deduplicated_proposals: int
+    critic_rejections: int
+    policy_rejections: int
+    scored_hypotheses: int
+    selected_hypothesis: str | None
+    parameter_degrees_of_freedom: int
+    feature_degrees_of_freedom: int
+    strategy_tree_count: int
+    prior_related_tests: int
+    mechanism_family_test_count: int
+    universe_test_count: int
+    timeframe_test_count: int
+    validation_exposures: int
+    OOS_exposures: int
     content_identity: str
 
 

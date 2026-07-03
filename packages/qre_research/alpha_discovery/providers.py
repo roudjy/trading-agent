@@ -4,7 +4,7 @@ from dataclasses import replace
 from typing import Any
 
 from .contracts import (
-    DiscoveryContext,
+    AlphaSearchLedger,
     HypothesisCritique,
     MechanisticHypothesis,
     ObservationSnapshot,
@@ -17,62 +17,40 @@ def _lesson_penalty(memory: dict[str, Any], fingerprint: str) -> float:
     lesson = memory.get("lesson") if isinstance(memory, dict) else None
     if not isinstance(lesson, dict):
         return 0.0
-    repeated = fingerprint == str(lesson.get("prior_fingerprint") or "")
-    if repeated:
-        return 1.0
-    return 0.0
+    return 1.0 if fingerprint == str(lesson.get("prior_fingerprint") or "") else 0.0
 
 
-def _h(
+def _proposal(
     *,
     provider_id: str,
-    generation_policy_version: str,
-    parent_hypothesis_id: str | None,
     mechanism_family: str,
     behavior_family: str,
     causal_mechanism_statement: str,
     predicted_observable_effect: str,
     expected_direction: str,
-    universe_intent: str,
-    timeframe_intent: str,
     regime_scope: str,
     required_features: tuple[str, ...],
     required_controls: tuple[str, ...],
-    null_hypothesis: str,
     falsification_conditions: tuple[str, ...],
     confounders: tuple[str, ...],
-    minimum_activity_expectation: str,
-    cost_sensitivity_expectation: str,
+    novelty_dimensions: tuple[str, ...],
     support_observation_refs: tuple[str, ...],
     contradicting_observation_refs: tuple[str, ...],
     related_hypotheses: tuple[str, ...],
-    related_campaigns: tuple[str, ...],
-    novelty_dimensions: tuple[str, ...],
     parameter_schema: tuple[dict[str, Any], ...],
 ) -> MechanisticHypothesis:
     payload = {
         "provider_id": provider_id,
-        "generation_policy_version": generation_policy_version,
-        "parent_hypothesis_id": parent_hypothesis_id,
         "mechanism_family": mechanism_family,
         "behavior_family": behavior_family,
         "causal_mechanism_statement": causal_mechanism_statement,
         "predicted_observable_effect": predicted_observable_effect,
         "expected_direction": expected_direction,
-        "universe_intent": universe_intent,
-        "timeframe_intent": timeframe_intent,
         "regime_scope": regime_scope,
         "required_features": required_features,
         "required_controls": required_controls,
-        "null_hypothesis": null_hypothesis,
         "falsification_conditions": falsification_conditions,
         "confounders": confounders,
-        "minimum_activity_expectation": minimum_activity_expectation,
-        "cost_sensitivity_expectation": cost_sensitivity_expectation,
-        "support_observation_refs": support_observation_refs,
-        "contradicting_observation_refs": contradicting_observation_refs,
-        "related_hypotheses": related_hypotheses,
-        "related_campaigns": related_campaigns,
         "novelty_dimensions": novelty_dimensions,
         "parameter_schema": parameter_schema,
     }
@@ -82,41 +60,41 @@ def _h(
             "mechanism_family": mechanism_family,
             "behavior_family": behavior_family,
             "causal_mechanism_statement": causal_mechanism_statement,
-            "universe_intent": universe_intent,
-            "timeframe_intent": timeframe_intent,
+            "predicted_observable_effect": predicted_observable_effect,
+            "universe": "single_asset_liquid_cache_universe",
+            "timeframe": "1d",
             "regime_scope": regime_scope,
-            "required_features": required_features,
-            "required_controls": required_controls,
-            "null_hypothesis": null_hypothesis,
+            "controls": required_controls,
             "falsification_conditions": falsification_conditions,
             "parameter_schema": parameter_schema,
+            "required_features": required_features,
         }
     )
     return MechanisticHypothesis(
         hypothesis_id=hypothesis_id,
-        schema_version="1.0",
+        schema_version="1.1",
         provider_id=provider_id,
-        generation_policy_version=generation_policy_version,
-        parent_hypothesis_id=parent_hypothesis_id,
+        generation_policy_version="qre_alpha_generation_policy_v2",
+        parent_hypothesis_id=None,
         mechanism_family=mechanism_family,
         behavior_family=behavior_family,
         causal_mechanism_statement=causal_mechanism_statement,
         predicted_observable_effect=predicted_observable_effect,
         expected_direction=expected_direction,
-        universe_intent=universe_intent,
-        timeframe_intent=timeframe_intent,
+        universe_intent="single_asset_liquid_cache_universe",
+        timeframe_intent="1d",
         regime_scope=regime_scope,
         required_features=required_features,
         required_controls=required_controls,
-        null_hypothesis=null_hypothesis,
+        null_hypothesis=f"{predicted_observable_effect} is indistinguishable from null after costs.",
         falsification_conditions=falsification_conditions,
         confounders=confounders,
-        minimum_activity_expectation=minimum_activity_expectation,
-        cost_sensitivity_expectation=cost_sensitivity_expectation,
+        minimum_activity_expectation="at least a few signals in discovery history",
+        cost_sensitivity_expectation="must survive conservative non-zero slippage",
         support_observation_refs=support_observation_refs,
         contradicting_observation_refs=contradicting_observation_refs,
         related_hypotheses=related_hypotheses,
-        related_campaigns=related_campaigns,
+        related_campaigns=(),
         novelty_dimensions=novelty_dimensions,
         parameter_schema=parameter_schema,
         parameter_count=len(parameter_schema),
@@ -125,127 +103,214 @@ def _h(
     )
 
 
-class DeterministicMechanisticHypothesisProvider:
-    provider_id = "deterministic_mechanistic_hypothesis_provider"
-    generation_policy_version = "qre_alpha_generation_policy_v1"
+class DiagnosticAnomalyProvider:
+    provider_id = "anomaly"
 
-    def propose(
-        self,
-        observation: ObservationSnapshot,
-        memory: dict[str, Any],
-        budget: int,
-    ) -> list[MechanisticHypothesis]:
-        base_refs = (observation.observation_snapshot_id,)
-        memory_note = str(memory.get("lesson", {}).get("actionable_cause") or "")
-        hypotheses = [
-            _h(
+    def propose(self, observation: ObservationSnapshot, memory: dict[str, Any], budget: int) -> list[MechanisticHypothesis]:
+        market = observation.market_diagnostics
+        recent_trend = float(market.get("recent_trend") or 0.0)
+        recent_vol = float(market.get("recent_volatility") or 0.0)
+        refs = (observation.observation_snapshot_id,)
+        proposals: list[MechanisticHypothesis] = []
+        proposals.append(
+            _proposal(
                 provider_id=self.provider_id,
-                generation_policy_version=self.generation_policy_version,
-                parent_hypothesis_id=None,
                 mechanism_family="trend_persistence",
                 behavior_family="trend_continuation",
-                causal_mechanism_statement="trend persistence should continue when an anchored trend remains positive and volatility-normalised move stays elevated.",
-                predicted_observable_effect="positive continuation with modest holding periods",
+                causal_mechanism_statement="persistent positive trend with still-contained volatility should continue over a short holding horizon.",
+                predicted_observable_effect="positive continuation over the next few bars",
                 expected_direction="long_only",
-                universe_intent="single_asset_liquid_cache_universe",
-                timeframe_intent="1d",
-                regime_scope="trend_or_expanding_volatility",
-                required_features=("trend_anchor", "trend_anchor_delta", "normalized_trend_move"),
-                required_controls=("cost_only_baseline", "null_hold_baseline"),
-                null_hypothesis="positive anchored trend does not predict forward continuation after costs.",
-                falsification_conditions=(
-                    "trend_anchor_delta turns negative before trade horizon",
-                    "normalized_trend_move stays below entry threshold",
-                ),
-                confounders=("broad market drift", "simple momentum crowding", "cost drag"),
-                minimum_activity_expectation="at least a few aligned signals in the selected history",
-                cost_sensitivity_expectation="moderate; should tolerate small costs but not heavy turnover",
-                support_observation_refs=base_refs,
+                regime_scope="trend_positive_and_volatility_contained",
+                required_features=("trend_anchor_delta", "normalized_trend_move"),
+                required_controls=("regime_filter", "cost_only_baseline"),
+                falsification_conditions=("trend_anchor_delta turns negative", "move falls below entry threshold"),
+                confounders=("broad market beta", "calendar drift", "cost drag"),
+                novelty_dimensions=("new diagnostic anomaly grounding", "trend continuation"),
+                support_observation_refs=refs,
                 contradicting_observation_refs=(),
                 related_hypotheses=("cross_sectional_momentum_v0",),
-                related_campaigns=(),
-                novelty_dimensions=("anchored trend with volatility-normalised continuation",),
                 parameter_schema=(
                     {"name": "trend_anchor_window", "type": "int", "value": 50},
                     {"name": "atr_window", "type": "int", "value": 14},
                     {"name": "entry_threshold", "type": "float", "value": 0.75},
                 ),
-            ),
-            _h(
+            )
+        )
+        proposals.append(
+            _proposal(
                 provider_id=self.provider_id,
-                generation_policy_version=self.generation_policy_version,
-                parent_hypothesis_id=None,
                 mechanism_family="volatility_breakout",
                 behavior_family="compression_release",
-                causal_mechanism_statement="compression should precede directional release when short-term volatility is suppressed and the trend-normalised move is constructive.",
-                predicted_observable_effect="a breakout after compression with fewer but sharper trades",
+                causal_mechanism_statement="volatility compression followed by constructive directional pressure should release into a directional move.",
+                predicted_observable_effect="fewer but sharper directional breakouts after compression",
                 expected_direction="long_only",
-                universe_intent="single_asset_liquid_cache_universe",
-                timeframe_intent="1d",
                 regime_scope="compression_then_expansion",
                 required_features=("compression_ratio", "normalized_trend_move", "rolling_high_previous"),
-                required_controls=("null_hold_baseline", "cost_only_baseline"),
-                null_hypothesis="volatility compression does not improve forward breakout expectancy after costs.",
-                falsification_conditions=(
-                    "compression ratio remains above threshold",
-                    "normalized_trend_move fails to expand after entry",
-                ),
-                confounders=("event-driven jumps", "calendar effects", "survivorship bias"),
-                minimum_activity_expectation="activity can be sparse but should not be absent",
-                cost_sensitivity_expectation="high; breakout edge weakens quickly with cost drag",
-                support_observation_refs=base_refs,
-                contradicting_observation_refs=(memory_note,) if memory_note else (),
+                required_controls=("regime_filter", "cost_stress"),
+                falsification_conditions=("compression ratio remains elevated", "directional move fails to expand"),
+                confounders=("event shocks", "news clusters", "beta drift"),
+                novelty_dimensions=("volatility clustering change", "diagnostic anomaly grounding"),
+                support_observation_refs=refs,
+                contradicting_observation_refs=(str(memory.get("lesson", {}).get("actionable_cause") or ""),) if memory.get("lesson") else (),
                 related_hypotheses=("volatility_compression_breakout_v0",),
-                related_campaigns=(),
-                novelty_dimensions=("volatility compression release relation",),
                 parameter_schema=(
                     {"name": "atr_short_window", "type": "int", "value": 5},
                     {"name": "atr_long_window", "type": "int", "value": 20},
-                    {"name": "compression_threshold", "type": "float", "value": 0.6},
+                    {"name": "compression_threshold", "type": "float", "value": 0.6 if recent_vol <= 0.0 else min(max(recent_vol, 0.3), 0.8)},
                 ),
-            ),
-            _h(
+            )
+        )
+        if recent_trend < 0:
+            proposals.reverse()
+        return proposals[: min(2, budget)]
+
+
+class ContradictionFailureProvider:
+    provider_id = "contradiction"
+
+    def propose(self, observation: ObservationSnapshot, memory: dict[str, Any], budget: int) -> list[MechanisticHypothesis]:
+        lesson = memory.get("lesson") if isinstance(memory, dict) else {}
+        if not isinstance(lesson, dict):
+            return []
+        next_question = str(lesson.get("recommended_next_question") or "")
+        if not next_question:
+            return []
+        refs = (observation.observation_snapshot_id,)
+        return [
+            _proposal(
                 provider_id=self.provider_id,
-                generation_policy_version=self.generation_policy_version,
-                parent_hypothesis_id=None,
-                mechanism_family="mean_reversion",
-                behavior_family="overextension_reversion",
-                causal_mechanism_statement="short-horizon overextension should mean revert when z-scores are extreme and volatility is not collapsing.",
-                predicted_observable_effect="contrarian recovery after extended move",
+                mechanism_family="regime_transition",
+                behavior_family="regime_conditioned_follow_up",
+                causal_mechanism_statement="an effect previously weakened by cost or sparse activity may survive only in a conditioned regime with explicit falsification controls.",
+                predicted_observable_effect="effect appears only when the regime filter is active and disappears otherwise",
                 expected_direction="long_only",
-                universe_intent="single_asset_liquid_cache_universe",
-                timeframe_intent="1d",
-                regime_scope="overextended_and_stable_liquidity",
-                required_features=("zscore", "rolling_volatility", "log_returns"),
-                required_controls=("null_hold_baseline", "cost_only_baseline"),
-                null_hypothesis="extreme z-score does not predict forward reversal after costs.",
-                falsification_conditions=(
-                    "zscore fails to revert toward zero",
-                    "rolling volatility collapses into invalid data",
+                regime_scope="regime_conditioned_follow_up",
+                required_features=("trend_anchor_delta", "compression_ratio"),
+                required_controls=("regime_filter", "leave_one_asset_out", "cost_stress"),
+                falsification_conditions=("effect disappears outside conditioned regime", "cost stress removes signal"),
+                confounders=("selection bias", "generic market drift", "cost drag"),
+                novelty_dimensions=("new contradiction resolution angle", "new falsification control"),
+                support_observation_refs=refs,
+                contradicting_observation_refs=(next_question,),
+                related_hypotheses=(str(lesson.get("hypothesis_id") or ""),),
+                parameter_schema=(
+                    {"name": "trend_anchor_window", "type": "int", "value": 50},
+                    {"name": "compression_window", "type": "int", "value": 20},
+                    {"name": "regime_threshold", "type": "float", "value": 0.5},
                 ),
-                confounders=("news shocks", "trend continuation", "volatility clustering"),
-                minimum_activity_expectation="moderate signal frequency",
-                cost_sensitivity_expectation="moderate; fewer trades should reduce cost pressure",
-                support_observation_refs=base_refs,
+            )
+        ][: min(1, budget)]
+
+
+class CoverageMechanismGapProvider:
+    provider_id = "coverage"
+
+    def propose(self, observation: ObservationSnapshot, memory: dict[str, Any], budget: int) -> list[MechanisticHypothesis]:
+        del memory
+        refs = (observation.observation_snapshot_id,)
+        return [
+            _proposal(
+                provider_id=self.provider_id,
+                mechanism_family="correlation_change",
+                behavior_family="relative_strength_dispersion",
+                causal_mechanism_statement="changes in relative strength and dispersion can indicate a regime where broad drift is insufficient to explain cross-instrument separation.",
+                predicted_observable_effect="relative-strength leadership persists while laggards remain weak",
+                expected_direction="long_only",
+                regime_scope="dispersion_expanding",
+                required_features=("relative_strength", "dispersion", "cross_sectional_rank"),
+                required_controls=("market_beta_proxy_control", "leave_one_asset_out"),
+                falsification_conditions=("dispersion contracts immediately", "rank leadership mean reverts before holding horizon"),
+                confounders=("market beta", "index concentration", "selection bias"),
+                novelty_dimensions=("underexplored mechanism family", "portfolio orthogonality gap"),
+                support_observation_refs=refs,
                 contradicting_observation_refs=(),
-                related_hypotheses=("pairs_zscore_strategie",),
-                related_campaigns=(),
-                novelty_dimensions=("extreme move reversion",),
+                related_hypotheses=(),
                 parameter_schema=(
                     {"name": "lookback", "type": "int", "value": 20},
-                    {"name": "entry_z", "type": "float", "value": -1.5},
-                    {"name": "exit_z", "type": "float", "value": -0.25},
+                    {"name": "top_bucket", "type": "float", "value": 0.2},
+                    {"name": "hold_bars", "type": "int", "value": 5},
                 ),
             ),
-        ]
-        scored: list[tuple[float, MechanisticHypothesis]] = []
-        for hypothesis in hypotheses[: max(1, budget)]:
-            penalty = _lesson_penalty(memory, hypothesis.stable_fingerprint)
-            if penalty >= 1.0:
+            _proposal(
+                provider_id=self.provider_id,
+                mechanism_family="liquidity_response",
+                behavior_family="activity_conditioned_breakout",
+                causal_mechanism_statement="a change in activity/liquidity can mediate whether breakout moves persist or mean revert.",
+                predicted_observable_effect="breakout persistence strengthens when activity expands with the move",
+                expected_direction="long_only",
+                regime_scope="activity_expanding",
+                required_features=("compression_ratio", "volume", "normalized_trend_move"),
+                required_controls=("cost_stress", "slippage_stress"),
+                falsification_conditions=("activity fails to expand", "slippage stress erases effect"),
+                confounders=("news shocks", "event drift", "execution friction"),
+                novelty_dimensions=("underexplored regime interaction", "new confounder control"),
+                support_observation_refs=refs,
+                contradicting_observation_refs=(),
+                related_hypotheses=(),
+                parameter_schema=(
+                    {"name": "compression_window", "type": "int", "value": 20},
+                    {"name": "activity_window", "type": "int", "value": 10},
+                    {"name": "entry_threshold", "type": "float", "value": 0.75},
+                ),
+            ),
+        ][: min(2, budget)]
+
+
+class MultiProviderHypothesisProvider:
+    provider_id = "ensemble"
+
+    def __init__(self) -> None:
+        self.providers = (
+            DiagnosticAnomalyProvider(),
+            ContradictionFailureProvider(),
+            CoverageMechanismGapProvider(),
+        )
+
+    def propose(self, observation: ObservationSnapshot, memory: dict[str, Any], budget: int) -> list[MechanisticHypothesis]:
+        raw: list[MechanisticHypothesis] = []
+        for provider in self.providers:
+            raw.extend(provider.propose(observation, memory, budget=min(2, budget)))
+        deduped: list[MechanisticHypothesis] = []
+        seen: set[str] = set()
+        for hypothesis in raw:
+            if hypothesis.stable_fingerprint in seen:
                 continue
-            scored.append((1.0 - penalty, hypothesis))
-        scored.sort(key=lambda item: (-item[0], item[1].hypothesis_id))
-        return [hypothesis for _, hypothesis in scored[:budget]]
+            if _lesson_penalty(memory, hypothesis.stable_fingerprint) >= 1.0:
+                continue
+            seen.add(hypothesis.stable_fingerprint)
+            deduped.append(hypothesis)
+        return deduped[: min(4, budget)]
+
+    def build_search_ledger(
+        self,
+        *,
+        hypotheses: list[MechanisticHypothesis],
+        selected_hypothesis_id: str | None,
+        observation: ObservationSnapshot,
+        critic_rejections: int,
+    ) -> AlphaSearchLedger:
+        provider_ids = tuple(sorted({hypothesis.provider_id for hypothesis in hypotheses}))
+        return AlphaSearchLedger(
+            search_run_id=content_id("qsl", {"observation": observation.content_identity, "selected": selected_hypothesis_id or ""}),
+            discovery_dataset_fingerprint=str(observation.data_coverage.get("catalog_content_identity") or observation.content_identity),
+            provider_ids=provider_ids,
+            raw_proposals=sum(1 for _ in hypotheses),
+            deduplicated_proposals=len(hypotheses),
+            critic_rejections=critic_rejections,
+            policy_rejections=0,
+            scored_hypotheses=len(hypotheses),
+            selected_hypothesis=selected_hypothesis_id,
+            parameter_degrees_of_freedom=sum(h.parameter_count for h in hypotheses),
+            feature_degrees_of_freedom=sum(len(h.required_features) for h in hypotheses),
+            strategy_tree_count=len(hypotheses),
+            prior_related_tests=sum(len(h.related_hypotheses) for h in hypotheses),
+            mechanism_family_test_count=len({h.mechanism_family for h in hypotheses}),
+            universe_test_count=len({h.universe_intent for h in hypotheses}),
+            timeframe_test_count=len({h.timeframe_intent for h in hypotheses}),
+            validation_exposures=0,
+            OOS_exposures=0,
+            content_identity=content_id("qslc", {"providers": provider_ids, "count": len(hypotheses), "selected": selected_hypothesis_id or ""}),
+        )
 
 
 class DeterministicHypothesisCritic:
@@ -255,55 +320,57 @@ class DeterministicHypothesisCritic:
         observation: ObservationSnapshot,
         memory: dict[str, Any],
     ) -> HypothesisCritique:
-        weaknesses = []
-        if hypothesis.mechanism_family == "trend_persistence":
-            weaknesses.append("trend persistence can be a proxy for broad drift rather than a mechanism.")
-        elif hypothesis.mechanism_family == "volatility_breakout":
-            weaknesses.append("compression releases are often event driven and may be unstable across regimes.")
-        else:
-            weaknesses.append("mean reversion can be dominated by trend continuation and cost drag.")
+        del observation, memory
+        weaknesses = {
+            "trend_persistence": "trend persistence may just be broad market drift.",
+            "volatility_breakout": "compression release may be event noise rather than a stable mechanism.",
+            "regime_transition": "follow-up may be over-conditioned on a prior failure narrative.",
+            "correlation_change": "cross-sectional separation may be market beta in disguise.",
+            "liquidity_response": "apparent activity response may be a data-quality or event effect.",
+        }
+        counter = {
+            "trend_persistence": "broad market beta explains the continuation without a distinct mechanism",
+            "volatility_breakout": "event-driven gap risk, not compression, explains the move",
+            "regime_transition": "the prior effect never existed and regime conditioning only hides the failure",
+            "correlation_change": "leadership dispersion is generic drift plus benchmark concentration",
+            "liquidity_response": "volume expansion reflects news shocks and adverse selection, not exploitable persistence",
+        }
+        required_repairs = ("add explicit regime condition", "tighten falsification condition")
+        if hypothesis.mechanism_family in {"correlation_change", "liquidity_response"}:
+            required_repairs = ("add explicit market-beta control", "tighten falsification condition")
         return HypothesisCritique(
-            critique_id=content_id("qac", {"hypothesis_id": hypothesis.hypothesis_id, "observation": observation.content_identity}),
+            critique_id=content_id("qac", {"hypothesis_id": hypothesis.hypothesis_id}),
             hypothesis_id=hypothesis.hypothesis_id,
-            strongest_counter_hypothesis=f"the apparent effect is explained by {hypothesis.mechanism_family.replace('_', ' ')} noise rather than the claimed causal mechanism",
-            mechanism_weaknesses=tuple(weaknesses),
-            alternative_explanations=("cost drag", "calendar bias", "broad market drift"),
-            missing_confounders=("market regime", "transaction costs", "selection bias"),
-            data_leakage_risks=("none from ex-ante snapshot, but the hypothesis must remain frozen",),
-            selection_bias_risks=("selection on visible cache coverage",),
-            survivorship_bias_risks=("ready cache may omit unavailable series",),
-            data_feasibility_risks=("history may be too short for decisive OOS separation",),
-            primitive_gaps=tuple(),
-            executor_gaps=tuple(),
-            cost_risks=("higher turnover can erase signal edge",),
-            activity_risks=("sparse activity can leave the signal underpowered",),
-            overfitting_risks=("parameter freedom must stay at three or fewer",),
-            semantic_duplicate_risks=("near-duplicate to prior mechanism family",),
-            required_repairs=(
-                "add an explicit regime condition",
-                "tighten falsification conditions",
-            ),
-            fatal_objections=tuple(),
+            strongest_counter_hypothesis=counter.get(hypothesis.mechanism_family, "generic market drift explains the effect"),
+            mechanism_weaknesses=(weaknesses.get(hypothesis.mechanism_family, "mechanism remains weakly differentiated"),),
+            alternative_explanations=("alternative risk premium", "market beta", "regime shift"),
+            missing_confounders=("cost drag", "selection bias", "data quality"),
+            data_leakage_risks=("discovery-only data must remain frozen before validation",),
+            selection_bias_risks=("cache-visible assets can bias proposal generation",),
+            survivorship_bias_risks=("single surviving series can overstate stability",),
+            data_feasibility_risks=("history may remain insufficient for decisive screening",),
+            primitive_gaps=(),
+            executor_gaps=(),
+            cost_risks=("costs can erase thin effects",),
+            activity_risks=("expected signal density may remain too low",),
+            overfitting_risks=("multiple hypothesis generation increases search risk",),
+            semantic_duplicate_risks=("same mechanism under different phrasing",),
+            required_repairs=required_repairs,
+            fatal_objections=() if hypothesis.required_features else ("missing_features",),
             content_identity=content_id("qacp", hypothesis.stable_fingerprint),
         )
 
 
 class DeterministicHypothesisRewriter:
-    def revise(
-        self,
-        hypothesis: MechanisticHypothesis,
-        critique: HypothesisCritique,
-    ) -> MechanisticHypothesis:
-        repairs = set(critique.required_repairs)
-        if not repairs:
+    def revise(self, hypothesis: MechanisticHypothesis, critique: HypothesisCritique) -> MechanisticHypothesis:
+        if critique.fatal_objections:
             return hypothesis
         adjusted = replace(
             hypothesis,
-            regime_scope=f"{hypothesis.regime_scope}|regime_conditioned",
+            regime_scope=f"{hypothesis.regime_scope}|critic_conditioned",
             required_controls=tuple(dict.fromkeys((*hypothesis.required_controls, "regime_filter"))),
             falsification_conditions=tuple(dict.fromkeys((*hypothesis.falsification_conditions, "explicit_cost_falsification"))),
-            novelty_dimensions=tuple(dict.fromkeys((*hypothesis.novelty_dimensions, "regime_conditioning"))),
-            parameter_schema=tuple(list(hypothesis.parameter_schema)[:3]),
+            novelty_dimensions=tuple(dict.fromkeys((*hypothesis.novelty_dimensions, "critic_rewrite"))),
             parent_hypothesis_id=hypothesis.hypothesis_id,
         )
         payload = adjusted.to_payload()
@@ -316,14 +383,14 @@ class DeterministicHypothesisRewriter:
                     "mechanism_family": adjusted.mechanism_family,
                     "behavior_family": adjusted.behavior_family,
                     "causal_mechanism_statement": adjusted.causal_mechanism_statement,
-                    "universe_intent": adjusted.universe_intent,
-                    "timeframe_intent": adjusted.timeframe_intent,
+                    "predicted_observable_effect": adjusted.predicted_observable_effect,
+                    "universe": adjusted.universe_intent,
+                    "timeframe": adjusted.timeframe_intent,
                     "regime_scope": adjusted.regime_scope,
-                    "required_features": adjusted.required_features,
-                    "required_controls": adjusted.required_controls,
-                    "null_hypothesis": adjusted.null_hypothesis,
+                    "controls": adjusted.required_controls,
                     "falsification_conditions": adjusted.falsification_conditions,
                     "parameter_schema": adjusted.parameter_schema,
+                    "required_features": adjusted.required_features,
                 }
             ),
         )

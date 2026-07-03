@@ -16,10 +16,10 @@
       "missing_files": 0,
       "orphaned_files": 0,
       "physical_files_discovered": 7046,
-      "quality_failures": 1,
+      "quality_failures": 0,
       "rows_downloaded": 0,
-      "rows_reused": 895560,
-      "source_failures": 1,
+      "rows_reused": 221311,
+      "source_failures": 0,
       "stale_manifests": 0,
       "time_to_evidence_ready_dataset": null,
       "timeframes_made_ready": 3

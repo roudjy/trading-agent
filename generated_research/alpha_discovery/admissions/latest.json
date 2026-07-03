@@ -2,23 +2,23 @@
   "rows": [
     {
       "OOS_sufficiency": "INSUFFICIENT",
-      "activity_sufficiency": "SUFFICIENT",
-      "admitted_tier": "EXECUTOR_SMOKE",
-      "content_identity": "qadm_2d16eee0fb9b243b",
+      "activity_sufficiency": "INSUFFICIENT",
+      "admitted_tier": "COMPILER_ONLY",
+      "content_identity": "qadm_fe7c1fefef073035",
       "cost_model_sufficiency": "SUFFICIENT",
-      "data_requirement_id": "qdr_8d6245038a5bda9b",
+      "data_requirement_id": "qdr_373a40d5d5ac3032",
       "decision": "SOURCE_QUALITY_BLOCKED",
       "empirical_campaign_created": false,
-      "experiment_id": "qexp_7fd2af268b95a91c",
-      "fragility_readiness": "SUFFICIENT",
-      "history_sufficiency": "SUFFICIENT",
-      "hypothesis_id": "qah_0a3044c270860c7c",
+      "experiment_id": "qexp_f5cca6e42955f345",
+      "fragility_readiness": "INSUFFICIENT",
+      "history_sufficiency": "INSUFFICIENT",
+      "hypothesis_id": "qah_50bd8a85af84d666",
       "identity_readiness": "SUFFICIENT",
       "mechanism_learning_allowed": false,
       "null_control_readiness": "SUFFICIENT",
       "outlier_readiness": "SUFFICIENT",
       "reason_codes": [
-        "source_quality_not_research_ready"
+        "conflicting_canonical_bars"
       ],
       "requested_tier": "EMPIRICAL_SCREENING",
       "requested_tier_not_met": true,
@@ -26,8 +26,8 @@
       "smoke_execution_created": false,
       "source_quality": "BLOCKED",
       "stability_readiness": "SUFFICIENT",
-      "strategy_spec_id": "qss_a952563512b7d7ea",
-      "validation_sufficiency": "SUFFICIENT"
+      "strategy_spec_id": "qss_14085b9d9ba748ae",
+      "validation_sufficiency": "INSUFFICIENT"
     }
   ],
   "schema_version": "1.1"

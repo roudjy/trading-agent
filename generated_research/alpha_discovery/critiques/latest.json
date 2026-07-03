@@ -2,152 +2,202 @@
   "rows": [
     {
       "activity_risks": [
-        "sparse activity can leave the signal underpowered"
+        "expected signal density may remain too low"
       ],
       "alternative_explanations": [
-        "cost drag",
-        "calendar bias",
-        "broad market drift"
+        "alternative risk premium",
+        "market beta",
+        "regime shift"
       ],
-      "content_identity": "qacp_c9f13359723ea4a4",
+      "content_identity": "qacp_d7ddac388ebd0b16",
       "cost_risks": [
-        "higher turnover can erase signal edge"
+        "costs can erase thin effects"
       ],
-      "critique_id": "qac_71601550cee25ac1",
+      "critique_id": "qac_eed8b043f9c1d94a",
       "data_feasibility_risks": [
-        "history may be too short for decisive OOS separation"
+        "history may remain insufficient for decisive screening"
       ],
       "data_leakage_risks": [
-        "none from ex-ante snapshot, but the hypothesis must remain frozen"
+        "discovery-only data must remain frozen before validation"
       ],
       "executor_gaps": [],
       "fatal_objections": [],
-      "hypothesis_id": "qah_67a84d604cc07add",
+      "hypothesis_id": "qah_50812603a540b70b",
       "mechanism_weaknesses": [
-        "mean reversion can be dominated by trend continuation and cost drag."
+        "compression release may be event noise rather than a stable mechanism."
       ],
       "missing_confounders": [
-        "market regime",
-        "transaction costs",
-        "selection bias"
+        "cost drag",
+        "selection bias",
+        "data quality"
       ],
       "overfitting_risks": [
-        "parameter freedom must stay at three or fewer"
+        "multiple hypothesis generation increases search risk"
       ],
       "primitive_gaps": [],
       "required_repairs": [
-        "add an explicit regime condition",
-        "tighten falsification conditions"
+        "add explicit regime condition",
+        "tighten falsification condition"
       ],
       "selection_bias_risks": [
-        "selection on visible cache coverage"
+        "cache-visible assets can bias proposal generation"
       ],
       "semantic_duplicate_risks": [
-        "near-duplicate to prior mechanism family"
+        "same mechanism under different phrasing"
       ],
-      "strongest_counter_hypothesis": "the apparent effect is explained by mean reversion noise rather than the claimed causal mechanism",
+      "strongest_counter_hypothesis": "event-driven gap risk, not compression, explains the move",
       "survivorship_bias_risks": [
-        "ready cache may omit unavailable series"
+        "single surviving series can overstate stability"
       ]
     },
     {
       "activity_risks": [
-        "sparse activity can leave the signal underpowered"
+        "expected signal density may remain too low"
       ],
       "alternative_explanations": [
-        "cost drag",
-        "calendar bias",
-        "broad market drift"
+        "alternative risk premium",
+        "market beta",
+        "regime shift"
       ],
-      "content_identity": "qacp_8dcb31c5ba59c24e",
+      "content_identity": "qacp_874af7fdefb443ae",
       "cost_risks": [
-        "higher turnover can erase signal edge"
+        "costs can erase thin effects"
       ],
-      "critique_id": "qac_2555c9cbbff45ad1",
+      "critique_id": "qac_6ecc8d6f1a37464d",
       "data_feasibility_risks": [
-        "history may be too short for decisive OOS separation"
+        "history may remain insufficient for decisive screening"
       ],
       "data_leakage_risks": [
-        "none from ex-ante snapshot, but the hypothesis must remain frozen"
+        "discovery-only data must remain frozen before validation"
       ],
       "executor_gaps": [],
       "fatal_objections": [],
-      "hypothesis_id": "qah_6ab1d4811cacfa31",
+      "hypothesis_id": "qah_c60403deaeb32fd0",
       "mechanism_weaknesses": [
-        "trend persistence can be a proxy for broad drift rather than a mechanism."
+        "trend persistence may just be broad market drift."
       ],
       "missing_confounders": [
-        "market regime",
-        "transaction costs",
-        "selection bias"
+        "cost drag",
+        "selection bias",
+        "data quality"
       ],
       "overfitting_risks": [
-        "parameter freedom must stay at three or fewer"
+        "multiple hypothesis generation increases search risk"
       ],
       "primitive_gaps": [],
       "required_repairs": [
-        "add an explicit regime condition",
-        "tighten falsification conditions"
+        "add explicit regime condition",
+        "tighten falsification condition"
       ],
       "selection_bias_risks": [
-        "selection on visible cache coverage"
+        "cache-visible assets can bias proposal generation"
       ],
       "semantic_duplicate_risks": [
-        "near-duplicate to prior mechanism family"
+        "same mechanism under different phrasing"
       ],
-      "strongest_counter_hypothesis": "the apparent effect is explained by trend persistence noise rather than the claimed causal mechanism",
+      "strongest_counter_hypothesis": "broad market beta explains the continuation without a distinct mechanism",
       "survivorship_bias_risks": [
-        "ready cache may omit unavailable series"
+        "single surviving series can overstate stability"
       ]
     },
     {
       "activity_risks": [
-        "sparse activity can leave the signal underpowered"
+        "expected signal density may remain too low"
       ],
       "alternative_explanations": [
-        "cost drag",
-        "calendar bias",
-        "broad market drift"
+        "alternative risk premium",
+        "market beta",
+        "regime shift"
       ],
-      "content_identity": "qacp_3019a25e211c0cec",
+      "content_identity": "qacp_45d354320ee0d6bc",
       "cost_risks": [
-        "higher turnover can erase signal edge"
+        "costs can erase thin effects"
       ],
-      "critique_id": "qac_cb658732c3cafdcf",
+      "critique_id": "qac_6be5d515d3b78f21",
       "data_feasibility_risks": [
-        "history may be too short for decisive OOS separation"
+        "history may remain insufficient for decisive screening"
       ],
       "data_leakage_risks": [
-        "none from ex-ante snapshot, but the hypothesis must remain frozen"
+        "discovery-only data must remain frozen before validation"
       ],
       "executor_gaps": [],
       "fatal_objections": [],
-      "hypothesis_id": "qah_a92e4eee67561b4c",
+      "hypothesis_id": "qah_8ce7620ce07d4256",
       "mechanism_weaknesses": [
-        "compression releases are often event driven and may be unstable across regimes."
+        "follow-up may be over-conditioned on a prior failure narrative."
       ],
       "missing_confounders": [
-        "market regime",
-        "transaction costs",
-        "selection bias"
+        "cost drag",
+        "selection bias",
+        "data quality"
       ],
       "overfitting_risks": [
-        "parameter freedom must stay at three or fewer"
+        "multiple hypothesis generation increases search risk"
       ],
       "primitive_gaps": [],
       "required_repairs": [
-        "add an explicit regime condition",
-        "tighten falsification conditions"
+        "add explicit regime condition",
+        "tighten falsification condition"
       ],
       "selection_bias_risks": [
-        "selection on visible cache coverage"
+        "cache-visible assets can bias proposal generation"
       ],
       "semantic_duplicate_risks": [
-        "near-duplicate to prior mechanism family"
+        "same mechanism under different phrasing"
       ],
-      "strongest_counter_hypothesis": "the apparent effect is explained by volatility breakout noise rather than the claimed causal mechanism",
+      "strongest_counter_hypothesis": "the prior effect never existed and regime conditioning only hides the failure",
       "survivorship_bias_risks": [
-        "ready cache may omit unavailable series"
+        "single surviving series can overstate stability"
+      ]
+    },
+    {
+      "activity_risks": [
+        "expected signal density may remain too low"
+      ],
+      "alternative_explanations": [
+        "alternative risk premium",
+        "market beta",
+        "regime shift"
+      ],
+      "content_identity": "qacp_f34dbd7752a9bf9d",
+      "cost_risks": [
+        "costs can erase thin effects"
+      ],
+      "critique_id": "qac_042357ecbaf9f55f",
+      "data_feasibility_risks": [
+        "history may remain insufficient for decisive screening"
+      ],
+      "data_leakage_risks": [
+        "discovery-only data must remain frozen before validation"
+      ],
+      "executor_gaps": [],
+      "fatal_objections": [],
+      "hypothesis_id": "qah_3284b5d99e05ef1b",
+      "mechanism_weaknesses": [
+        "cross-sectional separation may be market beta in disguise."
+      ],
+      "missing_confounders": [
+        "cost drag",
+        "selection bias",
+        "data quality"
+      ],
+      "overfitting_risks": [
+        "multiple hypothesis generation increases search risk"
+      ],
+      "primitive_gaps": [],
+      "required_repairs": [
+        "add explicit market-beta control",
+        "tighten falsification condition"
+      ],
+      "selection_bias_risks": [
+        "cache-visible assets can bias proposal generation"
+      ],
+      "semantic_duplicate_risks": [
+        "same mechanism under different phrasing"
+      ],
+      "strongest_counter_hypothesis": "leadership dispersion is generic drift plus benchmark concentration",
+      "survivorship_bias_risks": [
+        "single surviving series can overstate stability"
       ]
     }
   ],

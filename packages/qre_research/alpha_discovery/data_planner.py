@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 
+from packages.qre_data.bar_integrity import build_unique_bar_integrity
 from packages.qre_data.dataset_catalog import materialize_data_truth
 
 from .acquisition import assess_coverage, plan_acquisition
@@ -73,23 +74,20 @@ def _load_selected_frame(repo_root: Path, dataset_row: dict[str, Any]) -> pd.Dat
     partitions = [str(item) for item in dataset_row.get("partition_refs") or [] if item]
     if not partitions:
         return None
-    frames: list[pd.DataFrame] = []
-    for rel_path in partitions:
-        path = repo_root / rel_path
-        if not path.is_file():
-            continue
-        frame = pd.read_parquet(path)
-        if "timestamp_utc" in frame.columns:
-            frame = frame.copy()
-            frame["timestamp_utc"] = pd.to_datetime(frame["timestamp_utc"], utc=True)
-        frames.append(frame)
-    if not frames:
+    integrity = build_unique_bar_integrity(
+        repo_root=repo_root,
+        partitions=partitions,
+        instrument_id=str((dataset_row.get("instrument_ids") or [""])[0]),
+        timeframe=str(dataset_row.get("timeframe") or ""),
+        start=str(dataset_row.get("start") or ""),
+        end=str(dataset_row.get("end") or ""),
+    )
+    frame = integrity.canonical_frame
+    if frame.empty:
         return None
-    combined = pd.concat(frames, ignore_index=True)
-    if "timestamp_utc" in combined.columns:
-        combined = combined.sort_values("timestamp_utc").drop_duplicates(subset=["timestamp_utc"], keep="last")
-        combined = combined.set_index("timestamp_utc")
-    return combined
+    frame = frame.copy()
+    frame["timestamp_utc"] = pd.to_datetime(frame["timestamp_utc"], utc=True)
+    return frame.sort_values("timestamp_utc").set_index("timestamp_utc")
 
 
 def build_data_requirement(contract: ExperimentContract, universe_plan: UniversePlan) -> DataRequirement:
@@ -173,6 +171,8 @@ def _coverage_to_decision(
         "dataset_id": dataset_row.get("dataset_id"),
         "data_path": str((dataset_row.get("partition_refs") or [""])[0]),
         "row_count": int(dataset_row.get("row_count") or 0),
+        "raw_row_count": int(dataset_row.get("raw_row_count") or 0),
+        "unique_bar_count": int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0),
         "history_span_days": _span_days(dataset_row.get("start"), dataset_row.get("end")),
         "frame": frame,
         "dataset_partition_count": len(tuple(dataset_row.get("partition_refs") or ())),
@@ -182,10 +182,11 @@ def _coverage_to_decision(
         "source_identity_status": str(dataset_row.get("identity_summary", {}).get("source_identity_status") or "ambiguous"),
         "campaign_scoped_quality_status": str(dataset_row.get("quality_summary", {}).get("campaign_scoped_quality_status") or "unknown"),
         "effective_research_quality_status": str(dataset_row.get("quality_summary", {}).get("effective_research_quality_status") or "unknown"),
-        "validation_rows": int(max(int(dataset_row.get("row_count") or 0) // 5, 0)),
-        "locked_oos_rows": int(max(int(dataset_row.get("row_count") or 0) // 10, 0)),
-        "estimated_activity": int(max(int(dataset_row.get("row_count") or 0) // 40, 0)),
+        "validation_rows": int(max(int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0) // 5, 0)),
+        "locked_oos_rows": int(max(int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0) // 10, 0)),
+        "estimated_activity": int(max(int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0) // 40, 0)),
         "window_capacity": dict(dataset_row.get("window_capacity", {})),
+        "integrity_summary": dict(dataset_row.get("integrity_summary", {})),
     }
     reason_codes = tuple(str(item) for item in selected_row.get("reason_codes") or ())
     decision = "CACHE_READY" if dataset_row else "FETCH_REQUIRED"

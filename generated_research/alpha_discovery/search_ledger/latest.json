@@ -1,0 +1,30 @@
+{
+  "ledger": {
+    "OOS_exposures": 0,
+    "content_identity": "qslc_e74856e7773ec293",
+    "critic_rejections": 0,
+    "deduplicated_proposals": 4,
+    "discovery_dataset_fingerprint": "qos_a8df097bd3835e35",
+    "feature_degrees_of_freedom": 10,
+    "mechanism_family_test_count": 4,
+    "parameter_degrees_of_freedom": 12,
+    "policy_rejections": 0,
+    "prior_related_tests": 3,
+    "provider_ids": [
+      "anomaly",
+      "contradiction",
+      "coverage"
+    ],
+    "raw_proposals": 4,
+    "scored_hypotheses": 4,
+    "search_run_id": "qsl_50249af6a4f46d91",
+    "selected_hypothesis": "qah_50bd8a85af84d666",
+    "strategy_tree_count": 4,
+    "timeframe_test_count": 1,
+    "universe_test_count": 1,
+    "validation_exposures": 0
+  },
+  "policy_version": "qre_alpha_discovery_followup_pr1_v1",
+  "report_kind": "qre_alpha_search_ledger",
+  "schema_version": "1.1"
+}

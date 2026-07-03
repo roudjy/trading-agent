@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from .contracts import (
     EXECUTION_TIER_EXECUTOR_SMOKE,
-    EvidenceAssessment,
     LESSON_TYPE_DATA,
     LESSON_TYPE_EMPIRICAL_MECHANISM,
     LESSON_TYPE_EVIDENCE_DESIGN,
     LESSON_TYPE_PROCESS,
+    EvidenceAssessment,
     ResearchLesson,
     content_id,
 )
@@ -22,7 +22,7 @@ class StructuredLessonCompressor:
             actionable = "route future runs through evidence-grade admission"
             non_actionable = "executor smoke does not imply mechanism evidence"
             prior_allowed = False
-            prior_adjustments: tuple[str, ...] = tuple()
+            prior_adjustments: tuple[str, ...] = ()
         elif assessment.prior_adjustment_allowed:
             lesson_type = LESSON_TYPE_EMPIRICAL_MECHANISM
             if assessment.terminal_disposition == "READY_FOR_SYNTHESIS":
@@ -46,7 +46,7 @@ class StructuredLessonCompressor:
             actionable = "obtain evidence-grade data without weakening thresholds"
             non_actionable = "insufficient data cannot lower a mechanism prior"
             prior_allowed = False
-            prior_adjustments = tuple()
+            prior_adjustments = ()
         else:
             lesson_type = LESSON_TYPE_EVIDENCE_DESIGN
             next_question = "improve controls before rerunning a changed experiment"
@@ -55,7 +55,7 @@ class StructuredLessonCompressor:
             actionable = "strengthen controls and falsification design"
             non_actionable = "design gaps are not mechanism failure"
             prior_allowed = False
-            prior_adjustments = tuple()
+            prior_adjustments = ()
 
         cause = "cost_drag" if "cost" in " ".join(assessment.reason_codes) else "insufficient_activity"
         return ResearchLesson(

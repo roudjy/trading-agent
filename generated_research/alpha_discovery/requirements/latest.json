@@ -3,14 +3,14 @@
     {
       "PIT_requirement": "PIT_NOT_REQUIRED",
       "base_timeframe": "1d",
-      "content_identity": "qdrp_98f9a866616fa402",
+      "content_identity": "qdrp_e973bf1380071540",
       "corporate_action_requirement": "not_applicable_or_canonical",
       "cost_data_requirement": "canonical_fixed_cost_proxy",
       "embargo_requirement": "short embargo around boundary bars",
-      "experiment_id": "qexp_7fd2af268b95a91c",
+      "experiment_id": "qexp_f5cca6e42955f345",
       "identity_policy": "identity_resolved_only",
       "instrument_requirements": [
-        "BTC-EUR"
+        "ETH-EUR"
       ],
       "locked_oos_requirement": "locked OOS required for locked OOS validation tier",
       "minimum_assets": 1,
@@ -47,15 +47,15 @@
       "required_timeframes": [
         "1d"
       ],
-      "requirement_id": "qdr_8d6245038a5bda9b",
+      "requirement_id": "qdr_373a40d5d5ac3032",
       "resolved_instrument_ids": [
-        "BTC-EUR"
+        "ETH-EUR"
       ],
       "session_calendar_requirement": "canonical_session_calendar_if_available",
       "slippage_data_requirement": "canonical_zero_slippage_proxy",
       "target_assets": 1,
       "timeframe": "1d",
-      "universe_plan_id": "qup_391c708f3ca3a851",
+      "universe_plan_id": "qup_6001b48b51d37c8c",
       "universe_selector": "single_asset_liquid_cache_universe",
       "validation_requirement": "validation split required for empirical screening and above",
       "warmup_requirement": "use primitive warmup requirements"

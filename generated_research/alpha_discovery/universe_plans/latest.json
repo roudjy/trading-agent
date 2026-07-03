@@ -2,11 +2,11 @@
   "rows": [
     {
       "canonical_universe_id": "single_asset_liquid_cache_universe",
-      "content_identity": "qupc_e8261b902c8ba713",
+      "content_identity": "qupc_8738cde906467a29",
       "corporate_actions_required": false,
       "excluded_assets": [],
       "exclusion_reasons": [],
-      "experiment_id": "qexp_7fd2af268b95a91c",
+      "experiment_id": "qexp_f5cca6e42955f345",
       "final_universe_decision": "UNIVERSE_READY",
       "identity_requirements": "resolved_identity",
       "liquidity_requirements": "baseline_corpus_liquid_only",
@@ -18,7 +18,7 @@
         "single_asset_liquid_cache_universe"
       ],
       "resolved_assets": [
-        "BTC-EUR"
+        "ETH-EUR"
       ],
       "sector_or_group_metadata_required": false,
       "selection_bias_status": "CONTROLLED",
@@ -26,7 +26,7 @@
       "session_calendar_required": true,
       "survivorship_bias_status": "PIT_NOT_REQUIRED",
       "target_assets": 1,
-      "universe_plan_id": "qup_391c708f3ca3a851",
+      "universe_plan_id": "qup_6001b48b51d37c8c",
       "universe_type": "SINGLE_INSTRUMENT"
     }
   ],

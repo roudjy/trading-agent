@@ -36,6 +36,15 @@ def _aaq() -> Any:
     return importlib.import_module("packages.qre_research.alpha_discovery.acquisition")
 
 
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+    except Exception:
+        return None
+
+
 def _print_json(payload: dict[str, Any], *, indent: int) -> None:
     json.dump(payload, sys.stdout, indent=indent, sort_keys=True)
     sys.stdout.write("\n")
@@ -137,6 +146,9 @@ def _build_parser() -> argparse.ArgumentParser:
     alpha_run_once.add_argument("--max-hypotheses", type=int, default=3)
     alpha_run_once.add_argument("--execution-tier", choices=("compiler", "smoke", "screening", "oos", "auto"), default="auto")
     alpha_run_once.add_argument("--status", action="store_true")
+    sub.add_parser("alpha-search-status")
+    sub.add_parser("bar-integrity")
+    sub.add_parser("source-qualification")
 
     data_census = sub.add_parser("data-census")
     data_census.add_argument("--dry-run", action="store_true")
@@ -271,6 +283,25 @@ def main(argv: list[str] | None = None) -> int:
             max_hypotheses=int(args.max_hypotheses or 3),
             execution_tier=str(args.execution_tier or "auto"),
         )
+        _print_json(payload, indent=indent)
+        return 0
+
+    if args.command in {"alpha-search-status", "bar-integrity", "source-qualification"}:
+        adr = _adr()
+        adc = _adc()
+        truth = adc.materialize_data_truth(repo_root)
+        if args.command == "bar-integrity":
+            _print_json(truth["unique_bar_integrity"], indent=indent)
+            return 0
+        if args.command == "source-qualification":
+            payload = _read_json(repo_root / adr.SOURCE_QUALIFICATIONS_PATH)
+            if payload is None:
+                payload = adr.run_alpha_discovery_mvp(repo_root=repo_root, dry_run=True, max_hypotheses=3, execution_tier="auto")["artifacts"]["source_qualifications"]
+            _print_json(payload, indent=indent)
+            return 0
+        payload = _read_json(repo_root / adr.SEARCH_LEDGER_PATH)
+        if payload is None:
+            payload = {"schema_version": "1.0", "report_kind": "qre_alpha_search_ledger", "ledger": None}
         _print_json(payload, indent=indent)
         return 0
 

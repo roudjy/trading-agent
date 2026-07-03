@@ -44,13 +44,15 @@ from .contracts import (
 from .data_planner import build_data_requirement, resolve_data_plan
 from .evaluation import CanonicalEvidenceEvaluator, DeterministicExAnteEvaluator
 from .experiment_compiler import CanonicalExperimentPlanner
+from .firewall import build_discovery_view, build_locked_oos_view, build_validation_view
 from .learning import StructuredLessonCompressor
 from .observations import build_observation_snapshot
 from .providers import (
     DeterministicHypothesisCritic,
     DeterministicHypothesisRewriter,
-    DeterministicMechanisticHypothesisProvider,
+    MultiProviderHypothesisProvider,
 )
+from .source_qualification import qualify_datasets, reconcile_source_policy
 from .strategy_compiler import build_alignment, build_strategy_spec, compile_strategy_spec
 from .strategy_ir import ConditionNode, ControlNode, FeatureNode, PortfolioRule, SignalNode
 from .universe_planner import plan_universe
@@ -73,6 +75,12 @@ ALIGNMENTS_PATH = OUTPUT_ROOT / "alignments" / "latest.json"
 EVIDENCE_ASSESSMENTS_PATH = OUTPUT_ROOT / "evidence_assessments" / "latest.json"
 LESSONS_PATH = OUTPUT_ROOT / "lessons" / "latest.json"
 REASSESSMENTS_PATH = OUTPUT_ROOT / "reassessments" / "latest.json"
+SOURCE_POLICY_PATH = OUTPUT_ROOT / "source_policy" / "latest.json"
+SOURCE_QUALIFICATIONS_PATH = OUTPUT_ROOT / "source_qualifications" / "latest.json"
+SEARCH_LEDGER_PATH = OUTPUT_ROOT / "search_ledger" / "latest.json"
+DISCOVERY_VIEW_PATH = OUTPUT_ROOT / "views" / "discovery_latest.json"
+VALIDATION_VIEW_PATH = OUTPUT_ROOT / "views" / "validation_latest.json"
+LOCKED_OOS_VIEW_PATH = OUTPUT_ROOT / "views" / "locked_oos_latest.json"
 RUNS_PATH = OUTPUT_ROOT / "runs" / "latest.json"
 STATUS_PATH = OUTPUT_ROOT / "status" / "latest.json"
 
@@ -97,7 +105,12 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
-        os.replace(tmp_name, path)
+        try:
+            os.replace(tmp_name, path)
+        except PermissionError:
+            path.write_text(text, encoding="utf-8", newline="\n")
+            with suppress(OSError):
+                os.unlink(tmp_name)
     except Exception:
         with suppress(OSError):
             os.unlink(tmp_name)
@@ -206,6 +219,51 @@ def _build_hypothesis_specs(
             ControlNode("regime_filter", {"feature_alias": "compression_ratio", "threshold": 1.0, "comparator": "less_than"}),
             ControlNode("cost_stress", {"multiplier": 1.5}),
         )
+        portfolio_rule = PortfolioRule(weight_semantics="single_strategy_unit_notional", selection_semantics="equal_weight", max_gross_exposure=1.0, max_rules=1)
+    elif hypothesis.mechanism_family == "regime_transition":
+        features = (
+            FeatureNode("trend_anchor_delta", {"window": 50}, "trend_anchor_delta"),
+            FeatureNode("compression_ratio", {"atr_short_window": 5, "atr_long_window": 20}, "compression_ratio"),
+        )
+        signal = SignalNode(
+            entry=ConditionNode(
+                "and",
+                left=ConditionNode("greater_than", left=FeatureNode("trend_anchor_delta", {"window": 50}, "trend_anchor_delta"), right=0.0),
+                right=ConditionNode("less_than", left=FeatureNode("compression_ratio", {"atr_short_window": 5, "atr_long_window": 20}, "compression_ratio"), right=0.8),
+            ),
+            exit=ConditionNode(
+                "or",
+                left=ConditionNode("less_than", left=FeatureNode("trend_anchor_delta", {"window": 50}, "trend_anchor_delta"), right=0.0),
+                right=ConditionNode("greater_than", left=FeatureNode("compression_ratio", {"atr_short_window": 5, "atr_long_window": 20}, "compression_ratio"), right=1.0),
+            ),
+        )
+        params = (
+            {"name": "trend_anchor_window", "type": "int", "value": 50},
+            {"name": "compression_window", "type": "int", "value": 20},
+            {"name": "regime_threshold", "type": "float", "value": 0.5},
+        )
+        controls = (ControlNode("regime_filter", {"feature_alias": "trend_anchor_delta", "threshold": 0.0, "comparator": "greater_than"}),)
+        portfolio_rule = PortfolioRule(weight_semantics="single_strategy_unit_notional", selection_semantics="equal_weight", max_gross_exposure=1.0, max_rules=1)
+    elif hypothesis.mechanism_family in {"correlation_change", "liquidity_response"}:
+        features = (
+            FeatureNode("compression_ratio", {"atr_short_window": 5, "atr_long_window": 20}, "compression_ratio"),
+            FeatureNode("normalized_trend_move", {"trend_anchor_window": 50, "atr_window": 14}, "normalized_trend_move"),
+            FeatureNode("cross_sectional_rank", {"lookback": 20}, "cross_sectional_rank"),
+        )
+        signal = SignalNode(
+            entry=ConditionNode(
+                "and",
+                left=ConditionNode("less_than", left=FeatureNode("compression_ratio", {"atr_short_window": 5, "atr_long_window": 20}, "compression_ratio"), right=0.8),
+                right=ConditionNode("greater_than", left=FeatureNode("normalized_trend_move", {"trend_anchor_window": 50, "atr_window": 14}, "normalized_trend_move"), right=0.5),
+            ),
+            exit=ConditionNode("less_than", left=FeatureNode("normalized_trend_move", {"trend_anchor_window": 50, "atr_window": 14}, "normalized_trend_move"), right=0.1),
+        )
+        params = (
+            {"name": "lookback", "type": "int", "value": 20},
+            {"name": "top_bucket", "type": "float", "value": 0.2},
+            {"name": "hold_bars", "type": "int", "value": 5},
+        )
+        controls = (ControlNode("cost_stress", {"multiplier": 1.5}), ControlNode("leave_one_asset_out", {"enabled": True}))
         portfolio_rule = PortfolioRule(weight_semantics="single_strategy_unit_notional", selection_semantics="equal_weight", max_gross_exposure=1.0, max_rules=1)
     else:
         features = (
@@ -332,6 +390,9 @@ def _canonical_preset_for_hypothesis(hypothesis: MechanisticHypothesis, instrume
         "trend_persistence": ("trend_pullback_v1",),
         "volatility_breakout": ("volatility_compression_breakout",),
         "mean_reversion": ("zscore_mean_reversion",),
+        "regime_transition": ("trend_pullback_v1",),
+        "correlation_change": ("trend_pullback_v1",),
+        "liquidity_response": ("volatility_compression_breakout",),
     }
     bundle = bundle_map.get(hypothesis.mechanism_family)
     if not bundle:
@@ -540,7 +601,7 @@ def run_alpha_discovery_mvp(
         "reassessments": (_latest_payload(repo_root / REASSESSMENTS_PATH) or {}).get("rows", []),
     }
     lesson_fingerprint = str(latest_lesson_payload.get("prior_fingerprint") or "")
-    provider = DeterministicMechanisticHypothesisProvider()
+    provider = MultiProviderHypothesisProvider()
     critic = DeterministicHypothesisCritic()
     rewriter = DeterministicHypothesisRewriter()
     evaluator = DeterministicExAnteEvaluator()
@@ -548,13 +609,18 @@ def run_alpha_discovery_mvp(
     evidence_evaluator = CanonicalEvidenceEvaluator()
     compressor = StructuredLessonCompressor()
 
-    hypotheses = provider.propose(observation, memory, budget=max_hypotheses)
+    discovery_view = build_discovery_view(observation)
+    hypotheses = provider.propose(observation, memory, budget=min(max_hypotheses, 6))
     critiques: list[HypothesisCritique] = []
     rewrites: list[HypothesisRevision] = []
     final_hypotheses: list[MechanisticHypothesis] = []
+    critic_rejections = 0
     for hypothesis in hypotheses:
         critique = critic.critique(hypothesis, observation, memory)
         critiques.append(critique)
+        if critique.fatal_objections:
+            critic_rejections += 1
+            continue
         revised = rewriter.revise(hypothesis, critique)
         if revised.hypothesis_id != hypothesis.hypothesis_id:
             rewrites.append(
@@ -571,8 +637,16 @@ def run_alpha_discovery_mvp(
 
     scorecards = [evaluator.evaluate(hypothesis, critique, observation) for hypothesis, critique in zip(final_hypotheses, critiques, strict=False)]
     selected, unselected = _select_hypothesis(final_hypotheses, scorecards, suppressed_fingerprint=lesson_fingerprint or None)
+    search_ledger = provider.build_search_ledger(
+        hypotheses=final_hypotheses,
+        selected_hypothesis_id=selected.hypothesis_id if selected is not None else None,
+        observation=observation,
+        critic_rejections=critic_rejections,
+    )
     experiment = planner.plan(selected, requested_execution_tier=requested_execution_tier) if selected is not None else None
     data_truth = materialize_data_truth(repo_root)
+    source_policy = reconcile_source_policy(repo_root=repo_root, dataset_catalog=data_truth["catalog"])
+    source_qualifications = qualify_datasets(dataset_catalog=data_truth["catalog"], policy_reconciliation=source_policy)
     universe_plan = plan_universe(repo_root=repo_root, experiment=experiment, catalog=data_truth["catalog"]) if experiment is not None else None
     data_requirement = build_data_requirement(experiment, universe_plan) if experiment is not None and universe_plan is not None else None
     data_plan = coverage = acquisition = None
@@ -593,8 +667,19 @@ def run_alpha_discovery_mvp(
     campaign_id = None
     ingestion_telemetry = None
     throughput = None
+    validation_view = None
+    locked_oos_view = None
     if selected is not None and experiment is not None and data_plan is not None and coverage is not None and acquisition is not None:
         compiled, strategy_spec, alignment = _build_strategy_artifact(selected)
+        validation_view = build_validation_view(
+            experiment_id=experiment.experiment_id,
+            strategy_spec_id=strategy_spec.strategy_spec_id,
+            dataset_id=str(data_plan.selected_data.get("dataset_id") or ""),
+        )
+        locked_oos_view = build_locked_oos_view(
+            experiment_id=experiment.experiment_id,
+            strategy_spec_id=strategy_spec.strategy_spec_id,
+        )
         admission = _assess_admission(
             selected=selected,
             experiment=experiment,
@@ -645,7 +730,7 @@ def run_alpha_discovery_mvp(
             lesson = compressor.compress(assessment, {"strategy_spec_id": strategy_spec.strategy_spec_id})
             terminal_disposition = "COMPLETED_LOCKED_OOS_VALIDATION" if admission.admitted_tier == EXECUTION_TIER_LOCKED_OOS_VALIDATION else "COMPLETED_EMPIRICAL_SCREENING"
         elif admission.decision == "SOURCE_QUALITY_BLOCKED":
-            terminal_disposition = "STOPPED_SOURCE_QUALITY_BOUNDARY"
+            terminal_disposition = "STOPPED_SOURCE_CERTIFICATION_BOUNDARY"
         elif admission.decision == "IDENTITY_BLOCKED":
             terminal_disposition = "STOPPED_IDENTITY_BOUNDARY"
         elif acquisition.external_boundary == "STOPPED_PROVIDER_BOUNDARY":
@@ -712,8 +797,9 @@ def run_alpha_discovery_mvp(
         "campaign_id": campaign_id,
         "terminal_disposition": terminal_disposition,
         "lesson_id": lesson.lesson_id if lesson is not None else None,
+        "search_ledger_id": search_ledger.search_run_id,
         "budget_usage": asdict(budget_usage),
-        "next_action": "resolve_source_quality_boundary" if terminal_disposition == "STOPPED_SOURCE_QUALITY_BOUNDARY" else ("resolve_identity_boundary" if terminal_disposition == "STOPPED_IDENTITY_BOUNDARY" else ("resolve_pit_boundary" if terminal_disposition == "STOPPED_PIT_BOUNDARY" else ("resolve_external_data_boundary" if terminal_disposition == "STOPPED_EXTERNAL_DATA_BOUNDARY" else "repeat_mvp_on_next_novel_hypothesis"))),
+        "next_action": "resolve_source_certification_boundary" if terminal_disposition == "STOPPED_SOURCE_CERTIFICATION_BOUNDARY" else ("resolve_identity_boundary" if terminal_disposition == "STOPPED_IDENTITY_BOUNDARY" else ("resolve_pit_boundary" if terminal_disposition == "STOPPED_PIT_BOUNDARY" else ("resolve_external_data_boundary" if terminal_disposition == "STOPPED_EXTERNAL_DATA_BOUNDARY" else "repeat_mvp_on_next_novel_hypothesis"))),
         "artifact_refs": {},
         "selected_hypothesis_ids": [hyp.hypothesis_id for hyp in final_hypotheses],
         "unselected_hypothesis_reasons": unselected,
@@ -739,6 +825,12 @@ def run_alpha_discovery_mvp(
         "evidence_assessments": asdict(assessment) if assessment is not None else None,
         "lessons": asdict(lesson) if lesson is not None else None,
         "reassessments": reassessments,
+        "source_policy": source_policy,
+        "source_qualifications": source_qualifications,
+        "search_ledger": asdict(search_ledger),
+        "discovery_view": discovery_view,
+        "validation_view": validation_view,
+        "locked_oos_view": locked_oos_view,
         "runs": run_payload,
         "status": {
             "schema_version": SCHEMA_VERSION,
@@ -785,9 +877,17 @@ def run_alpha_discovery_mvp(
         "coverage": _write_artifact(DATA_PLANS_PATH.with_name("coverage_latest.json"), {"schema_version": SCHEMA_VERSION, "rows": [artifacts["coverage"]] if artifacts["coverage"] else []}, repo_root=repo_root),
         "evidence_assessments": _write_artifact(EVIDENCE_ASSESSMENTS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["evidence_assessments"]] if artifacts["evidence_assessments"] else []}, repo_root=repo_root),
         "reassessments": _write_artifact(REASSESSMENTS_PATH, reassessments, repo_root=repo_root),
+        "source_policy": _write_artifact(SOURCE_POLICY_PATH, source_policy, repo_root=repo_root),
+        "source_qualifications": _write_artifact(SOURCE_QUALIFICATIONS_PATH, source_qualifications, repo_root=repo_root),
+        "search_ledger": _write_artifact(SEARCH_LEDGER_PATH, {"schema_version": SCHEMA_VERSION, "policy_version": POLICY_VERSION, "report_kind": "qre_alpha_search_ledger", "ledger": artifacts["search_ledger"]}, repo_root=repo_root),
+        "discovery_view": _write_artifact(DISCOVERY_VIEW_PATH, {"schema_version": SCHEMA_VERSION, "policy_version": POLICY_VERSION, "report_kind": "qre_alpha_discovery_view", "view": discovery_view}, repo_root=repo_root),
         "runs": _write_artifact(RUNS_PATH, artifacts["runs"], repo_root=repo_root),
         "status": _write_artifact(STATUS_PATH, artifacts["status"], repo_root=repo_root),
     }
+    if validation_view is not None:
+        artifact_refs["validation_view"] = _write_artifact(VALIDATION_VIEW_PATH, {"schema_version": SCHEMA_VERSION, "policy_version": POLICY_VERSION, "report_kind": "qre_alpha_validation_view", "view": validation_view}, repo_root=repo_root)
+    if locked_oos_view is not None:
+        artifact_refs["locked_oos_view"] = _write_artifact(LOCKED_OOS_VIEW_PATH, {"schema_version": SCHEMA_VERSION, "policy_version": POLICY_VERSION, "report_kind": "qre_alpha_locked_oos_view", "view": locked_oos_view}, repo_root=repo_root)
     if "lesson_payload" in artifacts:
         artifact_refs["lessons"] = _write_artifact(LESSONS_PATH, artifacts["lesson_payload"], repo_root=repo_root)
     run_payload["artifact_refs"] = artifact_refs

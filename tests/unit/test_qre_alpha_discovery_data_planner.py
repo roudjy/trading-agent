@@ -63,21 +63,23 @@ def _contract(*, requested_tier: str, universe_spec: str = "single_asset_liquid_
     )
 
 
-def _prepare_dataset(repo_root: Path, *, files: int = 2, rows_per_file: int = 5, timeframe: str = "1d", instrument: str = "AAPL") -> None:
+def _prepare_dataset(repo_root: Path, *, files: int = 2, rows_per_file: int = 5, timeframe: str = "1d", instrument: str = "AAPL", overlap_days: int = 0) -> None:
     cache_dir = repo_root / "data/cache/market"
     cache_dir.mkdir(parents=True, exist_ok=True)
     file_rows = []
     frames = []
     for index in range(files):
-        start = pd.Timestamp("2026-04-08", tz="UTC") + pd.Timedelta(days=index * rows_per_file)
+        start = pd.Timestamp("2026-04-08", tz="UTC") + pd.Timedelta(days=index * max(rows_per_file - overlap_days, 1))
+        timestamps = pd.date_range(start, periods=rows_per_file, freq="D", tz="UTC")
+        offsets = [int((ts - pd.Timestamp("2026-04-08", tz="UTC")).days) for ts in timestamps]
         frame = pd.DataFrame(
             {
-                "timestamp_utc": pd.date_range(start, periods=rows_per_file, freq="D", tz="UTC"),
-                "open": [float(i + 1) for i in range(rows_per_file)],
-                "high": [float(i + 2) for i in range(rows_per_file)],
-                "low": [float(i) for i in range(rows_per_file)],
-                "close": [float(i + 1.5) for i in range(rows_per_file)],
-                "volume": [100 + i for i in range(rows_per_file)],
+                "timestamp_utc": timestamps,
+                "open": [float(i + 1) for i in offsets],
+                "high": [float(i + 2) for i in offsets],
+                "low": [float(i) for i in offsets],
+                "close": [float(i + 1.5) for i in offsets],
+                "volume": [100 + i for i in offsets],
             }
         )
         path = cache_dir / f"yfinance__{instrument}__{timeframe}__2026040{index+8}__2026041{index+5}__fixture{index}.parquet"
@@ -155,7 +157,7 @@ def test_census_explains_five_row_inventory_as_file_level_selection(tmp_path: Pa
 
 def test_data_plan_uses_logical_dataset_but_fails_closed_on_source_authority(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
-    _prepare_dataset(repo_root, files=3, rows_per_file=40)
+    _prepare_dataset(repo_root, files=3, rows_per_file=40, overlap_days=10, instrument="BTC-USD")
     truth = materialize_data_truth(repo_root)
     experiment = _contract(requested_tier=EXECUTION_TIER_EMPIRICAL_SCREENING)
     universe = plan_universe(repo_root=repo_root, experiment=experiment, catalog=truth["catalog"])
@@ -163,10 +165,12 @@ def test_data_plan_uses_logical_dataset_but_fails_closed_on_source_authority(tmp
 
     decision, coverage, acquisition, _, _ = resolve_data_plan(repo_root, requirement, universe_plan=universe)
 
-    assert decision.selected_data["row_count"] == 120
+    assert decision.selected_data["raw_row_count"] == 120
+    assert decision.selected_data["row_count"] == 100
+    assert decision.selected_data["unique_bar_count"] == 100
     assert decision.selected_data["dataset_partition_count"] == 3
     assert coverage.decision == "SOURCE_QUALITY_BLOCKED"
-    assert acquisition.external_boundary == "STOPPED_SOURCE_QUALITY_BOUNDARY"
+    assert acquisition.external_boundary == "STOPPED_SOURCE_CERTIFICATION_BOUNDARY"
     assert decision.admissible_execution_tier == "EXECUTOR_SMOKE"
 
 

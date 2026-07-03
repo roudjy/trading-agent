@@ -1,0 +1,20 @@
+{
+  "bug_or_intentional_change": "intentional_global_authority_ceiling",
+  "content_identity": "qsp_a84ef8f2e41b80ee",
+  "current_yfinance_status": "manual_research_only",
+  "exact_cause": "MANUAL_RESEARCH_ONLY_BY_DESIGN",
+  "historical_yfinance_status": "campaign_scoped_quality_ready",
+  "policy_versions": {
+    "current_global_scope": "manual_research_only",
+    "historical_campaign_scope": "campaign_scoped_quality_ready"
+  },
+  "report_kind": "qre_source_policy_reconciliation",
+  "schema_version": "1.0",
+  "scoped_override": true,
+  "transition_record": {
+    "new_policy": "manual_research_only",
+    "previous_policy": "campaign_scoped_quality_ready",
+    "promotion_ceiling": "SOURCE_SMOKE_ONLY",
+    "scope": "provider_global_authority_overrides_campaign_scoped_readiness"
+  }
+}
