@@ -46,6 +46,19 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
+def _deduplication_key(*, experiment_id: str, gap_type: str, decision: str, reason_codes: tuple[str, ...]) -> str:
+    reasons = ",".join(reason_codes) if reason_codes else "admission_requirements_met"
+    return "|".join(
+        [
+            "qgapdedupe",
+            f"experiment={experiment_id}",
+            f"gap_type={gap_type}",
+            f"decision={decision}",
+            f"reasons={reasons}",
+        ]
+    )
+
+
 def build_gap_from_admission(
     *,
     experiment_id: str,
@@ -93,7 +106,12 @@ def build_gap_from_admission(
         created_at_utc=now,
         resolved_at_utc=None,
         resolution_refs=(),
-        deduplication_key=content_id("qgapdedupe", {"experiment_id": experiment_id, "gap_type": gap_type, "reasons": admission.reason_codes}),
+        deduplication_key=_deduplication_key(
+            experiment_id=experiment_id,
+            gap_type=gap_type,
+            decision=admission.decision,
+            reason_codes=admission.reason_codes,
+        ),
         content_identity=content_id("qgapc", {"experiment_id": experiment_id, "gap_type": gap_type, "status": admission.decision}),
     )
     gaps.append(gap)
