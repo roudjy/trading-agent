@@ -1,0 +1,12 @@
+{
+  "content_identity": "qdstatus_03e19b1888845b25",
+  "files_scanned": 7046,
+  "five_row_root_cause": [
+    "inventory_bug",
+    "source_quality_exclusion"
+  ],
+  "logical_datasets": 46,
+  "policy_version": "qre_alpha_data_truth_v1",
+  "report_kind": "qre_data_catalog_status",
+  "schema_version": "1.0"
+}

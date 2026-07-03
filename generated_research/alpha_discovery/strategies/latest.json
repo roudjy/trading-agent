@@ -1,15 +1,21 @@
 {
   "rows": [
     {
-      "behavior_family": "trend_continuation",
-      "content_identity": "qasd_3fdab5df254952ec",
+      "behavior_family": "compression_release",
+      "content_identity": "qasd_602d9e0be79ed977",
       "controls": [
+        {
+          "control_type": "cost_stress",
+          "params": {
+            "multiplier": 1.5
+          }
+        },
         {
           "control_type": "regime_filter",
           "params": {
-            "comparator": "greater_than",
-            "feature_alias": "trend_anchor_delta",
-            "threshold": 0.0
+            "comparator": "less_than",
+            "feature_alias": "compression_ratio",
+            "threshold": 1.0
           }
         }
       ],
@@ -21,6 +27,15 @@
       "exit_rules": [],
       "feature_nodes": [
         {
+          "alias": "compression_ratio",
+          "params": {
+            "atr_long_window": 20,
+            "atr_short_window": 5
+          },
+          "primitive": "compression_ratio",
+          "source_field": "close"
+        },
+        {
           "alias": "normalized_trend_move",
           "params": {
             "atr_window": 14,
@@ -30,40 +45,32 @@
           "source_field": "close"
         },
         {
-          "alias": "trend_anchor",
+          "alias": "rolling_high_previous",
           "params": {
-            "window": 50
+            "window": 20
           },
-          "primitive": "trend_anchor",
-          "source_field": "close"
-        },
-        {
-          "alias": "trend_anchor_delta",
-          "params": {
-            "window": 50
-          },
-          "primitive": "trend_anchor_delta",
+          "primitive": "rolling_high_previous",
           "source_field": "close"
         }
       ],
       "grammar_version": "1.1",
-      "hypothesis_id": "qah_56279ba7fa7a26d4",
-      "mechanism_family": "trend_persistence",
+      "hypothesis_id": "qah_0a3044c270860c7c",
+      "mechanism_family": "volatility_breakout",
       "parameter_schema": [
         {
-          "name": "atr_window",
+          "name": "atr_long_window",
           "type": "int",
-          "value": 14
+          "value": 20
         },
         {
-          "name": "entry_threshold",
+          "name": "atr_short_window",
+          "type": "int",
+          "value": 5
+        },
+        {
+          "name": "compression_threshold",
           "type": "float",
-          "value": 0.75
-        },
-        {
-          "name": "trend_anchor_window",
-          "type": "int",
-          "value": 50
+          "value": 0.6
         }
       ],
       "portfolio_rule": {
@@ -76,7 +83,7 @@
         "direction": "long_only",
         "max_legs": 1
       },
-      "regime_scope": "trend_or_expanding_volatility|regime_conditioned",
+      "regime_scope": "compression_then_expansion|regime_conditioned",
       "signal": {
         "direction": "long_only",
         "entry": {
@@ -96,15 +103,16 @@
           "operator": "and",
           "right": {
             "left": {
-              "alias": "trend_anchor_delta",
+              "alias": "compression_ratio",
               "params": {
-                "window": 50
+                "atr_long_window": 20,
+                "atr_short_window": 5
               },
-              "primitive": "trend_anchor_delta",
+              "primitive": "compression_ratio",
               "source_field": "close"
             },
-            "operator": "greater_than",
-            "right": 0.0
+            "operator": "less_than",
+            "right": 0.6
           }
         },
         "exit": {
@@ -124,19 +132,20 @@
           "operator": "or",
           "right": {
             "left": {
-              "alias": "trend_anchor_delta",
+              "alias": "compression_ratio",
               "params": {
-                "window": 50
+                "atr_long_window": 20,
+                "atr_short_window": 5
               },
-              "primitive": "trend_anchor_delta",
+              "primitive": "compression_ratio",
               "source_field": "close"
             },
-            "operator": "less_than",
-            "right": 0.0
+            "operator": "greater_than",
+            "right": 1.0
           }
         }
       },
-      "strategy_spec_id": "qss_66f5c3993eb6429c",
+      "strategy_spec_id": "qss_a952563512b7d7ea",
       "timeframe": "1d",
       "transforms": [],
       "universe": "single_asset_liquid_cache_universe"

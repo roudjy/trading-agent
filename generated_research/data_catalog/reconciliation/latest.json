@@ -1,0 +1,35 @@
+{
+  "content_identity": "qdrecon_edb00231cfe4284a",
+  "policy_version": "qre_alpha_data_truth_v1",
+  "report_kind": "qre_data_reconciliation",
+  "root_cause": {
+    "broader_logical_datasets_present": true,
+    "causes": [
+      "inventory_bug",
+      "source_quality_exclusion"
+    ],
+    "content_identity": "qdrc_cae2499fe5ceef1c",
+    "evidence_refs": [
+      "logs/qre_data_cache_manifest/latest.json",
+      "logs/qre_data_source_quality_readiness/latest.json",
+      "research/external_intelligence/source_manifest_registry.py"
+    ],
+    "example_logical_row_count": 99864,
+    "example_physical_row_count": 5,
+    "pr_722_inventory_path": "packages/qre_research/alpha_discovery/data_planner.py::_choose_rows",
+    "selector_behavior": "manifest.files preferred over manifest.coverage when files are present",
+    "selector_effect": "physical shard rows with 5 bars each were treated as standalone datasets",
+    "source_quality_layer_gap": "file-level quality rows existed, but canonical source-authority still blocks yfinance for empirical readiness"
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "duplicate_content": 2,
+    "files_scanned": 7046,
+    "historical_only_datasets": 3,
+    "logical_datasets": 46,
+    "missing_referenced_files": 0,
+    "non_portable_paths": 0,
+    "orphaned_files": 0,
+    "stale_manifests": 0
+  }
+}

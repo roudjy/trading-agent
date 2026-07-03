@@ -12,30 +12,33 @@ from typing import Any
 
 import pandas as pd
 
+from packages.qre_data.dataset_catalog import materialize_data_truth
 from packages.qre_research.generated_strategy_paths import validate_write_target
 
+from .acquisition import execute_acquisition_once, throughput_snapshot
 from .contracts import (
-    CampaignEvidence,
-    CoverageDecision,
-    DiscoveryContext,
     EXECUTION_TIER_COMPILER_ONLY,
     EXECUTION_TIER_EMPIRICAL_SCREENING,
     EXECUTION_TIER_EXECUTOR_SMOKE,
     EXECUTION_TIER_LOCKED_OOS_VALIDATION,
     EXECUTION_TIERS,
+    LESSON_TYPE_PROCESS,
+    POLICY_VERSION,
+    SCHEMA_VERSION,
+    AcquisitionPlan,
+    CampaignEvidence,
+    CoverageAssessment,
+    CoverageDecision,
+    DiscoveryContext,
     EvidenceAssessment,
     ExperimentAdmissionDecision,
     HypothesisCritique,
     HypothesisRevision,
     HypothesisScorecard,
-    LESSON_TYPE_PROCESS,
     MechanismImplementationAlignment,
     MechanisticHypothesis,
-    ObservationSnapshot,
     ResearchLesson,
     RunBudgetUsage,
-    SCHEMA_VERSION,
-    POLICY_VERSION,
     content_id,
 )
 from .data_planner import build_data_requirement, resolve_data_plan
@@ -48,8 +51,9 @@ from .providers import (
     DeterministicHypothesisRewriter,
     DeterministicMechanisticHypothesisProvider,
 )
-from .strategy_compiler import build_strategy_spec, build_alignment, compile_strategy_spec
+from .strategy_compiler import build_alignment, build_strategy_spec, compile_strategy_spec
 from .strategy_ir import ConditionNode, ControlNode, FeatureNode, PortfolioRule, SignalNode
+from .universe_planner import plan_universe
 
 OUTPUT_ROOT = Path("generated_research/alpha_discovery")
 OBSERVATIONS_PATH = OUTPUT_ROOT / "observations" / "latest.json"
@@ -60,6 +64,10 @@ SCORECARDS_PATH = OUTPUT_ROOT / "scorecards" / "latest.json"
 EXPERIMENTS_PATH = OUTPUT_ROOT / "experiments" / "latest.json"
 STRATEGIES_PATH = OUTPUT_ROOT / "strategies" / "latest.json"
 DATA_PLANS_PATH = OUTPUT_ROOT / "data_plans" / "latest.json"
+REQUIREMENTS_PATH = OUTPUT_ROOT / "requirements" / "latest.json"
+UNIVERSE_PLANS_PATH = OUTPUT_ROOT / "universe_plans" / "latest.json"
+ACQUISITIONS_PATH = OUTPUT_ROOT / "acquisitions" / "latest.json"
+THROUGHPUT_PATH = OUTPUT_ROOT / "throughput" / "latest.json"
 ADMISSIONS_PATH = OUTPUT_ROOT / "admissions" / "latest.json"
 ALIGNMENTS_PATH = OUTPUT_ROOT / "alignments" / "latest.json"
 EVIDENCE_ASSESSMENTS_PATH = OUTPUT_ROOT / "evidence_assessments" / "latest.json"
@@ -225,7 +233,7 @@ def _select_hypothesis(
     suppressed_fingerprint: str | None = None,
 ) -> tuple[MechanisticHypothesis | None, list[dict[str, Any]]]:
     ranked = sorted(
-        list(zip(hypotheses, scorecards)),
+        zip(hypotheses, scorecards, strict=False),
         key=lambda item: (
             bool(item[1].hard_blockers),
             -item[1].overall_score,
@@ -319,7 +327,7 @@ def _run_smoke_backtest(repo_root: Path, strategy_callable: Any, data_plan: Cove
 
 def _canonical_preset_for_hypothesis(hypothesis: MechanisticHypothesis, instrument: str, timeframe: str):
     presets = importlib.import_module("research.presets")
-    ResearchPreset = getattr(presets, "ResearchPreset")
+    ResearchPreset = presets.ResearchPreset
     bundle_map = {
         "trend_persistence": ("trend_pullback_v1",),
         "volatility_breakout": ("volatility_compression_breakout",),
@@ -383,6 +391,8 @@ def _assess_admission(
     strategy_spec,
     data_requirement,
     data_plan: CoverageDecision,
+    coverage: CoverageAssessment,
+    acquisition: AcquisitionPlan,
     alignment: MechanismImplementationAlignment,
     requested_execution_tier: str,
 ) -> ExperimentAdmissionDecision:
@@ -394,15 +404,15 @@ def _assess_admission(
     validation_rows = int(selected_data.get("validation_rows") or 0)
     locked_oos_rows = int(selected_data.get("locked_oos_rows") or 0)
     admitted_tier = data_plan.admissible_execution_tier
-    reasons = list(data_plan.tier_downgrade_reasons)
+    reasons = list(data_plan.tier_downgrade_reasons) + list(acquisition.reason_codes)
     if alignment.alignment_status != "ALIGNED":
         reasons.append("mechanism_alignment_blocked")
     decision = f"ADMIT_{admitted_tier}"
-    if source_quality != "ready" and admitted_tier not in {EXECUTION_TIER_EXECUTOR_SMOKE, EXECUTION_TIER_COMPILER_ONLY}:
+    if coverage.decision == "SOURCE_QUALITY_BLOCKED" or source_quality != "ready":
         decision = "SOURCE_QUALITY_BLOCKED"
-    elif identity != "ready" and admitted_tier not in {EXECUTION_TIER_EXECUTOR_SMOKE, EXECUTION_TIER_COMPILER_ONLY}:
+    elif coverage.decision == "IDENTITY_BLOCKED" or identity != "ready":
         decision = "IDENTITY_BLOCKED"
-    elif alignment.alignment_status != "ALIGNED":
+    elif coverage.decision == "PIT_BLOCKED" or alignment.alignment_status != "ALIGNED":
         decision = "POLICY_BLOCKED"
     elif admitted_tier == EXECUTION_TIER_EXECUTOR_SMOKE and requested_execution_tier != EXECUTION_TIER_EXECUTOR_SMOKE:
         decision = "ADMIT_EXECUTOR_SMOKE"
@@ -553,7 +563,7 @@ def run_alpha_discovery_mvp(
                     critique_id=critique.critique_id,
                     revised_hypothesis_id=revised.hypothesis_id,
                     changes_applied=("regime_conditioning", "explicit_cost_falsification"),
-                    changes_rejected=tuple(),
+                    changes_rejected=(),
                     content_identity=content_id("qahrv", {"original": hypothesis.hypothesis_id, "revised": revised.hypothesis_id}),
                 )
             )
@@ -562,8 +572,16 @@ def run_alpha_discovery_mvp(
     scorecards = [evaluator.evaluate(hypothesis, critique, observation) for hypothesis, critique in zip(final_hypotheses, critiques, strict=False)]
     selected, unselected = _select_hypothesis(final_hypotheses, scorecards, suppressed_fingerprint=lesson_fingerprint or None)
     experiment = planner.plan(selected, requested_execution_tier=requested_execution_tier) if selected is not None else None
-    data_requirement = build_data_requirement(experiment) if experiment is not None else None
-    data_plan = resolve_data_plan(repo_root, data_requirement) if data_requirement is not None else None
+    data_truth = materialize_data_truth(repo_root)
+    universe_plan = plan_universe(repo_root=repo_root, experiment=experiment, catalog=data_truth["catalog"]) if experiment is not None else None
+    data_requirement = build_data_requirement(experiment, universe_plan) if experiment is not None and universe_plan is not None else None
+    data_plan = coverage = acquisition = None
+    if data_requirement is not None and universe_plan is not None:
+        data_plan, coverage, acquisition, data_truth, universe_plan = resolve_data_plan(
+            repo_root,
+            data_requirement,
+            universe_plan=universe_plan,
+        )
     compiled = None
     strategy_spec = None
     alignment = None
@@ -573,7 +591,9 @@ def run_alpha_discovery_mvp(
     lesson: ResearchLesson | None = None
     terminal_disposition = "NO_NOVEL_HYPOTHESIS"
     campaign_id = None
-    if selected is not None and experiment is not None and data_plan is not None:
+    ingestion_telemetry = None
+    throughput = None
+    if selected is not None and experiment is not None and data_plan is not None and coverage is not None and acquisition is not None:
         compiled, strategy_spec, alignment = _build_strategy_artifact(selected)
         admission = _assess_admission(
             selected=selected,
@@ -581,14 +601,18 @@ def run_alpha_discovery_mvp(
             strategy_spec=strategy_spec,
             data_requirement=data_requirement,
             data_plan=data_plan,
+            coverage=coverage,
+            acquisition=acquisition,
             alignment=alignment,
             requested_execution_tier=requested_execution_tier,
         )
+        ingestion_telemetry = execute_acquisition_once(repo_root=repo_root, plan=acquisition)
+        throughput = throughput_snapshot(catalog=data_truth["catalog"], telemetry=ingestion_telemetry)
         if compiled["status"] != "VERIFIED":
             terminal_disposition = "POLICY_BLOCKED"
         elif dry_run:
             terminal_disposition = "DRY_RUN"
-        elif admission.decision == "ADMIT_EXECUTOR_SMOKE":
+        elif admission.decision == "ADMIT_EXECUTOR_SMOKE" and requested_execution_tier == EXECUTION_TIER_EXECUTOR_SMOKE:
             result = _run_smoke_backtest(repo_root, compiled["callable"], data_plan)
             campaign_id = content_id("qcam", {"experiment_id": experiment.experiment_id, "hypothesis_id": selected.hypothesis_id, "tier": admission.admitted_tier})
             campaign_evidence = CampaignEvidence(
@@ -624,8 +648,12 @@ def run_alpha_discovery_mvp(
             terminal_disposition = "STOPPED_SOURCE_QUALITY_BOUNDARY"
         elif admission.decision == "IDENTITY_BLOCKED":
             terminal_disposition = "STOPPED_IDENTITY_BOUNDARY"
+        elif acquisition.external_boundary == "STOPPED_PROVIDER_BOUNDARY":
+            terminal_disposition = "STOPPED_PROVIDER_BOUNDARY"
+        elif coverage.decision == "PIT_BLOCKED":
+            terminal_disposition = "STOPPED_PIT_BOUNDARY"
         else:
-            terminal_disposition = "STOPPED_DATA_BOUNDARY"
+            terminal_disposition = "STOPPED_EXTERNAL_DATA_BOUNDARY"
 
     budget_usage = RunBudgetUsage(
         observation_snapshots=1,
@@ -676,17 +704,21 @@ def run_alpha_discovery_mvp(
         "evidence_grade": assessment.evidence_grade if assessment is not None else None,
         "mechanism_learning_allowed": bool(admission and admission.mechanism_learning_allowed),
         "prior_adjustment_allowed": bool(assessment and assessment.prior_adjustment_allowed),
-        "data_boundary": None if admission is None else (None if "ADMIT_" in admission.decision else admission.decision),
+        "data_boundary": acquisition.external_boundary if acquisition is not None else None,
         "exact_blockers": list(admission.reason_codes) if admission is not None else [],
         "data_plan_status": data_plan.decision if data_plan is not None else None,
+        "coverage_decision": coverage.decision if coverage is not None else None,
+        "acquisition_decision": acquisition.source_selection_decision if acquisition is not None else None,
         "campaign_id": campaign_id,
         "terminal_disposition": terminal_disposition,
         "lesson_id": lesson.lesson_id if lesson is not None else None,
         "budget_usage": asdict(budget_usage),
-        "next_action": "obtain_evidence_grade_data" if terminal_disposition in {"COMPLETED_SMOKE_ONLY", "STOPPED_DATA_BOUNDARY", "STOPPED_SOURCE_QUALITY_BOUNDARY", "STOPPED_IDENTITY_BOUNDARY"} else "repeat_mvp_on_next_novel_hypothesis",
+        "next_action": "resolve_source_quality_boundary" if terminal_disposition == "STOPPED_SOURCE_QUALITY_BOUNDARY" else ("resolve_identity_boundary" if terminal_disposition == "STOPPED_IDENTITY_BOUNDARY" else ("resolve_pit_boundary" if terminal_disposition == "STOPPED_PIT_BOUNDARY" else ("resolve_external_data_boundary" if terminal_disposition == "STOPPED_EXTERNAL_DATA_BOUNDARY" else "repeat_mvp_on_next_novel_hypothesis"))),
         "artifact_refs": {},
         "selected_hypothesis_ids": [hyp.hypothesis_id for hyp in final_hypotheses],
         "unselected_hypothesis_reasons": unselected,
+        "five_row_inventory_root_cause": data_truth["census"]["root_cause"] if isinstance(data_truth, dict) and "census" in data_truth else None,
+        "throughput": throughput,
     }
     artifacts = {
         "observation": observation.to_payload(),
@@ -696,9 +728,14 @@ def run_alpha_discovery_mvp(
         "scorecards": _serialize(scorecards),
         "experiments": asdict(experiment) if experiment is not None else None,
         "strategies": strategy_spec.to_payload() if strategy_spec is not None else None,
+        "requirements": asdict(data_requirement) if data_requirement is not None else None,
+        "universe_plans": asdict(universe_plan) if universe_plan is not None else None,
+        "acquisitions": asdict(acquisition) if acquisition is not None else None,
+        "throughput": throughput,
         "alignments": asdict(alignment) if alignment is not None else None,
         "admissions": asdict(admission) if admission is not None else None,
         "data_plans": _public_data_plan(data_plan),
+        "coverage": asdict(coverage) if coverage is not None else None,
         "evidence_assessments": asdict(assessment) if assessment is not None else None,
         "lessons": asdict(lesson) if lesson is not None else None,
         "reassessments": reassessments,
@@ -738,9 +775,14 @@ def run_alpha_discovery_mvp(
         "scorecards": _write_artifact(SCORECARDS_PATH, {"schema_version": SCHEMA_VERSION, "rows": artifacts["scorecards"]}, repo_root=repo_root),
         "experiments": _write_artifact(EXPERIMENTS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["experiments"]] if artifacts["experiments"] else []}, repo_root=repo_root),
         "strategies": _write_artifact(STRATEGIES_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["strategies"]] if artifacts["strategies"] else []}, repo_root=repo_root),
+        "requirements": _write_artifact(REQUIREMENTS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["requirements"]] if artifacts["requirements"] else []}, repo_root=repo_root),
+        "universe_plans": _write_artifact(UNIVERSE_PLANS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["universe_plans"]] if artifacts["universe_plans"] else []}, repo_root=repo_root),
+        "acquisitions": _write_artifact(ACQUISITIONS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["acquisitions"]] if artifacts["acquisitions"] else []}, repo_root=repo_root),
+        "throughput": _write_artifact(THROUGHPUT_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["throughput"]] if artifacts["throughput"] else []}, repo_root=repo_root),
         "alignments": _write_artifact(ALIGNMENTS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["alignments"]] if artifacts["alignments"] else []}, repo_root=repo_root),
         "admissions": _write_artifact(ADMISSIONS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["admissions"]] if artifacts["admissions"] else []}, repo_root=repo_root),
         "data_plans": _write_artifact(DATA_PLANS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["data_plans"]] if artifacts["data_plans"] else []}, repo_root=repo_root),
+        "coverage": _write_artifact(DATA_PLANS_PATH.with_name("coverage_latest.json"), {"schema_version": SCHEMA_VERSION, "rows": [artifacts["coverage"]] if artifacts["coverage"] else []}, repo_root=repo_root),
         "evidence_assessments": _write_artifact(EVIDENCE_ASSESSMENTS_PATH, {"schema_version": SCHEMA_VERSION, "rows": [artifacts["evidence_assessments"]] if artifacts["evidence_assessments"] else []}, repo_root=repo_root),
         "reassessments": _write_artifact(REASSESSMENTS_PATH, reassessments, repo_root=repo_root),
         "runs": _write_artifact(RUNS_PATH, artifacts["runs"], repo_root=repo_root),
