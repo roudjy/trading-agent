@@ -15,6 +15,8 @@ Status: completed by `feat/qre-alpha-empirical-admission-dsl`
 
 ## PR 2 - Autonomous Data Acquisition and Universe Planning
 
+Status: completed by `feat/qre-autonomous-data-universe-planning`
+
 - dynamic point-in-time universes
 - incremental ingestion
 - session-aware resampling
@@ -44,5 +46,6 @@ Status: completed by `feat/qre-alpha-empirical-admission-dsl`
 ## Scope Boundary
 
 - Follow-up PR 1 is complete
+- Follow-up PR 2 is complete
 - exactly four follow-up PRs are defined
 - no fifth PR is proposed
