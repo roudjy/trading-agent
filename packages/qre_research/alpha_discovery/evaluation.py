@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from .contracts import (
     EXECUTION_TIER_EXECUTOR_SMOKE,
     EvidenceAssessment,
@@ -16,7 +18,7 @@ def _score_component(base: float, bonus: float = 0.0, penalty: float = 0.0) -> f
 
 
 class DeterministicExAnteEvaluator:
-    weights = {
+    weights: ClassVar[dict[str, float]] = {
         "mechanistic_clarity": 0.12,
         "falsifiability": 0.14,
         "novelty": 0.10,
@@ -116,9 +118,9 @@ class CanonicalEvidenceEvaluator:
         smoke = campaign_evidence.execution_tier == EXECUTION_TIER_EXECUTOR_SMOKE
         insufficient_activity = trade_count < max(int(experiment.minimum_trade_count), 1)
         has_locked_oos = admission.OOS_sufficiency == "SUFFICIENT"
-        supporting: tuple[str, ...] = tuple()
-        contradicting: tuple[str, ...] = tuple()
-        inconclusive: tuple[str, ...] = tuple()
+        supporting: tuple[str, ...] = ()
+        contradicting: tuple[str, ...] = ()
+        inconclusive: tuple[str, ...] = ()
         null_presence = "AVAILABLE"
         null_applicability = "EVALUABLE"
         null_sufficiency = "INSUFFICIENT" if insufficient_activity else "SUFFICIENT"
@@ -184,7 +186,7 @@ class CanonicalEvidenceEvaluator:
             confidence_update=confidence,
             prior_adjustment_allowed=prior_allowed,
             prior_adjustment_basis=prior_basis,
-            qualifying_evidence_refs=(campaign_evidence.content_identity,) if prior_allowed else tuple(),
+            qualifying_evidence_refs=(campaign_evidence.content_identity,) if prior_allowed else (),
             terminal_disposition=terminal,
             reason_codes=tuple(sorted(set((supporting + contradicting + inconclusive) or ("inconclusive",)))),
             content_identity=content_id(

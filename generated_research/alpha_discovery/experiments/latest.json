@@ -3,27 +3,27 @@
     {
       "IS_policy": "bounded in-sample only",
       "confounder_controls": [
-        "null_hold_baseline",
-        "cost_only_baseline",
-        "regime_filter"
+        "regime_filter",
+        "leave_one_asset_out",
+        "cost_stress"
       ],
-      "content_identity": "qexpc_9919ebc0dcc3f684",
-      "counter_hypothesis": "Alternative explanation: volatility_breakout is spurious.",
+      "content_identity": "qexpc_d891c765e2c2d1f3",
+      "counter_hypothesis": "Alternative explanation: regime_transition is spurious.",
       "embargo_policy": "short embargo around boundary bars",
       "entry_semantics": "frozen deterministic entry condition",
       "exit_semantics": "frozen deterministic exit condition",
-      "experiment_id": "qexp_7fd2af268b95a91c",
+      "experiment_id": "qexp_f5cca6e42955f345",
       "failure_criteria": [
         "insufficient_activity",
         "insufficient_oos",
         "negative_after_costs"
       ],
       "falsification_tests": [
-        "compression ratio remains above threshold",
-        "normalized_trend_move fails to expand after entry",
+        "effect disappears outside conditioned regime",
+        "cost stress removes signal",
         "explicit_cost_falsification"
       ],
-      "hypothesis_id": "qah_0a3044c270860c7c",
+      "hypothesis_id": "qah_50bd8a85af84d666",
       "locked_OOS_policy": "locked OOS required for locked OOS validation tier",
       "minimum_signal_count": 3,
       "minimum_trade_count": 3,
@@ -33,7 +33,7 @@
       ],
       "portfolio_semantics": "single-strategy unit-notional research only",
       "position_semantics": "long_only",
-      "predicted_observable": "a breakout after compression with fewer but sharper trades",
+      "predicted_observable": "effect appears only when the regime filter is active and disappears otherwise",
       "requested_execution_tier": "EMPIRICAL_SCREENING",
       "required_data_fields": [
         "close",
@@ -50,17 +50,16 @@
         "window_stability"
       ],
       "required_features": [
-        "compression_ratio",
-        "normalized_trend_move",
-        "rolling_high_previous"
+        "trend_anchor_delta",
+        "compression_ratio"
       ],
       "required_history": "research-ready continuous history with validation and locked OOS when required by tier",
       "required_point_in_time_metadata": [
         "timestamp_utc"
       ],
-      "research_question": "Does compression should precede directional release when short-term volatility is suppressed and the trend-normalised move is constructive. produce a breakout after compression with fewer but sharper trades?",
+      "research_question": "Does an effect previously weakened by cost or sparse activity may survive only in a conditioned regime with explicit falsification controls. produce effect appears only when the regime filter is active and disappears otherwise?",
       "sampling_frequency": "1d",
-      "signal_semantics": "compression_release",
+      "signal_semantics": "regime_conditioned_follow_up",
       "slippage_model": "canonical_zero_slippage_proxy",
       "success_criteria": [
         "supports_mechanism",

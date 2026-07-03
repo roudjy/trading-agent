@@ -1,101 +1,104 @@
 {
   "rows": [
     {
-      "behavior_family": "overextension_reversion",
-      "causal_mechanism_statement": "short-horizon overextension should mean revert when z-scores are extreme and volatility is not collapsing.",
+      "behavior_family": "compression_release",
+      "causal_mechanism_statement": "volatility compression followed by constructive directional pressure should release into a directional move.",
       "confounders": [
-        "news shocks",
-        "trend continuation",
-        "volatility clustering"
+        "event shocks",
+        "news clusters",
+        "beta drift"
       ],
-      "content_identity": "qahr_8bc98d08e1c5b080",
-      "contradicting_observation_refs": [],
-      "cost_sensitivity_expectation": "moderate; fewer trades should reduce cost pressure",
+      "content_identity": "qahr_2fce2b335aa0af4c",
+      "contradicting_observation_refs": [
+        "route future runs through evidence-grade admission"
+      ],
+      "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
       "expected_direction": "long_only",
       "falsification_conditions": [
-        "zscore fails to revert toward zero",
-        "rolling volatility collapses into invalid data",
+        "compression ratio remains elevated",
+        "directional move fails to expand",
         "explicit_cost_falsification"
       ],
-      "generation_policy_version": "qre_alpha_generation_policy_v1",
-      "hypothesis_id": "qah_8bc98d08e1c5b080",
-      "mechanism_family": "mean_reversion",
-      "minimum_activity_expectation": "moderate signal frequency",
+      "generation_policy_version": "qre_alpha_generation_policy_v2",
+      "hypothesis_id": "qah_2fce2b335aa0af4c",
+      "mechanism_family": "volatility_breakout",
+      "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
-        "extreme move reversion",
-        "regime_conditioning"
+        "volatility clustering change",
+        "diagnostic anomaly grounding",
+        "critic_rewrite"
       ],
-      "null_hypothesis": "extreme z-score does not predict forward reversal after costs.",
+      "null_hypothesis": "fewer but sharper directional breakouts after compression is indistinguishable from null after costs.",
       "parameter_count": 3,
       "parameter_schema": [
         {
-          "name": "lookback",
+          "name": "atr_short_window",
+          "type": "int",
+          "value": 5
+        },
+        {
+          "name": "atr_long_window",
           "type": "int",
           "value": 20
         },
         {
-          "name": "entry_z",
+          "name": "compression_threshold",
           "type": "float",
-          "value": -1.5
-        },
-        {
-          "name": "exit_z",
-          "type": "float",
-          "value": -0.25
+          "value": 0.3
         }
       ],
-      "parent_hypothesis_id": "qah_67a84d604cc07add",
-      "predicted_observable_effect": "contrarian recovery after extended move",
-      "provider_id": "deterministic_mechanistic_hypothesis_provider",
-      "regime_scope": "overextended_and_stable_liquidity|regime_conditioned",
+      "parent_hypothesis_id": "qah_50812603a540b70b",
+      "predicted_observable_effect": "fewer but sharper directional breakouts after compression",
+      "provider_id": "anomaly",
+      "regime_scope": "compression_then_expansion|critic_conditioned",
       "related_campaigns": [],
       "related_hypotheses": [
-        "pairs_zscore_strategie"
+        "volatility_compression_breakout_v0"
       ],
       "required_controls": [
-        "null_hold_baseline",
-        "cost_only_baseline",
-        "regime_filter"
+        "regime_filter",
+        "cost_stress"
       ],
       "required_features": [
-        "zscore",
-        "rolling_volatility",
-        "log_returns"
+        "compression_ratio",
+        "normalized_trend_move",
+        "rolling_high_previous"
       ],
-      "schema_version": "1.0",
-      "stable_fingerprint": "e83135c4be5b558a006fba4f8537f799637559898cb455caa82033f99b7fe1a8",
+      "schema_version": "1.1",
+      "stable_fingerprint": "70c086677e110b4d5fcca4942f3c1108a6c46c8e8b1348faaefff37b6c2a7617",
       "support_observation_refs": [
-        "qos_41c52fbff6230667"
+        "qos_a8df097bd3835e35"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"
     },
     {
       "behavior_family": "trend_continuation",
-      "causal_mechanism_statement": "trend persistence should continue when an anchored trend remains positive and volatility-normalised move stays elevated.",
+      "causal_mechanism_statement": "persistent positive trend with still-contained volatility should continue over a short holding horizon.",
       "confounders": [
-        "broad market drift",
-        "simple momentum crowding",
+        "broad market beta",
+        "calendar drift",
         "cost drag"
       ],
-      "content_identity": "qahr_56279ba7fa7a26d4",
+      "content_identity": "qahr_0f2b68609264343f",
       "contradicting_observation_refs": [],
-      "cost_sensitivity_expectation": "moderate; should tolerate small costs but not heavy turnover",
+      "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
       "expected_direction": "long_only",
       "falsification_conditions": [
-        "trend_anchor_delta turns negative before trade horizon",
-        "normalized_trend_move stays below entry threshold",
+        "trend_anchor_delta turns negative",
+        "move falls below entry threshold",
         "explicit_cost_falsification"
       ],
-      "generation_policy_version": "qre_alpha_generation_policy_v1",
-      "hypothesis_id": "qah_56279ba7fa7a26d4",
+      "generation_policy_version": "qre_alpha_generation_policy_v2",
+      "hypothesis_id": "qah_0f2b68609264343f",
       "mechanism_family": "trend_persistence",
-      "minimum_activity_expectation": "at least a few aligned signals in the selected history",
+      "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
-        "anchored trend with volatility-normalised continuation",
-        "regime_conditioning"
+        "new diagnostic anomaly grounding",
+        "trend continuation",
+        "critic_rewrite"
       ],
-      "null_hypothesis": "positive anchored trend does not predict forward continuation after costs.",
+      "null_hypothesis": "positive continuation over the next few bars is indistinguishable from null after costs.",
       "parameter_count": 3,
       "parameter_schema": [
         {
@@ -114,100 +117,167 @@
           "value": 0.75
         }
       ],
-      "parent_hypothesis_id": "qah_6ab1d4811cacfa31",
-      "predicted_observable_effect": "positive continuation with modest holding periods",
-      "provider_id": "deterministic_mechanistic_hypothesis_provider",
-      "regime_scope": "trend_or_expanding_volatility|regime_conditioned",
+      "parent_hypothesis_id": "qah_c60403deaeb32fd0",
+      "predicted_observable_effect": "positive continuation over the next few bars",
+      "provider_id": "anomaly",
+      "regime_scope": "trend_positive_and_volatility_contained|critic_conditioned",
       "related_campaigns": [],
       "related_hypotheses": [
         "cross_sectional_momentum_v0"
       ],
       "required_controls": [
-        "cost_only_baseline",
-        "null_hold_baseline",
-        "regime_filter"
+        "regime_filter",
+        "cost_only_baseline"
       ],
       "required_features": [
-        "trend_anchor",
         "trend_anchor_delta",
         "normalized_trend_move"
       ],
-      "schema_version": "1.0",
-      "stable_fingerprint": "b6a74ec5b041a6f99e3fb67b919e5613fa4c168a3bf1f182e3fcc4115ca7aa3d",
+      "schema_version": "1.1",
+      "stable_fingerprint": "d91d965084bdad45ec93f86046868eb5562ab92051d04a484c1ce7f17f4ecf56",
       "support_observation_refs": [
-        "qos_41c52fbff6230667"
+        "qos_a8df097bd3835e35"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"
     },
     {
-      "behavior_family": "compression_release",
-      "causal_mechanism_statement": "compression should precede directional release when short-term volatility is suppressed and the trend-normalised move is constructive.",
+      "behavior_family": "regime_conditioned_follow_up",
+      "causal_mechanism_statement": "an effect previously weakened by cost or sparse activity may survive only in a conditioned regime with explicit falsification controls.",
       "confounders": [
-        "event-driven jumps",
-        "calendar effects",
-        "survivorship bias"
+        "selection bias",
+        "generic market drift",
+        "cost drag"
       ],
-      "content_identity": "qahr_0a3044c270860c7c",
+      "content_identity": "qahr_50bd8a85af84d666",
       "contradicting_observation_refs": [
-        "route future runs through evidence-grade admission"
+        "obtain evidence-grade data before empirical screening"
       ],
-      "cost_sensitivity_expectation": "high; breakout edge weakens quickly with cost drag",
+      "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
       "expected_direction": "long_only",
       "falsification_conditions": [
-        "compression ratio remains above threshold",
-        "normalized_trend_move fails to expand after entry",
+        "effect disappears outside conditioned regime",
+        "cost stress removes signal",
         "explicit_cost_falsification"
       ],
-      "generation_policy_version": "qre_alpha_generation_policy_v1",
-      "hypothesis_id": "qah_0a3044c270860c7c",
-      "mechanism_family": "volatility_breakout",
-      "minimum_activity_expectation": "activity can be sparse but should not be absent",
+      "generation_policy_version": "qre_alpha_generation_policy_v2",
+      "hypothesis_id": "qah_50bd8a85af84d666",
+      "mechanism_family": "regime_transition",
+      "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
-        "volatility compression release relation",
-        "regime_conditioning"
+        "new contradiction resolution angle",
+        "new falsification control",
+        "critic_rewrite"
       ],
-      "null_hypothesis": "volatility compression does not improve forward breakout expectancy after costs.",
+      "null_hypothesis": "effect appears only when the regime filter is active and disappears otherwise is indistinguishable from null after costs.",
       "parameter_count": 3,
       "parameter_schema": [
         {
-          "name": "atr_short_window",
+          "name": "trend_anchor_window",
           "type": "int",
-          "value": 5
+          "value": 50
         },
         {
-          "name": "atr_long_window",
+          "name": "compression_window",
           "type": "int",
           "value": 20
         },
         {
-          "name": "compression_threshold",
+          "name": "regime_threshold",
           "type": "float",
-          "value": 0.6
+          "value": 0.5
         }
       ],
-      "parent_hypothesis_id": "qah_a92e4eee67561b4c",
-      "predicted_observable_effect": "a breakout after compression with fewer but sharper trades",
-      "provider_id": "deterministic_mechanistic_hypothesis_provider",
-      "regime_scope": "compression_then_expansion|regime_conditioned",
+      "parent_hypothesis_id": "qah_8ce7620ce07d4256",
+      "predicted_observable_effect": "effect appears only when the regime filter is active and disappears otherwise",
+      "provider_id": "contradiction",
+      "regime_scope": "regime_conditioned_follow_up|critic_conditioned",
       "related_campaigns": [],
       "related_hypotheses": [
-        "volatility_compression_breakout_v0"
+        "qah_56279ba7fa7a26d4"
       ],
       "required_controls": [
-        "null_hold_baseline",
-        "cost_only_baseline",
+        "regime_filter",
+        "leave_one_asset_out",
+        "cost_stress"
+      ],
+      "required_features": [
+        "trend_anchor_delta",
+        "compression_ratio"
+      ],
+      "schema_version": "1.1",
+      "stable_fingerprint": "84abcec316a143be15bb4b638a8cdad49cb762bd84596dc88dcaca8644bb70a8",
+      "support_observation_refs": [
+        "qos_a8df097bd3835e35"
+      ],
+      "timeframe_intent": "1d",
+      "universe_intent": "single_asset_liquid_cache_universe"
+    },
+    {
+      "behavior_family": "relative_strength_dispersion",
+      "causal_mechanism_statement": "changes in relative strength and dispersion can indicate a regime where broad drift is insufficient to explain cross-instrument separation.",
+      "confounders": [
+        "market beta",
+        "index concentration",
+        "selection bias"
+      ],
+      "content_identity": "qahr_818ba1e900c0294a",
+      "contradicting_observation_refs": [],
+      "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
+      "expected_direction": "long_only",
+      "falsification_conditions": [
+        "dispersion contracts immediately",
+        "rank leadership mean reverts before holding horizon",
+        "explicit_cost_falsification"
+      ],
+      "generation_policy_version": "qre_alpha_generation_policy_v2",
+      "hypothesis_id": "qah_818ba1e900c0294a",
+      "mechanism_family": "correlation_change",
+      "minimum_activity_expectation": "at least a few signals in discovery history",
+      "novelty_dimensions": [
+        "underexplored mechanism family",
+        "portfolio orthogonality gap",
+        "critic_rewrite"
+      ],
+      "null_hypothesis": "relative-strength leadership persists while laggards remain weak is indistinguishable from null after costs.",
+      "parameter_count": 3,
+      "parameter_schema": [
+        {
+          "name": "lookback",
+          "type": "int",
+          "value": 20
+        },
+        {
+          "name": "top_bucket",
+          "type": "float",
+          "value": 0.2
+        },
+        {
+          "name": "hold_bars",
+          "type": "int",
+          "value": 5
+        }
+      ],
+      "parent_hypothesis_id": "qah_3284b5d99e05ef1b",
+      "predicted_observable_effect": "relative-strength leadership persists while laggards remain weak",
+      "provider_id": "coverage",
+      "regime_scope": "dispersion_expanding|critic_conditioned",
+      "related_campaigns": [],
+      "related_hypotheses": [],
+      "required_controls": [
+        "market_beta_proxy_control",
+        "leave_one_asset_out",
         "regime_filter"
       ],
       "required_features": [
-        "compression_ratio",
-        "normalized_trend_move",
-        "rolling_high_previous"
+        "relative_strength",
+        "dispersion",
+        "cross_sectional_rank"
       ],
-      "schema_version": "1.0",
-      "stable_fingerprint": "db6421eff082323957da1af385b73e5abb2c818193a19fe4826aae90f9817bce",
+      "schema_version": "1.1",
+      "stable_fingerprint": "3ad723514ef3efd39a9456ac725f051c0c5f4669ae42babdbf327abbfe1826c8",
       "support_observation_refs": [
-        "qos_41c52fbff6230667"
+        "qos_a8df097bd3835e35"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"

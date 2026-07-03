@@ -1,6 +1,6 @@
 {
-  "admitted_execution_tier": "EXECUTOR_SMOKE",
-  "content_identity": "qasd_status_915357540ea68588",
+  "admitted_execution_tier": "COMPILER_ONLY",
+  "content_identity": "qasd_status_66999f32ab28120f",
   "current_wait_reason": "no_campaign_executed",
   "empirical_campaign_created": false,
   "mechanism_learning_allowed": false,
@@ -11,8 +11,8 @@
   "report_kind": "qre_alpha_discovery_status",
   "requested_execution_tier": "EMPIRICAL_SCREENING",
   "schema_version": "1.1",
-  "selected_hypothesis_id": "qah_0a3044c270860c7c",
+  "selected_hypothesis_id": "qah_50bd8a85af84d666",
   "smoke_execution_created": false,
-  "state": "DRY_RUN",
-  "terminal_disposition": "DRY_RUN"
+  "state": "COMPLETE",
+  "terminal_disposition": "STOPPED_SOURCE_CERTIFICATION_BOUNDARY"
 }

@@ -6,10 +6,10 @@
         "explicit_cost_falsification"
       ],
       "changes_rejected": [],
-      "content_identity": "qahrv_6a86193355f9a2d4",
-      "critique_id": "qac_71601550cee25ac1",
-      "original_hypothesis_id": "qah_67a84d604cc07add",
-      "revised_hypothesis_id": "qah_8bc98d08e1c5b080"
+      "content_identity": "qahrv_92a6dd5d40b16641",
+      "critique_id": "qac_eed8b043f9c1d94a",
+      "original_hypothesis_id": "qah_50812603a540b70b",
+      "revised_hypothesis_id": "qah_2fce2b335aa0af4c"
     },
     {
       "changes_applied": [
@@ -17,10 +17,10 @@
         "explicit_cost_falsification"
       ],
       "changes_rejected": [],
-      "content_identity": "qahrv_1cf31f9e15aab5dc",
-      "critique_id": "qac_2555c9cbbff45ad1",
-      "original_hypothesis_id": "qah_6ab1d4811cacfa31",
-      "revised_hypothesis_id": "qah_56279ba7fa7a26d4"
+      "content_identity": "qahrv_fb16b009d9a42582",
+      "critique_id": "qac_6ecc8d6f1a37464d",
+      "original_hypothesis_id": "qah_c60403deaeb32fd0",
+      "revised_hypothesis_id": "qah_0f2b68609264343f"
     },
     {
       "changes_applied": [
@@ -28,10 +28,21 @@
         "explicit_cost_falsification"
       ],
       "changes_rejected": [],
-      "content_identity": "qahrv_22d9306246c28638",
-      "critique_id": "qac_cb658732c3cafdcf",
-      "original_hypothesis_id": "qah_a92e4eee67561b4c",
-      "revised_hypothesis_id": "qah_0a3044c270860c7c"
+      "content_identity": "qahrv_1fbe7d5c9196d8ec",
+      "critique_id": "qac_6be5d515d3b78f21",
+      "original_hypothesis_id": "qah_8ce7620ce07d4256",
+      "revised_hypothesis_id": "qah_50bd8a85af84d666"
+    },
+    {
+      "changes_applied": [
+        "regime_conditioning",
+        "explicit_cost_falsification"
+      ],
+      "changes_rejected": [],
+      "content_identity": "qahrv_48e0e4752405bced",
+      "critique_id": "qac_042357ecbaf9f55f",
+      "original_hypothesis_id": "qah_3284b5d99e05ef1b",
+      "revised_hypothesis_id": "qah_818ba1e900c0294a"
     }
   ],
   "schema_version": "1.1"

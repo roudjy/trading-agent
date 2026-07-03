@@ -1,0 +1,11 @@
+{
+  "policy_version": "qre_alpha_discovery_followup_pr1_v1",
+  "report_kind": "qre_alpha_validation_view",
+  "schema_version": "1.1",
+  "view": {
+    "access_policy": "post_preregistration_only",
+    "dataset_id": "qds_f4903471c672fd2f",
+    "experiment_id": "qexp_f5cca6e42955f345",
+    "strategy_spec_id": "qss_14085b9d9ba748ae"
+  }
+}
