@@ -3,6 +3,7 @@
   "files_scanned": 7046,
   "five_row_root_cause": [
     "inventory_bug",
+    "overlapping_shards_inflated_logical_rows",
     "source_quality_exclusion"
   ],
   "logical_datasets": 46,

@@ -11,6 +11,7 @@ from typing import Any
 
 from packages.qre_data import cache_manifest as cm
 from packages.qre_data import source_quality_readiness as sqr
+from packages.qre_data.bar_integrity import build_unique_bar_integrity
 from research.external_intelligence.source_manifest_registry import build_source_manifest_registry
 
 SCHEMA_VERSION = "1.0"
@@ -20,6 +21,7 @@ CATALOG_PATH = Path("generated_research/data_catalog/catalog/latest.json")
 RECONCILIATION_PATH = Path("generated_research/data_catalog/reconciliation/latest.json")
 STATUS_PATH = Path("generated_research/data_catalog/status/latest.json")
 BASELINE_POLICY_PATH = Path("generated_research/data_catalog/baseline_corpus_policy/latest.json")
+UNIQUE_BAR_INTEGRITY_PATH = Path("generated_research/data_catalog/unique_bar_integrity/latest.json")
 
 
 def _stable_json(value: Any) -> str:
@@ -264,11 +266,20 @@ def build_data_census(repo_root: Path) -> dict[str, Any]:
         )
 
     logical_rows: list[dict[str, Any]] = []
+    unique_bar_rows: list[dict[str, Any]] = []
     for coverage in coverage_rows:
         key = (str(coverage.get("source") or ""), str(coverage.get("instrument") or ""), str(coverage.get("timeframe") or ""))
         partitions = sorted(grouped_paths.get(key, []))
         source = key[0]
         source_quality, source_reason = _effective_source_quality(source, authority_rows)
+        integrity = build_unique_bar_integrity(
+            repo_root=repo_root,
+            partitions=partitions,
+            instrument_id=key[1],
+            timeframe=key[2],
+            start=str(coverage.get("min_timestamp_utc") or ""),
+            end=str(coverage.get("max_timestamp_utc") or ""),
+        )
         policy = window_policies.get(key[2], {})
         min_train_days = int(policy.get("minimum_train_days") or 0)
         min_validation_days = int(policy.get("minimum_validation_days") or 0)
@@ -283,13 +294,44 @@ def build_data_census(repo_root: Path) -> dict[str, Any]:
                 span_days = max((datetime.fromisoformat(end.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))).days, 0)
             except Exception:
                 span_days = 0
-        validation_ready = span_days >= (min_train_days + min_validation_days)
-        oos_ready = span_days >= (min_train_days + min_validation_days + min_oos_days)
+        validation_ready = integrity.unique_bar_count >= max(min_train_days + min_validation_days, 1)
+        oos_ready = integrity.unique_bar_count >= max(min_train_days + min_validation_days + min_oos_days, 1)
         highest_tier = "EXECUTOR_SMOKE"
-        if source_quality == "ready" and validation_ready:
+        if integrity.impossible_bar_density or integrity.conflicting_row_count or integrity.unreadable_file_count:
+            highest_tier = "COMPILER_ONLY"
+        elif source_quality == "ready" and validation_ready:
             highest_tier = "EMPIRICAL_SCREENING"
         if source_quality == "ready" and oos_ready:
             highest_tier = "LOCKED_OOS_VALIDATION"
+        missing_bars = None
+        if integrity.expected_bar_count is not None:
+            missing_bars = max(integrity.expected_bar_count - integrity.unique_bar_count, 0)
+        integrity_summary = {
+            "raw_row_count": integrity.raw_row_count,
+            "unique_bar_count": integrity.unique_bar_count,
+            "exact_duplicate_row_count": integrity.exact_duplicate_row_count,
+            "overlapping_row_count": integrity.overlapping_row_count,
+            "conflicting_row_count": integrity.conflicting_row_count,
+            "invalid_row_count": integrity.invalid_row_count,
+            "unreadable_file_count": integrity.unreadable_file_count,
+            "unique_timestamp_count": integrity.unique_timestamp_count,
+            "expected_bar_count": integrity.expected_bar_count,
+            "coverage_ratio": integrity.coverage_ratio,
+            "missing_bar_count": missing_bars,
+            "impossible_bar_density": integrity.impossible_bar_density,
+            "conflict_intervals": list(integrity.conflict_intervals),
+        }
+        unique_bar_rows.append(
+            {
+                "dataset_id": _content_id("qdubi", {"key": key, "coverage_hash": coverage.get("content_hash")}),
+                "source_id": source,
+                "instrument_id": key[1],
+                "timeframe": key[2],
+                "partition_refs": partitions,
+                **integrity_summary,
+                "content_identity": _content_id("qdubirow", {"key": key, "integrity": integrity_summary}),
+            }
+        )
         logical_rows.append(
             {
                 "dataset_id": _content_id("qds", {"coverage_hash": coverage.get("content_hash"), "key": key}),
@@ -307,11 +349,13 @@ def build_data_census(repo_root: Path) -> dict[str, Any]:
                 "start": coverage.get("min_timestamp_utc"),
                 "end": coverage.get("max_timestamp_utc"),
                 "complete_bar_end": coverage.get("max_timestamp_utc"),
-                "row_count": int(coverage.get("row_count") or 0),
+                "row_count": integrity.unique_bar_count,
+                "raw_row_count": integrity.raw_row_count,
                 "asset_count": 1,
                 "partition_refs": partitions,
+                "integrity_summary": integrity_summary,
                 "quality_summary": {
-                    "row_integrity_status": "ready" if coverage.get("ready") else "blocked",
+                    "row_integrity_status": "ready" if coverage.get("ready") and not integrity.impossible_bar_density and integrity.conflicting_row_count == 0 and integrity.unreadable_file_count == 0 else "blocked",
                     "source_quality_status": source_quality,
                     "campaign_scoped_quality_status": "ready" if coverage.get("ready") else "blocked",
                     "effective_research_quality_status": source_quality,
@@ -329,10 +373,14 @@ def build_data_census(repo_root: Path) -> dict[str, Any]:
                     "file_count": int(coverage.get("file_count") or 0),
                     "span_days": span_days,
                     "status_counts": dict(coverage.get("status_counts") or {}),
+                    "raw_row_count": integrity.raw_row_count,
+                    "unique_bar_count": integrity.unique_bar_count,
                 },
                 "window_capacity": {
                     "policy_timeframe": key[2],
                     "span_days": span_days,
+                    "raw_history_rows": integrity.raw_row_count,
+                    "unique_history_rows": integrity.unique_bar_count,
                     "minimum_train_days": min_train_days,
                     "minimum_validation_days": min_validation_days,
                     "minimum_oos_days": min_oos_days,
@@ -365,6 +413,7 @@ def build_data_census(repo_root: Path) -> dict[str, Any]:
         "source_quality_layer_gap": "file-level quality rows existed, but canonical source-authority still blocks yfinance for empirical readiness",
         "causes": [
             "inventory_bug",
+            "overlapping_shards_inflated_logical_rows",
             "source_quality_exclusion",
         ],
         "evidence_refs": [
@@ -381,6 +430,7 @@ def build_data_census(repo_root: Path) -> dict[str, Any]:
         "report_kind": "qre_data_census",
         "physical_files": physical_rows,
         "logical_datasets": logical_rows,
+        "unique_bar_integrity": unique_bar_rows,
         "reconciliation_summary": {
             "files_scanned": len(physical_rows),
             "logical_datasets": len(logical_rows),
@@ -410,7 +460,12 @@ def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
-        os.replace(tmp_name, path)
+        try:
+            os.replace(tmp_name, path)
+        except PermissionError:
+            path.write_text(text, encoding="utf-8", newline="\n")
+            with suppress(OSError):
+                os.unlink(tmp_name)
     except Exception:
         with suppress(OSError):
             os.unlink(tmp_name)
@@ -460,17 +515,26 @@ def materialize_data_truth(repo_root: Path) -> dict[str, Any]:
         "five_row_root_cause": census["root_cause"]["causes"],
         "content_identity": _content_id("qdstatus", census["reconciliation_summary"]),
     }
+    unique_bar_integrity = {
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": POLICY_VERSION,
+        "report_kind": "qre_unique_bar_integrity",
+        "rows": census["unique_bar_integrity"],
+        "content_identity": _content_id("qdubi", census["unique_bar_integrity"]),
+    }
     write_json_atomic(repo_root / CENSUS_PATH, census)
     write_json_atomic(repo_root / CATALOG_PATH, catalog)
     write_json_atomic(repo_root / RECONCILIATION_PATH, reconciliation)
     write_json_atomic(repo_root / BASELINE_POLICY_PATH, baseline_policy)
     write_json_atomic(repo_root / STATUS_PATH, status)
+    write_json_atomic(repo_root / UNIQUE_BAR_INTEGRITY_PATH, unique_bar_integrity)
     return {
         "census": census,
         "catalog": catalog,
         "reconciliation": reconciliation,
         "baseline_policy": baseline_policy,
         "status": status,
+        "unique_bar_integrity": unique_bar_integrity,
     }
 
 
@@ -489,6 +553,7 @@ __all__ = [
     "RECONCILIATION_PATH",
     "SCHEMA_VERSION",
     "STATUS_PATH",
+    "UNIQUE_BAR_INTEGRITY_PATH",
     "build_data_census",
     "load_catalog",
     "materialize_data_truth",

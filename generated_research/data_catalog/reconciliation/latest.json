@@ -1,11 +1,12 @@
 {
-  "content_identity": "qdrecon_edb00231cfe4284a",
+  "content_identity": "qdrecon_99e1daf71b771ce0",
   "policy_version": "qre_alpha_data_truth_v1",
   "report_kind": "qre_data_reconciliation",
   "root_cause": {
     "broader_logical_datasets_present": true,
     "causes": [
       "inventory_bug",
+      "overlapping_shards_inflated_logical_rows",
       "source_quality_exclusion"
     ],
     "content_identity": "qdrc_cae2499fe5ceef1c",
@@ -14,7 +15,7 @@
       "logs/qre_data_source_quality_readiness/latest.json",
       "research/external_intelligence/source_manifest_registry.py"
     ],
-    "example_logical_row_count": 99864,
+    "example_logical_row_count": 16885,
     "example_physical_row_count": 5,
     "pr_722_inventory_path": "packages/qre_research/alpha_discovery/data_planner.py::_choose_rows",
     "selector_behavior": "manifest.files preferred over manifest.coverage when files are present",

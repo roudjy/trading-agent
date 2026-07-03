@@ -50,17 +50,19 @@ def _prepare_repo(repo_root: Path) -> None:
     files = []
     for index in range(3):
         start = pd.Timestamp("2026-04-08", tz="UTC") + pd.Timedelta(days=index * 40)
+        timestamps = pd.date_range(start, periods=40, freq="D", tz="UTC")
+        offsets = [int((ts - pd.Timestamp("2026-04-08", tz="UTC")).days) for ts in timestamps]
         frame = pd.DataFrame(
             {
-                "timestamp_utc": pd.date_range(start, periods=40, freq="D", tz="UTC"),
-                "open": [1.0 + i for i in range(40)],
-                "high": [1.1 + i for i in range(40)],
-                "low": [0.9 + i for i in range(40)],
-                "close": [1.05 + i for i in range(40)],
-                "volume": [100 + i for i in range(40)],
+                "timestamp_utc": timestamps,
+                "open": [1.0 + i for i in offsets],
+                "high": [1.1 + i for i in offsets],
+                "low": [0.9 + i for i in offsets],
+                "close": [1.05 + i for i in offsets],
+                "volume": [100 + i for i in offsets],
             }
         )
-        path = cache_dir / f"yfinance__AAPL__1d__2026040{index+8}__2026041{index+5}__fixture{index}.parquet"
+        path = cache_dir / f"yfinance__BTC-USD__1d__2026040{index+8}__2026041{index+5}__fixture{index}.parquet"
         frame.to_parquet(path, index=False)
         frames.append(frame)
         files.append(
@@ -68,7 +70,7 @@ def _prepare_repo(repo_root: Path) -> None:
                 "path": path.relative_to(repo_root).as_posix(),
                 "cache_kind": "market",
                 "source": "yfinance",
-                "instrument": "AAPL",
+                "instrument": "BTC-USD",
                 "timeframe": "1d",
                 "status": "ready",
                 "row_count": 40,
@@ -89,7 +91,7 @@ def _prepare_repo(repo_root: Path) -> None:
             "coverage": [
                 {
                     "source": "yfinance",
-                    "instrument": "AAPL",
+                    "instrument": "BTC-USD",
                     "timeframe": "1d",
                     "file_count": 3,
                     "row_count": len(combined),
@@ -134,5 +136,5 @@ def test_cli_auto_run_stops_at_source_quality_boundary_and_preserves_no_empirica
     assert payload["admitted_execution_tier"] == "EXECUTOR_SMOKE"
     assert payload["empirical_campaign_created"] is False
     assert payload["smoke_execution_created"] is False
-    assert payload["terminal_disposition"] == "STOPPED_SOURCE_QUALITY_BOUNDARY"
+    assert payload["terminal_disposition"] == "STOPPED_SOURCE_CERTIFICATION_BOUNDARY"
     assert payload["five_row_inventory_root_cause"]["selector_effect"] == "physical shard rows with 5 bars each were treated as standalone datasets"

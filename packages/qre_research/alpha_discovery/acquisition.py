@@ -56,7 +56,7 @@ def assess_coverage(
         candidates,
         key=lambda row: (
             0 if str(row.get("quality_summary", {}).get("effective_research_quality_status") or "") == "ready" else 1,
-            -int(row.get("row_count") or 0),
+            -int(row.get("integrity_summary", {}).get("unique_bar_count") or row.get("row_count") or 0),
             str(row.get("dataset_id") or ""),
         ),
     )
@@ -77,10 +77,17 @@ def assess_coverage(
     quality = str(selected.get("quality_summary", {}).get("effective_research_quality_status") or "blocked")
     identity = str(selected.get("identity_summary", {}).get("instrument_identity_status") or "ambiguous")
     pit = str(selected.get("PIT_summary", {}).get("status") or "PIT_NOT_REQUIRED")
+    integrity = dict(selected.get("integrity_summary") or {})
     missing = "none"
     decision = "COVERAGE_READY"
     reasons: list[str] = []
-    if quality != "ready":
+    if bool(integrity.get("impossible_bar_density")):
+        decision = "EXTERNAL_DATA_BOUNDARY"
+        reasons.append("impossible_bar_density")
+    elif int(integrity.get("conflicting_row_count") or 0) > 0:
+        decision = "EXTERNAL_DATA_BOUNDARY"
+        reasons.append("conflicting_canonical_bars")
+    elif quality != "ready":
         decision = "SOURCE_QUALITY_BLOCKED"
         reasons.append("source_quality_not_research_ready")
     elif identity != "ready":
@@ -101,6 +108,11 @@ def assess_coverage(
             "available_end": selected.get("end"),
             "complete_bar_end": selected.get("complete_bar_end"),
             "row_count": selected.get("row_count"),
+            "raw_row_count": selected.get("raw_row_count"),
+            "unique_bar_count": integrity.get("unique_bar_count", selected.get("row_count")),
+            "overlapping_row_count": integrity.get("overlapping_row_count", 0),
+            "conflicting_row_count": integrity.get("conflicting_row_count", 0),
+            "expected_bar_count": integrity.get("expected_bar_count"),
             "missing_ranges": [] if missing == "none" else [missing],
             "duplicate_ranges": [],
             "invalid_ranges": [],
@@ -110,7 +122,7 @@ def assess_coverage(
             "corporate_action_blockers": [],
             "session_blockers": [],
             "window_capacity": selected.get("window_capacity", {}),
-            "estimated_activity": max(int(selected.get("row_count") or 0) // 40, 0),
+            "estimated_activity": max(int(integrity.get("unique_bar_count") or selected.get("row_count") or 0) // 40, 0),
             "decision": decision,
             "dataset_id": selected.get("dataset_id"),
             "dataset_path": (selected.get("partition_refs") or [""])[0],
@@ -143,7 +155,7 @@ def plan_acquisition(
     decision = "APPROVED_SOURCE_SELECTED"
     if coverage.decision == "SOURCE_QUALITY_BLOCKED":
         decision = "NO_APPROVED_SOURCE"
-        external_boundary = "STOPPED_SOURCE_QUALITY_BOUNDARY"
+        external_boundary = "STOPPED_SOURCE_CERTIFICATION_BOUNDARY"
     elif coverage.decision == "IDENTITY_BLOCKED":
         decision = "NO_APPROVED_SOURCE"
         external_boundary = "STOPPED_IDENTITY_BOUNDARY"
@@ -205,7 +217,7 @@ def execute_acquisition_once(
         "content_identity": content_id("qing", {"plan": plan.acquisition_plan_id, "boundary": plan.external_boundary}),
     }
     refreshed = materialize_data_truth(repo_root)
-    telemetry["rows_reused"] = sum(int(row.get("row_count") or 0) for row in refreshed["catalog"]["datasets"])
+    telemetry["rows_reused"] = sum(int(row.get("integrity_summary", {}).get("unique_bar_count") or row.get("row_count") or 0) for row in refreshed["catalog"]["datasets"])
     telemetry["cache_hit_rate"] = 1.0
     return telemetry
 
@@ -216,7 +228,7 @@ def throughput_snapshot(
     telemetry: dict[str, Any],
 ) -> dict[str, Any]:
     datasets = [dict(row) for row in catalog.get("datasets") or [] if isinstance(row, dict)]
-    row_total = sum(int(row.get("row_count") or 0) for row in datasets)
+    row_total = sum(int(row.get("integrity_summary", {}).get("unique_bar_count") or row.get("row_count") or 0) for row in datasets)
     tier_counts = Counter(str(row.get("highest_admissible_tier") or "") for row in datasets)
     return {
         "catalog_datasets_discovered": len(datasets),
@@ -236,9 +248,9 @@ def throughput_snapshot(
         "timeframes_made_ready": len({str(row.get("timeframe") or "") for row in datasets}),
         "history_span_gained": 0,
         "OOS_capacity_gained": int(tier_counts.get("LOCKED_OOS_VALIDATION", 0)),
-        "source_failures": 1 if telemetry.get("external_boundary") == "STOPPED_SOURCE_QUALITY_BOUNDARY" else 0,
+        "source_failures": 1 if telemetry.get("external_boundary") == "STOPPED_SOURCE_CERTIFICATION_BOUNDARY" else 0,
         "identity_failures": 1 if telemetry.get("external_boundary") == "STOPPED_IDENTITY_BOUNDARY" else 0,
-        "quality_failures": 1 if telemetry.get("external_boundary") == "STOPPED_SOURCE_QUALITY_BOUNDARY" else 0,
+        "quality_failures": 1 if telemetry.get("external_boundary") == "STOPPED_SOURCE_CERTIFICATION_BOUNDARY" else 0,
         "time_to_evidence_ready_dataset": None,
         "compute_spent_on_ingestion": 0,
     }
