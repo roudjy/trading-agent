@@ -2,19 +2,39 @@
   "bug_or_intentional_change": "intentional_global_authority_ceiling",
   "content_identity": "qsp_a84ef8f2e41b80ee",
   "current_yfinance_status": "manual_research_only",
+  "dataset_count": 46,
   "exact_cause": "MANUAL_RESEARCH_ONLY_BY_DESIGN",
   "historical_yfinance_status": "campaign_scoped_quality_ready",
+  "policy_version": "qre_alpha_source_qualification_pr4_v1",
   "policy_versions": {
     "current_global_scope": "manual_research_only",
-    "historical_campaign_scope": "campaign_scoped_quality_ready"
+    "historical_campaign_scope": "campaign_scoped_quality_ready",
+    "snapshot_scoped_screening_policy": "qre_alpha_source_qualification_pr4_v1"
   },
   "report_kind": "qre_source_policy_reconciliation",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "scoped_override": true,
+  "snapshot_screening_requirements": [
+    "single_coherent_acquisition_lineage",
+    "complete_query_provenance",
+    "resolved_instrument_identity",
+    "explicit_adjustment_policy",
+    "explicit_timezone_policy",
+    "explicit_session_calendar_applicability",
+    "no_within_snapshot_conflicting_bars",
+    "plausible_expected_bar_density",
+    "bounded_missing_bar_ratio",
+    "valid_ohlc_invariants",
+    "stable_replay_from_immutable_cache",
+    "sufficient_unique_history",
+    "sufficient_expected_activity",
+    "no_unresolved_source_incident_covering_period"
+  ],
   "transition_record": {
-    "new_policy": "manual_research_only",
-    "previous_policy": "campaign_scoped_quality_ready",
-    "promotion_ceiling": "SOURCE_SMOKE_ONLY",
-    "scope": "provider_global_authority_overrides_campaign_scoped_readiness"
+    "new_policy": "global_ceiling_unchanged_snapshot_scoped_screening_possible",
+    "previous_policy": "global_ceiling_source_smoke_only",
+    "promotion_ceiling": "SOURCE_SCREENING_ELIGIBLE",
+    "scope": "immutable_snapshot_only",
+    "validation_ceiling": false
   }
 }

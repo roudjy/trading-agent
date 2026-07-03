@@ -9,8 +9,8 @@ from typing import Any, Protocol
 
 from packages.qre_research.generated_strategy_paths import validate_write_target
 
-SCHEMA_VERSION = "1.1"
-POLICY_VERSION = "qre_alpha_discovery_followup_pr1_v1"
+SCHEMA_VERSION = "1.2"
+POLICY_VERSION = "qre_alpha_discovery_followup_pr4_v1"
 REPORT_KIND = "qre_alpha_discovery_mvp"
 DEFAULT_OUTPUT_ROOT = Path("generated_research/alpha_discovery")
 
@@ -42,6 +42,66 @@ SOURCE_TIER_SMOKE_ONLY = "SOURCE_SMOKE_ONLY"
 SOURCE_TIER_SCREENING_ELIGIBLE = "SOURCE_SCREENING_ELIGIBLE"
 SOURCE_TIER_VALIDATION_ELIGIBLE = "SOURCE_VALIDATION_ELIGIBLE"
 SOURCE_TIER_BLOCKED = "SOURCE_BLOCKED"
+SOURCE_TIERS = (
+    SOURCE_TIER_SMOKE_ONLY,
+    SOURCE_TIER_SCREENING_ELIGIBLE,
+    SOURCE_TIER_VALIDATION_ELIGIBLE,
+    SOURCE_TIER_BLOCKED,
+)
+
+GAP_TYPE_DATA_SOURCE = "DATA_SOURCE_GAP"
+GAP_TYPE_SOURCE_CERTIFICATION = "SOURCE_CERTIFICATION_GAP"
+GAP_TYPE_CREDENTIAL = "CREDENTIAL_GAP"
+GAP_TYPE_LICENSE = "LICENSE_GAP"
+GAP_TYPE_IDENTITY = "IDENTITY_GAP"
+GAP_TYPE_UNIVERSE_METADATA = "UNIVERSE_METADATA_GAP"
+GAP_TYPE_PRIMITIVE = "PRIMITIVE_GAP"
+GAP_TYPE_EXECUTOR = "EXECUTOR_GAP"
+GAP_TYPE_ORCHESTRATION = "ORCHESTRATION_GAP"
+GAP_TYPE_POLICY = "POLICY_GAP"
+GAP_TYPE_COMPUTE = "COMPUTE_GAP"
+GAP_TYPES = (
+    GAP_TYPE_DATA_SOURCE,
+    GAP_TYPE_SOURCE_CERTIFICATION,
+    GAP_TYPE_CREDENTIAL,
+    GAP_TYPE_LICENSE,
+    GAP_TYPE_IDENTITY,
+    GAP_TYPE_UNIVERSE_METADATA,
+    GAP_TYPE_PRIMITIVE,
+    GAP_TYPE_EXECUTOR,
+    GAP_TYPE_ORCHESTRATION,
+    GAP_TYPE_POLICY,
+    GAP_TYPE_COMPUTE,
+)
+
+GAP_STATUS_OPEN = "OPEN"
+GAP_STATUS_REQUESTED = "REQUESTED"
+GAP_STATUS_WAITING_FOR_OPERATOR = "WAITING_FOR_OPERATOR"
+GAP_STATUS_WAITING_FOR_ADE = "WAITING_FOR_ADE"
+GAP_STATUS_RESOLVED = "RESOLVED"
+GAP_STATUS_SUPERSEDED = "SUPERSEDED"
+GAP_STATUS_CANNOT_RESOLVE = "CANNOT_RESOLVE_AUTONOMOUSLY"
+GAP_STATUSES = (
+    GAP_STATUS_OPEN,
+    GAP_STATUS_REQUESTED,
+    GAP_STATUS_WAITING_FOR_OPERATOR,
+    GAP_STATUS_WAITING_FOR_ADE,
+    GAP_STATUS_RESOLVED,
+    GAP_STATUS_SUPERSEDED,
+    GAP_STATUS_CANNOT_RESOLVE,
+)
+
+HEALTH_HEALTHY_WAITING = "HEALTHY_WAITING_FOR_TRIGGER"
+HEALTH_HEALTHY_SOURCE_REFRESH = "HEALTHY_SOURCE_REFRESH"
+HEALTH_HEALTHY_RESEARCH_ACTIVE = "HEALTHY_RESEARCH_ACTIVE"
+HEALTH_DEGRADED_SOURCE = "DEGRADED_SOURCE"
+HEALTH_BLOCKED_CREDENTIAL = "BLOCKED_CREDENTIAL"
+HEALTH_BLOCKED_LICENSE = "BLOCKED_LICENSE"
+HEALTH_BLOCKED_SOURCE_CERTIFICATION = "BLOCKED_SOURCE_CERTIFICATION"
+HEALTH_BLOCKED_DATA_INTEGRITY = "BLOCKED_DATA_INTEGRITY"
+HEALTH_BLOCKED_CAPABILITY = "BLOCKED_CAPABILITY"
+HEALTH_BLOCKED_OPERATOR_ACTION = "BLOCKED_OPERATOR_ACTION"
+HEALTH_FAILED = "FAILED"
 
 
 def _stable_json(value: Any) -> str:
@@ -390,6 +450,103 @@ class AcquisitionPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class AcquisitionBatch:
+    acquisition_batch_id: str
+    source_id: str
+    source_adapter_version: str
+    retrieved_at_utc: str
+    query_parameters: dict[str, Any]
+    requested_instruments: tuple[str, ...]
+    requested_timeframe: str
+    requested_start: str
+    requested_end: str
+    adjustment_policy: str
+    timezone_policy: str
+    session_policy: str
+    provider_response_identity: str
+    raw_payload_identity: str | None
+    partition_refs: tuple[str, ...]
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetSnapshot:
+    dataset_snapshot_id: str
+    logical_dataset_family_id: str
+    acquisition_batch_ids: tuple[str, ...]
+    parent_snapshot_id: str | None
+    instrument_ids: tuple[str, ...]
+    timeframe: str
+    start: str
+    end: str
+    unique_bar_count: int
+    raw_row_count: int
+    exact_duplicate_row_count: int
+    overlapping_row_count: int
+    conflicting_row_count: int
+    invalid_row_count: int
+    expected_bar_count: int | None
+    coverage_ratio: float | None
+    fingerprint: str
+    source_id: str
+    source_policy_version: str
+    qualification_status: str
+    immutable: bool
+    created_at_utc: str
+    partition_refs: tuple[str, ...]
+    compatibility_status: str
+    lineage_depth: int
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotRevision:
+    revision_id: str
+    logical_dataset_family_id: str
+    baseline_snapshot_id: str
+    candidate_snapshot_id: str
+    overlapping_bar_count: int
+    conflicting_bar_count: int
+    status: str
+    reason_codes: tuple[str, ...]
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class SourceResolution:
+    resolution_id: str
+    requirement_id: str
+    candidate_sources: tuple[str, ...]
+    selected_source: str | None
+    selected_snapshot: str | None
+    current_source_tier: str
+    target_source_tier: str
+    qualification_actions: tuple[str, ...]
+    credential_requirements: tuple[str, ...]
+    license_requirements: tuple[str, ...]
+    cross_source_requirements: tuple[str, ...]
+    unresolved_blockers: tuple[str, ...]
+    operator_action_required: bool
+    automatic_actions_allowed: bool
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class ScreeningSlippageModel:
+    slippage_model_id: str
+    asset_class: str
+    timeframe: str
+    liquidity_proxy: str
+    spread_or_range_proxy: str
+    minimum_slippage_floor_bps: float
+    turnover_dependency: str
+    stress_multiplier: float
+    applicability: str
+    limitations: tuple[str, ...]
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
 class MechanismImplementationAlignment:
     predicted_observable: str
     strategy_observable: str
@@ -532,6 +689,72 @@ class AlphaSearchLedger:
     timeframe_test_count: int
     validation_exposures: int
     OOS_exposures: int
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilityGap:
+    gap_id: str
+    experiment_id: str
+    gap_type: str
+    summary: str
+    required_capability: str
+    current_capability: str
+    blocking_stage: str
+    risk_class: str
+    code_change_required: bool
+    external_configuration_required: bool
+    credential_required: bool
+    license_required: bool
+    suggested_owner: str
+    resolution_criteria: tuple[str, ...]
+    status: str
+    created_at_utc: str
+    resolved_at_utc: str | None
+    resolution_refs: tuple[str, ...]
+    deduplication_key: str
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class BlockedExperiment:
+    experiment_id: str
+    hypothesis_id: str
+    strategy_spec_id: str
+    preregistration_id: str
+    blocked_stage: str
+    gap_ids: tuple[str, ...]
+    required_data_snapshot: str | None
+    required_source_tier: str
+    required_primitive: str | None
+    required_executor: str | None
+    current_status: str
+    resume_token: str
+    last_attempt_at_utc: str
+    next_retry_after_utc: str
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class SupervisorStatus:
+    service_version: str
+    last_cycle: dict[str, Any]
+    last_successful_cycle: dict[str, Any] | None
+    current_stage: str
+    current_dataset_snapshot: str | None
+    current_source_tier: str
+    current_experiment: str | None
+    current_campaign: str | None
+    open_gaps: tuple[str, ...]
+    active_ADE_requests: tuple[str, ...]
+    operator_actions: tuple[str, ...]
+    next_retry: str | None
+    next_scheduled_cycle: str | None
+    consecutive_failures: int
+    watermarks: dict[str, Any]
+    leases: dict[str, Any]
+    artifact_refs: dict[str, Any]
+    health: str
     content_identity: str
 
 

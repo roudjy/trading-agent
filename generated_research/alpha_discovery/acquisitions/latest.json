@@ -1,17 +1,17 @@
 {
   "rows": [
     {
-      "acquisition_plan_id": "qap_667746ae9cd173c1",
+      "acquisition_plan_id": "qap_4c4c6e7c30e494bb",
       "backfill": false,
       "base_timeframe": "1d",
-      "content_identity": "qapc_41a97facd25c2ccf",
+      "content_identity": "qapc_76c0a5dbcb884ef9",
       "corporate_action_actions": [],
       "end": "latest_complete_bar",
-      "estimated_bytes": 0,
+      "estimated_bytes": 11520,
       "estimated_calls": 0,
       "expected_rows": 90,
-      "expected_unlock": "COMPILER_ONLY",
-      "external_boundary": "STOPPED_PROVIDER_BOUNDARY",
+      "expected_unlock": "LOCKED_OOS_VALIDATION",
+      "external_boundary": null,
       "identity_actions": [],
       "incremental": false,
       "instrument_ids": [
@@ -20,14 +20,13 @@
       "quality_checks": [
         "timestamp_monotonicity",
         "ohlc_consistency",
-        "deduplicate_rows"
+        "deduplicate_rows",
+        "unique_bar_integrity"
       ],
       "rate_limit_budget": 100,
-      "reason_codes": [
-        "conflicting_canonical_bars"
-      ],
+      "reason_codes": [],
       "request_batches": [],
-      "requirement_id": "qdr_373a40d5d5ac3032",
+      "requirement_id": "qdr_9d27942249b80606",
       "resample_targets": [
         "1d"
       ],
@@ -35,9 +34,9 @@
       "source_ids": [
         "yfinance"
       ],
-      "source_selection_decision": "NO_APPROVED_SOURCE",
+      "source_selection_decision": "APPROVED_SOURCE_SELECTED",
       "start": "derived_from_catalog"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

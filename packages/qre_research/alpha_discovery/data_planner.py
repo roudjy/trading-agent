@@ -163,28 +163,31 @@ def _coverage_to_decision(
     selected_row = dict(coverage.rows[0]) if coverage.rows else {}
     dataset_row = datasets.get(str(selected_row.get("dataset_id") or ""), {})
     frame = _load_selected_frame(repo_root, dataset_row) if dataset_row else None
-    admissible_tier = str(dataset_row.get("highest_admissible_tier") or EXECUTION_TIER_COMPILER_ONLY)
+    admissible_tier = str(coverage.highest_admissible_tier or dataset_row.get("highest_admissible_tier") or EXECUTION_TIER_COMPILER_ONLY)
     if coverage.decision == "SOURCE_QUALITY_BLOCKED":
         admissible_tier = EXECUTION_TIER_EXECUTOR_SMOKE
+    row_count = int(selected_row.get("unique_bar_count") or dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0)
+    raw_row_count = int(selected_row.get("raw_row_count") or dataset_row.get("raw_row_count") or row_count)
     selected_data = {
         "selected_row": selected_row,
-        "dataset_id": dataset_row.get("dataset_id"),
-        "data_path": str((dataset_row.get("partition_refs") or [""])[0]),
-        "row_count": int(dataset_row.get("row_count") or 0),
-        "raw_row_count": int(dataset_row.get("raw_row_count") or 0),
-        "unique_bar_count": int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0),
-        "history_span_days": _span_days(dataset_row.get("start"), dataset_row.get("end")),
+        "dataset_id": selected_row.get("dataset_id") or dataset_row.get("dataset_id"),
+        "dataset_snapshot_id": selected_row.get("dataset_snapshot_id"),
+        "data_path": str(selected_row.get("dataset_path") or (dataset_row.get("partition_refs") or [""])[0]),
+        "row_count": row_count,
+        "raw_row_count": raw_row_count,
+        "unique_bar_count": row_count,
+        "history_span_days": _span_days(selected_row.get("available_start") or dataset_row.get("start"), selected_row.get("available_end") or dataset_row.get("end")),
         "frame": frame,
         "dataset_partition_count": len(tuple(dataset_row.get("partition_refs") or ())),
-        "row_integrity_status": str(dataset_row.get("quality_summary", {}).get("row_integrity_status") or "unknown"),
-        "cache_integrity_status": "ready" if dataset_row else "blocked",
-        "source_quality_status": str(dataset_row.get("quality_summary", {}).get("source_quality_status") or "unknown"),
-        "source_identity_status": str(dataset_row.get("identity_summary", {}).get("source_identity_status") or "ambiguous"),
-        "campaign_scoped_quality_status": str(dataset_row.get("quality_summary", {}).get("campaign_scoped_quality_status") or "unknown"),
-        "effective_research_quality_status": str(dataset_row.get("quality_summary", {}).get("effective_research_quality_status") or "unknown"),
-        "validation_rows": int(max(int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0) // 5, 0)),
-        "locked_oos_rows": int(max(int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0) // 10, 0)),
-        "estimated_activity": int(max(int(dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0) // 40, 0)),
+        "row_integrity_status": "ready" if coverage.decision != "SOURCE_QUALITY_BLOCKED" else "blocked",
+        "cache_integrity_status": "ready" if selected_row else "blocked",
+        "source_quality_status": "ready" if coverage.decision != "SOURCE_QUALITY_BLOCKED" else "blocked",
+        "source_identity_status": "ready",
+        "campaign_scoped_quality_status": "ready" if coverage.decision != "SOURCE_QUALITY_BLOCKED" else "blocked",
+        "effective_research_quality_status": "ready" if coverage.decision != "SOURCE_QUALITY_BLOCKED" else "blocked",
+        "validation_rows": int(max(row_count // 5, 0)),
+        "locked_oos_rows": int(max(row_count // 10, 0)),
+        "estimated_activity": int(selected_row.get("estimated_activity") or max(row_count // 40, 0)),
         "window_capacity": dict(dataset_row.get("window_capacity", {})),
         "integrity_summary": dict(dataset_row.get("integrity_summary", {})),
     }
@@ -222,7 +225,7 @@ def resolve_data_plan(
     catalog = truth["catalog"]
     resolved_universe = universe_plan
     coverage = assess_coverage(repo_root=repo_root, requirement=requirement, universe_plan=resolved_universe, catalog=catalog)
-    acquisition = plan_acquisition(requirement=requirement, coverage=coverage)
+    acquisition, _ = plan_acquisition(repo_root=repo_root, requirement=requirement, coverage=coverage)
     decision = _coverage_to_decision(repo_root=repo_root, requirement=requirement, coverage=coverage, catalog=catalog)
     return decision, coverage, acquisition, truth, resolved_universe
 

@@ -1,0 +1,30 @@
+{
+  "rows": [
+    {
+      "automatic_actions_allowed": true,
+      "candidate_sources": [
+        "alpha_vantage_candidate",
+        "eodhd_candidate",
+        "financial_modeling_prep_candidate",
+        "companies_house_metadata",
+        "euronext_issuer_metadata"
+      ],
+      "content_identity": "qsrc_367e8197095fea6e",
+      "credential_requirements": [],
+      "cross_source_requirements": [],
+      "current_source_tier": "SOURCE_SCREENING_ELIGIBLE",
+      "license_requirements": [],
+      "operator_action_required": false,
+      "qualification_actions": [
+        "use_existing_coherent_snapshot"
+      ],
+      "requirement_id": "qdr_9d27942249b80606",
+      "resolution_id": "qsr_db57074562695223",
+      "selected_snapshot": "qdsnap_7bc0291180909324",
+      "selected_source": "yfinance",
+      "target_source_tier": "SOURCE_SCREENING_ELIGIBLE",
+      "unresolved_blockers": []
+    }
+  ],
+  "schema_version": "1.2"
+}
