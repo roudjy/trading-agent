@@ -1,20 +1,29 @@
 {
-  "admitted_execution_tier": "LOCKED_OOS_VALIDATION",
-  "content_identity": "qasd_status_263606b4197e44fa",
-  "current_wait_reason": "lesson_written",
-  "empirical_campaign_created": true,
-  "mechanism_learning_allowed": true,
+  "admitted_execution_tier": "EXECUTOR_SMOKE",
+  "content_identity": "qasd_status_1708f16442a48d44",
+  "current_campaign": null,
+  "current_dataset_snapshot": null,
+  "current_experiment": "qexp_fe7bfe9caccaec74",
+  "current_source_tier": "SOURCE_BLOCKED",
+  "current_wait_reason": "no_campaign_executed",
+  "empirical_campaign_created": false,
+  "evidence_tier_reached": "COMPILER_ONLY",
+  "execution_status": "COMPLETED",
+  "legacy_terminal_disposition": "DRY_RUN",
+  "mechanism_learning_allowed": false,
   "next_wake_conditions": [
-    "evidence_grade_data",
-    "new_data",
-    "new_memory"
+    "novel_observation"
   ],
   "policy_version": "qre_alpha_discovery_followup_pr4_v1",
+  "qualification_set_id": "qdsqset_f445e19beacee43f",
   "report_kind": "qre_alpha_discovery_status",
   "requested_execution_tier": "EMPIRICAL_SCREENING",
+  "runtime_epoch_id": "qepoch_15b86365a10255e2",
   "schema_version": "1.2",
-  "selected_hypothesis_id": "qah_a07b837d05295dee",
+  "scientific_disposition": null,
+  "selected_hypothesis_id": "qah_a5dc1823ba1ee3fa",
   "smoke_execution_created": false,
-  "state": "COMPLETE",
-  "terminal_disposition": "COMPLETED_LOCKED_OOS_VALIDATION"
+  "snapshot_lineage_set_id": "qdsnapset_836af6dd6cde5805",
+  "state": "DRY_RUN",
+  "terminal_disposition": "DRY_RUN"
 }

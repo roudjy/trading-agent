@@ -4,25 +4,26 @@
       "IS_policy": "bounded in-sample only",
       "confounder_controls": [
         "regime_filter",
-        "cost_only_baseline"
+        "leave_one_asset_out",
+        "cost_stress"
       ],
-      "content_identity": "qexpc_c3caf3ff856c4835",
-      "counter_hypothesis": "Alternative explanation: trend_persistence is spurious.",
+      "content_identity": "qexpc_c5cc8420bbb465f5",
+      "counter_hypothesis": "Alternative explanation: regime_transition is spurious.",
       "embargo_policy": "short embargo around boundary bars",
       "entry_semantics": "frozen deterministic entry condition",
       "exit_semantics": "frozen deterministic exit condition",
-      "experiment_id": "qexp_7e21c050e448d71a",
+      "experiment_id": "qexp_fe7bfe9caccaec74",
       "failure_criteria": [
         "insufficient_activity",
         "insufficient_oos",
         "negative_after_costs"
       ],
       "falsification_tests": [
-        "trend_anchor_delta turns negative",
-        "move falls below entry threshold",
+        "effect disappears outside conditioned regime",
+        "cost stress removes signal",
         "explicit_cost_falsification"
       ],
-      "hypothesis_id": "qah_a07b837d05295dee",
+      "hypothesis_id": "qah_a5dc1823ba1ee3fa",
       "locked_OOS_policy": "locked OOS required for locked OOS validation tier",
       "minimum_signal_count": 3,
       "minimum_trade_count": 3,
@@ -32,7 +33,7 @@
       ],
       "portfolio_semantics": "single-strategy unit-notional research only",
       "position_semantics": "long_only",
-      "predicted_observable": "positive continuation over the next few bars",
+      "predicted_observable": "effect appears only when the regime filter is active and disappears otherwise",
       "requested_execution_tier": "EMPIRICAL_SCREENING",
       "required_data_fields": [
         "close",
@@ -50,15 +51,15 @@
       ],
       "required_features": [
         "trend_anchor_delta",
-        "normalized_trend_move"
+        "compression_ratio"
       ],
       "required_history": "research-ready continuous history with validation and locked OOS when required by tier",
       "required_point_in_time_metadata": [
         "timestamp_utc"
       ],
-      "research_question": "Does persistent positive trend with still-contained volatility should continue over a short holding horizon. produce positive continuation over the next few bars?",
+      "research_question": "Does an effect previously weakened by cost or sparse activity may survive only in a conditioned regime with explicit falsification controls. produce effect appears only when the regime filter is active and disappears otherwise?",
       "sampling_frequency": "1d",
-      "signal_semantics": "trend_continuation",
+      "signal_semantics": "regime_conditioned_follow_up",
       "slippage_model": "qslip_646697b09381fec4",
       "success_criteria": [
         "supports_mechanism",

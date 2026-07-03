@@ -1,43 +1,47 @@
 {
   "rows": [
     {
-      "content_identity": "qcovc_8debdd9824566a94",
-      "coverage_assessment_id": "qcov_e664d0ad2a740e5a",
-      "decision": "COVERAGE_READY",
-      "highest_admissible_tier": "LOCKED_OOS_VALIDATION",
-      "requirement_id": "qdr_9d27942249b80606",
+      "content_identity": "qcovc_602b9870da5539ae",
+      "coverage_assessment_id": "qcov_48aac6f518193d42",
+      "decision": "SOURCE_QUALITY_BLOCKED",
+      "highest_admissible_tier": "EXECUTOR_SMOKE",
+      "requirement_id": "qdr_8be5ae59730e33e9",
       "rows": [
         {
           "PIT_blockers": [],
-          "available_end": "2026-07-02T00:00:00Z",
-          "available_start": "2026-01-04T00:00:00Z",
-          "complete_bar_end": "2026-07-02T00:00:00Z",
+          "available_end": "2026-06-29T00:00:00Z",
+          "available_start": "2026-04-11T00:00:00Z",
+          "complete_bar_end": "2026-06-29T00:00:00Z",
           "conflicting_row_count": 0,
           "corporate_action_blockers": [],
           "dataset_id": "yfinance|ETH-EUR|1d",
-          "dataset_path": "data/cache/market/yfinance__ETH-EUR__1d__20260104__20260703__8da9c4720ceeec42.parquet",
-          "dataset_snapshot_id": "qdsnap_7bc0291180909324",
-          "decision": "COVERAGE_READY",
+          "dataset_path": "data/cache/market/yfinance__ETH-EUR__1d__20260411__20260418__6081284ab3f633bf.parquet",
+          "dataset_snapshot_id": "qdsnap_24aa7ea592748df3",
+          "decision": "SOURCE_QUALITY_BLOCKED",
           "duplicate_ranges": [],
-          "estimated_activity": 4,
+          "estimated_activity": 0,
           "expected_bar_count": null,
           "identity_blockers": [],
           "instrument": "ETH-EUR",
           "invalid_ranges": [],
           "missing_ranges": [],
           "overlapping_row_count": 0,
-          "quality_blockers": [],
-          "raw_row_count": 180,
-          "reason_codes": [],
-          "row_count": 180,
+          "quality_blockers": [
+            "source_tier_below_screening"
+          ],
+          "raw_row_count": 35,
+          "reason_codes": [
+            "source_tier_below_screening"
+          ],
+          "row_count": 35,
           "session_blockers": [],
-          "source_tier": "SOURCE_SCREENING_ELIGIBLE",
+          "source_tier": "SOURCE_BLOCKED",
           "timeframe": "1d",
-          "unique_bar_count": 180,
+          "unique_bar_count": 35,
           "window_capacity": {}
         }
       ],
-      "universe_plan_id": "qup_0d67840007112ba6"
+      "universe_plan_id": "qup_419b46a46a39a027"
     }
   ],
   "schema_version": "1.2"

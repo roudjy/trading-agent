@@ -8,8 +8,6 @@ from typing import Any
 from packages.qre_research import autonomous_opportunity_loop as aol
 
 from .contracts import (
-    GAP_STATUS_OPEN,
-    GAP_STATUS_RESOLVED,
     GAP_STATUS_WAITING_FOR_ADE,
     GAP_STATUS_WAITING_FOR_OPERATOR,
     GAP_TYPE_CREDENTIAL,
@@ -46,6 +44,19 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     except Exception:
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def _deduplication_key(*, experiment_id: str, gap_type: str, decision: str, reason_codes: tuple[str, ...]) -> str:
+    reasons = ",".join(reason_codes) if reason_codes else "admission_requirements_met"
+    return "|".join(
+        [
+            "qgapdedupe",
+            f"experiment={experiment_id}",
+            f"gap_type={gap_type}",
+            f"decision={decision}",
+            f"reasons={reasons}",
+        ]
+    )
 
 
 def build_gap_from_admission(
@@ -95,7 +106,12 @@ def build_gap_from_admission(
         created_at_utc=now,
         resolved_at_utc=None,
         resolution_refs=(),
-        deduplication_key=content_id("qgapdedupe", {"experiment_id": experiment_id, "gap_type": gap_type, "reasons": admission.reason_codes}),
+        deduplication_key=_deduplication_key(
+            experiment_id=experiment_id,
+            gap_type=gap_type,
+            decision=admission.decision,
+            reason_codes=admission.reason_codes,
+        ),
         content_identity=content_id("qgapc", {"experiment_id": experiment_id, "gap_type": gap_type, "status": admission.decision}),
     )
     gaps.append(gap)

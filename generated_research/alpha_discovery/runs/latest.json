@@ -1,6 +1,6 @@
 {
-  "acquisition_decision": "APPROVED_SOURCE_SELECTED",
-  "admitted_execution_tier": "LOCKED_OOS_VALIDATION",
+  "acquisition_decision": "NO_APPROVED_SOURCE",
+  "admitted_execution_tier": "EXECUTOR_SMOKE",
   "artifact_refs": {
     "acquisitions": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/acquisitions/latest.json",
     "admissions": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/admissions/latest.json",
@@ -14,7 +14,6 @@
     "evidence_assessments": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/evidence_assessments/latest.json",
     "experiments": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/experiments/latest.json",
     "hypotheses": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/hypotheses/latest.json",
-    "lessons": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/lessons/latest.json",
     "locked_oos_view": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/views/locked_oos_latest.json",
     "observation": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/observations/latest.json",
     "reassessments": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/reassessments/latest.json",
@@ -35,13 +34,15 @@
     "universe_plans": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/universe_plans/latest.json",
     "validation_view": "C:/Users/joery.van.rooij/trading-agent/generated_research/alpha_discovery/views/validation_latest.json"
   },
-  "blocked_experiment_ids": [],
+  "blocked_experiment_ids": [
+    "qexp_fe7bfe9caccaec74"
+  ],
   "budget_usage": {
-    "campaigns_executed": 1,
+    "campaigns_executed": 0,
     "compiled_experiments": 1,
     "critiques": 3,
     "data_refresh_retries": 0,
-    "lessons_written": 1,
+    "lessons_written": 0,
     "observation_snapshots": 1,
     "raw_hypotheses": 3,
     "rewrites": 3,
@@ -49,16 +50,26 @@
     "selected_hypotheses": 1,
     "strategy_specs": 1
   },
-  "campaign_id": "qcam_00498b2704a7deef",
-  "content_identity": "qarrc_263606b4197e44fa",
-  "coverage_decision": "COVERAGE_READY",
+  "campaign_id": null,
+  "content_identity": "qarrc_1708f16442a48d44",
+  "coverage_decision": "SOURCE_QUALITY_BLOCKED",
   "critiques_created": 3,
-  "data_boundary": null,
+  "current_campaign": null,
+  "current_dataset_snapshot": null,
+  "current_experiment": "qexp_fe7bfe9caccaec74",
+  "current_source_tier": "SOURCE_BLOCKED",
+  "data_boundary": "STOPPED_SOURCE_CERTIFICATION_BOUNDARY",
   "data_plan_status": "FETCH_REQUIRED",
-  "empirical_campaign_created": true,
-  "evidence_grade": "empirical",
-  "exact_blockers": [],
-  "experiment_id": "qexp_7e21c050e448d71a",
+  "empirical_campaign_created": false,
+  "evidence_grade": null,
+  "evidence_tier_reached": "COMPILER_ONLY",
+  "exact_blockers": [
+    "no_configured_source",
+    "no_screening_eligible_snapshot",
+    "source_tier_below_screening"
+  ],
+  "execution_status": "COMPLETED",
+  "experiment_id": "qexp_fe7bfe9caccaec74",
   "five_row_inventory_root_cause": {
     "broader_logical_datasets_present": true,
     "causes": [
@@ -79,24 +90,30 @@
     "selector_effect": "physical shard rows with 5 bars each were treated as standalone datasets",
     "source_quality_layer_gap": "file-level quality rows existed, but canonical source-authority still blocks yfinance for empirical readiness"
   },
-  "gap_ids": [],
+  "gap_ids": [
+    "qgap_b1689357512fff82"
+  ],
   "hypotheses_generated": 3,
   "hypotheses_rewritten": 3,
-  "lesson_id": "qrl_4e0231d784e6103e",
-  "mechanism_learning_allowed": true,
+  "legacy_terminal_disposition": "DRY_RUN",
+  "lesson_id": null,
+  "mechanism_learning_allowed": false,
   "next_action": "repeat_mvp_on_next_novel_hypothesis",
-  "observation_snapshot_id": "qos_8bd59c40d760cacb",
+  "observation_snapshot_id": "qos_a8df097bd3835e35",
   "policy_version": "qre_alpha_discovery_followup_pr4_v1",
   "prior_adjustment_allowed": false,
+  "qualification_set_id": "qdsqset_f445e19beacee43f",
   "report_kind": "qre_alpha_discovery_run",
   "requested_execution_tier": "EMPIRICAL_SCREENING",
-  "run_id": "qarr_d48faec61478b4c4",
+  "run_id": "qarr_95d4ca77e481c5d0",
+  "runtime_epoch_id": "qepoch_15b86365a10255e2",
   "schema_version": "1.2",
+  "scientific_disposition": null,
   "scorecards": [
     {
       "complexity": 0.7,
       "confounder_coverage": 0.7,
-      "content_identity": "qasc_7f674bec7b705d97",
+      "content_identity": "qasc_7a25d44911127c6d",
       "data_feasibility": 0.9,
       "estimated_compute_cost": 0.7,
       "executor_readiness": 0.85,
@@ -104,7 +121,7 @@
       "expected_information_gain": 0.8,
       "falsifiability": 0.82,
       "hard_blockers": [],
-      "hypothesis_id": "qah_add593d92dfe5c0a",
+      "hypothesis_id": "qah_5f5f18033b13d341",
       "identity_readiness": 0.45,
       "leakage_safety": 0.8,
       "mechanistic_clarity": 0.88,
@@ -130,7 +147,7 @@
     {
       "complexity": 0.7,
       "confounder_coverage": 0.7,
-      "content_identity": "qasc_d456de96d833dd68",
+      "content_identity": "qasc_f044639d068d3777",
       "data_feasibility": 0.9,
       "estimated_compute_cost": 0.8,
       "executor_readiness": 0.85,
@@ -138,7 +155,7 @@
       "expected_information_gain": 0.8,
       "falsifiability": 0.82,
       "hard_blockers": [],
-      "hypothesis_id": "qah_a07b837d05295dee",
+      "hypothesis_id": "qah_0f2b68609264343f",
       "identity_readiness": 0.45,
       "leakage_safety": 0.8,
       "mechanistic_clarity": 0.88,
@@ -166,7 +183,7 @@
     {
       "complexity": 0.7,
       "confounder_coverage": 0.7,
-      "content_identity": "qasc_e8ff99e928adcd41",
+      "content_identity": "qasc_31015de8756ca2d2",
       "data_feasibility": 0.9,
       "estimated_compute_cost": 0.8,
       "executor_readiness": 0.85,
@@ -174,7 +191,7 @@
       "expected_information_gain": 0.8,
       "falsifiability": 0.82,
       "hard_blockers": [],
-      "hypothesis_id": "qah_1631f6b12a9d62a9",
+      "hypothesis_id": "qah_a5dc1823ba1ee3fa",
       "identity_readiness": 0.45,
       "leakage_safety": 0.8,
       "mechanistic_clarity": 0.88,
@@ -201,34 +218,36 @@
       ]
     }
   ],
-  "search_ledger_id": "qsl_39b6a8cfcc4cab7a",
+  "search_ledger_id": "qsl_2f81dcfb3bfd10e2",
   "selected_hypothesis": {
-    "behavior_family": "trend_continuation",
-    "causal_mechanism_statement": "persistent positive trend with still-contained volatility should continue over a short holding horizon.",
+    "behavior_family": "regime_conditioned_follow_up",
+    "causal_mechanism_statement": "an effect previously weakened by cost or sparse activity may survive only in a conditioned regime with explicit falsification controls.",
     "confounders": [
-      "broad market beta",
-      "calendar drift",
+      "selection bias",
+      "generic market drift",
       "cost drag"
     ],
-    "content_identity": "qahr_a07b837d05295dee",
-    "contradicting_observation_refs": [],
+    "content_identity": "qahr_a5dc1823ba1ee3fa",
+    "contradicting_observation_refs": [
+      "obtain more history or a broader justified universe"
+    ],
     "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
     "expected_direction": "long_only",
     "falsification_conditions": [
-      "trend_anchor_delta turns negative",
-      "move falls below entry threshold",
+      "effect disappears outside conditioned regime",
+      "cost stress removes signal",
       "explicit_cost_falsification"
     ],
     "generation_policy_version": "qre_alpha_generation_policy_v2",
-    "hypothesis_id": "qah_a07b837d05295dee",
-    "mechanism_family": "trend_persistence",
+    "hypothesis_id": "qah_a5dc1823ba1ee3fa",
+    "mechanism_family": "regime_transition",
     "minimum_activity_expectation": "at least a few signals in discovery history",
     "novelty_dimensions": [
-      "new diagnostic anomaly grounding",
-      "trend continuation",
+      "new contradiction resolution angle",
+      "new falsification control",
       "critic_rewrite"
     ],
-    "null_hypothesis": "positive continuation over the next few bars is indistinguishable from null after costs.",
+    "null_hypothesis": "effect appears only when the regime filter is active and disappears otherwise is indistinguishable from null after costs.",
     "parameter_count": 3,
     "parameter_schema": [
       {
@@ -237,46 +256,48 @@
         "value": 50
       },
       {
-        "name": "atr_window",
+        "name": "compression_window",
         "type": "int",
-        "value": 14
+        "value": 20
       },
       {
-        "name": "entry_threshold",
+        "name": "regime_threshold",
         "type": "float",
-        "value": 0.75
+        "value": 0.5
       }
     ],
-    "parent_hypothesis_id": "qah_c60403deaeb32fd0",
-    "predicted_observable_effect": "positive continuation over the next few bars",
-    "provider_id": "anomaly",
-    "regime_scope": "trend_positive_and_volatility_contained|critic_conditioned",
+    "parent_hypothesis_id": "qah_8ce7620ce07d4256",
+    "predicted_observable_effect": "effect appears only when the regime filter is active and disappears otherwise",
+    "provider_id": "contradiction",
+    "regime_scope": "regime_conditioned_follow_up|critic_conditioned",
     "related_campaigns": [],
     "related_hypotheses": [
-      "cross_sectional_momentum_v0"
+      "qah_a07b837d05295dee"
     ],
     "required_controls": [
       "regime_filter",
-      "cost_only_baseline"
+      "leave_one_asset_out",
+      "cost_stress"
     ],
     "required_features": [
       "trend_anchor_delta",
-      "normalized_trend_move"
+      "compression_ratio"
     ],
     "schema_version": "1.1",
-    "stable_fingerprint": "d91d965084bdad45ec93f86046868eb5562ab92051d04a484c1ce7f17f4ecf56",
+    "stable_fingerprint": "84abcec316a143be15bb4b638a8cdad49cb762bd84596dc88dcaca8644bb70a8",
     "support_observation_refs": [
-      "qos_8bd59c40d760cacb"
+      "qos_a8df097bd3835e35"
     ],
     "timeframe_intent": "1d",
     "universe_intent": "single_asset_liquid_cache_universe"
   },
   "selected_hypothesis_ids": [
-    "qah_add593d92dfe5c0a",
-    "qah_a07b837d05295dee",
-    "qah_1631f6b12a9d62a9"
+    "qah_5f5f18033b13d341",
+    "qah_0f2b68609264343f",
+    "qah_a5dc1823ba1ee3fa"
   ],
   "smoke_execution_created": false,
+  "snapshot_lineage_set_id": "qdsnapset_836af6dd6cde5805",
   "state_trace": [
     "OBSERVE",
     "GENERATE",
@@ -287,19 +308,19 @@
     "PLAN",
     "COMPILE",
     "RESOLVE_DATA",
-    "EXECUTE",
-    "EVALUATE",
-    "REMEMBER"
+    "STOP",
+    "STOP",
+    "STOP"
   ],
-  "strategy_spec_id": "qss_abbd7479b113b04c",
-  "terminal_disposition": "COMPLETED_LOCKED_OOS_VALIDATION",
+  "strategy_spec_id": "qss_a2d3e238d610d4f9",
+  "terminal_disposition": "DRY_RUN",
   "throughput": {
-    "API_calls": 1,
+    "API_calls": 0,
     "API_calls_avoided": 0,
     "OOS_capacity_gained": 0,
     "assets_made_ready": 27,
     "bytes_downloaded": 0,
-    "cache_hit_rate": 0.0,
+    "cache_hit_rate": 1.0,
     "catalog_datasets_discovered": 46,
     "compute_spent_on_ingestion": 0,
     "duplicate_bytes_avoided": 0,
@@ -309,22 +330,22 @@
     "missing_files": 0,
     "orphaned_files": 0,
     "physical_files_discovered": 7046,
-    "quality_failures": 0,
-    "rows_downloaded": 180,
-    "rows_reused": 221311,
-    "source_failures": 0,
+    "quality_failures": 1,
+    "rows_downloaded": 0,
+    "rows_reused": 0,
+    "source_failures": 1,
     "stale_manifests": 0,
     "time_to_evidence_ready_dataset": null,
     "timeframes_made_ready": 3
   },
   "unselected_hypothesis_reasons": [
     {
-      "hypothesis_id": "qah_1631f6b12a9d62a9",
-      "overall_score": 88.59,
+      "hypothesis_id": "qah_0f2b68609264343f",
+      "overall_score": 88.29,
       "reason": "suppressed_by_recent_lesson"
     },
     {
-      "hypothesis_id": "qah_add593d92dfe5c0a",
+      "hypothesis_id": "qah_5f5f18033b13d341",
       "overall_score": 86.89,
       "reason": "lower_rank"
     }

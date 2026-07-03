@@ -9,21 +9,22 @@
         "companies_house_metadata",
         "euronext_issuer_metadata"
       ],
-      "content_identity": "qsrc_367e8197095fea6e",
+      "content_identity": "qsrc_e3fceffabbfd5b40",
       "credential_requirements": [],
       "cross_source_requirements": [],
-      "current_source_tier": "SOURCE_SCREENING_ELIGIBLE",
+      "current_source_tier": "SOURCE_BLOCKED",
       "license_requirements": [],
       "operator_action_required": false,
-      "qualification_actions": [
-        "use_existing_coherent_snapshot"
-      ],
-      "requirement_id": "qdr_9d27942249b80606",
-      "resolution_id": "qsr_db57074562695223",
-      "selected_snapshot": "qdsnap_7bc0291180909324",
-      "selected_source": "yfinance",
+      "qualification_actions": [],
+      "requirement_id": "qdr_8be5ae59730e33e9",
+      "resolution_id": "qsr_cc0762a3b125abd6",
+      "selected_snapshot": null,
+      "selected_source": null,
       "target_source_tier": "SOURCE_SCREENING_ELIGIBLE",
-      "unresolved_blockers": []
+      "unresolved_blockers": [
+        "no_configured_source",
+        "no_screening_eligible_snapshot"
+      ]
     }
   ],
   "schema_version": "1.2"

@@ -1,8 +1,8 @@
 {
   "rows": [
     {
-      "behavior_family": "trend_continuation",
-      "content_identity": "qasd_111f262339b8a537",
+      "behavior_family": "regime_conditioned_follow_up",
+      "content_identity": "qasd_2ad7dc87a97c32a3",
       "controls": [
         {
           "control_type": "regime_filter",
@@ -21,20 +21,12 @@
       "exit_rules": [],
       "feature_nodes": [
         {
-          "alias": "normalized_trend_move",
+          "alias": "compression_ratio",
           "params": {
-            "atr_window": 14,
-            "trend_anchor_window": 50
+            "atr_long_window": 20,
+            "atr_short_window": 5
           },
-          "primitive": "normalized_trend_move",
-          "source_field": "close"
-        },
-        {
-          "alias": "trend_anchor",
-          "params": {
-            "window": 50
-          },
-          "primitive": "trend_anchor",
+          "primitive": "compression_ratio",
           "source_field": "close"
         },
         {
@@ -47,18 +39,18 @@
         }
       ],
       "grammar_version": "1.1",
-      "hypothesis_id": "qah_a07b837d05295dee",
-      "mechanism_family": "trend_persistence",
+      "hypothesis_id": "qah_a5dc1823ba1ee3fa",
+      "mechanism_family": "regime_transition",
       "parameter_schema": [
         {
-          "name": "atr_window",
+          "name": "compression_window",
           "type": "int",
-          "value": 14
+          "value": 20
         },
         {
-          "name": "entry_threshold",
+          "name": "regime_threshold",
           "type": "float",
-          "value": 0.75
+          "value": 0.5
         },
         {
           "name": "trend_anchor_window",
@@ -76,22 +68,22 @@
         "direction": "long_only",
         "max_legs": 1
       },
-      "regime_scope": "trend_positive_and_volatility_contained|critic_conditioned",
+      "regime_scope": "regime_conditioned_follow_up|critic_conditioned",
       "signal": {
         "direction": "long_only",
         "entry": {
           "left": {
             "left": {
-              "alias": "normalized_trend_move",
+              "alias": "compression_ratio",
               "params": {
-                "atr_window": 14,
-                "trend_anchor_window": 50
+                "atr_long_window": 20,
+                "atr_short_window": 5
               },
-              "primitive": "normalized_trend_move",
+              "primitive": "compression_ratio",
               "source_field": "close"
             },
-            "operator": "greater_than",
-            "right": 0.75
+            "operator": "less_than",
+            "right": 0.8
           },
           "operator": "and",
           "right": {
@@ -110,20 +102,6 @@
         "exit": {
           "left": {
             "left": {
-              "alias": "normalized_trend_move",
-              "params": {
-                "atr_window": 14,
-                "trend_anchor_window": 50
-              },
-              "primitive": "normalized_trend_move",
-              "source_field": "close"
-            },
-            "operator": "less_than",
-            "right": 0.1
-          },
-          "operator": "or",
-          "right": {
-            "left": {
               "alias": "trend_anchor_delta",
               "params": {
                 "window": 50
@@ -133,10 +111,24 @@
             },
             "operator": "less_than",
             "right": 0.0
+          },
+          "operator": "or",
+          "right": {
+            "left": {
+              "alias": "compression_ratio",
+              "params": {
+                "atr_long_window": 20,
+                "atr_short_window": 5
+              },
+              "primitive": "compression_ratio",
+              "source_field": "close"
+            },
+            "operator": "greater_than",
+            "right": 1.0
           }
         }
       },
-      "strategy_spec_id": "qss_abbd7479b113b04c",
+      "strategy_spec_id": "qss_a2d3e238d610d4f9",
       "timeframe": "1d",
       "transforms": [],
       "universe": "single_asset_liquid_cache_universe"

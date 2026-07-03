@@ -1,4 +1,24 @@
 {
-  "rows": [],
+  "rows": [
+    {
+      "blocked_stage": "EXECUTE",
+      "content_identity": "qblocked_f3391fe82d2b7a88",
+      "current_status": "BLOCKED",
+      "experiment_id": "qexp_fe7bfe9caccaec74",
+      "gap_ids": [
+        "qgap_b1689357512fff82"
+      ],
+      "hypothesis_id": "qah_a5dc1823ba1ee3fa",
+      "last_attempt_at_utc": "2026-07-03T16:53:47Z",
+      "next_retry_after_utc": "2026-07-03T17:08:47Z",
+      "preregistration_id": "qexp_fe7bfe9caccaec74",
+      "required_data_snapshot": "None",
+      "required_executor": null,
+      "required_primitive": null,
+      "required_source_tier": "SOURCE_SCREENING_ELIGIBLE",
+      "resume_token": "qresume_83a4a7facff92578",
+      "strategy_spec_id": "qss_a2d3e238d610d4f9"
+    }
+  ],
   "schema_version": "1.2"
 }

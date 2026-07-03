@@ -8,7 +8,7 @@
         "news clusters",
         "beta drift"
       ],
-      "content_identity": "qahr_add593d92dfe5c0a",
+      "content_identity": "qahr_5f5f18033b13d341",
       "contradicting_observation_refs": [
         "obtain evidence-grade data without weakening thresholds"
       ],
@@ -20,7 +20,7 @@
         "explicit_cost_falsification"
       ],
       "generation_policy_version": "qre_alpha_generation_policy_v2",
-      "hypothesis_id": "qah_add593d92dfe5c0a",
+      "hypothesis_id": "qah_5f5f18033b13d341",
       "mechanism_family": "volatility_breakout",
       "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
@@ -67,7 +67,7 @@
       "schema_version": "1.1",
       "stable_fingerprint": "70c086677e110b4d5fcca4942f3c1108a6c46c8e8b1348faaefff37b6c2a7617",
       "support_observation_refs": [
-        "qos_8bd59c40d760cacb"
+        "qos_a8df097bd3835e35"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"
@@ -80,7 +80,7 @@
         "calendar drift",
         "cost drag"
       ],
-      "content_identity": "qahr_a07b837d05295dee",
+      "content_identity": "qahr_0f2b68609264343f",
       "contradicting_observation_refs": [],
       "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
       "expected_direction": "long_only",
@@ -90,7 +90,7 @@
         "explicit_cost_falsification"
       ],
       "generation_policy_version": "qre_alpha_generation_policy_v2",
-      "hypothesis_id": "qah_a07b837d05295dee",
+      "hypothesis_id": "qah_0f2b68609264343f",
       "mechanism_family": "trend_persistence",
       "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
@@ -136,7 +136,7 @@
       "schema_version": "1.1",
       "stable_fingerprint": "d91d965084bdad45ec93f86046868eb5562ab92051d04a484c1ce7f17f4ecf56",
       "support_observation_refs": [
-        "qos_8bd59c40d760cacb"
+        "qos_a8df097bd3835e35"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"
@@ -149,7 +149,7 @@
         "generic market drift",
         "cost drag"
       ],
-      "content_identity": "qahr_1631f6b12a9d62a9",
+      "content_identity": "qahr_a5dc1823ba1ee3fa",
       "contradicting_observation_refs": [
         "obtain more history or a broader justified universe"
       ],
@@ -161,7 +161,7 @@
         "explicit_cost_falsification"
       ],
       "generation_policy_version": "qre_alpha_generation_policy_v2",
-      "hypothesis_id": "qah_1631f6b12a9d62a9",
+      "hypothesis_id": "qah_a5dc1823ba1ee3fa",
       "mechanism_family": "regime_transition",
       "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
@@ -194,7 +194,7 @@
       "regime_scope": "regime_conditioned_follow_up|critic_conditioned",
       "related_campaigns": [],
       "related_hypotheses": [
-        "qah_96e5182df694c366"
+        "qah_a07b837d05295dee"
       ],
       "required_controls": [
         "regime_filter",
@@ -208,7 +208,7 @@
       "schema_version": "1.1",
       "stable_fingerprint": "84abcec316a143be15bb4b638a8cdad49cb762bd84596dc88dcaca8644bb70a8",
       "support_observation_refs": [
-        "qos_8bd59c40d760cacb"
+        "qos_a8df097bd3835e35"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"

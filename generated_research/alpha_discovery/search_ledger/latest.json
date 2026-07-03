@@ -1,10 +1,10 @@
 {
   "ledger": {
     "OOS_exposures": 0,
-    "content_identity": "qslc_ef1817e93e70dd7f",
+    "content_identity": "qslc_25b432781ce39527",
     "critic_rejections": 0,
     "deduplicated_proposals": 3,
-    "discovery_dataset_fingerprint": "qos_8bd59c40d760cacb",
+    "discovery_dataset_fingerprint": "qos_a8df097bd3835e35",
     "feature_degrees_of_freedom": 7,
     "mechanism_family_test_count": 3,
     "parameter_degrees_of_freedom": 9,
@@ -16,8 +16,8 @@
     ],
     "raw_proposals": 3,
     "scored_hypotheses": 3,
-    "search_run_id": "qsl_39b6a8cfcc4cab7a",
-    "selected_hypothesis": "qah_a07b837d05295dee",
+    "search_run_id": "qsl_2f81dcfb3bfd10e2",
+    "selected_hypothesis": "qah_a5dc1823ba1ee3fa",
     "strategy_tree_count": 3,
     "timeframe_test_count": 1,
     "universe_test_count": 1,
