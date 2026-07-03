@@ -1,32 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import signal
 import sys
 import time
 from contextlib import suppress
-from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from packages.qre_research.alpha_discovery.capability_loop import BLOCKED_EXPERIMENTS_PATH, GAP_REGISTRY_PATH
-from packages.qre_research.alpha_discovery.contracts import (
-    HEALTH_BLOCKED_CAPABILITY,
-    HEALTH_BLOCKED_CREDENTIAL,
-    HEALTH_BLOCKED_LICENSE,
-    HEALTH_BLOCKED_SOURCE_CERTIFICATION,
-    HEALTH_HEALTHY_RESEARCH_ACTIVE,
-    HEALTH_HEALTHY_WAITING,
-    SupervisorStatus,
-    content_id,
-)
-from packages.qre_research.alpha_discovery.runner import read_status, run_alpha_discovery_mvp
-from packages.qre_research.alpha_discovery.snapshot_lineage import load_snapshot_lineage
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
+GAP_REGISTRY_PATH = Path("generated_research/alpha_discovery/capability_gaps/latest.json")
+BLOCKED_EXPERIMENTS_PATH = Path("generated_research/alpha_discovery/blocked_experiments/latest.json")
 LEASE_PATH = REPO_ROOT / "logs/qre_research_supervisor/lease.json"
 STATUS_PATH = REPO_ROOT / "logs/qre_research_supervisor/latest.json"
 HEALTHCHECK_PATH = REPO_ROOT / "logs/qre_research_supervisor/healthcheck.json"
@@ -35,8 +23,47 @@ SERVICE_VERSION = "qre_alpha_supervisor_pr4_v1"
 DEFAULT_INTERVAL_SECONDS = 300
 MAX_INTERVAL_SECONDS = 3600
 DEFAULT_MAX_ITERATIONS = 1
+HEALTH_BLOCKED_CAPABILITY = "BLOCKED_CAPABILITY"
+HEALTH_BLOCKED_CREDENTIAL = "BLOCKED_CREDENTIAL"
+HEALTH_BLOCKED_LICENSE = "BLOCKED_LICENSE"
+HEALTH_BLOCKED_SOURCE_CERTIFICATION = "BLOCKED_SOURCE_CERTIFICATION"
+HEALTH_HEALTHY_RESEARCH_ACTIVE = "HEALTHY_RESEARCH_ACTIVE"
+HEALTH_HEALTHY_WAITING = "HEALTHY_WAITING_FOR_TRIGGER"
 
 _STOP = False
+
+
+def _contracts() -> Any:
+    return importlib.import_module("packages.qre_research.alpha_discovery.contracts")
+
+
+def _runner() -> Any:
+    return importlib.import_module("packages.qre_research.alpha_discovery.runner")
+
+
+def _snapshot_lineage_module() -> Any:
+    return importlib.import_module("packages.qre_research.alpha_discovery.snapshot_lineage")
+
+
+def content_id(prefix: str, payload: Any) -> str:
+    return _contracts().content_id(prefix, payload)
+
+
+def load_snapshot_lineage(repo_root: Path) -> dict[str, Any]:
+    return _snapshot_lineage_module().load_snapshot_lineage(repo_root)
+
+
+def read_status(repo_root: Path) -> dict[str, Any]:
+    return _runner().read_status(repo_root)
+
+
+def run_alpha_discovery_mvp(*, repo_root: Path, dry_run: bool, max_hypotheses: int, execution_tier: str) -> dict[str, Any]:
+    return _runner().run_alpha_discovery_mvp(
+        repo_root=repo_root,
+        dry_run=dry_run,
+        max_hypotheses=max_hypotheses,
+        execution_tier=execution_tier,
+    )
 
 
 def _signal_handler(signum, frame) -> None:  # noqa: ANN001, ARG001
@@ -171,25 +198,25 @@ def run_cycle(
         blocked = _blocked_experiments()
         alpha_status = read_status(repo_root)
         health = _health_from_run(run_payload, open_gaps)
-        status = SupervisorStatus(
-            service_version=SERVICE_VERSION,
-            last_cycle={
+        status = {
+            "service_version": SERVICE_VERSION,
+            "last_cycle": {
                 "run_id": run_payload.get("run_id"),
                 "terminal_disposition": run_payload.get("terminal_disposition"),
                 "generated_at_utc": _utcnow(),
             },
-            last_successful_cycle={
+            "last_successful_cycle": {
                 "run_id": run_payload.get("run_id"),
                 "terminal_disposition": run_payload.get("terminal_disposition"),
             } if str(run_payload.get("terminal_disposition") or "").startswith(("COMPLETED_", "DRY_RUN")) else None,
-            current_stage="COMPLETE",
-            current_dataset_snapshot=((run_payload.get("artifacts") or {}).get("source_resolution") or {}).get("selected_snapshot"),
-            current_source_tier=str((((run_payload.get("artifacts") or {}).get("source_resolution") or {}).get("current_source_tier")) or "SOURCE_BLOCKED"),
-            current_experiment=run_payload.get("experiment_id"),
-            current_campaign=run_payload.get("campaign_id"),
-            open_gaps=tuple(str(row.get("gap_id") or "") for row in open_gaps),
-            active_ADE_requests=tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
-            operator_actions=tuple(
+            "current_stage": "COMPLETE",
+            "current_dataset_snapshot": ((run_payload.get("artifacts") or {}).get("source_resolution") or {}).get("selected_snapshot"),
+            "current_source_tier": str((((run_payload.get("artifacts") or {}).get("source_resolution") or {}).get("current_source_tier")) or "SOURCE_BLOCKED"),
+            "current_experiment": run_payload.get("experiment_id"),
+            "current_campaign": run_payload.get("campaign_id"),
+            "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
+            "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
+            "operator_actions": tuple(
                 sorted(
                     {
                         "configure_provider_credentials" if str(row.get("gap_type") or "") == "CREDENTIAL_GAP" else
@@ -200,20 +227,20 @@ def run_cycle(
                     }
                 )
             ),
-            next_retry=(datetime.now(UTC) + timedelta(minutes=5)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-            next_scheduled_cycle=(datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-            consecutive_failures=0 if health.startswith("HEALTHY") else 1,
-            watermarks={**current_watermarks, "alpha_status": alpha_status.get("content_identity")},
-            leases=lease,
-            artifact_refs={
+            "next_retry": (datetime.now(UTC) + timedelta(minutes=5)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "consecutive_failures": 0 if health.startswith("HEALTHY") else 1,
+            "watermarks": {**current_watermarks, "alpha_status": alpha_status.get("content_identity")},
+            "leases": lease,
+            "artifact_refs": {
                 "alpha_status": str(repo_root / Path("generated_research/alpha_discovery/status/latest.json")),
                 "supervisor_status": str(STATUS_PATH),
             },
-            health=health,
-            content_identity=content_id("qsup", {"run_id": run_payload.get("run_id"), "health": health, "blocked": len(blocked)}),
-        )
+            "health": health,
+            "content_identity": content_id("qsup", {"run_id": run_payload.get("run_id"), "health": health, "blocked": len(blocked)}),
+        }
         payload = {
-            **asdict(status),  # type: ignore[name-defined]
+            **status,
             "blocked_experiments": blocked,
             "search_ledger_id": run_payload.get("search_ledger_id"),
         }

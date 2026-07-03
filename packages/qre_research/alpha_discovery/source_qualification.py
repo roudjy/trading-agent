@@ -103,11 +103,41 @@ def _screening_reasons(snapshot: dict[str, Any]) -> list[str]:
     return reasons
 
 
-def qualify_datasets(*, repo_root: Path, dataset_catalog: dict[str, Any], policy_reconciliation: dict[str, Any]) -> dict[str, Any]:
+def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str, Any], policy_reconciliation: dict[str, Any]) -> dict[str, Any]:
     rows = []
     current_status = str(policy_reconciliation.get("current_yfinance_status") or "unknown")
-    lineage = load_snapshot_lineage(repo_root)
-    snapshots = [dict(row) for row in lineage.get("snapshot_lineage", {}).get("rows", []) if isinstance(row, dict)]
+    snapshots: list[dict[str, Any]] = []
+    snapshot_scoped_authority = False
+    if repo_root is not None:
+        lineage = load_snapshot_lineage(repo_root)
+        snapshots = [dict(row) for row in lineage.get("snapshot_lineage", {}).get("rows", []) if isinstance(row, dict)]
+        snapshot_scoped_authority = bool(snapshots)
+    if not snapshots:
+        for dataset in dataset_catalog.get("datasets") or []:
+            if not isinstance(dataset, dict):
+                continue
+            integrity = dataset.get("integrity_summary") or {}
+            snapshots.append(
+                {
+                    "dataset_snapshot_id": dataset.get("dataset_snapshot_id") or dataset.get("dataset_id"),
+                    "logical_dataset_family_id": dataset.get("dataset_id"),
+                    "fingerprint": dataset.get("dataset_fingerprint"),
+                    "source_id": dataset.get("source_id"),
+                    "instrument_ids": tuple(dataset.get("instrument_ids") or ()),
+                    "timeframe": dataset.get("timeframe"),
+                    "start": dataset.get("start"),
+                    "end": dataset.get("end"),
+                    "created_at_utc": dataset.get("provenance", {}).get("generated_at_utc"),
+                    "raw_row_count": integrity.get("raw_row_count", dataset.get("row_count", 0)),
+                    "unique_bar_count": integrity.get("unique_bar_count", dataset.get("row_count", 0)),
+                    "expected_bar_count": integrity.get("expected_bar_count"),
+                    "coverage_ratio": integrity.get("coverage_ratio"),
+                    "exact_duplicate_row_count": integrity.get("exact_duplicate_row_count", 0),
+                    "conflicting_row_count": integrity.get("conflicting_row_count", 0),
+                    "invalid_row_count": integrity.get("invalid_row_count", 0),
+                    "qualification_status": "COHERENT" if str((dataset.get("quality_summary") or {}).get("effective_research_quality_status") or "").lower() == "ready" else "BLOCKED",
+                }
+            )
     for snapshot in snapshots:
         source_id = str(snapshot.get("source_id") or "")
         allowed_tier = SOURCE_TIER_BLOCKED
@@ -116,11 +146,13 @@ def qualify_datasets(*, repo_root: Path, dataset_catalog: dict[str, Any], policy
         cross_source_status = "NOT_AVAILABLE"
         if "yfinance" in source_id:
             if current_status == "manual_research_only":
-                if not reason_codes:
+                if snapshot_scoped_authority and not reason_codes:
                     allowed_tier = SOURCE_TIER_SCREENING_ELIGIBLE
                 else:
-                    allowed_tier = SOURCE_TIER_SMOKE_ONLY
-                    reason_codes.insert(0, "snapshot_scoped_screening_not_met")
+                    allowed_tier = SOURCE_TIER_BLOCKED
+                    reason_codes.insert(0, "global_policy_ceiling_manual_research_only")
+                    if snapshot_scoped_authority:
+                        reason_codes.append("snapshot_scoped_screening_not_met")
             else:
                 allowed_tier = SOURCE_TIER_SCREENING_ELIGIBLE if not reason_codes else SOURCE_TIER_BLOCKED
         elif not reason_codes:

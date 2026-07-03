@@ -14,6 +14,7 @@ from .contracts import (
     EXECUTION_TIER_EMPIRICAL_SCREENING,
     EXECUTION_TIER_EXECUTOR_SMOKE,
     EXECUTION_TIER_LOCKED_OOS_VALIDATION,
+    SOURCE_TIER_SMOKE_ONLY,
     SOURCE_TIER_SCREENING_ELIGIBLE,
     AcquisitionPlan,
     CoverageAssessment,
@@ -71,7 +72,6 @@ def assess_coverage(
     universe_plan: UniversePlan,
     catalog: dict[str, Any],
 ) -> CoverageAssessment:
-    del catalog
     lineage = load_snapshot_lineage(repo_root)
     source_resolution = resolve_source(
         repo_root=repo_root,
@@ -85,6 +85,37 @@ def assess_coverage(
         if str(row.get("timeframe") or "") == requirement.base_timeframe
         and (not instrument or instrument in tuple(row.get("instrument_ids") or ()))
     ]
+    if not snapshot_rows:
+        for dataset in catalog.get("datasets") or []:
+            if not isinstance(dataset, dict):
+                continue
+            if str(dataset.get("timeframe") or "") != requirement.base_timeframe:
+                continue
+            instrument_ids = tuple(str(value) for value in dataset.get("instrument_ids") or ())
+            if instrument and instrument not in instrument_ids:
+                continue
+            integrity = dataset.get("integrity_summary") or {}
+            snapshot_rows.append(
+                {
+                    "logical_dataset_family_id": dataset.get("dataset_id"),
+                    "dataset_snapshot_id": dataset.get("dataset_snapshot_id") or dataset.get("dataset_id"),
+                    "instrument_ids": instrument_ids,
+                    "timeframe": dataset.get("timeframe"),
+                    "start": dataset.get("start"),
+                    "end": dataset.get("end"),
+                    "raw_row_count": int(integrity.get("raw_row_count", dataset.get("row_count", 0)) or 0),
+                    "unique_bar_count": int(integrity.get("unique_bar_count", dataset.get("row_count", 0)) or 0),
+                    "expected_bar_count": integrity.get("expected_bar_count"),
+                    "coverage_ratio": integrity.get("coverage_ratio"),
+                    "overlapping_row_count": int(integrity.get("overlapping_row_count", 0) or 0),
+                    "conflicting_row_count": int(integrity.get("conflicting_row_count", 0) or 0),
+                    "qualification_status": "COHERENT"
+                    if str((dataset.get("quality_summary") or {}).get("effective_research_quality_status") or "").lower() == "ready"
+                    else "BLOCKED",
+                    "partition_refs": tuple(dataset.get("partition_refs") or ()),
+                    "allowed_source_tier": SOURCE_TIER_SMOKE_ONLY,
+                }
+            )
     if not snapshot_rows:
         return CoverageAssessment(
             coverage_assessment_id=content_id("qcov", {"requirement_id": requirement.requirement_id, "decision": "EXTERNAL_DATA_BOUNDARY"}),
