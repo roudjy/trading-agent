@@ -38,4 +38,5 @@ paths = [
 # Commit-level allowlist: only the single deletion commit.
 commits = [
   "cf83a838bcfbee60290890eb85d67ba993fc4959",
+  "ede4dedacc0459e9b2c292deb533e39f9603924b",
 ]
