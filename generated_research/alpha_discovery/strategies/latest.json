@@ -1,8 +1,8 @@
 {
   "rows": [
     {
-      "behavior_family": "regime_conditioned_follow_up",
-      "content_identity": "qasd_5a68d9b385b3ed1a",
+      "behavior_family": "trend_continuation",
+      "content_identity": "qasd_111f262339b8a537",
       "controls": [
         {
           "control_type": "regime_filter",
@@ -21,12 +21,20 @@
       "exit_rules": [],
       "feature_nodes": [
         {
-          "alias": "compression_ratio",
+          "alias": "normalized_trend_move",
           "params": {
-            "atr_long_window": 20,
-            "atr_short_window": 5
+            "atr_window": 14,
+            "trend_anchor_window": 50
           },
-          "primitive": "compression_ratio",
+          "primitive": "normalized_trend_move",
+          "source_field": "close"
+        },
+        {
+          "alias": "trend_anchor",
+          "params": {
+            "window": 50
+          },
+          "primitive": "trend_anchor",
           "source_field": "close"
         },
         {
@@ -39,18 +47,18 @@
         }
       ],
       "grammar_version": "1.1",
-      "hypothesis_id": "qah_50bd8a85af84d666",
-      "mechanism_family": "regime_transition",
+      "hypothesis_id": "qah_a07b837d05295dee",
+      "mechanism_family": "trend_persistence",
       "parameter_schema": [
         {
-          "name": "compression_window",
+          "name": "atr_window",
           "type": "int",
-          "value": 20
+          "value": 14
         },
         {
-          "name": "regime_threshold",
+          "name": "entry_threshold",
           "type": "float",
-          "value": 0.5
+          "value": 0.75
         },
         {
           "name": "trend_anchor_window",
@@ -68,22 +76,22 @@
         "direction": "long_only",
         "max_legs": 1
       },
-      "regime_scope": "regime_conditioned_follow_up|critic_conditioned",
+      "regime_scope": "trend_positive_and_volatility_contained|critic_conditioned",
       "signal": {
         "direction": "long_only",
         "entry": {
           "left": {
             "left": {
-              "alias": "compression_ratio",
+              "alias": "normalized_trend_move",
               "params": {
-                "atr_long_window": 20,
-                "atr_short_window": 5
+                "atr_window": 14,
+                "trend_anchor_window": 50
               },
-              "primitive": "compression_ratio",
+              "primitive": "normalized_trend_move",
               "source_field": "close"
             },
-            "operator": "less_than",
-            "right": 0.8
+            "operator": "greater_than",
+            "right": 0.75
           },
           "operator": "and",
           "right": {
@@ -102,6 +110,20 @@
         "exit": {
           "left": {
             "left": {
+              "alias": "normalized_trend_move",
+              "params": {
+                "atr_window": 14,
+                "trend_anchor_window": 50
+              },
+              "primitive": "normalized_trend_move",
+              "source_field": "close"
+            },
+            "operator": "less_than",
+            "right": 0.1
+          },
+          "operator": "or",
+          "right": {
+            "left": {
               "alias": "trend_anchor_delta",
               "params": {
                 "window": 50
@@ -111,28 +133,14 @@
             },
             "operator": "less_than",
             "right": 0.0
-          },
-          "operator": "or",
-          "right": {
-            "left": {
-              "alias": "compression_ratio",
-              "params": {
-                "atr_long_window": 20,
-                "atr_short_window": 5
-              },
-              "primitive": "compression_ratio",
-              "source_field": "close"
-            },
-            "operator": "greater_than",
-            "right": 1.0
           }
         }
       },
-      "strategy_spec_id": "qss_14085b9d9ba748ae",
+      "strategy_spec_id": "qss_abbd7479b113b04c",
       "timeframe": "1d",
       "transforms": [],
       "universe": "single_asset_liquid_cache_universe"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

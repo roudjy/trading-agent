@@ -1,18 +1,20 @@
 {
-  "admitted_execution_tier": "COMPILER_ONLY",
-  "content_identity": "qasd_status_66999f32ab28120f",
-  "current_wait_reason": "no_campaign_executed",
-  "empirical_campaign_created": false,
-  "mechanism_learning_allowed": false,
+  "admitted_execution_tier": "LOCKED_OOS_VALIDATION",
+  "content_identity": "qasd_status_263606b4197e44fa",
+  "current_wait_reason": "lesson_written",
+  "empirical_campaign_created": true,
+  "mechanism_learning_allowed": true,
   "next_wake_conditions": [
-    "novel_observation"
+    "evidence_grade_data",
+    "new_data",
+    "new_memory"
   ],
-  "policy_version": "qre_alpha_discovery_followup_pr1_v1",
+  "policy_version": "qre_alpha_discovery_followup_pr4_v1",
   "report_kind": "qre_alpha_discovery_status",
   "requested_execution_tier": "EMPIRICAL_SCREENING",
-  "schema_version": "1.1",
-  "selected_hypothesis_id": "qah_50bd8a85af84d666",
+  "schema_version": "1.2",
+  "selected_hypothesis_id": "qah_a07b837d05295dee",
   "smoke_execution_created": false,
   "state": "COMPLETE",
-  "terminal_disposition": "STOPPED_SOURCE_CERTIFICATION_BOUNDARY"
+  "terminal_disposition": "COMPLETED_LOCKED_OOS_VALIDATION"
 }

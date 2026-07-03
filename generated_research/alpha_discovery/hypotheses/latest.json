@@ -8,9 +8,9 @@
         "news clusters",
         "beta drift"
       ],
-      "content_identity": "qahr_2fce2b335aa0af4c",
+      "content_identity": "qahr_add593d92dfe5c0a",
       "contradicting_observation_refs": [
-        "route future runs through evidence-grade admission"
+        "obtain evidence-grade data without weakening thresholds"
       ],
       "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
       "expected_direction": "long_only",
@@ -20,7 +20,7 @@
         "explicit_cost_falsification"
       ],
       "generation_policy_version": "qre_alpha_generation_policy_v2",
-      "hypothesis_id": "qah_2fce2b335aa0af4c",
+      "hypothesis_id": "qah_add593d92dfe5c0a",
       "mechanism_family": "volatility_breakout",
       "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
@@ -67,7 +67,7 @@
       "schema_version": "1.1",
       "stable_fingerprint": "70c086677e110b4d5fcca4942f3c1108a6c46c8e8b1348faaefff37b6c2a7617",
       "support_observation_refs": [
-        "qos_a8df097bd3835e35"
+        "qos_8bd59c40d760cacb"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"
@@ -80,7 +80,7 @@
         "calendar drift",
         "cost drag"
       ],
-      "content_identity": "qahr_0f2b68609264343f",
+      "content_identity": "qahr_a07b837d05295dee",
       "contradicting_observation_refs": [],
       "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
       "expected_direction": "long_only",
@@ -90,7 +90,7 @@
         "explicit_cost_falsification"
       ],
       "generation_policy_version": "qre_alpha_generation_policy_v2",
-      "hypothesis_id": "qah_0f2b68609264343f",
+      "hypothesis_id": "qah_a07b837d05295dee",
       "mechanism_family": "trend_persistence",
       "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
@@ -136,7 +136,7 @@
       "schema_version": "1.1",
       "stable_fingerprint": "d91d965084bdad45ec93f86046868eb5562ab92051d04a484c1ce7f17f4ecf56",
       "support_observation_refs": [
-        "qos_a8df097bd3835e35"
+        "qos_8bd59c40d760cacb"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"
@@ -149,9 +149,9 @@
         "generic market drift",
         "cost drag"
       ],
-      "content_identity": "qahr_50bd8a85af84d666",
+      "content_identity": "qahr_1631f6b12a9d62a9",
       "contradicting_observation_refs": [
-        "obtain evidence-grade data before empirical screening"
+        "obtain more history or a broader justified universe"
       ],
       "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
       "expected_direction": "long_only",
@@ -161,7 +161,7 @@
         "explicit_cost_falsification"
       ],
       "generation_policy_version": "qre_alpha_generation_policy_v2",
-      "hypothesis_id": "qah_50bd8a85af84d666",
+      "hypothesis_id": "qah_1631f6b12a9d62a9",
       "mechanism_family": "regime_transition",
       "minimum_activity_expectation": "at least a few signals in discovery history",
       "novelty_dimensions": [
@@ -194,7 +194,7 @@
       "regime_scope": "regime_conditioned_follow_up|critic_conditioned",
       "related_campaigns": [],
       "related_hypotheses": [
-        "qah_56279ba7fa7a26d4"
+        "qah_96e5182df694c366"
       ],
       "required_controls": [
         "regime_filter",
@@ -208,80 +208,11 @@
       "schema_version": "1.1",
       "stable_fingerprint": "84abcec316a143be15bb4b638a8cdad49cb762bd84596dc88dcaca8644bb70a8",
       "support_observation_refs": [
-        "qos_a8df097bd3835e35"
-      ],
-      "timeframe_intent": "1d",
-      "universe_intent": "single_asset_liquid_cache_universe"
-    },
-    {
-      "behavior_family": "relative_strength_dispersion",
-      "causal_mechanism_statement": "changes in relative strength and dispersion can indicate a regime where broad drift is insufficient to explain cross-instrument separation.",
-      "confounders": [
-        "market beta",
-        "index concentration",
-        "selection bias"
-      ],
-      "content_identity": "qahr_818ba1e900c0294a",
-      "contradicting_observation_refs": [],
-      "cost_sensitivity_expectation": "must survive conservative non-zero slippage",
-      "expected_direction": "long_only",
-      "falsification_conditions": [
-        "dispersion contracts immediately",
-        "rank leadership mean reverts before holding horizon",
-        "explicit_cost_falsification"
-      ],
-      "generation_policy_version": "qre_alpha_generation_policy_v2",
-      "hypothesis_id": "qah_818ba1e900c0294a",
-      "mechanism_family": "correlation_change",
-      "minimum_activity_expectation": "at least a few signals in discovery history",
-      "novelty_dimensions": [
-        "underexplored mechanism family",
-        "portfolio orthogonality gap",
-        "critic_rewrite"
-      ],
-      "null_hypothesis": "relative-strength leadership persists while laggards remain weak is indistinguishable from null after costs.",
-      "parameter_count": 3,
-      "parameter_schema": [
-        {
-          "name": "lookback",
-          "type": "int",
-          "value": 20
-        },
-        {
-          "name": "top_bucket",
-          "type": "float",
-          "value": 0.2
-        },
-        {
-          "name": "hold_bars",
-          "type": "int",
-          "value": 5
-        }
-      ],
-      "parent_hypothesis_id": "qah_3284b5d99e05ef1b",
-      "predicted_observable_effect": "relative-strength leadership persists while laggards remain weak",
-      "provider_id": "coverage",
-      "regime_scope": "dispersion_expanding|critic_conditioned",
-      "related_campaigns": [],
-      "related_hypotheses": [],
-      "required_controls": [
-        "market_beta_proxy_control",
-        "leave_one_asset_out",
-        "regime_filter"
-      ],
-      "required_features": [
-        "relative_strength",
-        "dispersion",
-        "cross_sectional_rank"
-      ],
-      "schema_version": "1.1",
-      "stable_fingerprint": "3ad723514ef3efd39a9456ac725f051c0c5f4669ae42babdbf327abbfe1826c8",
-      "support_observation_refs": [
-        "qos_a8df097bd3835e35"
+        "qos_8bd59c40d760cacb"
       ],
       "timeframe_intent": "1d",
       "universe_intent": "single_asset_liquid_cache_universe"
     }
   ],
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }
