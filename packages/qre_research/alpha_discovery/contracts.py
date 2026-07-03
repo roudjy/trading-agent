@@ -254,14 +254,23 @@ class ExperimentContract:
 @dataclass(frozen=True, slots=True)
 class DataRequirement:
     requirement_id: str
+    experiment_id: str
+    universe_plan_id: str
     universe_selector: str
     resolved_instrument_ids: tuple[str, ...]
+    instrument_requirements: tuple[str, ...]
     timeframe: str
+    base_timeframe: str
+    required_timeframes: tuple[str, ...]
     required_fields: tuple[str, ...]
     required_history_start: str
     required_history_end: str
+    required_history_span: str
     minimum_rows: int
+    minimum_rows_per_asset: int
     minimum_assets: int
+    target_assets: int
+    minimum_common_history: str
     requested_execution_tier: str
     minimum_history_span: str
     minimum_expected_signals: int
@@ -269,6 +278,10 @@ class DataRequirement:
     minimum_validation_rows: int
     minimum_locked_oos_rows: int
     minimum_locked_oos_activity: int
+    validation_requirement: str
+    locked_oos_requirement: str
+    embargo_requirement: str
+    warmup_requirement: str
     required_source_quality: str
     required_identity_status: str
     required_cost_model: str
@@ -276,6 +289,10 @@ class DataRequirement:
     point_in_time_requirement: str
     corporate_action_requirement: str
     session_calendar_requirement: str
+    PIT_requirement: str
+    cost_data_requirement: str
+    slippage_data_requirement: str
+    regime_context_requirement: str
     quality_policy: str
     identity_policy: str
     preferred_sources: tuple[str, ...]
@@ -293,6 +310,72 @@ class CoverageDecision:
     selected_data: dict[str, Any]
     approved_fetch: bool
     dataset_inventory: tuple[dict[str, Any], ...]
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class UniversePlan:
+    universe_plan_id: str
+    experiment_id: str
+    universe_type: str
+    canonical_universe_id: str
+    selection_date: str
+    membership_effective_dates: tuple[str, ...]
+    requested_assets: tuple[str, ...]
+    resolved_assets: tuple[str, ...]
+    excluded_assets: tuple[dict[str, str], ...]
+    exclusion_reasons: tuple[str, ...]
+    minimum_assets: int
+    target_assets: int
+    liquidity_requirements: str
+    identity_requirements: str
+    point_in_time_required: bool
+    point_in_time_status: str
+    sector_or_group_metadata_required: bool
+    corporate_actions_required: bool
+    session_calendar_required: bool
+    survivorship_bias_status: str
+    selection_bias_status: str
+    final_universe_decision: str
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class CoverageAssessment:
+    coverage_assessment_id: str
+    requirement_id: str
+    universe_plan_id: str
+    decision: str
+    rows: tuple[dict[str, Any], ...]
+    highest_admissible_tier: str
+    content_identity: str
+
+
+@dataclass(frozen=True, slots=True)
+class AcquisitionPlan:
+    acquisition_plan_id: str
+    requirement_id: str
+    source_ids: tuple[str, ...]
+    instrument_ids: tuple[str, ...]
+    base_timeframe: str
+    start: str
+    end: str
+    expected_rows: int
+    incremental: bool
+    backfill: bool
+    resample_targets: tuple[str, ...]
+    corporate_action_actions: tuple[str, ...]
+    identity_actions: tuple[str, ...]
+    quality_checks: tuple[str, ...]
+    request_batches: tuple[dict[str, Any], ...]
+    rate_limit_budget: int
+    retry_budget: int
+    estimated_bytes: int
+    estimated_calls: int
+    expected_unlock: str
+    source_selection_decision: str
+    external_boundary: str | None
+    reason_codes: tuple[str, ...]
     content_identity: str
 
 
