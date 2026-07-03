@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any, Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -169,15 +169,19 @@ def build_strategy_spec(
     feature_nodes: tuple[FeatureNode, ...],
     signal: SignalNode,
     parameters: tuple[dict[str, Any], ...],
-    controls: tuple[ControlNode, ...] = tuple(),
+    controls: tuple[ControlNode, ...] = (),
     portfolio_rule: PortfolioRule | None = None,
 ) -> StrategySpec:
     from .strategy_ir import (
         CostAssumption,
-        PortfolioRule as IRPortfolioRule,
         PositionRule,
-        StrategySpec as IRStrategySpec,
         normalize_strategy_spec,
+    )
+    from .strategy_ir import (
+        PortfolioRule as IRPortfolioRule,
+    )
+    from .strategy_ir import (
+        StrategySpec as IRStrategySpec,
     )
 
     spec = IRStrategySpec(
@@ -190,7 +194,7 @@ def build_strategy_spec(
         timeframe=timeframe,
         regime_scope=regime_scope,
         feature_nodes=feature_nodes,
-        transforms=tuple(),
+        transforms=(),
         controls=controls,
         signal=signal,
         position_rule=PositionRule(direction="long_only", max_legs=1),
@@ -200,7 +204,7 @@ def build_strategy_spec(
             max_gross_exposure=1.0,
             max_rules=1,
         ),
-        exit_rules=tuple(),
+        exit_rules=(),
         cost_assumption=CostAssumption(transaction_cost_bps=10.0, slippage_bps=5.0, spread_bps=0.0),
         parameter_schema=parameters,
         content_identity="",

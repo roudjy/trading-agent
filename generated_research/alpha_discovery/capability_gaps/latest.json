@@ -1,4 +1,31 @@
 {
-  "rows": [],
+  "rows": [
+    {
+      "blocking_stage": "EXECUTE",
+      "code_change_required": false,
+      "content_identity": "qgapc_03a3d9d1ea989957",
+      "created_at_utc": "2026-07-03T16:53:47Z",
+      "credential_required": false,
+      "current_capability": "SOURCE_BLOCKED",
+      "deduplication_key": "qgapdedupe_6d8c98dffe6ad18b",
+      "experiment_id": "qexp_fe7bfe9caccaec74",
+      "external_configuration_required": true,
+      "gap_id": "qgap_b1689357512fff82",
+      "gap_type": "SOURCE_CERTIFICATION_GAP",
+      "license_required": false,
+      "required_capability": "SOURCE_SCREENING_ELIGIBLE",
+      "resolution_criteria": [
+        "no_configured_source",
+        "no_screening_eligible_snapshot",
+        "source_tier_below_screening"
+      ],
+      "resolution_refs": [],
+      "resolved_at_utc": null,
+      "risk_class": "LOW",
+      "status": "WAITING_FOR_OPERATOR",
+      "suggested_owner": "human_operator",
+      "summary": "Blocked at EXECUTE: SOURCE_QUALITY_BLOCKED"
+    }
+  ],
   "schema_version": "1.2"
 }

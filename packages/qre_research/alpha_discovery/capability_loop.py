@@ -8,8 +8,6 @@ from typing import Any
 from packages.qre_research import autonomous_opportunity_loop as aol
 
 from .contracts import (
-    GAP_STATUS_OPEN,
-    GAP_STATUS_RESOLVED,
     GAP_STATUS_WAITING_FOR_ADE,
     GAP_STATUS_WAITING_FOR_OPERATOR,
     GAP_TYPE_CREDENTIAL,

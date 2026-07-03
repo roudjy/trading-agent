@@ -28,6 +28,11 @@ include = [
     ".claude/hooks/**/*.py",
     "scripts/**/*.py",
     "reporting/agent_audit.py",
+    "reporting/qre_research_operations.py",
+    "reporting/qre_research_supervisor.py",
+    "packages/qre_research/alpha_discovery/**/*.py",
+    "tests/unit/test_qre_alpha_*.py",
+    "tests/unit/test_qre_research_supervisor.py",
     "tests/unit/test_hook*.py",
     "tests/unit/test_agent_audit*.py",
 ]

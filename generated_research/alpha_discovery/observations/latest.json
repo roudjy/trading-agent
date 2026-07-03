@@ -3,7 +3,7 @@
   "behavior_family_coverage": {
     "resolved_strategy_count": 14
   },
-  "content_identity": "qos_8bd59c40d760cacb",
+  "content_identity": "qos_a8df097bd3835e35",
   "cross_asset_diagnostics": {
     "status": "NOT_AVAILABLE"
   },
@@ -124,7 +124,7 @@
     },
     "opportunity_count": 4
   },
-  "observation_snapshot_id": "qos_8bd59c40d760cacb",
+  "observation_snapshot_id": "qos_a8df097bd3835e35",
   "policy_version": "qre_alpha_discovery_mvp_v2",
   "primitive_inventory": {
     "available_primitives": [
@@ -161,8 +161,8 @@
     },
     {
       "artifact": "research_memory",
-      "record_kind": "artifact",
-      "title": "ADE-QUEUE-001 - Post-Package QRE/ADE Work Queue"
+      "record_kind": "research_result",
+      "title": "research/strategy_matrix.csv row 100"
     }
   ],
   "regime_diagnostics": {
@@ -257,76 +257,65 @@
         "title": "logs/qre_behavior_thesis_registry/latest.json"
       },
       {
-        "artifact_id": "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
-        "artifact_path": "docs/governance/ade_queue_001_post_package_qre_ade_work_queue.md",
+        "artifact_id": "research/strategy_matrix.csv#row[100]",
+        "artifact_path": "research/strategy_matrix.csv",
         "ontology_tags": [
-          "behavior_thesis",
-          "behavior_thesis_evidence",
-          "campaign",
           "data_readiness",
-          "failure",
           "hypothesis",
-          "policy",
-          "policy_action",
           "strategy_context"
         ],
-        "record_kind": "artifact",
-        "score": 4,
-        "text_preview": "# ADE-QUEUE-001 - Post-Package QRE/ADE Work Queue > Status: bounded queue proposal for operator review. > > Primary source: `docs/strategy/QRE_ADE_How_To_Target_State_Roadmap.md`. > Supporting sources: `docs/roadmap/Roadmap v6.md`, > `docs/governance/roadmap_scope_status.md`, and",
-        "title": "ADE-QUEUE-001 - Post-Package QRE/ADE Work Queue"
+        "record_kind": "research_result",
+        "score": 10,
+        "text_preview": "None -1.305 0.2357 0.7 0.0 31 False {\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": true, \"trades_per_maand\": false, \"win_rate\": false} asset_type breakout_momentum assets trend consistentie 0.2581 max_dd True regime ETH-USD sharpe {\"ema_exit\": 10, \"lookback\": 3",
+        "title": "research/strategy_matrix.csv row 100"
       },
       {
-        "artifact_id": "logs/qre_evidence_breadth_framework/latest.json",
-        "artifact_path": "logs/qre_evidence_breadth_framework/latest.json",
+        "artifact_id": "research/strategy_matrix.csv#row[117]",
+        "artifact_path": "research/strategy_matrix.csv",
         "ontology_tags": [
-          "campaign",
           "data_readiness",
           "hypothesis",
-          "policy",
-          "policy_action"
+          "strategy_context"
         ],
-        "record_kind": "artifact",
-        "score": 4,
-        "text_preview": "authority_flags broker_risk_execution_forbidden True can_authorize_execution False can_promote_candidate False non_authoritative True paper_shadow_live_forbidden True safe_to_execute False breadth_priority_recommendations blocker_reasons source_quality_rows_missing cache_coverage",
-        "title": "logs/qre_evidence_breadth_framework/latest.json"
+        "record_kind": "research_result",
+        "score": 10,
+        "text_preview": "None -11.647 0.6085 19.5 0.0 135 False {\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": false, \"trades_per_maand\": true, \"win_rate\": false} asset_type breakout_momentum assets trend consistentie 0.1852 max_dd True regime BTC-USD sharpe {\"ema_exit\": 10, \"lookback\"",
+        "title": "research/strategy_matrix.csv row 117"
       },
       {
-        "artifact_id": "logs/qre_hypothesis_disposition_memory/latest.json",
-        "artifact_path": "logs/qre_hypothesis_disposition_memory/latest.json",
+        "artifact_id": "research/strategy_matrix.csv#row[118]",
+        "artifact_path": "research/strategy_matrix.csv",
         "ontology_tags": [
-          "campaign",
           "data_readiness",
-          "failure",
           "hypothesis",
-          "policy",
-          "policy_action"
+          "strategy_context"
         ],
-        "record_kind": "artifact",
-        "score": 4,
-        "text_preview": "generated_at_utc record accepted_lineage_refs logs/qre_controlled_validation_adapter_results/qre_preregistered_multiwindow_validation_001__window_01__AAPL.json#lineage:seed::trend_pullback_continuation_daily_v1::AAPL logs/qre_controlled_validation_adapter_results/qre_preregistere",
-        "title": "logs/qre_hypothesis_disposition_memory/latest.json"
+        "record_kind": "research_result",
+        "score": 10,
+        "text_preview": "None -9.552 0.617 19.8 0.0 137 False {\"consistentie\": false, \"deflated_sharpe\": false, \"max_drawdown\": false, \"trades_per_maand\": true, \"win_rate\": false} asset_type breakout_momentum assets trend consistentie 0.1825 max_dd True regime ETH-USD sharpe {\"ema_exit\": 10, \"lookback\": ",
+        "title": "research/strategy_matrix.csv row 118"
       }
     ],
     "summary": {
       "artifact_count": 27,
-      "entry_count": 27,
+      "entry_count": 254,
       "fail_closed": false,
-      "memory_content_hash": "sha256:fd3eb927004d8303ff978b04fdbd4ab6c2162810882c0ce0b67076a6a894fd2a",
+      "memory_content_hash": "sha256:2dea82eb1e96b9aa15bc69a99d361f54f5c90c907408ef63562e3707c9e43507",
       "missing_artifact_count": 0,
       "ontology_tag_counts": {
         "behavior_thesis": 6,
         "behavior_thesis_evidence": 5,
         "campaign": 15,
-        "data_readiness": 27,
+        "data_readiness": 254,
         "failure": 16,
-        "hypothesis": 19,
+        "hypothesis": 246,
         "policy": 24,
         "policy_action": 25,
-        "strategy_context": 10
+        "strategy_context": 237
       },
       "record_kind_counts": {
         "artifact": 25,
-        "research_result": 2
+        "research_result": 229
       },
       "research_memory_ready": true,
       "status": "ready"

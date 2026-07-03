@@ -12,7 +12,6 @@ from packages.qre_data.dataset_catalog import materialize_data_truth
 from .acquisition import assess_coverage, plan_acquisition
 from .contracts import (
     EXECUTION_TIER_COMPILER_ONLY,
-    EXECUTION_TIER_EMPIRICAL_SCREENING,
     EXECUTION_TIER_EXECUTOR_SMOKE,
     EXECUTION_TIER_LOCKED_OOS_VALIDATION,
     AcquisitionPlan,
@@ -21,15 +20,10 @@ from .contracts import (
     DataRequirement,
     ExperimentContract,
     UniversePlan,
+    cap_execution_tier,
     content_id,
+    execution_tier_rank,
 )
-
-TIER_ORDER = {
-    EXECUTION_TIER_COMPILER_ONLY: 0,
-    EXECUTION_TIER_EXECUTOR_SMOKE: 1,
-    EXECUTION_TIER_EMPIRICAL_SCREENING: 2,
-    EXECUTION_TIER_LOCKED_OOS_VALIDATION: 3,
-}
 
 
 def _parse_ts(value: Any) -> datetime | None:
@@ -163,11 +157,21 @@ def _coverage_to_decision(
     selected_row = dict(coverage.rows[0]) if coverage.rows else {}
     dataset_row = datasets.get(str(selected_row.get("dataset_id") or ""), {})
     frame = _load_selected_frame(repo_root, dataset_row) if dataset_row else None
-    admissible_tier = str(coverage.highest_admissible_tier or dataset_row.get("highest_admissible_tier") or EXECUTION_TIER_COMPILER_ONLY)
+    highest_tier = str(coverage.highest_admissible_tier or dataset_row.get("highest_admissible_tier") or EXECUTION_TIER_COMPILER_ONLY)
     if coverage.decision == "SOURCE_QUALITY_BLOCKED":
-        admissible_tier = EXECUTION_TIER_EXECUTOR_SMOKE
+        highest_tier = EXECUTION_TIER_EXECUTOR_SMOKE
+    admissible_tier = cap_execution_tier(highest_tier, requirement.requested_execution_tier)
     row_count = int(selected_row.get("unique_bar_count") or dataset_row.get("integrity_summary", {}).get("unique_bar_count") or dataset_row.get("row_count") or 0)
     raw_row_count = int(selected_row.get("raw_row_count") or dataset_row.get("raw_row_count") or row_count)
+    tier_downgrade_reasons = [str(item) for item in selected_row.get("reason_codes") or ()]
+    if execution_tier_rank(admissible_tier) < execution_tier_rank(highest_tier):
+        tier_downgrade_reasons.insert(0, "requested_tier_ceiling")
+    if requirement.requested_execution_tier == EXECUTION_TIER_LOCKED_OOS_VALIDATION and highest_tier != EXECUTION_TIER_LOCKED_OOS_VALIDATION:
+        locked_oos_rows = int(selected_row.get("locked_oos_rows") or max(row_count // 10, 0))
+        tier_downgrade_reasons.append(
+            "locked_oos_insufficient" if locked_oos_rows < requirement.minimum_locked_oos_rows else "validation_authority_missing"
+        )
+    tier_downgrade_reasons = list(dict.fromkeys(tier_downgrade_reasons))
     selected_data = {
         "selected_row": selected_row,
         "dataset_id": selected_row.get("dataset_id") or dataset_row.get("dataset_id"),
@@ -191,7 +195,6 @@ def _coverage_to_decision(
         "window_capacity": dict(dataset_row.get("window_capacity", {})),
         "integrity_summary": dict(dataset_row.get("integrity_summary", {})),
     }
-    reason_codes = tuple(str(item) for item in selected_row.get("reason_codes") or ())
     decision = "CACHE_READY" if dataset_row else "FETCH_REQUIRED"
     approved_fetch = coverage.decision in {"COVERAGE_PARTIAL_FETCHABLE", "EXTERNAL_DATA_BOUNDARY"}
     return CoverageDecision(
@@ -199,8 +202,8 @@ def _coverage_to_decision(
         coverage_decision=coverage.decision,
         requested_execution_tier=requirement.requested_execution_tier,
         admissible_execution_tier=admissible_tier,
-        tier_downgrade_reasons=reason_codes,
-        reason_codes=reason_codes,
+        tier_downgrade_reasons=tuple(tier_downgrade_reasons),
+        reason_codes=tuple(tier_downgrade_reasons),
         selected_data=selected_data,
         approved_fetch=approved_fetch,
         dataset_inventory=tuple(dict(row) for row in catalog.get("datasets") or [] if isinstance(row, dict)),

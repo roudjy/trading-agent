@@ -1,8 +1,35 @@
 {
-  "content_identity": "qras_390e8fc2866472bd",
+  "content_identity": "qras_12b52df70ed9708d",
   "policy_version": "qre_alpha_discovery_followup_pr4_v1",
   "report_kind": "qre_alpha_discovery_reassessments",
   "rows": [
+    {
+      "OOS_presence": "NOT_AVAILABLE",
+      "OOS_sufficiency": "INSUFFICIENT",
+      "artifact_id": "pr726_authority_reassessment",
+      "artifact_type": "reassessment",
+      "candidate_created": false,
+      "corrected_admitted_tier": "EMPIRICAL_SCREENING",
+      "corrected_evidence_tier_reached": "EMPIRICAL_SCREENING",
+      "corrected_execution_status": "COMPLETED",
+      "current_or_child_experiment_id": "qexp_fe7bfe9caccaec74",
+      "historical_provenance_retained": true,
+      "lesson": "DATA_LESSON",
+      "mechanism_prior_changed": false,
+      "original_admitted_tier": "LOCKED_OOS_VALIDATION",
+      "original_execution_classification": "COMPLETED_LOCKED_OOS_VALIDATION",
+      "original_requested_tier": "EMPIRICAL_SCREENING",
+      "policy_version": "qre_alpha_discovery_followup_pr4_v1",
+      "reason_codes": [
+        "requested_tier_ceiling",
+        "locked_oos_not_available",
+        "scientific_disposition_separated"
+      ],
+      "scientific_disposition": "NEEDS_MORE_EVIDENCE",
+      "source_campaign_id": "qcam_00498b2704a7deef",
+      "source_experiment_id": "qexp_7e21c050e448d71a",
+      "source_run_id": "qarr_d48faec61478b4c4"
+    },
     {
       "artifact_id": "qcam_4c691604bc936a8e",
       "artifact_type": "campaign",

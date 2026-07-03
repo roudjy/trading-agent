@@ -4,7 +4,7 @@
   "schema_version": "1.2",
   "view": {
     "access_policy": "canonical_orchestrator_only",
-    "experiment_id": "qexp_7e21c050e448d71a",
-    "strategy_spec_id": "qss_abbd7479b113b04c"
+    "experiment_id": "qexp_fe7bfe9caccaec74",
+    "strategy_spec_id": "qss_a2d3e238d610d4f9"
   }
 }

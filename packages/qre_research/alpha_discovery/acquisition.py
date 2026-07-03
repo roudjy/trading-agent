@@ -14,18 +14,22 @@ from .contracts import (
     EXECUTION_TIER_EMPIRICAL_SCREENING,
     EXECUTION_TIER_EXECUTOR_SMOKE,
     EXECUTION_TIER_LOCKED_OOS_VALIDATION,
-    SOURCE_TIER_SMOKE_ONLY,
     SOURCE_TIER_SCREENING_ELIGIBLE,
+    SOURCE_TIER_SMOKE_ONLY,
     AcquisitionPlan,
     CoverageAssessment,
-    DatasetSnapshot,
     DataRequirement,
+    DatasetSnapshot,
     ScreeningSlippageModel,
     SourceResolution,
     UniversePlan,
     content_id,
 )
-from .snapshot_lineage import append_snapshot_row, coherent_snapshots, load_snapshot_lineage, materialize_snapshot_lineage
+from .snapshot_lineage import (
+    append_snapshot_row,
+    coherent_snapshots,
+    load_snapshot_lineage,
+)
 from .source_resolution import resolve_source
 
 
@@ -261,7 +265,7 @@ def plan_acquisition(
         request_batches=request_batches,
         rate_limit_budget=100,
         retry_budget=2,
-        estimated_bytes=max(int(plan_rows := max(requirement.minimum_rows, requirement.minimum_rows_per_asset)) * 128, 0),
+        estimated_bytes=max(int(max(requirement.minimum_rows, requirement.minimum_rows_per_asset)) * 128, 0),
         estimated_calls=max(len(request_batches), 0),
         expected_unlock=coverage.highest_admissible_tier,
         source_selection_decision=decision,

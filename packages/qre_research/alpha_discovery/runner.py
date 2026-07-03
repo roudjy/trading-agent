@@ -22,9 +22,11 @@ from .capability_loop import (
     GAP_REGISTRY_PATH,
     RESOLUTION_FEEDBACK_PATH,
     build_gap_from_admission,
-    consume_resolution_feedback as consume_capability_resolution_feedback,
     persist_gap_state,
     route_code_gaps_to_ade,
+)
+from .capability_loop import (
+    consume_resolution_feedback as consume_capability_resolution_feedback,
 )
 from .contracts import (
     EXECUTION_TIER_COMPILER_ONLY,
@@ -49,7 +51,9 @@ from .contracts import (
     MechanisticHypothesis,
     ResearchLesson,
     RunBudgetUsage,
+    cap_execution_tier,
     content_id,
+    execution_tier_rank,
 )
 from .data_planner import build_data_requirement, resolve_data_plan
 from .evaluation import CanonicalEvidenceEvaluator, DeterministicExAnteEvaluator
@@ -62,9 +66,13 @@ from .providers import (
     DeterministicHypothesisRewriter,
     MultiProviderHypothesisProvider,
 )
+from .snapshot_lineage import (
+    REVISIONS_PATH,
+    SNAPSHOT_LINEAGE_PATH,
+    load_snapshot_lineage,
+)
 from .source_qualification import qualify_datasets, reconcile_source_policy
-from .source_resolution import SOURCE_RESOLUTION_PATH, persist_source_resolution, resolve_source
-from .snapshot_lineage import REVISIONS_PATH, SNAPSHOT_LINEAGE_PATH, load_snapshot_lineage, materialize_snapshot_lineage
+from .source_resolution import persist_source_resolution, resolve_source
 from .strategy_compiler import build_alignment, build_strategy_spec, compile_strategy_spec
 from .strategy_ir import ConditionNode, ControlNode, FeatureNode, PortfolioRule, SignalNode
 from .universe_planner import plan_universe
@@ -452,7 +460,7 @@ def _run_empirical_campaign_via_canonical_orchestrator(
     def _invoke() -> None:
         try:
             holder["value"] = module.run_research(preset_override=preset_override)
-        except BaseException as exc:  # noqa: BLE001
+        except BaseException as exc:
             holder["error"] = exc
 
     worker = threading.Thread(target=_invoke, daemon=True)
@@ -508,8 +516,18 @@ def _assess_admission(
     activity = int(selected_data.get("estimated_activity") or 0)
     validation_rows = int(selected_data.get("validation_rows") or 0)
     locked_oos_rows = int(selected_data.get("locked_oos_rows") or 0)
-    admitted_tier = data_plan.admissible_execution_tier
+    requested_tier = requested_execution_tier
+    admitted_tier = cap_execution_tier(data_plan.admissible_execution_tier, requested_tier)
     reasons = list(data_plan.tier_downgrade_reasons) + list(acquisition.reason_codes)
+    if execution_tier_rank(admitted_tier) < execution_tier_rank(data_plan.admissible_execution_tier):
+        reasons.append("requested_tier_ceiling")
+    if requested_tier == EXECUTION_TIER_LOCKED_OOS_VALIDATION and admitted_tier != EXECUTION_TIER_LOCKED_OOS_VALIDATION:
+        if locked_oos_rows < data_requirement.minimum_locked_oos_rows:
+            reasons.append("locked_oos_insufficient")
+        elif source_quality != "ready":
+            reasons.append("source_not_validation_eligible")
+        else:
+            reasons.append("validation_authority_missing")
     if alignment.alignment_status != "ALIGNED":
         reasons.append("mechanism_alignment_blocked")
     decision = f"ADMIT_{admitted_tier}"
@@ -531,7 +549,7 @@ def _assess_admission(
         experiment_id=experiment.experiment_id,
         strategy_spec_id=strategy_spec.strategy_spec_id,
         data_requirement_id=data_requirement.requirement_id,
-        requested_tier=requested_execution_tier,
+        requested_tier=requested_tier,
         admitted_tier=admitted_tier,
         source_quality=source_quality.upper(),
         identity_readiness="SUFFICIENT" if identity == "ready" else "INSUFFICIENT",
@@ -555,7 +573,7 @@ def _assess_admission(
             "qadm",
             {
                 "hypothesis_id": selected.hypothesis_id,
-                "requested_tier": requested_execution_tier,
+                "requested_tier": requested_tier,
                 "admitted_tier": admitted_tier,
                 "decision": decision,
             },
@@ -574,6 +592,29 @@ def _historical_reassessments(repo_root: Path) -> dict[str, Any]:
             "corrected_evidence_tier": EXECUTION_TIER_EXECUTOR_SMOKE,
             "empirical_authority": "none",
             "mechanism_prior_authority": "none",
+            "historical_provenance_retained": True,
+        },
+        "pr726_authority_reassessment": {
+            "artifact_id": "pr726_authority_reassessment",
+            "artifact_type": "reassessment",
+            "source_run_id": "qarr_d48faec61478b4c4",
+            "source_campaign_id": "qcam_00498b2704a7deef",
+            "source_experiment_id": "qexp_7e21c050e448d71a",
+            "current_or_child_experiment_id": "qexp_fe7bfe9caccaec74",
+            "original_requested_tier": EXECUTION_TIER_EMPIRICAL_SCREENING,
+            "original_admitted_tier": EXECUTION_TIER_LOCKED_OOS_VALIDATION,
+            "original_execution_classification": "COMPLETED_LOCKED_OOS_VALIDATION",
+            "corrected_execution_status": "COMPLETED",
+            "corrected_admitted_tier": EXECUTION_TIER_EMPIRICAL_SCREENING,
+            "corrected_evidence_tier_reached": EXECUTION_TIER_EMPIRICAL_SCREENING,
+            "scientific_disposition": "NEEDS_MORE_EVIDENCE",
+            "OOS_presence": "NOT_AVAILABLE",
+            "OOS_sufficiency": "INSUFFICIENT",
+            "candidate_created": False,
+            "mechanism_prior_changed": False,
+            "lesson": "DATA_LESSON",
+            "reason_codes": ("requested_tier_ceiling", "locked_oos_not_available", "scientific_disposition_separated"),
+            "policy_version": POLICY_VERSION,
             "historical_provenance_retained": True,
         },
         "qrl_48a61c8a441143f6": {
@@ -596,7 +637,9 @@ def _historical_reassessments(repo_root: Path) -> dict[str, Any]:
     }
     existing_ids = {str(row.get("artifact_id") or "") for row in rows if isinstance(row, dict)}
     for artifact_id, row in required.items():
-        if artifact_id not in existing_ids:
+        if artifact_id in existing_ids:
+            rows = [dict(row) if str(row.get("artifact_id") or "") != artifact_id else {**dict(row), **required[artifact_id]} for row in rows if isinstance(row, dict)]
+        else:
             rows.append(dict(row))
     return {
         "schema_version": SCHEMA_VERSION,
@@ -856,6 +899,22 @@ def run_alpha_discovery_mvp(
                 ade_requests = route_code_gaps_to_ade(repo_root=repo_root, gap_payload=gap_state["gaps"], run_id=content_id("qar", {"experiment": experiment.experiment_id, "selected": selected.hypothesis_id}))
                 resolution_feedback = consume_capability_resolution_feedback(repo_root=repo_root)
 
+    execution_status = "COMPLETED"
+    scientific_disposition = assessment.terminal_disposition if assessment is not None else None
+    if campaign_evidence is not None and admission is not None:
+        evidence_tier_reached = admission.admitted_tier
+    elif admission is not None and admission.smoke_execution_created:
+        evidence_tier_reached = EXECUTION_TIER_EXECUTOR_SMOKE
+    else:
+        evidence_tier_reached = EXECUTION_TIER_COMPILER_ONLY
+    runtime_epoch_components = {
+        "snapshot_lineage_set_id": snapshot_lineage["snapshot_lineage"]["content_identity"],
+        "qualification_set_id": source_qualifications["content_identity"],
+        "alpha_run_id": content_id("qarr", {"observation": observation.content_identity, "selected": getattr(selected, "hypothesis_id", ""), "tier": requested_execution_tier}),
+        "alpha_campaign_id": campaign_id or "",
+    }
+    runtime_epoch_id = content_id("qepoch", runtime_epoch_components)
+
     budget_usage = RunBudgetUsage(
         observation_snapshots=1,
         raw_hypotheses=len(hypotheses),
@@ -875,6 +934,13 @@ def run_alpha_discovery_mvp(
         "policy_version": POLICY_VERSION,
         "report_kind": "qre_alpha_discovery_run",
         "run_id": content_id("qarr", {"observation": observation.content_identity, "selected": getattr(selected, "hypothesis_id", ""), "tier": requested_execution_tier}),
+        "execution_status": execution_status,
+        "scientific_disposition": scientific_disposition,
+        "evidence_tier_reached": evidence_tier_reached,
+        "legacy_terminal_disposition": terminal_disposition,
+        "runtime_epoch_id": runtime_epoch_id,
+        "qualification_set_id": source_qualifications["content_identity"],
+        "snapshot_lineage_set_id": snapshot_lineage["snapshot_lineage"]["content_identity"],
         "state_trace": [
             "OBSERVE",
             "GENERATE",
@@ -917,6 +983,10 @@ def run_alpha_discovery_mvp(
         "budget_usage": asdict(budget_usage),
         "next_action": "resolve_source_certification_boundary" if terminal_disposition == "STOPPED_SOURCE_CERTIFICATION_BOUNDARY" else ("resolve_identity_boundary" if terminal_disposition == "STOPPED_IDENTITY_BOUNDARY" else ("resolve_pit_boundary" if terminal_disposition == "STOPPED_PIT_BOUNDARY" else ("resolve_external_data_boundary" if terminal_disposition == "STOPPED_EXTERNAL_DATA_BOUNDARY" else "repeat_mvp_on_next_novel_hypothesis"))),
         "artifact_refs": {},
+        "current_dataset_snapshot": source_resolution.selected_snapshot if source_resolution is not None else None,
+        "current_source_tier": source_resolution.current_source_tier if source_resolution is not None else None,
+        "current_experiment": experiment.experiment_id if experiment is not None else None,
+        "current_campaign": campaign_id,
         "selected_hypothesis_ids": [hyp.hypothesis_id for hyp in final_hypotheses],
         "unselected_hypothesis_reasons": unselected,
         "five_row_inventory_root_cause": data_truth["census"]["root_cause"] if isinstance(data_truth, dict) and "census" in data_truth else None,
@@ -961,7 +1031,11 @@ def run_alpha_discovery_mvp(
             "schema_version": SCHEMA_VERSION,
             "policy_version": POLICY_VERSION,
             "report_kind": "qre_alpha_discovery_status",
-            "state": "COMPLETE" if not dry_run else "DRY_RUN",
+            "state": "DRY_RUN" if dry_run else "COMPLETE",
+            "execution_status": execution_status,
+            "scientific_disposition": scientific_disposition,
+            "evidence_tier_reached": evidence_tier_reached,
+            "legacy_terminal_disposition": terminal_disposition,
             "terminal_disposition": terminal_disposition,
             "requested_execution_tier": requested_execution_tier,
             "admitted_execution_tier": admission.admitted_tier if admission is not None else None,
@@ -969,8 +1043,15 @@ def run_alpha_discovery_mvp(
             "smoke_execution_created": bool(admission and admission.smoke_execution_created),
             "mechanism_learning_allowed": bool(admission and admission.mechanism_learning_allowed),
             "selected_hypothesis_id": getattr(selected, "hypothesis_id", None),
+            "current_dataset_snapshot": source_resolution.selected_snapshot if source_resolution is not None else None,
+            "current_source_tier": source_resolution.current_source_tier if source_resolution is not None else None,
+            "current_experiment": experiment.experiment_id if experiment is not None else None,
+            "current_campaign": campaign_id,
             "current_wait_reason": "lesson_written" if lesson is not None else "no_campaign_executed",
             "next_wake_conditions": ["evidence_grade_data", "new_data", "new_memory"] if lesson is not None else ["novel_observation"],
+            "runtime_epoch_id": runtime_epoch_id,
+            "qualification_set_id": source_qualifications["content_identity"],
+            "snapshot_lineage_set_id": snapshot_lineage["snapshot_lineage"]["content_identity"],
             "content_identity": content_id("qasd_status", run_payload),
         },
     }

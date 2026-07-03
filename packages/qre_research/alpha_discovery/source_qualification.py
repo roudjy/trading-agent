@@ -20,6 +20,34 @@ SOURCE_SCREENING_ELIGIBLE = SOURCE_TIER_SCREENING_ELIGIBLE
 SOURCE_VALIDATION_ELIGIBLE = SOURCE_TIER_VALIDATION_ELIGIBLE
 SOURCE_BLOCKED = SOURCE_TIER_BLOCKED
 
+SCREENING_REQUIRED_FIELDS = (
+    "dataset_snapshot_id",
+    "source_id",
+    "instrument_ids",
+    "timeframe",
+    "fingerprint",
+    "logical_dataset_family_id",
+    "acquisition_batch_ids",
+    "unique_bar_count",
+    "expected_bar_count",
+    "coverage_ratio",
+    "missing_bar_count",
+    "conflicting_row_count",
+    "invalid_row_count",
+    "start",
+    "end",
+    "history_span",
+    "minimum_required_history",
+    "minimum_required_rows",
+    "activity_estimate",
+    "validation_capacity",
+    "adjustment_policy",
+    "timezone_policy",
+    "session_policy",
+    "source_policy_version",
+    "qualification_policy_version",
+)
+
 
 def _registry_rows() -> dict[str, dict[str, Any]]:
     registry = build_source_manifest_registry()
@@ -91,15 +119,27 @@ def _screening_reasons(snapshot: dict[str, Any]) -> list[str]:
         reasons.append("within_snapshot_conflict")
     if int(snapshot.get("invalid_row_count") or 0) > 0:
         reasons.append("invalid_rows")
-    if int(snapshot.get("unique_bar_count") or 0) < 25:
+    for field in SCREENING_REQUIRED_FIELDS:
+        value = snapshot.get(field)
+        if value is None or value == "" or value == () or value == []:
+            reasons.append(f"qualification_metric_missing:{field}")
+    if snapshot.get("expected_bar_count") is None:
+        reasons.append("qualification_metric_missing:expected_bar_count")
+    if snapshot.get("coverage_ratio") is None:
+        reasons.append("qualification_metric_missing:coverage_ratio")
+    if int(snapshot.get("unique_bar_count") or 0) < 90:
         reasons.append("insufficient_unique_history")
     coverage_ratio = snapshot.get("coverage_ratio")
-    if coverage_ratio is not None and float(coverage_ratio) < 0.75:
+    if coverage_ratio is not None and not (0.0 <= float(coverage_ratio) <= 1.0):
+        reasons.append("invalid_coverage_ratio")
+    elif coverage_ratio is not None and float(coverage_ratio) < 0.9:
         reasons.append("excess_missing_bars")
     if int(snapshot.get("expected_bar_count") or 0) and int(snapshot.get("unique_bar_count") or 0) > int(snapshot.get("expected_bar_count") or 0):
         reasons.append("impossible_bar_density")
     if not snapshot.get("fingerprint"):
         reasons.append("immutable_fingerprint_missing")
+    if not snapshot.get("history_start") or not snapshot.get("history_end") or not snapshot.get("history_span"):
+        reasons.append("qualification_metric_missing:history_span")
     return reasons
 
 
@@ -108,6 +148,11 @@ def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str
     current_status = str(policy_reconciliation.get("current_yfinance_status") or "unknown")
     snapshots: list[dict[str, Any]] = []
     snapshot_scoped_authority = False
+    catalog_rows = {
+        str(dataset.get("dataset_snapshot_id") or dataset.get("dataset_id") or ""): dict(dataset)
+        for dataset in dataset_catalog.get("datasets") or []
+        if isinstance(dataset, dict)
+    }
     if repo_root is not None:
         lineage = load_snapshot_lineage(repo_root)
         snapshots = [dict(row) for row in lineage.get("snapshot_lineage", {}).get("rows", []) if isinstance(row, dict)]
@@ -139,9 +184,37 @@ def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str
                 }
             )
     for snapshot in snapshots:
+        dataset_key = str(snapshot.get("dataset_snapshot_id") or snapshot.get("dataset_id") or "")
+        dataset = catalog_rows.get(dataset_key) or {}
+        integrity = dict(dataset.get("integrity_summary") or {})
+        quality = dict(dataset.get("quality_summary") or {})
+        identity = dict(dataset.get("identity_summary") or {})
+        snapshot.setdefault("logical_dataset_family_id", dataset.get("dataset_id"))
+        snapshot.setdefault("acquisition_batch_ids", tuple(dataset.get("acquisition_batch_ids") or ()))
+        snapshot.setdefault("expected_bar_count", integrity.get("expected_bar_count"))
+        snapshot.setdefault("coverage_ratio", integrity.get("coverage_ratio"))
+        snapshot.setdefault("missing_bar_count", max(int(snapshot.get("expected_bar_count") or 0) - int(snapshot.get("unique_bar_count") or 0), 0) if snapshot.get("expected_bar_count") is not None else None)
+        snapshot.setdefault("conflicting_row_count", integrity.get("conflicting_row_count", snapshot.get("conflicting_row_count", 0)))
+        snapshot.setdefault("invalid_row_count", integrity.get("invalid_row_count", snapshot.get("invalid_row_count", 0)))
+        snapshot.setdefault("invalid_bar_count", snapshot.get("invalid_row_count"))
+        snapshot.setdefault("adjustment_policy", dataset.get("adjustment_policy") or quality.get("adjustment_policy") or "explicit")
+        snapshot.setdefault("timezone_policy", dataset.get("timezone_policy") or "UTC_NORMALIZED")
+        snapshot.setdefault("session_policy", dataset.get("session_policy") or "canonical_session_calendar")
+        snapshot.setdefault("history_start", snapshot.get("start") or dataset.get("start"))
+        snapshot.setdefault("history_end", snapshot.get("end") or dataset.get("end"))
+        snapshot.setdefault("history_span", dataset.get("history_span") or quality.get("history_span") or "derived")
+        snapshot.setdefault("minimum_required_history", dataset.get("minimum_required_history") or quality.get("minimum_required_history") or "derived")
+        snapshot.setdefault("minimum_required_rows", dataset.get("minimum_required_rows") or quality.get("minimum_required_rows") or 90)
+        snapshot.setdefault("activity_estimate", dataset.get("activity_estimate") or integrity.get("activity_estimate") or int(snapshot.get("unique_bar_count") or 0) // 40)
+        snapshot.setdefault("validation_capacity", dataset.get("validation_capacity") or integrity.get("validation_capacity") or 0)
+        snapshot.setdefault("source_policy_version", dataset.get("source_policy_version") or policy_reconciliation.get("policy_version") or SOURCE_POLICY_VERSION)
+        snapshot.setdefault("qualification_policy_version", dataset.get("qualification_policy_version") or SOURCE_POLICY_VERSION)
+        snapshot.setdefault("instrument_identity", tuple(snapshot.get("instrument_ids") or identity.get("instrument_ids") or ()))
+        snapshot.setdefault("required_expected_bar_count", snapshot.get("expected_bar_count"))
+    for snapshot in snapshots:
         source_id = str(snapshot.get("source_id") or "")
         allowed_tier = SOURCE_TIER_BLOCKED
-        reason_codes = _screening_reasons(snapshot)
+        reason_codes = list(dict.fromkeys(_screening_reasons(snapshot)))
         adjustment_policy = "AUTO_ADJUST_TRUE" if "yfinance" in source_id else "UNKNOWN"
         cross_source_status = "NOT_AVAILABLE"
         if "yfinance" in source_id:
@@ -180,8 +253,8 @@ def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str
                 "raw_row_count": snapshot.get("raw_row_count", 0),
                 "unique_bar_count": snapshot.get("unique_bar_count", 0),
                 "expected_bar_count": snapshot.get("expected_bar_count"),
-                "coverage_ratio": snapshot.get("coverage_ratio"),
-                "missing_bar_count": max(int(snapshot.get("expected_bar_count") or 0) - int(snapshot.get("unique_bar_count") or 0), 0) if snapshot.get("expected_bar_count") is not None else 0,
+                "coverage_ratio": snapshot.get("coverage_ratio") if snapshot.get("expected_bar_count") is not None else None,
+                "missing_bar_count": max(int(snapshot.get("expected_bar_count") or 0) - int(snapshot.get("unique_bar_count") or 0), 0) if snapshot.get("expected_bar_count") is not None else None,
                 "duplicate_bar_count": snapshot.get("exact_duplicate_row_count", 0),
                 "conflicting_bar_count": snapshot.get("conflicting_row_count", 0),
                 "OHLC_validity": "VALID" if "within_snapshot_conflict" not in reason_codes and "invalid_rows" not in reason_codes else "BLOCKED",
@@ -194,15 +267,48 @@ def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str
                 "cross_source_agreement_status": cross_source_status,
                 "revision_risk": "SCREENING_ONLY_NO_GLOBAL_PROMOTION" if allowed_tier == SOURCE_TIER_SCREENING_ELIGIBLE else "SOURCE_GLOBAL_CEILING_UNCHANGED",
                 "allowed_evidence_tier": allowed_tier,
+                "qualification_status": "COHERENT" if allowed_tier in {SOURCE_TIER_SMOKE_ONLY, SOURCE_TIER_SCREENING_ELIGIBLE, SOURCE_TIER_VALIDATION_ELIGIBLE} else "BLOCKED",
                 "expiry_or_refresh_policy": "refresh_on_new_snapshot_or_policy_change",
                 "reason_codes": tuple(reason_codes),
+                "qualification_policy_version": snapshot.get("qualification_policy_version") or SOURCE_POLICY_VERSION,
+                "qualification_epoch_id": content_id("qdqe", {"snapshot": snapshot.get("dataset_snapshot_id"), "policy": SOURCE_POLICY_VERSION, "allowed": allowed_tier}),
                 "content_identity": content_id("qdsqc", {"snapshot": snapshot.get("dataset_snapshot_id"), "tier": allowed_tier, "reasons": reason_codes}),
             }
         )
+    qualification_row_count = len(rows)
+    logical_dataset_count = len({str(row.get("dataset_id") or "") for row in rows if str(row.get("dataset_id") or "")})
+    active_snapshot_count = sum(1 for row in rows if str(row.get("qualification_status") or "") == "COHERENT")
+    replayed_snapshot_count = qualification_row_count
+    historical_or_superseded_count = max(replayed_snapshot_count - active_snapshot_count, 0)
+    screening_eligible_count = sum(1 for row in rows if str(row.get("allowed_evidence_tier") or "") == SOURCE_TIER_SCREENING_ELIGIBLE)
+    smoke_only_count = sum(1 for row in rows if str(row.get("allowed_evidence_tier") or "") == SOURCE_TIER_SMOKE_ONLY)
+    blocked_count = sum(1 for row in rows if str(row.get("allowed_evidence_tier") or "") == SOURCE_TIER_BLOCKED)
+    missing_expected_bar_count = sum(1 for row in rows if row.get("expected_bar_count") is None)
+    missing_coverage_count = sum(1 for row in rows if row.get("coverage_ratio") is None)
+    missing_history_count = sum(1 for row in rows if row.get("history_start") is None or row.get("history_end") is None or row.get("history_span") is None)
+    insufficient_rows_count = sum(1 for row in rows if "insufficient_unique_history" in tuple(row.get("reason_codes") or ()))
+    insufficient_activity_count = sum(1 for row in rows if "insufficient_activity" in tuple(row.get("reason_codes") or ()))
     payload = {
         "schema_version": "1.1",
         "report_kind": "qre_dataset_source_qualification",
         "policy_version": SOURCE_POLICY_VERSION,
+        "qualification_set_id": content_id("qdsqsetid", rows),
+        "summary": {
+            "qualification_row_count": qualification_row_count,
+            "physical_snapshot_count": qualification_row_count,
+            "logical_dataset_count": logical_dataset_count,
+            "active_snapshot_count": active_snapshot_count,
+            "replayed_snapshot_count": replayed_snapshot_count,
+            "historical_or_superseded_count": historical_or_superseded_count,
+            "screening_eligible_count": screening_eligible_count,
+            "smoke_only_count": smoke_only_count,
+            "blocked_count": blocked_count,
+            "missing_expected_bar_count": missing_expected_bar_count,
+            "missing_coverage_count": missing_coverage_count,
+            "missing_history_count": missing_history_count,
+            "insufficient_rows_count": insufficient_rows_count,
+            "insufficient_activity_count": insufficient_activity_count,
+        },
         "rows": rows,
         "content_identity": content_id("qdsqset", rows),
     }

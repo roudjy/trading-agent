@@ -25,6 +25,21 @@ EXECUTION_TIERS = (
     EXECUTION_TIER_LOCKED_OOS_VALIDATION,
 )
 
+EXECUTION_TIER_ORDER = {
+    EXECUTION_TIER_COMPILER_ONLY: 0,
+    EXECUTION_TIER_EXECUTOR_SMOKE: 1,
+    EXECUTION_TIER_EMPIRICAL_SCREENING: 2,
+    EXECUTION_TIER_LOCKED_OOS_VALIDATION: 3,
+}
+
+
+def execution_tier_rank(tier: str) -> int:
+    return EXECUTION_TIER_ORDER.get(str(tier), 0)
+
+
+def cap_execution_tier(*tiers: str) -> str:
+    return min((str(tier) for tier in tiers if tier is not None), key=execution_tier_rank)
+
 LESSON_TYPE_PROCESS = "PROCESS_LESSON"
 LESSON_TYPE_DATA = "DATA_LESSON"
 LESSON_TYPE_CAPABILITY = "CAPABILITY_LESSON"

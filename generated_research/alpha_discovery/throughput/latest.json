@@ -1,12 +1,12 @@
 {
   "rows": [
     {
-      "API_calls": 1,
+      "API_calls": 0,
       "API_calls_avoided": 0,
       "OOS_capacity_gained": 0,
       "assets_made_ready": 27,
       "bytes_downloaded": 0,
-      "cache_hit_rate": 0.0,
+      "cache_hit_rate": 1.0,
       "catalog_datasets_discovered": 46,
       "compute_spent_on_ingestion": 0,
       "duplicate_bytes_avoided": 0,
@@ -16,10 +16,10 @@
       "missing_files": 0,
       "orphaned_files": 0,
       "physical_files_discovered": 7046,
-      "quality_failures": 0,
-      "rows_downloaded": 180,
-      "rows_reused": 221311,
-      "source_failures": 0,
+      "quality_failures": 1,
+      "rows_downloaded": 0,
+      "rows_reused": 0,
+      "source_failures": 1,
       "stale_manifests": 0,
       "time_to_evidence_ready_dataset": null,
       "timeframes_made_ready": 3

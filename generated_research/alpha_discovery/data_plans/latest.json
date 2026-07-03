@@ -1,9 +1,9 @@
 {
   "rows": [
     {
-      "admissible_execution_tier": "LOCKED_OOS_VALIDATION",
-      "content_identity": "qdc_c0535c732e67832e",
-      "coverage_decision": "COVERAGE_READY",
+      "admissible_execution_tier": "EXECUTOR_SMOKE",
+      "content_identity": "qdc_3012a381623349fc",
+      "coverage_decision": "SOURCE_QUALITY_BLOCKED",
       "dataset_inventory": [
         {
           "PIT_summary": {
@@ -20575,59 +20575,67 @@
         }
       ],
       "decision": "FETCH_REQUIRED",
-      "reason_codes": [],
+      "reason_codes": [
+        "source_tier_below_screening"
+      ],
       "requested_execution_tier": "EMPIRICAL_SCREENING",
       "selected_data": {
         "cache_integrity_status": "ready",
-        "campaign_scoped_quality_status": "ready",
-        "data_path": "data/cache/market/yfinance__ETH-EUR__1d__20260104__20260703__8da9c4720ceeec42.parquet",
+        "campaign_scoped_quality_status": "blocked",
+        "data_path": "data/cache/market/yfinance__ETH-EUR__1d__20260411__20260418__6081284ab3f633bf.parquet",
         "dataset_id": "yfinance|ETH-EUR|1d",
         "dataset_partition_count": 0,
-        "dataset_snapshot_id": "qdsnap_7bc0291180909324",
-        "effective_research_quality_status": "ready",
-        "estimated_activity": 4,
-        "history_span_days": 179,
+        "dataset_snapshot_id": "qdsnap_24aa7ea592748df3",
+        "effective_research_quality_status": "blocked",
+        "estimated_activity": 0,
+        "history_span_days": 79,
         "integrity_summary": {},
-        "locked_oos_rows": 18,
-        "raw_row_count": 180,
-        "row_count": 180,
-        "row_integrity_status": "ready",
+        "locked_oos_rows": 3,
+        "raw_row_count": 35,
+        "row_count": 35,
+        "row_integrity_status": "blocked",
         "selected_row": {
           "PIT_blockers": [],
-          "available_end": "2026-07-02T00:00:00Z",
-          "available_start": "2026-01-04T00:00:00Z",
-          "complete_bar_end": "2026-07-02T00:00:00Z",
+          "available_end": "2026-06-29T00:00:00Z",
+          "available_start": "2026-04-11T00:00:00Z",
+          "complete_bar_end": "2026-06-29T00:00:00Z",
           "conflicting_row_count": 0,
           "corporate_action_blockers": [],
           "dataset_id": "yfinance|ETH-EUR|1d",
-          "dataset_path": "data/cache/market/yfinance__ETH-EUR__1d__20260104__20260703__8da9c4720ceeec42.parquet",
-          "dataset_snapshot_id": "qdsnap_7bc0291180909324",
-          "decision": "COVERAGE_READY",
+          "dataset_path": "data/cache/market/yfinance__ETH-EUR__1d__20260411__20260418__6081284ab3f633bf.parquet",
+          "dataset_snapshot_id": "qdsnap_24aa7ea592748df3",
+          "decision": "SOURCE_QUALITY_BLOCKED",
           "duplicate_ranges": [],
-          "estimated_activity": 4,
+          "estimated_activity": 0,
           "expected_bar_count": null,
           "identity_blockers": [],
           "instrument": "ETH-EUR",
           "invalid_ranges": [],
           "missing_ranges": [],
           "overlapping_row_count": 0,
-          "quality_blockers": [],
-          "raw_row_count": 180,
-          "reason_codes": [],
-          "row_count": 180,
+          "quality_blockers": [
+            "source_tier_below_screening"
+          ],
+          "raw_row_count": 35,
+          "reason_codes": [
+            "source_tier_below_screening"
+          ],
+          "row_count": 35,
           "session_blockers": [],
-          "source_tier": "SOURCE_SCREENING_ELIGIBLE",
+          "source_tier": "SOURCE_BLOCKED",
           "timeframe": "1d",
-          "unique_bar_count": 180,
+          "unique_bar_count": 35,
           "window_capacity": {}
         },
         "source_identity_status": "ready",
-        "source_quality_status": "ready",
-        "unique_bar_count": 180,
-        "validation_rows": 36,
+        "source_quality_status": "blocked",
+        "unique_bar_count": 35,
+        "validation_rows": 7,
         "window_capacity": {}
       },
-      "tier_downgrade_reasons": []
+      "tier_downgrade_reasons": [
+        "source_tier_below_screening"
+      ]
     }
   ],
   "schema_version": "1.2"
