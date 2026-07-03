@@ -26,6 +26,8 @@ Status: completed by `feat/qre-autonomous-data-universe-planning`
 
 ## PR 3 - Advanced Hypothesis Intelligence
 
+Status: completed by `feat/qre-source-certification-alpha-intelligence`
+
 - model-backed generator
 - model-backed critic
 - retrieval-backed research context
@@ -47,5 +49,6 @@ Status: completed by `feat/qre-autonomous-data-universe-planning`
 
 - Follow-up PR 1 is complete
 - Follow-up PR 2 is complete
+- Follow-up PR 3 is complete
 - exactly four follow-up PRs are defined
 - no fifth PR is proposed
