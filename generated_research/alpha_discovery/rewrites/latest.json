@@ -6,17 +6,6 @@
         "explicit_cost_falsification"
       ],
       "changes_rejected": [],
-      "content_identity": "qahrv_911dd5f5ec28268a",
-      "critique_id": "qac_3ca0f339e7aeefb5",
-      "original_hypothesis_id": "qah_34110e7321db208d",
-      "revised_hypothesis_id": "qah_82038253cef02dce"
-    },
-    {
-      "changes_applied": [
-        "regime_conditioning",
-        "explicit_cost_falsification"
-      ],
-      "changes_rejected": [],
       "content_identity": "qahrv_6a86193355f9a2d4",
       "critique_id": "qac_71601550cee25ac1",
       "original_hypothesis_id": "qah_67a84d604cc07add",
@@ -32,7 +21,18 @@
       "critique_id": "qac_2555c9cbbff45ad1",
       "original_hypothesis_id": "qah_6ab1d4811cacfa31",
       "revised_hypothesis_id": "qah_56279ba7fa7a26d4"
+    },
+    {
+      "changes_applied": [
+        "regime_conditioning",
+        "explicit_cost_falsification"
+      ],
+      "changes_rejected": [],
+      "content_identity": "qahrv_22d9306246c28638",
+      "critique_id": "qac_cb658732c3cafdcf",
+      "original_hypothesis_id": "qah_a92e4eee67561b4c",
+      "revised_hypothesis_id": "qah_0a3044c270860c7c"
     }
   ],
-  "schema_version": "1.0"
+  "schema_version": "1.1"
 }

@@ -1,0 +1,18 @@
+{
+  "rows": [
+    {
+      "alignment_status": "ALIGNED",
+      "content_identity": "qmai_560774ffa07e3f3e",
+      "control_alignment": "ALIGNED",
+      "falsification_alignment": "ALIGNED",
+      "holding_horizon_alignment": "ALIGNED",
+      "predicted_observable": "trend_continuation",
+      "reason_codes": [],
+      "regime_alignment": "ALIGNED",
+      "signal_alignment": "ALIGNED",
+      "strategy_observable": "normalized_trend_move,trend_anchor,trend_anchor_delta",
+      "universe_alignment": "ALIGNED"
+    }
+  ],
+  "schema_version": "1.1"
+}
