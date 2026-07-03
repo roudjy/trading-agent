@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
-
 from .contracts import (
+    EXECUTION_TIER_EXECUTOR_SMOKE,
     EvidenceAssessment,
+    ExperimentAdmissionDecision,
     HypothesisCritique,
     HypothesisScorecard,
     ObservationSnapshot,
@@ -108,36 +108,73 @@ class DeterministicExAnteEvaluator:
 
 
 class CanonicalEvidenceEvaluator:
-    def evaluate(self, experiment, campaign_evidence) -> EvidenceAssessment:
+    def evaluate(self, experiment, campaign_evidence, admission: ExperimentAdmissionDecision) -> EvidenceAssessment:
         result = campaign_evidence.backtest_result
         trade_count = int(result.get("summary", {}).get("totaal_trades") or 0)
         net_return = float(result.get("summary", {}).get("net_return_compound") or 0.0)
-        null_result = "REJECTED" if net_return <= 0 else "SUPPORTED"
-        if trade_count <= 0:
-            terminal = "NEEDS_MORE_EVIDENCE"
-            supporting = ()
+        empirical = bool(campaign_evidence.empirical)
+        smoke = campaign_evidence.execution_tier == EXECUTION_TIER_EXECUTOR_SMOKE
+        insufficient_activity = trade_count < max(int(experiment.minimum_trade_count), 1)
+        has_locked_oos = admission.OOS_sufficiency == "SUFFICIENT"
+        supporting: tuple[str, ...] = tuple()
+        contradicting: tuple[str, ...] = tuple()
+        inconclusive: tuple[str, ...] = tuple()
+        null_presence = "AVAILABLE"
+        null_applicability = "EVALUABLE"
+        null_sufficiency = "INSUFFICIENT" if insufficient_activity else "SUFFICIENT"
+        null_outcome = "INCONCLUSIVE" if insufficient_activity else ("REJECTED" if net_return <= 0 else "NOT_REJECTED")
+        mechanism_support = "INCONCLUSIVE"
+        terminal = "NEEDS_MORE_EVIDENCE"
+        confidence = "UNCHANGED"
+        prior_allowed = False
+        prior_basis = "INSUFFICIENT_EMPIRICAL_EVIDENCE"
+        evidence_grade = "smoke_only" if smoke else ("empirical" if empirical else "compiler_only")
+
+        if smoke:
+            contradicting = ("smoke_execution_only",)
+            inconclusive = ("no_empirical_authority",)
+        elif insufficient_activity:
             contradicting = ("insufficient_activity",)
-            confidence = "LOW"
+            inconclusive = ("null_insufficient", "mechanism_not_decidable")
         elif net_return > 0:
-            terminal = "READY_FOR_SYNTHESIS"
             supporting = ("positive_compound_return", "trades_executed")
-            contradicting = ()
-            confidence = "INCREASED"
+            mechanism_support = "SUPPORTED" if empirical else "INCONCLUSIVE"
+            terminal = "READY_FOR_SYNTHESIS" if empirical and has_locked_oos else "NEEDS_MORE_EVIDENCE"
+            confidence = "INCREASED" if empirical else "UNCHANGED"
+            prior_allowed = empirical and has_locked_oos
+            prior_basis = "QUALIFIED_EMPIRICAL_EVIDENCE" if prior_allowed else "INSUFFICIENT_OOS_VALIDATION"
         else:
-            terminal = "REJECTED"
-            supporting = ()
             contradicting = ("negative_compound_return", "cost_drag_or_null_failure")
-            confidence = "DECREASED"
+            mechanism_support = "CONTRADICTED" if empirical else "INCONCLUSIVE"
+            terminal = "REJECTED" if empirical else "NEEDS_MORE_EVIDENCE"
+            confidence = "DECREASED" if empirical else "UNCHANGED"
+            prior_allowed = empirical
+            prior_basis = "QUALIFIED_EMPIRICAL_EVIDENCE" if empirical else "INSUFFICIENT_EMPIRICAL_EVIDENCE"
+
         return EvidenceAssessment(
             assessment_id=content_id("qaea", {"experiment_id": experiment.experiment_id, "campaign_id": campaign_evidence.campaign_id}),
             hypothesis_id=experiment.hypothesis_id,
             experiment_id=experiment.experiment_id,
             campaign_id=campaign_evidence.campaign_id,
+            execution_tier=campaign_evidence.execution_tier,
+            empirical=empirical,
+            evidence_grade=evidence_grade,
             prediction_tested=experiment.predicted_observable,
             supporting_evidence=supporting,
             contradicting_evidence=contradicting,
-            inconclusive_evidence=tuple(),
-            null_result=null_result,
+            inconclusive_evidence=inconclusive,
+            null_presence=null_presence,
+            null_applicability=null_applicability,
+            null_sufficiency=null_sufficiency,
+            null_outcome=null_outcome,
+            mechanism_support_outcome=mechanism_support,
+            OOS_presence="AVAILABLE" if has_locked_oos else "NOT_AVAILABLE",
+            OOS_sufficiency="SUFFICIENT" if has_locked_oos else "INSUFFICIENT",
+            OOS_outcome="EVALUATED" if has_locked_oos else "INCONCLUSIVE",
+            cost_presence="AVAILABLE",
+            cost_sufficiency="SUFFICIENT",
+            slippage_presence="AVAILABLE",
+            slippage_sufficiency="INSUFFICIENT" if "zero_slippage" in experiment.slippage_model or "zero_slippage" in admission.reason_codes else "SUFFICIENT",
             cost_effect="costs_included_in_backtest",
             activity_effect="activity_measured" if trade_count > 0 else "activity_insufficient",
             regime_effect=experiment.universe_spec,
@@ -145,7 +182,18 @@ class CanonicalEvidenceEvaluator:
             fragility_effect="stable" if trade_count > 1 else "fragile",
             outlier_effect="none_observed" if trade_count > 0 else "unknown",
             confidence_update=confidence,
+            prior_adjustment_allowed=prior_allowed,
+            prior_adjustment_basis=prior_basis,
+            qualifying_evidence_refs=(campaign_evidence.content_identity,) if prior_allowed else tuple(),
             terminal_disposition=terminal,
-            reason_codes=tuple(sorted(set((contradicting or supporting) or ("inconclusive",)))),
-            content_identity=content_id("qaea", {"terminal": terminal, "null_result": null_result, "campaign": campaign_evidence.campaign_id}),
+            reason_codes=tuple(sorted(set((supporting + contradicting + inconclusive) or ("inconclusive",)))),
+            content_identity=content_id(
+                "qaea",
+                {
+                    "terminal": terminal,
+                    "null_outcome": null_outcome,
+                    "campaign": campaign_evidence.campaign_id,
+                    "execution_tier": campaign_evidence.execution_tier,
+                },
+            ),
         )

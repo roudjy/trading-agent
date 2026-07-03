@@ -119,6 +119,7 @@ def _build_parser() -> argparse.ArgumentParser:
     alpha_run_once = sub.add_parser("alpha-discovery-run-once")
     alpha_run_once.add_argument("--dry-run", action="store_true")
     alpha_run_once.add_argument("--max-hypotheses", type=int, default=3)
+    alpha_run_once.add_argument("--execution-tier", choices=("compiler", "smoke", "screening", "oos", "auto"), default="auto")
     alpha_run_once.add_argument("--status", action="store_true")
 
     sub.add_parser("pause")
@@ -226,6 +227,7 @@ def main(argv: list[str] | None = None) -> int:
             repo_root=repo_root,
             dry_run=bool(args.dry_run),
             max_hypotheses=int(args.max_hypotheses or 3),
+            execution_tier=str(args.execution_tier or "auto"),
         )
         _print_json(payload, indent=indent)
         return 0
