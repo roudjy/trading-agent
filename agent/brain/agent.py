@@ -15,11 +15,11 @@ Alles configureer je via config/config.yaml
 
 import asyncio
 import logging
-import yaml
 from datetime import datetime
 from pathlib import Path
 
 # Interne modules
+from agent.runtime_config import load_runtime_config
 from agent.brain.regime_detector import RegimeDetector
 from agent.brain.signal_aggregator import SignalAggregator
 from agent.risk.risk_manager import RiskManager
@@ -56,8 +56,7 @@ class TradingAgent:
 
     def __init__(self, config_pad: str = "config/config.yaml"):
         # Laad configuratie
-        with open(config_pad) as f:
-            self.config = yaml.safe_load(f)
+        self.config = load_runtime_config(config_pad)
 
         log.info(f"Agent gestart: {self.config['agent']['naam']}")
         log.info(f"Startkapitaal: €{self.config['kapitaal']['start']}")

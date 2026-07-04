@@ -19,6 +19,7 @@ LEASE_PATH = REPO_ROOT / "logs/qre_research_supervisor/lease.json"
 STATUS_PATH = REPO_ROOT / "logs/qre_research_supervisor/latest.json"
 HEALTHCHECK_PATH = REPO_ROOT / "logs/qre_research_supervisor/healthcheck.json"
 SOURCE_QUALIFICATIONS_PATH = REPO_ROOT / "generated_research/alpha_discovery/source_qualifications/latest.json"
+RUNTIME_EPOCH_PATH = REPO_ROOT / "generated_research/alpha_discovery/runtime_epoch/latest.json"
 SERVICE_VERSION = "qre_alpha_supervisor_pr4_v1"
 DEFAULT_INTERVAL_SECONDS = 300
 MAX_INTERVAL_SECONDS = 3600
@@ -94,7 +95,10 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8", newline="\n")
+    with tmp.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
     delay = 0.05
     for attempt in range(5):
         try:
@@ -166,6 +170,60 @@ def _qualification_rows() -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
     return payload, rows
 
 
+def _runtime_epoch_payload(*, alpha_status: dict[str, Any], qualification_set_id: str, snapshot_lineage_set_id: str) -> dict[str, Any]:
+    run_id = str(alpha_status.get("run_id") or alpha_status.get("search_run_id") or "")
+    campaign_id = str(alpha_status.get("campaign_id") or alpha_status.get("current_campaign") or "")
+    runtime_epoch_components = {
+        "snapshot_lineage_set_id": snapshot_lineage_set_id,
+        "qualification_set_id": qualification_set_id,
+        "alpha_run_id": run_id,
+        "alpha_campaign_id": campaign_id,
+    }
+    return {
+        "runtime_epoch_id": content_id("qepoch", runtime_epoch_components),
+        "qualification_set_id": qualification_set_id,
+        "snapshot_lineage_set_id": snapshot_lineage_set_id,
+        "run_id": run_id,
+        "campaign_id": campaign_id,
+        "content_identity": content_id("qepochstate", runtime_epoch_components),
+    }
+
+
+def _read_runtime_epoch_state() -> dict[str, Any]:
+    payload = _read_json(RUNTIME_EPOCH_PATH) or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _is_semantically_coherent_epoch(
+    *,
+    mismatch_reasons: list[str],
+    alpha_status: dict[str, Any],
+    prior_status: dict[str, Any],
+    qualified_snapshot_ids: set[str],
+) -> bool:
+    if not mismatch_reasons:
+        return False
+    if any(
+        reason
+        not in {
+            "runtime_epoch_mismatch",
+            "qualification_set_mismatch",
+            "snapshot_lineage_set_mismatch",
+        }
+        for reason in mismatch_reasons
+    ):
+        return False
+    alpha_snapshot = str(alpha_status.get("current_dataset_snapshot") or "")
+    if alpha_snapshot and alpha_snapshot not in qualified_snapshot_ids:
+        return False
+    for field in ("current_campaign", "current_dataset_snapshot", "current_source_tier"):
+        prior_value = str(prior_status.get(field) or "")
+        alpha_value = str(alpha_status.get(field) or "")
+        if prior_value and alpha_value and prior_value != alpha_value:
+            return False
+    return True
+
+
 def _health_from_run(run_payload: dict[str, Any], open_gaps: list[dict[str, Any]]) -> str:
     disposition = str(run_payload.get("legacy_terminal_disposition") or run_payload.get("terminal_disposition") or "")
     execution_status = str(run_payload.get("execution_status") or "")
@@ -203,6 +261,8 @@ def run_cycle(
         prior_status = _read_json(STATUS_PATH) or {}
         source_qualifications, qualification_rows = _qualification_rows()
         alpha_status = read_status(repo_root)
+        persisted_runtime_epoch = _read_runtime_epoch_state()
+        epoch_state = persisted_runtime_epoch or alpha_status
         open_gaps = _open_gaps()
         blocked = _blocked_experiments()
         blocked_retry_due = _blocked_retry_due(blocked)
@@ -214,12 +274,16 @@ def run_cycle(
         prior_watermarks = prior_status.get("watermarks") if isinstance(prior_status.get("watermarks"), dict) else {}
         qualified_snapshot_ids = {str(row.get("dataset_snapshot_id") or "") for row in qualification_rows if str(row.get("dataset_snapshot_id") or "")}
         epoch_mismatch_reasons: list[str] = []
-        if str(alpha_status.get("runtime_epoch_id") or "") and str(prior_status.get("runtime_epoch_id") or "") and alpha_status.get("runtime_epoch_id") != prior_status.get("runtime_epoch_id"):
+        if str(epoch_state.get("runtime_epoch_id") or "") and str(prior_status.get("runtime_epoch_id") or "") and epoch_state.get("runtime_epoch_id") != prior_status.get("runtime_epoch_id"):
             epoch_mismatch_reasons.append("runtime_epoch_mismatch")
-        if str(alpha_status.get("qualification_set_id") or "") and str(source_qualifications.get("content_identity") or "") and alpha_status.get("qualification_set_id") != source_qualifications.get("content_identity"):
+        if str(epoch_state.get("qualification_set_id") or "") and str(source_qualifications.get("content_identity") or "") and epoch_state.get("qualification_set_id") != source_qualifications.get("content_identity"):
             epoch_mismatch_reasons.append("qualification_set_mismatch")
-        if str(alpha_status.get("snapshot_lineage_set_id") or "") and str(lineage.get("snapshot_lineage", {}).get("content_identity") or "") and alpha_status.get("snapshot_lineage_set_id") != lineage.get("snapshot_lineage", {}).get("content_identity"):
+        if str(epoch_state.get("snapshot_lineage_set_id") or "") and str(lineage.get("snapshot_lineage", {}).get("content_identity") or "") and epoch_state.get("snapshot_lineage_set_id") != lineage.get("snapshot_lineage", {}).get("content_identity"):
             epoch_mismatch_reasons.append("snapshot_lineage_set_mismatch")
+        if str(persisted_runtime_epoch.get("qualification_set_id") or "") and str(source_qualifications.get("content_identity") or "") and persisted_runtime_epoch.get("qualification_set_id") != source_qualifications.get("content_identity"):
+            epoch_mismatch_reasons.append("persisted_qualification_set_mismatch")
+        if str(persisted_runtime_epoch.get("snapshot_lineage_set_id") or "") and str(lineage.get("snapshot_lineage", {}).get("content_identity") or "") and persisted_runtime_epoch.get("snapshot_lineage_set_id") != lineage.get("snapshot_lineage", {}).get("content_identity"):
+            epoch_mismatch_reasons.append("persisted_snapshot_lineage_set_mismatch")
         alpha_snapshot = str(alpha_status.get("current_dataset_snapshot") or "")
         if alpha_snapshot and alpha_snapshot not in qualified_snapshot_ids:
             epoch_mismatch_reasons.append("snapshot_not_in_current_qualifications")
@@ -230,6 +294,61 @@ def run_cycle(
         if str(prior_status.get("current_source_tier") or "") and str(alpha_status.get("current_source_tier") or "") and prior_status.get("current_source_tier") != alpha_status.get("current_source_tier"):
             epoch_mismatch_reasons.append("current_source_tier_mismatch")
         epoch_mismatch = bool(epoch_mismatch_reasons)
+        if _is_semantically_coherent_epoch(
+            mismatch_reasons=epoch_mismatch_reasons,
+            alpha_status=alpha_status,
+            prior_status=prior_status,
+            qualified_snapshot_ids=qualified_snapshot_ids,
+        ):
+            reconciled_epoch = _runtime_epoch_payload(
+                alpha_status=alpha_status,
+                qualification_set_id=str(source_qualifications.get("content_identity") or ""),
+                snapshot_lineage_set_id=str(lineage.get("snapshot_lineage", {}).get("content_identity") or ""),
+            )
+            _atomic_json(RUNTIME_EPOCH_PATH, reconciled_epoch)
+            payload = {
+                "service_version": SERVICE_VERSION,
+                "health": HEALTH_HEALTHY_WAITING,
+                "current_stage": "COHERENT_EPOCH_RECONCILED",
+                "last_cycle": {
+                    "decision": "reconciled_semantically_coherent_epoch",
+                    "generated_at_utc": _utcnow(),
+                    "reason_codes": tuple(dict.fromkeys(epoch_mismatch_reasons)),
+                },
+                "last_successful_cycle": prior_status.get("last_successful_cycle"),
+                "current_dataset_snapshot": alpha_status.get("current_dataset_snapshot"),
+                "current_source_tier": alpha_status.get("current_source_tier"),
+                "current_experiment": alpha_status.get("current_experiment"),
+                "current_campaign": alpha_status.get("current_campaign"),
+                "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
+                "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
+                "operator_actions": tuple(
+                    sorted(
+                        {
+                            "review_source_certification" if str(row.get("gap_type") or "") == "SOURCE_CERTIFICATION_GAP" else "review_blocked_experiment"
+                            for row in open_gaps
+                        }
+                    )
+                ),
+                "next_retry": (datetime.now(UTC) + timedelta(minutes=5)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                "consecutive_failures": 0,
+                "watermarks": {**current_watermarks, "alpha_status": alpha_status.get("content_identity")},
+                "leases": lease,
+                "artifact_refs": {
+                    "alpha_status": str(repo_root / Path("generated_research/alpha_discovery/status/latest.json")),
+                    "supervisor_status": str(STATUS_PATH),
+                    "runtime_epoch": str(RUNTIME_EPOCH_PATH),
+                },
+                "runtime_epoch_id": reconciled_epoch["runtime_epoch_id"],
+                "qualification_set_id": reconciled_epoch["qualification_set_id"],
+                "snapshot_lineage_set_id": reconciled_epoch["snapshot_lineage_set_id"],
+                "content_identity": content_id("qsupreconcile", {"watermarks": current_watermarks, "epoch": reconciled_epoch["content_identity"]}),
+                "blocked_experiments": blocked,
+                "search_ledger_id": alpha_status.get("search_ledger_id"),
+            }
+            _write_status(payload)
+            return payload
         if epoch_mismatch:
             payload = {
                 "service_version": SERVICE_VERSION,
@@ -256,6 +375,7 @@ def run_cycle(
                 "artifact_refs": {
                     "alpha_status": str(repo_root / Path("generated_research/alpha_discovery/status/latest.json")),
                     "supervisor_status": str(STATUS_PATH),
+                    "runtime_epoch": str(RUNTIME_EPOCH_PATH),
                 },
                 "runtime_epoch_id": alpha_status.get("runtime_epoch_id"),
                 "qualification_set_id": source_qualifications.get("content_identity"),
@@ -372,7 +492,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.healthcheck:
         payload = _read_json(HEALTHCHECK_PATH) or {"health": "FAILED"}
         _print_json(payload)
-        return 0 if str(payload.get("health") or "").startswith(("HEALTHY", "DEGRADED", "BLOCKED")) else 1
+        return 0 if str(payload.get("health") or "").startswith(("HEALTHY", "BLOCKED")) else 1
 
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)

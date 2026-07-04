@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from agent.runtime_config import RuntimeConfigError, load_runtime_config
 from agent.brain.orchestrator import Orchestrator
 from automation import live_gate
 
@@ -69,9 +70,11 @@ async def main():
     log.info("JvR TRADING AGENT - GESTART (multi-agent orchestrator)")
     log.info("=" * 60)
 
-    import yaml
-    with open('config/config.yaml') as f:
-        config = yaml.safe_load(f)
+    try:
+        config = load_runtime_config("config/config.yaml")
+    except RuntimeConfigError as exc:
+        log.critical("Runtime configuratie geblokkeerd: %s", exc)
+        sys.exit(1)
 
     _enforce_live_gate(config)
     log.info("-" * 60)

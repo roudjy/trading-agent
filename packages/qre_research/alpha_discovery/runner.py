@@ -104,6 +104,7 @@ VALIDATION_VIEW_PATH = OUTPUT_ROOT / "views" / "validation_latest.json"
 LOCKED_OOS_VIEW_PATH = OUTPUT_ROOT / "views" / "locked_oos_latest.json"
 RUNS_PATH = OUTPUT_ROOT / "runs" / "latest.json"
 STATUS_PATH = OUTPUT_ROOT / "status" / "latest.json"
+RUNTIME_EPOCH_PATH = OUTPUT_ROOT / "runtime_epoch" / "latest.json"
 
 TIER_ALIAS = {
     "compiler": EXECUTION_TIER_COMPILER_ONLY,
@@ -126,6 +127,8 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
         try:
             os.replace(tmp_name, path)
         except PermissionError:
@@ -664,6 +667,40 @@ def read_status(repo_root: Path) -> dict[str, Any]:
     }
 
 
+def _runtime_epoch_payload(
+    *,
+    run_payload: Mapping[str, Any],
+    snapshot_lineage_set_id: str,
+    qualification_set_id: str,
+) -> dict[str, Any]:
+    runtime_epoch_components = {
+        "snapshot_lineage_set_id": snapshot_lineage_set_id,
+        "qualification_set_id": qualification_set_id,
+        "alpha_run_id": str(run_payload.get("run_id") or ""),
+        "alpha_campaign_id": str(run_payload.get("campaign_id") or ""),
+    }
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": POLICY_VERSION,
+        "report_kind": "qre_alpha_runtime_epoch",
+        "runtime_epoch_id": content_id("qepoch", runtime_epoch_components),
+        "qualification_set_id": qualification_set_id,
+        "snapshot_lineage_set_id": snapshot_lineage_set_id,
+        "run_id": str(run_payload.get("run_id") or ""),
+        "campaign_id": str(run_payload.get("campaign_id") or ""),
+        "current_dataset_snapshot": run_payload.get("current_dataset_snapshot"),
+        "current_source_tier": run_payload.get("current_source_tier"),
+        "current_experiment": run_payload.get("current_experiment"),
+        "current_campaign": run_payload.get("current_campaign"),
+        "terminal_disposition": run_payload.get("terminal_disposition"),
+        "execution_status": run_payload.get("execution_status"),
+        "scientific_disposition": run_payload.get("scientific_disposition"),
+        "evidence_tier_reached": run_payload.get("evidence_tier_reached"),
+        "search_ledger_id": run_payload.get("search_ledger_id"),
+        "content_identity": content_id("qepochstate", runtime_epoch_components),
+    }
+
+
 def run_alpha_discovery_mvp(
     *,
     repo_root: Path,
@@ -907,14 +944,6 @@ def run_alpha_discovery_mvp(
         evidence_tier_reached = EXECUTION_TIER_EXECUTOR_SMOKE
     else:
         evidence_tier_reached = EXECUTION_TIER_COMPILER_ONLY
-    runtime_epoch_components = {
-        "snapshot_lineage_set_id": snapshot_lineage["snapshot_lineage"]["content_identity"],
-        "qualification_set_id": source_qualifications["content_identity"],
-        "alpha_run_id": content_id("qarr", {"observation": observation.content_identity, "selected": getattr(selected, "hypothesis_id", ""), "tier": requested_execution_tier}),
-        "alpha_campaign_id": campaign_id or "",
-    }
-    runtime_epoch_id = content_id("qepoch", runtime_epoch_components)
-
     budget_usage = RunBudgetUsage(
         observation_snapshots=1,
         raw_hypotheses=len(hypotheses),
@@ -938,7 +967,7 @@ def run_alpha_discovery_mvp(
         "scientific_disposition": scientific_disposition,
         "evidence_tier_reached": evidence_tier_reached,
         "legacy_terminal_disposition": terminal_disposition,
-        "runtime_epoch_id": runtime_epoch_id,
+        "runtime_epoch_id": "",
         "qualification_set_id": source_qualifications["content_identity"],
         "snapshot_lineage_set_id": snapshot_lineage["snapshot_lineage"]["content_identity"],
         "state_trace": [
@@ -994,6 +1023,13 @@ def run_alpha_discovery_mvp(
         "gap_ids": [row.gap_id for row in gap_rows],
         "blocked_experiment_ids": [row.experiment_id for row in blocked_rows],
     }
+    runtime_epoch = _runtime_epoch_payload(
+        run_payload=run_payload,
+        snapshot_lineage_set_id=snapshot_lineage["snapshot_lineage"]["content_identity"],
+        qualification_set_id=source_qualifications["content_identity"],
+    )
+    runtime_epoch_id = runtime_epoch["runtime_epoch_id"]
+    run_payload["runtime_epoch_id"] = runtime_epoch_id
     artifacts = {
         "observation": observation.to_payload(),
         "hypotheses": [hyp.to_payload() for hyp in final_hypotheses],
@@ -1094,6 +1130,7 @@ def run_alpha_discovery_mvp(
         "resolution_feedback": _write_artifact(RESOLUTION_FEEDBACK_PATH, artifacts["resolution_feedback"] or {"schema_version": SCHEMA_VERSION, "rows": []}, repo_root=repo_root),
         "discovery_view": _write_artifact(DISCOVERY_VIEW_PATH, {"schema_version": SCHEMA_VERSION, "policy_version": POLICY_VERSION, "report_kind": "qre_alpha_discovery_view", "view": discovery_view}, repo_root=repo_root),
         "runs": _write_artifact(RUNS_PATH, artifacts["runs"], repo_root=repo_root),
+        "runtime_epoch": _write_artifact(RUNTIME_EPOCH_PATH, runtime_epoch, repo_root=repo_root),
         "status": _write_artifact(STATUS_PATH, artifacts["status"], repo_root=repo_root),
     }
     if validation_view is not None:
@@ -1107,5 +1144,6 @@ def run_alpha_discovery_mvp(
     run_payload["content_identity"] = content_id("qarrc", identity_input)
     artifacts["status"]["content_identity"] = content_id("qasd_status", identity_input)
     artifact_refs["runs"] = _write_artifact(RUNS_PATH, run_payload, repo_root=repo_root)
+    artifact_refs["runtime_epoch"] = _write_artifact(RUNTIME_EPOCH_PATH, runtime_epoch, repo_root=repo_root)
     artifact_refs["status"] = _write_artifact(STATUS_PATH, artifacts["status"], repo_root=repo_root)
     return {**run_payload, "artifact_refs": artifact_refs, "artifacts": artifacts}
