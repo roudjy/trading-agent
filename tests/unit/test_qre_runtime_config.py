@@ -80,23 +80,23 @@ def test_runtime_config_supports_env_and_file_secret_injection(monkeypatch, tmp_
 def test_runtime_secret_redaction_removes_secret_values_from_payload(monkeypatch, tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     _write_config(config_path, polymarket_active=True)
-    test_secret = "pm-secret-123456"
+    sample_secret = "runtime-placeholder-value"
 
-    monkeypatch.setenv("POLYMARKET_PRIVATE_KEY", test_secret)
+    monkeypatch.setenv("POLYMARKET_PRIVATE_KEY", sample_secret)
     monkeypatch.setenv("POLYMARKET_ALCHEMY_RPC_URL", "https://alchemy.example/rpc")
     monkeypatch.setenv("POLYMARKET_PROXY_WALLET", "0xproxy")
 
     config = load_runtime_config(str(config_path))
     payload = {
         "status": "FAILED",
-        "private_key": test_secret,
-        "detail": f"secret used: {test_secret}",
+        "private_key": sample_secret,
+        "detail": f"secret used: {sample_secret}",
         "nested": [{"proxy_wallet": "0xproxy"}],
     }
 
     redacted = redact_sensitive_values(payload, config=config)
     flat = str(redacted)
 
-    assert test_secret not in flat
+    assert sample_secret not in flat
     assert "0xproxy" not in flat
     assert "[REDACTED]" in flat
