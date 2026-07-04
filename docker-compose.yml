@@ -36,6 +36,12 @@ services:
     environment:
       - TZ=Europe/Amsterdam        # Nederlandse tijdzone
       - PYTHONPATH=/app            # absolute imports (data.contracts, reporting.*) werken als script
+      - POLYMARKET_PRIVATE_KEY
+      - POLYMARKET_PRIVATE_KEY_FILE
+      - POLYMARKET_ALCHEMY_RPC_URL
+      - POLYMARKET_ALCHEMY_RPC_URL_FILE
+      - POLYMARKET_PROXY_WALLET
+      - POLYMARKET_PROXY_WALLET_FILE
     networks:
       - agent_netwerk
 
@@ -90,8 +96,17 @@ services:
       - PYTHONPATH=/app
     networks:
       - agent_netwerk
-    depends_on:
-      - agent
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -m
+        - reporting.qre_research_supervisor
+        - --healthcheck
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   nginx:
     image: nginx:alpine
