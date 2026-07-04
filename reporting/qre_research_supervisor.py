@@ -20,6 +20,8 @@ STATUS_PATH = REPO_ROOT / "logs/qre_research_supervisor/latest.json"
 HEALTHCHECK_PATH = REPO_ROOT / "logs/qre_research_supervisor/healthcheck.json"
 SOURCE_QUALIFICATIONS_PATH = REPO_ROOT / "generated_research/alpha_discovery/source_qualifications/latest.json"
 RUNTIME_EPOCH_PATH = REPO_ROOT / "generated_research/alpha_discovery/runtime_epoch/latest.json"
+SOURCE_RESOLUTION_PATH = REPO_ROOT / "generated_research/alpha_discovery/source_resolution/latest.json"
+OBSERVATIONS_PATH = REPO_ROOT / "generated_research/alpha_discovery/observations/latest.json"
 SERVICE_VERSION = "qre_alpha_supervisor_pr4_v1"
 DEFAULT_INTERVAL_SECONDS = 300
 MAX_INTERVAL_SECONDS = 3600
@@ -49,6 +51,10 @@ def _snapshot_lineage_module() -> Any:
 
 def content_id(prefix: str, payload: Any) -> str:
     return _contracts().content_id(prefix, payload)
+
+
+def canonical_payload(value: Any) -> Any:
+    return _contracts().canonical_payload(value)
 
 
 def load_snapshot_lineage(repo_root: Path) -> dict[str, Any]:
@@ -164,6 +170,161 @@ def _blocked_retry_due(blocked: list[dict[str, Any]]) -> bool:
     return False
 
 
+def _watermarks(*, snapshot_lineage_set_id: str, qualification_set_id: str, open_gaps: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "snapshot_lineage": snapshot_lineage_set_id,
+        "source_qualifications": qualification_set_id,
+        "open_gap_ids": sorted(str(row.get("gap_id") or "") for row in open_gaps),
+    }
+
+
+def _operator_actions(open_gaps: list[dict[str, Any]]) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                "configure_provider_credentials" if str(row.get("gap_type") or "") == "CREDENTIAL_GAP" else
+                "resolve_license_boundary" if str(row.get("gap_type") or "") == "LICENSE_GAP" else
+                "review_source_certification" if str(row.get("gap_type") or "") == "SOURCE_CERTIFICATION_GAP" else
+                "review_blocked_experiment"
+                for row in open_gaps
+            }
+        )
+    )
+
+
+def _semantic_gap_rows(open_gaps: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    rows = [
+        canonical_payload(
+            {
+                "gap_id": str(row.get("gap_id") or ""),
+                "experiment_id": str(row.get("experiment_id") or ""),
+                "gap_type": str(row.get("gap_type") or ""),
+                "status": str(row.get("status") or ""),
+                "request_id": str(row.get("request_id") or ""),
+                "deduplication_key": str(row.get("deduplication_key") or ""),
+                "content_identity": str(row.get("content_identity") or ""),
+            }
+        )
+        for row in open_gaps
+    ]
+    return tuple(sorted(rows, key=lambda row: (str(row.get("gap_id") or ""), str(row.get("experiment_id") or ""), str(row.get("gap_type") or ""))))
+
+
+def _semantic_blocked_rows(blocked: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    rows = [
+        canonical_payload(
+            {
+                "experiment_id": str(row.get("experiment_id") or ""),
+                "hypothesis_id": str(row.get("hypothesis_id") or ""),
+                "strategy_spec_id": str(row.get("strategy_spec_id") or ""),
+                "preregistration_id": str(row.get("preregistration_id") or ""),
+                "blocked_stage": str(row.get("blocked_stage") or ""),
+                "gap_ids": tuple(sorted(str(value) for value in row.get("gap_ids") or () if str(value))),
+                "required_data_snapshot": str(row.get("required_data_snapshot") or ""),
+                "required_source_tier": str(row.get("required_source_tier") or ""),
+                "required_primitive": str(row.get("required_primitive") or ""),
+                "required_executor": str(row.get("required_executor") or ""),
+                "current_status": str(row.get("current_status") or ""),
+                "resume_token": str(row.get("resume_token") or ""),
+                "content_identity": str(row.get("content_identity") or ""),
+            }
+        )
+        for row in blocked
+    ]
+    return tuple(sorted(rows, key=lambda row: (str(row.get("experiment_id") or ""), str(row.get("resume_token") or ""))))
+
+
+def _source_resolution_state(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(repo_root / Path("generated_research/alpha_discovery/source_resolution/latest.json")) or {}
+    rows = payload.get("rows") or []
+    if not rows or not isinstance(rows[0], dict):
+        return {}
+    row = dict(rows[0])
+    return canonical_payload(
+        {
+            "resolution_id": str(row.get("resolution_id") or ""),
+            "selected_source": str(row.get("selected_source") or ""),
+            "selected_snapshot": str(row.get("selected_snapshot") or ""),
+            "current_source_tier": str(row.get("current_source_tier") or ""),
+            "target_source_tier": str(row.get("target_source_tier") or ""),
+            "qualification_actions": tuple(sorted(str(value) for value in row.get("qualification_actions") or () if str(value))),
+            "candidate_sources": tuple(sorted(str(value) for value in row.get("candidate_sources") or () if str(value))),
+            "credential_requirements": tuple(sorted(str(value) for value in row.get("credential_requirements") or () if str(value))),
+            "license_requirements": tuple(sorted(str(value) for value in row.get("license_requirements") or () if str(value))),
+            "cross_source_requirements": tuple(sorted(str(value) for value in row.get("cross_source_requirements") or () if str(value))),
+            "unresolved_blockers": tuple(sorted(str(value) for value in row.get("unresolved_blockers") or () if str(value))),
+            "operator_action_required": bool(row.get("operator_action_required")),
+            "automatic_actions_allowed": bool(row.get("automatic_actions_allowed")),
+            "content_identity": str(row.get("content_identity") or payload.get("content_identity") or ""),
+        }
+    )
+
+
+def _observation_inventory_state(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(repo_root / Path("generated_research/alpha_discovery/observations/latest.json")) or {}
+    if not payload:
+        return {}
+    return canonical_payload(
+        {
+            "primitive_inventory": payload.get("primitive_inventory") or {},
+            "executor_inventory": payload.get("executor_inventory") or {},
+            "data_coverage": payload.get("data_coverage") or {},
+            "source_quality": payload.get("source_quality") or {},
+            "identity_readiness": str(payload.get("identity_readiness") or ""),
+        }
+    )
+
+
+def _semantic_cycle_inputs(
+    *,
+    snapshot_lineage_set_id: str,
+    qualification_set_id: str,
+    open_gaps: list[dict[str, Any]],
+    blocked: list[dict[str, Any]],
+    source_resolution_state: dict[str, Any],
+    observation_state: dict[str, Any],
+    alpha_status: dict[str, Any],
+) -> dict[str, Any]:
+    return canonical_payload(
+        {
+            "snapshot_lineage_set_id": snapshot_lineage_set_id,
+            "qualification_set_id": qualification_set_id,
+            "open_gaps": _semantic_gap_rows(open_gaps),
+            "blocked_experiments": _semantic_blocked_rows(blocked),
+            "source_resolution": source_resolution_state,
+            "observation_state": observation_state,
+            "authority_state": {
+                "requested_execution_tier": str(alpha_status.get("requested_execution_tier") or ""),
+                "admitted_execution_tier": str(alpha_status.get("admitted_execution_tier") or ""),
+                "current_source_tier": str(alpha_status.get("current_source_tier") or ""),
+                "terminal_disposition": str(alpha_status.get("terminal_disposition") or alpha_status.get("legacy_terminal_disposition") or ""),
+                "scientific_disposition": str(alpha_status.get("scientific_disposition") or ""),
+                "evidence_tier_reached": str(alpha_status.get("evidence_tier_reached") or ""),
+                "execution_status": str(alpha_status.get("execution_status") or ""),
+            },
+        }
+    )
+
+
+def _semantic_cycle_identity(**kwargs: Any) -> str:
+    return content_id("qsupsem", _semantic_cycle_inputs(**kwargs))
+
+
+def _validate_status_publication(payload: dict[str, Any]) -> None:
+    watermarks = payload.get("watermarks") if isinstance(payload.get("watermarks"), dict) else {}
+    qualification_set_id = str(payload.get("qualification_set_id") or "")
+    snapshot_lineage_set_id = str(payload.get("snapshot_lineage_set_id") or "")
+    if qualification_set_id and str(watermarks.get("source_qualifications") or "") not in {"", qualification_set_id}:
+        raise ValueError("supervisor_status_publication_requires_matching_source_qualification_watermark")
+    if snapshot_lineage_set_id and str(watermarks.get("snapshot_lineage") or "") not in {"", snapshot_lineage_set_id}:
+        raise ValueError("supervisor_status_publication_requires_matching_snapshot_lineage_watermark")
+
+
+def _publish_status(payload: dict[str, Any]) -> None:
+    _validate_status_publication(payload)
+    _write_status(payload)
+
+
 def _qualification_rows() -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
     payload = _read_json(SOURCE_QUALIFICATIONS_PATH) or {}
     rows = tuple(dict(row) for row in payload.get("rows") or [] if isinstance(row, dict))
@@ -266,12 +427,26 @@ def run_cycle(
         open_gaps = _open_gaps()
         blocked = _blocked_experiments()
         blocked_retry_due = _blocked_retry_due(blocked)
-        current_watermarks = {
-            "snapshot_lineage": lineage.get("snapshot_lineage", {}).get("content_identity"),
-            "source_qualifications": source_qualifications.get("content_identity"),
-            "open_gap_ids": sorted(str(row.get("gap_id") or "") for row in open_gaps),
-        }
+        snapshot_lineage_set_id = str(lineage.get("snapshot_lineage", {}).get("content_identity") or "")
+        qualification_set_id = str(source_qualifications.get("content_identity") or "")
+        current_watermarks = _watermarks(
+            snapshot_lineage_set_id=snapshot_lineage_set_id,
+            qualification_set_id=qualification_set_id,
+            open_gaps=open_gaps,
+        )
+        source_resolution_state = _source_resolution_state(repo_root)
+        observation_state = _observation_inventory_state(repo_root)
+        semantic_input_identity = _semantic_cycle_identity(
+            snapshot_lineage_set_id=snapshot_lineage_set_id,
+            qualification_set_id=qualification_set_id,
+            open_gaps=open_gaps,
+            blocked=blocked,
+            source_resolution_state=source_resolution_state,
+            observation_state=observation_state,
+            alpha_status=alpha_status,
+        )
         prior_watermarks = prior_status.get("watermarks") if isinstance(prior_status.get("watermarks"), dict) else {}
+        prior_semantic_input_identity = str(prior_status.get("semantic_input_identity") or "")
         qualified_snapshot_ids = {str(row.get("dataset_snapshot_id") or "") for row in qualification_rows if str(row.get("dataset_snapshot_id") or "")}
         epoch_mismatch_reasons: list[str] = []
         if str(epoch_state.get("runtime_epoch_id") or "") and str(prior_status.get("runtime_epoch_id") or "") and epoch_state.get("runtime_epoch_id") != prior_status.get("runtime_epoch_id"):
@@ -322,14 +497,7 @@ def run_cycle(
                 "current_campaign": alpha_status.get("current_campaign"),
                 "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
                 "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
-                "operator_actions": tuple(
-                    sorted(
-                        {
-                            "review_source_certification" if str(row.get("gap_type") or "") == "SOURCE_CERTIFICATION_GAP" else "review_blocked_experiment"
-                            for row in open_gaps
-                        }
-                    )
-                ),
+                "operator_actions": _operator_actions(open_gaps),
                 "next_retry": (datetime.now(UTC) + timedelta(minutes=5)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                 "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                 "consecutive_failures": 0,
@@ -344,10 +512,11 @@ def run_cycle(
                 "qualification_set_id": reconciled_epoch["qualification_set_id"],
                 "snapshot_lineage_set_id": reconciled_epoch["snapshot_lineage_set_id"],
                 "content_identity": content_id("qsupreconcile", {"watermarks": current_watermarks, "epoch": reconciled_epoch["content_identity"]}),
+                "semantic_input_identity": semantic_input_identity,
                 "blocked_experiments": blocked,
                 "search_ledger_id": alpha_status.get("search_ledger_id"),
             }
-            _write_status(payload)
+            _publish_status(payload)
             return payload
         if epoch_mismatch:
             payload = {
@@ -381,33 +550,66 @@ def run_cycle(
                 "qualification_set_id": source_qualifications.get("content_identity"),
                 "snapshot_lineage_set_id": lineage.get("snapshot_lineage", {}).get("content_identity"),
                 "content_identity": content_id("qsupdegraded", {"reason_codes": tuple(dict.fromkeys(epoch_mismatch_reasons)), "watermarks": current_watermarks}),
+                "semantic_input_identity": semantic_input_identity,
                 "blocked_experiments": blocked,
                 "search_ledger_id": alpha_status.get("search_ledger_id"),
             }
-            _write_status(payload)
+            _publish_status(payload)
             return payload
         comparable_prior = {key: prior_watermarks.get(key) for key in current_watermarks}
-        if comparable_prior == current_watermarks and not blocked_retry_due:
+        if prior_semantic_input_identity == semantic_input_identity or (
+            comparable_prior == current_watermarks and not blocked_retry_due
+        ):
+            health = _health_from_run(alpha_status, open_gaps)
             payload = {
                 "service_version": SERVICE_VERSION,
-                "health": HEALTH_HEALTHY_WAITING,
+                "health": health,
                 "current_stage": "NO_CHANGE_SKIP",
-                "last_cycle": {"decision": "no_material_change", "generated_at_utc": _utcnow()},
+                "last_cycle": {
+                    "decision": "no_material_change",
+                    "generated_at_utc": _utcnow(),
+                    "reason_codes": ("semantic_inputs_unchanged",) if prior_semantic_input_identity == semantic_input_identity else ("watermarks_unchanged",),
+                },
                 "last_successful_cycle": prior_status.get("last_successful_cycle"),
+                "current_dataset_snapshot": alpha_status.get("current_dataset_snapshot"),
+                "current_source_tier": alpha_status.get("current_source_tier"),
+                "current_experiment": alpha_status.get("current_experiment"),
+                "current_campaign": alpha_status.get("current_campaign"),
+                "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
+                "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
+                "operator_actions": _operator_actions(open_gaps),
+                "next_retry": prior_status.get("next_retry"),
+                "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                "consecutive_failures": 0 if health.startswith("HEALTHY") else 1,
                 "watermarks": current_watermarks,
                 "leases": lease,
-                "content_identity": content_id("qsupnoop", current_watermarks),
+                "runtime_epoch_id": str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or ""),
+                "qualification_set_id": qualification_set_id,
+                "snapshot_lineage_set_id": snapshot_lineage_set_id,
+                "search_ledger_id": alpha_status.get("search_ledger_id"),
+                "semantic_input_identity": semantic_input_identity,
+                "blocked_experiments": blocked,
+                "content_identity": content_id("qsupnoop", {"semantic_input_identity": semantic_input_identity, "health": health}),
             }
-            _write_status(payload)
+            _publish_status(payload)
             return payload
         run_payload = run_alpha_discovery_mvp(repo_root=repo_root, dry_run=dry_run, max_hypotheses=3, execution_tier="screening")
         open_gaps = _open_gaps()
         blocked = _blocked_experiments()
-        current_watermarks = {
-            "snapshot_lineage": lineage.get("snapshot_lineage", {}).get("content_identity"),
-            "source_qualifications": source_qualifications.get("content_identity"),
-            "open_gap_ids": sorted(str(row.get("gap_id") or "") for row in open_gaps),
-        }
+        current_watermarks = _watermarks(
+            snapshot_lineage_set_id=str(run_payload.get("snapshot_lineage_set_id") or snapshot_lineage_set_id),
+            qualification_set_id=str(run_payload.get("qualification_set_id") or qualification_set_id),
+            open_gaps=open_gaps,
+        )
+        semantic_input_identity = _semantic_cycle_identity(
+            snapshot_lineage_set_id=str(run_payload.get("snapshot_lineage_set_id") or snapshot_lineage_set_id),
+            qualification_set_id=str(run_payload.get("qualification_set_id") or qualification_set_id),
+            open_gaps=open_gaps,
+            blocked=blocked,
+            source_resolution_state=_source_resolution_state(repo_root),
+            observation_state=_observation_inventory_state(repo_root),
+            alpha_status=run_payload,
+        )
         health = _health_from_run(run_payload, open_gaps)
         status = {
             "service_version": SERVICE_VERSION,
@@ -427,21 +629,11 @@ def run_cycle(
             "current_campaign": run_payload.get("current_campaign"),
             "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
             "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
-            "operator_actions": tuple(
-                sorted(
-                    {
-                        "configure_provider_credentials" if str(row.get("gap_type") or "") == "CREDENTIAL_GAP" else
-                        "resolve_license_boundary" if str(row.get("gap_type") or "") == "LICENSE_GAP" else
-                        "review_source_certification" if str(row.get("gap_type") or "") == "SOURCE_CERTIFICATION_GAP" else
-                        "review_blocked_experiment"
-                        for row in open_gaps
-                    }
-                )
-            ),
+            "operator_actions": _operator_actions(open_gaps),
             "next_retry": (datetime.now(UTC) + timedelta(minutes=5)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "consecutive_failures": 0 if health.startswith("HEALTHY") else 1,
-            "watermarks": {**current_watermarks, "alpha_status": alpha_status.get("content_identity")},
+            "watermarks": {**current_watermarks, "alpha_status": run_payload.get("content_identity")},
             "leases": lease,
             "artifact_refs": {
                 "alpha_status": str(repo_root / Path("generated_research/alpha_discovery/status/latest.json")),
@@ -451,6 +643,7 @@ def run_cycle(
             "qualification_set_id": run_payload.get("qualification_set_id"),
             "snapshot_lineage_set_id": run_payload.get("snapshot_lineage_set_id"),
             "health": health,
+            "semantic_input_identity": semantic_input_identity,
             "content_identity": content_id("qsup", {"run_id": run_payload.get("run_id"), "health": health, "blocked": len(blocked)}),
         }
         payload = {
@@ -458,7 +651,7 @@ def run_cycle(
             "blocked_experiments": blocked,
             "search_ledger_id": run_payload.get("search_ledger_id"),
         }
-        _write_status(payload)
+        _publish_status(payload)
         return payload
     finally:
         _release_lease(lease)
