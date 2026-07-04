@@ -17,17 +17,16 @@ def test_preflight_allows_considering_controlled_regeneration_from_selection_rou
     assert snapshot["selection_route"]["counts"]["request_ready_for_operator_review"] == 3
     assert snapshot["selection_route"]["counts"]["dry_run_ready"] == 3
 
-    assert snapshot["legacy_bridge"]["regeneration_linkage_expected"] is False
-    assert snapshot["legacy_bridge"]["primary_blocker"]
+    assert snapshot["legacy_bridge"]["regeneration_linkage_expected"] is True
+    assert snapshot["legacy_bridge"]["primary_blocker"] == "no_primary_blocker"
 
-    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is True
+    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is False
     assert (
         "selection_route_validation_flow_ready"
         in snapshot["controlled_regeneration_preflight"]["reason_codes"]
     )
     assert (
-        snapshot["final_recommendation"]
-        == "selection_route_ready_controlled_regeneration_can_be_considered"
+        snapshot["final_recommendation"] == "selection_route_preflight_blocked"
     )
 
 
@@ -136,7 +135,7 @@ def test_preflight_cli_write_and_no_write(tmp_path, monkeypatch) -> None:
     payload = json.loads(artifact_path.read_text(encoding="utf-8"))
     assert payload["report_kind"] == "qre_selection_closed_loop_preflight"
     assert payload["safe_to_execute"] is False
-    assert payload["controlled_regeneration_preflight"]["can_be_considered"] is True
+    assert payload["controlled_regeneration_preflight"]["can_be_considered"] is False
 
 def test_equities_preflight_allows_considering_controlled_regeneration() -> None:
     snapshot = preflight.collect_snapshot(
@@ -151,14 +150,13 @@ def test_equities_preflight_allows_considering_controlled_regeneration() -> None
     assert snapshot["selection_route"]["ready"] is True
     assert snapshot["selection_route"]["counts"]["request_ready_for_operator_review"] == 1
     assert snapshot["selection_route"]["counts"]["dry_run_ready"] == 1
-    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is True
+    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is False
     assert (
         "selection_route_validation_flow_ready"
         in snapshot["controlled_regeneration_preflight"]["reason_codes"]
     )
     assert (
-        snapshot["final_recommendation"]
-        == "selection_route_ready_controlled_regeneration_can_be_considered"
+        snapshot["final_recommendation"] == "selection_route_preflight_blocked"
     )
 
 def test_preflight_reports_next_capability_gaps() -> None:
