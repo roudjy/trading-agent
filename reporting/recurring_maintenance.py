@@ -1054,8 +1054,16 @@ def _write_state(state: dict[str, Any]) -> None:
     DIGEST_DIR_JSON.mkdir(parents=True, exist_ok=True)
     p = _state_file()
     tmp = p.with_suffix(p.suffix + ".tmp")
-    tmp.write_text(json.dumps(state, sort_keys=True, indent=2), encoding="utf-8")
-    os.replace(tmp, p)
+    with tmp.open("w", encoding="utf-8") as handle:
+        handle.write(json.dumps(state, sort_keys=True, indent=2))
+        handle.flush()
+        os.fsync(handle.fileno())
+    try:
+        os.replace(tmp, p)
+    except PermissionError:
+        if p.exists():
+            p.unlink()
+        os.replace(tmp, p)
 
 
 def _initial_job_state(job_type: str) -> dict[str, Any]:
