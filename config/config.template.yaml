@@ -38,9 +38,9 @@ exchanges:
     paper_trading: true
   polymarket:
     actief: false
-    private_key: "INVULLEN"
-    proxy_wallet: "INVULLEN"
-    alchemy_rpc: "INVULLEN"
+    private_key: "env:POLYMARKET_PRIVATE_KEY"
+    proxy_wallet: "env:POLYMARKET_PROXY_WALLET"
+    alchemy_rpc: "env:POLYMARKET_ALCHEMY_RPC_URL"
 
 assets:
   crypto:
