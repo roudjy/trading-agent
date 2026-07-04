@@ -5,8 +5,49 @@ import json
 import reporting.qre_selection_closed_loop_preflight as preflight
 
 
+def _ready_flow_snapshot(*, request_ready: int = 3, dry_run_ready: int = 3) -> dict[str, object]:
+    return {
+        "report_kind": "qre_selection_route_validation_flow",
+        "counts": {
+            "materialized_route_ready": request_ready,
+            "hypothesis_ready": request_ready,
+            "request_ready_for_operator_review": request_ready,
+            "dry_run_ready": dry_run_ready,
+            "selection_validation_flow_ready": request_ready,
+        },
+        "final_recommendation": "selection_route_validation_flow_ready_for_operator_review",
+        "validation_warnings": [],
+    }
+
+
+def _bridge_snapshot(
+    *,
+    regeneration_linkage_expected: bool,
+    deterministic_mapping_possible: bool,
+    primary_blocker: str | None,
+) -> dict[str, object]:
+    return {
+        "report_kind": "qre_executable_hypothesis_identity_bridge_diagnostics",
+        "bridge": {
+            "regeneration_linkage_expected": regeneration_linkage_expected,
+            "deterministic_mapping_possible": deterministic_mapping_possible,
+            "primary_blocker": primary_blocker,
+        },
+        "final_recommendation": "bridge_snapshot_fixture",
+        "validation_warnings": [],
+    }
+
+
 def test_preflight_allows_considering_controlled_regeneration_from_selection_route() -> None:
-    snapshot = preflight.collect_snapshot(generated_at_utc="2026-06-03T16:00:00Z")
+    snapshot = preflight.collect_snapshot(
+        flow_snapshot=_ready_flow_snapshot(),
+        bridge_snapshot=_bridge_snapshot(
+            regeneration_linkage_expected=False,
+            deterministic_mapping_possible=False,
+            primary_blocker="qre_authority_unavailable",
+        ),
+        generated_at_utc="2026-06-03T16:00:00Z",
+    )
 
     assert snapshot["report_kind"] == "qre_selection_closed_loop_preflight"
     assert snapshot["safe_to_execute"] is False
@@ -16,43 +57,27 @@ def test_preflight_allows_considering_controlled_regeneration_from_selection_rou
     assert snapshot["selection_route"]["ready"] is True
     assert snapshot["selection_route"]["counts"]["request_ready_for_operator_review"] == 3
     assert snapshot["selection_route"]["counts"]["dry_run_ready"] == 3
-
-    assert snapshot["legacy_bridge"]["regeneration_linkage_expected"] is True
-    assert snapshot["legacy_bridge"]["primary_blocker"] == "no_primary_blocker"
-
-    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is False
+    assert snapshot["legacy_bridge"]["regeneration_linkage_expected"] is False
+    assert snapshot["legacy_bridge"]["primary_blocker"] == "qre_authority_unavailable"
+    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is True
     assert (
         "selection_route_validation_flow_ready"
         in snapshot["controlled_regeneration_preflight"]["reason_codes"]
     )
-    assert (
-        snapshot["final_recommendation"] == "selection_route_preflight_blocked"
-    )
+    assert snapshot["final_recommendation"] == "selection_route_ready_controlled_regeneration_can_be_considered"
 
 
 def test_preflight_blocks_when_selection_flow_not_ready() -> None:
-    flow_snapshot = {
-        "report_kind": "qre_selection_route_validation_flow",
-        "counts": {
-            "materialized_route_ready": 0,
-            "hypothesis_ready": 0,
-            "request_ready_for_operator_review": 0,
-            "dry_run_ready": 0,
-            "selection_validation_flow_ready": 0,
-        },
-        "final_recommendation": "selection_route_validation_flow_blocked",
-        "validation_warnings": [],
-    }
-    bridge_snapshot = {
-        "report_kind": "qre_executable_hypothesis_identity_bridge_diagnostics",
-        "bridge": {
-            "regeneration_linkage_expected": False,
-            "deterministic_mapping_possible": False,
-            "primary_blocker": "executable_hypothesis_id_not_in_qre_authority",
-        },
-        "final_recommendation": "executable_hypothesis_identity_bridge_required_before_regeneration",
-        "validation_warnings": [],
-    }
+    flow_snapshot = _ready_flow_snapshot(request_ready=0, dry_run_ready=0)
+    flow_snapshot["counts"]["materialized_route_ready"] = 0
+    flow_snapshot["counts"]["hypothesis_ready"] = 0
+    flow_snapshot["counts"]["selection_validation_flow_ready"] = 0
+    flow_snapshot["final_recommendation"] = "selection_route_validation_flow_blocked"
+    bridge_snapshot = _bridge_snapshot(
+        regeneration_linkage_expected=False,
+        deterministic_mapping_possible=False,
+        primary_blocker="executable_hypothesis_id_not_in_qre_authority",
+    )
 
     snapshot = preflight.collect_snapshot(
         flow_snapshot=flow_snapshot,
@@ -70,28 +95,12 @@ def test_preflight_blocks_when_selection_flow_not_ready() -> None:
 
 
 def test_preflight_blocks_when_legacy_bridge_already_expects_regeneration() -> None:
-    flow_snapshot = {
-        "report_kind": "qre_selection_route_validation_flow",
-        "counts": {
-            "materialized_route_ready": 3,
-            "hypothesis_ready": 3,
-            "request_ready_for_operator_review": 3,
-            "dry_run_ready": 3,
-            "selection_validation_flow_ready": 3,
-        },
-        "final_recommendation": "selection_route_validation_flow_ready_for_operator_review",
-        "validation_warnings": [],
-    }
-    bridge_snapshot = {
-        "report_kind": "qre_executable_hypothesis_identity_bridge_diagnostics",
-        "bridge": {
-            "regeneration_linkage_expected": True,
-            "deterministic_mapping_possible": True,
-            "primary_blocker": None,
-        },
-        "final_recommendation": "legacy_bridge_ready",
-        "validation_warnings": [],
-    }
+    flow_snapshot = _ready_flow_snapshot()
+    bridge_snapshot = _bridge_snapshot(
+        regeneration_linkage_expected=True,
+        deterministic_mapping_possible=True,
+        primary_blocker=None,
+    )
 
     snapshot = preflight.collect_snapshot(
         flow_snapshot=flow_snapshot,
@@ -108,6 +117,16 @@ def test_preflight_blocks_when_legacy_bridge_already_expects_regeneration() -> N
 def test_preflight_cli_write_and_no_write(tmp_path, monkeypatch) -> None:
     artifact_path = tmp_path / "preflight.json"
     monkeypatch.setattr(preflight, "ARTIFACT_LATEST", artifact_path)
+    monkeypatch.setattr(preflight.validation_flow, "collect_snapshot", lambda **kwargs: _ready_flow_snapshot())
+    monkeypatch.setattr(
+        preflight.bridge,
+        "collect_snapshot",
+        lambda **kwargs: _bridge_snapshot(
+            regeneration_linkage_expected=False,
+            deterministic_mapping_possible=False,
+            primary_blocker="qre_authority_unavailable",
+        ),
+    )
 
     rc = preflight.main(
         [
@@ -135,11 +154,16 @@ def test_preflight_cli_write_and_no_write(tmp_path, monkeypatch) -> None:
     payload = json.loads(artifact_path.read_text(encoding="utf-8"))
     assert payload["report_kind"] == "qre_selection_closed_loop_preflight"
     assert payload["safe_to_execute"] is False
-    assert payload["controlled_regeneration_preflight"]["can_be_considered"] is False
+    assert payload["controlled_regeneration_preflight"]["can_be_considered"] is True
 
 def test_equities_preflight_allows_considering_controlled_regeneration() -> None:
     snapshot = preflight.collect_snapshot(
-        profile_name="equities_exploratory_v1",
+        flow_snapshot=_ready_flow_snapshot(request_ready=1, dry_run_ready=1),
+        bridge_snapshot=_bridge_snapshot(
+            regeneration_linkage_expected=False,
+            deterministic_mapping_possible=False,
+            primary_blocker="qre_authority_unavailable",
+        ),
         generated_at_utc="2026-06-03T16:00:00Z",
     )
 
@@ -150,14 +174,12 @@ def test_equities_preflight_allows_considering_controlled_regeneration() -> None
     assert snapshot["selection_route"]["ready"] is True
     assert snapshot["selection_route"]["counts"]["request_ready_for_operator_review"] == 1
     assert snapshot["selection_route"]["counts"]["dry_run_ready"] == 1
-    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is False
+    assert snapshot["controlled_regeneration_preflight"]["can_be_considered"] is True
     assert (
         "selection_route_validation_flow_ready"
         in snapshot["controlled_regeneration_preflight"]["reason_codes"]
     )
-    assert (
-        snapshot["final_recommendation"] == "selection_route_preflight_blocked"
-    )
+    assert snapshot["final_recommendation"] == "selection_route_ready_controlled_regeneration_can_be_considered"
 
 def test_preflight_reports_next_capability_gaps() -> None:
     snapshot = preflight.collect_snapshot(
