@@ -174,7 +174,16 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)
-        os.replace(tmp_name, path)
+            fh.flush()
+            os.fsync(fh.fileno())
+        try:
+            os.replace(tmp_name, path)
+        except PermissionError:
+            path.write_text(text, encoding="utf-8")
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
     except Exception:
         try:
             os.unlink(tmp_name)
