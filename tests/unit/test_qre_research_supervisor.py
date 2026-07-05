@@ -17,10 +17,152 @@ def _configure_paths(monkeypatch: pytest.MonkeyPatch, repo_root: Path) -> None:
     monkeypatch.setattr(supervisor, "HEALTHCHECK_PATH", repo_root / "logs/qre_research_supervisor/healthcheck.json")
     monkeypatch.setattr(supervisor, "RUNTIME_EPOCH_PATH", repo_root / "generated_research/alpha_discovery/runtime_epoch/latest.json")
     monkeypatch.setattr(supervisor, "SOURCE_QUALIFICATIONS_PATH", repo_root / "generated_research/alpha_discovery/source_qualifications/latest.json")
+    monkeypatch.setattr(supervisor, "GAP_REGISTRY_PATH", repo_root / "generated_research/alpha_discovery/capability_gaps/latest.json")
+    monkeypatch.setattr(supervisor, "BLOCKED_EXPERIMENTS_PATH", repo_root / "generated_research/alpha_discovery/blocked_experiments/latest.json")
 
 
 def _file_digest(path: Path) -> str:
     return sha256(path.read_bytes()).hexdigest()
+
+
+def _write_minimal_legacy_blocked_fixture(
+    repo_root: Path,
+    *,
+    include_hypothesis: bool = True,
+    gap_experiment_id: str = "qexp-legacy",
+) -> dict[str, str]:
+    artifact_root = repo_root / "generated_research/alpha_discovery"
+    for relative in (
+        "source_qualifications",
+        "status",
+        "runtime_epoch",
+        "blocked_experiments",
+        "capability_gaps",
+        "search_ledger",
+        "hypotheses",
+        "experiments",
+    ):
+        (artifact_root / relative).mkdir(parents=True, exist_ok=True)
+    (repo_root / "generated_research/data_catalog/snapshot_lineage").mkdir(parents=True, exist_ok=True)
+    (repo_root / "generated_research/data_catalog/revisions").mkdir(parents=True, exist_ok=True)
+    (repo_root / "logs/qre_research_supervisor").mkdir(parents=True, exist_ok=True)
+
+    ids = {
+        "hypothesis_id": "qah-legacy",
+        "experiment_id": "qexp-legacy",
+        "gap_id": "qgap-legacy",
+        "ledger_id": "qsl-legacy",
+        "runtime_epoch_id": "qepoch-legacy",
+        "qualification_set_id": "qdsqset-legacy",
+        "snapshot_lineage_set_id": "qdsnapset-legacy",
+    }
+    (repo_root / "generated_research/data_catalog/snapshot_lineage/latest.json").write_text(
+        json.dumps({"rows": [], "content_identity": ids["snapshot_lineage_set_id"]}),
+        encoding="utf-8",
+    )
+    (repo_root / "generated_research/data_catalog/revisions/latest.json").write_text(
+        json.dumps({"rows": [], "content_identity": "qrev-legacy"}),
+        encoding="utf-8",
+    )
+    (artifact_root / "source_qualifications/latest.json").write_text(
+        json.dumps(
+            {
+                "rows": [{"dataset_snapshot_id": "snap-blocked", "allowed_evidence_tier": "SOURCE_BLOCKED", "qualification_status": "BLOCKED"}],
+                "content_identity": ids["qualification_set_id"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (artifact_root / "status/latest.json").write_text(
+        json.dumps(
+            {
+                "runtime_epoch_id": ids["runtime_epoch_id"],
+                "qualification_set_id": ids["qualification_set_id"],
+                "snapshot_lineage_set_id": ids["snapshot_lineage_set_id"],
+                "current_dataset_snapshot": None,
+                "current_source_tier": "SOURCE_BLOCKED",
+                "current_experiment": ids["experiment_id"],
+                "current_campaign": None,
+                "run_id": "qarr-legacy",
+                "terminal_disposition": "STOPPED_SOURCE_CERTIFICATION_BOUNDARY",
+                "execution_status": "COMPLETED",
+                "scientific_disposition": "NEEDS_MORE_EVIDENCE",
+                "evidence_tier_reached": "EMPIRICAL_SCREENING",
+                "search_ledger_id": ids["ledger_id"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (artifact_root / "runtime_epoch/latest.json").write_text(
+        json.dumps(
+            {
+                "runtime_epoch_id": ids["runtime_epoch_id"],
+                "qualification_set_id": ids["qualification_set_id"],
+                "snapshot_lineage_set_id": ids["snapshot_lineage_set_id"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (artifact_root / "blocked_experiments/latest.json").write_text(
+        json.dumps(
+            {
+                "rows": [
+                    {
+                        "experiment_id": ids["experiment_id"],
+                        "hypothesis_id": ids["hypothesis_id"],
+                        "gap_ids": [ids["gap_id"]],
+                        "current_status": "BLOCKED",
+                        "resume_token": "qresume-legacy",
+                        "next_retry_after_utc": "2026-07-04T12:00:00Z",
+                        "content_identity": "qblocked-legacy",
+                    }
+                ],
+                "content_identity": "qblockedset-legacy",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (artifact_root / "capability_gaps/latest.json").write_text(
+        json.dumps(
+            {
+                "rows": [{"gap_id": ids["gap_id"], "experiment_id": gap_experiment_id, "gap_type": "SOURCE_CERTIFICATION_GAP", "status": "WAITING_FOR_OPERATOR"}],
+                "content_identity": "qgapset-legacy",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (artifact_root / "search_ledger/latest.json").write_text(
+        json.dumps({"ledger": {"search_run_id": ids["ledger_id"]}, "content_identity": "qslc-legacy"}),
+        encoding="utf-8",
+    )
+    (artifact_root / "hypotheses/latest.json").write_text(
+        json.dumps({"rows": [{"hypothesis_id": ids["hypothesis_id"]}] if include_hypothesis else [], "content_identity": "qhyp-set"}),
+        encoding="utf-8",
+    )
+    (artifact_root / "experiments/latest.json").write_text(
+        json.dumps({"rows": [{"experiment_id": ids["experiment_id"]}], "content_identity": "qexp-set"}),
+        encoding="utf-8",
+    )
+    (repo_root / "logs/qre_research_supervisor/latest.json").write_text(
+        json.dumps(
+            {
+                "runtime_epoch_id": ids["runtime_epoch_id"],
+                "qualification_set_id": ids["qualification_set_id"],
+                "snapshot_lineage_set_id": ids["snapshot_lineage_set_id"],
+                "current_dataset_snapshot": None,
+                "current_source_tier": "SOURCE_BLOCKED",
+                "current_experiment": ids["experiment_id"],
+                "current_campaign": None,
+                "watermarks": {
+                    "snapshot_lineage": ids["snapshot_lineage_set_id"],
+                    "source_qualifications": ids["qualification_set_id"],
+                    "open_gap_ids": [ids["gap_id"]],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return ids
 
 
 def test_supervisor_no_change_skip(monkeypatch, tmp_path: Path) -> None:
@@ -329,14 +471,28 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
 
     artifact_root = repo_root / "generated_research/alpha_discovery"
     for relative in (
+        "observations",
         "source_qualifications",
+        "source_resolution",
         "status",
         "runtime_epoch",
         "blocked_experiments",
         "capability_gaps",
         "search_ledger",
         "hypotheses",
+        "critiques",
+        "rewrites",
+        "scorecards",
         "experiments",
+        "strategies",
+        "requirements",
+        "universe_plans",
+        "acquisitions",
+        "throughput",
+        "alignments",
+        "admissions",
+        "data_plans",
+        "views",
     ):
         (artifact_root / relative).mkdir(parents=True, exist_ok=True)
     (repo_root / "generated_research/data_catalog/snapshot_lineage").mkdir(parents=True, exist_ok=True)
@@ -466,6 +622,28 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
         json.dumps({"rows": [{"experiment_id": experiment_id}], "content_identity": "qexp-set"}),
         encoding="utf-8",
     )
+    for relative in (
+        "observations/latest.json",
+        "critiques/latest.json",
+        "rewrites/latest.json",
+        "scorecards/latest.json",
+        "strategies/latest.json",
+        "requirements/latest.json",
+        "universe_plans/latest.json",
+        "acquisitions/latest.json",
+        "throughput/latest.json",
+        "alignments/latest.json",
+        "admissions/latest.json",
+        "data_plans/latest.json",
+        "data_plans/coverage_latest.json",
+        "source_resolution/latest.json",
+        "views/discovery_latest.json",
+        "views/validation_latest.json",
+        "views/locked_oos_latest.json",
+    ):
+        path = artifact_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"content_identity": f"fixture-{relative}"}), encoding="utf-8")
     (repo_root / "logs/qre_research_supervisor/latest.json").write_text(
         json.dumps(
             {
@@ -507,13 +685,30 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
     ]
 
     artifact_paths = {
+        "observations": artifact_root / "observations/latest.json",
         "hypotheses": artifact_root / "hypotheses/latest.json",
+        "critiques": artifact_root / "critiques/latest.json",
+        "rewrites": artifact_root / "rewrites/latest.json",
+        "scorecards": artifact_root / "scorecards/latest.json",
         "experiments": artifact_root / "experiments/latest.json",
+        "strategies": artifact_root / "strategies/latest.json",
+        "requirements": artifact_root / "requirements/latest.json",
+        "universe_plans": artifact_root / "universe_plans/latest.json",
+        "acquisitions": artifact_root / "acquisitions/latest.json",
+        "throughput": artifact_root / "throughput/latest.json",
+        "alignments": artifact_root / "alignments/latest.json",
+        "admissions": artifact_root / "admissions/latest.json",
+        "data_plans": artifact_root / "data_plans/latest.json",
+        "coverage": artifact_root / "data_plans/coverage_latest.json",
         "capability_gaps": artifact_root / "capability_gaps/latest.json",
         "search_ledger": artifact_root / "search_ledger/latest.json",
         "source_qualifications": artifact_root / "source_qualifications/latest.json",
+        "source_resolution": artifact_root / "source_resolution/latest.json",
         "runtime_epoch": artifact_root / "runtime_epoch/latest.json",
         "status": artifact_root / "status/latest.json",
+        "discovery_view": artifact_root / "views/discovery_latest.json",
+        "validation_view": artifact_root / "views/validation_latest.json",
+        "locked_oos_view": artifact_root / "views/locked_oos_latest.json",
     }
 
     run_calls = 0
@@ -542,14 +737,15 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
         ).__next__,
     )
 
-    baseline = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
-    post_baseline_digests = {name: _file_digest(path) for name, path in artifact_paths.items()}
-    post_baseline_mtimes = {name: os.stat(path).st_mtime_ns for name, path in artifact_paths.items()}
+    pre_baseline_digests = {name: _file_digest(path) for name, path in artifact_paths.items()}
+    pre_baseline_mtimes = {name: os.stat(path).st_mtime_ns for name, path in artifact_paths.items()}
 
+    baseline = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
     cycle_2 = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
     restart_cycle = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
 
-    assert baseline["current_stage"] == "COHERENT_EPOCH_RECONCILED"
+    assert baseline["current_stage"] == "LEGACY_SEMANTIC_IDENTITY_MIGRATED"
+    assert baseline["last_cycle"]["decision"] == "semantic_identity_backfilled_no_change"
     assert cycle_2["current_stage"] == "NO_CHANGE_SKIP"
     assert restart_cycle["current_stage"] == "NO_CHANGE_SKIP"
     assert cycle_2["health"] == "BLOCKED_SOURCE_CERTIFICATION"
@@ -572,12 +768,77 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
     assert restart_cycle["snapshot_lineage_set_id"] == snapshot_lineage_set_id
     assert cycle_2["runtime_epoch_id"] == baseline["runtime_epoch_id"]
     assert restart_cycle["runtime_epoch_id"] == baseline["runtime_epoch_id"]
+    assert baseline["semantic_input_identity"].startswith("qsupsem_")
+    assert cycle_2["semantic_input_identity"] == baseline["semantic_input_identity"]
+    assert restart_cycle["semantic_input_identity"] == baseline["semantic_input_identity"]
     assert cycle_2["blocked_experiments"][0]["experiment_id"] == experiment_id
     assert restart_cycle["blocked_experiments"][0]["experiment_id"] == experiment_id
     assert run_calls == 0
     for name, path in artifact_paths.items():
-        assert _file_digest(path) == post_baseline_digests[name], name
-        assert os.stat(path).st_mtime_ns == post_baseline_mtimes[name], name
+        assert _file_digest(path) == pre_baseline_digests[name], name
+        assert os.stat(path).st_mtime_ns == pre_baseline_mtimes[name], name
+
+
+def test_supervisor_incomplete_legacy_state_fails_closed_without_discovery(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root, include_hypothesis=False)
+
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not repair incomplete legacy state")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(
+        supervisor,
+        "_utcnow",
+        iter(["2026-07-04T12:01:00Z", "2026-07-04T12:01:01Z"]).__next__,
+    )
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["health"] == "DEGRADED_LEGACY_STATE_INCOMPLETE"
+    assert payload["current_stage"] == "DEGRADED_LEGACY_STATE_INCOMPLETE"
+    assert payload["last_cycle"]["decision"] == "fail_closed_legacy_state_not_migrated"
+    assert "legacy_hypotheses_missing" in payload["last_cycle"]["reason_codes"]
+    assert "semantic_input_identity" not in payload
+    assert payload["operator_actions"] == ("repair_legacy_supervisor_state",)
+
+
+def test_supervisor_inconsistent_legacy_state_fails_closed_without_discovery(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root, gap_experiment_id="qexp-other")
+
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not repair inconsistent legacy state")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(
+        supervisor,
+        "_utcnow",
+        iter(["2026-07-04T12:02:00Z", "2026-07-04T12:02:01Z"]).__next__,
+    )
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["health"] == "DEGRADED_LEGACY_STATE_INCONSISTENT"
+    assert payload["current_stage"] == "DEGRADED_LEGACY_STATE_INCONSISTENT"
+    assert payload["last_cycle"]["decision"] == "fail_closed_legacy_state_not_migrated"
+    assert "legacy_gap_experiment_mismatch" in payload["last_cycle"]["reason_codes"]
+    assert "semantic_input_identity" not in payload
+    assert payload["operator_actions"] == ("repair_legacy_supervisor_state",)
 
 
 def test_supervisor_run_status_aligns_watermarks_with_run_ids(monkeypatch, tmp_path: Path) -> None:
