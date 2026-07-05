@@ -33,6 +33,8 @@ HEALTH_BLOCKED_SOURCE_CERTIFICATION = "BLOCKED_SOURCE_CERTIFICATION"
 HEALTH_HEALTHY_RESEARCH_ACTIVE = "HEALTHY_RESEARCH_ACTIVE"
 HEALTH_HEALTHY_WAITING = "HEALTHY_WAITING_FOR_TRIGGER"
 HEALTH_DEGRADED_STATE_EPOCH_MISMATCH = "DEGRADED_STATE_EPOCH_MISMATCH"
+HEALTH_DEGRADED_LEGACY_STATE_INCOMPLETE = "DEGRADED_LEGACY_STATE_INCOMPLETE"
+HEALTH_DEGRADED_LEGACY_STATE_INCONSISTENT = "DEGRADED_LEGACY_STATE_INCONSISTENT"
 
 _STOP = False
 
@@ -355,6 +357,90 @@ def _read_runtime_epoch_state() -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _artifact_rows(repo_root: Path, relative: str) -> tuple[dict[str, Any], ...]:
+    payload = _read_json(repo_root / Path(relative)) or {}
+    return tuple(dict(row) for row in payload.get("rows") or [] if isinstance(row, dict))
+
+
+def _legacy_blocked_state_validation(
+    *,
+    repo_root: Path,
+    prior_status: dict[str, Any],
+    alpha_status: dict[str, Any],
+    persisted_runtime_epoch: dict[str, Any],
+    current_watermarks: dict[str, Any],
+    qualification_rows: tuple[dict[str, Any], ...],
+    open_gaps: list[dict[str, Any]],
+    blocked: list[dict[str, Any]],
+    snapshot_lineage_set_id: str,
+    qualification_set_id: str,
+) -> tuple[bool, str, tuple[str, ...]]:
+    reasons: list[str] = []
+    inconsistent: list[str] = []
+    prior_watermarks = prior_status.get("watermarks") if isinstance(prior_status.get("watermarks"), dict) else {}
+    comparable_prior = {key: prior_watermarks.get(key) for key in current_watermarks}
+    if comparable_prior != current_watermarks:
+        inconsistent.append("legacy_watermarks_do_not_match_current_inputs")
+    if not blocked:
+        reasons.append("legacy_blocked_experiments_missing")
+    if not open_gaps:
+        reasons.append("legacy_open_gaps_missing")
+    if not snapshot_lineage_set_id:
+        reasons.append("legacy_snapshot_lineage_missing")
+    if not qualification_set_id:
+        reasons.append("legacy_qualification_set_missing")
+    if str(alpha_status.get("current_source_tier") or "") != "SOURCE_BLOCKED":
+        inconsistent.append("legacy_source_tier_not_blocked")
+    if alpha_status.get("current_campaign") or prior_status.get("current_campaign"):
+        inconsistent.append("legacy_campaign_present")
+    if any(row.get("request_id") for row in open_gaps):
+        inconsistent.append("legacy_active_ade_request_present")
+    screening_eligible = {
+        str(row.get("dataset_snapshot_id") or "")
+        for row in qualification_rows
+        if str(row.get("allowed_evidence_tier") or "").upper() == "SOURCE_SCREENING_ELIGIBLE"
+        or str(row.get("qualification_status") or "").upper() in {"SCREENING_ELIGIBLE", "QUALIFIED"}
+    }
+    if screening_eligible:
+        inconsistent.append("legacy_screening_eligible_source_present")
+    epoch_qualification = str(persisted_runtime_epoch.get("qualification_set_id") or alpha_status.get("qualification_set_id") or "")
+    epoch_lineage = str(persisted_runtime_epoch.get("snapshot_lineage_set_id") or alpha_status.get("snapshot_lineage_set_id") or "")
+    if not str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or prior_status.get("runtime_epoch_id") or ""):
+        reasons.append("legacy_runtime_epoch_missing")
+    if epoch_qualification and epoch_qualification != qualification_set_id:
+        inconsistent.append("legacy_runtime_epoch_qualification_mismatch")
+    if epoch_lineage and epoch_lineage != snapshot_lineage_set_id:
+        inconsistent.append("legacy_runtime_epoch_lineage_mismatch")
+    hypotheses = _artifact_rows(repo_root, "generated_research/alpha_discovery/hypotheses/latest.json")
+    experiments = _artifact_rows(repo_root, "generated_research/alpha_discovery/experiments/latest.json")
+    hypothesis_ids = {str(row.get("hypothesis_id") or "") for row in hypotheses}
+    experiment_ids = {str(row.get("experiment_id") or "") for row in experiments}
+    gap_by_id = {str(row.get("gap_id") or ""): row for row in open_gaps}
+    if blocked and not hypotheses:
+        reasons.append("legacy_hypotheses_missing")
+    if blocked and not experiments:
+        reasons.append("legacy_experiments_missing")
+    for row in blocked:
+        experiment_id = str(row.get("experiment_id") or "")
+        hypothesis_id = str(row.get("hypothesis_id") or "")
+        if not experiment_id or experiment_id not in experiment_ids:
+            inconsistent.append("legacy_blocked_experiment_record_missing")
+        if not hypothesis_id or hypothesis_id not in hypothesis_ids:
+            inconsistent.append("legacy_blocked_hypothesis_record_missing")
+        for gap_id in tuple(str(value) for value in row.get("gap_ids") or () if str(value)):
+            gap = gap_by_id.get(gap_id)
+            if not gap:
+                inconsistent.append("legacy_blocked_gap_missing")
+                continue
+            if str(gap.get("experiment_id") or "") not in {"", experiment_id}:
+                inconsistent.append("legacy_gap_experiment_mismatch")
+    if reasons:
+        return False, HEALTH_DEGRADED_LEGACY_STATE_INCOMPLETE, tuple(dict.fromkeys(reasons))
+    if inconsistent:
+        return False, HEALTH_DEGRADED_LEGACY_STATE_INCONSISTENT, tuple(dict.fromkeys(inconsistent))
+    return True, "", ()
+
+
 def _is_semantically_coherent_epoch(
     *,
     mismatch_reasons: list[str],
@@ -469,6 +555,85 @@ def run_cycle(
         if str(prior_status.get("current_source_tier") or "") and str(alpha_status.get("current_source_tier") or "") and prior_status.get("current_source_tier") != alpha_status.get("current_source_tier"):
             epoch_mismatch_reasons.append("current_source_tier_mismatch")
         epoch_mismatch = bool(epoch_mismatch_reasons)
+        if prior_status and not prior_semantic_input_identity and blocked:
+            legacy_valid, legacy_health, legacy_reasons = _legacy_blocked_state_validation(
+                repo_root=repo_root,
+                prior_status=prior_status,
+                alpha_status=alpha_status,
+                persisted_runtime_epoch=persisted_runtime_epoch,
+                current_watermarks=current_watermarks,
+                qualification_rows=qualification_rows,
+                open_gaps=open_gaps,
+                blocked=blocked,
+                snapshot_lineage_set_id=snapshot_lineage_set_id,
+                qualification_set_id=qualification_set_id,
+            )
+            if legacy_valid:
+                runtime_epoch_id = str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or prior_status.get("runtime_epoch_id") or "")
+                health = _health_from_run(alpha_status, open_gaps)
+                payload = {
+                    "service_version": SERVICE_VERSION,
+                    "health": health,
+                    "current_stage": "LEGACY_SEMANTIC_IDENTITY_MIGRATED",
+                    "last_cycle": {
+                        "decision": "semantic_identity_backfilled_no_change",
+                        "generated_at_utc": _utcnow(),
+                        "reason_codes": ("legacy_semantic_identity_missing", "semantic_inputs_reconstructed_from_persisted_artifacts"),
+                    },
+                    "last_successful_cycle": prior_status.get("last_successful_cycle"),
+                    "current_dataset_snapshot": alpha_status.get("current_dataset_snapshot"),
+                    "current_source_tier": alpha_status.get("current_source_tier"),
+                    "current_experiment": alpha_status.get("current_experiment"),
+                    "current_campaign": alpha_status.get("current_campaign"),
+                    "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
+                    "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
+                    "operator_actions": _operator_actions(open_gaps),
+                    "next_retry": prior_status.get("next_retry"),
+                    "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                    "consecutive_failures": 0 if health.startswith("HEALTHY") else 1,
+                    "watermarks": current_watermarks,
+                    "leases": lease,
+                    "runtime_epoch_id": runtime_epoch_id,
+                    "qualification_set_id": qualification_set_id,
+                    "snapshot_lineage_set_id": snapshot_lineage_set_id,
+                    "search_ledger_id": alpha_status.get("search_ledger_id"),
+                    "semantic_input_identity": semantic_input_identity,
+                    "blocked_experiments": blocked,
+                    "content_identity": content_id("qsuplegacy", {"semantic_input_identity": semantic_input_identity, "health": health}),
+                }
+                _publish_status(payload)
+                return payload
+            payload = {
+                "service_version": SERVICE_VERSION,
+                "health": legacy_health,
+                "current_stage": legacy_health,
+                "last_cycle": {
+                    "decision": "fail_closed_legacy_state_not_migrated",
+                    "generated_at_utc": _utcnow(),
+                    "reason_codes": legacy_reasons,
+                },
+                "last_successful_cycle": prior_status.get("last_successful_cycle"),
+                "current_dataset_snapshot": alpha_status.get("current_dataset_snapshot"),
+                "current_source_tier": alpha_status.get("current_source_tier"),
+                "current_experiment": alpha_status.get("current_experiment"),
+                "current_campaign": alpha_status.get("current_campaign"),
+                "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
+                "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
+                "operator_actions": ("repair_legacy_supervisor_state",),
+                "next_retry": prior_status.get("next_retry"),
+                "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                "consecutive_failures": int(prior_status.get("consecutive_failures") or 0) + 1,
+                "watermarks": current_watermarks,
+                "leases": lease,
+                "runtime_epoch_id": str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or prior_status.get("runtime_epoch_id") or ""),
+                "qualification_set_id": qualification_set_id,
+                "snapshot_lineage_set_id": snapshot_lineage_set_id,
+                "search_ledger_id": alpha_status.get("search_ledger_id"),
+                "blocked_experiments": blocked,
+                "content_identity": content_id("qsuplegacydegraded", {"reason_codes": legacy_reasons, "watermarks": current_watermarks}),
+            }
+            _publish_status(payload)
+            return payload
         if _is_semantically_coherent_epoch(
             mismatch_reasons=epoch_mismatch_reasons,
             alpha_status=alpha_status,
