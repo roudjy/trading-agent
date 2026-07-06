@@ -1106,6 +1106,113 @@ def test_supervisor_run_status_aligns_watermarks_with_run_ids(monkeypatch, tmp_p
     assert payload["watermarks"]["snapshot_lineage"] == "snap-after"
 
 
+def test_supervisor_source_qualification_change_triggers_material_cycle(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+
+    (repo_root / "generated_research/data_catalog/snapshot_lineage").mkdir(parents=True, exist_ok=True)
+    (repo_root / "generated_research/data_catalog/revisions").mkdir(parents=True, exist_ok=True)
+    (repo_root / "generated_research/alpha_discovery/source_qualifications").mkdir(parents=True, exist_ok=True)
+    (repo_root / "generated_research/alpha_discovery/status").mkdir(parents=True, exist_ok=True)
+    (repo_root / "generated_research/alpha_discovery/runtime_epoch").mkdir(parents=True, exist_ok=True)
+    (repo_root / "logs/qre_research_supervisor").mkdir(parents=True, exist_ok=True)
+
+    (repo_root / "generated_research/data_catalog/snapshot_lineage/latest.json").write_text(
+        json.dumps({"rows": [], "content_identity": "snap-current"}),
+        encoding="utf-8",
+    )
+    (repo_root / "generated_research/data_catalog/revisions/latest.json").write_text(
+        json.dumps({"rows": [], "content_identity": "rev-current"}),
+        encoding="utf-8",
+    )
+    (repo_root / "generated_research/alpha_discovery/source_qualifications/latest.json").write_text(
+        json.dumps(
+            {
+                "rows": [
+                    {
+                        "dataset_snapshot_id": "snap-screening",
+                        "allowed_evidence_tier": "SOURCE_SCREENING_ELIGIBLE",
+                        "qualification_status": "COHERENT",
+                    }
+                ],
+                "content_identity": "qual-new",
+                "qualification_set_id": "qual-new",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (repo_root / "generated_research/alpha_discovery/status/latest.json").write_text(
+        json.dumps(
+            {
+                "runtime_epoch_id": "epoch-old",
+                "qualification_set_id": "qual-old",
+                "snapshot_lineage_set_id": "snap-current",
+                "current_dataset_snapshot": None,
+                "current_source_tier": "SOURCE_BLOCKED",
+                "current_experiment": None,
+                "current_campaign": None,
+                "run_id": "qarr-old",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (repo_root / "logs/qre_research_supervisor/latest.json").write_text(
+        json.dumps(
+            {
+                "semantic_input_identity": "qsupsem-old",
+                "watermarks": {
+                    "snapshot_lineage": "snap-current",
+                    "source_qualifications": "qual-old",
+                    "open_gap_ids": [],
+                },
+                "runtime_epoch_id": "epoch-old",
+                "qualification_set_id": "qual-old",
+                "snapshot_lineage_set_id": "snap-current",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    run_calls = 0
+
+    def _run_once(**kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        return {
+            "run_id": "qarr-new",
+            "terminal_disposition": "STOPPED_SOURCE_CERTIFICATION_BOUNDARY",
+            "execution_status": "COMPLETED",
+            "current_dataset_snapshot": "snap-screening",
+            "current_source_tier": "SOURCE_SCREENING_ELIGIBLE",
+            "current_experiment": None,
+            "current_campaign": None,
+            "runtime_epoch_id": "epoch-new",
+            "qualification_set_id": "qual-new",
+            "snapshot_lineage_set_id": "snap-current",
+            "search_ledger_id": "qsl-new",
+            "requested_execution_tier": "EMPIRICAL_SCREENING",
+            "admitted_execution_tier": "COMPILER_ONLY",
+            "scientific_disposition": "NEEDS_MORE_EVIDENCE",
+            "evidence_tier_reached": "EMPIRICAL_SCREENING",
+            "content_identity": "qarrc-new",
+        }
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _run_once)
+    monkeypatch.setattr(supervisor, "_open_gaps", lambda: [])
+    monkeypatch.setattr(supervisor, "_blocked_experiments", lambda: [])
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": "snap-current"}, "revisions": {"rows": []}})
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 1
+    assert payload["current_stage"] == "COMPLETE"
+    assert payload["current_source_tier"] == "SOURCE_SCREENING_ELIGIBLE"
+    assert payload["current_campaign"] is None
+    assert payload["active_ADE_requests"] == ()
+    assert payload["qualification_set_id"] == "qual-new"
+    assert payload["watermarks"]["source_qualifications"] == "qual-new"
+
+
 @pytest.mark.parametrize(
     ("health", "expected_exit"),
     [
