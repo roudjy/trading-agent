@@ -19,6 +19,9 @@ SOURCE_SMOKE_ONLY = SOURCE_TIER_SMOKE_ONLY
 SOURCE_SCREENING_ELIGIBLE = SOURCE_TIER_SCREENING_ELIGIBLE
 SOURCE_VALIDATION_ELIGIBLE = SOURCE_TIER_VALIDATION_ELIGIBLE
 SOURCE_BLOCKED = SOURCE_TIER_BLOCKED
+MIN_SCREENING_COVERAGE_RATIO = 0.90
+MIN_SCREENING_UNIQUE_BARS = 48
+MAX_DUPLICATE_BAR_RATIO = 0.05
 
 SCREENING_REQUIRED_FIELDS = (
     "dataset_snapshot_id",
@@ -60,6 +63,23 @@ def _registry_rows() -> dict[str, dict[str, Any]]:
             if key:
                 resolved[str(key).lower()] = dict(row)
     return resolved
+
+
+def _source_manifest_for(source_id: str) -> dict[str, Any] | None:
+    return _registry_rows().get(str(source_id or "").lower())
+
+
+def _manifest_allows_screening(manifest: dict[str, Any] | None) -> bool:
+    if manifest is None:
+        return False
+    allowed_use = {str(value).lower() for value in manifest.get("allowed_use") or ()}
+    license_status = str(manifest.get("license_policy_status") or manifest.get("license_terms_status") or "").upper()
+    source_status = str(manifest.get("source_status") or "").lower()
+    if license_status not in {"PASS", "REVIEWED_SCREENING_OK"}:
+        return False
+    if "research_screening" not in allowed_use and "automated_research_screening" not in allowed_use:
+        return False
+    return source_status in {"quality_gated", "screening_ready", "certified"}
 
 
 def reconcile_source_policy(*, repo_root: Path, dataset_catalog: dict[str, Any]) -> dict[str, Any]:
@@ -115,25 +135,30 @@ def _screening_reasons(snapshot: dict[str, Any]) -> list[str]:
     reasons: list[str] = []
     if str(snapshot.get("qualification_status") or "") != "COHERENT":
         reasons.append("snapshot_not_coherent")
-    if int(snapshot.get("conflicting_row_count") or 0) > 0:
-        reasons.append("within_snapshot_conflict")
+    raw_row_count = int(snapshot.get("raw_row_count") or 0)
+    exact_duplicate_count = int(snapshot.get("exact_duplicate_row_count") or 0)
+    conflicting_count = int(snapshot.get("conflicting_row_count") or 0)
+    if conflicting_count > 0:
+        reasons.append("conflicting_rows_present")
     if int(snapshot.get("invalid_row_count") or 0) > 0:
-        reasons.append("invalid_rows")
+        reasons.append("invalid_ohlcv_or_timestamp")
     for field in SCREENING_REQUIRED_FIELDS:
         value = snapshot.get(field)
         if value is None or value == "" or value == () or value == []:
             reasons.append(f"qualification_metric_missing:{field}")
     if snapshot.get("expected_bar_count") is None:
-        reasons.append("qualification_metric_missing:expected_bar_count")
+        reasons.append("missing_expected_bar_count")
     if snapshot.get("coverage_ratio") is None:
-        reasons.append("qualification_metric_missing:coverage_ratio")
-    if int(snapshot.get("unique_bar_count") or 0) < 90:
+        reasons.append("missing_calendar")
+    if int(snapshot.get("unique_bar_count") or 0) < MIN_SCREENING_UNIQUE_BARS:
         reasons.append("insufficient_unique_history")
+    if raw_row_count and exact_duplicate_count / raw_row_count > MAX_DUPLICATE_BAR_RATIO:
+        reasons.append("duplicate_bar_ratio_too_high")
     coverage_ratio = snapshot.get("coverage_ratio")
     if coverage_ratio is not None and not (0.0 <= float(coverage_ratio) <= 1.0):
         reasons.append("invalid_coverage_ratio")
-    elif coverage_ratio is not None and float(coverage_ratio) < 0.9:
-        reasons.append("excess_missing_bars")
+    elif coverage_ratio is not None and float(coverage_ratio) < MIN_SCREENING_COVERAGE_RATIO:
+        reasons.append("insufficient_coverage")
     if int(snapshot.get("expected_bar_count") or 0) and int(snapshot.get("unique_bar_count") or 0) > int(snapshot.get("expected_bar_count") or 0):
         reasons.append("impossible_bar_density")
     if not snapshot.get("fingerprint"):
@@ -183,53 +208,64 @@ def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str
                     "qualification_status": "COHERENT" if str((dataset.get("quality_summary") or {}).get("effective_research_quality_status") or "").lower() == "ready" else "BLOCKED",
                 }
             )
+    def _set_if_missing(row: dict[str, Any], key: str, value: Any) -> None:
+        if row.get(key) is None or row.get(key) == "" or row.get(key) == () or row.get(key) == []:
+            row[key] = value
+
     for snapshot in snapshots:
         dataset_key = str(snapshot.get("dataset_snapshot_id") or snapshot.get("dataset_id") or "")
         dataset = catalog_rows.get(dataset_key) or {}
         integrity = dict(dataset.get("integrity_summary") or {})
         quality = dict(dataset.get("quality_summary") or {})
         identity = dict(dataset.get("identity_summary") or {})
-        snapshot.setdefault("logical_dataset_family_id", dataset.get("dataset_id"))
-        snapshot.setdefault("acquisition_batch_ids", tuple(dataset.get("acquisition_batch_ids") or ()))
-        snapshot.setdefault("expected_bar_count", integrity.get("expected_bar_count"))
-        snapshot.setdefault("coverage_ratio", integrity.get("coverage_ratio"))
-        snapshot.setdefault("missing_bar_count", max(int(snapshot.get("expected_bar_count") or 0) - int(snapshot.get("unique_bar_count") or 0), 0) if snapshot.get("expected_bar_count") is not None else None)
-        snapshot.setdefault("conflicting_row_count", integrity.get("conflicting_row_count", snapshot.get("conflicting_row_count", 0)))
-        snapshot.setdefault("invalid_row_count", integrity.get("invalid_row_count", snapshot.get("invalid_row_count", 0)))
-        snapshot.setdefault("invalid_bar_count", snapshot.get("invalid_row_count"))
-        snapshot.setdefault("adjustment_policy", dataset.get("adjustment_policy") or quality.get("adjustment_policy") or "explicit")
-        snapshot.setdefault("timezone_policy", dataset.get("timezone_policy") or "UTC_NORMALIZED")
-        snapshot.setdefault("session_policy", dataset.get("session_policy") or "canonical_session_calendar")
-        snapshot.setdefault("history_start", snapshot.get("start") or dataset.get("start"))
-        snapshot.setdefault("history_end", snapshot.get("end") or dataset.get("end"))
-        snapshot.setdefault("history_span", dataset.get("history_span") or quality.get("history_span") or "derived")
-        snapshot.setdefault("minimum_required_history", dataset.get("minimum_required_history") or quality.get("minimum_required_history") or "derived")
-        snapshot.setdefault("minimum_required_rows", dataset.get("minimum_required_rows") or quality.get("minimum_required_rows") or 90)
-        snapshot.setdefault("activity_estimate", dataset.get("activity_estimate") or integrity.get("activity_estimate") or int(snapshot.get("unique_bar_count") or 0) // 40)
-        snapshot.setdefault("validation_capacity", dataset.get("validation_capacity") or integrity.get("validation_capacity") or 0)
-        snapshot.setdefault("source_policy_version", dataset.get("source_policy_version") or policy_reconciliation.get("policy_version") or SOURCE_POLICY_VERSION)
-        snapshot.setdefault("qualification_policy_version", dataset.get("qualification_policy_version") or SOURCE_POLICY_VERSION)
-        snapshot.setdefault("instrument_identity", tuple(snapshot.get("instrument_ids") or identity.get("instrument_ids") or ()))
-        snapshot.setdefault("required_expected_bar_count", snapshot.get("expected_bar_count"))
+        _set_if_missing(snapshot, "logical_dataset_family_id", dataset.get("dataset_id"))
+        _set_if_missing(snapshot, "acquisition_batch_ids", tuple(dataset.get("acquisition_batch_ids") or (dataset.get("partition_refs") or (dataset_key,))))
+        _set_if_missing(snapshot, "expected_bar_count", integrity.get("expected_bar_count"))
+        _set_if_missing(snapshot, "coverage_ratio", integrity.get("coverage_ratio"))
+        _set_if_missing(snapshot, "missing_bar_count", max(int(snapshot.get("expected_bar_count") or 0) - int(snapshot.get("unique_bar_count") or 0), 0) if snapshot.get("expected_bar_count") is not None else None)
+        _set_if_missing(snapshot, "conflicting_row_count", integrity.get("conflicting_row_count", snapshot.get("conflicting_row_count", 0)))
+        _set_if_missing(snapshot, "invalid_row_count", integrity.get("invalid_row_count", snapshot.get("invalid_row_count", 0)))
+        _set_if_missing(snapshot, "exact_duplicate_row_count", integrity.get("exact_duplicate_row_count", snapshot.get("exact_duplicate_row_count", 0)))
+        _set_if_missing(snapshot, "invalid_bar_count", snapshot.get("invalid_row_count"))
+        _set_if_missing(snapshot, "adjustment_policy", dataset.get("adjustment_policy") or quality.get("adjustment_policy") or "explicit")
+        _set_if_missing(snapshot, "timezone_policy", dataset.get("timezone_policy") or "UTC_NORMALIZED")
+        _set_if_missing(snapshot, "session_policy", dataset.get("session_policy") or "canonical_session_calendar")
+        _set_if_missing(snapshot, "history_start", snapshot.get("start") or dataset.get("start"))
+        _set_if_missing(snapshot, "history_end", snapshot.get("end") or dataset.get("end"))
+        _set_if_missing(snapshot, "history_span", dataset.get("history_span") or quality.get("history_span") or "derived")
+        _set_if_missing(snapshot, "minimum_required_history", dataset.get("minimum_required_history") or quality.get("minimum_required_history") or "derived")
+        _set_if_missing(snapshot, "minimum_required_rows", dataset.get("minimum_required_rows") or quality.get("minimum_required_rows") or MIN_SCREENING_UNIQUE_BARS)
+        _set_if_missing(snapshot, "activity_estimate", dataset.get("activity_estimate") or integrity.get("activity_estimate") or int(snapshot.get("unique_bar_count") or 0))
+        _set_if_missing(snapshot, "validation_capacity", dataset.get("validation_capacity") or integrity.get("validation_capacity") or 0)
+        _set_if_missing(snapshot, "source_policy_version", dataset.get("source_policy_version") or policy_reconciliation.get("policy_version") or SOURCE_POLICY_VERSION)
+        _set_if_missing(snapshot, "qualification_policy_version", dataset.get("qualification_policy_version") or SOURCE_POLICY_VERSION)
+        _set_if_missing(snapshot, "instrument_identity", tuple(snapshot.get("instrument_ids") or identity.get("instrument_ids") or ()))
+        _set_if_missing(snapshot, "required_expected_bar_count", snapshot.get("expected_bar_count"))
+    snapshots = sorted(
+        snapshots,
+        key=lambda row: (
+            str(row.get("source_id") or ""),
+            str(row.get("dataset_snapshot_id") or row.get("dataset_id") or ""),
+            str(row.get("timeframe") or ""),
+        ),
+    )
     for snapshot in snapshots:
         source_id = str(snapshot.get("source_id") or "")
+        manifest = _source_manifest_for(source_id)
         allowed_tier = SOURCE_TIER_BLOCKED
         reason_codes = list(dict.fromkeys(_screening_reasons(snapshot)))
-        adjustment_policy = "AUTO_ADJUST_TRUE" if "yfinance" in source_id else "UNKNOWN"
+        if manifest is None:
+            reason_codes.insert(0, "missing_source_manifest")
+        elif not _manifest_allows_screening(manifest):
+            reason_codes.insert(0, "source_license_not_screening_eligible")
+        adjustment_policy = "AUTO_ADJUST_TRUE" if "yfinance" in source_id else "EXPLICIT_SOURCE_POLICY"
         cross_source_status = "NOT_AVAILABLE"
-        if "yfinance" in source_id:
-            if current_status == "manual_research_only":
-                if snapshot_scoped_authority and not reason_codes:
-                    allowed_tier = SOURCE_TIER_SCREENING_ELIGIBLE
-                else:
-                    allowed_tier = SOURCE_TIER_BLOCKED
-                    reason_codes.insert(0, "global_policy_ceiling_manual_research_only")
-                    if snapshot_scoped_authority:
-                        reason_codes.append("snapshot_scoped_screening_not_met")
-            else:
-                allowed_tier = SOURCE_TIER_SCREENING_ELIGIBLE if not reason_codes else SOURCE_TIER_BLOCKED
-        elif not reason_codes:
-            allowed_tier = SOURCE_TIER_VALIDATION_ELIGIBLE
+        if not reason_codes:
+            allowed_tier = SOURCE_TIER_SCREENING_ELIGIBLE
+        elif "yfinance" in source_id and current_status == "manual_research_only":
+            reason_codes.insert(0, "global_policy_ceiling_manual_research_only")
+            if snapshot_scoped_authority:
+                reason_codes.append("snapshot_scoped_screening_not_met")
         rows.append(
             {
                 "qualification_id": content_id("qdsq", {"snapshot_id": snapshot.get("dataset_snapshot_id"), "tier": allowed_tier}),
@@ -257,9 +293,9 @@ def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str
                 "missing_bar_count": max(int(snapshot.get("expected_bar_count") or 0) - int(snapshot.get("unique_bar_count") or 0), 0) if snapshot.get("expected_bar_count") is not None else None,
                 "duplicate_bar_count": snapshot.get("exact_duplicate_row_count", 0),
                 "conflicting_bar_count": snapshot.get("conflicting_row_count", 0),
-                "OHLC_validity": "VALID" if "within_snapshot_conflict" not in reason_codes and "invalid_rows" not in reason_codes else "BLOCKED",
+                "OHLC_validity": "VALID" if "conflicting_rows_present" not in reason_codes and "invalid_ohlcv_or_timestamp" not in reason_codes else "BLOCKED",
                 "volume_validity": "VALID",
-                "timestamp_validity": "VALID" if "invalid_rows" not in reason_codes else "BLOCKED",
+                "timestamp_validity": "VALID" if "invalid_ohlcv_or_timestamp" not in reason_codes else "BLOCKED",
                 "session_validity": "VALID" if str(snapshot.get("timeframe") or "").endswith(("d", "h")) else "UNKNOWN",
                 "identity_validity": "ready" if tuple(snapshot.get("instrument_ids") or ()) else "ambiguous",
                 "corporate_action_validity": "UNKNOWN",

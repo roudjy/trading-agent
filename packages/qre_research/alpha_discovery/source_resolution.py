@@ -114,14 +114,8 @@ def resolve_source(
                 blockers.append("screening_authority_missing")
         else:
             current_tier = str(selected_snapshot.get("allowed_source_tier") or SOURCE_TIER_SMOKE_ONLY)
-            if (
-                current_tier == SOURCE_TIER_SMOKE_ONLY
-                and str(selected_snapshot.get("source_id") or "").startswith("yfinance")
-                and str(selected_snapshot.get("qualification_status") or "") == "COHERENT"
-                and int(selected_snapshot.get("conflicting_row_count") or 0) == 0
-                and int(selected_snapshot.get("unique_bar_count") or 0) >= 25
-            ):
-                current_tier = SOURCE_TIER_SCREENING_ELIGIBLE
+            if target_source_tier == SOURCE_TIER_SCREENING_ELIGIBLE:
+                blockers.append("source_qualification_missing")
         qualification_actions.append("use_existing_coherent_snapshot")
     elif candidates and not qualification_rows:
         qualification_actions.append("attempt_clean_snapshot_acquisition")

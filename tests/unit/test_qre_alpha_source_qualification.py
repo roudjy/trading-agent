@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from packages.qre_research.alpha_discovery.contracts import DatasetSnapshot
 from packages.qre_research.alpha_discovery import source_qualification
+from packages.qre_research.alpha_discovery.contracts import DatasetSnapshot
 from packages.qre_research.alpha_discovery.snapshot_lineage import append_snapshot_row
 from packages.qre_research.alpha_discovery.source_qualification import (
     SOURCE_BLOCKED,

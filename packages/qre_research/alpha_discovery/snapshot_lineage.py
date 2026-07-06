@@ -179,8 +179,80 @@ def _snapshot_status(*, quality_status: str, conflicting_row_count: int, raw_row
     return "COHERENT"
 
 
+def _dataset_snapshot_from_logical(row: dict[str, Any]) -> DatasetSnapshot:
+    integrity = dict(row.get("integrity_summary") or {})
+    quality = dict(row.get("quality_summary") or {})
+    instrument_ids = tuple(str(value) for value in row.get("instrument_ids") or () if str(value))
+    dataset_id = str(row.get("dataset_id") or "|".join((str(row.get("source_id") or ""), ",".join(instrument_ids), str(row.get("timeframe") or ""))))
+    unique_bar_count = int(integrity.get("unique_bar_count") or row.get("row_count") or 0)
+    raw_row_count = int(integrity.get("raw_row_count") or row.get("raw_row_count") or unique_bar_count)
+    expected_bar_count = integrity.get("expected_bar_count")
+    if expected_bar_count is not None:
+        expected_bar_count = int(expected_bar_count)
+    coverage_ratio = integrity.get("coverage_ratio")
+    if coverage_ratio is not None:
+        coverage_ratio = round(float(coverage_ratio), 6)
+    conflicting_row_count = int(integrity.get("conflicting_row_count") or 0)
+    invalid_row_count = int(integrity.get("invalid_row_count") or 0)
+    exact_duplicate_row_count = int(integrity.get("exact_duplicate_row_count") or 0)
+    overlapping_row_count = int(integrity.get("overlapping_row_count") or 0)
+    row_integrity_status = str(quality.get("row_integrity_status") or "blocked").lower()
+    qualification_status = _snapshot_status(
+        quality_status="ready" if row_integrity_status == "ready" else "blocked",
+        conflicting_row_count=conflicting_row_count,
+        raw_row_count=raw_row_count,
+        unique_bar_count=unique_bar_count,
+        expected_bar_count=expected_bar_count,
+    )
+    semantic = {
+        "dataset_id": dataset_id,
+        "fingerprint": row.get("dataset_fingerprint"),
+        "source_id": row.get("source_id"),
+        "instrument_ids": instrument_ids,
+        "timeframe": row.get("timeframe"),
+        "start": row.get("start"),
+        "end": row.get("end"),
+        "unique_bar_count": unique_bar_count,
+        "expected_bar_count": expected_bar_count,
+    }
+    snapshot = DatasetSnapshot(
+        dataset_snapshot_id=str(row.get("dataset_snapshot_id") or "") or content_id("qdsnap", semantic),
+        logical_dataset_family_id=dataset_id,
+        acquisition_batch_ids=tuple(sorted(str(value) for value in row.get("acquisition_batch_ids") or row.get("partition_refs") or () if str(value))),
+        parent_snapshot_id=None,
+        instrument_ids=instrument_ids,
+        timeframe=str(row.get("timeframe") or ""),
+        start=str(row.get("start") or ""),
+        end=str(row.get("end") or ""),
+        unique_bar_count=unique_bar_count,
+        raw_row_count=raw_row_count,
+        exact_duplicate_row_count=exact_duplicate_row_count,
+        overlapping_row_count=overlapping_row_count,
+        conflicting_row_count=conflicting_row_count,
+        invalid_row_count=invalid_row_count,
+        expected_bar_count=expected_bar_count,
+        coverage_ratio=coverage_ratio,
+        fingerprint=str(row.get("dataset_fingerprint") or stable_digest(semantic)),
+        source_id=str(row.get("source_id") or ""),
+        source_policy_version=str(row.get("source_policy_version") or row.get("source_manifest_id") or "data_catalog_logical_v1"),
+        qualification_status=qualification_status,
+        immutable=True,
+        created_at_utc=str((row.get("provenance") or {}).get("generated_at_utc") or row.get("complete_bar_end") or row.get("end") or ""),
+        partition_refs=tuple(sorted(str(value) for value in row.get("partition_refs") or () if str(value))),
+        compatibility_status="ROOT",
+        lineage_depth=0,
+        content_identity="pending",
+    )
+    return DatasetSnapshot(**_canonicalize_snapshot_row(snapshot))
+
+
 def _build_base_snapshots(census: dict[str, Any]) -> list[DatasetSnapshot]:
     snapshots: list[DatasetSnapshot] = []
+    logical_rows = [dict(row) for row in census.get("logical_datasets") or [] if isinstance(row, dict)]
+    if logical_rows:
+        snapshots = [_dataset_snapshot_from_logical(row) for row in logical_rows]
+        snapshots.sort(key=lambda item: (item.logical_dataset_family_id, item.start, item.end, item.dataset_snapshot_id))
+        return snapshots
     seen_paths: set[str] = set()
     for row in census.get("physical_files", []):
         path_text = str(row.get("portable_relative_path") or row.get("physical_path") or "")
