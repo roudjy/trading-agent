@@ -1,0 +1,34 @@
+schema_version: qre_source_manifest_v1
+source_id: local_crypto_screening_fixture
+provider_id: local_file
+source_family: crypto
+asset_class: crypto
+venue: LOCAL_FIXTURE
+source_status: quality_gated
+allowed_use:
+  - manual_research
+  - research_screening
+license_policy_status: PASS
+calendar:
+  type: crypto_24_7
+  timezone: UTC
+data:
+  schema: ohlcv
+  adjusted: false
+  timestamp_column: timestamp
+  symbol_column: symbol
+  open_column: open
+  high_column: high
+  low_column: low
+  close_column: close
+  volume_column: volume
+timeframes:
+  - 1h
+timeframe: 1h
+universe:
+  symbols:
+    - BTC-USD
+operator_license_attestation:
+  provided_by: test_operator
+  attested_at_utc: "2026-07-06T00:00:00Z"
+  evidence_ref: "test_license_reference_without_secret"
