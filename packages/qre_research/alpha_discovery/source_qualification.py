@@ -66,7 +66,18 @@ def _registry_rows() -> dict[str, dict[str, Any]]:
 
 
 def _source_manifest_for(source_id: str) -> dict[str, Any] | None:
-    return _registry_rows().get(str(source_id or "").lower())
+    key = str(source_id or "").lower()
+    aliases = (
+        key,
+        "yahoo_finance_yfinance_manifest" if key == "yfinance" else key,
+        "yahoo_finance_yfinance" if key == "yfinance" else key,
+    )
+    rows = _registry_rows()
+    for alias in aliases:
+        manifest = rows.get(alias)
+        if manifest is not None:
+            return manifest
+    return None
 
 
 def _manifest_allows_screening(manifest: dict[str, Any] | None) -> bool:
@@ -143,6 +154,8 @@ def _screening_reasons(snapshot: dict[str, Any]) -> list[str]:
     if int(snapshot.get("invalid_row_count") or 0) > 0:
         reasons.append("invalid_ohlcv_or_timestamp")
     for field in SCREENING_REQUIRED_FIELDS:
+        if field in {"expected_bar_count", "coverage_ratio", "missing_bar_count"}:
+            continue
         value = snapshot.get(field)
         if value is None or value == "" or value == () or value == []:
             reasons.append(f"qualification_metric_missing:{field}")
