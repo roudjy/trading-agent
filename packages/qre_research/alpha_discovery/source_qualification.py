@@ -52,9 +52,10 @@ SCREENING_REQUIRED_FIELDS = (
 )
 
 
-def _registry_rows() -> dict[str, dict[str, Any]]:
+def _registry_rows(extra_manifest_rows: list[dict[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
     registry = build_source_manifest_registry()
-    rows = registry.get("rows") or []
+    rows = list(registry.get("rows") or [])
+    rows.extend(extra_manifest_rows or [])
     resolved: dict[str, dict[str, Any]] = {}
     for row in rows:
         if not isinstance(row, dict):
@@ -65,14 +66,14 @@ def _registry_rows() -> dict[str, dict[str, Any]]:
     return resolved
 
 
-def _source_manifest_for(source_id: str) -> dict[str, Any] | None:
+def _source_manifest_for(source_id: str, extra_manifest_rows: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
     key = str(source_id or "").lower()
     aliases = (
         key,
         "yahoo_finance_yfinance_manifest" if key == "yfinance" else key,
         "yahoo_finance_yfinance" if key == "yfinance" else key,
     )
-    rows = _registry_rows()
+    rows = _registry_rows(extra_manifest_rows)
     for alias in aliases:
         manifest = rows.get(alias)
         if manifest is not None:
@@ -181,7 +182,13 @@ def _screening_reasons(snapshot: dict[str, Any]) -> list[str]:
     return reasons
 
 
-def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str, Any], policy_reconciliation: dict[str, Any]) -> dict[str, Any]:
+def qualify_datasets(
+    *,
+    repo_root: Path | None = None,
+    dataset_catalog: dict[str, Any],
+    policy_reconciliation: dict[str, Any],
+    extra_manifest_rows: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     rows = []
     current_status = str(policy_reconciliation.get("current_yfinance_status") or "unknown")
     snapshots: list[dict[str, Any]] = []
@@ -264,7 +271,7 @@ def qualify_datasets(*, repo_root: Path | None = None, dataset_catalog: dict[str
     )
     for snapshot in snapshots:
         source_id = str(snapshot.get("source_id") or "")
-        manifest = _source_manifest_for(source_id)
+        manifest = _source_manifest_for(source_id, extra_manifest_rows)
         allowed_tier = SOURCE_TIER_BLOCKED
         reason_codes = list(dict.fromkeys(_screening_reasons(snapshot)))
         if manifest is None:

@@ -1,0 +1,29 @@
+schema_version: qre_source_manifest_v1
+source_id: local_crypto_missing_license_fixture
+provider_id: local_file
+source_family: crypto
+asset_class: crypto
+venue: LOCAL_FIXTURE
+source_status: quality_gated
+allowed_use:
+  - manual_research
+license_policy_status: UNKNOWN
+calendar:
+  type: crypto_24_7
+  timezone: UTC
+data:
+  schema: ohlcv
+  adjusted: false
+  timestamp_column: timestamp
+  symbol_column: symbol
+  open_column: open
+  high_column: high
+  low_column: low
+  close_column: close
+  volume_column: volume
+timeframes:
+  - 1h
+timeframe: 1h
+universe:
+  symbols:
+    - BTC-USD
