@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from packages.qre_research.alpha_discovery.contracts import DatasetSnapshot
+from packages.qre_research.alpha_discovery import source_qualification
 from packages.qre_research.alpha_discovery.snapshot_lineage import append_snapshot_row
 from packages.qre_research.alpha_discovery.source_qualification import (
     SOURCE_BLOCKED,
@@ -80,37 +84,54 @@ def test_missing_screening_metrics_fail_closed(tmp_path) -> None:
     assert row["allowed_evidence_tier"] == SOURCE_BLOCKED
     assert row["qualification_status"] == "BLOCKED"
     assert row["coverage_ratio"] is None
-    assert "qualification_metric_missing:expected_bar_count" in row["reason_codes"]
-    assert "qualification_metric_missing:coverage_ratio" in row["reason_codes"]
+    assert "missing_expected_bar_count" in row["reason_codes"]
+    assert "missing_calendar" in row["reason_codes"]
     assert "insufficient_unique_history" in row["reason_codes"]
 
 
-def test_complete_snapshot_can_be_screening_eligible(tmp_path) -> None:
+def test_crypto_24_7_complete_snapshot_can_be_screening_eligible(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        source_qualification,
+        "build_source_manifest_registry",
+        lambda: {
+            "rows": [
+                {
+                    "source_id": "certified_crypto_vendor",
+                    "provider_id": "certified_crypto_vendor",
+                    "source_name": "Certified Crypto Vendor",
+                    "source_status": "quality_gated",
+                    "license_policy_status": "PASS",
+                    "allowed_use": ["research_screening"],
+                    "calendar_model": "CRYPTO_24_7",
+                }
+            ]
+        },
+    )
     repo_root = tmp_path
     snapshot = DatasetSnapshot(
         dataset_snapshot_id="snap-screening",
-        logical_dataset_family_id="yfinance|AAPL|1d",
+        logical_dataset_family_id="certified_crypto_vendor|BTC-USD|1h",
         acquisition_batch_ids=("batch-1",),
         parent_snapshot_id=None,
-        instrument_ids=("AAPL",),
-        timeframe="1d",
+        instrument_ids=("BTC-USD",),
+        timeframe="1h",
         start="2026-01-01T00:00:00Z",
-        end="2026-04-01T00:00:00Z",
-        unique_bar_count=120,
-        raw_row_count=120,
+        end="2026-01-02T23:00:00Z",
+        unique_bar_count=48,
+        raw_row_count=48,
         exact_duplicate_row_count=0,
         overlapping_row_count=0,
         conflicting_row_count=0,
         invalid_row_count=0,
-        expected_bar_count=120,
+        expected_bar_count=48,
         coverage_ratio=1.0,
         fingerprint="sha256:screening",
-        source_id="yfinance",
+        source_id="certified_crypto_vendor",
         source_policy_version="policy-v1",
         qualification_status="COHERENT",
         immutable=True,
         created_at_utc="2026-07-03T00:00:00Z",
-        partition_refs=("data/cache/market/yfinance__AAPL__1d__20260101__20260401__abcd.parquet",),
+        partition_refs=("data/cache/market/certified_crypto_vendor__BTC-USD__1h__20260101__20260102__abcd.parquet",),
         compatibility_status="ROOT",
         lineage_depth=0,
         content_identity="content-screening",
@@ -119,14 +140,14 @@ def test_complete_snapshot_can_be_screening_eligible(tmp_path) -> None:
     catalog = {
         "datasets": [
             {
-                "dataset_id": "yfinance|AAPL|1d",
+                "dataset_id": "certified_crypto_vendor|BTC-USD|1h",
                 "dataset_snapshot_id": "snap-screening",
                 "dataset_fingerprint": "sha256:screening",
-                "source_id": "yfinance",
-                "instrument_ids": ["AAPL"],
-                "timeframe": "1d",
+                "source_id": "certified_crypto_vendor",
+                "instrument_ids": ["BTC-USD"],
+                "timeframe": "1h",
                 "start": "2026-01-01T00:00:00Z",
-                "end": "2026-04-01T00:00:00Z",
+                "end": "2026-01-02T23:00:00Z",
                 "quality_summary": {
                     "effective_research_quality_status": "ready",
                     "minimum_required_history": "90d",
@@ -134,21 +155,21 @@ def test_complete_snapshot_can_be_screening_eligible(tmp_path) -> None:
                 },
                 "identity_summary": {"instrument_identity_status": "ready"},
                 "integrity_summary": {
-                    "raw_row_count": 120,
-                    "unique_bar_count": 120,
-                    "expected_bar_count": 120,
+                    "raw_row_count": 48,
+                    "unique_bar_count": 48,
+                    "expected_bar_count": 48,
                     "coverage_ratio": 1.0,
                     "exact_duplicate_row_count": 0,
                     "conflicting_row_count": 0,
                     "invalid_row_count": 0,
-                    "activity_estimate": 4,
+                    "activity_estimate": 48,
                 },
                 "adjustment_policy": "explicit",
                 "timezone_policy": "UTC_NORMALIZED",
                 "session_policy": "canonical_session_calendar",
-                "history_span": "90d",
+                "history_span": "48h",
                 "validation_capacity": 1,
-                "activity_estimate": 4,
+                "activity_estimate": 48,
                 "source_policy_version": "policy-v1",
                 "qualification_policy_version": "policy-v1",
             }
@@ -162,6 +183,157 @@ def test_complete_snapshot_can_be_screening_eligible(tmp_path) -> None:
     assert row["qualification_status"] == "COHERENT"
     assert row["coverage_ratio"] == 1.0
     assert not row["reason_codes"]
+
+
+def test_license_policy_failure_blocks_screening(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        source_qualification,
+        "build_source_manifest_registry",
+        lambda: {
+            "rows": [
+                {
+                    "source_id": "restricted_vendor",
+                    "provider_id": "restricted_vendor",
+                    "source_name": "Restricted Vendor",
+                    "source_status": "quality_gated",
+                    "license_policy_status": "FAIL",
+                    "allowed_use": ["metadata_context"],
+                    "calendar_model": "CRYPTO_24_7",
+                }
+            ]
+        },
+    )
+    catalog = {
+        "datasets": [
+            {
+                "dataset_id": "restricted_vendor|BTC-USD|1h",
+                "dataset_snapshot_id": "snap-restricted",
+                "dataset_fingerprint": "sha256:test",
+                "source_id": "restricted_vendor",
+                "instrument_ids": ["BTC-USD"],
+                "timeframe": "1h",
+                "start": "2026-01-01T00:00:00Z",
+                "end": "2026-01-05T03:00:00Z",
+                "quality_summary": {"effective_research_quality_status": "ready"},
+                "identity_summary": {"instrument_identity_status": "ready"},
+                "integrity_summary": {
+                    "raw_row_count": 100,
+                    "unique_bar_count": 100,
+                    "expected_bar_count": 100,
+                    "coverage_ratio": 1.0,
+                    "exact_duplicate_row_count": 0,
+                    "conflicting_row_count": 0,
+                    "invalid_row_count": 0,
+                },
+            }
+        ]
+    }
+    policy = {"content_identity": "policy-fixture", "policy_version": "policy-fixture"}
+    row = qualify_datasets(dataset_catalog=catalog, policy_reconciliation=policy)["rows"][0]
+
+    assert row["allowed_evidence_tier"] == SOURCE_BLOCKED
+    assert "source_license_not_screening_eligible" in row["reason_codes"]
+
+
+def test_duplicate_conflict_quality_failure_blocks_source(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        source_qualification,
+        "build_source_manifest_registry",
+        lambda: {
+            "rows": [
+                {
+                    "source_id": "certified_crypto_vendor",
+                    "provider_id": "certified_crypto_vendor",
+                    "source_status": "quality_gated",
+                    "license_policy_status": "PASS",
+                    "allowed_use": ["research_screening"],
+                    "calendar_model": "CRYPTO_24_7",
+                }
+            ]
+        },
+    )
+    catalog = {
+        "datasets": [
+            {
+                "dataset_id": "certified_crypto_vendor|BTC-USD|1h",
+                "dataset_snapshot_id": "snap-conflict",
+                "dataset_fingerprint": "sha256:test",
+                "source_id": "certified_crypto_vendor",
+                "instrument_ids": ["BTC-USD"],
+                "timeframe": "1h",
+                "start": "2026-01-01T00:00:00Z",
+                "end": "2026-01-10T23:00:00Z",
+                "quality_summary": {"effective_research_quality_status": "ready"},
+                "identity_summary": {"instrument_identity_status": "ready"},
+                "integrity_summary": {
+                    "raw_row_count": 260,
+                    "unique_bar_count": 240,
+                    "expected_bar_count": 240,
+                    "coverage_ratio": 1.0,
+                    "exact_duplicate_row_count": 20,
+                    "conflicting_row_count": 3,
+                    "invalid_row_count": 0,
+                },
+            }
+        ]
+    }
+    row = qualify_datasets(dataset_catalog=catalog, policy_reconciliation={"content_identity": "policy-fixture"})["rows"][0]
+
+    assert row["allowed_evidence_tier"] == SOURCE_BLOCKED
+    assert "conflicting_rows_present" in row["reason_codes"]
+    assert "duplicate_bar_ratio_too_high" in row["reason_codes"]
+
+
+def test_source_qualification_identity_is_cross_root_order_and_mtime_deterministic(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        source_qualification,
+        "build_source_manifest_registry",
+        lambda: {
+            "rows": [
+                {
+                    "source_id": "certified_crypto_vendor",
+                    "provider_id": "certified_crypto_vendor",
+                    "source_status": "quality_gated",
+                    "license_policy_status": "PASS",
+                    "allowed_use": ["research_screening"],
+                    "calendar_model": "CRYPTO_24_7",
+                }
+            ]
+        },
+    )
+    rows = [
+        {
+            "dataset_id": "certified_crypto_vendor|BTC-USD|1h",
+            "dataset_snapshot_id": "snap-a",
+            "dataset_fingerprint": "sha256:a",
+            "source_id": "certified_crypto_vendor",
+            "instrument_ids": ["BTC-USD"],
+            "timeframe": "1h",
+            "start": "2026-01-01T00:00:00Z",
+            "end": "2026-01-04T23:00:00Z",
+            "quality_summary": {"effective_research_quality_status": "ready"},
+            "identity_summary": {"instrument_identity_status": "ready"},
+            "integrity_summary": {"raw_row_count": 96, "unique_bar_count": 96, "expected_bar_count": 96, "coverage_ratio": 1.0, "exact_duplicate_row_count": 0, "conflicting_row_count": 0, "invalid_row_count": 0},
+        },
+        {
+            "dataset_id": "certified_crypto_vendor|ETH-USD|1h",
+            "dataset_snapshot_id": "snap-b",
+            "dataset_fingerprint": "sha256:b",
+            "source_id": "certified_crypto_vendor",
+            "instrument_ids": ["ETH-USD"],
+            "timeframe": "1h",
+            "start": "2026-01-01T00:00:00Z",
+            "end": "2026-01-04T23:00:00Z",
+            "quality_summary": {"effective_research_quality_status": "ready"},
+            "identity_summary": {"instrument_identity_status": "ready"},
+            "integrity_summary": {"raw_row_count": 96, "unique_bar_count": 96, "expected_bar_count": 96, "coverage_ratio": 1.0, "exact_duplicate_row_count": 0, "conflicting_row_count": 0, "invalid_row_count": 0},
+        },
+    ]
+    left = qualify_datasets(dataset_catalog={"datasets": rows}, policy_reconciliation={"content_identity": "policy-fixture"})
+    right = qualify_datasets(dataset_catalog={"datasets": list(reversed(rows))}, policy_reconciliation={"content_identity": "policy-fixture"})
+
+    assert left["content_identity"] == right["content_identity"]
+    assert left["rows"] == right["rows"]
 
 
 def test_qualification_summary_counts_blocked_replay_and_logical_datasets(tmp_path) -> None:
