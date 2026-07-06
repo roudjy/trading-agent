@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import json
 import os
+import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -80,6 +82,26 @@ def test_manifest_validation_reports_missing_license_attestation() -> None:
     assert result["valid"] is False
     assert "missing_license_attestation" in result["operator_actions"]
     assert "provide_screening_license_attestation" in result["operator_actions"]
+
+
+def test_cli_module_entrypoint_emits_json() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "research.qre_source_onboarding",
+            "validate-manifest",
+            "--manifest",
+            str(FIXTURES / "crypto_24_7_good" / "manifest.yaml"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+    assert payload["valid"] is True
+    assert payload["source_id"] == "local_crypto_screening_fixture"
 
 
 def test_local_import_and_qualification_promotes_good_crypto_fixture(tmp_path: Path) -> None:

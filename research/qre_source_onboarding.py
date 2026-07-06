@@ -686,3 +686,7 @@ __all__ = [
     "summarize_onboarding",
     "validate_manifest_file",
 ]
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
