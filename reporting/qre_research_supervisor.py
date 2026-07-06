@@ -623,6 +623,14 @@ def run_cycle(
             epoch_mismatch_reasons.append("current_snapshot_mismatch")
         if str(prior_status.get("current_source_tier") or "") and str(alpha_status.get("current_source_tier") or "") and prior_status.get("current_source_tier") != alpha_status.get("current_source_tier"):
             epoch_mismatch_reasons.append("current_source_tier_mismatch")
+        source_improvement_trigger = bool(
+            prior_semantic_input_identity
+            and str(prior_watermarks.get("source_qualifications") or "")
+            and str(prior_watermarks.get("source_qualifications") or "") != qualification_set_id
+            and any(str(row.get("allowed_evidence_tier") or "") in {"SOURCE_SCREENING_ELIGIBLE", "SOURCE_VALIDATION_ELIGIBLE"} for row in qualification_rows)
+        )
+        if source_improvement_trigger:
+            epoch_mismatch_reasons = [reason for reason in epoch_mismatch_reasons if reason != "qualification_set_mismatch"]
         epoch_mismatch = bool(epoch_mismatch_reasons)
         if prior_status and not prior_semantic_input_identity and blocked:
             legacy_valid, legacy_health, legacy_reasons = _legacy_blocked_state_validation(
