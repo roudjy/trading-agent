@@ -22,6 +22,8 @@ SOURCE_QUALIFICATIONS_PATH = REPO_ROOT / "generated_research/alpha_discovery/sou
 RUNTIME_EPOCH_PATH = REPO_ROOT / "generated_research/alpha_discovery/runtime_epoch/latest.json"
 SOURCE_RESOLUTION_PATH = REPO_ROOT / "generated_research/alpha_discovery/source_resolution/latest.json"
 OBSERVATIONS_PATH = REPO_ROOT / "generated_research/alpha_discovery/observations/latest.json"
+RUNS_PATH = Path("generated_research/alpha_discovery/runs/latest.json")
+SEARCH_LEDGER_PATH = Path("generated_research/alpha_discovery/search_ledger/latest.json")
 SERVICE_VERSION = "qre_alpha_supervisor_pr4_v1"
 DEFAULT_INTERVAL_SECONDS = 300
 MAX_INTERVAL_SECONDS = 3600
@@ -357,6 +359,68 @@ def _read_runtime_epoch_state() -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _read_current_run_state(repo_root: Path) -> dict[str, Any]:
+    payload = _read_json(repo_root / RUNS_PATH) or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _ledger_artifact_identity(repo_root: Path) -> tuple[str, bool]:
+    path = repo_root / SEARCH_LEDGER_PATH
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        return "", path.is_file()
+    candidates: list[str] = []
+    for key in ("search_ledger_id", "search_run_id", "ledger_id"):
+        value = str(payload.get(key) or "")
+        if value:
+            candidates.append(value)
+    ledger = payload.get("ledger")
+    if isinstance(ledger, dict):
+        for key in ("search_ledger_id", "search_run_id", "ledger_id"):
+            value = str(ledger.get(key) or "")
+            if value:
+                candidates.append(value)
+    rows = payload.get("rows")
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            for key in ("search_ledger_id", "search_run_id", "ledger_id"):
+                value = str(row.get(key) or "")
+                if value:
+                    candidates.append(value)
+    unique = tuple(dict.fromkeys(candidates))
+    return (unique[0], True) if len(unique) == 1 else ("", True)
+
+
+def _reconstruct_legacy_search_ledger_id(
+    *,
+    repo_root: Path,
+    alpha_status: dict[str, Any],
+    persisted_runtime_epoch: dict[str, Any],
+) -> tuple[str | None, tuple[str, ...]]:
+    runtime_ledger_id = str(persisted_runtime_epoch.get("search_ledger_id") or "")
+    run_ledger_id = str(_read_current_run_state(repo_root).get("search_ledger_id") or "")
+    artifact_ledger_id, artifact_present = _ledger_artifact_identity(repo_root)
+    status_ledger_id = str(alpha_status.get("search_ledger_id") or "")
+    source_ids = {
+        "runtime_epoch": runtime_ledger_id,
+        "run": run_ledger_id,
+        "search_ledger": artifact_ledger_id,
+        "status": status_ledger_id,
+    }
+    nonempty_ids = {value for value in source_ids.values() if value}
+    if len(nonempty_ids) > 1:
+        return None, ("legacy_search_ledger_identity_mismatch",)
+    if runtime_ledger_id and artifact_present and not artifact_ledger_id:
+        return None, ("legacy_search_ledger_identity_mismatch",)
+    if run_ledger_id and artifact_present and not artifact_ledger_id:
+        return None, ("legacy_search_ledger_identity_mismatch",)
+    if nonempty_ids:
+        return sorted(nonempty_ids)[0], ()
+    return None, ()
+
+
 def _artifact_rows(repo_root: Path, relative: str) -> tuple[dict[str, Any], ...]:
     payload = _read_json(repo_root / Path(relative)) or {}
     return tuple(dict(row) for row in payload.get("rows") or [] if isinstance(row, dict))
@@ -509,6 +573,11 @@ def run_cycle(
         source_qualifications, qualification_rows = _qualification_rows()
         alpha_status = read_status(repo_root)
         persisted_runtime_epoch = _read_runtime_epoch_state()
+        reconstructed_search_ledger_id, search_ledger_reasons = _reconstruct_legacy_search_ledger_id(
+            repo_root=repo_root,
+            alpha_status=alpha_status,
+            persisted_runtime_epoch=persisted_runtime_epoch,
+        )
         epoch_state = persisted_runtime_epoch or alpha_status
         open_gaps = _open_gaps()
         blocked = _blocked_experiments()
@@ -568,6 +637,10 @@ def run_cycle(
                 snapshot_lineage_set_id=snapshot_lineage_set_id,
                 qualification_set_id=qualification_set_id,
             )
+            if legacy_valid and search_ledger_reasons:
+                legacy_valid = False
+                legacy_health = HEALTH_DEGRADED_LEGACY_STATE_INCONSISTENT
+                legacy_reasons = search_ledger_reasons
             if legacy_valid:
                 runtime_epoch_id = str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or prior_status.get("runtime_epoch_id") or "")
                 health = _health_from_run(alpha_status, open_gaps)
@@ -596,7 +669,7 @@ def run_cycle(
                     "runtime_epoch_id": runtime_epoch_id,
                     "qualification_set_id": qualification_set_id,
                     "snapshot_lineage_set_id": snapshot_lineage_set_id,
-                    "search_ledger_id": alpha_status.get("search_ledger_id"),
+                    "search_ledger_id": reconstructed_search_ledger_id,
                     "semantic_input_identity": semantic_input_identity,
                     "blocked_experiments": blocked,
                     "content_identity": content_id("qsuplegacy", {"semantic_input_identity": semantic_input_identity, "health": health}),
@@ -628,9 +701,41 @@ def run_cycle(
                 "runtime_epoch_id": str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or prior_status.get("runtime_epoch_id") or ""),
                 "qualification_set_id": qualification_set_id,
                 "snapshot_lineage_set_id": snapshot_lineage_set_id,
-                "search_ledger_id": alpha_status.get("search_ledger_id"),
+                "search_ledger_id": None if search_ledger_reasons else reconstructed_search_ledger_id,
                 "blocked_experiments": blocked,
                 "content_identity": content_id("qsuplegacydegraded", {"reason_codes": legacy_reasons, "watermarks": current_watermarks}),
+            }
+            _publish_status(payload)
+            return payload
+        if blocked and search_ledger_reasons:
+            payload = {
+                "service_version": SERVICE_VERSION,
+                "health": HEALTH_DEGRADED_LEGACY_STATE_INCONSISTENT,
+                "current_stage": HEALTH_DEGRADED_LEGACY_STATE_INCONSISTENT,
+                "last_cycle": {
+                    "decision": "fail_closed_legacy_state_not_migrated",
+                    "generated_at_utc": _utcnow(),
+                    "reason_codes": search_ledger_reasons,
+                },
+                "last_successful_cycle": prior_status.get("last_successful_cycle"),
+                "current_dataset_snapshot": alpha_status.get("current_dataset_snapshot"),
+                "current_source_tier": alpha_status.get("current_source_tier"),
+                "current_experiment": alpha_status.get("current_experiment"),
+                "current_campaign": alpha_status.get("current_campaign"),
+                "open_gaps": tuple(str(row.get("gap_id") or "") for row in open_gaps),
+                "active_ADE_requests": tuple(str(row.get("request_id") or "") for row in open_gaps if row.get("request_id")),
+                "operator_actions": ("repair_legacy_supervisor_state",),
+                "next_retry": prior_status.get("next_retry"),
+                "next_scheduled_cycle": (datetime.now(UTC) + timedelta(seconds=DEFAULT_INTERVAL_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                "consecutive_failures": int(prior_status.get("consecutive_failures") or 0) + 1,
+                "watermarks": current_watermarks,
+                "leases": lease,
+                "runtime_epoch_id": str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or prior_status.get("runtime_epoch_id") or ""),
+                "qualification_set_id": qualification_set_id,
+                "snapshot_lineage_set_id": snapshot_lineage_set_id,
+                "search_ledger_id": None,
+                "blocked_experiments": blocked,
+                "content_identity": content_id("qsuplegacydegraded", {"reason_codes": search_ledger_reasons, "watermarks": current_watermarks}),
             }
             _publish_status(payload)
             return payload
@@ -751,7 +856,7 @@ def run_cycle(
                 "runtime_epoch_id": str(persisted_runtime_epoch.get("runtime_epoch_id") or alpha_status.get("runtime_epoch_id") or ""),
                 "qualification_set_id": qualification_set_id,
                 "snapshot_lineage_set_id": snapshot_lineage_set_id,
-                "search_ledger_id": alpha_status.get("search_ledger_id"),
+                "search_ledger_id": reconstructed_search_ledger_id,
                 "semantic_input_identity": semantic_input_identity,
                 "blocked_experiments": blocked,
                 "content_identity": content_id("qsupnoop", {"semantic_input_identity": semantic_input_identity, "health": health}),
