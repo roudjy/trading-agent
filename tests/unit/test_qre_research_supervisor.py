@@ -25,6 +25,11 @@ def _file_digest(path: Path) -> str:
     return sha256(path.read_bytes()).hexdigest()
 
 
+def _generated_artifact_digests(repo_root: Path) -> dict[str, str]:
+    root = repo_root / "generated_research"
+    return {path.relative_to(root).as_posix(): _file_digest(path) for path in root.rglob("*.json")}
+
+
 def _write_minimal_legacy_blocked_fixture(
     repo_root: Path,
     *,
@@ -824,6 +829,157 @@ def test_supervisor_reconstructs_legacy_ledger_when_status_projection_lost_it(mo
     assert payload["current_stage"] == "LEGACY_SEMANTIC_IDENTITY_MIGRATED"
     assert payload["last_cycle"]["decision"] == "semantic_identity_backfilled_no_change"
     assert payload["search_ledger_id"] == ids["ledger_id"]
+
+
+def test_supervisor_legacy_ledger_runtime_and_run_consistency_projects_id(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root)
+
+    status_path = repo_root / "generated_research/alpha_discovery/status/latest.json"
+    alpha_status = json.loads(status_path.read_text(encoding="utf-8"))
+    alpha_status["search_ledger_id"] = None
+    status_path.write_text(json.dumps(alpha_status), encoding="utf-8")
+    artifact_digests = _generated_artifact_digests(repo_root)
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not be called for consistent legacy ledger reconstruction")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(supervisor, "_utcnow", iter(["2026-07-04T12:04:00Z", "2026-07-04T12:04:01Z"]).__next__)
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["current_stage"] == "LEGACY_SEMANTIC_IDENTITY_MIGRATED"
+    assert payload["search_ledger_id"] == ids["ledger_id"]
+    assert _generated_artifact_digests(repo_root) == artifact_digests
+
+
+def test_supervisor_legacy_ledger_runtime_run_conflict_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root)
+    (repo_root / "generated_research/alpha_discovery/runs/latest.json").write_text(
+        json.dumps({"run_id": "qarr-legacy", "search_ledger_id": "qsl-conflicting-run"}),
+        encoding="utf-8",
+    )
+    artifact_digests = _generated_artifact_digests(repo_root)
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not be called for conflicting legacy ledger identities")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(supervisor, "_utcnow", iter(["2026-07-04T12:05:00Z", "2026-07-04T12:05:01Z"]).__next__)
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["health"] == "DEGRADED_LEGACY_STATE_INCONSISTENT"
+    assert payload["last_cycle"]["reason_codes"] == ("legacy_search_ledger_identity_mismatch",)
+    assert payload["operator_actions"] == ("repair_legacy_supervisor_state",)
+    assert payload["search_ledger_id"] is None
+    assert _generated_artifact_digests(repo_root) == artifact_digests
+
+
+def test_supervisor_legacy_ledger_runtime_id_survives_missing_ledger_artifact(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root)
+    (repo_root / "generated_research/alpha_discovery/search_ledger/latest.json").unlink()
+    artifact_digests = _generated_artifact_digests(repo_root)
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not be called when optional ledger artifact is absent")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(supervisor, "_utcnow", iter(["2026-07-04T12:06:00Z", "2026-07-04T12:06:01Z"]).__next__)
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["current_stage"] == "LEGACY_SEMANTIC_IDENTITY_MIGRATED"
+    assert payload["search_ledger_id"] == ids["ledger_id"]
+    assert _generated_artifact_digests(repo_root) == artifact_digests
+
+
+def test_supervisor_legacy_ledger_artifact_mismatch_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root)
+    (repo_root / "generated_research/alpha_discovery/search_ledger/latest.json").write_text(
+        json.dumps({"ledger": {"search_run_id": "qsl-conflicting-artifact"}, "content_identity": "qslc-conflicting"}),
+        encoding="utf-8",
+    )
+    artifact_digests = _generated_artifact_digests(repo_root)
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not be called for conflicting ledger artifact")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(supervisor, "_utcnow", iter(["2026-07-04T12:07:00Z", "2026-07-04T12:07:01Z"]).__next__)
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["health"] == "DEGRADED_LEGACY_STATE_INCONSISTENT"
+    assert payload["last_cycle"]["reason_codes"] == ("legacy_search_ledger_identity_mismatch",)
+    assert payload["operator_actions"] == ("repair_legacy_supervisor_state",)
+    assert payload["search_ledger_id"] is None
+    assert _generated_artifact_digests(repo_root) == artifact_digests
+
+
+def test_supervisor_legacy_ledgerless_state_remains_ledgerless(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root)
+    for relative in (
+        "generated_research/alpha_discovery/status/latest.json",
+        "generated_research/alpha_discovery/runtime_epoch/latest.json",
+        "generated_research/alpha_discovery/runs/latest.json",
+    ):
+        path = repo_root / relative
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["search_ledger_id"] = None
+        path.write_text(json.dumps(payload), encoding="utf-8")
+    (repo_root / "generated_research/alpha_discovery/search_ledger/latest.json").write_text(
+        json.dumps({"ledger": None, "content_identity": "qslc-ledgerless"}),
+        encoding="utf-8",
+    )
+    artifact_digests = _generated_artifact_digests(repo_root)
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not be called for legitimate ledgerless legacy state")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(supervisor, "_utcnow", iter(["2026-07-04T12:08:00Z", "2026-07-04T12:08:01Z"]).__next__)
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["current_stage"] == "LEGACY_SEMANTIC_IDENTITY_MIGRATED"
+    assert payload["search_ledger_id"] is None
+    assert _generated_artifact_digests(repo_root) == artifact_digests
 
 
 def test_supervisor_incomplete_legacy_state_fails_closed_without_discovery(monkeypatch, tmp_path: Path) -> None:
