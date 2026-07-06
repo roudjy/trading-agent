@@ -36,6 +36,7 @@ def _write_minimal_legacy_blocked_fixture(
         "source_qualifications",
         "status",
         "runtime_epoch",
+        "runs",
         "blocked_experiments",
         "capability_gaps",
         "search_ledger",
@@ -99,8 +100,13 @@ def _write_minimal_legacy_blocked_fixture(
                 "runtime_epoch_id": ids["runtime_epoch_id"],
                 "qualification_set_id": ids["qualification_set_id"],
                 "snapshot_lineage_set_id": ids["snapshot_lineage_set_id"],
+                "search_ledger_id": ids["ledger_id"],
             }
         ),
+        encoding="utf-8",
+    )
+    (artifact_root / "runs/latest.json").write_text(
+        json.dumps({"run_id": "qarr-legacy", "search_ledger_id": ids["ledger_id"]}),
         encoding="utf-8",
     )
     (artifact_root / "blocked_experiments/latest.json").write_text(
@@ -476,6 +482,7 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
         "source_resolution",
         "status",
         "runtime_epoch",
+        "runs",
         "blocked_experiments",
         "capability_gaps",
         "search_ledger",
@@ -561,9 +568,14 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
                 "runtime_epoch_id": runtime_epoch_id,
                 "qualification_set_id": qualification_set_id,
                 "snapshot_lineage_set_id": snapshot_lineage_set_id,
+                "search_ledger_id": search_ledger_id,
                 "content_identity": "qepochstate-legacy",
             }
         ),
+        encoding="utf-8",
+    )
+    (artifact_root / "runs/latest.json").write_text(
+        json.dumps({"run_id": "qarr-baseline", "search_ledger_id": search_ledger_id}),
         encoding="utf-8",
     )
     (artifact_root / "blocked_experiments/latest.json").write_text(
@@ -705,6 +717,7 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
         "source_qualifications": artifact_root / "source_qualifications/latest.json",
         "source_resolution": artifact_root / "source_resolution/latest.json",
         "runtime_epoch": artifact_root / "runtime_epoch/latest.json",
+        "runs": artifact_root / "runs/latest.json",
         "status": artifact_root / "status/latest.json",
         "discovery_view": artifact_root / "views/discovery_latest.json",
         "validation_view": artifact_root / "views/validation_latest.json",
@@ -746,6 +759,7 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
 
     assert baseline["current_stage"] == "LEGACY_SEMANTIC_IDENTITY_MIGRATED"
     assert baseline["last_cycle"]["decision"] == "semantic_identity_backfilled_no_change"
+    assert baseline["search_ledger_id"] == search_ledger_id
     assert cycle_2["current_stage"] == "NO_CHANGE_SKIP"
     assert restart_cycle["current_stage"] == "NO_CHANGE_SKIP"
     assert cycle_2["health"] == "BLOCKED_SOURCE_CERTIFICATION"
@@ -777,6 +791,39 @@ def test_supervisor_blocked_state_skips_repeated_discovery_cycles(monkeypatch, t
     for name, path in artifact_paths.items():
         assert _file_digest(path) == pre_baseline_digests[name], name
         assert os.stat(path).st_mtime_ns == pre_baseline_mtimes[name], name
+
+
+def test_supervisor_reconstructs_legacy_ledger_when_status_projection_lost_it(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path
+    _configure_paths(monkeypatch, repo_root)
+    ids = _write_minimal_legacy_blocked_fixture(repo_root)
+
+    status_path = repo_root / "generated_research/alpha_discovery/status/latest.json"
+    alpha_status = json.loads(status_path.read_text(encoding="utf-8"))
+    alpha_status["search_ledger_id"] = None
+    status_path.write_text(json.dumps(alpha_status), encoding="utf-8")
+
+    run_calls = 0
+
+    def _unexpected_run(*args, **kwargs):
+        nonlocal run_calls
+        run_calls += 1
+        raise AssertionError("run_alpha_discovery_mvp should not be called for coherent legacy status repair")
+
+    monkeypatch.setattr(supervisor, "run_alpha_discovery_mvp", _unexpected_run)
+    monkeypatch.setattr(supervisor, "load_snapshot_lineage", lambda repo_root: {"snapshot_lineage": {"content_identity": ids["snapshot_lineage_set_id"]}, "revisions": {"rows": []}})
+    monkeypatch.setattr(
+        supervisor,
+        "_utcnow",
+        iter(["2026-07-04T12:03:00Z", "2026-07-04T12:03:01Z"]).__next__,
+    )
+
+    payload = supervisor.run_cycle(repo_root=repo_root, dry_run=True)
+
+    assert run_calls == 0
+    assert payload["current_stage"] == "LEGACY_SEMANTIC_IDENTITY_MIGRATED"
+    assert payload["last_cycle"]["decision"] == "semantic_identity_backfilled_no_change"
+    assert payload["search_ledger_id"] == ids["ledger_id"]
 
 
 def test_supervisor_incomplete_legacy_state_fails_closed_without_discovery(monkeypatch, tmp_path: Path) -> None:
