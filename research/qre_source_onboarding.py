@@ -35,6 +35,7 @@ SECRET_ENV_VARS = (
     "QRE_NASDAQ_DATA_LINK_API_KEY",
     "QRE_ALPHA_VANTAGE_API_KEY",
 )
+SCREENING_SOURCE_STATUSES = frozenset({"quality_gated", "screening_ready", "certified"})
 
 
 def _utcnow() -> str:
@@ -93,15 +94,20 @@ def _required_manifest_actions(manifest: dict[str, Any]) -> list[str]:
     for key in ("timestamp_column", "symbol_column", "open_column", "high_column", "low_column", "close_column", "volume_column"):
         if not data.get(key):
             actions.append(f"missing_{key}")
-    allowed_use = {str(value) for value in manifest.get("allowed_use") or []}
+    allowed_use = {str(value).lower() for value in manifest.get("allowed_use") or []}
     license_status = str(manifest.get("license_policy_status") or "").upper()
     attestation = manifest.get("operator_license_attestation") if isinstance(manifest.get("operator_license_attestation"), dict) else {}
-    if "research_screening" in allowed_use and (license_status != "PASS" or not attestation):
-        actions.append("missing_license_attestation")
-        actions.append("provide_screening_license_attestation")
-    if "research_screening" not in allowed_use:
-        actions.append("missing_license_attestation")
-        actions.append("provide_screening_license_attestation")
+    if "research_screening" in allowed_use:
+        source_status = str(manifest.get("source_status") or "").lower()
+        if license_status != "PASS" or not attestation or not attestation.get("evidence_ref"):
+            actions.append("missing_license_attestation")
+            actions.append("provide_screening_license_attestation")
+        if not source_status:
+            actions.append("missing_source_status")
+            actions.append("set_screening_source_status")
+        elif source_status not in SCREENING_SOURCE_STATUSES:
+            actions.append("invalid_screening_source_status")
+            actions.append("set_screening_source_status")
     return sorted(dict.fromkeys(actions))
 
 

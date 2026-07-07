@@ -90,6 +90,11 @@ research/run_*.v1.json
 research/*_latest.v1.json
 research/*_latest.md
 logs/research/*.jsonl
+data/imports/
+generated_research/data_catalog/imports/
+generated_research/data_catalog/onboarding/
+generated_research/data_catalog/revisions/
+generated_research/data_catalog/source_certification/
 
 # Future-proof (V3.3b resumability)
 research/resume/

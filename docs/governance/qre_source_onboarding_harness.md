@@ -21,9 +21,19 @@ Screening is allowed only when all of these are true:
 - `allowed_use` contains `research_screening`
 - `license_policy_status` is `PASS`
 - `operator_license_attestation` is present with `provided_by`, `attested_at_utc`, and a non-secret `evidence_ref`
+- `source_status` is explicitly set to `quality_gated`, `screening_ready`, or `certified`
 - imported bars satisfy the existing `qre_alpha_source_qualification_pr4_v1` metrics and thresholds
 
-Missing license proof maps to `source_license_not_screening_eligible` and operator action `provide_screening_license_attestation`.
+For local CSV onboarding, the minimal screening manifest is a manual local-source
+manifest plus `allowed_use: [manual_research, research_screening]`,
+`license_policy_status: PASS`, `source_status: quality_gated`, and a non-secret
+`operator_license_attestation.evidence_ref`. Missing license proof maps to
+`source_license_not_screening_eligible` and operator action
+`provide_screening_license_attestation`; missing or non-screening `source_status`
+is reported by `validate-manifest` before qualification.
+
+Manual-research-only manifests remain allowed as manual-only sources. They are
+not automatically promoted to screening, even when the local bars are coherent.
 
 ## Local File Adapter
 
@@ -54,6 +64,16 @@ The harness writes only QRE onboarding and qualification artifacts:
 - `generated_research/alpha_discovery/source_resolution/latest.json`
 
 Artifacts include manifest hash, data fingerprint, row counts, expected bars, coverage, duplicate/conflict metrics, invalid row metrics, qualification tier, blocked reasons, operator actions, policy version, and generation time.
+
+Local data imports and generated research/catalog artifacts are operator-local
+state and should not be committed. This includes raw CSV exports, normalized
+local import directories, onboarding JSON, source-certification JSON, and source
+resolution or qualification outputs generated from a local import.
+
+`SOURCE_SCREENING_ELIGIBLE` means the immutable local snapshot may be used for
+research screening under the source qualification policy. It is not shadow,
+paper, live, broker, risk, execution, or trading authority; source resolution
+continues to emit `trading_authority: false`.
 
 ## Secrets
 

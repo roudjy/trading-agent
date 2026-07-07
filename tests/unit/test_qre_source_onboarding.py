@@ -76,12 +76,39 @@ def _write_weekday_bars(path: Path, *, count: int = 48) -> None:
         writer.writerows(rows)
 
 
-def test_manifest_validation_reports_missing_license_attestation() -> None:
+def test_manual_only_manifest_validation_does_not_request_screening_attestation() -> None:
     result = validate_manifest_file(FIXTURES / "crypto_24_7_missing_license" / "manifest.yaml")
 
+    assert result["valid"] is True
+    assert "missing_license_attestation" not in result["operator_actions"]
+    assert "provide_screening_license_attestation" not in result["operator_actions"]
+
+
+def test_screening_manifest_validation_requires_explicit_source_status(tmp_path: Path) -> None:
+    manifest = yaml.safe_load((FIXTURES / "crypto_24_7_good" / "manifest.yaml").read_text(encoding="utf-8"))
+    manifest.pop("source_status")
+    path = tmp_path / "manifest.yaml"
+    path.write_text(yaml.safe_dump(manifest, sort_keys=True), encoding="utf-8")
+
+    result = validate_manifest_file(path)
+
     assert result["valid"] is False
-    assert "missing_license_attestation" in result["operator_actions"]
-    assert "provide_screening_license_attestation" in result["operator_actions"]
+    assert "missing_source_status" in result["operator_actions"]
+    assert "set_screening_source_status" in result["operator_actions"]
+    assert "provide_screening_license_attestation" not in result["operator_actions"]
+
+
+def test_screening_manifest_validation_rejects_manual_only_source_status(tmp_path: Path) -> None:
+    manifest = yaml.safe_load((FIXTURES / "crypto_24_7_good" / "manifest.yaml").read_text(encoding="utf-8"))
+    manifest["source_status"] = "manual_research_only"
+    path = tmp_path / "manifest.yaml"
+    path.write_text(yaml.safe_dump(manifest, sort_keys=True), encoding="utf-8")
+
+    result = validate_manifest_file(path)
+
+    assert result["valid"] is False
+    assert "invalid_screening_source_status" in result["operator_actions"]
+    assert "set_screening_source_status" in result["operator_actions"]
 
 
 def test_cli_module_entrypoint_emits_json() -> None:
@@ -145,6 +172,34 @@ def test_missing_license_fixture_stays_blocked_without_false_promotion(tmp_path:
     assert row["allowed_evidence_tier"] == SOURCE_BLOCKED
     assert "source_license_not_screening_eligible" in row["reason_codes"]
     assert qualified["onboarding"]["operator_actions"] == ["provide_screening_license_attestation"]
+
+
+def test_manual_research_only_source_with_pass_license_is_not_screening_promoted(tmp_path: Path) -> None:
+    bars = tmp_path / "bars.csv"
+    _write_crypto_bars(bars)
+    manifest = yaml.safe_load((FIXTURES / "crypto_24_7_good" / "manifest.yaml").read_text(encoding="utf-8"))
+    manifest["source_id"] = "local_crypto_manual_only_fixture"
+    manifest["source_status"] = "manual_research_only"
+    manifest["allowed_use"] = ["manual_research"]
+    manifest_path = tmp_path / "manual_only_manifest.yaml"
+    manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=True), encoding="utf-8")
+
+    validation = validate_manifest_file(manifest_path)
+    import_local_source(
+        repo_root=tmp_path,
+        manifest_path=manifest_path,
+        bars_path=bars,
+        out_dir=tmp_path / "generated_research/data_catalog/imports/local_crypto_manual_only_fixture/snap-manual",
+        snapshot_id="snap-manual",
+    )
+    qualified = qualify_onboarded_source(repo_root=tmp_path, source_id="local_crypto_manual_only_fixture", snapshot_id="snap-manual")
+    row = qualified["source_qualification"]["rows"][0]
+    resolution_row = qualified["source_resolution"]["rows"][0]
+
+    assert validation["valid"] is True
+    assert row["allowed_evidence_tier"] == SOURCE_BLOCKED
+    assert "source_license_not_screening_eligible" in row["reason_codes"]
+    assert resolution_row["trading_authority"] is False
 
 
 def test_bad_coverage_and_conflicting_duplicates_block(tmp_path: Path) -> None:
