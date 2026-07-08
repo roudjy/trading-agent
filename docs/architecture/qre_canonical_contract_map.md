@@ -43,6 +43,14 @@ packages/qre_research/evidence_memory_bridge.py
 
 This bridge maps campaign or screening evidence into EvidencePack, EvidenceLedger, Disposition, FeedbackRecord, LessonMemory, and ResearchMemory payloads. It preserves negative and contradictory evidence and remains memory-only: no synthesis, promotion, validation, paper, shadow, live, broker, risk, order, or execution authority.
 
+PR E adds deterministic memory-aware hypothesis ordering:
+
+```text
+packages/qre_research/memory_aware_hypothesis_generation.py
+```
+
+This adapter lets canonical FeedbackRecord, LessonMemory, and ResearchMemory influence the next hypothesis batch by suppressing repeated failures, deprioritizing dead zones, and boosting near-pass families. Every influence is explainable and deterministic. It does not synthesize strategies, invent indicators, create candidates, promote candidates, or grant execution authority.
+
 ## Canonical Object Ownership
 
 | Object | Current audit status | Current owner evidence | Recommendation |
@@ -89,7 +97,7 @@ This bridge maps campaign or screening evidence into EvidencePack, EvidenceLedge
 2. PR B: bridge Tiingo artifacts to canonical Hypothesis/CandidateSpec. Status: complete for Hypothesis, ResearchInputContract, and CandidateSpec.
 3. PR C: bridge canonical CandidateSpec to StrategySpec/PresetSpec/CampaignSpec. Status: complete at planning-contract level.
 4. PR D: connect campaign evidence to FeedbackMemory/LessonMemory. Status: complete at contract/memory bridge level.
-5. PR E: make next hypothesis generation consume canonical memory.
+5. PR E: make next hypothesis generation consume canonical memory. Status: complete at deterministic ordering/context level.
 6. PR F: deprecate or quarantine duplicate legacy funnels.
 
 ## Rules For Future Work
