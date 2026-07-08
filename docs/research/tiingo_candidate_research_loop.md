@@ -46,8 +46,10 @@ logs/qre_tiingo_candidate_research_loop/
 - equal-weight benchmark comparison
 - feedback records for retain, reject, modify, block, or insufficient-evidence outcomes
 - next-run feedback consumption that can retain, suppress, modify, defer, or block candidate handling
+- research-only evidence ledger sidecar
+- bounded candidate variants under explicit caps and feedback control
+- daily status digest integration for observability
 - JSONL sidecars and an operator summary
-- daily-digest-ready input block for a later digest integration PR
 
 ## What This PR Does Not Build
 
@@ -82,7 +84,7 @@ Only admitted lifecycle records become contracts. Rejected or blocked records ar
 
 ## Candidate Materialization
 
-Each admitted input contract materializes at most one v1 research-only candidate spec unless `--max-candidates` limits it or prior feedback suppresses it.
+Each admitted input contract materializes at most one v1 research-only candidate spec by default unless `--max-candidates` limits it or prior feedback suppresses it.
 
 Implemented feature-family templates:
 
@@ -103,6 +105,28 @@ not_trade_signal=true
 trading_authority=false
 creates_orders=false
 ```
+
+## Candidate Variants
+
+Candidate variants are bounded research-only specs controlled by `max_variants_per_contract`, `max_candidates`, and prior feedback. They are not parameter mining authority and do not create executable strategies.
+
+Default behavior remains base-only:
+
+```text
+--max-variants-per-contract 1
+```
+
+When explicitly set to `2`, the module can materialize one bounded alternate variant per admitted contract, still subject to `--max-candidates`.
+
+Bounded alternate variants:
+
+- `cross_sectional_momentum`: 40 day lookback instead of 60 day lookback
+- `risk_on_risk_off_regime`: 40 day lookback instead of 60 day lookback
+- `defensive_rotation`: top 1 defensive instrument instead of top 2
+- `volatility_compression_breakout`: 30 day volatility lookback instead of 20 day
+- `mean_reversion_after_extreme_dispersion`: 75th percentile dispersion threshold instead of rolling median
+
+Variant specs preserve the parent contract and hypothesis seed, carry `variant_id`, `variant_reason`, `variant_parent_candidate_id`, and `variant_parameters`, and keep all safety flags research-only.
 
 ## Screening Metrics
 
@@ -159,6 +183,27 @@ research_only=true
 trading_authority=false
 ```
 
+## Evidence Ledger
+
+The evidence ledger is research-only screening evidence. It is not validation evidence and cannot promote candidates.
+
+Write mode emits:
+
+```text
+logs/qre_tiingo_candidate_research_loop/evidence_ledger.jsonl
+```
+
+Each screened candidate gets one deterministic evidence entry with candidate identity, candidate digest, metrics digest, metrics summary, null-control summary, screening decision, feedback decision, and audit flags. Evidence decisions are:
+
+```text
+retain_research_evidence
+weak_research_evidence
+insufficient_research_evidence
+blocked_research_evidence
+```
+
+The top-level `latest.json` includes `evidence_ledger_summary` with counts for each evidence decision. This sidecar is for auditability of screening evidence only.
+
 ## Next-Run Feedback Consumption
 
 If `--prior-feedback-input` exists, the module reads feedback records before writing any new outputs.
@@ -167,7 +212,7 @@ Prior feedback changes later candidate handling:
 
 - retain feedback rematerializes the same candidate
 - reject feedback suppresses the same candidate
-- modify feedback creates a deterministic modified candidate variant
+- modify feedback creates a deterministic bounded alternate candidate variant
 - insufficient-evidence feedback defers screening and records the need for more data
 - block feedback blocks materialization
 
@@ -183,6 +228,7 @@ logs/qre_tiingo_candidate_research_loop/input_contracts.jsonl
 logs/qre_tiingo_candidate_research_loop/candidate_specs.jsonl
 logs/qre_tiingo_candidate_research_loop/screening_results.jsonl
 logs/qre_tiingo_candidate_research_loop/feedback_records.jsonl
+logs/qre_tiingo_candidate_research_loop/evidence_ledger.jsonl
 logs/qre_tiingo_candidate_research_loop/operator_summary.md
 ```
 
@@ -213,6 +259,18 @@ The operator summary ends with:
 No orders were created. No broker/risk authority exists. No validation, promotion, strategy registration, paper, shadow, or live authority was granted.
 ```
 
+## Daily Status Digest Integration
+
+Daily digest integration is observability-only. It reads the candidate loop sidecar and reports counts, evidence, variants, feedback, and safety status. It does not create candidates or run screening.
+
+The digest optionally consumes:
+
+```text
+logs/qre_tiingo_candidate_research_loop/latest.json
+```
+
+When present and safe, it surfaces candidate-loop status, contracts admitted, candidates materialized and screened, screening decisions, feedback counts, evidence-record counts, variant counts, and explicit false authority flags.
+
 ## Relationship To QRE Feedback-Loop Closure
 
 This closes a narrow research-only feedback loop for Tiingo-derived hypotheses. It does not close the broader QRE feedback loop across strategy registration, validation, paper readiness, shadow readiness, or live readiness.
@@ -221,7 +279,7 @@ The loop is deliberately bounded to candidate screening and feedback consumption
 
 ## Next Safe PR
 
-1. include Tiingo candidate research loop status in daily digest
-2. broaden candidate parameter variants under feedback control
-3. add evidence ledger sidecar for research-only candidate screening
+1. add richer research-only evidence ledger slices by feature family
+2. broaden candidate parameter variants under tighter feedback-controlled hypotheses
+3. add research-only evidence comparison views across candidate-loop runs
 
