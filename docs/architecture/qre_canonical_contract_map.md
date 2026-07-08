@@ -35,6 +35,14 @@ packages/qre_research/candidate_planning_bridge.py
 
 This bridge maps canonical CandidateSpec records into StrategySpec, PresetSpec, and bounded CampaignSpec payloads. It is planning-only: no registry mutation, campaign execution, screening run, validation, promotion, paper, shadow, live, broker, risk, or order authority.
 
+PR D adds the evidence and memory bridge:
+
+```text
+packages/qre_research/evidence_memory_bridge.py
+```
+
+This bridge maps campaign or screening evidence into EvidencePack, EvidenceLedger, Disposition, FeedbackRecord, LessonMemory, and ResearchMemory payloads. It preserves negative and contradictory evidence and remains memory-only: no synthesis, promotion, validation, paper, shadow, live, broker, risk, order, or execution authority.
+
 ## Canonical Object Ownership
 
 | Object | Current audit status | Current owner evidence | Recommendation |
@@ -54,12 +62,12 @@ This bridge maps canonical CandidateSpec records into StrategySpec, PresetSpec, 
 | CampaignSpec | bridged from canonical PresetSpec; execution owner still separate | candidate planning bridge plus campaign modules | BRIDGE |
 | CampaignRun | inferred | campaign run/report modules | DEFINE_CANONICAL_SCHEMA |
 | ScreeningResult | present | Tiingo candidate loop and other screening modules | GENERALIZE |
-| EvidencePack | ambiguous | campaign/evidence modules | OPERATOR_DECISION_REQUIRED |
-| EvidenceLedger | present provider-specific | Tiingo candidate loop evidence ledger | BRIDGE |
-| Disposition | inferred | disposition modules | DEFINE_CANONICAL_SCHEMA |
-| FeedbackRecord | present provider-specific | Tiingo candidate loop feedback records | BRIDGE |
-| LessonMemory | ambiguous | lesson/memory modules | OPERATOR_DECISION_REQUIRED |
-| ResearchMemory | ambiguous | research memory modules | OPERATOR_DECISION_REQUIRED |
+| EvidencePack | bridged from canonical screening/campaign evidence | evidence memory bridge plus campaign/evidence modules | BRIDGE |
+| EvidenceLedger | bridged from canonical screening/campaign evidence | Tiingo candidate loop plus evidence memory bridge | BRIDGE |
+| Disposition | bridged from EvidencePack | evidence memory bridge plus disposition modules | BRIDGE |
+| FeedbackRecord | bridged from Disposition | Tiingo candidate loop plus evidence memory bridge | BRIDGE |
+| LessonMemory | bridged from FeedbackRecord; broader memory owner still ambiguous | evidence memory bridge plus lesson/memory modules | BRIDGE |
+| ResearchMemory | bridged from LessonMemory; broader memory store owner still ambiguous | evidence memory bridge plus research memory modules | BRIDGE |
 | DailyDigestInput | present | daily digest sidecars | KEEP_AS_OBSERVABILITY |
 | OperatorSummary | present | digest and sidecar summaries | KEEP_AS_OBSERVABILITY |
 | RegistryEntry | present | registry.py | KEEP_PENDING_SCOPE_CONFIRMATION |
@@ -80,7 +88,7 @@ This bridge maps canonical CandidateSpec records into StrategySpec, PresetSpec, 
 1. PR A: settle canonical contract vocabulary. Status: complete in this vocabulary settlement PR.
 2. PR B: bridge Tiingo artifacts to canonical Hypothesis/CandidateSpec. Status: complete for Hypothesis, ResearchInputContract, and CandidateSpec.
 3. PR C: bridge canonical CandidateSpec to StrategySpec/PresetSpec/CampaignSpec. Status: complete at planning-contract level.
-4. PR D: connect campaign evidence to FeedbackMemory/LessonMemory.
+4. PR D: connect campaign evidence to FeedbackMemory/LessonMemory. Status: complete at contract/memory bridge level.
 5. PR E: make next hypothesis generation consume canonical memory.
 6. PR F: deprecate or quarantine duplicate legacy funnels.
 
