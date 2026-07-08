@@ -6,11 +6,21 @@ import contextlib
 import json
 import os
 import re
+import sys
 import tempfile
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
+
+REPO_ROOT_FOR_IMPORT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT_FOR_IMPORT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT_FOR_IMPORT))
+
+from packages.qre_research.funnel_classification import (  # noqa: E402
+    classification_summary,
+    classifications_as_dict,
+)
 
 REPORT_KIND: Final[str] = "qre_funnel_architecture_audit"
 SCHEMA_VERSION: Final[int] = 1
@@ -649,6 +659,15 @@ def build_reconciliation_plan(funnels: list[dict[str, Any]], contract_map: dict[
     return plan
 
 
+def build_funnel_classification_report() -> dict[str, Any]:
+    classifications = classifications_as_dict()
+    return {
+        "summary": classification_summary(),
+        "classifications": classifications,
+        "canonical_contract_loop": classifications.get("canonical_provider_agnostic_contract_bridge_loop", {}),
+    }
+
+
 def build_visual_maps() -> dict[str, str]:
     return {
         "c4_context": "docs/architecture/qre_funnel_visual_maps.md#diagram-1-c4-context-qre-research-system-boundary",
@@ -690,6 +709,7 @@ def build_report(repo_root: Path = Path(".")) -> dict[str, Any]:
             "hardcoded_coupling_summary": {},
             "canonicality_assessment": {},
             "reconciliation_plan": [],
+            "funnel_classification": build_funnel_classification_report(),
             "visual_maps": build_visual_maps(),
             "safety": dict(SAFETY),
         }
@@ -699,6 +719,7 @@ def build_report(repo_root: Path = Path(".")) -> dict[str, Any]:
     coupling_report = build_hardcoded_coupling_report(scan)
     graph = build_dependency_graph(scan, funnels, contract_map, provider_report)
     reconciliation = build_reconciliation_plan(funnels, contract_map)
+    funnel_classification = build_funnel_classification_report()
     unknown_contracts = [
         name
         for name, payload in contract_map.items()
@@ -734,10 +755,12 @@ def build_report(repo_root: Path = Path(".")) -> dict[str, Any]:
         "hardcoded_coupling_summary": {"findings": len(coupling_report["hardcoded_coupling_findings"])},
         "canonicality_assessment": {
             "full_provider_agnostic_loop_exists": False,
-            "assessment": "Multiple partial funnels exist. The Tiingo path is a provider-specific mini-loop; daily digest is observability-only; canonical ownership remains ambiguous for several provider-agnostic contracts.",
+            "canonical_contract_bridge_loop_classified": True,
+            "assessment": "Multiple runtime funnels still exist. PR A-F classify one provider-agnostic contract/bridge/memory path as canonical at the contract level; the Tiingo path remains a provider adapter; daily digest is observability-only.",
             "unknown_contracts": unknown_contracts,
         },
         "reconciliation_plan": reconciliation,
+        "funnel_classification": funnel_classification,
         "visual_maps": build_visual_maps(),
         "provider_leakage_report": provider_report,
         "hardcoded_coupling_report": coupling_report,
@@ -777,6 +800,10 @@ def render_operator_summary(report: dict[str, Any]) -> str:
             "",
             "## Duplicate or parallel semantics",
             f"- Duplicate or parallel semantics detected: {str(summary['duplicate_semantics_detected']).lower()}",
+            "",
+            "## Funnel classification",
+            f"- Canonical contract loop: {report['funnel_classification']['summary'].get('canonical_contract_loop')}",
+            f"- Duplicate canonical claims: {str(report['funnel_classification']['summary'].get('duplicate_canonical_claims')).lower()}",
             "",
             "## Visual maps",
         ]

@@ -67,6 +67,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "empirical_evidence_pack.py",
         "empirical_research_flywheel.py",
         "evidence_memory_bridge.py",
+        "funnel_classification.py",
         "generated_hypothesis_paths.py",
         "generated_primitive_paths.py",
         "generated_strategy_paths.py",
