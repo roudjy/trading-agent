@@ -27,6 +27,14 @@ packages/qre_research/tiingo_canonical_bridge.py
 
 This bridge maps Tiingo HypothesisSeed, ResearchInputContract, and CandidateSpec records into canonical Hypothesis, ResearchInputContract, and CandidateSpec payloads. Tiingo-specific identifiers stay in `provenance`; canonical semantics remain provider-agnostic.
 
+PR C adds the provider-agnostic planning bridge:
+
+```text
+packages/qre_research/candidate_planning_bridge.py
+```
+
+This bridge maps canonical CandidateSpec records into StrategySpec, PresetSpec, and bounded CampaignSpec payloads. It is planning-only: no registry mutation, campaign execution, screening run, validation, promotion, paper, shadow, live, broker, risk, or order authority.
+
 ## Canonical Object Ownership
 
 | Object | Current audit status | Current owner evidence | Recommendation |
@@ -40,10 +48,10 @@ This bridge maps Tiingo HypothesisSeed, ResearchInputContract, and CandidateSpec
 | HypothesisSeed | present | Tiingo lifecycle | BRIDGE |
 | ResearchInputContract | bridged from Tiingo provider adapter | Tiingo candidate loop plus canonical bridge | BRIDGE |
 | CandidateSpec | bridged from Tiingo provider adapter; canonical semantic owner still settling | Tiingo candidate loop plus canonical bridge | GENERALIZE |
-| StrategySpec | ambiguous | older strategy/preset/campaign paths | OPERATOR_DECISION_REQUIRED |
+| StrategySpec | bridged from canonical CandidateSpec; broader legacy owner still ambiguous | candidate planning bridge plus older strategy paths | BRIDGE |
 | StrategyIR | ambiguous | alpha discovery / Strategy IR references | OPERATOR_DECISION_REQUIRED |
-| PresetSpec | ambiguous | preset modules and docs | OPERATOR_DECISION_REQUIRED |
-| CampaignSpec | ambiguous | campaign modules | OPERATOR_DECISION_REQUIRED |
+| PresetSpec | bridged from canonical StrategySpec; broader legacy owner still ambiguous | candidate planning bridge plus preset modules | BRIDGE |
+| CampaignSpec | bridged from canonical PresetSpec; execution owner still separate | candidate planning bridge plus campaign modules | BRIDGE |
 | CampaignRun | inferred | campaign run/report modules | DEFINE_CANONICAL_SCHEMA |
 | ScreeningResult | present | Tiingo candidate loop and other screening modules | GENERALIZE |
 | EvidencePack | ambiguous | campaign/evidence modules | OPERATOR_DECISION_REQUIRED |
@@ -71,7 +79,7 @@ This bridge maps Tiingo HypothesisSeed, ResearchInputContract, and CandidateSpec
 
 1. PR A: settle canonical contract vocabulary. Status: complete in this vocabulary settlement PR.
 2. PR B: bridge Tiingo artifacts to canonical Hypothesis/CandidateSpec. Status: complete for Hypothesis, ResearchInputContract, and CandidateSpec.
-3. PR C: bridge canonical CandidateSpec to StrategySpec/PresetSpec/CampaignSpec.
+3. PR C: bridge canonical CandidateSpec to StrategySpec/PresetSpec/CampaignSpec. Status: complete at planning-contract level.
 4. PR D: connect campaign evidence to FeedbackMemory/LessonMemory.
 5. PR E: make next hypothesis generation consume canonical memory.
 6. PR F: deprecate or quarantine duplicate legacy funnels.
