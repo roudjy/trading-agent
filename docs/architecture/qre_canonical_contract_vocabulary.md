@@ -108,6 +108,33 @@ The vocabulary tests assert:
 - `research/research_latest.json` and `research/strategy_matrix.csv` are not mutated by vocabulary validation;
 - no contract grants broker, risk, order, validation, promotion, paper, shadow, live, or trading authority.
 
+## Tiingo Bridge
+
+The Tiingo provider-adapter bridge lives in:
+
+```text
+packages/qre_research/tiingo_canonical_bridge.py
+```
+
+It maps:
+
+```text
+Tiingo HypothesisSeed -> canonical Hypothesis
+Tiingo ResearchInputContract -> canonical ResearchInputContract
+Tiingo CandidateSpec -> canonical CandidateSpec
+```
+
+Bridge rules:
+
+- Tiingo identifiers and source references are retained only in `provenance`.
+- canonical Hypothesis and CandidateSpec semantics must not contain provider-specific terms;
+- canonical IDs are deterministic and do not include provider names;
+- missing required fields fail closed;
+- unsafe authority flags fail closed;
+- the bridge writes nothing and does not run screening.
+
+Tiingo EvidenceLedger and FeedbackRecord bridging is intentionally left for the evidence/memory bridge PR.
+
 ## What This PR Does Not Build
 
 This settlement does not create:
