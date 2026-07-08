@@ -561,6 +561,19 @@ def build_dependency_graph(scan: dict[str, Any], funnels: list[dict[str, Any]], 
             edge("doc:" + doc, fid, "documents", "observability" if "digest" in funnel["funnel_id"] else "unknown", [doc])
         for test in funnel["tests"]:
             edge("test:" + test, fid, "tests", "test", [test])
+    for left_index, left in enumerate(funnels):
+        for right in funnels[left_index + 1 :]:
+            if "observability" in {left["canonicality"], right["canonicality"]}:
+                continue
+            overlap = sorted(set(left["canonical_objects"]) & set(right["canonical_objects"]))
+            if overlap:
+                edge(
+                    "funnel:" + left["funnel_id"],
+                    "funnel:" + right["funnel_id"],
+                    "duplicates_semantics_with",
+                    "duplicate",
+                    overlap,
+                )
     for record in scan["files"]:
         if not record["module"]:
             continue
