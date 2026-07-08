@@ -22,7 +22,22 @@ DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST: Final[Path] = Path(
     "logs/qre_research_memory_current_artifacts/latest.json"
 )
 DEFAULT_SHADOW_READINESS_LATEST: Final[Path] = Path("logs/qre_shadow_readiness_gates/latest.json")
+DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST: Final[Path] = Path(
+    "logs/qre_tiingo_hypothesis_lifecycle/latest.json"
+)
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_daily_status")
+TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND: Final[str] = "qre_tiingo_hypothesis_lifecycle"
+TIINGO_HYPOTHESIS_LIFECYCLE_SAFETY_KEYS: Final[tuple[str, ...]] = (
+    "trading_authority",
+    "creates_candidates",
+    "runs_screening",
+    "promotes_candidates",
+    "registers_strategy",
+    "validation_authority",
+    "paper_authority",
+    "shadow_authority",
+    "live_authority",
+)
 
 
 class DailyStatusDigestError(RuntimeError):
@@ -99,6 +114,162 @@ def _read_optional_artifact(path: Path) -> tuple[dict[str, Any] | None, str | No
     if parsed is None:
         return None, None
     return parsed, path.as_posix()
+
+
+def _empty_tiingo_lifecycle_counts() -> dict[str, int]:
+    return {
+        "generated": 0,
+        "admitted": 0,
+        "rejected": 0,
+        "blocked": 0,
+    }
+
+
+def _false_tiingo_lifecycle_authority_summary() -> dict[str, bool]:
+    return {key: False for key in TIINGO_HYPOTHESIS_LIFECYCLE_SAFETY_KEYS}
+
+
+def _tiingo_lifecycle_diagnostic(
+    *,
+    status: str,
+    source_artifact: Path,
+    reason: str,
+    observed_counts: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "status": status,
+        "source_artifact": source_artifact.as_posix(),
+        "report_kind": TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND,
+        "daily_digest_ready": False,
+        "counts": _empty_tiingo_lifecycle_counts(),
+        "operator_updates_count": 0,
+        "next_safe_actions": [],
+        "authority_summary": _false_tiingo_lifecycle_authority_summary(),
+        "diagnostic_reason": reason,
+    }
+    if observed_counts is not None:
+        payload["observed_counts"] = observed_counts
+    return payload
+
+
+def _read_tiingo_hypothesis_lifecycle(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return _tiingo_lifecycle_diagnostic(
+            status="not_available",
+            source_artifact=path,
+            reason="tiingo_hypothesis_lifecycle_artifact_missing",
+        )
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return _tiingo_lifecycle_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=path,
+            reason="tiingo_hypothesis_lifecycle_artifact_unreadable",
+        )
+    if not isinstance(parsed, dict):
+        return _tiingo_lifecycle_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=path,
+            reason="tiingo_hypothesis_lifecycle_artifact_not_object",
+        )
+
+    summary = parsed.get("summary") if isinstance(parsed.get("summary"), dict) else None
+    daily_digest_input = (
+        parsed.get("daily_digest_input")
+        if isinstance(parsed.get("daily_digest_input"), dict)
+        else None
+    )
+    safety = parsed.get("safety") if isinstance(parsed.get("safety"), dict) else None
+    authority_summary = (
+        daily_digest_input.get("authority_summary")
+        if isinstance(daily_digest_input, dict)
+        and isinstance(daily_digest_input.get("authority_summary"), dict)
+        else None
+    )
+    safety_view = safety or {}
+    authority_view = authority_summary or {}
+    unsafe_keys = sorted(
+        key
+        for key in TIINGO_HYPOTHESIS_LIFECYCLE_SAFETY_KEYS
+        if safety_view.get(key) is not False or authority_view.get(key) is not False
+    )
+    if unsafe_keys:
+        return {
+            "status": "blocked",
+            "source_artifact": path.as_posix(),
+            "report_kind": str(parsed.get("report_kind") or TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND),
+            "daily_digest_ready": False,
+            "counts": _empty_tiingo_lifecycle_counts(),
+            "operator_updates_count": 0,
+            "next_safe_actions": [],
+            "authority_summary": _false_tiingo_lifecycle_authority_summary(),
+            "diagnostic_reason": "unsafe_tiingo_lifecycle_authority_signal",
+            "unsafe_authority_keys": unsafe_keys,
+        }
+
+    counts = (
+        daily_digest_input.get("counts")
+        if isinstance(daily_digest_input, dict)
+        and isinstance(daily_digest_input.get("counts"), dict)
+        else None
+    )
+    next_actions = (
+        daily_digest_input.get("next_actions")
+        if isinstance(daily_digest_input, dict)
+        and isinstance(daily_digest_input.get("next_actions"), list)
+        else None
+    )
+    operator_updates = (
+        parsed.get("operator_updates") if isinstance(parsed.get("operator_updates"), list) else None
+    )
+    required_present = (
+        parsed.get("report_kind") == TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND
+        and summary is not None
+        and daily_digest_input is not None
+        and counts is not None
+        and next_actions is not None
+        and safety is not None
+        and authority_summary is not None
+        and isinstance(summary.get("lifecycle_verdict"), str)
+        and "daily_digest_ready" in summary
+    )
+    if not required_present:
+        return _tiingo_lifecycle_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=path,
+            reason="tiingo_hypothesis_lifecycle_missing_expected_fields",
+        )
+
+    normalized_counts = {
+        "generated": int(counts.get("generated") or 0),
+        "admitted": int(counts.get("admitted") or 0),
+        "rejected": int(counts.get("rejected") or 0),
+        "blocked": int(counts.get("blocked") or 0),
+    }
+    if summary.get("daily_digest_ready") is not True:
+        return _tiingo_lifecycle_diagnostic(
+            status="not_ready",
+            source_artifact=path,
+            reason="tiingo_hypothesis_lifecycle_daily_digest_not_ready",
+            observed_counts=normalized_counts,
+        )
+
+    return {
+        "status": "ready",
+        "source_artifact": path.as_posix(),
+        "report_kind": TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND,
+        "lifecycle_verdict": summary.get("lifecycle_verdict"),
+        "daily_digest_ready": True,
+        "counts": normalized_counts,
+        "hypotheses_seen": summary.get("hypotheses_seen"),
+        "operator_updates_count": summary.get(
+            "operator_updates_count",
+            len(operator_updates) if operator_updates is not None else 0,
+        ),
+        "next_safe_actions": [str(action) for action in next_actions],
+        "authority_summary": _false_tiingo_lifecycle_authority_summary(),
+    }
 
 
 def _discover_backend_results(results_dir: Path) -> list[tuple[Path, dict[str, Any]]]:
@@ -200,6 +371,7 @@ def build_daily_status_packet(
     trusted_loop_review_latest_path: Path = DEFAULT_TRUSTED_LOOP_REVIEW_LATEST,
     research_memory_current_artifacts_latest_path: Path = DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST,
     shadow_readiness_latest_path: Path = DEFAULT_SHADOW_READINESS_LATEST,
+    tiingo_hypothesis_lifecycle_latest_path: Path = DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     loop_packet = _read_json(loop_latest_path)
@@ -233,6 +405,9 @@ def build_daily_status_packet(
         research_memory_current_artifacts_latest_path
     )
     shadow_readiness, shadow_readiness_used = _read_optional_artifact(shadow_readiness_latest_path)
+    tiingo_hypothesis_lifecycle = _read_tiingo_hypothesis_lifecycle(
+        tiingo_hypothesis_lifecycle_latest_path
+    )
 
     build_consumed = _count_true(
         build_consumer_latest.get("build_request_consumed") if isinstance(build_consumer_latest, dict) else None,
@@ -322,6 +497,9 @@ def build_daily_status_packet(
             trusted_loop_review_used,
             research_memory_current_artifacts_used,
             shadow_readiness_used,
+            tiingo_hypothesis_lifecycle_latest_path.as_posix()
+            if tiingo_hypothesis_lifecycle["status"] != "not_available"
+            else None,
         ]
         if path is not None
     ]
@@ -426,6 +604,7 @@ def build_daily_status_packet(
                 shadow_readiness=shadow_readiness,
             ),
             "qre_exact_next_action": qre_exact_next_action,
+            "tiingo_hypothesis_lifecycle_status": tiingo_hypothesis_lifecycle["status"],
             "flywheel_progress": {
                 "build_request_consumed": _yes_no_unknown(
                     build_requests_consumed > 0 if build_requests_consumed else None
@@ -455,6 +634,7 @@ def build_daily_status_packet(
         "trusted_loop_review": trusted_loop_review,
         "research_memory_current_artifacts": research_memory_current_artifacts,
         "shadow_readiness": shadow_readiness,
+        "tiingo_hypothesis_lifecycle": tiingo_hypothesis_lifecycle,
         "flywheel_summary_fallback": {
             key: value
             for key, value in flywheel_summary.items()
@@ -487,6 +667,26 @@ def build_daily_status_packet(
 def render_daily_status(packet: dict[str, Any]) -> str:
     summary = packet["summary"]
     flywheel_progress = summary.get("flywheel_progress") if isinstance(summary.get("flywheel_progress"), dict) else {}
+    tiingo_lifecycle = packet.get("tiingo_hypothesis_lifecycle")
+    if not isinstance(tiingo_lifecycle, dict):
+        tiingo_lifecycle = _tiingo_lifecycle_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST,
+            reason="tiingo_hypothesis_lifecycle_section_missing",
+        )
+    tiingo_counts = (
+        tiingo_lifecycle.get("counts")
+        if isinstance(tiingo_lifecycle.get("counts"), dict)
+        else _empty_tiingo_lifecycle_counts()
+    )
+    tiingo_authority = (
+        tiingo_lifecycle.get("authority_summary")
+        if isinstance(tiingo_lifecycle.get("authority_summary"), dict)
+        else _false_tiingo_lifecycle_authority_summary()
+    )
+    next_safe_actions = tiingo_lifecycle.get("next_safe_actions")
+    if not isinstance(next_safe_actions, list) or not next_safe_actions:
+        next_safe_actions = [tiingo_lifecycle.get("diagnostic_reason") or "none"]
     build_request_statuses = packet.get("build_request_statuses")
     if not isinstance(build_request_statuses, dict):
         build_request_statuses = {}
@@ -542,6 +742,26 @@ def render_daily_status(packet: dict[str, Any]) -> str:
             f"- Shadow readiness exact next action: {summary['shadow_readiness_exact_next_action']}",
             f"- QRE operator authority: {summary['qre_operator_authority']}",
             f"- QRE exact next action: {summary['qre_exact_next_action']}",
+            "",
+            "Tiingo hypothesis lifecycle:",
+            f"- Status: {tiingo_lifecycle.get('status')}",
+            f"- Lifecycle verdict: {tiingo_lifecycle.get('lifecycle_verdict', 'none')}",
+            f"- Hypotheses generated: {tiingo_counts.get('generated', 0)}",
+            f"- Admitted: {tiingo_counts.get('admitted', 0)}",
+            f"- Rejected: {tiingo_counts.get('rejected', 0)}",
+            f"- Blocked: {tiingo_counts.get('blocked', 0)}",
+            f"- Operator updates: {tiingo_lifecycle.get('operator_updates_count', 0)}",
+            f"- Next safe action: {', '.join(str(action) for action in next_safe_actions)}",
+            "- Admission meaning: admitted for future research-only candidate formulation; candidate created: false",
+            f"- Candidate creation: {str(tiingo_authority.get('creates_candidates')).lower()}",
+            f"- Screening run: {str(tiingo_authority.get('runs_screening')).lower()}",
+            f"- Trading authority: {str(tiingo_authority.get('trading_authority')).lower()}",
+            f"- Promotion authority: {str(tiingo_authority.get('promotes_candidates')).lower()}",
+            f"- Strategy registration: {str(tiingo_authority.get('registers_strategy')).lower()}",
+            f"- Validation authority: {str(tiingo_authority.get('validation_authority')).lower()}",
+            f"- Paper authority: {str(tiingo_authority.get('paper_authority')).lower()}",
+            f"- Shadow authority: {str(tiingo_authority.get('shadow_authority')).lower()}",
+            f"- Live authority: {str(tiingo_authority.get('live_authority')).lower()}",
             "",
             "Research intelligence progress:",
             "- Learning is feeding back into the next market-intake seed.",
@@ -626,6 +846,7 @@ def run_daily_status_digest(
     trusted_loop_review_latest_path: Path = DEFAULT_TRUSTED_LOOP_REVIEW_LATEST,
     research_memory_current_artifacts_latest_path: Path = DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST,
     shadow_readiness_latest_path: Path = DEFAULT_SHADOW_READINESS_LATEST,
+    tiingo_hypothesis_lifecycle_latest_path: Path = DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     write: bool = False,
 ) -> dict[str, Any]:
@@ -640,6 +861,7 @@ def run_daily_status_digest(
         trusted_loop_review_latest_path=trusted_loop_review_latest_path,
         research_memory_current_artifacts_latest_path=research_memory_current_artifacts_latest_path,
         shadow_readiness_latest_path=shadow_readiness_latest_path,
+        tiingo_hypothesis_lifecycle_latest_path=tiingo_hypothesis_lifecycle_latest_path,
     )
     if write:
         packet["_artifact_paths"] = write_outputs(packet, output_dir=output_dir)
@@ -662,6 +884,10 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST.as_posix(),
     )
     parser.add_argument("--shadow-readiness-latest", default=DEFAULT_SHADOW_READINESS_LATEST.as_posix())
+    parser.add_argument(
+        "--tiingo-hypothesis-lifecycle-latest",
+        default=DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST.as_posix(),
+    )
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR.as_posix())
     args = parser.parse_args(argv)
     packet = run_daily_status_digest(
@@ -677,6 +903,9 @@ def main(argv: list[str] | None = None) -> int:
             args.research_memory_current_artifacts_latest
         ),
         shadow_readiness_latest_path=Path(args.shadow_readiness_latest),
+        tiingo_hypothesis_lifecycle_latest_path=Path(
+            args.tiingo_hypothesis_lifecycle_latest
+        ),
         output_dir=Path(args.output_dir),
         write=args.write,
     )
@@ -692,6 +921,7 @@ __all__ = [
     "DailyStatusDigestError",
     "DEFAULT_LOOP_LATEST",
     "DEFAULT_OUTPUT_DIR",
+    "DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST",
     "REPORT_KIND",
     "SCHEMA_VERSION",
     "build_daily_status_packet",

@@ -117,6 +117,34 @@ daily_digest_input.digest_kind = qre_hypothesis_lifecycle_daily_input
 
 The block contains generated/admitted/rejected/blocked counts, highlights, blocked-reason counts, next actions, and a false authority summary. The existing daily digest can consume this in a later PR. This PR does not add a scheduler or broad digest integration.
 
+## Daily status digest integration
+
+The QRE daily status digest optionally consumes:
+
+```text
+logs/qre_tiingo_hypothesis_lifecycle/latest.json
+```
+
+This sidecar provides generated/admitted/rejected/blocked lifecycle counts, the lifecycle verdict, operator-update count, next safe actions, and an explicit false authority summary for the operator-facing daily status report.
+
+When the lifecycle sidecar is present and ready, the daily digest shows:
+
+- hypotheses generated
+- hypotheses admitted, rejected, and blocked
+- next safe action
+- candidate creation false
+- screening run false
+- trading authority false
+- validation, paper, shadow, and live authority false
+
+Missing lifecycle artifacts are not fatal. The daily digest reports the lifecycle status as unavailable and continues without changing candidate, screening, or trading status.
+
+Malformed or unsafe lifecycle artifacts are reported as malformed or blocked diagnostics. Unsafe authority signals are never treated as permission, and the digest keeps the authority summary false.
+
+Daily digest ingestion is observability-only. It does not create candidates, run screening, promote hypotheses, register strategies, start validation, enable paper/shadow/live, or grant trading authority.
+
+This closes the operator daily-status visibility gap for Tiingo hypothesis lifecycle events. It does not close the full research feedback loop because candidate materialization, screening, feedback memory, and later-run consumption are still separate future steps.
+
 ## Safety boundaries
 
 Every report keeps:
