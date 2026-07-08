@@ -73,6 +73,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "research_memory.py",
         "retrieval_coverage.py",
         "second_preregistered_campaign.py",
+        "tiingo_canonical_bridge.py",
         "universe.py",
     ],
     "qre_data": [
