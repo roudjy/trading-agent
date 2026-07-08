@@ -119,7 +119,16 @@ def _rel(path: Path, root: Path) -> str:
 
 
 def _iter_text_files(root: Path) -> list[Path]:
-    excluded = {".git", ".venv", "__pycache__", ".pytest_cache", "node_modules"}
+    excluded = {
+        ".git",
+        ".venv",
+        "__pycache__",
+        ".pytest_cache",
+        "node_modules",
+        "logs",
+        "data",
+        "generated_research",
+    }
     files: list[Path] = []
     for path in root.rglob("*"):
         if any(part in excluded for part in path.parts):
