@@ -192,6 +192,7 @@ def test_operator_summary_contains_required_sections(tmp_path: Path) -> None:
         "## Verdict",
         "## Funnels detected",
         "## Provider leakage",
+        "## Funnel classification",
         "## Reconciliation decisions",
         "## Safety confirmation",
     ):
@@ -222,3 +223,21 @@ def test_operator_summary_bluntly_reports_parallel_funnels(tmp_path: Path) -> No
     report = audit.build_report(_fixture_repo(tmp_path))
     summary = audit.render_operator_summary(report)
     assert "multiple partial funnels exist" in summary.lower()
+
+
+def test_audit_includes_funnel_classification_registry(tmp_path: Path) -> None:
+    report = audit.build_report(_fixture_repo(tmp_path))
+    classification = report["funnel_classification"]
+
+    assert classification["summary"]["canonical_contract_loop"] == "canonical_provider_agnostic_contract_bridge_loop"
+    assert classification["summary"]["duplicate_canonical_claims"] is False
+    assert classification["classifications"]["tiingo_hypothesis_candidate_research_mini_loop"]["classification"] == "provider_adapter"
+    assert classification["classifications"]["daily_status_digest_observability"]["classification"] == "observability_only"
+
+
+def test_audit_does_not_claim_runtime_loop_is_closed(tmp_path: Path) -> None:
+    report = audit.build_report(_fixture_repo(tmp_path))
+    assessment = report["canonicality_assessment"]
+
+    assert assessment["canonical_contract_bridge_loop_classified"] is True
+    assert assessment["full_provider_agnostic_loop_exists"] is False
