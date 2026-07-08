@@ -25,12 +25,30 @@ DEFAULT_SHADOW_READINESS_LATEST: Final[Path] = Path("logs/qre_shadow_readiness_g
 DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST: Final[Path] = Path(
     "logs/qre_tiingo_hypothesis_lifecycle/latest.json"
 )
+DEFAULT_TIINGO_CANDIDATE_LOOP_LATEST: Final[Path] = Path(
+    "logs/qre_tiingo_candidate_research_loop/latest.json"
+)
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_daily_status_digest")
 TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND: Final[str] = "qre_tiingo_hypothesis_lifecycle"
+TIINGO_CANDIDATE_LOOP_REPORT_KIND: Final[str] = "qre_tiingo_candidate_research_loop"
 TIINGO_HYPOTHESIS_LIFECYCLE_SAFETY_KEYS: Final[tuple[str, ...]] = (
     "trading_authority",
     "creates_candidates",
     "runs_screening",
+    "promotes_candidates",
+    "registers_strategy",
+    "validation_authority",
+    "paper_authority",
+    "shadow_authority",
+    "live_authority",
+)
+TIINGO_CANDIDATE_LOOP_AUTHORITY_KEYS: Final[tuple[str, ...]] = (
+    "research_only",
+    "screening_only",
+    "trading_authority",
+    "creates_orders",
+    "broker_authority",
+    "risk_authority",
     "promotes_candidates",
     "registers_strategy",
     "validation_authority",
@@ -127,6 +145,56 @@ def _empty_tiingo_lifecycle_counts() -> dict[str, int]:
 
 def _false_tiingo_lifecycle_authority_summary() -> dict[str, bool]:
     return {key: False for key in TIINGO_HYPOTHESIS_LIFECYCLE_SAFETY_KEYS}
+
+
+def _false_tiingo_candidate_loop_authority_summary() -> dict[str, bool]:
+    return {
+        "research_only": True,
+        "screening_only": True,
+        "trading_authority": False,
+        "creates_orders": False,
+        "broker_authority": False,
+        "risk_authority": False,
+        "promotes_candidates": False,
+        "registers_strategy": False,
+        "validation_authority": False,
+        "paper_authority": False,
+        "shadow_authority": False,
+        "live_authority": False,
+    }
+
+
+def _empty_tiingo_candidate_loop_counts() -> dict[str, int]:
+    return {
+        "contracts": 0,
+        "candidates_materialized": 0,
+        "candidates_screened": 0,
+        "screening_pass": 0,
+        "screening_fail": 0,
+        "null_not_beaten": 0,
+        "insufficient_evidence": 0,
+        "feedback_records": 0,
+        "evidence_records": 0,
+    }
+
+
+def _empty_tiingo_candidate_loop_feedback() -> dict[str, Any]:
+    return {
+        "feedback_consumed": False,
+        "feedback_applied_count": 0,
+        "next_run_feedback_ready": False,
+    }
+
+
+def _empty_tiingo_candidate_loop_variants() -> dict[str, int]:
+    return {
+        "base_candidates": 0,
+        "variant_candidates": 0,
+        "variants_materialized": 0,
+        "modified_by_prior_feedback": 0,
+        "retained_by_prior_feedback": 0,
+        "suppressed_by_prior_feedback": 0,
+    }
 
 
 def _tiingo_lifecycle_diagnostic(
@@ -272,6 +340,124 @@ def _read_tiingo_hypothesis_lifecycle(path: Path) -> dict[str, Any]:
     }
 
 
+def _tiingo_candidate_loop_diagnostic(
+    *,
+    status: str,
+    source_artifact: Path,
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "status": status,
+        "source_artifact": source_artifact.as_posix(),
+        "report_kind": TIINGO_CANDIDATE_LOOP_REPORT_KIND,
+        "counts": _empty_tiingo_candidate_loop_counts(),
+        "feedback": _empty_tiingo_candidate_loop_feedback(),
+        "variants": _empty_tiingo_candidate_loop_variants(),
+        "authority_summary": _false_tiingo_candidate_loop_authority_summary(),
+        "diagnostic_reason": reason,
+    }
+
+
+def _read_tiingo_candidate_loop(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return _tiingo_candidate_loop_diagnostic(
+            status="not_available",
+            source_artifact=path,
+            reason="tiingo_candidate_loop_artifact_missing",
+        )
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return _tiingo_candidate_loop_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=path,
+            reason="tiingo_candidate_loop_artifact_unreadable",
+        )
+    if not isinstance(parsed, dict):
+        return _tiingo_candidate_loop_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=path,
+            reason="tiingo_candidate_loop_artifact_not_object",
+        )
+    summary = parsed.get("summary") if isinstance(parsed.get("summary"), dict) else {}
+    safety = parsed.get("safety") if isinstance(parsed.get("safety"), dict) else {}
+    daily_input = (
+        parsed.get("daily_digest_input")
+        if isinstance(parsed.get("daily_digest_input"), dict)
+        else {}
+    )
+    authority = (
+        daily_input.get("authority_summary")
+        if isinstance(daily_input.get("authority_summary"), dict)
+        else {}
+    )
+    unsafe_keys = [
+        key
+        for key in TIINGO_CANDIDATE_LOOP_AUTHORITY_KEYS
+        if any(
+            view.get(key) is not True
+            if key in {"research_only", "screening_only"}
+            else view.get(key) is not False
+            for view in (safety, authority)
+        )
+    ]
+    if unsafe_keys:
+        payload = _tiingo_candidate_loop_diagnostic(
+            status="blocked_unsafe_authority",
+            source_artifact=path,
+            reason="unsafe_tiingo_candidate_loop_authority_signal",
+        )
+        payload["unsafe_authority_keys"] = sorted(unsafe_keys)
+        return payload
+    if parsed.get("report_kind") != TIINGO_CANDIDATE_LOOP_REPORT_KIND or not summary:
+        return _tiingo_candidate_loop_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=path,
+            reason="tiingo_candidate_loop_missing_expected_fields",
+        )
+    evidence_summary = (
+        parsed.get("evidence_ledger_summary")
+        if isinstance(parsed.get("evidence_ledger_summary"), dict)
+        else {}
+    )
+    variant_summary = (
+        parsed.get("variant_summary")
+        if isinstance(parsed.get("variant_summary"), dict)
+        else {}
+    )
+    return {
+        "status": "ready",
+        "source_artifact": path.as_posix(),
+        "report_kind": TIINGO_CANDIDATE_LOOP_REPORT_KIND,
+        "loop_verdict": summary.get("loop_verdict"),
+        "counts": {
+            "contracts": int(summary.get("input_contracts_admitted") or 0),
+            "candidates_materialized": int(summary.get("candidates_materialized") or 0),
+            "candidates_screened": int(summary.get("candidates_screened") or 0),
+            "screening_pass": int(summary.get("screening_pass") or 0),
+            "screening_fail": int(summary.get("screening_fail") or 0),
+            "null_not_beaten": int(summary.get("null_not_beaten") or 0),
+            "insufficient_evidence": int(summary.get("insufficient_evidence") or 0),
+            "feedback_records": int(summary.get("feedback_records") or 0),
+            "evidence_records": int(evidence_summary.get("evidence_records") or 0),
+        },
+        "feedback": {
+            "feedback_consumed": bool(summary.get("feedback_consumed") is True),
+            "feedback_applied_count": int(summary.get("feedback_applied_count") or 0),
+            "next_run_feedback_ready": bool(summary.get("next_run_feedback_ready") is True),
+        },
+        "variants": {
+            "base_candidates": int(variant_summary.get("base_candidates") or 0),
+            "variant_candidates": int(variant_summary.get("variant_candidates") or 0),
+            "variants_materialized": int(variant_summary.get("variants_materialized") or 0),
+            "modified_by_prior_feedback": int(variant_summary.get("modified_by_prior_feedback") or 0),
+            "retained_by_prior_feedback": int(variant_summary.get("retained_by_prior_feedback") or 0),
+            "suppressed_by_prior_feedback": int(variant_summary.get("suppressed_by_prior_feedback") or 0),
+        },
+        "authority_summary": _false_tiingo_candidate_loop_authority_summary(),
+    }
+
+
 def _discover_backend_results(results_dir: Path) -> list[tuple[Path, dict[str, Any]]]:
     if not results_dir.exists():
         return []
@@ -372,6 +558,7 @@ def build_daily_status_packet(
     research_memory_current_artifacts_latest_path: Path = DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST,
     shadow_readiness_latest_path: Path = DEFAULT_SHADOW_READINESS_LATEST,
     tiingo_hypothesis_lifecycle_latest_path: Path = DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST,
+    tiingo_candidate_loop_latest_path: Path = DEFAULT_TIINGO_CANDIDATE_LOOP_LATEST,
     generated_at_utc: str | None = None,
 ) -> dict[str, Any]:
     loop_packet = _read_json(loop_latest_path)
@@ -408,6 +595,7 @@ def build_daily_status_packet(
     tiingo_hypothesis_lifecycle = _read_tiingo_hypothesis_lifecycle(
         tiingo_hypothesis_lifecycle_latest_path
     )
+    tiingo_candidate_loop = _read_tiingo_candidate_loop(tiingo_candidate_loop_latest_path)
 
     build_consumed = _count_true(
         build_consumer_latest.get("build_request_consumed") if isinstance(build_consumer_latest, dict) else None,
@@ -500,6 +688,9 @@ def build_daily_status_packet(
             tiingo_hypothesis_lifecycle_latest_path.as_posix()
             if tiingo_hypothesis_lifecycle["status"] != "not_available"
             else None,
+            tiingo_candidate_loop_latest_path.as_posix()
+            if tiingo_candidate_loop["status"] != "not_available"
+            else None,
         ]
         if path is not None
     ]
@@ -572,6 +763,11 @@ def build_daily_status_packet(
             str(action) for action in tiingo_lifecycle_next_actions
         ],
         "tiingo_hypothesis_lifecycle_authority": tiingo_lifecycle_authority,
+        "tiingo_candidate_loop_status": tiingo_candidate_loop["status"],
+        "tiingo_candidate_loop_counts": tiingo_candidate_loop["counts"],
+        "tiingo_candidate_loop_feedback": tiingo_candidate_loop["feedback"],
+        "tiingo_candidate_loop_variants": tiingo_candidate_loop["variants"],
+        "tiingo_candidate_loop_authority": tiingo_candidate_loop["authority_summary"],
         "summary": {
             "autonomous_cycles": len(cycles),
             "controlled_research_inner_loops": summary.get("controlled_research_inner_loop_count"),
@@ -633,6 +829,11 @@ def build_daily_status_packet(
                 str(action) for action in tiingo_lifecycle_next_actions
             ],
             "tiingo_hypothesis_lifecycle_authority": tiingo_lifecycle_authority,
+            "tiingo_candidate_loop_status": tiingo_candidate_loop["status"],
+            "tiingo_candidate_loop_counts": tiingo_candidate_loop["counts"],
+            "tiingo_candidate_loop_feedback": tiingo_candidate_loop["feedback"],
+            "tiingo_candidate_loop_variants": tiingo_candidate_loop["variants"],
+            "tiingo_candidate_loop_authority": tiingo_candidate_loop["authority_summary"],
             "flywheel_progress": {
                 "build_request_consumed": _yes_no_unknown(
                     build_requests_consumed > 0 if build_requests_consumed else None
@@ -663,6 +864,7 @@ def build_daily_status_packet(
         "research_memory_current_artifacts": research_memory_current_artifacts,
         "shadow_readiness": shadow_readiness,
         "tiingo_hypothesis_lifecycle": tiingo_hypothesis_lifecycle,
+        "tiingo_candidate_loop": tiingo_candidate_loop,
         "flywheel_summary_fallback": {
             key: value
             for key, value in flywheel_summary.items()
@@ -715,6 +917,33 @@ def render_daily_status(packet: dict[str, Any]) -> str:
     next_safe_actions = tiingo_lifecycle.get("next_safe_actions")
     if not isinstance(next_safe_actions, list) or not next_safe_actions:
         next_safe_actions = [tiingo_lifecycle.get("diagnostic_reason") or "none"]
+    tiingo_candidate_loop = packet.get("tiingo_candidate_loop")
+    if not isinstance(tiingo_candidate_loop, dict):
+        tiingo_candidate_loop = _tiingo_candidate_loop_diagnostic(
+            status="malformed_or_unreadable",
+            source_artifact=DEFAULT_TIINGO_CANDIDATE_LOOP_LATEST,
+            reason="tiingo_candidate_loop_section_missing",
+        )
+    candidate_counts = (
+        tiingo_candidate_loop.get("counts")
+        if isinstance(tiingo_candidate_loop.get("counts"), dict)
+        else _empty_tiingo_candidate_loop_counts()
+    )
+    candidate_feedback = (
+        tiingo_candidate_loop.get("feedback")
+        if isinstance(tiingo_candidate_loop.get("feedback"), dict)
+        else _empty_tiingo_candidate_loop_feedback()
+    )
+    candidate_variants = (
+        tiingo_candidate_loop.get("variants")
+        if isinstance(tiingo_candidate_loop.get("variants"), dict)
+        else _empty_tiingo_candidate_loop_variants()
+    )
+    candidate_authority = (
+        tiingo_candidate_loop.get("authority_summary")
+        if isinstance(tiingo_candidate_loop.get("authority_summary"), dict)
+        else _false_tiingo_candidate_loop_authority_summary()
+    )
     build_request_statuses = packet.get("build_request_statuses")
     if not isinstance(build_request_statuses, dict):
         build_request_statuses = {}
@@ -790,6 +1019,31 @@ def render_daily_status(packet: dict[str, Any]) -> str:
             f"- Paper authority: {str(tiingo_authority.get('paper_authority')).lower()}",
             f"- Shadow authority: {str(tiingo_authority.get('shadow_authority')).lower()}",
             f"- Live authority: {str(tiingo_authority.get('live_authority')).lower()}",
+            "",
+            "Tiingo candidate research loop:",
+            f"- Status: {tiingo_candidate_loop.get('status')}",
+            f"- Contracts admitted: {candidate_counts.get('contracts', 0)}",
+            f"- Candidates materialized: {candidate_counts.get('candidates_materialized', 0)}",
+            f"- Candidates screened: {candidate_counts.get('candidates_screened', 0)}",
+            f"- Screening pass: {candidate_counts.get('screening_pass', 0)}",
+            f"- Screening fail: {candidate_counts.get('screening_fail', 0)}",
+            f"- Null not beaten: {candidate_counts.get('null_not_beaten', 0)}",
+            f"- Insufficient evidence: {candidate_counts.get('insufficient_evidence', 0)}",
+            f"- Feedback records: {candidate_counts.get('feedback_records', 0)}",
+            f"- Evidence records: {candidate_counts.get('evidence_records', 0)}",
+            f"- Feedback consumed: {str(candidate_feedback.get('feedback_consumed')).lower()}",
+            f"- Feedback applied count: {candidate_feedback.get('feedback_applied_count', 0)}",
+            f"- Next-run feedback ready: {str(candidate_feedback.get('next_run_feedback_ready')).lower()}",
+            f"- Base candidates: {candidate_variants.get('base_candidates', 0)}",
+            f"- Variant candidates: {candidate_variants.get('variant_candidates', 0)}",
+            "- Candidate creation: research-only specs",
+            "- Screening run: research-only",
+            "- Candidate creation means research-only candidate specs, not executable strategies.",
+            f"- Trading authority: {str(candidate_authority.get('trading_authority')).lower()}",
+            f"- Validation authority: {str(candidate_authority.get('validation_authority')).lower()}",
+            f"- Paper authority: {str(candidate_authority.get('paper_authority')).lower()}",
+            f"- Shadow authority: {str(candidate_authority.get('shadow_authority')).lower()}",
+            f"- Live authority: {str(candidate_authority.get('live_authority')).lower()}",
             "",
             "Research intelligence progress:",
             "- Learning is feeding back into the next market-intake seed.",
@@ -875,6 +1129,7 @@ def run_daily_status_digest(
     research_memory_current_artifacts_latest_path: Path = DEFAULT_RESEARCH_MEMORY_CURRENT_ARTIFACTS_LATEST,
     shadow_readiness_latest_path: Path = DEFAULT_SHADOW_READINESS_LATEST,
     tiingo_hypothesis_lifecycle_latest_path: Path = DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST,
+    tiingo_candidate_loop_latest_path: Path = DEFAULT_TIINGO_CANDIDATE_LOOP_LATEST,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     write: bool = False,
 ) -> dict[str, Any]:
@@ -890,6 +1145,7 @@ def run_daily_status_digest(
         research_memory_current_artifacts_latest_path=research_memory_current_artifacts_latest_path,
         shadow_readiness_latest_path=shadow_readiness_latest_path,
         tiingo_hypothesis_lifecycle_latest_path=tiingo_hypothesis_lifecycle_latest_path,
+        tiingo_candidate_loop_latest_path=tiingo_candidate_loop_latest_path,
     )
     if write:
         packet["_artifact_paths"] = write_outputs(packet, output_dir=output_dir)
@@ -916,6 +1172,10 @@ def main(argv: list[str] | None = None) -> int:
         "--tiingo-hypothesis-lifecycle-latest",
         default=DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST.as_posix(),
     )
+    parser.add_argument(
+        "--tiingo-candidate-loop-latest",
+        default=DEFAULT_TIINGO_CANDIDATE_LOOP_LATEST.as_posix(),
+    )
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR.as_posix())
     args = parser.parse_args(argv)
     packet = run_daily_status_digest(
@@ -934,6 +1194,7 @@ def main(argv: list[str] | None = None) -> int:
         tiingo_hypothesis_lifecycle_latest_path=Path(
             args.tiingo_hypothesis_lifecycle_latest
         ),
+        tiingo_candidate_loop_latest_path=Path(args.tiingo_candidate_loop_latest),
         output_dir=Path(args.output_dir),
         write=args.write,
     )
