@@ -10,6 +10,15 @@ The daily digest is observability-only. It must not become a producer of researc
 
 The run_research / registry / strategy_matrix path may still be an important canonical legacy surface, but this audit does not prove it owns the modern QRE Hypothesis, CandidateSpec, EvidenceLedger, FeedbackRecord, PresetSpec, or CampaignSpec vocabulary.
 
+PR A settlement now records the canonical vocabulary in:
+
+```text
+docs/architecture/qre_canonical_contract_vocabulary.md
+packages/qre_research/canonical_contracts.py
+```
+
+This settlement defines names, required fields, owner/status/recommendation metadata, and provider-leakage boundaries. It does not bridge any existing artifact yet.
+
 ## Canonical Object Ownership
 
 | Object | Current audit status | Current owner evidence | Recommendation |
@@ -52,7 +61,7 @@ The run_research / registry / strategy_matrix path may still be an important can
 
 ## Recommended PR Sequence
 
-1. PR A: settle canonical contract vocabulary.
+1. PR A: settle canonical contract vocabulary. Status: complete in this vocabulary settlement PR.
 2. PR B: bridge Tiingo artifacts to canonical Hypothesis/CandidateSpec.
 3. PR C: bridge canonical CandidateSpec to StrategySpec/PresetSpec/CampaignSpec.
 4. PR D: connect campaign evidence to FeedbackMemory/LessonMemory.
