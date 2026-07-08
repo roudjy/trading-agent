@@ -25,7 +25,7 @@ DEFAULT_SHADOW_READINESS_LATEST: Final[Path] = Path("logs/qre_shadow_readiness_g
 DEFAULT_TIINGO_HYPOTHESIS_LIFECYCLE_LATEST: Final[Path] = Path(
     "logs/qre_tiingo_hypothesis_lifecycle/latest.json"
 )
-DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_daily_status")
+DEFAULT_OUTPUT_DIR: Final[Path] = Path("logs/qre_daily_status_digest")
 TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND: Final[str] = "qre_tiingo_hypothesis_lifecycle"
 TIINGO_HYPOTHESIS_LIFECYCLE_SAFETY_KEYS: Final[tuple[str, ...]] = (
     "trading_authority",
@@ -196,7 +196,7 @@ def _read_tiingo_hypothesis_lifecycle(path: Path) -> dict[str, Any]:
     )
     if unsafe_keys:
         return {
-            "status": "blocked",
+            "status": "blocked_unsafe_authority",
             "source_artifact": path.as_posix(),
             "report_kind": str(parsed.get("report_kind") or TIINGO_HYPOTHESIS_LIFECYCLE_REPORT_KIND),
             "daily_digest_ready": False,
@@ -542,6 +542,23 @@ def build_daily_status_packet(
             else latest_cycle.get("next_action", {}).get("recommended_action")
         )
     )
+    tiingo_lifecycle_counts = (
+        tiingo_hypothesis_lifecycle.get("counts")
+        if isinstance(tiingo_hypothesis_lifecycle.get("counts"), dict)
+        else _empty_tiingo_lifecycle_counts()
+    )
+    tiingo_lifecycle_next_actions = tiingo_hypothesis_lifecycle.get("next_safe_actions")
+    if not isinstance(tiingo_lifecycle_next_actions, list):
+        tiingo_lifecycle_next_actions = []
+    tiingo_lifecycle_authority = (
+        tiingo_hypothesis_lifecycle.get("authority_summary")
+        if isinstance(tiingo_hypothesis_lifecycle.get("authority_summary"), dict)
+        else _false_tiingo_lifecycle_authority_summary()
+    )
+    tiingo_lifecycle_authority = {
+        key: bool(tiingo_lifecycle_authority.get(key) is True)
+        for key in TIINGO_HYPOTHESIS_LIFECYCLE_SAFETY_KEYS
+    }
     return {
         "schema_version": SCHEMA_VERSION,
         "report_kind": REPORT_KIND,
@@ -549,6 +566,12 @@ def build_daily_status_packet(
         "period_covered": "latest_autonomous_loop_artifact",
         "source_loop_latest": loop_latest_path.as_posix(),
         "artifact_paths_used": artifact_paths_used,
+        "tiingo_hypothesis_lifecycle_status": tiingo_hypothesis_lifecycle["status"],
+        "tiingo_hypothesis_lifecycle_counts": tiingo_lifecycle_counts,
+        "tiingo_hypothesis_lifecycle_next_actions": [
+            str(action) for action in tiingo_lifecycle_next_actions
+        ],
+        "tiingo_hypothesis_lifecycle_authority": tiingo_lifecycle_authority,
         "summary": {
             "autonomous_cycles": len(cycles),
             "controlled_research_inner_loops": summary.get("controlled_research_inner_loop_count"),
@@ -605,6 +628,11 @@ def build_daily_status_packet(
             ),
             "qre_exact_next_action": qre_exact_next_action,
             "tiingo_hypothesis_lifecycle_status": tiingo_hypothesis_lifecycle["status"],
+            "tiingo_hypothesis_lifecycle_counts": tiingo_lifecycle_counts,
+            "tiingo_hypothesis_lifecycle_next_actions": [
+                str(action) for action in tiingo_lifecycle_next_actions
+            ],
+            "tiingo_hypothesis_lifecycle_authority": tiingo_lifecycle_authority,
             "flywheel_progress": {
                 "build_request_consumed": _yes_no_unknown(
                     build_requests_consumed > 0 if build_requests_consumed else None
