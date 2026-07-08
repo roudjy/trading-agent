@@ -12,7 +12,9 @@ from research.qre_tiingo_hypothesis_generator_e2e import (
     EXPECTED_SOURCE_TIER,
     EXPECTED_UNIVERSE,
     SAFE_FLAGS,
+    apply_research_price_continuity,
     build_report,
+    load_tiingo_bars,
     write_outputs,
 )
 
@@ -44,7 +46,18 @@ def _write_resolution(
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _write_fixture_bars(root: Path, *, symbols: tuple[str, ...] = ("SPY", "QQQ", "TLT", "GLD", "XLK"), days: int = 130) -> None:
+def _write_fixture_bars(
+    root: Path,
+    *,
+    symbols: tuple[str, ...] = ("SPY", "QQQ", "TLT", "GLD", "XLK"),
+    days: int = 130,
+    start: date = date(2021, 1, 4),
+    split_symbols: tuple[str, ...] = (),
+    split_date: date = date(2025, 12, 5),
+    unresolved_symbol: str | None = None,
+    unresolved_date: date = date(2025, 12, 5),
+    smooth_prices: bool = False,
+) -> None:
     path = root / "data/imports/tiingo_eod_equities_free/tiingo_eod_etf_20210101_20251231/bars.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -52,17 +65,27 @@ def _write_fixture_bars(root: Path, *, symbols: tuple[str, ...] = ("SPY", "QQQ",
     current_day = 0
     date_index = 0
     while date_index < days:
-        current = date(2021, 1, 4) + timedelta(days=current_day)
+        current = start + timedelta(days=current_day)
         current_day += 1
         if current.weekday() >= 5:
             continue
         for symbol in symbols:
             drift = slopes.get(symbol, 0.001)
             wave = ((date_index % 9) - 4) * 0.0007
-            close = 100.0 * (1.0 + drift + wave) ** date_index
+            if smooth_prices:
+                close = 100.0 * ((1.0 + drift) ** date_index) * (1.0 + wave)
+            else:
+                close = 100.0 * (1.0 + drift + wave) ** date_index
             open_ = close / (1.0 + wave if abs(wave) > 0.00001 else 1.0001)
             high = max(open_, close) * 1.002
             low = min(open_, close) * 0.998
+            if symbol in split_symbols and current >= split_date:
+                open_ *= 0.5
+                high *= 0.5
+                low *= 0.5
+                close *= 0.5
+            if symbol == unresolved_symbol and current == unresolved_date:
+                close *= 0.5
             rows.append(
                 {
                     "date": current.isoformat(),
@@ -221,6 +244,97 @@ def test_safety_flags_are_always_false_for_forbidden_authority_paths(tmp_path: P
 
     assert payload["safety"] == SAFE_FLAGS
     assert all(mode["safety"] == SAFE_FLAGS for mode in payload["modes"].values())
+
+
+def test_xle_xlk_style_two_for_one_split_events_are_detected(tmp_path: Path) -> None:
+    _write_resolution(tmp_path)
+    _write_fixture_bars(
+        tmp_path,
+        symbols=EXPECTED_UNIVERSE,
+        days=145,
+        start=date(2025, 6, 9),
+        split_symbols=("XLE", "XLK"),
+        smooth_prices=True,
+    )
+
+    payload, status = build_report(tmp_path, mode="real", max_hypotheses=5, seed=1729)
+    profile = payload["data_profile"]
+    events = profile["corporate_action_events"]
+
+    assert status == 0
+    assert profile["adjusted_price_continuity_applied"] is True
+    assert [(event["symbol"], event["effective_date"]) for event in events] == [
+        ("XLE", "2025-12-05"),
+        ("XLK", "2025-12-05"),
+    ]
+    assert all(event["matched_common_ratio"] == 2.0 for event in events)
+
+
+def test_pre_split_prices_are_adjusted_continuously(tmp_path: Path) -> None:
+    _write_resolution(tmp_path)
+    _write_fixture_bars(
+        tmp_path,
+        symbols=EXPECTED_UNIVERSE,
+        days=145,
+        start=date(2025, 6, 9),
+        split_symbols=("XLE", "XLK"),
+        smooth_prices=True,
+    )
+    raw_bars, blocked = load_tiingo_bars(tmp_path)
+    assert blocked is None
+
+    adjusted_bars, events, unresolved = apply_research_price_continuity(raw_bars or [])
+    xlk_rows = {row["date"]: row for row in adjusted_bars if row["symbol"] == "XLK"}
+    event_return = (xlk_rows["2025-12-05"]["adjusted_close_for_research"] / xlk_rows["2025-12-04"]["adjusted_close_for_research"]) - 1.0
+
+    assert len(events) == 2
+    assert unresolved == {}
+    assert xlk_rows["2025-12-04"]["research_price_adjustment_factor"] == 0.5
+    assert xlk_rows["2025-12-04"]["adjusted_close_for_research"] == xlk_rows["2025-12-04"]["raw_close"] * 0.5
+    assert event_return > -0.1
+    assert abs(event_return + 0.5) > 0.25
+
+
+def test_xle_xlk_remain_usable_after_successful_split_adjustment(tmp_path: Path) -> None:
+    _write_resolution(tmp_path)
+    _write_fixture_bars(
+        tmp_path,
+        symbols=EXPECTED_UNIVERSE,
+        days=145,
+        start=date(2025, 6, 9),
+        split_symbols=("XLE", "XLK"),
+        smooth_prices=True,
+    )
+
+    payload, _status = build_report(tmp_path, mode="all", max_hypotheses=5, seed=1729)
+    real_profile = payload["modes"]["real"]["data_profile"]
+
+    assert "XLE" in real_profile["universe"]
+    assert "XLK" in real_profile["universe"]
+    assert real_profile["excluded_symbols_due_to_unresolved_discontinuities"] == {}
+    assert payload["summary"]["data_dependency_proven"] is True
+    assert payload["safety"] == SAFE_FLAGS
+    assert all(mode["safety"] == SAFE_FLAGS for mode in payload["modes"].values())
+
+
+def test_unresolved_price_discontinuity_is_excluded(tmp_path: Path) -> None:
+    _write_resolution(tmp_path)
+    _write_fixture_bars(
+        tmp_path,
+        symbols=EXPECTED_UNIVERSE,
+        days=145,
+        start=date(2025, 6, 9),
+        unresolved_symbol="XLE",
+        smooth_prices=True,
+    )
+
+    payload, status = build_report(tmp_path, mode="real", max_hypotheses=5, seed=1729)
+    profile = payload["data_profile"]
+
+    assert status == 0
+    assert "XLE" not in profile["universe"]
+    assert "XLE" in profile["excluded_symbols_due_to_unresolved_discontinuities"]
+    assert profile["adjusted_price_continuity_applied"] is False
 
 
 def test_write_writes_only_under_expected_logs_directory(tmp_path: Path) -> None:

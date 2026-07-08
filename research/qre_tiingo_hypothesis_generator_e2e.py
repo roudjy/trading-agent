@@ -24,6 +24,9 @@ DEFAULT_OUTPUT_DIR = Path("logs/qre_tiingo_hypothesis_generator_e2e")
 EXPECTED_UNIVERSE = ("SPY", "QQQ", "IWM", "DIA", "TLT", "GLD", "XLK", "XLF", "XLE", "XLV")
 OLD_CONTROLLED_UNIVERSE = frozenset({"AAPL", "ADYEN", "ASML", "EWJ", "MSFT", "SONY", "TM"})
 REQUIRED_COLUMNS = ("symbol", "date", "open", "high", "low", "close", "volume")
+RESEARCH_PRICE_COLUMNS = ("open", "high", "low", "close")
+COMMON_SPLIT_RATIOS = (2.0, 3.0, 4.0, 1.5)
+SPLIT_RATIO_TOLERANCE = 0.08
 SAFE_FLAGS = {
     "network_called": False,
     "run_research_called": False,
@@ -235,6 +238,99 @@ def _daily_returns(closes: list[float]) -> list[float]:
     return returns
 
 
+def _research_price(row: dict[str, Any], field: str) -> float:
+    adjusted_key = f"adjusted_{field}_for_research"
+    return float(row.get(adjusted_key, row[field]))
+
+
+def _nearest_common_split_ratio(ratio: float) -> float | None:
+    candidates = tuple(COMMON_SPLIT_RATIOS) + tuple(1.0 / value for value in COMMON_SPLIT_RATIOS)
+    for candidate in candidates:
+        if abs(ratio - candidate) / candidate <= SPLIT_RATIO_TOLERANCE:
+            return candidate
+    return None
+
+
+def _ohlc_ratios(previous: dict[str, Any], current: dict[str, Any]) -> dict[str, float] | None:
+    ratios: dict[str, float] = {}
+    for field in RESEARCH_PRICE_COLUMNS:
+        current_value = float(current[field])
+        if current_value <= 0:
+            return None
+        ratios[field] = float(previous[field]) / current_value
+    return ratios
+
+
+def _confirmed_split_ratio(ratios: dict[str, float]) -> float | None:
+    close_ratio = ratios["close"]
+    matched = _nearest_common_split_ratio(close_ratio)
+    if matched is None:
+        return None
+    return matched if all(abs(value - matched) / matched <= SPLIT_RATIO_TOLERANCE for value in ratios.values()) else None
+
+
+def _is_unresolved_discontinuity(ratios: dict[str, float]) -> bool:
+    return _nearest_common_split_ratio(ratios["close"]) is not None
+
+
+def apply_research_price_continuity(
+    bars: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, list[str]]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in bars:
+        grouped[str(row["symbol"])].append(dict(row))
+
+    adjusted: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
+    unresolved: dict[str, list[str]] = {}
+    for symbol in sorted(grouped):
+        rows = sorted(grouped[symbol], key=lambda row: str(row["date"]))
+        factors = [1.0 for _row in rows]
+        symbol_events: list[dict[str, Any]] = []
+        symbol_unresolved: list[str] = []
+        for idx, (previous, current) in enumerate(pairwise(rows), start=1):
+            ratios = _ohlc_ratios(previous, current)
+            if ratios is None:
+                symbol_unresolved.append(f"{symbol}:{current['date']}:invalid_ohlc_ratio")
+                continue
+            split_ratio = _confirmed_split_ratio(ratios)
+            if split_ratio is not None:
+                adjustment_factor = 1.0 / split_ratio
+                for prior_idx in range(idx):
+                    factors[prior_idx] *= adjustment_factor
+                symbol_events.append(
+                    {
+                        "symbol": symbol,
+                        "event_type": "split_like_price_discontinuity",
+                        "effective_date": str(current["date"]),
+                        "previous_date": str(previous["date"]),
+                        "detected_ratio": ratios["close"],
+                        "matched_common_ratio": split_ratio,
+                        "research_adjustment_factor": adjustment_factor,
+                        "ohlc_ratio_confirmation": ratios,
+                    }
+                )
+            elif _is_unresolved_discontinuity(ratios):
+                symbol_unresolved.append(f"{symbol}:{current['date']}:unresolved_price_discontinuity")
+
+        if symbol_unresolved:
+            unresolved[symbol] = symbol_unresolved
+            continue
+        events.extend(symbol_events)
+        for row, factor in zip(rows, factors, strict=True):
+            normalized = dict(row)
+            for field in RESEARCH_PRICE_COLUMNS:
+                normalized[f"raw_{field}"] = float(row[field])
+                normalized[f"adjusted_{field}_for_research"] = float(row[field]) * factor
+            normalized["research_price_adjustment_factor"] = factor
+            normalized["research_price_is_adjusted"] = factor != 1.0
+            adjusted.append(normalized)
+
+    events.sort(key=lambda event: (event["symbol"], event["effective_date"]))
+    adjusted.sort(key=lambda row: (row["symbol"], row["date"]))
+    return adjusted, events, unresolved
+
+
 def _return_nd(closes: list[float], window: int) -> float | None:
     if len(closes) <= window or closes[-window - 1] <= 0:
         return None
@@ -313,6 +409,7 @@ def build_data_profile(
     source_snapshot_id: str = EXPECTED_SNAPSHOT_ID,
     source_tier: str = EXPECTED_SOURCE_TIER,
 ) -> dict[str, Any]:
+    bars, corporate_action_events, unresolved_discontinuities = apply_research_price_continuity(bars)
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in bars:
         if row["symbol"] in EXPECTED_UNIVERSE:
@@ -332,7 +429,7 @@ def build_data_profile(
     coverage_ratio = None if not expected_rows else round(row_count / expected_rows, 6)
 
     per_symbol_row_count = {symbol: len(grouped[symbol]) for symbol in universe}
-    closes = {symbol: [float(row["close"]) for row in grouped[symbol]] for symbol in universe}
+    closes = {symbol: [_research_price(row, "close") for row in grouped[symbol]] for symbol in universe}
     returns_by_symbol = {symbol: _daily_returns(closes[symbol]) for symbol in universe}
     return_20 = {symbol: _return_nd(closes[symbol], 20) for symbol in universe}
     return_60 = {symbol: _return_nd(closes[symbol], 60) for symbol in universe}
@@ -353,6 +450,19 @@ def build_data_profile(
         "date_end": date_end,
         "coverage_ratio": coverage_ratio,
         "per_symbol_row_count": per_symbol_row_count,
+        "raw_price_lineage": {
+            "raw_ohlc_columns": list(REQUIRED_COLUMNS),
+            "research_price_columns": [
+                "adjusted_open_for_research",
+                "adjusted_high_for_research",
+                "adjusted_low_for_research",
+                "adjusted_close_for_research",
+            ],
+            "raw_prices_preserved": True,
+        },
+        "corporate_action_events": corporate_action_events,
+        "adjusted_price_continuity_applied": bool(corporate_action_events),
+        "excluded_symbols_due_to_unresolved_discontinuities": unresolved_discontinuities,
         "per_symbol_return_20d": return_20,
         "per_symbol_return_60d": return_60,
         "per_symbol_return_120d": return_120,
@@ -372,7 +482,14 @@ def build_data_profile(
         "insufficient_history": any(count < 121 for count in per_symbol_row_count.values()) or not universe,
         "insufficient_cross_section": len(universe) < 3,
     }
-    fingerprint_basis = [{key: row[key] for key in REQUIRED_COLUMNS} for row in sorted(bars, key=lambda item: (item["symbol"], item["date"]))]
+    fingerprint_basis = [
+        {
+            **{key: row[key] for key in REQUIRED_COLUMNS},
+            "adjusted_close_for_research": row.get("adjusted_close_for_research"),
+            "research_price_adjustment_factor": row.get("research_price_adjustment_factor"),
+        }
+        for row in sorted(bars, key=lambda item: (item["symbol"], item["date"]))
+    ]
     profile["data_fingerprint"] = "sha256:" + _digest(fingerprint_basis, length=32)
     profile["data_profile_digest"] = "sha256:" + _digest(profile, length=32)
     return _stable_payload(profile)
@@ -493,13 +610,14 @@ def generate_hypotheses(profile: dict[str, Any], *, max_hypotheses: int) -> list
 
 def shuffled_returns_bars(bars: list[dict[str, Any]], *, seed: int) -> list[dict[str, Any]]:
     rng = random.Random(seed)
+    bars, _events, _unresolved = apply_research_price_continuity(bars)
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in bars:
         grouped[row["symbol"]].append(row)
     shuffled: list[dict[str, Any]] = []
     for symbol in sorted(grouped):
         rows = sorted(grouped[symbol], key=lambda row: row["date"])
-        closes = [float(row["close"]) for row in rows]
+        closes = [_research_price(row, "close") for row in rows]
         returns = _daily_returns(closes)
         rng.shuffle(returns)
         synthetic_close = [closes[0]]
@@ -510,7 +628,21 @@ def shuffled_returns_bars(bars: list[dict[str, Any]], *, seed: int) -> list[dict
             open_ = synthetic_close[idx - 1] if idx else close
             high = max(open_, close)
             low = min(open_, close)
-            shuffled.append({**row, "open": open_, "high": high, "low": low, "close": close})
+            shuffled.append(
+                {
+                    **row,
+                    "open": open_,
+                    "high": high,
+                    "low": low,
+                    "close": close,
+                    "adjusted_open_for_research": open_,
+                    "adjusted_high_for_research": high,
+                    "adjusted_low_for_research": low,
+                    "adjusted_close_for_research": close,
+                    "research_price_adjustment_factor": 1.0,
+                    "research_price_is_adjusted": False,
+                }
+            )
     return sorted(shuffled, key=lambda row: (row["symbol"], row["date"]))
 
 
@@ -715,6 +847,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 __all__ = [
+    "apply_research_price_continuity",
     "build_all_payload",
     "build_data_profile",
     "build_report",
