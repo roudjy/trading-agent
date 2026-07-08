@@ -475,6 +475,53 @@ def test_valid_tiingo_lifecycle_appears_in_structured_digest_output(tmp_path: Pa
         },
     }
     assert tiingo_path.as_posix() in packet["artifact_paths_used"]
+    expected_counts = {
+        "generated": 5,
+        "admitted": 5,
+        "rejected": 0,
+        "blocked": 0,
+    }
+    expected_next_actions = ["materialize_research_candidate_later"]
+    expected_authority = {
+        "trading_authority": False,
+        "creates_candidates": False,
+        "runs_screening": False,
+        "promotes_candidates": False,
+        "registers_strategy": False,
+        "validation_authority": False,
+        "paper_authority": False,
+        "shadow_authority": False,
+        "live_authority": False,
+    }
+    assert packet["tiingo_hypothesis_lifecycle_status"] == "ready"
+    assert packet["tiingo_hypothesis_lifecycle_counts"] == expected_counts
+    assert packet["tiingo_hypothesis_lifecycle_next_actions"] == expected_next_actions
+    assert packet["tiingo_hypothesis_lifecycle_authority"] == expected_authority
+    assert packet["summary"]["tiingo_hypothesis_lifecycle_status"] == "ready"
+    assert packet["summary"]["tiingo_hypothesis_lifecycle_counts"] == expected_counts
+    assert packet["summary"]["tiingo_hypothesis_lifecycle_next_actions"] == expected_next_actions
+    assert packet["summary"]["tiingo_hypothesis_lifecycle_authority"] == expected_authority
+
+
+def test_valid_tiingo_lifecycle_writes_details_to_latest_json(tmp_path: Path) -> None:
+    tiingo_path = _write_tiingo_lifecycle(tmp_path)
+
+    _run_digest(tmp_path, tiingo_hypothesis_lifecycle_latest_path=tiingo_path)
+
+    latest = json.loads((tmp_path / "daily" / "latest.json").read_text(encoding="utf-8"))
+    assert latest["tiingo_hypothesis_lifecycle_status"] == "ready"
+    assert latest["tiingo_hypothesis_lifecycle_counts"] == {
+        "generated": 5,
+        "admitted": 5,
+        "rejected": 0,
+        "blocked": 0,
+    }
+    assert latest["tiingo_hypothesis_lifecycle_next_actions"] == [
+        "materialize_research_candidate_later"
+    ]
+    assert latest["tiingo_hypothesis_lifecycle_authority"]["creates_candidates"] is False
+    assert latest["tiingo_hypothesis_lifecycle_authority"]["runs_screening"] is False
+    assert latest["tiingo_hypothesis_lifecycle_authority"]["trading_authority"] is False
 
 
 def test_valid_tiingo_lifecycle_appears_in_operator_summary(tmp_path: Path) -> None:
@@ -492,11 +539,25 @@ def test_valid_tiingo_lifecycle_appears_in_operator_summary(tmp_path: Path) -> N
     assert "- Candidate creation: false" in rendered
     assert "- Screening run: false" in rendered
     assert "- Trading authority: false" in rendered
+    assert "- Validation authority: false" in rendered
+    assert "- Paper authority: false" in rendered
+    assert "- Shadow authority: false" in rendered
+    assert "- Live authority: false" in rendered
     assert "admitted for future research-only candidate formulation; candidate created: false" in rendered
 
     daily = (tmp_path / "daily" / "daily_status.md").read_text(encoding="utf-8")
+    operator_summary = (tmp_path / "daily" / "operator_summary.md").read_text(encoding="utf-8")
     assert "- Hypotheses generated: 5" in daily
     assert "- Candidate creation: false" in daily
+    assert "Tiingo hypothesis lifecycle:" in operator_summary
+    assert "- Hypotheses generated: 5" in operator_summary
+    assert "- Admitted: 5" in operator_summary
+    assert "- Rejected: 0" in operator_summary
+    assert "- Blocked: 0" in operator_summary
+    assert "- Next safe action: materialize_research_candidate_later" in operator_summary
+    assert "- Candidate creation: false" in operator_summary
+    assert "- Screening run: false" in operator_summary
+    assert "- Trading authority: false" in operator_summary
 
 
 def test_unsafe_tiingo_lifecycle_authority_signal_is_blocked(tmp_path: Path) -> None:
@@ -519,12 +580,15 @@ def test_unsafe_tiingo_lifecycle_authority_signal_is_blocked(tmp_path: Path) -> 
         )
 
         lifecycle = packet["tiingo_hypothesis_lifecycle"]
-        assert lifecycle["status"] == "blocked"
+        assert lifecycle["status"] == "blocked_unsafe_authority"
         assert lifecycle["diagnostic_reason"] == "unsafe_tiingo_lifecycle_authority_signal"
         assert unsafe_key in lifecycle["unsafe_authority_keys"]
         assert lifecycle["authority_summary"]["trading_authority"] is False
         assert lifecycle["authority_summary"]["creates_candidates"] is False
         assert lifecycle["authority_summary"]["runs_screening"] is False
+        assert packet["tiingo_hypothesis_lifecycle_authority"]["trading_authority"] is False
+        assert packet["tiingo_hypothesis_lifecycle_authority"]["creates_candidates"] is False
+        assert packet["tiingo_hypothesis_lifecycle_authority"]["runs_screening"] is False
 
 
 def test_malformed_tiingo_lifecycle_artifact_is_reported_without_crashing(tmp_path: Path) -> None:
@@ -577,4 +641,19 @@ def test_tiingo_lifecycle_ingestion_does_not_mutate_protected_research_outputs(t
     assert strategy_matrix.read_bytes() == before_matrix
     assert packet["tiingo_hypothesis_lifecycle"]["authority_summary"]["creates_candidates"] is False
     assert packet["tiingo_hypothesis_lifecycle"]["authority_summary"]["runs_screening"] is False
+
+
+def test_tiingo_lifecycle_ingestion_does_not_create_candidates_or_run_screening(tmp_path: Path) -> None:
+    tiingo_path = _write_tiingo_lifecycle(tmp_path)
+
+    packet = _run_digest(tmp_path, tiingo_hypothesis_lifecycle_latest_path=tiingo_path)
+
+    authority = packet["tiingo_hypothesis_lifecycle_authority"]
+    assert authority["creates_candidates"] is False
+    assert authority["runs_screening"] is False
+    assert authority["trading_authority"] is False
+    assert authority["validation_authority"] is False
+    assert authority["paper_authority"] is False
+    assert authority["shadow_authority"] is False
+    assert authority["live_authority"] is False
 
