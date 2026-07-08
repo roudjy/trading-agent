@@ -41,6 +41,53 @@ def _write_loop_latest(root: Path, *, protected_outputs_mutated: bool = False) -
     return latest_path
 
 
+def _valid_tiingo_lifecycle_payload() -> dict:
+    authority = {
+        "trading_authority": False,
+        "creates_candidates": False,
+        "runs_screening": False,
+        "promotes_candidates": False,
+        "registers_strategy": False,
+        "validation_authority": False,
+        "paper_authority": False,
+        "shadow_authority": False,
+        "live_authority": False,
+    }
+    return {
+        "report_kind": "qre_tiingo_hypothesis_lifecycle",
+        "schema_version": 1,
+        "summary": {
+            "lifecycle_verdict": "pass_research_only_admission_boundary",
+            "hypotheses_seen": 5,
+            "hypotheses_generated_events": 5,
+            "hypotheses_admitted": 5,
+            "hypotheses_rejected": 0,
+            "hypotheses_blocked": 0,
+            "operator_updates_count": 10,
+            "daily_digest_ready": True,
+        },
+        "daily_digest_input": {
+            "digest_kind": "qre_hypothesis_lifecycle_daily_input",
+            "counts": {
+                "generated": 5,
+                "admitted": 5,
+                "rejected": 0,
+                "blocked": 0,
+            },
+            "next_actions": ["materialize_research_candidate_later"],
+            "authority_summary": dict(authority),
+        },
+        "operator_updates": [{"message": "update"} for _ in range(10)],
+        "safety": dict(authority),
+    }
+
+
+def _write_tiingo_lifecycle(root: Path, payload: dict | None = None) -> Path:
+    latest_path = root / "tiingo_lifecycle" / "latest.json"
+    _write_json(latest_path, payload or _valid_tiingo_lifecycle_payload())
+    return latest_path
+
+
 def _run_digest(root: Path, **overrides) -> dict:
     loop_latest_path = overrides.pop("loop_latest_path", None) or _write_loop_latest(root)
     kwargs = {
@@ -54,6 +101,7 @@ def _run_digest(root: Path, **overrides) -> dict:
         "trusted_loop_review_latest_path": root / "trusted_loop" / "latest.json",
         "research_memory_current_artifacts_latest_path": root / "memory" / "latest.json",
         "shadow_readiness_latest_path": root / "shadow" / "latest.json",
+        "tiingo_hypothesis_lifecycle_latest_path": root / "tiingo_lifecycle" / "latest.json",
         "output_dir": root / "daily",
         "write": True,
     }
@@ -378,4 +426,155 @@ def test_missing_artifacts_fail_gracefully_with_unknown_pending_status(tmp_path:
     assert packet["summary"]["manual_governance_blockers"] == []
     assert packet["summary"]["flywheel_progress"]["build_request_consumed"] == "unknown"
     assert packet["summary"]["flywheel_progress"]["pr_opened"] == "unknown"
+
+
+def test_daily_digest_runs_when_tiingo_lifecycle_artifact_is_missing(tmp_path: Path) -> None:
+    packet = _run_digest(tmp_path)
+
+    lifecycle = packet["tiingo_hypothesis_lifecycle"]
+    assert lifecycle["status"] == "not_available"
+    assert packet["summary"]["tiingo_hypothesis_lifecycle_status"] == "not_available"
+    assert packet["summary"]["trading_status"] == "disabled"
+    assert packet["summary"]["manual_governance_blockers"] == []
+    assert lifecycle["authority_summary"]["creates_candidates"] is False
+    assert lifecycle["authority_summary"]["runs_screening"] is False
+    assert lifecycle["authority_summary"]["trading_authority"] is False
+
+
+def test_valid_tiingo_lifecycle_appears_in_structured_digest_output(tmp_path: Path) -> None:
+    tiingo_path = _write_tiingo_lifecycle(tmp_path)
+
+    packet = _run_digest(tmp_path, tiingo_hypothesis_lifecycle_latest_path=tiingo_path)
+
+    lifecycle = packet["tiingo_hypothesis_lifecycle"]
+    assert lifecycle == {
+        "status": "ready",
+        "source_artifact": tiingo_path.as_posix(),
+        "report_kind": "qre_tiingo_hypothesis_lifecycle",
+        "lifecycle_verdict": "pass_research_only_admission_boundary",
+        "daily_digest_ready": True,
+        "counts": {
+            "generated": 5,
+            "admitted": 5,
+            "rejected": 0,
+            "blocked": 0,
+        },
+        "hypotheses_seen": 5,
+        "operator_updates_count": 10,
+        "next_safe_actions": ["materialize_research_candidate_later"],
+        "authority_summary": {
+            "trading_authority": False,
+            "creates_candidates": False,
+            "runs_screening": False,
+            "promotes_candidates": False,
+            "registers_strategy": False,
+            "validation_authority": False,
+            "paper_authority": False,
+            "shadow_authority": False,
+            "live_authority": False,
+        },
+    }
+    assert tiingo_path.as_posix() in packet["artifact_paths_used"]
+
+
+def test_valid_tiingo_lifecycle_appears_in_operator_summary(tmp_path: Path) -> None:
+    tiingo_path = _write_tiingo_lifecycle(tmp_path)
+
+    packet = _run_digest(tmp_path, tiingo_hypothesis_lifecycle_latest_path=tiingo_path)
+    rendered = digest.render_daily_status(packet)
+
+    assert "Tiingo hypothesis lifecycle:" in rendered
+    assert "- Hypotheses generated: 5" in rendered
+    assert "- Admitted: 5" in rendered
+    assert "- Rejected: 0" in rendered
+    assert "- Blocked: 0" in rendered
+    assert "- Next safe action: materialize_research_candidate_later" in rendered
+    assert "- Candidate creation: false" in rendered
+    assert "- Screening run: false" in rendered
+    assert "- Trading authority: false" in rendered
+    assert "admitted for future research-only candidate formulation; candidate created: false" in rendered
+
+    daily = (tmp_path / "daily" / "daily_status.md").read_text(encoding="utf-8")
+    assert "- Hypotheses generated: 5" in daily
+    assert "- Candidate creation: false" in daily
+
+
+def test_unsafe_tiingo_lifecycle_authority_signal_is_blocked(tmp_path: Path) -> None:
+    for unsafe_key in (
+        "trading_authority",
+        "creates_candidates",
+        "runs_screening",
+        "validation_authority",
+        "paper_authority",
+        "shadow_authority",
+        "live_authority",
+    ):
+        payload = _valid_tiingo_lifecycle_payload()
+        payload["safety"][unsafe_key] = True
+        tiingo_path = _write_tiingo_lifecycle(tmp_path / unsafe_key, payload)
+
+        packet = _run_digest(
+            tmp_path / unsafe_key,
+            tiingo_hypothesis_lifecycle_latest_path=tiingo_path,
+        )
+
+        lifecycle = packet["tiingo_hypothesis_lifecycle"]
+        assert lifecycle["status"] == "blocked"
+        assert lifecycle["diagnostic_reason"] == "unsafe_tiingo_lifecycle_authority_signal"
+        assert unsafe_key in lifecycle["unsafe_authority_keys"]
+        assert lifecycle["authority_summary"]["trading_authority"] is False
+        assert lifecycle["authority_summary"]["creates_candidates"] is False
+        assert lifecycle["authority_summary"]["runs_screening"] is False
+
+
+def test_malformed_tiingo_lifecycle_artifact_is_reported_without_crashing(tmp_path: Path) -> None:
+    tiingo_path = tmp_path / "tiingo_lifecycle" / "latest.json"
+    tiingo_path.parent.mkdir(parents=True, exist_ok=True)
+    tiingo_path.write_text("{not-json", encoding="utf-8")
+
+    packet = _run_digest(tmp_path, tiingo_hypothesis_lifecycle_latest_path=tiingo_path)
+
+    lifecycle = packet["tiingo_hypothesis_lifecycle"]
+    assert lifecycle["status"] == "malformed_or_unreadable"
+    assert lifecycle["diagnostic_reason"] == "tiingo_hypothesis_lifecycle_artifact_unreadable"
+    assert lifecycle["authority_summary"]["trading_authority"] is False
+
+
+def test_tiingo_lifecycle_daily_digest_ready_false_is_not_actionable(tmp_path: Path) -> None:
+    payload = _valid_tiingo_lifecycle_payload()
+    payload["summary"]["daily_digest_ready"] = False
+    tiingo_path = _write_tiingo_lifecycle(tmp_path, payload)
+
+    packet = _run_digest(tmp_path, tiingo_hypothesis_lifecycle_latest_path=tiingo_path)
+
+    lifecycle = packet["tiingo_hypothesis_lifecycle"]
+    assert lifecycle["status"] == "not_ready"
+    assert lifecycle["counts"] == {
+        "generated": 0,
+        "admitted": 0,
+        "rejected": 0,
+        "blocked": 0,
+    }
+    assert lifecycle["observed_counts"] == {
+        "generated": 5,
+        "admitted": 5,
+        "rejected": 0,
+        "blocked": 0,
+    }
+    assert lifecycle["next_safe_actions"] == []
+
+
+def test_tiingo_lifecycle_ingestion_does_not_mutate_protected_research_outputs(tmp_path: Path) -> None:
+    research_latest = Path("research/research_latest.json")
+    strategy_matrix = Path("research/strategy_matrix.csv")
+    before_latest = research_latest.read_bytes()
+    before_matrix = strategy_matrix.read_bytes()
+    tiingo_path = _write_tiingo_lifecycle(tmp_path)
+
+    packet = _run_digest(tmp_path, tiingo_hypothesis_lifecycle_latest_path=tiingo_path)
+
+    assert research_latest.read_bytes() == before_latest
+    assert strategy_matrix.read_bytes() == before_matrix
+    assert packet["tiingo_hypothesis_lifecycle"]["authority_summary"]["creates_candidates"] is False
+    assert packet["tiingo_hypothesis_lifecycle"]["authority_summary"]["runs_screening"] is False
 
