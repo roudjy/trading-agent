@@ -247,6 +247,8 @@ def test_all_known_candidate_family_templates_materialize_with_required_safety(t
     families = {candidate["feature_family"] for candidate in report["candidate_specs"]}
     assert families == set(FAMILIES)
     assert report["summary"]["candidates_materialized"] == 5
+    assert report["variant_summary"]["base_candidates"] == 5
+    assert report["variant_summary"]["variant_candidates"] == 0
     for candidate in report["candidate_specs"]:
         assert candidate["candidate_id"].startswith("cand_tiingo_")
         assert candidate["candidate_digest"].startswith("sha256:")
@@ -258,6 +260,10 @@ def test_all_known_candidate_family_templates_materialize_with_required_safety(t
         assert candidate["not_trade_signal"] is True
         assert candidate["trading_authority"] is False
         assert candidate["creates_orders"] is False
+        assert candidate["variant_id"] == "base"
+        assert candidate["variant_reason"] == "base_candidate"
+        assert candidate["variant_parent_candidate_id"] is None
+        assert candidate["variant_parameters"] == {}
         assert "orders" not in candidate
         assert "positions" not in candidate
         assert "trading_signals" not in candidate
@@ -284,6 +290,40 @@ def test_candidate_ids_are_deterministic(tmp_path: Path) -> None:
     assert [row["candidate_id"] for row in report["candidate_specs"]] == [
         row["candidate_id"] for row in report_again["candidate_specs"]
     ]
+
+
+def test_max_variants_per_contract_materializes_bounded_variants(tmp_path: Path) -> None:
+    report = _run(tmp_path, max_candidates=10, max_variants_per_contract=2)
+
+    assert report["summary"]["candidates_materialized"] == 10
+    assert report["variant_summary"]["base_candidates"] == 5
+    assert report["variant_summary"]["variant_candidates"] == 5
+    assert report["variant_summary"]["variants_materialized"] == 5
+    grouped: dict[str, list[dict]] = {}
+    for candidate in report["candidate_specs"]:
+        grouped.setdefault(candidate["parent_contract_id"], []).append(candidate)
+        assert candidate["research_only"] is True
+        assert candidate["trading_authority"] is False
+    assert all(len(rows) == 2 for rows in grouped.values())
+    for rows in grouped.values():
+        ids = {row["candidate_id"] for row in rows}
+        assert len(ids) == 2
+        assert len({row["parent_hypothesis_seed_id"] for row in rows}) == 1
+
+
+def test_bounded_variant_templates_use_expected_parameters(tmp_path: Path) -> None:
+    report = _run(tmp_path, max_candidates=10, max_variants_per_contract=2)
+    variants = {
+        candidate["feature_family"]: candidate
+        for candidate in report["candidate_specs"]
+        if candidate["variant_id"] != "base"
+    }
+
+    assert variants["cross_sectional_momentum"]["signal_definition"]["lookback_trading_days"] == 40
+    assert variants["risk_on_risk_off_regime"]["signal_definition"]["lookback_trading_days"] == 40
+    assert variants["defensive_rotation"]["selection_rule"]["defensive_count"] == 1
+    assert variants["volatility_compression_breakout"]["signal_definition"]["volatility_lookback_trading_days"] == 30
+    assert variants["mean_reversion_after_extreme_dispersion"]["signal_definition"]["dispersion_threshold"] == "p75"
 
 
 def test_missing_and_malformed_bars_block_screening(tmp_path: Path) -> None:
@@ -419,6 +459,7 @@ def test_prior_retain_feedback_rematerializes_same_candidate(tmp_path: Path) -> 
     assert second["summary"]["feedback_consumed"] is True
     assert second["summary"]["feedback_applied_count"] == 1
     assert second["summary"]["retained_by_prior_feedback"] == 1
+    assert second["variant_summary"]["retained_by_prior_feedback"] == 1
     assert first["candidate_specs"][0]["candidate_id"] in {row["candidate_id"] for row in second["candidate_specs"]}
 
 
@@ -444,9 +485,18 @@ def test_prior_reject_modify_insufficient_and_block_feedback_change_next_run(tmp
     assert second["summary"]["feedback_applied_count"] == 4
     assert second["summary"]["suppressed_by_prior_feedback"] == 1
     assert second["summary"]["modified_by_prior_feedback"] == 1
+    assert second["variant_summary"]["modified_by_prior_feedback"] == 1
+    assert second["variant_summary"]["suppressed_by_prior_feedback"] == 1
     assert "suppressed_by_prior_feedback" in second["blocked_reasons"]
     assert "blocked_by_prior_feedback" in second["blocked_reasons"]
-    assert any(candidate["prior_feedback_variant"] == "modified_by_prior_feedback" for candidate in second["candidate_specs"])
+    modified = [
+        candidate
+        for candidate in second["candidate_specs"]
+        if candidate["prior_feedback_variant"] == "modified_by_prior_feedback"
+    ]
+    assert modified
+    assert modified[0]["variant_reason"] == "prior_feedback_modified_spec"
+    assert modified[0]["variant_parent_candidate_id"]
     assert any(result["decision"] == "insufficient_evidence" for result in second["screening_results"])
     assert [row["candidate_id"] for row in first["candidate_specs"]] != [
         row["candidate_id"] for row in second["candidate_specs"]
@@ -466,6 +516,7 @@ def test_write_outputs_and_default_mode_write_nothing(tmp_path: Path) -> None:
         "candidate_specs",
         "screening_results",
         "feedback_records",
+        "evidence_ledger",
         "operator_summary",
     }
     assert (output_dir / "latest.json").is_file()
@@ -473,6 +524,7 @@ def test_write_outputs_and_default_mode_write_nothing(tmp_path: Path) -> None:
     assert (output_dir / "candidate_specs.jsonl").is_file()
     assert (output_dir / "screening_results.jsonl").is_file()
     assert (output_dir / "feedback_records.jsonl").is_file()
+    assert (output_dir / "evidence_ledger.jsonl").is_file()
     assert (output_dir / "operator_summary.md").is_file()
     assert all(path.startswith("logs/qre_tiingo_candidate_research_loop/") for path in paths.values())
 
@@ -503,6 +555,7 @@ def test_all_safety_flags_daily_digest_and_operator_summary_are_research_only(tm
     report = _run(tmp_path)
     assert report["safety"] == loop.SAFETY
     assert report["daily_digest_input"]["counts"]["input_contracts_admitted"] == 5
+    assert report["daily_digest_input"]["counts"]["evidence_records"] == 5
     assert report["daily_digest_input"]["authority_summary"] == loop.SAFETY
     summary = loop.render_operator_summary(report)
     assert "# Tiingo Candidate Research Loop" in summary
@@ -510,4 +563,80 @@ def test_all_safety_flags_daily_digest_and_operator_summary_are_research_only(tm
     assert "No broker/risk authority exists" in summary
     forbidden_active_terms = ("validation_ready", "paper_ready", "shadow_ready", "live_ready", "trade_ready")
     assert not any(term in json.dumps(report) for term in forbidden_active_terms)
+
+
+def test_evidence_ledger_has_one_deterministic_research_only_entry_per_screened_candidate(tmp_path: Path) -> None:
+    report = _run(tmp_path)
+    report_again = _run(tmp_path)
+
+    assert len(report["evidence_ledger"]) == report["summary"]["candidates_screened"]
+    assert report["evidence_ledger"] == report_again["evidence_ledger"]
+    for entry in report["evidence_ledger"]:
+        assert entry["evidence_id"].startswith("ev_tiingo_")
+        assert entry["evidence_kind"] == "tiingo_candidate_screening_evidence"
+        assert entry["screening_protocol"] == "tiingo_research_candidate_screening_v1"
+        assert entry["metrics_digest"].startswith("sha256:")
+        assert "metrics_summary" in entry
+        assert "null_control_summary" in entry
+        assert entry["audit_flags"]["research_only"] is True
+        assert entry["audit_flags"]["screening_only"] is True
+        assert entry["audit_flags"]["trading_authority"] is False
+        assert entry["audit_flags"]["validation_authority"] is False
+        assert entry["audit_flags"]["paper_authority"] is False
+        assert entry["audit_flags"]["shadow_authority"] is False
+        assert entry["audit_flags"]["live_authority"] is False
+
+
+def test_evidence_ledger_decision_mapping_and_summary_counts(tmp_path: Path) -> None:
+    report = _run(tmp_path)
+    by_screening = {entry["screening_decision"]: entry["evidence_decision"] for entry in report["evidence_ledger"]}
+
+    if "screening_pass" in by_screening:
+        assert by_screening["screening_pass"] == "retain_research_evidence"
+    if "null_not_beaten" in by_screening:
+        assert by_screening["null_not_beaten"] == "weak_research_evidence"
+    summary = report["evidence_ledger_summary"]
+    assert summary["evidence_records"] == len(report["evidence_ledger"])
+    assert summary["retain_research_evidence"] == report["summary"]["screening_pass"]
+    assert summary["weak_research_evidence"] == (
+        report["summary"]["null_not_beaten"] + report["summary"]["screening_fail"]
+    )
+    assert summary["research_only"] is True
+    assert summary["trading_authority"] is False
+
+
+def test_evidence_decision_mapping_for_all_screening_decisions() -> None:
+    candidate = {
+        "candidate_id": "cand",
+        "candidate_digest": "sha256:cand",
+        "parent_contract_id": "contract",
+        "parent_hypothesis_seed_id": "seed",
+        "source_hypothesis_id": "hyp",
+        "source_snapshot_id": "snap",
+        "feature_family": "cross_sectional_momentum",
+        "candidate_family": "cross_sectional_momentum",
+    }
+    expected = {
+        "screening_pass": "retain_research_evidence",
+        "null_not_beaten": "weak_research_evidence",
+        "screening_fail": "weak_research_evidence",
+        "insufficient_evidence": "insufficient_research_evidence",
+        "blocked_unsafe_input": "blocked_research_evidence",
+    }
+    for decision, evidence_decision in expected.items():
+        result = {
+            "candidate_id": "cand",
+            "parent_contract_id": "contract",
+            "parent_hypothesis_seed_id": "seed",
+            "source_snapshot_id": "snap",
+            "decision": decision,
+            "null_control": {"null_iterations": 32, "seed": 1729},
+        }
+        feedback = loop.feedback_from_screening(result)
+        entry = loop.build_evidence_entry(
+            candidate=candidate,
+            screening_result=result,
+            feedback_record=feedback,
+        )
+        assert entry["evidence_decision"] == evidence_decision
 

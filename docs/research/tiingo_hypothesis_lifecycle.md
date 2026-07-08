@@ -196,3 +196,9 @@ The full QRE feedback loop requires a downstream candidate materializer, screeni
 
 The next safe PR is a research-only candidate spec contract and materializer that consumes admitted hypothesis lifecycle records. That later PR should still avoid screening, validation, promotion, strategy registration, paper, shadow, live, and trading authority unless those scopes are explicitly approved separately.
 
+## Candidate loop observability
+
+The downstream Tiingo candidate research loop consumes admitted lifecycle records as stable input contracts. Its evidence ledger is research-only screening evidence, not validation evidence, and cannot promote candidates.
+
+Daily status digest integration for the candidate loop is observability-only. It reads the candidate-loop sidecar and reports counts, evidence, variants, feedback, and safety status. It does not create candidates or run screening.
+

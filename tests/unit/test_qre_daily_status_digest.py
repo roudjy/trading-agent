@@ -88,6 +88,71 @@ def _write_tiingo_lifecycle(root: Path, payload: dict | None = None) -> Path:
     return latest_path
 
 
+def _valid_tiingo_candidate_loop_payload() -> dict:
+    authority = {
+        "research_only": True,
+        "screening_only": True,
+        "trading_authority": False,
+        "creates_orders": False,
+        "broker_authority": False,
+        "risk_authority": False,
+        "promotes_candidates": False,
+        "registers_strategy": False,
+        "validation_authority": False,
+        "paper_authority": False,
+        "shadow_authority": False,
+        "live_authority": False,
+    }
+    return {
+        "report_kind": "qre_tiingo_candidate_research_loop",
+        "schema_version": 1,
+        "source_snapshot_id": "qdsnap_test",
+        "summary": {
+            "loop_verdict": "pass_research_only_candidate_loop",
+            "input_contracts_admitted": 5,
+            "candidates_materialized": 5,
+            "candidates_screened": 5,
+            "screening_pass": 2,
+            "screening_fail": 0,
+            "null_not_beaten": 3,
+            "insufficient_evidence": 0,
+            "feedback_records": 5,
+            "feedback_consumed": False,
+            "feedback_applied_count": 0,
+            "next_run_feedback_ready": True,
+        },
+        "evidence_ledger_summary": {
+            "evidence_records": 5,
+            "retain_research_evidence": 2,
+            "weak_research_evidence": 3,
+            "insufficient_research_evidence": 0,
+            "blocked_research_evidence": 0,
+            "research_only": True,
+            "trading_authority": False,
+        },
+        "variant_summary": {
+            "base_candidates": 5,
+            "variant_candidates": 0,
+            "variants_requested": 0,
+            "variants_materialized": 0,
+            "modified_by_prior_feedback": 0,
+            "retained_by_prior_feedback": 0,
+            "suppressed_by_prior_feedback": 0,
+        },
+        "daily_digest_input": {
+            "digest_kind": "qre_tiingo_candidate_research_loop_daily_input",
+            "authority_summary": dict(authority),
+        },
+        "safety": dict(authority),
+    }
+
+
+def _write_tiingo_candidate_loop(root: Path, payload: dict | None = None) -> Path:
+    latest_path = root / "candidate_loop" / "latest.json"
+    _write_json(latest_path, payload or _valid_tiingo_candidate_loop_payload())
+    return latest_path
+
+
 def _run_digest(root: Path, **overrides) -> dict:
     loop_latest_path = overrides.pop("loop_latest_path", None) or _write_loop_latest(root)
     kwargs = {
@@ -102,6 +167,7 @@ def _run_digest(root: Path, **overrides) -> dict:
         "research_memory_current_artifacts_latest_path": root / "memory" / "latest.json",
         "shadow_readiness_latest_path": root / "shadow" / "latest.json",
         "tiingo_hypothesis_lifecycle_latest_path": root / "tiingo_lifecycle" / "latest.json",
+        "tiingo_candidate_loop_latest_path": root / "candidate_loop" / "latest.json",
         "output_dir": root / "daily",
         "write": True,
     }
@@ -656,4 +722,110 @@ def test_tiingo_lifecycle_ingestion_does_not_create_candidates_or_run_screening(
     assert authority["paper_authority"] is False
     assert authority["shadow_authority"] is False
     assert authority["live_authority"] is False
+
+
+def test_missing_tiingo_candidate_loop_artifact_is_not_available(tmp_path: Path) -> None:
+    packet = _run_digest(tmp_path)
+
+    assert packet["tiingo_candidate_loop_status"] == "not_available"
+    assert packet["tiingo_candidate_loop_counts"]["candidates_materialized"] == 0
+    assert packet["tiingo_candidate_loop_authority"]["trading_authority"] is False
+
+
+def test_valid_tiingo_candidate_loop_appears_in_digest_json(tmp_path: Path) -> None:
+    candidate_path = _write_tiingo_candidate_loop(tmp_path)
+
+    packet = _run_digest(tmp_path, tiingo_candidate_loop_latest_path=candidate_path)
+
+    assert packet["tiingo_candidate_loop_status"] == "ready"
+    assert packet["tiingo_candidate_loop_counts"] == {
+        "contracts": 5,
+        "candidates_materialized": 5,
+        "candidates_screened": 5,
+        "screening_pass": 2,
+        "screening_fail": 0,
+        "null_not_beaten": 3,
+        "insufficient_evidence": 0,
+        "feedback_records": 5,
+        "evidence_records": 5,
+    }
+    assert packet["tiingo_candidate_loop_feedback"] == {
+        "feedback_consumed": False,
+        "feedback_applied_count": 0,
+        "next_run_feedback_ready": True,
+    }
+    assert packet["tiingo_candidate_loop_variants"] == {
+        "base_candidates": 5,
+        "variant_candidates": 0,
+        "variants_materialized": 0,
+        "modified_by_prior_feedback": 0,
+        "retained_by_prior_feedback": 0,
+        "suppressed_by_prior_feedback": 0,
+    }
+    assert packet["tiingo_candidate_loop_authority"]["research_only"] is True
+    assert packet["tiingo_candidate_loop_authority"]["screening_only"] is True
+    assert packet["tiingo_candidate_loop_authority"]["trading_authority"] is False
+    assert packet["summary"]["tiingo_candidate_loop_counts"]["evidence_records"] == 5
+    assert packet["summary"]["tiingo_candidate_loop_feedback"]["feedback_consumed"] is False
+
+
+def test_tiingo_candidate_loop_operator_summary_section(tmp_path: Path) -> None:
+    candidate_path = _write_tiingo_candidate_loop(tmp_path)
+
+    _run_digest(tmp_path, tiingo_candidate_loop_latest_path=candidate_path)
+
+    rendered = (tmp_path / "daily" / "operator_summary.md").read_text(encoding="utf-8")
+    assert "Tiingo candidate research loop:" in rendered
+    assert "- Contracts admitted: 5" in rendered
+    assert "- Candidates materialized: 5" in rendered
+    assert "- Candidates screened: 5" in rendered
+    assert "- Evidence records: 5" in rendered
+    assert "- Feedback consumed: false" in rendered
+    assert "- Feedback applied count: 0" in rendered
+    assert "- Base candidates: 5" in rendered
+    assert "- Variant candidates: 0" in rendered
+    assert "- Candidate creation: research-only specs" in rendered
+    assert "Candidate creation means research-only candidate specs, not executable strategies." in rendered
+    assert "- Trading authority: false" in rendered
+    assert "- Validation authority: false" in rendered
+    assert "- Paper authority: false" in rendered
+    assert "- Shadow authority: false" in rendered
+    assert "- Live authority: false" in rendered
+
+
+def test_unsafe_tiingo_candidate_loop_authority_is_blocked(tmp_path: Path) -> None:
+    payload = _valid_tiingo_candidate_loop_payload()
+    payload["safety"]["trading_authority"] = True
+    candidate_path = _write_tiingo_candidate_loop(tmp_path, payload)
+
+    packet = _run_digest(tmp_path, tiingo_candidate_loop_latest_path=candidate_path)
+
+    assert packet["tiingo_candidate_loop_status"] == "blocked_unsafe_authority"
+    assert packet["tiingo_candidate_loop_authority"]["trading_authority"] is False
+    assert packet["tiingo_candidate_loop_authority"]["research_only"] is True
+
+
+def test_malformed_tiingo_candidate_loop_artifact_is_reported(tmp_path: Path) -> None:
+    candidate_path = tmp_path / "candidate_loop" / "latest.json"
+    candidate_path.parent.mkdir(parents=True, exist_ok=True)
+    candidate_path.write_text("{not-json", encoding="utf-8")
+
+    packet = _run_digest(tmp_path, tiingo_candidate_loop_latest_path=candidate_path)
+
+    assert packet["tiingo_candidate_loop_status"] == "malformed_or_unreadable"
+    assert packet["tiingo_candidate_loop_authority"]["trading_authority"] is False
+
+
+def test_daily_digest_candidate_loop_ingestion_does_not_create_candidates_or_screening(tmp_path: Path) -> None:
+    candidate_path = _write_tiingo_candidate_loop(tmp_path)
+
+    packet = _run_digest(tmp_path, tiingo_candidate_loop_latest_path=candidate_path)
+
+    assert packet["tiingo_candidate_loop_counts"]["candidates_materialized"] == 5
+    assert packet["tiingo_candidate_loop_counts"]["candidates_screened"] == 5
+    assert packet["safety"]["run_research_called"] is False
+    assert packet["safety"]["validation_executed"] is False
+    assert packet["safety"]["execution_allowed"] is False
+    assert packet["tiingo_candidate_loop_authority"]["creates_orders"] is False
+    assert packet["tiingo_candidate_loop_authority"]["promotes_candidates"] is False
 
