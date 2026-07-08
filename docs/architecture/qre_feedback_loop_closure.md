@@ -17,4 +17,4 @@ A loop is closed only when an upstream artifact is produced, a downstream module
 
 ## Closure Ruling
 
-Current highest-confidence closure is a source-gate mini-loop: source qualification/resolution is consumed by Tiingo E2E and fails closed on source, snapshot, tier, blocker, and trading-authority mismatches. The full QRE loop is not closed because Tiingo hypotheses are not materialized into candidates, not screened, not written to feedback memory/evidence, and not consumed by a later run.
+Current highest-confidence closure is a source-gate mini-loop: source qualification/resolution is consumed by Tiingo E2E and fails closed on source, snapshot, tier, blocker, and trading-authority mismatches. The Tiingo source/profile/hypothesis path is working and well evidenced, but the QRE research feedback loop is not closed because no canonical downstream candidate materializer, screening path, evidence ledger event, feedback memory entry, or later run consumes the Tiingo hypothesis artifact.

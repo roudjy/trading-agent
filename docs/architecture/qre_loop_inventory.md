@@ -14,6 +14,14 @@ The static inventory tool added in this PR scans `research/`, `packages/`, `repo
 
 Key working anchor: `research/qre_tiingo_hypothesis_generator_e2e.py` has direct tests in `tests/unit/test_qre_tiingo_hypothesis_generator_e2e.py` and docs in `docs/research/tiingo_hypothesis_generator_e2e.md`. It resolves `tiingo_eod_equities_free`, requires snapshot `qdsnap_2b1258c6f592fa08`, loads local OHLC bars, applies split-like continuity adjustment, builds data profiles, runs real/shuffled/truncated controls, emits data-driven hypothesis seeds, and keeps `trading_authority=false`.
 
+## Static inventory limitations
+
+- The static scanner verifies syntax/text evidence only.
+- `verified` in static inventory means statically observed, not runtime-proven lineage.
+- Static findings cannot prove that one runtime artifact was actually consumed by a later run.
+- Runtime lineage requires producer artifact, downstream consumer, decision impact, feedback/memory output, later consumer, and test/run evidence.
+- The scanner may miss dynamic path construction, wrapper writers, indirect imports, relative imports, f-strings, and runtime-only links.
+
 ## Canonical Loop
 
 ```mermaid
@@ -39,20 +47,22 @@ flowchart TD
 
 | maturity | definition |
 |---|---|
-| missing | Expected capability exists in the target loop but no clear module/artifact/test is found. |
-| scaffold | Module/artifact/docs exist, but no proven producer-consumer chain or meaningful test evidence is found. |
-| working | Producer, artifact, tests, and at least one plausible consumer or explicit operator run evidence exist. |
-| trusted | Working + fail-closed behavior + lineage + negative tests/null controls + operator summary + no authority leakage. |
+| missing | Expected capability exists in the target QRE loop, but no clear module/artifact/test evidence is found. |
+| scaffold | Module, docs, artifact, or surface exists, but no proven producer-consumer chain or meaningful runtime/test evidence is found. |
+| working | A capability has a producer and test/operator evidence for its own behavior. Working does not imply loop closure unless a verified downstream consumer and decision impact are also proven. |
+| trusted | Working plus fail-closed behavior, lineage, negative tests or null controls, operator-readable evidence, and no authority leakage. Trusted labels must specify their scope. |
+
+A plausible consumer is not closure evidence. Working is not the same as closed-loop.
 
 ## Per-Layer Inventory
 
 | layer | purpose | modules | input artifacts | output artifacts | tests | authority | maturity | gaps |
 |---|---|---|---|---|---|---|---|---|
-| 1 source intake | Register and describe usable external sources. | `research.external_intelligence.*`, `packages.qre_research.alpha_discovery.providers` | source manifests | source registry rows | source onboarding/source manifest tests | research source context only | working | Not all source paths are tied to the Tiingo E2E chain. |
-| 2 source identity / license / quality gate | Decide evidence tier and blockers. | `packages.qre_research.alpha_discovery.source_qualification`, `source_resolution` | dataset catalog, snapshot lineage, source qualifications | `generated_research/alpha_discovery/source_qualifications/latest.json`, `generated_research/alpha_discovery/source_resolution/latest.json` | `test_qre_alpha_snapshot_resolution.py`, `test_qre_alpha_source_qualification.py`, `test_qre_source_onboarding.py` | screening eligibility only | working | Validation tier is referenced but not in safe next scope. |
+| 1 source intake | Register and describe usable external sources. | `research.external_intelligence.*`, `packages.qre_research.alpha_discovery.providers` | source manifests | source registry rows | source onboarding/source manifest tests | research source context only | working for tested source onboarding/resolution subsets, especially the Tiingo E2E slice; not uniformly proven across all possible source paths | Not all source paths are tied to the Tiingo E2E chain. |
+| 2 source identity / license / quality gate | Decide evidence tier and blockers. | `packages.qre_research.alpha_discovery.source_qualification`, `source_resolution` | dataset catalog, snapshot lineage, source qualifications | `generated_research/alpha_discovery/source_qualifications/latest.json`, `generated_research/alpha_discovery/source_resolution/latest.json` | `test_qre_alpha_snapshot_resolution.py`, `test_qre_alpha_source_qualification.py`, `test_qre_source_onboarding.py` | screening eligibility only | working for tested source onboarding/resolution subsets, especially the Tiingo E2E slice; not uniformly proven across all possible source paths | Validation tier is referenced but not in safe next scope. |
 | 3 local snapshot/cache | Keep immutable local data evidence. | `packages.qre_research.alpha_discovery.snapshot_lineage`, data catalog modules | imported/cache data | snapshot lineage/catalog artifacts | snapshot lineage tests | local research cache | working | Cache producers are not uniformly consumed by later QRE routes. |
-| 4 data quality adjustment / continuity | Make research prices continuous without changing trading authority. | `research.qre_tiingo_hypothesis_generator_e2e` | Tiingo bars CSV | in-memory adjusted profile; optional `logs/qre_tiingo_hypothesis_generator_e2e/latest.json` | `test_qre_tiingo_hypothesis_generator_e2e.py` | research-only | trusted | Output is not a canonical candidate input. |
-| 5 data profile | Summarize coverage, returns, vol, ranks, clusters, fingerprints. | `research.qre_tiingo_hypothesis_generator_e2e` | adjusted Tiingo bars | data profile inside Tiingo report | Tiingo E2E tests | research-only | trusted | Profile has no downstream resolver into candidate materialization. |
+| 4 data quality adjustment / continuity | Make research prices continuous without changing trading authority. | `research.qre_tiingo_hypothesis_generator_e2e` | Tiingo bars CSV | in-memory adjusted profile; optional `logs/qre_tiingo_hypothesis_generator_e2e/latest.json` | `test_qre_tiingo_hypothesis_generator_e2e.py` | research-only | trusted for the Tiingo E2E slice only | Output is not a canonical candidate input. |
+| 5 data profile | Summarize coverage, returns, vol, ranks, clusters, fingerprints. | `research.qre_tiingo_hypothesis_generator_e2e` | adjusted Tiingo bars | data profile inside Tiingo report | Tiingo E2E tests | research-only | trusted for the Tiingo E2E slice only | Profile has no downstream resolver into candidate materialization. |
 | 6 diagnostics / interpretation | Interpret market behavior and evidence quality. | many `reporting/qre_*diagnostics*`, `research/diagnostics/*`, `packages/qre_diagnostics/*` | existing sidecars/research outputs | diagnostic sidecars under `logs/` | many unit tests by module | advisory/read-only | scaffold | Diagnostics are broad but not clearly chained to the Tiingo profile. |
 | 7 hypothesis generation | Produce bounded data-derived research hypotheses. | `research.qre_tiingo_hypothesis_generator_e2e`, `packages.qre_research.automated_hypothesis_generation`, alpha discovery modules | data profile, source resolution | Tiingo hypothesis payload; generated hypothesis sidecars | Tiingo E2E and hypothesis tests | screening-only, not trade signal | working | Tiingo hypotheses are not consumed by candidate materialization. |
 | 8 candidate materialization | Convert approved strategy/preset/hypothesis context into candidates. | `research.candidate_pipeline`, `research.candidate_registry_v2`, `reporting/qre_selection_route_materialization.py` | strategy registry, presets, run candidates | `research/run_candidates_latest.v1.json`, candidate registry sidecars | candidate pipeline/registry tests | research candidate context | scaffold | Not wired to Tiingo data-driven hypotheses. |

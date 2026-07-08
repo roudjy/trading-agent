@@ -6,7 +6,9 @@ The safe sequence stops before validation, paper, shadow, live, broker, risk, or
 
 gap: Tiingo data-driven hypotheses are working but orphaned relative to candidate admission and memory.
 
-why now: This is the first break in the functional chain after the trusted Tiingo source/profile/hypothesis slice.
+why now: This is the first break in the functional chain after the trusted-for-the-Tiingo-E2E-slice-only source/profile/hypothesis evidence.
+
+This addresses a contract/lineage break before adding candidate generation, preventing another disconnected runtime surface.
 
 expected files:
 
