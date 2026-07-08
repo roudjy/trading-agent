@@ -6,13 +6,18 @@ import contextlib
 import json
 import os
 import re
+import sys
 import tempfile
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
-from packages.qre_research.funnel_classification import (
+REPO_ROOT_FOR_IMPORT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT_FOR_IMPORT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT_FOR_IMPORT))
+
+from packages.qre_research.funnel_classification import (  # noqa: E402
     classification_summary,
     classifications_as_dict,
 )
