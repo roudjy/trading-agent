@@ -51,6 +51,14 @@ packages/qre_research/memory_aware_hypothesis_generation.py
 
 This adapter lets canonical FeedbackRecord, LessonMemory, and ResearchMemory influence the next hypothesis batch by suppressing repeated failures, deprioritizing dead zones, and boosting near-pass families. Every influence is explainable and deterministic. It does not synthesize strategies, invent indicators, create candidates, promote candidates, or grant execution authority.
 
+PR F adds the funnel classification registry:
+
+```text
+packages/qre_research/funnel_classification.py
+```
+
+This registry quarantines duplicate funnel claims. It records exactly one canonical provider-agnostic contract/bridge/memory loop at the contract level, keeps Tiingo as a provider adapter, keeps daily digest as observability-only, protects legacy `research/research_latest.json` and `research/strategy_matrix.csv`, and marks fixture/smoke funnels as fixture-only. It does not delete legacy code or change runtime behavior.
+
 ## Canonical Object Ownership
 
 | Object | Current audit status | Current owner evidence | Recommendation |
@@ -85,11 +93,12 @@ This adapter lets canonical FeedbackRecord, LessonMemory, and ResearchMemory inf
 
 | Funnel | Current status | Canonicality | Provider specificity | Keep/Bridge/Deprecate decision | Required future PR |
 |---|---|---|---|---|---|
-| Tiingo candidate research loop | research-only mini-loop | provider adapter | provider_specific | KEEP_AS_PROVIDER_ADAPTER + BRIDGE_TO_CANONICAL | HypothesisSeed, ResearchInputContract, and CandidateSpec bridge complete; EvidenceLedger and FeedbackRecord remain for PR D |
+| Canonical provider-agnostic contract/bridge/memory loop | contract-level loop | canonical_contract_loop | provider_agnostic | KEEP_AS_CANONICAL | PR A-E complete: vocabulary, Tiingo bridge, planning bridge, evidence/memory bridge, and memory-aware next hypothesis ordering |
+| Tiingo candidate research loop | research-only mini-loop | provider adapter | provider_specific | KEEP_AS_PROVIDER_ADAPTER + BRIDGE_TO_CANONICAL | Bridge complete through canonical Hypothesis, ResearchInputContract, CandidateSpec, Evidence/Feedback, and memory-aware next-run context |
 | Daily digest | read-only aggregation | observability_only | mixed | OBSERVABILITY_ONLY | Keep consuming sidecars; do not let digest produce research objects |
 | Alpha discovery / Strategy IR / campaign / lesson funnel | partial funnel | unknown | mixed | BRIDGE_TO_CANONICAL or UNKNOWN_REQUIRES_OPERATOR_DECISION | Map StrategyIR, CampaignSpec, EvidencePack, Disposition, LessonMemory, and ResearchMemory ownership |
-| run_research / registry / strategy_matrix | legacy or canonical backtest/report path | unknown | mixed | OPERATOR_DECISION_REQUIRED | Decide whether registry and strategy_matrix remain canonical for strategy research outputs |
-| test/smoke fixture funnels | fixture semantics | test_fixture_only | unknown | TEST_FIXTURE_ONLY | Quarantine fixture-only claims from architecture docs |
+| run_research / registry / strategy_matrix | legacy protected output path | legacy_protected | mixed | KEEP_AS_LEGACY_OUTPUT_CONTRACT | Frozen outputs remain protected; separate operator-scoped settlement required before ownership changes |
+| test/smoke fixture funnels | fixture semantics | test_fixture_only | unknown | TEST_FIXTURE_ONLY | Fixture-only claims are quarantined and cannot masquerade as canonical |
 
 ## Recommended PR Sequence
 
@@ -98,7 +107,9 @@ This adapter lets canonical FeedbackRecord, LessonMemory, and ResearchMemory inf
 3. PR C: bridge canonical CandidateSpec to StrategySpec/PresetSpec/CampaignSpec. Status: complete at planning-contract level.
 4. PR D: connect campaign evidence to FeedbackMemory/LessonMemory. Status: complete at contract/memory bridge level.
 5. PR E: make next hypothesis generation consume canonical memory. Status: complete at deterministic ordering/context level.
-6. PR F: deprecate or quarantine duplicate legacy funnels.
+6. PR F: deprecate or quarantine duplicate legacy funnels. Status: complete at classification/quarantine level.
+
+After PR F, the provider-agnostic QRE research loop is reconciled at the contract, bridge, memory, and funnel-classification level. This does not mean strategy-authoritative, validation-ready, paper-ready, shadow-ready, live-ready, or trading-ready.
 
 ## Rules For Future Work
 

@@ -38,6 +38,27 @@ The repo contains multiple partial funnels rather than one proven, provider-agno
 
 The Tiingo path is useful and should be kept, but it is provider-specific and should be bridged to canonical contracts before being treated as the general QRE architecture.
 
+## Classification Settlement
+
+PR F adds a read-only funnel classification registry:
+
+```text
+packages/qre_research/funnel_classification.py
+```
+
+The registry records:
+
+- one canonical provider-agnostic contract/bridge/memory loop at the contract level
+- Tiingo as a provider adapter bridged to canonical contracts
+- daily digest as observability-only
+- `research/research_latest.json` and `research/strategy_matrix.csv` as protected legacy output contracts
+- smoke and fixture paths as fixture-only
+- ambiguous alpha discovery / Strategy IR / campaign / lesson ownership as requiring bridge or operator decision
+
+The classification registry does not execute research, create candidates, create strategies, launch campaigns, run screening, validate, promote, register strategies, or grant paper/shadow/live/trading authority.
+
+The full runtime architecture still remains bounded by the no-execution safety rules. The settlement is a contract/bridge/memory/funnel-classification reconciliation, not a production trading readiness claim.
+
 ## Outputs
 
 Write mode emits:
