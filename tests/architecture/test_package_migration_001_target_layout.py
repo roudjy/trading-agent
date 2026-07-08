@@ -197,6 +197,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "decision_calibration.py",
         "empirical_evidence_pack.py",
         "empirical_research_flywheel.py",
+        "evidence_memory_bridge.py",
         "generated_hypothesis_paths.py",
         "generated_primitive_paths.py",
         "generated_strategy_paths.py",
@@ -218,6 +219,7 @@ def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_path("packages/qre_research/canonical_contracts.py") == DOMAIN_QRE
     assert classify_path("packages/qre_research/candidate_planning_bridge.py") == DOMAIN_QRE
     assert classify_path("packages/qre_research/research_memory.py") == DOMAIN_QRE
+    assert classify_path("packages/qre_research/evidence_memory_bridge.py") == DOMAIN_QRE
     assert classify_path("packages/qre_research/tiingo_canonical_bridge.py") == DOMAIN_QRE
     assert classify_path("packages/qre_research/retrieval_coverage.py") == DOMAIN_QRE
     assert classify_path("packages/qre_research/universe.py") == DOMAIN_QRE
@@ -244,6 +246,7 @@ def test_package_migration_001_scanner_classifies_target_paths() -> None:
     assert classify_module("packages.qre_research.canonical_contracts") == DOMAIN_QRE
     assert classify_module("packages.qre_research.candidate_planning_bridge") == DOMAIN_QRE
     assert classify_module("packages.qre_research.research_memory") == DOMAIN_QRE
+    assert classify_module("packages.qre_research.evidence_memory_bridge") == DOMAIN_QRE
     assert classify_module("packages.qre_research.tiingo_canonical_bridge") == DOMAIN_QRE
     assert classify_module("packages.qre_research.universe") == DOMAIN_QRE
     assert classify_module("packages.qre_data.cache_manifest") == DOMAIN_QRE
