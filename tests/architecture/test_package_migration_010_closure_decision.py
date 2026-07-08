@@ -71,6 +71,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "generated_primitive_paths.py",
         "generated_strategy_paths.py",
         "hypothesis_lifecycle.py",
+        "memory_aware_hypothesis_generation.py",
         "opportunity_value.py",
         "research_memory.py",
         "retrieval_coverage.py",
