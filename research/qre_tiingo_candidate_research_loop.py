@@ -187,6 +187,7 @@ def _daily_digest_input(report: dict[str, Any]) -> dict[str, Any]:
             "null_not_beaten": summary["null_not_beaten"],
             "insufficient_evidence": summary["insufficient_evidence"],
             "feedback_records": summary["feedback_records"],
+            "evidence_records": report.get("evidence_ledger_summary", {}).get("evidence_records", 0),
         },
         "next_actions": sorted(
             {
@@ -224,6 +225,8 @@ def _base_report(
         "candidate_specs": [],
         "screening_results": [],
         "feedback_records": [],
+        "evidence_ledger": [],
+        "evidence_ledger_summary": _empty_evidence_ledger_summary(),
         "prior_feedback": {
             "feedback_consumed": False,
             "feedback_source_path": None,
@@ -235,6 +238,18 @@ def _base_report(
         "daily_digest_input": {},
         "safety": dict(SAFETY),
         "blocked_reasons": sorted(dict.fromkeys(blocked_reasons)),
+    }
+
+
+def _empty_evidence_ledger_summary() -> dict[str, Any]:
+    return {
+        "evidence_records": 0,
+        "retain_research_evidence": 0,
+        "weak_research_evidence": 0,
+        "insufficient_research_evidence": 0,
+        "blocked_research_evidence": 0,
+        "research_only": True,
+        "trading_authority": False,
     }
 
 
@@ -973,6 +988,105 @@ def feedback_from_screening(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _evidence_decision(screening_decision: str) -> str:
+    if screening_decision == "screening_pass":
+        return "retain_research_evidence"
+    if screening_decision in {"null_not_beaten", "screening_fail"}:
+        return "weak_research_evidence"
+    if screening_decision == "insufficient_evidence":
+        return "insufficient_research_evidence"
+    return "blocked_research_evidence"
+
+
+def build_evidence_entry(
+    *,
+    candidate: dict[str, Any],
+    screening_result: dict[str, Any],
+    feedback_record: dict[str, Any],
+) -> dict[str, Any]:
+    metrics_summary = {
+        "observation_count": int(screening_result.get("observation_count") or 0),
+        "rebalance_count": int(screening_result.get("rebalance_count") or 0),
+        "candidate_total_return": float(screening_result.get("candidate_total_return") or 0.0),
+        "benchmark_total_return": float(screening_result.get("benchmark_total_return") or 0.0),
+        "excess_return": float(screening_result.get("excess_return") or 0.0),
+        "candidate_sharpe_like": float(screening_result.get("candidate_sharpe_like") or 0.0),
+        "max_drawdown": float(screening_result.get("max_drawdown") or 0.0),
+        "win_rate": float(screening_result.get("win_rate") or 0.0),
+    }
+    null_control = (
+        screening_result.get("null_control")
+        if isinstance(screening_result.get("null_control"), dict)
+        else {}
+    )
+    null_summary = {
+        "null_iterations": int(null_control.get("null_iterations") or 0),
+        "seed": int(null_control.get("seed") or 0),
+        "beats_null_p50": bool(null_control.get("beats_null_p50") is True),
+        "beats_null_p75": bool(null_control.get("beats_null_p75") is True),
+    }
+    metrics_digest = _sha(
+        {
+            "metrics_summary": metrics_summary,
+            "null_control_summary": null_summary,
+            "screening_decision": screening_result.get("decision"),
+        }
+    )
+    evidence_decision = _evidence_decision(str(screening_result.get("decision")))
+    evidence_basis = {
+        "candidate_id": candidate.get("candidate_id"),
+        "candidate_digest": candidate.get("candidate_digest"),
+        "source_snapshot_id": candidate.get("source_snapshot_id"),
+        "screening_decision": screening_result.get("decision"),
+        "metrics_digest": metrics_digest,
+    }
+    return {
+        "evidence_id": "ev_tiingo_" + _digest(evidence_basis),
+        "evidence_schema_version": 1,
+        "evidence_kind": "tiingo_candidate_screening_evidence",
+        "candidate_id": candidate.get("candidate_id"),
+        "candidate_digest": candidate.get("candidate_digest"),
+        "parent_contract_id": candidate.get("parent_contract_id"),
+        "parent_hypothesis_seed_id": candidate.get("parent_hypothesis_seed_id"),
+        "source_hypothesis_id": candidate.get("source_hypothesis_id"),
+        "source_snapshot_id": candidate.get("source_snapshot_id"),
+        "feature_family": candidate.get("feature_family"),
+        "candidate_family": candidate.get("candidate_family"),
+        "screening_protocol": SCREENING_PROTOCOL,
+        "data_basis": {
+            "source_id": "tiingo_eod_equities_free",
+            "timeframe": "1d",
+            "split_adjustment_requirement": "required",
+            "price_basis": "split_adjusted_research_prices",
+        },
+        "metrics_digest": metrics_digest,
+        "metrics_summary": metrics_summary,
+        "null_control_summary": null_summary,
+        "screening_decision": screening_result.get("decision"),
+        "feedback_decision": feedback_record.get("feedback_decision"),
+        "evidence_decision": evidence_decision,
+        "audit_flags": {
+            "research_only": True,
+            "screening_only": True,
+            "trading_authority": False,
+            "validation_authority": False,
+            "paper_authority": False,
+            "shadow_authority": False,
+            "live_authority": False,
+        },
+    }
+
+
+def summarize_evidence_ledger(evidence_ledger: list[dict[str, Any]]) -> dict[str, Any]:
+    summary = _empty_evidence_ledger_summary()
+    summary["evidence_records"] = len(evidence_ledger)
+    for row in evidence_ledger:
+        decision = str(row.get("evidence_decision"))
+        if decision in summary:
+            summary[decision] += 1
+    return summary
+
+
 def read_prior_feedback(path: Path) -> dict[str, Any]:
     payload, error = _read_json(path)
     if error is not None or not isinstance(payload, dict):
@@ -1089,6 +1203,7 @@ def build_report(
     candidate_specs: list[dict[str, Any]] = []
     screening_results: list[dict[str, Any]] = []
     feedback_records: list[dict[str, Any]] = []
+    evidence_ledger: list[dict[str, Any]] = []
     blocked_reasons: list[str] = []
     deferred_candidate_ids: set[str] = set()
     counters = {
@@ -1149,7 +1264,15 @@ def build_report(
         else:
             result = screen_candidate(candidate, bars, null_iterations=null_iterations, seed=seed)
         screening_results.append(result)
-        feedback_records.append(feedback_from_screening(result))
+        feedback_record = feedback_from_screening(result)
+        feedback_records.append(feedback_record)
+        evidence_ledger.append(
+            build_evidence_entry(
+                candidate=candidate,
+                screening_result=result,
+                feedback_record=feedback_record,
+            )
+        )
 
     summary = _empty_summary()
     summary["input_contracts_seen"] = len(contracts) + len(skipped)
@@ -1182,6 +1305,8 @@ def build_report(
             "candidate_specs": candidate_specs,
             "screening_results": screening_results,
             "feedback_records": feedback_records,
+            "evidence_ledger": evidence_ledger,
+            "evidence_ledger_summary": summarize_evidence_ledger(evidence_ledger),
             "prior_feedback": {key: value for key, value in prior_feedback.items() if key != "_records"},
             "next_run_plan": _next_run_plan(feedback_records),
             "blocked_reasons": sorted(dict.fromkeys(blocked_reasons)),
@@ -1224,6 +1349,7 @@ def render_operator_summary(report: dict[str, Any]) -> str:
         f"- Null not beaten: {summary['null_not_beaten']}",
         f"- Insufficient evidence: {summary['insufficient_evidence']}",
         f"- Feedback records: {summary['feedback_records']}",
+        f"- Evidence records: {report.get('evidence_ledger_summary', {}).get('evidence_records', 0)}",
         f"- Feedback consumed: {str(summary['feedback_consumed']).lower()}",
         f"- Feedback applied count: {summary['feedback_applied_count']}",
         f"- Next run feedback ready: {str(summary['next_run_feedback_ready']).lower()}",
@@ -1335,6 +1461,7 @@ def write_outputs(
         "candidate_specs": resolved / "candidate_specs.jsonl",
         "screening_results": resolved / "screening_results.jsonl",
         "feedback_records": resolved / "feedback_records.jsonl",
+        "evidence_ledger": resolved / "evidence_ledger.jsonl",
         "operator_summary": resolved / "operator_summary.md",
     }
     _atomic_write_text(paths["latest"], _json_text(report))
@@ -1342,6 +1469,7 @@ def write_outputs(
     _atomic_write_text(paths["candidate_specs"], _jsonl_text(report.get("candidate_specs", [])))
     _atomic_write_text(paths["screening_results"], _jsonl_text(report.get("screening_results", [])))
     _atomic_write_text(paths["feedback_records"], _jsonl_text(report.get("feedback_records", [])))
+    _atomic_write_text(paths["evidence_ledger"], _jsonl_text(report.get("evidence_ledger", [])))
     _atomic_write_text(paths["operator_summary"], render_operator_summary(report))
     return {key: path.relative_to(repo_root).as_posix() for key, path in paths.items()}
 
@@ -1386,6 +1514,7 @@ __all__ = [
     "REPORT_KIND",
     "SAFETY",
     "build_input_contracts",
+    "build_evidence_entry",
     "build_report",
     "feedback_from_screening",
     "load_bars",
@@ -1393,6 +1522,7 @@ __all__ = [
     "materialize_candidate_spec",
     "render_operator_summary",
     "screen_candidate",
+    "summarize_evidence_ledger",
     "write_outputs",
 ]
 
