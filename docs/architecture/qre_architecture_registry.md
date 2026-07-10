@@ -167,6 +167,13 @@ reason distribution, missing-vs-negative evidence, repeated failure modes,
 lineage, disposition trends, memory feedback, retest suppression, and next
 actions. It does not create production artifacts or grant execution authority.
 
+`operator_trust_multirun_report` is registered as observability-only operator
+reporting. It summarizes governed offline runs and batches for tested
+hypotheses, admitted/blocked counts, rejection reasons, evidence completeness,
+dispositions, memory feedback, repeated failures, blockers, and next actions.
+It does not create research objects, claim readiness, or grant execution
+authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:

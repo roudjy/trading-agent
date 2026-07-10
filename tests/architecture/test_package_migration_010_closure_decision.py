@@ -80,6 +80,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "maturity_gate.py",
         "memory_aware_hypothesis_generation.py",
         "offline_research_dry_run.py",
+        "operator_trust_multirun_report.py",
         "opportunity_value.py",
         "rejection_reasons.py",
         "research_memory.py",
