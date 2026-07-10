@@ -54,6 +54,7 @@ def test_required_surfaces_are_classified() -> None:
         "bounded_strategy_synthesis_readiness",
         "funnel_architecture_audit",
         "test_smoke_fixture_paths",
+        "canonical_funnel_verification",
     } <= ids
 
 

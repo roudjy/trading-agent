@@ -95,6 +95,7 @@ empirical_research_flywheel_v7_1
 bounded_strategy_synthesis_readiness
 funnel_architecture_audit
 test_smoke_fixture_paths
+canonical_funnel_verification
 ```
 
 Operator-decision entries are explicit in the JSON. PR 2 must respect them rather than silently resolving irreversible ownership or maturity decisions.
@@ -119,6 +120,11 @@ PR 5 settles or conservatively bounds the remaining operator-decision surfaces:
   governance-only synthesis consideration. It requires an operator decision for
   any future escalation and grants no executable synthesis, shadow, paper, live,
   broker, risk, order, or capital authority.
+
+`canonical_funnel_verification` is registered as governance-only static
+fixture verification. It consumes canonical object names to prove route order
+but owns no canonical semantics, creates no research objects, and grants no
+execution or synthesis authority.
 
 ## Validation
 
