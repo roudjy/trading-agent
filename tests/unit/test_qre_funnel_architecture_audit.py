@@ -235,6 +235,15 @@ def test_audit_includes_funnel_classification_registry(tmp_path: Path) -> None:
     assert classification["classifications"]["daily_status_digest_observability"]["classification"] == "observability_only"
 
 
+def test_audit_includes_closed_world_registry_gate(tmp_path: Path) -> None:
+    report = audit.build_report(_fixture_repo(tmp_path))
+    closed_world = report["closed_world_audit"]
+
+    assert closed_world["verdict"] == "pass"
+    assert closed_world["failures"] == []
+    assert closed_world["enforcement_scope"]["runtime_behavior_changed"] is False
+
+
 def test_audit_does_not_claim_runtime_loop_is_closed(tmp_path: Path) -> None:
     report = audit.build_report(_fixture_repo(tmp_path))
     assessment = report["canonicality_assessment"]

@@ -242,6 +242,21 @@ def canonical_ownership_index() -> dict[str, str]:
     }
 
 
+def canonical_ownership_duplicates(
+    entries: tuple[ArchitectureRegistryEntry, ...] | None = None,
+) -> dict[str, tuple[str, ...]]:
+    selected = entries if entries is not None else registry_entries()
+    owners: dict[str, list[str]] = {}
+    for entry in selected:
+        for canonical_object in entry.canonical_objects_owned:
+            owners.setdefault(canonical_object, []).append(entry.id)
+    return {
+        canonical_object: tuple(entry_ids)
+        for canonical_object, entry_ids in owners.items()
+        if len(entry_ids) > 1
+    }
+
+
 def operator_decision_entries() -> tuple[ArchitectureRegistryEntry, ...]:
     return tuple(entry for entry in registry_entries() if entry.operator_decision_required)
 
@@ -322,6 +337,68 @@ def validate_registry(path: Path = DEFAULT_REGISTRY_PATH) -> list[str]:
     return errors
 
 
+def _matches_registered_path(path: str, registered_path: str) -> bool:
+    if registered_path.endswith("/**"):
+        return path.startswith(registered_path[:-3])
+    if registered_path.endswith("/"):
+        return path.startswith(registered_path)
+    if "." not in Path(registered_path).name and path.startswith(registered_path.rstrip("/") + "/"):
+        return True
+    return path == registered_path
+
+
+def registered_entry_for_producer(module_path: str) -> ArchitectureRegistryEntry | None:
+    for entry in registry_entries():
+        if any(_matches_registered_path(module_path, producer) for producer in entry.producer_modules):
+            return entry
+    return None
+
+
+def registered_entry_for_artifact(artifact_path: str) -> ArchitectureRegistryEntry | None:
+    for entry in registry_entries():
+        registered_paths = entry.artifact_paths + entry.allowed_outputs + entry.forbidden_outputs
+        if any(_matches_registered_path(artifact_path, candidate) for candidate in registered_paths):
+            return entry
+    return None
+
+
+def validate_closed_world_audit(
+    *,
+    producer_modules: tuple[str, ...] = (),
+    artifact_paths: tuple[str, ...] = (),
+    canonical_objects: tuple[str, ...] = (),
+    maturity_claims: tuple[str, ...] = (),
+    authority_flags: tuple[str, ...] = (),
+    entries: tuple[ArchitectureRegistryEntry, ...] | None = None,
+) -> list[str]:
+    selected_entries = entries if entries is not None else registry_entries()
+    registered_objects = {
+        obj
+        for entry in selected_entries
+        for obj in entry.canonical_objects_owned + entry.canonical_objects_consumed
+    }
+    errors = validate_registry()
+
+    for module_path in sorted(set(producer_modules)):
+        if registered_entry_for_producer(module_path) is None:
+            errors.append(f"unregistered_producer:{module_path}")
+    for artifact_path in sorted(set(artifact_paths)):
+        if registered_entry_for_artifact(artifact_path) is None:
+            errors.append(f"unregistered_artifact_path:{artifact_path}")
+    for canonical_object in sorted(set(canonical_objects)):
+        if canonical_object not in registered_objects:
+            errors.append(f"unknown_canonical_object_owner:{canonical_object}")
+    for canonical_object, owners in canonical_ownership_duplicates(selected_entries).items():
+        errors.append(f"duplicate_canonical_object_owner:{canonical_object}:{','.join(owners)}")
+    for maturity_claim in sorted(set(maturity_claims)):
+        if maturity_claim not in ALLOWED_MATURITY_LEVELS:
+            errors.append(f"unknown_maturity_claim:{maturity_claim}")
+    for authority_flag in sorted(set(authority_flags)):
+        if authority_flag not in AUTHORITY_FLAGS:
+            errors.append(f"unknown_authority_flag:{authority_flag}")
+    return errors
+
+
 def registry_summary() -> dict[str, object]:
     entries = registry_entries()
     role_counts: dict[str, int] = {}
@@ -351,14 +428,18 @@ __all__ = [
     "SCHEMA_VERSION",
     "ArchitectureRegistryEntry",
     "canonical_ownership_index",
+    "canonical_ownership_duplicates",
     "load_registry",
     "operator_decision_entries",
     "protected_outputs",
+    "registered_entry_for_artifact",
+    "registered_entry_for_producer",
     "registered_artifact_paths",
     "registered_producer_modules",
     "registry_as_dict",
     "registry_by_id",
     "registry_entries",
     "registry_summary",
+    "validate_closed_world_audit",
     "validate_registry",
 ]
