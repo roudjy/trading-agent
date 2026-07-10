@@ -174,6 +174,14 @@ dispositions, memory feedback, repeated failures, blockers, and next actions.
 It does not create research objects, claim readiness, or grant execution
 authority.
 
+`governed_offline_artifacts` is registered as governance-only offline artifact
+persistence. It builds and validates versioned JSON envelopes from governed
+offline dry-run/report structures and writes them only to a caller-provided safe
+artifact directory, including `latest.json` only inside that directory. It does
+not mutate frozen research outputs, create production research artifacts, run
+research, or grant synthesis, shadow, paper, live, broker, risk, order, or
+capital authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
