@@ -57,6 +57,7 @@ def test_required_surfaces_are_classified() -> None:
         "canonical_funnel_verification",
         "rejection_reason_intelligence",
         "hypothesis_generator_governance",
+        "research_throughput_controls",
     } <= ids
 
 

@@ -138,6 +138,14 @@ prioritization control. It consumes hypothesis, memory, rejection, quality,
 budget, architecture, and maturity signals but does not increase throughput,
 create research objects, or grant execution or synthesis authority.
 
+`research_throughput_controls` is registered as governance-only bounded
+throughput control. It consumes governed hypothesis prioritization records,
+rejection memory, quality/gate state, and explicit budgets to produce a
+read-only admission report and next-action queue. It does not run research,
+create production candidates/strategies/campaigns, mutate frozen outputs, or
+grant synthesis, shadow, paper, live, broker, risk, order, or capital
+authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
