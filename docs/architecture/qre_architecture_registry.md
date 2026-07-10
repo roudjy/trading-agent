@@ -97,6 +97,7 @@ funnel_architecture_audit
 test_smoke_fixture_paths
 canonical_funnel_verification
 rejection_reason_intelligence
+hypothesis_generator_governance
 ```
 
 Operator-decision entries are explicit in the JSON. PR 2 must respect them rather than silently resolving irreversible ownership or maturity decisions.
@@ -131,6 +132,11 @@ execution or synthesis authority.
 reason taxonomy. It can feed `FeedbackRecord`, `LessonMemory`, and
 `ResearchMemory` read models, but owns no canonical semantics, creates no
 research objects, and grants no execution or synthesis authority.
+
+`hypothesis_generator_governance` is registered as governance-only
+prioritization control. It consumes hypothesis, memory, rejection, quality,
+budget, architecture, and maturity signals but does not increase throughput,
+create research objects, or grant execution or synthesis authority.
 
 ## Validation
 
