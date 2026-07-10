@@ -122,6 +122,21 @@ HIGH_RISK_MATURITY_LEVELS: Final[tuple[str, ...]] = (
     "live_ready",
     "blocked",
 )
+QRE_IMPACT_PATH_PREFIXES: Final[tuple[str, ...]] = (
+    "apps/control-plane/",
+    "docs/architecture/qre_",
+    "docs/roadmap/",
+    "packages/qre_",
+    "research/qre_",
+    "tests/architecture/",
+    "tests/unit/test_qre_",
+    "tools/qre_",
+)
+IGNORED_UNTRACKED_PREFIXES: Final[tuple[str, ...]] = (
+    "copilot-worktrees/",
+    "tmp/",
+    "trading-agent/",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -347,6 +362,15 @@ def _matches_registered_path(path: str, registered_path: str) -> bool:
     return path == registered_path
 
 
+def is_qre_impact_path(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    if normalized in FROZEN_LEGACY_OUTPUTS:
+        return True
+    if normalized.startswith(IGNORED_UNTRACKED_PREFIXES):
+        return False
+    return normalized.startswith(QRE_IMPACT_PATH_PREFIXES)
+
+
 def registered_entry_for_producer(module_path: str) -> ArchitectureRegistryEntry | None:
     for entry in registry_entries():
         if any(_matches_registered_path(module_path, producer) for producer in entry.producer_modules):
@@ -360,6 +384,23 @@ def registered_entry_for_artifact(artifact_path: str) -> ArchitectureRegistryEnt
         if any(_matches_registered_path(artifact_path, candidate) for candidate in registered_paths):
             return entry
     return None
+
+
+def registry_entries_for_paths(paths: tuple[str, ...]) -> tuple[ArchitectureRegistryEntry, ...]:
+    touched: dict[str, ArchitectureRegistryEntry] = {}
+    for path in paths:
+        normalized = path.replace("\\", "/")
+        for entry in registry_entries():
+            candidates = (
+                entry.producer_modules
+                + entry.consumer_modules
+                + entry.artifact_paths
+                + entry.allowed_outputs
+                + entry.forbidden_outputs
+            )
+            if any(_matches_registered_path(normalized, candidate) for candidate in candidates):
+                touched[entry.id] = entry
+    return tuple(touched[entry_id] for entry_id in sorted(touched))
 
 
 def validate_closed_world_audit(
@@ -424,11 +465,14 @@ __all__ = [
     "BLOCKED_AUTHORITY_FLAGS",
     "DEFAULT_REGISTRY_PATH",
     "FROZEN_LEGACY_OUTPUTS",
+    "IGNORED_UNTRACKED_PREFIXES",
+    "QRE_IMPACT_PATH_PREFIXES",
     "REGISTRY_KIND",
     "SCHEMA_VERSION",
     "ArchitectureRegistryEntry",
     "canonical_ownership_index",
     "canonical_ownership_duplicates",
+    "is_qre_impact_path",
     "load_registry",
     "operator_decision_entries",
     "protected_outputs",
@@ -438,6 +482,7 @@ __all__ = [
     "registered_producer_modules",
     "registry_as_dict",
     "registry_by_id",
+    "registry_entries_for_paths",
     "registry_entries",
     "registry_summary",
     "validate_closed_world_audit",
