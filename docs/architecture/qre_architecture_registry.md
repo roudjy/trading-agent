@@ -133,3 +133,20 @@ The gate fails static validation for:
 - unknown authority flags
 
 This remains audit-only. It does not run research, create candidates, create strategies, create campaigns, run screening, mutate frozen outputs, grant strategy synthesis authority, grant shadow/paper/live authority, or grant broker/risk/order/capital authority.
+
+## Addendum 4 Maturity Gate
+
+`packages/qre_research/maturity_gate.py` makes the Addendum 4 maturity doctrine machine-checkable. The registry JSON carries `addendum_4_maturity_policy`, including the evidence requirements for operator-trusted claims:
+
+```text
+persistent_artifacts
+explainable_decisions
+repeatable_outputs
+evidence_backed_disposition
+policy_auditable_lineage
+contradiction_visibility
+failure_traceability
+operator_verifiable_summary
+```
+
+The gate enforces that working capability does not imply strategy or deployment authority, operator-trusted capability is slice-specific and evidence-backed, synthesis consideration remains non-executable, shadow readiness requires an explicit default-disabled gate, and paper/live readiness remain blocked in this architecture-control-plane sequence.
