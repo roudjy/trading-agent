@@ -279,8 +279,8 @@
         "research_object_producer_authority": false
       },
       "provider_scope": "mixed_legacy",
-      "operator_decision_required": true,
-      "notes": "Legacy output contract remains protected and must not silently claim modern canonical ownership."
+      "operator_decision_required": false,
+      "notes": "Settled as a protected legacy compatibility surface. It owns no modern canonical objects, has no research-object producer authority, and frozen-output mutation remains separately forbidden."
     },
     {
       "id": "alpha_discovery_generated_lifecycle",
@@ -341,7 +341,7 @@
       },
       "provider_scope": "provider_agnostic_pending_settlement",
       "operator_decision_required": true,
-      "notes": "Older and generated lifecycle surfaces overlap canonical concepts but do not receive ownership or synthesis authority in this PR."
+      "notes": "Explicitly bounded as governance-only until canonical bridge ownership is separately proven. It may consume canonical contracts and emit bridge/readiness read models only; it has no independent canonical loop ownership or synthesis execution authority."
     },
     {
       "id": "empirical_research_flywheel_v7_1",
@@ -403,8 +403,8 @@
         "research_object_producer_authority": false
       },
       "provider_scope": "provider_agnostic_governance",
-      "operator_decision_required": true,
-      "notes": "Trusted-loop reports may support operator trust but do not become strategy, deployment, or canonical ownership authority."
+      "operator_decision_required": false,
+      "notes": "Settled as an operator-trusted governance read model for the v7.1 trust slice only. It preserves trust/evidence artifacts but has no independent canonical loop, deployment, paper, shadow, live, or broker authority."
     },
     {
       "id": "bounded_strategy_synthesis_readiness",
@@ -456,7 +456,7 @@
       },
       "provider_scope": "provider_agnostic_governance",
       "operator_decision_required": true,
-      "notes": "Represents bounded eligibility discussion only; it grants no executable synthesis authority."
+      "notes": "Explicitly bounded as governance-only synthesis consideration. It represents eligibility discussion only, requires operator decision for any future escalation, and grants no executable synthesis, shadow, paper, live, broker, risk, order, or capital authority."
     },
     {
       "id": "funnel_architecture_audit",
