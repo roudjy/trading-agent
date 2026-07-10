@@ -61,6 +61,7 @@ def test_required_surfaces_are_classified() -> None:
         "offline_research_dry_run",
         "governed_candidate_batch",
         "evidence_memory_accumulation",
+        "operator_trust_multirun_report",
     } <= ids
 
 
