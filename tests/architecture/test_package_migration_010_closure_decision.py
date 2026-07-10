@@ -64,6 +64,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "bounded_strategy_synthesis.py",
         "candidate_planning_bridge.py",
         "canonical_contracts.py",
+        "canonical_funnel_verification.py",
         "decision_calibration.py",
         "empirical_evidence_pack.py",
         "empirical_research_flywheel.py",
