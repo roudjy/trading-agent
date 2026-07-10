@@ -17,6 +17,14 @@ REPO_ROOT_FOR_IMPORT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT_FOR_IMPORT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT_FOR_IMPORT))
 
+from packages.qre_research.architecture_registry import (  # noqa: E402
+    AUTHORITY_FLAGS,
+    registry_as_dict,
+    registry_entries,
+    registry_summary,
+    validate_closed_world_audit,
+    validate_registry,
+)
 from packages.qre_research.funnel_classification import (  # noqa: E402
     classification_summary,
     classifications_as_dict,
@@ -668,6 +676,39 @@ def build_funnel_classification_report() -> dict[str, Any]:
     }
 
 
+def build_closed_world_audit(contract_map: dict[str, Any]) -> dict[str, Any]:
+    entries = registry_entries()
+    maturity_claims = tuple(entry.maturity_level for entry in entries)
+    authority_flags = tuple(flag for entry in entries for flag in entry.authority_flags)
+    canonical_objects = tuple(name for name in contract_map if not name.startswith("_"))
+    failures = validate_closed_world_audit(
+        canonical_objects=canonical_objects,
+        maturity_claims=maturity_claims,
+        authority_flags=authority_flags,
+    )
+    return {
+        "verdict": "fail" if failures else "pass",
+        "failures": failures,
+        "registry_validation_errors": validate_registry(),
+        "registry_summary": registry_summary(),
+        "registered_entries": registry_as_dict(),
+        "known_authority_flags": list(AUTHORITY_FLAGS),
+        "enforcement_scope": {
+            "static_audit_only": True,
+            "runtime_behavior_changed": False,
+            "created_candidates": False,
+            "created_strategies": False,
+            "created_presets": False,
+            "created_campaigns": False,
+            "ran_screening": False,
+            "trading_authority": False,
+            "paper_authority": False,
+            "shadow_authority": False,
+            "live_authority": False,
+        },
+    }
+
+
 def build_visual_maps() -> dict[str, str]:
     return {
         "c4_context": "docs/architecture/qre_funnel_visual_maps.md#diagram-1-c4-context-qre-research-system-boundary",
@@ -710,6 +751,11 @@ def build_report(repo_root: Path = Path(".")) -> dict[str, Any]:
             "canonicality_assessment": {},
             "reconciliation_plan": [],
             "funnel_classification": build_funnel_classification_report(),
+            "closed_world_audit": {
+                "verdict": "fail",
+                "failures": ["blocked_unable_to_scan_repo"],
+                "registry_validation_errors": validate_registry(),
+            },
             "visual_maps": build_visual_maps(),
             "safety": dict(SAFETY),
         }
@@ -720,6 +766,7 @@ def build_report(repo_root: Path = Path(".")) -> dict[str, Any]:
     graph = build_dependency_graph(scan, funnels, contract_map, provider_report)
     reconciliation = build_reconciliation_plan(funnels, contract_map)
     funnel_classification = build_funnel_classification_report()
+    closed_world = build_closed_world_audit(contract_map)
     unknown_contracts = [
         name
         for name, payload in contract_map.items()
@@ -761,6 +808,7 @@ def build_report(repo_root: Path = Path(".")) -> dict[str, Any]:
         },
         "reconciliation_plan": reconciliation,
         "funnel_classification": funnel_classification,
+        "closed_world_audit": closed_world,
         "visual_maps": build_visual_maps(),
         "provider_leakage_report": provider_report,
         "hardcoded_coupling_report": coupling_report,

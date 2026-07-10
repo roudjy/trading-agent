@@ -4,7 +4,7 @@
 
 `docs/architecture/qre_architecture_registry.v1.json` is the machine-readable registry of known QRE architecture surfaces. It records each surface's role, maturity level, ownership claims, artifacts, allowed and forbidden outputs, provider scope, authority flags, and operator-decision status.
 
-PR 1 is classification-only. It validates registry schema and internal consistency, but it does not fail unknown repository surfaces. Closed-world audit enforcement belongs to PR 2.
+PR 1 was classification-only. PR 2 turns the registry into a static closed-world audit gate: unknown or duplicate architecture claims become explicit audit failures, while runtime behavior remains unchanged.
 
 ## Safety Scope
 
@@ -115,4 +115,21 @@ Operator-decision entries are explicit in the JSON. PR 2 must respect them rathe
 - high-risk maturity claims require explicit operator-decision status
 - frozen legacy outputs are identified as protected
 
-This validation is intentionally not a closed-world scan. Unknown QRE producers, artifact paths, canonical owners, and maturity labels become CI-failing audit findings in PR 2.
+## Closed-World Audit Gate
+
+`tools/qre_funnel_architecture_audit.py` includes a `closed_world_audit` section backed by `packages/qre_research.architecture_registry`.
+
+The gate fails static validation for:
+
+- unregistered producer modules
+- unregistered artifact paths
+- unknown canonical object owners
+- duplicate canonical object owners
+- observability-only surfaces with research object producer authority
+- provider adapters that claim canonical semantics directly
+- fixture-only surfaces that claim empirical evidence authority
+- legacy surfaces that claim modern canonical ownership without `operator_decision_required`
+- unknown maturity claims
+- unknown authority flags
+
+This remains audit-only. It does not run research, create candidates, create strategies, create campaigns, run screening, mutate frozen outputs, grant strategy synthesis authority, grant shadow/paper/live authority, or grant broker/risk/order/capital authority.
