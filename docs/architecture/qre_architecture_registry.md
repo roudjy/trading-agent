@@ -149,6 +149,12 @@ create production candidates/strategies/campaigns, mutate frozen outputs, or
 grant synthesis, shadow, paper, live, broker, risk, order, or capital
 authority.
 
+`offline_research_dry_run` is registered as governance-only offline fixture
+route verification. It emits in-memory stage records, an EvidencePack-like
+payload, disposition, and memory feedback read models, but it does not run
+production research, mutate frozen outputs, or grant synthesis, shadow, paper,
+live, broker, risk, order, or capital authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
