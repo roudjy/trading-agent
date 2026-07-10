@@ -579,6 +579,73 @@
       "provider_scope": "test_only",
       "operator_decision_required": false,
       "notes": "Fixtures can prove behavior but cannot own canonical funnel semantics or empirical evidence."
+    },
+    {
+      "id": "canonical_funnel_verification",
+      "name": "Canonical QRE funnel verification",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "static_fixture_verification",
+      "producer_modules": [
+        "packages/qre_research/canonical_funnel_verification.py"
+      ],
+      "consumer_modules": [
+        "tests/unit/test_qre_canonical_funnel_verification.py"
+      ],
+      "artifact_paths": [
+        "docs/architecture/qre_canonical_funnel_verification.md"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "Hypothesis",
+        "ResearchInputContract",
+        "CandidateSpec",
+        "StrategySpec",
+        "StrategyIR",
+        "PresetSpec",
+        "CampaignSpec",
+        "CampaignRun",
+        "ScreeningResult",
+        "EvidencePack",
+        "EvidenceLedger",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory"
+      ],
+      "allowed_outputs": [
+        "docs/architecture/qre_canonical_funnel_verification.md"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": true,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_governance",
+      "operator_decision_required": false,
+      "notes": "Static fixture-only route verification; it owns no canonical semantics and grants no research execution or synthesis authority."
     }
   ]
 }

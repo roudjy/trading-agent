@@ -195,6 +195,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "bounded_strategy_synthesis.py",
         "candidate_planning_bridge.py",
         "canonical_contracts.py",
+        "canonical_funnel_verification.py",
         "decision_calibration.py",
         "empirical_evidence_pack.py",
         "empirical_research_flywheel.py",
