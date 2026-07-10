@@ -29,20 +29,20 @@ def test_settled_surfaces_no_longer_require_operator_decision() -> None:
     assert _entry("empirical_research_flywheel_v7_1").operator_decision_required is False
 
 
-def test_high_risk_unsettled_surfaces_remain_operator_decision_explicit() -> None:
+def test_high_risk_alpha_and_synthesis_surfaces_are_settled_explicitly() -> None:
     alpha = _entry("alpha_discovery_generated_lifecycle")
     synthesis = _entry("bounded_strategy_synthesis_readiness")
 
-    assert alpha.operator_decision_required is True
+    assert alpha.operator_decision_required is False
     assert alpha.role == "governance_only"
     assert alpha.canonical_objects_owned == ()
     assert "no independent canonical loop ownership" in alpha.notes
 
-    assert synthesis.operator_decision_required is True
+    assert synthesis.operator_decision_required is False
     assert synthesis.role == "governance_only"
     assert synthesis.maturity_level == "synthesis_consideration"
     assert synthesis.canonical_objects_owned == ()
-    assert "no executable synthesis" in synthesis.notes
+    assert "non-executable synthesis" in synthesis.notes
 
 
 def test_operator_decision_surfaces_have_no_hidden_canonical_ownership() -> None:

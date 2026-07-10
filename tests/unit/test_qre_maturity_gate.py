@@ -96,8 +96,8 @@ def test_synthesis_consideration_requires_bounded_non_executable_eligibility() -
     entry = _with_flag(
         replace(
             _entry("bounded_strategy_synthesis_readiness"),
-            operator_decision_required=False,
             canonical_objects_consumed=(),
+            notes="ambiguous synthesis consideration",
         ),
         "strategy_synthesis_authority",
     )
@@ -110,6 +110,13 @@ def test_synthesis_consideration_requires_bounded_non_executable_eligibility() -
         in errors
     )
     assert "synthesis_consideration_missing_evidence_backed_eligibility:bounded_strategy_synthesis_readiness" in errors
+
+
+def test_settled_non_executable_synthesis_consideration_does_not_require_operator_decision() -> None:
+    entry = _entry("bounded_strategy_synthesis_readiness")
+
+    assert entry.operator_decision_required is False
+    assert maturity_gate.validate_maturity_entry(entry) == []
 
 
 def test_shadow_ready_requires_default_disabled_gate_and_no_order_or_capital() -> None:

@@ -122,6 +122,10 @@ HIGH_RISK_MATURITY_LEVELS: Final[tuple[str, ...]] = (
     "live_ready",
     "blocked",
 )
+SETTLED_HIGH_RISK_STATUSES: Final[tuple[str, ...]] = (
+    "settled_bridge_read_model_only",
+    "settled_non_executable_synthesis_consideration",
+)
 QRE_IMPACT_PATH_PREFIXES: Final[tuple[str, ...]] = (
     "apps/control-plane/",
     "docs/architecture/qre_",
@@ -339,6 +343,7 @@ def validate_registry(path: Path = DEFAULT_REGISTRY_PATH) -> list[str]:
             row["maturity_level"] in HIGH_RISK_MATURITY_LEVELS
             and row["maturity_level"] != "operator_trusted_capability"
             and not row["operator_decision_required"]
+            and row["status"] not in SETTLED_HIGH_RISK_STATUSES
         ):
             errors.append(f"high_risk_maturity_without_operator_decision:{entry_id}")
         for flag in BLOCKED_AUTHORITY_FLAGS:
