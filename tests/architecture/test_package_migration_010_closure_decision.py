@@ -52,6 +52,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "alpha_discovery/strategy_compiler.py",
         "alpha_discovery/strategy_ir.py",
         "alpha_discovery/universe_planner.py",
+        "architecture_registry.py",
         "automated_campaign_readiness.py",
         "automated_data_window_capacity.py",
         "automated_hypothesis_generation.py",

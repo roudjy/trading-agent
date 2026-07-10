@@ -183,6 +183,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "alpha_discovery/strategy_compiler.py",
         "alpha_discovery/strategy_ir.py",
         "alpha_discovery/universe_planner.py",
+        "architecture_registry.py",
         "automated_campaign_readiness.py",
         "automated_data_window_capacity.py",
         "automated_hypothesis_generation.py",
