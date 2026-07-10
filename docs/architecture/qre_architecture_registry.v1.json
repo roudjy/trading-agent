@@ -1,0 +1,565 @@
+{
+  "schema_version": 1,
+  "registry_kind": "qre_architecture_registry",
+  "entries": [
+    {
+      "id": "canonical_contract_vocabulary",
+      "name": "Canonical QRE contract vocabulary",
+      "role": "canonical_loop",
+      "maturity_level": "working_capability",
+      "status": "active_contract_reference",
+      "producer_modules": [
+        "packages/qre_research/canonical_contracts.py"
+      ],
+      "consumer_modules": [
+        "tools/qre_funnel_architecture_audit.py",
+        "packages/qre_research/funnel_classification.py"
+      ],
+      "artifact_paths": [
+        "docs/architecture/qre_canonical_contract_vocabulary.md",
+        "docs/architecture/qre_canonical_contract_map.md"
+      ],
+      "canonical_objects_owned": [
+        "DataProvider",
+        "SourceManifest",
+        "SourceSnapshot",
+        "DatasetFingerprint",
+        "ObservationSnapshot",
+        "Hypothesis",
+        "HypothesisSeed",
+        "ResearchInputContract",
+        "CandidateSpec",
+        "StrategySpec",
+        "StrategyIR",
+        "PresetSpec",
+        "CampaignSpec",
+        "CampaignRun",
+        "ScreeningResult",
+        "EvidencePack",
+        "EvidenceLedger",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory",
+        "DailyDigestInput",
+        "OperatorSummary",
+        "RegistryEntry",
+        "StrategyMatrixRow"
+      ],
+      "canonical_objects_consumed": [],
+      "allowed_outputs": [
+        "docs/architecture/qre_canonical_contract_vocabulary.md",
+        "docs/architecture/qre_canonical_contract_map.md"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": true,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic",
+      "operator_decision_required": false,
+      "notes": "Owns the canonical vocabulary and documented semantics only; does not grant runtime or execution authority."
+    },
+    {
+      "id": "tiingo_hypothesis_candidate_research_mini_loop",
+      "name": "Tiingo hypothesis/candidate research mini-loop",
+      "role": "provider_adapter",
+      "maturity_level": "working_capability",
+      "status": "active_provider_adapter",
+      "producer_modules": [
+        "research/qre_tiingo_hypothesis_generator_e2e.py",
+        "research/qre_tiingo_hypothesis_lifecycle.py",
+        "research/qre_tiingo_candidate_research_loop.py",
+        "packages/qre_research/tiingo_canonical_bridge.py"
+      ],
+      "consumer_modules": [
+        "research/qre_daily_status_digest.py",
+        "packages/qre_research/candidate_planning_bridge.py",
+        "packages/qre_research/evidence_memory_bridge.py"
+      ],
+      "artifact_paths": [
+        "logs/qre_tiingo_hypothesis_generator_e2e/latest.json",
+        "logs/qre_tiingo_hypothesis_lifecycle/latest.json",
+        "logs/qre_tiingo_candidate_research_loop/latest.json",
+        "logs/qre_tiingo_candidate_research_loop/evidence_ledger.jsonl",
+        "logs/qre_tiingo_candidate_research_loop/feedback_records.jsonl",
+        "data/imports/tiingo_eod_equities_free/tiingo_eod_etf_20210101_20251231/bars.csv"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "SourceSnapshot",
+        "DatasetFingerprint",
+        "HypothesisSeed",
+        "ResearchInputContract",
+        "CandidateSpec",
+        "ScreeningResult",
+        "EvidenceLedger",
+        "FeedbackRecord"
+      ],
+      "allowed_outputs": [
+        "logs/qre_tiingo_hypothesis_generator_e2e/latest.json",
+        "logs/qre_tiingo_hypothesis_lifecycle/latest.json",
+        "logs/qre_tiingo_candidate_research_loop/latest.json",
+        "logs/qre_tiingo_candidate_research_loop/evidence_ledger.jsonl",
+        "logs/qre_tiingo_candidate_research_loop/feedback_records.jsonl"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": false,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": true,
+        "research_object_producer_authority": true
+      },
+      "provider_scope": "tiingo",
+      "operator_decision_required": false,
+      "notes": "Provider-specific path may bridge into canonical contracts but cannot own provider-agnostic canonical semantics."
+    },
+    {
+      "id": "daily_status_digest_observability",
+      "name": "Daily digest / operator summary",
+      "role": "observability_only",
+      "maturity_level": "working_capability",
+      "status": "active_observability",
+      "producer_modules": [
+        "research/qre_daily_status_digest.py"
+      ],
+      "consumer_modules": [],
+      "artifact_paths": [
+        "logs/qre_daily_status_digest/latest.json",
+        "logs/qre_daily_status_digest/operator_summary.md"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "DailyDigestInput",
+        "OperatorSummary"
+      ],
+      "allowed_outputs": [
+        "logs/qre_daily_status_digest/latest.json",
+        "logs/qre_daily_status_digest/operator_summary.md"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": false,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "mixed_read_only",
+      "operator_decision_required": false,
+      "notes": "Consumes artifacts and summarizes status; it must not create research objects."
+    },
+    {
+      "id": "run_research_registry_matrix",
+      "name": "run_research / registry / strategy_matrix legacy surface",
+      "role": "legacy_surface",
+      "maturity_level": "working_capability",
+      "status": "protected_legacy_output_contract",
+      "producer_modules": [
+        "research/run_research.py",
+        "registry.py",
+        "agent/backtesting/strategies.py"
+      ],
+      "consumer_modules": [],
+      "artifact_paths": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "RegistryEntry",
+        "StrategyMatrixRow"
+      ],
+      "allowed_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "forbidden_outputs": [],
+      "authority_flags": {
+        "audit_only": false,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "mixed_legacy",
+      "operator_decision_required": true,
+      "notes": "Legacy output contract remains protected and must not silently claim modern canonical ownership."
+    },
+    {
+      "id": "alpha_discovery_generated_lifecycle",
+      "name": "Alpha discovery / generated hypothesis / generated strategy lifecycle",
+      "role": "governance_only",
+      "maturity_level": "blocked",
+      "status": "operator_decision_required",
+      "producer_modules": [
+        "packages/qre_research/alpha_discovery"
+      ],
+      "consumer_modules": [
+        "packages/qre_research/candidate_planning_bridge.py",
+        "packages/qre_research/evidence_memory_bridge.py"
+      ],
+      "artifact_paths": [
+        "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "Hypothesis",
+        "CandidateSpec",
+        "StrategySpec",
+        "StrategyIR",
+        "CampaignSpec",
+        "EvidencePack",
+        "LessonMemory",
+        "ResearchMemory"
+      ],
+      "allowed_outputs": [
+        "generated_research/hypotheses/lifecycle/trusted_loop_summary.v1.json"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": false,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_pending_settlement",
+      "operator_decision_required": true,
+      "notes": "Older and generated lifecycle surfaces overlap canonical concepts but do not receive ownership or synthesis authority in this PR."
+    },
+    {
+      "id": "empirical_research_flywheel_v7_1",
+      "name": "Empirical research flywheel / v7.1 trusted-loop artifacts",
+      "role": "governance_only",
+      "maturity_level": "operator_trusted_capability",
+      "status": "reference_artifacts_only",
+      "producer_modules": [
+        "reporting/trusted_loop_materialization.py",
+        "reporting/trusted_loop_consistency_audit.py",
+        "reporting/trusted_loop_missing_evidence_fail_closed.py",
+        "reporting/qre_trusted_loop_readiness.py"
+      ],
+      "consumer_modules": [
+        "research/qre_trusted_loop_review_packet.py",
+        "research/qre_trusted_loop_operator_kpis.py"
+      ],
+      "artifact_paths": [
+        "generated_research/orchestration/trust_closure/operator_trust_acceptance.v1.json",
+        "tests/fixtures/trusted_loop_regression/evidence_cases.v1.json"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "EvidencePack",
+        "EvidenceLedger",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory"
+      ],
+      "allowed_outputs": [
+        "generated_research/orchestration/trust_closure/operator_trust_acceptance.v1.json"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_governance",
+      "operator_decision_required": true,
+      "notes": "Trusted-loop reports may support operator trust but do not become strategy, deployment, or canonical ownership authority."
+    },
+    {
+      "id": "bounded_strategy_synthesis_readiness",
+      "name": "Bounded strategy synthesis readiness",
+      "role": "governance_only",
+      "maturity_level": "synthesis_consideration",
+      "status": "blocked_without_operator_approval",
+      "producer_modules": [
+        "docs/roadmap/qre_automated_strategy_generation_program.md",
+        "docs/roadmap/qre_approved_bounded_source_no_oos_trades.md"
+      ],
+      "consumer_modules": [],
+      "artifact_paths": [],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "Hypothesis",
+        "CandidateSpec",
+        "StrategySpec",
+        "StrategyIR",
+        "EvidencePack"
+      ],
+      "allowed_outputs": [],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_governance",
+      "operator_decision_required": true,
+      "notes": "Represents bounded eligibility discussion only; it grants no executable synthesis authority."
+    },
+    {
+      "id": "funnel_architecture_audit",
+      "name": "QRE funnel architecture audit",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "active_static_audit",
+      "producer_modules": [
+        "tools/qre_funnel_architecture_audit.py",
+        "packages/qre_research/funnel_classification.py"
+      ],
+      "consumer_modules": [
+        "tests/unit/test_qre_funnel_architecture_audit.py"
+      ],
+      "artifact_paths": [
+        "logs/qre_funnel_architecture_audit/latest.json",
+        "logs/qre_funnel_architecture_audit/dependency_graph.json",
+        "logs/qre_funnel_architecture_audit/provider_leakage_report.json",
+        "logs/qre_funnel_architecture_audit/contract_map.json",
+        "logs/qre_funnel_architecture_audit/funnel_inventory.json",
+        "logs/qre_funnel_architecture_audit/operator_summary.md"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "Hypothesis",
+        "CandidateSpec",
+        "StrategySpec",
+        "StrategyIR",
+        "EvidencePack",
+        "EvidenceLedger",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory",
+        "DailyDigestInput",
+        "OperatorSummary"
+      ],
+      "allowed_outputs": [
+        "logs/qre_funnel_architecture_audit/latest.json",
+        "logs/qre_funnel_architecture_audit/dependency_graph.json",
+        "logs/qre_funnel_architecture_audit/provider_leakage_report.json",
+        "logs/qre_funnel_architecture_audit/contract_map.json",
+        "logs/qre_funnel_architecture_audit/funnel_inventory.json",
+        "logs/qre_funnel_architecture_audit/operator_summary.md"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": true,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_governance",
+      "operator_decision_required": false,
+      "notes": "Static architecture diagnosis only; PR 2 will extend this into closed-world enforcement."
+    },
+    {
+      "id": "test_smoke_fixture_paths",
+      "name": "Test and smoke fixture paths",
+      "role": "fixture_only",
+      "maturity_level": "reference_only",
+      "status": "fixture_only",
+      "producer_modules": [
+        "tests/",
+        "tests/fixtures/"
+      ],
+      "consumer_modules": [],
+      "artifact_paths": [
+        "tests/fixtures/trusted_loop_regression/evidence_cases.v1.json"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [],
+      "allowed_outputs": [],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": false,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "test_only",
+      "operator_decision_required": false,
+      "notes": "Fixtures can prove behavior but cannot own canonical funnel semantics or empirical evidence."
+    }
+  ]
+}
