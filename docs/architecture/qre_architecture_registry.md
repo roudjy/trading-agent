@@ -161,6 +161,12 @@ emit read-only plans, blocked reasons, evidence/disposition summaries, memory
 feedback, and next actions. It does not run uncontrolled research, mutate
 frozen outputs, create production artifacts, or grant execution authority.
 
+`evidence_memory_accumulation` is registered as governance-only offline memory
+accumulation. It combines governed batch outcomes into read-model summaries for
+reason distribution, missing-vs-negative evidence, repeated failure modes,
+lineage, disposition trends, memory feedback, retest suppression, and next
+actions. It does not create production artifacts or grant execution authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:

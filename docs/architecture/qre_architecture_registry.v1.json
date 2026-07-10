@@ -935,6 +935,63 @@
       "provider_scope": "provider_agnostic_offline_fixture",
       "operator_decision_required": false,
       "notes": "Plans a bounded deterministic offline candidate batch over throughput controls and offline dry-run results. It emits read-only plans, blocked reasons, evidence/disposition summaries, memory feedback, and next actions; it does not run uncontrolled research, mutate frozen outputs, create production artifacts, or grant execution authority."
+    },
+    {
+      "id": "evidence_memory_accumulation",
+      "name": "QRE evidence memory accumulation",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "offline_memory_accumulation",
+      "producer_modules": [
+        "packages/qre_research/evidence_memory_accumulation.py"
+      ],
+      "consumer_modules": [
+        "tests/unit/test_qre_evidence_memory_accumulation.py"
+      ],
+      "artifact_paths": [
+        "docs/research/qre_evidence_memory_accumulation.md"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "EvidencePack",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory"
+      ],
+      "allowed_outputs": [
+        "docs/research/qre_evidence_memory_accumulation.md"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_offline_memory",
+      "operator_decision_required": false,
+      "notes": "Accumulates governed offline batch evidence and memory feedback as read models, preserving rejection reasons, missing-vs-negative evidence distinction, repeated failure modes, lineage, disposition trends, retest suppression, and next actions without production artifacts or execution authority."
     }
   ]
 }
