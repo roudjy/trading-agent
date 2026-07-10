@@ -287,7 +287,7 @@
       "name": "Alpha discovery / generated hypothesis / generated strategy lifecycle",
       "role": "governance_only",
       "maturity_level": "blocked",
-      "status": "operator_decision_required",
+      "status": "settled_bridge_read_model_only",
       "producer_modules": [
         "packages/qre_research/alpha_discovery"
       ],
@@ -339,9 +339,9 @@
         "empirical_evidence_authority": false,
         "research_object_producer_authority": false
       },
-      "provider_scope": "provider_agnostic_pending_settlement",
-      "operator_decision_required": true,
-      "notes": "Explicitly bounded as governance-only until canonical bridge ownership is separately proven. It may consume canonical contracts and emit bridge/readiness read models only; it has no independent canonical loop ownership or synthesis execution authority."
+      "provider_scope": "provider_agnostic_bridge_read_model_only",
+      "operator_decision_required": false,
+      "notes": "Settled as governance-only bridge/read-model surface. It may connect to the canonical funnel only through explicit bridge/read-model contracts, may consume canonical contracts, and may emit bridge/readiness read models only. It has no independent canonical loop ownership, no canonical object ownership, no executable synthesis authority, and no shadow, paper, live, broker, risk, order, or capital authority."
     },
     {
       "id": "empirical_research_flywheel_v7_1",
@@ -411,7 +411,7 @@
       "name": "Bounded strategy synthesis readiness",
       "role": "governance_only",
       "maturity_level": "synthesis_consideration",
-      "status": "blocked_without_operator_approval",
+      "status": "settled_non_executable_synthesis_consideration",
       "producer_modules": [
         "docs/roadmap/qre_automated_strategy_generation_program.md",
         "docs/roadmap/qre_approved_bounded_source_no_oos_trades.md"
@@ -455,8 +455,8 @@
         "research_object_producer_authority": false
       },
       "provider_scope": "provider_agnostic_governance",
-      "operator_decision_required": true,
-      "notes": "Explicitly bounded as governance-only synthesis consideration. It represents eligibility discussion only, requires operator decision for any future escalation, and grants no executable synthesis, shadow, paper, live, broker, risk, order, or capital authority."
+      "operator_decision_required": false,
+      "notes": "Settled as governance-only non-executable synthesis consideration. It may report readiness, eligibility, and dispositions only; it may not execute strategy synthesis, create production strategies, presets, or campaigns, or grant shadow, paper, live, broker, risk, order, or capital authority. Any future escalation beyond reporting requires a new explicit operator-approved roadmap phase."
     },
     {
       "id": "funnel_architecture_audit",

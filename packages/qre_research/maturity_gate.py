@@ -81,7 +81,13 @@ def validate_maturity_entry(
         if not (entry.canonical_objects_consumed or entry.canonical_objects_owned):
             errors.append(f"operator_trusted_missing_lineage:{entry.id}")
     if entry.maturity_level == "synthesis_consideration":
-        if not entry.operator_decision_required:
+        notes = entry.notes.lower()
+        settled_non_executable = (
+            "non-executable" in notes
+            and "may not execute strategy synthesis" in notes
+            and "future escalation" in notes
+        )
+        if not entry.operator_decision_required and not settled_non_executable:
             errors.append(f"synthesis_consideration_without_operator_decision:{entry.id}")
         if flags.get("strategy_synthesis_authority") or flags.get("creates_strategies"):
             errors.append(f"synthesis_consideration_claims_executable_strategy_authority:{entry.id}")

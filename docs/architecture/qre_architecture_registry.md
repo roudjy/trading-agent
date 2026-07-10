@@ -111,17 +111,20 @@ PR 5 settles or conservatively bounds the remaining operator-decision surfaces:
   authority, and mutation of `research/research_latest.json` or
   `research/strategy_matrix.csv` remains separately forbidden.
 - `alpha_discovery_generated_lifecycle` remains explicitly bounded as
-  governance-only until canonical bridge ownership is separately proven. It may
-  consume canonical contracts and emit bridge/readiness read models only; it has
-  no independent canonical loop ownership or synthesis execution authority.
+  governance-only bridge/read-model surface. It may connect to the canonical
+  funnel only through explicit bridge/read-model contracts, consume canonical
+  contracts, and emit bridge/readiness read models only; it has no independent
+  canonical loop ownership or synthesis execution authority.
 - `empirical_research_flywheel_v7_1` is settled as an operator-trusted
   governance read model for the v7.1 trust slice only. It preserves
   trust/evidence artifacts but has no independent canonical loop, deployment,
   paper, shadow, live, or broker authority.
 - `bounded_strategy_synthesis_readiness` remains explicitly bounded as
-  governance-only synthesis consideration. It requires an operator decision for
-  any future escalation and grants no executable synthesis, shadow, paper, live,
-  broker, risk, order, or capital authority.
+  governance-only non-executable synthesis consideration. It may report
+  readiness, eligibility, and dispositions only; it grants no executable
+  synthesis, shadow, paper, live, broker, risk, order, or capital authority.
+  Any future escalation beyond reporting requires a separate operator-approved
+  roadmap phase.
 
 `canonical_funnel_verification` is registered as governance-only static
 fixture verification. It consumes canonical object names to prove route order
