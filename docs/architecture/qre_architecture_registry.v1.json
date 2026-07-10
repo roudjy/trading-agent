@@ -1,6 +1,25 @@
 {
   "schema_version": 1,
   "registry_kind": "qre_architecture_registry",
+  "addendum_4_maturity_policy": {
+    "evidence_requirements": [
+      "persistent_artifacts",
+      "explainable_decisions",
+      "repeatable_outputs",
+      "evidence_backed_disposition",
+      "policy_auditable_lineage",
+      "contradiction_visibility",
+      "failure_traceability",
+      "operator_verifiable_summary"
+    ],
+    "operator_trusted_slice_ids": [
+      "empirical_research_flywheel_v7_1"
+    ],
+    "shadow_ready_default_disabled_required": true,
+    "paper_ready_blocked": true,
+    "live_ready_blocked": true,
+    "dashboard_mutation_blocked": true
+  },
   "entries": [
     {
       "id": "canonical_contract_vocabulary",

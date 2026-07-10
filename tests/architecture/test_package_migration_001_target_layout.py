@@ -204,6 +204,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "generated_primitive_paths.py",
         "generated_strategy_paths.py",
         "hypothesis_lifecycle.py",
+        "maturity_gate.py",
         "memory_aware_hypothesis_generation.py",
         "opportunity_value.py",
         "research_memory.py",
