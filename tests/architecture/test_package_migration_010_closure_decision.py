@@ -77,6 +77,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "maturity_gate.py",
         "memory_aware_hypothesis_generation.py",
         "opportunity_value.py",
+        "rejection_reasons.py",
         "research_memory.py",
         "retrieval_coverage.py",
         "second_preregistered_campaign.py",

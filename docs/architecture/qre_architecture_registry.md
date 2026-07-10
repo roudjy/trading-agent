@@ -96,6 +96,7 @@ bounded_strategy_synthesis_readiness
 funnel_architecture_audit
 test_smoke_fixture_paths
 canonical_funnel_verification
+rejection_reason_intelligence
 ```
 
 Operator-decision entries are explicit in the JSON. PR 2 must respect them rather than silently resolving irreversible ownership or maturity decisions.
@@ -125,6 +126,11 @@ PR 5 settles or conservatively bounds the remaining operator-decision surfaces:
 fixture verification. It consumes canonical object names to prove route order
 but owns no canonical semantics, creates no research objects, and grants no
 execution or synthesis authority.
+
+`rejection_reason_intelligence` is registered as governance-only canonical
+reason taxonomy. It can feed `FeedbackRecord`, `LessonMemory`, and
+`ResearchMemory` read models, but owns no canonical semantics, creates no
+research objects, and grants no execution or synthesis authority.
 
 ## Validation
 
