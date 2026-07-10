@@ -73,6 +73,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "generated_hypothesis_paths.py",
         "generated_primitive_paths.py",
         "generated_strategy_paths.py",
+        "governed_candidate_batch.py",
         "hypothesis_generator_governance.py",
         "hypothesis_lifecycle.py",
         "maturity_gate.py",

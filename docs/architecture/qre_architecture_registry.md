@@ -155,6 +155,12 @@ payload, disposition, and memory feedback read models, but it does not run
 production research, mutate frozen outputs, or grant synthesis, shadow, paper,
 live, broker, risk, order, or capital authority.
 
+`governed_candidate_batch` is registered as governance-only offline bounded
+batch planning. It consumes throughput controls and offline dry-run results to
+emit read-only plans, blocked reasons, evidence/disposition summaries, memory
+feedback, and next actions. It does not run uncontrolled research, mutate
+frozen outputs, create production artifacts, or grant execution authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:

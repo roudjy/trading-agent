@@ -59,6 +59,7 @@ def test_required_surfaces_are_classified() -> None:
         "hypothesis_generator_governance",
         "research_throughput_controls",
         "offline_research_dry_run",
+        "governed_candidate_batch",
     } <= ids
 
 
