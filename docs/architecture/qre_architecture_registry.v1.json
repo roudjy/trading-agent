@@ -813,6 +813,69 @@
       "provider_scope": "provider_agnostic_governance",
       "operator_decision_required": false,
       "notes": "Plans bounded research admission with candidate, campaign, source, behavior-family, timeframe, duplicate, failure-memory, data-quality, architecture, maturity, and operator-decision controls; does not run research or create research objects."
+    },
+    {
+      "id": "offline_research_dry_run",
+      "name": "QRE governed offline research dry run",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "offline_fixture_route_verification",
+      "producer_modules": [
+        "packages/qre_research/offline_research_dry_run.py"
+      ],
+      "consumer_modules": [
+        "tests/unit/test_qre_offline_research_dry_run.py"
+      ],
+      "artifact_paths": [
+        "docs/research/qre_governed_offline_dry_run.md"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "Hypothesis",
+        "CandidateSpec",
+        "StrategySpec",
+        "StrategyIR",
+        "PresetSpec",
+        "CampaignSpec",
+        "ScreeningResult",
+        "EvidencePack",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory"
+      ],
+      "allowed_outputs": [
+        "docs/research/qre_governed_offline_dry_run.md"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_offline_fixture",
+      "operator_decision_required": false,
+      "notes": "Runs a deterministic in-memory offline fixture route through governed stage records, EvidencePack-like payload, Disposition, FeedbackRecord, and LessonMemory read models. It does not run production research, mutate frozen outputs, or grant synthesis, shadow, paper, live, broker, risk, order, or capital authority."
     }
   ]
 }

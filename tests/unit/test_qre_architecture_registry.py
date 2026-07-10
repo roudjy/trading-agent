@@ -58,6 +58,7 @@ def test_required_surfaces_are_classified() -> None:
         "rejection_reason_intelligence",
         "hypothesis_generator_governance",
         "research_throughput_controls",
+        "offline_research_dry_run",
     } <= ids
 
 

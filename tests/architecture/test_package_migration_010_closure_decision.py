@@ -77,6 +77,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "hypothesis_lifecycle.py",
         "maturity_gate.py",
         "memory_aware_hypothesis_generation.py",
+        "offline_research_dry_run.py",
         "opportunity_value.py",
         "rejection_reasons.py",
         "research_memory.py",
