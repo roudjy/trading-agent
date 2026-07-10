@@ -99,6 +99,27 @@ test_smoke_fixture_paths
 
 Operator-decision entries are explicit in the JSON. PR 2 must respect them rather than silently resolving irreversible ownership or maturity decisions.
 
+## Operator Decision Closure
+
+PR 5 settles or conservatively bounds the remaining operator-decision surfaces:
+
+- `run_research_registry_matrix` is settled as a protected legacy compatibility
+  surface. It owns no modern canonical objects, has no research-object producer
+  authority, and mutation of `research/research_latest.json` or
+  `research/strategy_matrix.csv` remains separately forbidden.
+- `alpha_discovery_generated_lifecycle` remains explicitly bounded as
+  governance-only until canonical bridge ownership is separately proven. It may
+  consume canonical contracts and emit bridge/readiness read models only; it has
+  no independent canonical loop ownership or synthesis execution authority.
+- `empirical_research_flywheel_v7_1` is settled as an operator-trusted
+  governance read model for the v7.1 trust slice only. It preserves
+  trust/evidence artifacts but has no independent canonical loop, deployment,
+  paper, shadow, live, or broker authority.
+- `bounded_strategy_synthesis_readiness` remains explicitly bounded as
+  governance-only synthesis consideration. It requires an operator decision for
+  any future escalation and grants no executable synthesis, shadow, paper, live,
+  broker, risk, order, or capital authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:

@@ -85,9 +85,10 @@ def test_legacy_surfaces_do_not_silently_claim_modern_canonical_ownership() -> N
 def test_operator_decision_required_entries_are_explicit() -> None:
     operator_entries = {entry.id for entry in registry.operator_decision_entries()}
 
-    assert "run_research_registry_matrix" in operator_entries
     assert "alpha_discovery_generated_lifecycle" in operator_entries
     assert "bounded_strategy_synthesis_readiness" in operator_entries
+    assert "run_research_registry_matrix" not in operator_entries
+    assert "empirical_research_flywheel_v7_1" not in operator_entries
 
 
 def test_frozen_outputs_are_identified_as_protected() -> None:
