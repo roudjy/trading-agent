@@ -2,164 +2,113 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from research import qre_multiwindow_evidence_closure as closure
+from packages.qre_research import governed_offline_artifacts as artifacts
+from packages.qre_research import multiwindow_evidence_closure as closure
+from packages.qre_research import single_dataset_offline_replay as replay
 
 
-def _campaign(**overrides: object) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "campaign_id": "qmwv-001",
-        "source_campaign_id": "source-campaign-001",
-        "campaign_scope": {
-            "campaign_id": "source-campaign-001",
-            "hypothesis_id": "hypothesis-001",
-            "preset_name": "preset-4h",
-            "timeframe": "4h",
-            "template_id": "template-001",
-            "strategy_family": "trend_pullback",
-            "asset_class": "equity",
-            "universe": ["AAA", "BBB"],
-            "lineage_root_campaign_id": "source-campaign-001",
-            "parent_campaign_id": "",
-            "registry_record_present": True,
+def _replay(tmp_path: Path) -> replay.SingleDatasetReplayResult:
+    dataset = replay.OfflineDatasetBoundary(
+        dataset_id="dataset-closure",
+        source_id="offline-source-closure",
+        source_mode="offline_cached",
+        dataset_fingerprint="offline_cached:dataset-closure:sha256:def456",
+        source_provenance="approved_offline_cache_manifest:dataset-closure",
+        data_provenance="offline_cached_sample:deterministic",
+    )
+    return replay.run_single_dataset_offline_replay(
+        replay_id="replay-closure",
+        dataset=dataset,
+        candidate=replay.synthetic_replay_candidate("hypothesis-closure"),
+        budget=replay.default_replay_budget(),
+        artifact_dir=tmp_path,
+        created_at_utc="2026-01-01T00:00:00Z",
+    )
+
+
+def test_all_required_evidence_windows_are_represented(tmp_path: Path) -> None:
+    result = closure.run_multiwindow_evidence_closure(
+        closure_id="closure-all",
+        replay_result=_replay(tmp_path),
+        window_statuses={name: "passed" for name in closure.REQUIRED_WINDOWS},
+        artifact_dir=tmp_path,
+    )
+
+    assert tuple(window.name for window in result.evidence_windows) == closure.REQUIRED_WINDOWS
+    assert result.evidence_complete is True
+    assert result.disposition == "evidence_closed_for_offline_memory"
+
+
+def test_missing_windows_are_explicit_and_not_negative(tmp_path: Path) -> None:
+    result = closure.run_multiwindow_evidence_closure(
+        closure_id="closure-missing",
+        replay_result=_replay(tmp_path),
+        window_statuses={"in_sample": "passed"},
+        artifact_dir=tmp_path,
+    )
+    evidence_pack = result.artifact_envelope["evidence_pack"]
+
+    assert result.disposition == "blocked_missing_evidence"
+    assert "oos_not_available" in evidence_pack["missing_evidence"]
+    assert "oos_not_available" not in evidence_pack["negative_evidence"]
+
+
+def test_negative_evidence_is_not_confused_with_missing(tmp_path: Path) -> None:
+    result = closure.run_multiwindow_evidence_closure(
+        closure_id="closure-negative",
+        replay_result=_replay(tmp_path),
+        window_statuses={
+            "in_sample": "passed",
+            "out_of_sample": "passed",
+            "null_model": "failed",
+            "cost_model": "failed",
+            "trade_count": "failed",
+            "data_quality": "passed",
         },
-        "proposal_id": "proposal-001",
-        "proposal_hash": "proposal-hash-001",
-        "sampling_plan_id": "plan-001",
-        "sampling_plan_hash": "sampling-hash-001",
-        "accepted_lineage_count": 2,
-        "accepted_oos_count": 0,
-        "positive_oos_trade_count_total": 0,
-        "campaign_outcome": "all_windows_non_positive_trade_count",
-        "window_results": [
-            {
-                "window_id": "window_01",
-                "accepted_oos_count": 0,
-                "rejection_reasons": ["non_positive_oos_trade_count"],
-            },
-            {
-                "window_id": "window_02",
-                "accepted_oos_count": 0,
-                "rejection_reasons": ["non_positive_oos_trade_count"],
-            },
-        ],
-        "null_control_results": {"status": "not_run_due_to_no_accepted_oos"},
-    }
-    payload.update(overrides)
-    return payload
+        artifact_dir=tmp_path,
+    )
+    evidence_pack = result.artifact_envelope["evidence_pack"]
+
+    assert result.disposition == "rejected_negative_evidence"
+    assert "null_model_not_beaten" in evidence_pack["negative_evidence"]
+    assert "cost_model_failed" in evidence_pack["negative_evidence"]
+    assert "insufficient_trades" in evidence_pack["missing_evidence"]
 
 
-def test_complete_evidence_requires_all_criteria() -> None:
-    report = closure.build_multiwindow_evidence_closure(
-        _campaign(
-            accepted_oos_count=2,
-            positive_oos_trade_count_total=4,
-            campaign_outcome="accepted_multiwindow_oos_evidence",
-            null_control_results={"status": "controls_passed_context_only"},
-        )
+def test_closure_persists_as_governed_artifact(tmp_path: Path) -> None:
+    result = closure.run_multiwindow_evidence_closure(
+        closure_id="closure-artifact",
+        replay_result=_replay(tmp_path),
+        window_statuses={name: "passed" for name in closure.REQUIRED_WINDOWS},
+        artifact_dir=tmp_path,
     )
 
-    assert report["closure_status"] == "evidence_complete"
-    assert report["evidence_complete_count"] == 1
+    assert result.artifact_path == tmp_path / "closure-artifact.json"
+    assert result.latest_path == tmp_path / "latest.json"
+    assert artifacts.read_artifact(result.artifact_path) == result.artifact_envelope
 
 
-def test_partial_accepted_windows_do_not_become_complete() -> None:
-    report = closure.build_multiwindow_evidence_closure(
-        _campaign(
-            accepted_oos_count=1,
-            positive_oos_trade_count_total=1,
-            campaign_outcome="partial_oos_evidence",
-        )
+def test_memory_feedback_and_reason_distribution_include_window_failures(tmp_path: Path) -> None:
+    result = closure.run_multiwindow_evidence_closure(
+        closure_id="closure-memory",
+        replay_result=_replay(tmp_path),
+        window_statuses={"null_model": "failed"},
+        artifact_dir=tmp_path,
     )
 
-    assert report["closure_status"] == "evidence_partial"
-    assert report["evidence_complete_count"] == 0
+    assert result.memory_feedback_records
+    assert closure.closure_reason_distribution((result,))["null_model_not_beaten"] == 1
 
 
-def test_all_zero_windows_reject_hypothesis_fail_closed() -> None:
-    report = closure.build_multiwindow_evidence_closure(_campaign())
-
-    assert report["closure_status"] == "all_windows_no_oos_trades"
-    assert report["hypothesis_disposition"] == "fail_closed_rejected"
-    assert report["recommended_next_action"] == "reject_hypothesis"
-
-
-def test_missing_windows_block_closure() -> None:
-    report = closure.build_multiwindow_evidence_closure(
-        _campaign(window_results=[], campaign_outcome="blocked_approval")
+def test_no_execution_authority_is_granted(tmp_path: Path) -> None:
+    result = closure.run_multiwindow_evidence_closure(
+        closure_id="closure-authority",
+        replay_result=_replay(tmp_path),
+        window_statuses={name: "passed" for name in closure.REQUIRED_WINDOWS},
+        artifact_dir=tmp_path,
     )
 
-    assert report["closure_status"] == "blocked_incomplete_campaign"
-
-
-def test_null_control_failure_blocks_completion() -> None:
-    report = closure.build_multiwindow_evidence_closure(
-        _campaign(
-            accepted_oos_count=2,
-            positive_oos_trade_count_total=4,
-            campaign_outcome="accepted_multiwindow_oos_evidence",
-            null_control_results={"status": "controls_failed"},
-        )
-    )
-
-    assert report["closure_status"] == "null_control_failed"
-    assert report["evidence_complete_count"] == 0
-
-
-def test_missing_null_controls_block_completion_even_with_accepted_oos() -> None:
-    report = closure.build_multiwindow_evidence_closure(
-        _campaign(
-            accepted_oos_count=2,
-            positive_oos_trade_count_total=4,
-            campaign_outcome="accepted_multiwindow_oos_evidence",
-            null_control_results={"status": "controls_incomplete"},
-        )
-    )
-
-    assert report["closure_status"] == "blocked_missing_null_controls"
-    assert report["evidence_complete_count"] == 0
-
-
-def test_reason_records_and_authority_are_explicit() -> None:
-    report = closure.build_multiwindow_evidence_closure(_campaign())
-
-    assert report["reason_records"]
-    assert report["authority"]["can_promote_candidate"] is False
-    assert report["authority"]["can_activate_deployment"] is False
-
-
-def test_core_closure_has_no_symbol_hardcoding() -> None:
-    source = Path("research/qre_multiwindow_evidence_closure.py").read_text(encoding="utf-8")
-    assert "AAPL" not in source
-    assert "NVDA" not in source
-
-
-def test_all_zero_windows_override_incomplete_controls() -> None:
-    report = closure.build_multiwindow_evidence_closure(
-        _campaign(
-            null_control_results={"status": "controls_incomplete"},
-        )
-    )
-
-    assert report["closure_status"] == "all_windows_no_oos_trades"
-    assert report["hypothesis_disposition"] == "fail_closed_rejected"
-    assert report["recommended_next_action"] == "reject_hypothesis"
-    assert "null_controls_incomplete" not in report["blockers_remaining"]
-    assert "no_oos_evidence" in report["blockers_remaining"]
-
-
-def test_closure_preserves_source_scope_and_hash_lineage() -> None:
-    report = closure.build_multiwindow_evidence_closure(_campaign())
-
-    assert report["campaign_ref"] == "qmwv-001"
-    assert report["source_campaign_id"] == "source-campaign-001"
-    assert report["campaign_scope"]["timeframe"] == "4h"
-    assert report["campaign_scope"]["universe"] == ["AAA", "BBB"]
-    assert report["proposal_id"] == "proposal-001"
-    assert report["proposal_hash"] == "proposal-hash-001"
-    assert report["sampling_plan_ref"] == "plan-001"
-    assert report["sampling_plan_hash"] == "sampling-hash-001"
-    assert report["hash"] == closure.compute_multiwindow_closure_hash(report)
-
-    tampered = dict(report)
-    tampered["proposal_hash"] = "tampered"
-    assert closure.compute_multiwindow_closure_hash(tampered) != report["hash"]
+    assert result.safety["offline_only"] is True
+    for key, value in result.safety.items():
+        if key != "offline_only":
+            assert value is False

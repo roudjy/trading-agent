@@ -64,6 +64,7 @@ def test_required_surfaces_are_classified() -> None:
         "operator_trust_multirun_report",
         "governed_offline_artifacts",
         "single_dataset_offline_replay",
+        "multiwindow_evidence_closure",
     } <= ids
 
 

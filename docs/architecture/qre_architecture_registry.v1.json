@@ -1173,6 +1173,67 @@
       "provider_scope": "provider_agnostic_single_offline_dataset",
       "operator_decision_required": false,
       "notes": "Admits or blocks exactly one offline fixture/sample/cache dataset boundary, records source/data provenance and dataset fingerprint, runs or blocks one governed offline hypothesis through the dry-run route, and persists the outcome via the governed offline artifact contract without broadening datasets, mutating frozen outputs, or granting execution authority."
+    },
+    {
+      "id": "multiwindow_evidence_closure",
+      "name": "QRE governed multi-window evidence closure",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "multiwindow_offline_evidence_closure",
+      "producer_modules": [
+        "packages/qre_research/multiwindow_evidence_closure.py"
+      ],
+      "consumer_modules": [
+        "packages/qre_research/multiwindow_evidence_closure.py",
+        "tests/unit/test_qre_multiwindow_evidence_closure.py"
+      ],
+      "artifact_paths": [
+        "docs/research/qre_multiwindow_evidence_closure.md",
+        "logs/qre_governed_offline_research/"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "EvidencePack",
+        "EvidenceLedger",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory"
+      ],
+      "allowed_outputs": [
+        "docs/research/qre_multiwindow_evidence_closure.md",
+        "logs/qre_governed_offline_research/"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_offline_evidence_windows",
+      "operator_decision_required": false,
+      "notes": "Records bounded offline evidence-window status for in-sample, out-of-sample, null model, cost model, trade count, and data quality windows; preserves missing-vs-negative evidence distinctions; updates governed offline artifact envelopes under caller-provided safe paths; and grants no execution authority."
     }
   ]
 }

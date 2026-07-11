@@ -189,6 +189,13 @@ governed offline hypothesis through the dry-run route, and persists the result
 through the governed offline artifact contract. It does not broaden datasets,
 mutate frozen outputs, run uncontrolled research, or grant execution authority.
 
+`multiwindow_evidence_closure` is registered as governance-only offline evidence
+closure. It records bounded in-sample, out-of-sample, null-model, cost-model,
+trade-count, and data-quality window status, preserves missing-vs-negative
+evidence distinctions, and persists the updated governed artifact envelope only
+under caller-provided safe paths. It does not broaden datasets or grant
+execution authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
