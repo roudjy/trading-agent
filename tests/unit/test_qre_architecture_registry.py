@@ -67,6 +67,7 @@ def test_required_surfaces_are_classified() -> None:
         "governed_offline_artifacts",
         "governed_offline_research_runner",
         "governed_offline_run_registry",
+        "bounded_catalog_offline_replay_batch",
         "single_dataset_offline_replay",
         "multiwindow_evidence_closure",
         "research_memory_feedback_loop",

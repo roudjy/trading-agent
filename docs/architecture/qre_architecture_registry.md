@@ -231,6 +231,11 @@ indexing. It builds read-model indexes from governed offline artifacts, marks
 fixture/sample runs as non-production evidence, and writes only to
 caller-provided safe directories.
 
+`bounded_catalog_offline_replay_batch` is registered as governance-only offline
+batch orchestration. It enforces explicit run, dataset, hypothesis, duplicate,
+and do-not-retest limits over catalog-driven governed runner invocations and
+indexes the resulting artifacts.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:

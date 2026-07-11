@@ -1600,6 +1600,68 @@
       "provider_scope": "provider_agnostic_offline_lineage_index",
       "operator_decision_required": false,
       "notes": "Read-model lineage index for governed offline artifacts. It indexes admitted and blocked fixture/sample/cache runs, preserves dataset-to-hypothesis-to-evidence-to-disposition-to-memory lineage, writes only to caller-provided safe directories, and does not mutate frozen outputs or grant execution authority."
+    },
+    {
+      "id": "bounded_catalog_offline_replay_batch",
+      "name": "QRE bounded catalog offline replay batch",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "bounded_offline_catalog_batch",
+      "producer_modules": [
+        "packages/qre_research/bounded_catalog_offline_replay_batch.py"
+      ],
+      "consumer_modules": [
+        "packages/qre_research/bounded_catalog_offline_replay_batch.py",
+        "tests/unit/test_qre_bounded_catalog_offline_replay_batch.py"
+      ],
+      "artifact_paths": [
+        "docs/research/qre_bounded_catalog_offline_replay_batch.md",
+        "logs/qre_governed_offline_research/"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "DatasetFingerprint",
+        "Hypothesis",
+        "EvidencePack",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory"
+      ],
+      "allowed_outputs": [
+        "docs/research/qre_bounded_catalog_offline_replay_batch.md",
+        "logs/qre_governed_offline_research/"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_bounded_offline_catalog_batch",
+      "operator_decision_required": false,
+      "notes": "Bounded offline-only replay batch over catalog-admitted or catalog-blocked dataset/hypothesis pairs. It enforces max-run, per-dataset, per-hypothesis, duplicate, do-not-retest, source/data admission, and memory feedback gates, writes only to caller-provided safe directories, and does not grant execution authority."
     }
   ]
 }
