@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "report_kind": "qre_offline_dataset_catalog",
+  "entries": [
+    {
+      "dataset_id": "qre_fixture_dataset",
+      "name": "QRE deterministic fixture dataset",
+      "source_mode": "offline_fixture",
+      "provider_or_source": "fixture",
+      "source_identity": "qre_fixture_source",
+      "symbol_scope": ["QRE_FIXTURE"],
+      "timeframe": "1h",
+      "date_range": {
+        "start": "2026-01-01",
+        "end": "2026-01-02"
+      },
+      "local_reference": "fixtures/qre/offline/qre_fixture_dataset.json",
+      "dataset_fingerprint": "offline_fixture:qre_fixture_dataset:deterministic",
+      "quality_status": "passed",
+      "admission_status": "ADMITTED",
+      "block_reasons": [],
+      "operator_notes": "Deterministic fixture only; not production empirical evidence.",
+      "created_at_utc": "2026-01-01T00:00:00Z",
+      "authority": {
+        "offline_only": true,
+        "external_fetching": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false
+      }
+    },
+    {
+      "dataset_id": "qre_blocked_dataset",
+      "name": "QRE blocked fixture dataset",
+      "source_mode": "offline_fixture",
+      "provider_or_source": "fixture",
+      "source_identity": "qre_fixture_source",
+      "symbol_scope": ["QRE_FIXTURE"],
+      "timeframe": "1h",
+      "date_range": {
+        "start": "2026-01-01",
+        "end": "2026-01-02"
+      },
+      "local_reference": "fixtures/qre/offline/qre_blocked_dataset.json",
+      "dataset_fingerprint": "",
+      "quality_status": "failed",
+      "admission_status": "BLOCKED",
+      "block_reasons": ["BLOCKED_DATA_NOT_ADMITTED"],
+      "operator_notes": "Blocked fixture used to prove governed admission behavior.",
+      "created_at_utc": "2026-01-01T00:00:00Z",
+      "authority": {
+        "offline_only": true,
+        "external_fetching": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false
+      }
+    }
+  ]
+}

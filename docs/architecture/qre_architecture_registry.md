@@ -216,6 +216,11 @@ governed offline evidence closure and memory feedback, including eligibility for
 more offline research or explicit blockers. It denies shadow, paper, live,
 broker, risk, order, capital, and synthesis authority.
 
+`offline_dataset_catalog` is registered as governance-only offline admission.
+It validates static JSON catalog entries for fixture, sample, or cached offline
+datasets before runner use. It never fetches external data, never requires
+broker, shadow, paper, or live configuration, and grants no execution authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
