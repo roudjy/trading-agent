@@ -65,6 +65,7 @@ def test_required_surfaces_are_classified() -> None:
         "governed_offline_artifacts",
         "single_dataset_offline_replay",
         "multiwindow_evidence_closure",
+        "research_memory_feedback_loop",
     } <= ids
 
 

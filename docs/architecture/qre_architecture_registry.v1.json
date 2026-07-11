@@ -1234,6 +1234,65 @@
       "provider_scope": "provider_agnostic_offline_evidence_windows",
       "operator_decision_required": false,
       "notes": "Records bounded offline evidence-window status for in-sample, out-of-sample, null model, cost model, trade count, and data quality windows; preserves missing-vs-negative evidence distinctions; updates governed offline artifact envelopes under caller-provided safe paths; and grants no execution authority."
+    },
+    {
+      "id": "research_memory_feedback_loop",
+      "name": "QRE governed research memory feedback loop",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "offline_evidence_memory_feedback",
+      "producer_modules": [
+        "packages/qre_research/research_memory_feedback_loop.py"
+      ],
+      "consumer_modules": [
+        "packages/qre_research/research_memory_feedback_loop.py",
+        "tests/unit/test_qre_research_memory_feedback_loop.py"
+      ],
+      "artifact_paths": [
+        "docs/research/qre_research_memory_feedback_loop.md"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "EvidencePack",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory",
+        "Hypothesis"
+      ],
+      "allowed_outputs": [
+        "docs/research/qre_research_memory_feedback_loop.md"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_offline_memory_feedback",
+      "operator_decision_required": false,
+      "notes": "Consumes governed offline artifacts, multi-window closure outcomes, and canonical rejection reasons to produce auditable prioritization, suppression, and next-action records without creating production strategies, campaigns, or execution authority."
     }
   ]
 }

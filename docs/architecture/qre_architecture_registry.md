@@ -196,6 +196,12 @@ evidence distinctions, and persists the updated governed artifact envelope only
 under caller-provided safe paths. It does not broaden datasets or grant
 execution authority.
 
+`research_memory_feedback_loop` is registered as governance-only offline memory
+feedback. It consumes governed offline artifacts, multi-window closure outcomes,
+and rejection reasons to produce auditable prioritization, suppression, and
+next-action records. It does not create production strategies or campaigns or
+grant execution authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
