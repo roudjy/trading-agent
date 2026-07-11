@@ -16,6 +16,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run governed offline QRE research.")
     parser.add_argument("--hypothesis-id", required=True)
     parser.add_argument("--dataset-id", required=True)
+    parser.add_argument("--dataset-catalog", type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--run-id")
     parser.add_argument(
@@ -36,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=args.output_dir,
         run_id=args.run_id,
         source_mode=args.source_mode,
+        dataset_catalog_path=args.dataset_catalog,
     )
     payload = result.as_dict()
     if args.json:

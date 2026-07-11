@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from packages.qre_research import multiwindow_evidence_closure as closure
+from packages.qre_research import offline_dataset_catalog as catalog
 from packages.qre_research import operator_trust_review_gate as review
 from packages.qre_research import research_memory_feedback_loop as feedback
 from packages.qre_research import single_dataset_offline_replay as replay
@@ -57,6 +58,20 @@ def _dataset(
     )
 
 
+def _dataset_from_catalog_entry(entry: catalog.OfflineDatasetCatalogEntry) -> replay.OfflineDatasetBoundary:
+    decision = entry.admission_decision()
+    return replay.OfflineDatasetBoundary(
+        dataset_id=entry.dataset_id,
+        source_id=f"source:{entry.source_identity}",
+        source_mode=entry.source_mode,
+        dataset_fingerprint=entry.dataset_fingerprint,
+        source_provenance=str(decision["source_provenance"]),
+        data_provenance=str(decision["data_provenance"]),
+        source_approved=bool(decision["source_approved"]),
+        data_admitted=bool(decision["dataset_admitted"]),
+    )
+
+
 def _default_window_statuses() -> dict[closure.WindowName, closure.WindowStatus]:
     return {name: "passed" for name in closure.REQUIRED_WINDOWS}
 
@@ -70,15 +85,25 @@ def run_governed_offline_research(
     source_mode: SourceMode = "offline_fixture",
     dataset_admitted: bool = True,
     source_approved: bool = True,
+    dataset_catalog_path: Path | None = None,
     window_statuses: dict[closure.WindowName, closure.WindowStatus] | None = None,
 ) -> GovernedOfflineResearchRun:
     resolved_run_id = run_id or f"qre-offline-{hypothesis_id}-{dataset_id}"
-    dataset = _dataset(
-        dataset_id=dataset_id,
-        source_mode=source_mode,
-        dataset_admitted=dataset_admitted,
-        source_approved=source_approved,
-    )
+    catalog_decision: dict[str, object] | None = None
+    if dataset_catalog_path is not None:
+        entry = catalog.load_catalog(dataset_catalog_path).lookup(dataset_id)
+        dataset = _dataset_from_catalog_entry(entry)
+        catalog_decision = entry.admission_decision()
+        source_mode = entry.source_mode
+        dataset_admitted = dataset.data_admitted
+        source_approved = dataset.source_approved
+    else:
+        dataset = _dataset(
+            dataset_id=dataset_id,
+            source_mode=source_mode,
+            dataset_admitted=dataset_admitted,
+            source_approved=source_approved,
+        )
     replay_result = replay.run_single_dataset_offline_replay(
         replay_id=resolved_run_id,
         dataset=dataset,
@@ -122,6 +147,7 @@ def run_governed_offline_research(
             "dataset_admitted": dataset_admitted,
             "source_approved": source_approved,
             "decision": "admitted" if replay_result.dry_run_result.admitted else "blocked",
+            "catalog_decision": catalog_decision,
         },
         "dataset_fingerprint": dataset.dataset_fingerprint,
         "stage_records": envelope["stage_records"],

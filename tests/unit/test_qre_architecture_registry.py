@@ -62,6 +62,7 @@ def test_required_surfaces_are_classified() -> None:
         "governed_candidate_batch",
         "evidence_memory_accumulation",
         "operator_trust_multirun_report",
+        "offline_dataset_catalog",
         "governed_offline_artifacts",
         "governed_offline_research_runner",
         "single_dataset_offline_replay",
