@@ -192,6 +192,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "autonomous_opportunity_loop.py",
         "autonomous_orchestration.py",
         "autonomous_readiness_closure.py",
+        "bounded_catalog_offline_replay_batch.py",
         "bounded_strategy_synthesis.py",
         "candidate_planning_bridge.py",
         "canonical_contracts.py",
