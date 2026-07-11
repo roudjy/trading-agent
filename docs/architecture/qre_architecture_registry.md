@@ -221,6 +221,11 @@ It validates static JSON catalog entries for fixture, sample, or cached offline
 datasets before runner use. It never fetches external data, never requires
 broker, shadow, paper, or live configuration, and grants no execution authority.
 
+`first_catalog_admitted_offline_run` is registered as governance-only offline
+operator workflow. It wraps the catalog and governed offline runner for one
+explicit dataset/hypothesis pair and writes only to caller-provided safe output
+directories.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:

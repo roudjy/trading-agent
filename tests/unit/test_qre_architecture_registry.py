@@ -63,6 +63,7 @@ def test_required_surfaces_are_classified() -> None:
         "evidence_memory_accumulation",
         "operator_trust_multirun_report",
         "offline_dataset_catalog",
+        "first_catalog_admitted_offline_run",
         "governed_offline_artifacts",
         "governed_offline_research_runner",
         "single_dataset_offline_replay",
