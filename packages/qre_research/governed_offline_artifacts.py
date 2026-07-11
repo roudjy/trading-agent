@@ -57,6 +57,8 @@ def build_artifact_envelope(
     created_at_utc: str,
     source_mode: str = "offline_fixture",
     fixture_fingerprint: str = "fixture:v1:deterministic",
+    source_provenance: str = "offline_fixture",
+    data_provenance: str = "synthetic_fixture",
 ) -> dict[str, object]:
     reason_records = [record.as_dict() for record in dry_run_result.reason_records]
     missing_evidence = list(dry_run_result.evidence_pack.get("missing_evidence_reason_codes", []))
@@ -82,8 +84,8 @@ def build_artifact_envelope(
         "inputs": {
             "hypothesis_id": dry_run_result.hypothesis_id,
             "candidate_id": dry_run_result.hypothesis_id,
-            "source_provenance": "offline_fixture",
-            "data_provenance": "synthetic_fixture",
+            "source_provenance": source_provenance,
+            "data_provenance": data_provenance,
             "dataset_fingerprint": fixture_fingerprint,
         },
         "stage_records": _stage_records(dry_run_result),

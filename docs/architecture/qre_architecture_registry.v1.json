@@ -1109,6 +1109,70 @@
       "provider_scope": "provider_agnostic_offline_artifact",
       "operator_decision_required": false,
       "notes": "Builds, validates, writes, and reads deterministic governed offline research artifact envelopes under caller-provided safe artifact directories. It may maintain latest.json only inside that safe directory and must not mutate frozen research outputs, create production artifacts, run research, or grant synthesis or execution authority."
+    },
+    {
+      "id": "single_dataset_offline_replay",
+      "name": "QRE single dataset governed offline replay",
+      "role": "governance_only",
+      "maturity_level": "working_capability",
+      "status": "single_dataset_offline_replay_contract",
+      "producer_modules": [
+        "packages/qre_research/single_dataset_offline_replay.py"
+      ],
+      "consumer_modules": [
+        "packages/qre_research/single_dataset_offline_replay.py",
+        "tests/unit/test_qre_single_dataset_offline_replay.py"
+      ],
+      "artifact_paths": [
+        "docs/research/qre_single_dataset_offline_replay.md",
+        "logs/qre_governed_offline_research/"
+      ],
+      "canonical_objects_owned": [],
+      "canonical_objects_consumed": [
+        "DatasetFingerprint",
+        "SourceSnapshot",
+        "Hypothesis",
+        "CandidateSpec",
+        "EvidencePack",
+        "Disposition",
+        "FeedbackRecord",
+        "LessonMemory",
+        "ResearchMemory"
+      ],
+      "allowed_outputs": [
+        "docs/research/qre_single_dataset_offline_replay.md",
+        "logs/qre_governed_offline_research/"
+      ],
+      "forbidden_outputs": [
+        "research/research_latest.json",
+        "research/strategy_matrix.csv"
+      ],
+      "authority_flags": {
+        "audit_only": true,
+        "classification_only": false,
+        "runtime_behavior_changed": false,
+        "creates_candidates": false,
+        "creates_strategies": false,
+        "creates_presets": false,
+        "creates_campaigns": false,
+        "runs_screening": false,
+        "runs_validation": false,
+        "strategy_synthesis_authority": false,
+        "trading_authority": false,
+        "shadow_authority": false,
+        "paper_authority": false,
+        "live_authority": false,
+        "broker_authority": false,
+        "risk_authority": false,
+        "order_authority": false,
+        "capital_allocation_authority": false,
+        "dashboard_mutation_authority": false,
+        "empirical_evidence_authority": false,
+        "research_object_producer_authority": false
+      },
+      "provider_scope": "provider_agnostic_single_offline_dataset",
+      "operator_decision_required": false,
+      "notes": "Admits or blocks exactly one offline fixture/sample/cache dataset boundary, records source/data provenance and dataset fingerprint, runs or blocks one governed offline hypothesis through the dry-run route, and persists the outcome via the governed offline artifact contract without broadening datasets, mutating frozen outputs, or granting execution authority."
     }
   ]
 }

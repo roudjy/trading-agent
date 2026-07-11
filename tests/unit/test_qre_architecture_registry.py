@@ -63,6 +63,7 @@ def test_required_surfaces_are_classified() -> None:
         "evidence_memory_accumulation",
         "operator_trust_multirun_report",
         "governed_offline_artifacts",
+        "single_dataset_offline_replay",
     } <= ids
 
 
