@@ -214,6 +214,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "multiwindow_evidence_closure.py",
         "offline_research_dry_run.py",
         "operator_trust_multirun_report.py",
+        "operator_trust_review_gate.py",
         "opportunity_value.py",
         "rejection_reasons.py",
         "research_memory.py",

@@ -66,6 +66,7 @@ def test_required_surfaces_are_classified() -> None:
         "single_dataset_offline_replay",
         "multiwindow_evidence_closure",
         "research_memory_feedback_loop",
+        "operator_trust_review_gate",
     } <= ids
 
 

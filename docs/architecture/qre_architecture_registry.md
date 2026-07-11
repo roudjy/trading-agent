@@ -202,6 +202,12 @@ and rejection reasons to produce auditable prioritization, suppression, and
 next-action records. It does not create production strategies or campaigns or
 grant execution authority.
 
+`operator_trust_review_gate` is registered as governance-only offline operator
+review. It produces operator-readable and machine-readable decisions over
+governed offline evidence closure and memory feedback, including eligibility for
+more offline research or explicit blockers. It denies shadow, paper, live,
+broker, risk, order, capital, and synthesis authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
