@@ -22,9 +22,17 @@ REQUIRED_WINDOWS: Final[tuple[WindowName, ...]] = (
     "trade_count",
     "data_quality",
 )
-WINDOW_REASON_CODES: Final[dict[WindowName, str]] = {
+MISSING_WINDOW_REASON_CODES: Final[dict[WindowName, str]] = {
     "in_sample": reasons.RejectionReasonCode.INSUFFICIENT_DATA.value,
     "out_of_sample": reasons.RejectionReasonCode.OOS_NOT_AVAILABLE.value,
+    "null_model": reasons.RejectionReasonCode.EVIDENCE_INCOMPLETE.value,
+    "cost_model": reasons.RejectionReasonCode.EVIDENCE_INCOMPLETE.value,
+    "trade_count": reasons.RejectionReasonCode.INSUFFICIENT_TRADES.value,
+    "data_quality": reasons.RejectionReasonCode.INSUFFICIENT_DATA.value,
+}
+FAILED_WINDOW_REASON_CODES: Final[dict[WindowName, str]] = {
+    "in_sample": reasons.RejectionReasonCode.SCREENING_CRITERIA_NOT_MET.value,
+    "out_of_sample": reasons.RejectionReasonCode.SCREENING_CRITERIA_NOT_MET.value,
     "null_model": reasons.RejectionReasonCode.NULL_MODEL_NOT_BEATEN.value,
     "cost_model": reasons.RejectionReasonCode.COST_MODEL_FAILED.value,
     "trade_count": reasons.RejectionReasonCode.INSUFFICIENT_TRADES.value,
@@ -87,7 +95,12 @@ def _next_action(name: WindowName, status: WindowStatus) -> str:
 
 
 def _window(name: WindowName, status: WindowStatus) -> EvidenceWindow:
-    reason_codes = (WINDOW_REASON_CODES[name],) if status in {"missing", "failed"} else ()
+    if status == "missing":
+        reason_codes = (MISSING_WINDOW_REASON_CODES[name],)
+    elif status == "failed":
+        reason_codes = (FAILED_WINDOW_REASON_CODES[name],)
+    else:
+        reason_codes = ()
     return EvidenceWindow(name=name, status=status, reason_codes=reason_codes, next_action=_next_action(name, status))
 
 

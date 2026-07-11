@@ -217,6 +217,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "opportunity_value.py",
         "rejection_reasons.py",
         "research_memory.py",
+        "research_memory_feedback_loop.py",
         "research_throughput_controls.py",
         "retrieval_coverage.py",
         "second_preregistered_campaign.py",
