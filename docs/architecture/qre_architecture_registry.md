@@ -182,6 +182,13 @@ not mutate frozen research outputs, create production research artifacts, run
 research, or grant synthesis, shadow, paper, live, broker, risk, order, or
 capital authority.
 
+`single_dataset_offline_replay` is registered as governance-only single-dataset
+offline replay. It admits or blocks one fixture/sample/cache dataset boundary,
+records source/data provenance and a dataset fingerprint, runs or blocks one
+governed offline hypothesis through the dry-run route, and persists the result
+through the governed offline artifact contract. It does not broaden datasets,
+mutate frozen outputs, run uncontrolled research, or grant execution authority.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:

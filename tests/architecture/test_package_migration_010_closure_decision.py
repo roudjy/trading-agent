@@ -88,6 +88,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "research_throughput_controls.py",
         "retrieval_coverage.py",
         "second_preregistered_campaign.py",
+        "single_dataset_offline_replay.py",
         "tiingo_canonical_bridge.py",
         "universe.py",
     ],
