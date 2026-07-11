@@ -207,6 +207,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "generated_strategy_paths.py",
         "governed_candidate_batch.py",
         "governed_offline_artifacts.py",
+        "governed_offline_research_runner.py",
         "hypothesis_generator_governance.py",
         "hypothesis_lifecycle.py",
         "maturity_gate.py",

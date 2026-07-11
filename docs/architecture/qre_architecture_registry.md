@@ -182,6 +182,14 @@ not mutate frozen research outputs, create production research artifacts, run
 research, or grant synthesis, shadow, paper, live, broker, risk, order, or
 capital authority.
 
+`governed_offline_research_runner` is registered as governance-only offline
+operator workflow. It orchestrates single-dataset replay, multi-window evidence
+closure, governed artifact persistence, research memory feedback, and operator
+trust review from one explicit operator command. It writes only under the
+caller-provided safe artifact directory, never mutates frozen research outputs,
+does not fetch external data or run production research, and grants no
+synthesis, shadow, paper, live, broker, risk, order, or capital authority.
+
 `single_dataset_offline_replay` is registered as governance-only single-dataset
 offline replay. It admits or blocks one fixture/sample/cache dataset boundary,
 records source/data provenance and a dataset fingerprint, runs or blocks one

@@ -76,6 +76,7 @@ BOUNDED_PACKAGE_CONTENTS = {
         "generated_strategy_paths.py",
         "governed_candidate_batch.py",
         "governed_offline_artifacts.py",
+        "governed_offline_research_runner.py",
         "hypothesis_generator_governance.py",
         "hypothesis_lifecycle.py",
         "maturity_gate.py",
