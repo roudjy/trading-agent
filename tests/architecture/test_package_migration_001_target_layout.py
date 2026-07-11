@@ -211,6 +211,7 @@ def test_package_migration_001_qre_research_has_only_bounded_read_only_seed() ->
         "hypothesis_lifecycle.py",
         "maturity_gate.py",
         "memory_aware_hypothesis_generation.py",
+        "multiwindow_evidence_closure.py",
         "offline_research_dry_run.py",
         "operator_trust_multirun_report.py",
         "opportunity_value.py",
