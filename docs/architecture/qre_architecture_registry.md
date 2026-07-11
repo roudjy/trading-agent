@@ -226,6 +226,11 @@ operator workflow. It wraps the catalog and governed offline runner for one
 explicit dataset/hypothesis pair and writes only to caller-provided safe output
 directories.
 
+`governed_offline_run_registry` is registered as governance-only offline lineage
+indexing. It builds read-model indexes from governed offline artifacts, marks
+fixture/sample runs as non-production evidence, and writes only to
+caller-provided safe directories.
+
 ## Validation
 
 `packages/qre_research/architecture_registry.py` validates:
